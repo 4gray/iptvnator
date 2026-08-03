@@ -25,6 +25,7 @@ function createdObjectNames(prefix: string, statements: readonly string[]) {
 }
 
 function rebuildDownloadsInElectron(metadataSnapshot: string): {
+    episodeIdentityScope: string;
     metadataSnapshot: string;
     retainedAfterPlaylistDelete: boolean;
     schemaSql: string;
@@ -51,6 +52,7 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
                 series_xtream_id INTEGER,
                 season_number INTEGER,
                 episode_number INTEGER,
+                episode_identity_scope TEXT,
                 title TEXT NOT NULL,
                 url TEXT NOT NULL,
                 file_name TEXT,
@@ -84,20 +86,22 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
                 content_type,
                 title,
                 url,
-                metadata_snapshot
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                metadata_snapshot,
+                episode_identity_scope
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         \`).run(
             'playlist-1',
             42,
             'vod',
             'Offline title',
             'https://example.com/movie',
-            metadataSnapshot
+            metadataSnapshot,
+            'stalker-lazy-vod'
         );
         console.log = () => undefined;
         __databaseConnectionTestHooks.ensureDownloadsPauseResumeSchema(sqlite);
         const row = sqlite.prepare(
-            'SELECT metadata_snapshot FROM downloads WHERE id = 1'
+            'SELECT metadata_snapshot, episode_identity_scope FROM downloads WHERE id = 1'
         ).get();
         const table = sqlite.prepare(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'downloads'"
@@ -109,6 +113,7 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
         ).get());
         sqlite.close();
         process.stdout.write(JSON.stringify({
+            episodeIdentityScope: row.episode_identity_scope,
             metadataSnapshot: row.metadata_snapshot,
             retainedAfterPlaylistDelete,
             schemaSql: table.sql,
@@ -129,6 +134,7 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
     );
 
     return JSON.parse(output) as {
+        episodeIdentityScope: string;
         metadataSnapshot: string;
         retainedAfterPlaylistDelete: boolean;
         schemaSql: string;
@@ -240,6 +246,8 @@ describe('database schema statements', () => {
         expect(schemaSql).toContain('resume_validator TEXT');
         expect(schemaSql).toContain('metadata_snapshot TEXT');
         expect(downloadColumns).toContain('metadata_snapshot');
+        expect(schemaSql).toContain('episode_identity_scope TEXT');
+        expect(downloadColumns).toContain('episode_identity_scope');
         expect(schemaSql).toContain("'paused'");
         expect(schemaSql).toContain(
             'CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique'
@@ -287,6 +295,9 @@ describe('database schema statements', () => {
         );
         expect(columnMigrationStatements).toContain(
             'ALTER TABLE downloads ADD COLUMN metadata_snapshot TEXT'
+        );
+        expect(columnMigrationStatements).toContain(
+            'ALTER TABLE downloads ADD COLUMN episode_identity_scope TEXT'
         );
     });
 
@@ -658,6 +669,7 @@ describe('database schema statements', () => {
         expect(rebuilt.schemaSql).toContain(`'paused'`);
         expect(rebuilt.schemaSql).not.toContain('REFERENCES playlists');
         expect(rebuilt.metadataSnapshot).toBe(metadataSnapshot);
+        expect(rebuilt.episodeIdentityScope).toBe('stalker-lazy-vod');
         expect(rebuilt.retainedAfterPlaylistDelete).toBe(true);
     });
 

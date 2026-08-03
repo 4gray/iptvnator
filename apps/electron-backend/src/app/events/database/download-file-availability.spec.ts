@@ -1,6 +1,8 @@
 import {
+    createDownloadFileAvailabilityProbe,
     decorateDownloadItem,
     getDownloadFileAvailability,
+    getDownloadFileAvailabilityWithTimeoutAsync,
     isAvailableDownloadFile,
     type DownloadLstat,
 } from './download-file-availability';
@@ -16,6 +18,54 @@ function lstatResult(options: {
 }
 
 describe('download file availability', () => {
+    it.each([
+        ['EACCES', 'unknown'],
+        ['EIO', 'unknown'],
+        ['ENOENT', 'missing'],
+        ['ENOTDIR', 'missing'],
+    ] as const)(
+        'classifies an %s filesystem probe without risking a completed row',
+        async (code, expected) => {
+            const error = Object.assign(new Error(code), { code });
+            const probe = createDownloadFileAvailabilityProbe(async () => {
+                throw error;
+            });
+
+            await expect(
+                getDownloadFileAvailabilityWithTimeoutAsync(
+                    {
+                        filePath: '/downloads/episode.mp4',
+                        status: 'completed',
+                    },
+                    25,
+                    probe
+                )
+            ).resolves.toBe(expected);
+        }
+    );
+
+    it('bounds a restored-file probe and returns unknown on timeout', async () => {
+        jest.useFakeTimers();
+        try {
+            const probe = jest.fn(() => new Promise<boolean>(() => undefined));
+            const result = getDownloadFileAvailabilityWithTimeoutAsync(
+                {
+                    filePath: '/downloads/unresponsive/episode.mp4',
+                    status: 'completed',
+                },
+                25,
+                probe
+            );
+
+            await jest.advanceTimersByTimeAsync(25);
+
+            await expect(result).resolves.toBe('unknown');
+            expect(probe).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('marks only a completed regular non-symbolic-link file available', () => {
         const lstat = lstatResult({ isFile: true });
 

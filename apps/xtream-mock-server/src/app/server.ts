@@ -14,6 +14,8 @@ import {
     XtreamPerformanceController,
 } from './performance-control.js';
 import { dispatchAction } from './routes/dispatch.js';
+import { getScenario } from './scenarios.js';
+import { streamSlowSeriesDownload } from './slow-series-download.js';
 
 export { createXtreamMockServerShutdown } from './server-lifecycle.js';
 
@@ -251,15 +253,34 @@ function installStreamRoutes(
         }
         response.redirect(HLS_STUB);
     };
+    const seriesResponse = (request: Request, response: Response) => {
+        if (isPerformanceMediaRequest(request, controlEnabled)) {
+            response.status(410).json({ error: 'performance-media-disabled' });
+            return;
+        }
+        if (isSlowSeriesDownloadRequest(request)) {
+            streamSlowSeriesDownload(request, response);
+            return;
+        }
+        response.redirect(HLS_STUB);
+    };
     app.get('/live/:username/:password/:streamId.m3u8', streamResponse);
     app.get('/live/:username/:password/:streamId.ts', streamResponse);
     app.get('/movie/:username/:password/:streamId.:ext', streamResponse);
-    app.get('/series/:username/:password/:streamId.:ext', streamResponse);
+    app.get('/series/:username/:password/:streamId.:ext', seriesResponse);
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
         streamResponse
     );
     app.all('/streaming/timeshift.php', streamResponse);
+}
+
+function isSlowSeriesDownloadRequest(request: Request): boolean {
+    const username = String(request.params['username'] ?? '');
+    const password = String(request.params['password'] ?? '');
+    return (
+        getScenario(username, password).downloadStreamFixture === 'slow-series'
+    );
 }
 
 function isPerformanceMediaRequest(

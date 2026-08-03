@@ -10,7 +10,9 @@ import {
 import type {
     DownloadMetadataSnapshot,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeDownloadStartResult,
 } from '@iptvnator/shared/interfaces';
+import { DownloadListLoadState } from './download-list-load-state';
 import { DownloadItem, DownloadsService } from './downloads.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
@@ -19,6 +21,7 @@ type TestDownloadsService = {
     downloadFolder: WritableSignal<string>;
     isAvailable: () => boolean;
     isLoadingDownloads: Signal<boolean>;
+    hasAuthoritativeDownloadList: Signal<boolean>;
     hasLoadedDownloads: Signal<boolean>;
     getDownload: DownloadsService['getDownload'];
     loadDownloads: DownloadsService['loadDownloads'];
@@ -29,15 +32,13 @@ type TestDownloadsService = {
     selectFolder: DownloadsService['selectFolder'];
     startDownload: DownloadsService['startDownload'];
     updateMetadata: DownloadsService['updateMetadata'];
-    _isLoadingDownloads: WritableSignal<boolean>;
-    _hasLoadedDownloads: WritableSignal<boolean>;
-    loadDownloadsRequestId: number;
+    downloadListLoadState: DownloadListLoadState;
 };
 
 type DownloadsElectronStub = {
     downloadsGetDefaultFolder?: jest.Mock<Promise<string>, []>;
     downloadsStart?: jest.Mock<
-        Promise<{ success: boolean; id?: number; error?: string }>,
+        Promise<ElectronBridgeDownloadStartResult>,
         [ElectronBridgeDownloadStartPayload]
     >;
     downloadsUpdateMetadata?: jest.Mock<
@@ -116,8 +117,7 @@ describe('DownloadsService', () => {
 
     function createService(initialDownloads: DownloadItem[] = []) {
         const downloads = signal(initialDownloads);
-        const isLoadingDownloads = signal(false);
-        const hasLoadedDownloads = signal(false);
+        const downloadListLoadState = new DownloadListLoadState();
         const downloadFolder = signal('');
         const service = Object.create(
             DownloadsService.prototype
@@ -127,11 +127,11 @@ describe('DownloadsService', () => {
             downloads,
             downloadFolder,
             isAvailable: () => true,
-            _isLoadingDownloads: isLoadingDownloads,
-            isLoadingDownloads: isLoadingDownloads.asReadonly(),
-            _hasLoadedDownloads: hasLoadedDownloads,
-            hasLoadedDownloads: hasLoadedDownloads.asReadonly(),
-            loadDownloadsRequestId: 0,
+            downloadListLoadState,
+            isLoadingDownloads: downloadListLoadState.isLoading,
+            hasAuthoritativeDownloadList:
+                downloadListLoadState.hasAuthoritativeList,
+            hasLoadedDownloads: downloadListLoadState.hasLoaded,
         });
 
         return service;
@@ -182,6 +182,7 @@ describe('DownloadsService', () => {
         const request = service.loadDownloads();
 
         expect(service.isLoadingDownloads()).toBe(true);
+        expect(service.hasAuthoritativeDownloadList()).toBe(false);
         expect(service.hasLoadedDownloads()).toBe(false);
         expect(electron.downloadsGetList).toHaveBeenCalledWith();
 
@@ -190,6 +191,7 @@ describe('DownloadsService', () => {
 
         expect(service.downloads()).toEqual([item]);
         expect(service.isLoadingDownloads()).toBe(false);
+        expect(service.hasAuthoritativeDownloadList()).toBe(true);
         expect(service.hasLoadedDownloads()).toBe(true);
     });
 
@@ -243,6 +245,38 @@ describe('DownloadsService', () => {
         expect(electron.downloadsStart.mock.calls[0][0].metadataSnapshot).toBe(
             metadataSnapshot
         );
+    });
+
+    it('returns an already-in-progress start result unchanged', async () => {
+        const bridgeResult: ElectronBridgeDownloadStartResult = {
+            success: false,
+            reason: 'already-in-progress',
+        };
+        const electron = {
+            downloadsGetDefaultFolder: jest.fn(async () => '/downloads'),
+            downloadsGetList: jest.fn(async () => []),
+            downloadsStart: jest
+                .fn<
+                    Promise<ElectronBridgeDownloadStartResult>,
+                    [ElectronBridgeDownloadStartPayload]
+                >()
+                .mockResolvedValue(bridgeResult),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(
+            service.startDownload({
+                playlistId: 'playlist-1',
+                xtreamId: 7,
+                contentType: 'episode',
+                seriesXtreamId: 3,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                title: 'Episode 2',
+                url: 'https://example.com/episode-2.mp4',
+            })
+        ).resolves.toBe(bridgeResult);
     });
 
     it('stores a selected download folder returned by the main process', async () => {
@@ -465,21 +499,26 @@ describe('DownloadsService', () => {
         );
     });
 
-    it('marks downloads as loaded after a failed request while preserving existing data', async () => {
+    it('marks a failed request complete while making the preserved list non-authoritative', async () => {
         const existing = createDownload(1);
         const error = new Error('download query failed');
+        const pending = createDeferred<DownloadItem[]>();
         jest.spyOn(console, 'error').mockImplementation(() => undefined);
         testWindow.electron = {
-            downloadsGetList: jest.fn(async () => {
-                throw error;
-            }),
+            downloadsGetList: jest.fn(() => pending.promise),
         };
         const service = createService([existing]);
+        service.downloadListLoadState.markSucceeded();
 
-        await service.loadDownloads();
+        const request = service.loadDownloads();
+
+        expect(service.hasAuthoritativeDownloadList()).toBe(true);
+        pending.reject(error);
+        await request;
 
         expect(service.downloads()).toEqual([existing]);
         expect(service.isLoadingDownloads()).toBe(false);
+        expect(service.hasAuthoritativeDownloadList()).toBe(false);
         expect(service.hasLoadedDownloads()).toBe(true);
         expect(console.error).toHaveBeenCalledWith(
             '[DownloadsService] Error loading downloads:',
@@ -487,8 +526,8 @@ describe('DownloadsService', () => {
         );
     });
 
-    it('keeps only the latest overlapping download list request result', async () => {
-        const staleItem = createDownload(1, 'playlist-old');
+    it('serializes overlapping requests and finishes with the trailing snapshot', async () => {
+        const initialItem = createDownload(1, 'playlist-initial');
         const latestItem = createDownload(2, 'playlist-new');
         const first = createDeferred<DownloadItem[]>();
         const second = createDeferred<DownloadItem[]>();
@@ -505,21 +544,70 @@ describe('DownloadsService', () => {
         const secondRequest = service.loadDownloads();
 
         expect(service.isLoadingDownloads()).toBe(true);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(1);
+
+        first.resolve([initialItem]);
+        await firstRequest;
+
+        expect(service.downloads()).toEqual([initialItem]);
+        expect(service.isLoadingDownloads()).toBe(true);
+        expect(service.hasLoadedDownloads()).toBe(true);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(2);
 
         second.resolve([latestItem]);
         await secondRequest;
 
         expect(service.downloads()).toEqual([latestItem]);
         expect(service.isLoadingDownloads()).toBe(false);
-        expect(service.hasLoadedDownloads()).toBe(true);
-
-        first.resolve([staleItem]);
-        await firstRequest;
-
-        expect(service.downloads()).toEqual([latestItem]);
-        expect(service.isLoadingDownloads()).toBe(false);
         expect(electron.downloadsGetList).toHaveBeenNthCalledWith(1);
         expect(electron.downloadsGetList).toHaveBeenNthCalledWith(2);
+    });
+
+    it('coalesces update storms without starving a queued refresh caller', async () => {
+        const initialItem = createDownload(1, 'playlist-initial');
+        const preflightItem = createDownload(2, 'playlist-preflight');
+        const broadcastItem = createDownload(3, 'playlist-broadcast');
+        const first = createDeferred<DownloadItem[]>();
+        const second = createDeferred<DownloadItem[]>();
+        const third = createDeferred<DownloadItem[]>();
+        const electron = {
+            downloadsGetList: jest
+                .fn()
+                .mockReturnValueOnce(first.promise)
+                .mockReturnValueOnce(second.promise)
+                .mockReturnValueOnce(third.promise),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        let preflightSettled = false;
+
+        const firstRequest = service.loadDownloads();
+        const preflightRequest = service.loadDownloads().finally(() => {
+            preflightSettled = true;
+        });
+
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(1);
+
+        first.resolve([initialItem]);
+        await firstRequest;
+
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(2);
+        expect(preflightSettled).toBe(false);
+
+        const broadcastRequest = service.loadDownloads();
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(2);
+
+        second.resolve([preflightItem]);
+        await preflightRequest;
+
+        expect(preflightSettled).toBe(true);
+        expect(service.downloads()).toEqual([preflightItem]);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(3);
+
+        third.resolve([broadcastItem]);
+        await broadcastRequest;
+
+        expect(service.downloads()).toEqual([broadcastItem]);
     });
 
     it('reports paused content and resumes it by content identity', async () => {

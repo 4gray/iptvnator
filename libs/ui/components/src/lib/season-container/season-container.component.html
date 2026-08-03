@@ -1,33 +1,14 @@
 <section class="seasons-section">
-    <div class="section-header">
-        <div class="section-header__left">
-            <h3 class="section-title">
-                {{ 'PORTALS.SEASONS_AND_EPISODES' | translate }}
-            </h3>
-        </div>
-        @if (hasSeasons() && !showSeasonEmptyState()) {
-            <div class="view-toggle">
-                <mat-button-toggle-group
-                    [value]="viewMode()"
-                    (change)="setViewMode($event.value)"
-                    hideSingleSelectionIndicator
-                >
-                    <mat-button-toggle
-                        value="grid"
-                        [matTooltip]="'PORTALS.GRID_VIEW' | translate"
-                    >
-                        <mat-icon>grid_view</mat-icon>
-                    </mat-button-toggle>
-                    <mat-button-toggle
-                        value="list"
-                        [matTooltip]="'PORTALS.LIST_VIEW' | translate"
-                    >
-                        <mat-icon>view_list</mat-icon>
-                    </mat-button-toggle>
-                </mat-button-toggle-group>
-            </div>
-        }
-    </div>
+    <app-season-header
+        [downloadVisible]="downloadPresenter.presentationVisible()"
+        [batchRunning]="downloadPresenter.batchRunning()"
+        [seasonDisabled]="downloadPresenter.seasonDisabled()"
+        [eligibleEpisodeCount]="downloadPresenter.eligibleEpisodeCount()"
+        [viewToggleVisible]="hasSeasons() && !showSeasonEmptyState()"
+        [viewMode]="viewMode()"
+        (downloadSeason)="downloadPresenter.enqueueSeason()"
+        (viewModeChange)="setViewMode($event)"
+    />
 
     @if (hasSeasons()) {
         <app-season-tabs
@@ -155,73 +136,65 @@
                                     }}</mat-icon>
                                 </button>
                                 <div class="episode-card__actions">
-                                    @if (isElectron() && downloadsEnabled()) {
-                                        @if (isEpisodeDownloaded(episode)) {
-                                            <button
-                                                mat-icon-button
-                                                class="download-btn download-btn--completed"
-                                                (click)="
-                                                    playFromLocal(
-                                                        $event,
-                                                        episode
-                                                    )
-                                                "
-                                                [matTooltip]="
-                                                    'DOWNLOADS.PLAY_LOCAL'
-                                                        | translate
-                                                "
-                                            >
-                                                <mat-icon>play_circle</mat-icon>
-                                            </button>
-                                        } @else if (isEpisodePaused(episode)) {
-                                            <button
-                                                mat-icon-button
-                                                class="download-btn download-btn--paused"
-                                                (click)="
-                                                    resumeEpisodeDownload(
-                                                        $event,
-                                                        episode
-                                                    )
-                                                "
-                                                [matTooltip]="
-                                                    'DOWNLOADS.RESUME'
-                                                        | translate
-                                                "
-                                            >
-                                                <mat-icon>play_arrow</mat-icon>
-                                            </button>
-                                        } @else if (
-                                            isEpisodeDownloading(episode)
-                                        ) {
-                                            <button
-                                                mat-icon-button
-                                                class="download-btn download-btn--downloading"
-                                                disabled
-                                                [matTooltip]="
-                                                    'DOWNLOADS.STATUS.DOWNLOADING'
-                                                        | translate
-                                                "
-                                            >
-                                                <mat-icon>downloading</mat-icon>
-                                            </button>
-                                        } @else {
-                                            <button
-                                                mat-icon-button
-                                                class="download-btn"
-                                                (click)="
-                                                    downloadEpisode(
-                                                        $event,
-                                                        episode
-                                                    )
-                                                "
-                                                [matTooltip]="
-                                                    'DOWNLOADS.DOWNLOAD'
-                                                        | translate
-                                                "
-                                            >
-                                                <mat-icon>download</mat-icon>
-                                            </button>
-                                        }
+                                    @if (
+                                        downloadPresenter.presentationVisible()
+                                    ) {
+                                        @let downloadRow =
+                                            downloadPresenter.rowFor(episode);
+                                        @let downloadState =
+                                            downloadRow.presentation;
+                                        <button
+                                            mat-icon-button
+                                            class="download-btn"
+                                            [class.download-btn--completed]="
+                                                downloadState.action === 'play'
+                                            "
+                                            [class.download-btn--paused]="
+                                                downloadState.action ===
+                                                'resume'
+                                            "
+                                            [class.download-btn--downloading]="
+                                                downloadState.disabled
+                                            "
+                                            [disabled]="downloadState.disabled"
+                                            [attr.data-test-id]="
+                                                'episode-download-' + episode.id
+                                            "
+                                            [attr.aria-label]="
+                                                downloadState.action === 'play'
+                                                    ? ('DOWNLOADS.PLAY_LOCAL'
+                                                          | translate) +
+                                                      ': ' +
+                                                      episode.title
+                                                    : (downloadState.ariaKey
+                                                      | translate
+                                                          : {
+                                                                title: episode.title,
+                                                            })
+                                            "
+                                            [matTooltip]="
+                                                downloadState.action === 'play'
+                                                    ? ('DOWNLOADS.PLAY_LOCAL'
+                                                          | translate) +
+                                                      ': ' +
+                                                      episode.title
+                                                    : (downloadState.ariaKey
+                                                      | translate
+                                                          : {
+                                                                title: episode.title,
+                                                            })
+                                            "
+                                            (click)="
+                                                downloadPresenter.runEpisodeAction(
+                                                    $event,
+                                                    episode
+                                                )
+                                            "
+                                        >
+                                            <mat-icon>{{
+                                                downloadState.icon
+                                            }}</mat-icon>
+                                        </button>
                                     }
                                 </div>
                                 <div class="episode-card__overlay">
@@ -412,63 +385,56 @@
                                         }}</mat-icon>
                                     }
                                 </button>
-                                @if (isElectron() && downloadsEnabled()) {
-                                    @if (isEpisodeDownloaded(episode)) {
-                                        <button
-                                            mat-icon-button
-                                            class="action-btn action-btn--success"
-                                            (click)="
-                                                playFromLocal($event, episode)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.PLAY_LOCAL'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>folder_open</mat-icon>
-                                        </button>
-                                    } @else if (isEpisodePaused(episode)) {
-                                        <button
-                                            mat-icon-button
-                                            class="action-btn"
-                                            (click)="
-                                                resumeEpisodeDownload(
-                                                    $event,
-                                                    episode
-                                                )
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.RESUME' | translate
-                                            "
-                                        >
-                                            <mat-icon>play_arrow</mat-icon>
-                                        </button>
-                                    } @else if (isEpisodeDownloading(episode)) {
-                                        <button
-                                            mat-icon-button
-                                            class="action-btn"
-                                            disabled
-                                            [matTooltip]="
-                                                'DOWNLOADS.STATUS.DOWNLOADING'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>downloading</mat-icon>
-                                        </button>
-                                    } @else {
-                                        <button
-                                            mat-icon-button
-                                            class="action-btn"
-                                            (click)="
-                                                downloadEpisode($event, episode)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.DOWNLOAD' | translate
-                                            "
-                                        >
-                                            <mat-icon>download</mat-icon>
-                                        </button>
-                                    }
+                                @if (downloadPresenter.presentationVisible()) {
+                                    @let downloadRow =
+                                        downloadPresenter.rowFor(episode);
+                                    @let downloadState =
+                                        downloadRow.presentation;
+                                    <button
+                                        mat-icon-button
+                                        class="action-btn"
+                                        [class.action-btn--success]="
+                                            downloadState.action === 'play'
+                                        "
+                                        [disabled]="downloadState.disabled"
+                                        [attr.data-test-id]="
+                                            'episode-download-' + episode.id
+                                        "
+                                        [attr.aria-label]="
+                                            downloadState.action === 'play'
+                                                ? ('DOWNLOADS.PLAY_LOCAL'
+                                                      | translate) +
+                                                  ': ' +
+                                                  episode.title
+                                                : (downloadState.ariaKey
+                                                  | translate
+                                                      : {
+                                                            title: episode.title,
+                                                        })
+                                        "
+                                        [matTooltip]="
+                                            downloadState.action === 'play'
+                                                ? ('DOWNLOADS.PLAY_LOCAL'
+                                                      | translate) +
+                                                  ': ' +
+                                                  episode.title
+                                                : (downloadState.ariaKey
+                                                  | translate
+                                                      : {
+                                                            title: episode.title,
+                                                        })
+                                        "
+                                        (click)="
+                                            downloadPresenter.runEpisodeAction(
+                                                $event,
+                                                episode
+                                            )
+                                        "
+                                    >
+                                        <mat-icon>{{
+                                            downloadState.icon
+                                        }}</mat-icon>
+                                    </button>
                                 }
                                 @if (episodeInfo?.plot) {
                                     <button

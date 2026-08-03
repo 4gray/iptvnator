@@ -98,6 +98,7 @@ const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
       series_xtream_id INTEGER,
       season_number INTEGER,
       episode_number INTEGER,
+      episode_identity_scope TEXT,
       title TEXT NOT NULL,
       url TEXT NOT NULL,
       file_name TEXT,
@@ -381,6 +382,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE downloads ADD COLUMN resume_validator TEXT`,
     // Offline details: provider-neutral display metadata captured at download time
     `ALTER TABLE downloads ADD COLUMN metadata_snapshot TEXT`,
+    // Series queue: scope coordinate compatibility across provider series modes
+    `ALTER TABLE downloads ADD COLUMN episode_identity_scope TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
@@ -1010,6 +1013,12 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
         const legacyResumeValidatorSelect = hasResumeValidator
             ? 'resume_validator'
             : 'NULL AS resume_validator';
+        const hasEpisodeIdentityScope = row.sql.includes(
+            'episode_identity_scope'
+        );
+        const legacyEpisodeIdentityScopeSelect = hasEpisodeIdentityScope
+            ? 'episode_identity_scope'
+            : 'NULL AS episode_identity_scope';
         const rebuild = sqliteDb.transaction(() => {
             for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
                 const match = statement.match(
@@ -1036,6 +1045,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         series_xtream_id,
                         season_number,
                         episode_number,
+                        episode_identity_scope,
                         title,
                         url,
                         file_name,
@@ -1059,6 +1069,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         series_xtream_id,
                         season_number,
                         episode_number,
+                        ${legacyEpisodeIdentityScopeSelect},
                         title,
                         url,
                         file_name,

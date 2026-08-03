@@ -77,6 +77,109 @@ describe('downloads events: file availability', () => {
         await expect(response).resolves.toHaveLength(2);
     });
 
+    it('bounds each refresh without duplicating an unresponsive filesystem probe', async () => {
+        jest.useFakeTimers();
+        try {
+            const row = {
+                filePath: '/downloads/unresponsive/movie.mp4',
+                id: 1,
+                status: 'completed',
+            };
+            const orderBy = jest.fn().mockResolvedValue([row]);
+            mockGetDatabase.mockResolvedValue({
+                select: jest.fn(() => ({
+                    from: jest.fn(() => ({ orderBy })),
+                })),
+            });
+            let finishFirstProbe!: (
+                value: ReturnType<typeof regularFile>
+            ) => void;
+            mockLstat
+                .mockReturnValueOnce(
+                    new Promise((resolve) => {
+                        finishFirstProbe = resolve;
+                    })
+                )
+                .mockResolvedValueOnce(regularFile());
+
+            const timedOutRefresh = getHandler('DOWNLOADS_GET_LIST')(null);
+            await jest.advanceTimersByTimeAsync(1_000);
+
+            await expect(timedOutRefresh).resolves.toEqual([
+                {
+                    ...row,
+                    metadataSnapshot: undefined,
+                    fileAvailability: 'missing',
+                },
+            ]);
+
+            const secondTimedOutRefresh =
+                getHandler('DOWNLOADS_GET_LIST')(null);
+            await jest.advanceTimersByTimeAsync(1_000);
+            await expect(secondTimedOutRefresh).resolves.toEqual([
+                {
+                    ...row,
+                    metadataSnapshot: undefined,
+                    fileAvailability: 'missing',
+                },
+            ]);
+            expect(mockLstat).toHaveBeenCalledTimes(1);
+
+            finishFirstProbe(regularFile());
+            await jest.advanceTimersByTimeAsync(0);
+
+            await expect(
+                getHandler('DOWNLOADS_GET_LIST')(null)
+            ).resolves.toEqual([
+                {
+                    ...row,
+                    metadataSnapshot: undefined,
+                    fileAvailability: 'available',
+                },
+            ]);
+            expect(mockLstat).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    }, 500);
+
+    it('starts the list deadline before a completed-file probe waits for a slot', async () => {
+        jest.useFakeTimers();
+        try {
+            const rows = Array.from({ length: 5 }, (_, index) => ({
+                filePath: `/downloads/offline/movie-${index}.mp4`,
+                id: index + 1,
+                status: 'completed',
+            }));
+            const orderBy = jest.fn().mockResolvedValue(rows);
+            mockGetDatabase.mockResolvedValue({
+                select: jest.fn(() => ({
+                    from: jest.fn(() => ({ orderBy })),
+                })),
+            });
+            mockLstat.mockImplementation(
+                () =>
+                    new Promise(() => {
+                        // Keep all four shared filesystem slots occupied.
+                    })
+            );
+
+            const refresh = getHandler('DOWNLOADS_GET_LIST')(null);
+            await jest.advanceTimersByTimeAsync(1_000);
+
+            await expect(refresh).resolves.toEqual(
+                rows.map((row) => ({
+                    ...row,
+                    metadataSnapshot: undefined,
+                    fileAvailability: 'missing',
+                }))
+            );
+            expect(mockLstat).toHaveBeenCalledTimes(4);
+        } finally {
+            jest.useRealTimers();
+        }
+    }, 500);
+
     it('starts at most four completed-file probes concurrently', async () => {
         const rows = Array.from({ length: 6 }, (_, index) => ({
             filePath: `/downloads/network/movie-${index}.mp4`,

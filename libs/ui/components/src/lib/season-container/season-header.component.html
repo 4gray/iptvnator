@@ -1,0 +1,71 @@
+<div class="section-header">
+    <div class="section-header__left">
+        <h3 class="section-title">
+            {{ 'PORTALS.SEASONS_AND_EPISODES' | translate }}
+        </h3>
+    </div>
+    @if (downloadVisible() || viewToggleVisible()) {
+        <div class="section-header__actions">
+            @if (downloadVisible()) {
+                <button
+                    mat-stroked-button
+                    class="season-download-button"
+                    data-test-id="download-season"
+                    [disabled]="seasonDisabled()"
+                    [attr.aria-label]="
+                        batchRunning()
+                            ? ('DOWNLOADS.ADDING_TO_QUEUE' | translate)
+                            : ('DOWNLOADS.DOWNLOAD_SEASON_ARIA'
+                              | translate: { count: eligibleEpisodeCount() })
+                    "
+                    [attr.aria-busy]="batchRunning() ? 'true' : null"
+                    (click)="downloadSeason.emit()"
+                >
+                    @if (batchRunning()) {
+                        <mat-spinner
+                            diameter="18"
+                            aria-hidden="true"
+                        ></mat-spinner>
+                    } @else {
+                        <mat-icon>download</mat-icon>
+                    }
+                    <span class="season-download-button__label">
+                        @if (batchRunning()) {
+                            {{ 'DOWNLOADS.ADDING_TO_QUEUE' | translate }}
+                        } @else {
+                            {{
+                                'DOWNLOADS.DOWNLOAD_SEASON'
+                                    | translate
+                                        : { count: eligibleEpisodeCount() }
+                            }}
+                        }
+                    </span>
+                </button>
+            }
+            @if (viewToggleVisible()) {
+                <div class="view-toggle">
+                    <mat-button-toggle-group
+                        [value]="viewMode()"
+                        (change)="viewModeChange.emit($event.value)"
+                        hideSingleSelectionIndicator
+                    >
+                        <mat-button-toggle
+                            value="grid"
+                            [aria-label]="'PORTALS.GRID_VIEW' | translate"
+                            [matTooltip]="'PORTALS.GRID_VIEW' | translate"
+                        >
+                            <mat-icon>grid_view</mat-icon>
+                        </mat-button-toggle>
+                        <mat-button-toggle
+                            value="list"
+                            [aria-label]="'PORTALS.LIST_VIEW' | translate"
+                            [matTooltip]="'PORTALS.LIST_VIEW' | translate"
+                        >
+                            <mat-icon>view_list</mat-icon>
+                        </mat-button-toggle>
+                    </mat-button-toggle-group>
+                </div>
+            }
+        </div>
+    }
+</div>

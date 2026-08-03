@@ -12,12 +12,12 @@ import {
     untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
+import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     createLogger,
     getPortalPlaybackProgressPercent,
@@ -29,15 +29,7 @@ import {
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
-import { DownloadsService } from '@iptvnator/services';
 import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
-import {
-    buildXtreamEpisodeDownloadRequest,
-    getEpisodeDownloadId,
-    isStalkerEpisode,
-    type SeasonContainerDownloadMetadataContext,
-    type XtreamEpisodeDownloadContext,
-} from './episode-download.util';
 import {
     EPISODE_INFO_PLAY,
     EpisodeInfoDialogComponent,
@@ -47,14 +39,14 @@ import {
     formatEpisodePositionText,
     parseDuration,
 } from './episode-progress.util';
+import { SeasonDownloadPresenter } from './season-download-presenter';
+import {
+    type EpisodeViewMode,
+    SeasonHeaderComponent,
+} from './season-header.component';
 import { SeasonTabsComponent } from './season-tabs.component';
 
-type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
-
-export type SeasonContainerXtreamDownloadContext = XtreamEpisodeDownloadContext;
-
-export type { SeasonContainerDownloadMetadataContext } from './episode-download.util';
 
 export interface SeasonContainerPlaybackToggleRequest {
     contentXtreamId: number;
@@ -66,23 +58,24 @@ export interface SeasonContainerPlaybackToggleRequest {
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [SeasonDownloadPresenter],
     imports: [
         MatButtonModule,
-        MatButtonToggleModule,
         MatIcon,
         MatProgressSpinnerModule,
         MatTooltipModule,
         ProgressCapsuleComponent,
+        SeasonHeaderComponent,
         SeasonTabsComponent,
         TranslateModule,
     ],
 })
 export class SeasonContainerComponent implements OnInit {
-    private readonly downloadsService = inject(DownloadsService);
     private readonly dialog = inject(MatDialog);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly logger = createLogger('SeasonContainer');
     private lastEmittedSeason: string | undefined;
+    readonly downloadPresenter = inject(SeasonDownloadPresenter);
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -92,10 +85,7 @@ export class SeasonContainerComponent implements OnInit {
     readonly playbackPositions = input<Map<number, PlaybackPositionData>>(
         new Map()
     );
-    readonly xtreamDownloadContext =
-        input<SeasonContainerXtreamDownloadContext | null>(null);
-    readonly downloadMetadataContext =
-        input<SeasonContainerDownloadMetadataContext | null>(null);
+    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     /** Episode currently playing in an EXTERNAL player session. */
@@ -106,11 +96,9 @@ export class SeasonContainerComponent implements OnInit {
     readonly seasonDescriptions = input<Record<string, string> | null>(null);
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
-    readonly episodeDownloadRequested = output<XtreamSerieEpisode>();
     readonly playbackToggleRequested =
         output<SeasonContainerPlaybackToggleRequest>();
     readonly seasonSelected = output<string>();
-    readonly isElectron = this.downloadsService.isAvailable;
     readonly viewMode = signal<EpisodeViewMode>('grid');
 
     readonly sortedSeasonKeys = computed(() =>
@@ -150,6 +138,11 @@ export class SeasonContainerComponent implements OnInit {
      */
     readonly selectedSeason = signal<string | undefined>(undefined);
 
+    readonly selectedSeasonEpisodes = computed(() => {
+        const selected = this.selectedSeason();
+        return selected ? (this.seasons()[selected] ?? []) : [];
+    });
+
     private readonly autoSelectKey = computed(
         () =>
             `${this.sortedSeasonKeys().join('|')}::${
@@ -184,6 +177,14 @@ export class SeasonContainerComponent implements OnInit {
     });
 
     constructor() {
+        this.downloadPresenter.connect({
+            adapter: this.downloadAdapter,
+            downloadsEnabled: this.downloadsEnabled,
+            isLoading: this.isLoading,
+            selectedEpisodes: this.selectedSeasonEpisodes,
+            selectedSeason: this.selectedSeason,
+        });
+
         effect(() => {
             const key = this.autoSelectKey();
             if (key === this.lastAutoSelectKey) {
@@ -232,11 +233,6 @@ export class SeasonContainerComponent implements OnInit {
             Boolean(selected) &&
             (this.seasons()[selected as string]?.length ?? 0) === 0
         );
-    }
-
-    selectedSeasonEpisodes(): XtreamSerieEpisode[] {
-        const selected = this.selectedSeason();
-        return selected ? (this.seasons()[selected] ?? []) : [];
     }
 
     selectSeason(seasonKey: string) {
@@ -361,106 +357,6 @@ export class SeasonContainerComponent implements OnInit {
 
     getEpisodeContentId(episode: XtreamSerieEpisode): number {
         return Number(episode.id);
-    }
-
-    async downloadEpisode(event: Event, episode: XtreamSerieEpisode) {
-        event.stopPropagation();
-        if (!this.downloadsEnabled()) return;
-
-        if (isStalkerEpisode(episode)) {
-            this.episodeDownloadRequested.emit(episode);
-            return;
-        }
-
-        const xtreamDownload = this.xtreamDownloadContext();
-        if (!this.playlistId() || !xtreamDownload) {
-            return;
-        }
-
-        await this.downloadsService.startDownload(
-            buildXtreamEpisodeDownloadRequest({
-                episode,
-                context: xtreamDownload,
-                playlistId: this.playlistId(),
-                seriesId: this.seriesId(),
-                seriesTitle: this.seriesTitle(),
-                fallbackSeasonKey: this.selectedSeason(),
-                posterUrl: this.getEpisodeInfo(episode)?.movie_image,
-                metadataContext: this.downloadMetadataContext() ?? undefined,
-            })
-        );
-    }
-
-    isEpisodeDownloaded(episode: XtreamSerieEpisode): boolean {
-        if (!this.downloadsEnabled() || !this.playlistId()) {
-            return false;
-        }
-
-        this.downloadsService.downloads();
-        return this.downloadsService.isDownloaded(
-            getEpisodeDownloadId(episode),
-            this.playlistId(),
-            'episode'
-        );
-    }
-
-    isEpisodeDownloading(episode: XtreamSerieEpisode): boolean {
-        if (!this.downloadsEnabled() || !this.playlistId()) {
-            return false;
-        }
-
-        this.downloadsService.downloads();
-        return this.downloadsService.isDownloading(
-            getEpisodeDownloadId(episode),
-            this.playlistId(),
-            'episode'
-        );
-    }
-
-    isEpisodePaused(episode: XtreamSerieEpisode): boolean {
-        if (!this.downloadsEnabled() || !this.playlistId()) {
-            return false;
-        }
-
-        this.downloadsService.downloads();
-        return this.downloadsService.isPaused(
-            getEpisodeDownloadId(episode),
-            this.playlistId(),
-            'episode'
-        );
-    }
-
-    async resumeEpisodeDownload(
-        event: Event,
-        episode: XtreamSerieEpisode
-    ): Promise<void> {
-        event.stopPropagation();
-        if (!this.playlistId()) {
-            return;
-        }
-
-        await this.downloadsService.resumeDownloadByContent(
-            getEpisodeDownloadId(episode),
-            this.playlistId(),
-            'episode'
-        );
-    }
-
-    async playFromLocal(event: Event, episode: XtreamSerieEpisode) {
-        event.stopPropagation();
-        if (!this.playlistId()) {
-            return;
-        }
-
-        const filePath = this.downloadsService.getDownloadedFilePath(
-            getEpisodeDownloadId(episode),
-            this.playlistId(),
-            'episode'
-        );
-
-        if (filePath) {
-            await this.downloadsService.playDownload(filePath);
-        }
     }
 
     private getEpisodePosition(

@@ -1,11 +1,11 @@
 import type {
     DownloadMetadataSnapshot,
+    ElectronBridgeDownloadStatus,
     ElectronBridgeDownloadStartPayload,
     ElectronDownloadFileAvailability,
 } from '@iptvnator/shared/interfaces';
 
-export type DownloadStatus =
-    'queued' | 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
+export type DownloadStatus = ElectronBridgeDownloadStatus;
 
 export type DownloadStartInput = Omit<
     ElectronBridgeDownloadStartPayload,
@@ -20,6 +20,8 @@ export interface DownloadItem {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?:
+        ElectronBridgeDownloadStartPayload['episodeIdentityScope'] | null;
     title: string;
     url: string;
     fileName?: string;

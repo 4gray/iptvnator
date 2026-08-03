@@ -941,6 +941,64 @@ engine` (restart required) or
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed
   files move to Needs attention instead of remaining in Ready to watch.
+- Series details route individual and selected-season episode downloads through
+  the provider-neutral `SeasonDownloadCoordinator`. It reserves per-episode
+  pending identities synchronously, submits season candidates sequentially and
+  best-effort through the existing `DOWNLOADS_START` path, performs one final
+  authoritative refresh after added or stable duplicate submissions, and
+  reports added, skipped, and failed counts. Xtream and Stalker adapters remain
+  responsible for provider URLs, headers, and metadata; the backend still runs
+  one active transfer with a FIFO queue. `DOWNLOADS_START` remains the sole
+  start IPC. A reserved completed-missing match triggers one authoritative
+  preflight refresh before provider preparation. Download-list loads are
+  serialized as one active IPC plus one coalesced trailing refresh; a preflight
+  assigned to that trailing refresh cannot be starved by later progress
+  broadcasts. A restored Stalker file can therefore become a stable skip
+  without a portal request. The IPC's stable
+  `reason: 'already-in-progress'` and `reason: 'already-downloaded'`
+  results are counted as skipped, and no batch IPC is introduced. The latter
+  comes from an asynchronous main-process filesystem recheck before a
+  completed-missing row can be reset, so a file restored after the renderer
+  snapshot is not orphaned or downloaded again. The recheck has a one-second
+  caller deadline that starts before shared-slot acquisition; timeout or probe
+  failure leaves the row untouched and reports a failed submission so the
+  season loop can continue. Completed-file list callers use the same deadline
+  and report a timeout as missing for that snapshot. The underlying filesystem
+  operation remains coalesced and charged against the four-probe cap until it
+  settles, so later callers have independent bounded waits without duplicating
+  stalled native work. Only `ENOENT` and `ENOTDIR` prove absence; permission,
+  I/O, and other filesystem errors remain unknown and cannot clear a completed
+  row. Before a completed-missing, failed, or canceled row clears its retained
+  path, the start IPC asynchronously removes any `.part` through a separate,
+  same-path-coalesced, four-operation cap. A one-second admission deadline
+  rejects queued work before unlink starts; started work is awaited so it cannot
+  mutate after a failure response. Non-absence errors keep the row's ownership
+  intact; `ENOENT` and `ENOTDIR` safely proceed. Episode and season download
+  actions require an authoritative global list. A
+  successful snapshot remains authoritative while a later background refresh
+  is in flight; a latest refresh failure leaves
+  loading/empty-state resolution intact but disables starts until another
+  snapshot succeeds. Overlapping download-list callers join one serialized
+  trailing refresh, so responses commit in request order and frequent progress
+  events cannot perpetually postpone a waiting series action.
+- Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
+  for both providers; Stalker playback identifiers only resolve the URL. Exact
+  `(playlistId, contentType, xtreamId)` matches are authoritative, while
+  complete playlist/series/season/episode coordinates are a fail-closed legacy
+  fallback that migrates reusable rows to the canonical id. Numeric season
+  zero, including fallback key `"0"`, remains a valid Specials coordinate for
+  both providers. Stalker persists
+  `episode_identity_scope` separately for regular `/series`, embedded VOD
+  `series[]`, and lazy Ministra VOD `is_series`. Known different scopes do not
+  match; a pre-scope coordinate row is ambiguous and blocked, while an exact
+  canonical legacy row remains authoritative. Renderer lookup preserves that
+  ambiguity or conflicting ownership as a distinct ineligible state, so
+  neither the episode action nor the season count treats it as a row-less
+  download. SQLite `null` and optional `undefined` coordinates both mean an
+  incomplete canonical legacy row, matching the backend resolver. Pending and
+  active rows plus completed available/unknown rows are skipped; failed,
+  canceled, completed-missing, and unambiguous row-less episodes remain
+  eligible.
 - Ready movie and grouped-series cards open a focused local detail. Movies play
   the finalized local file; series list only locally available episode rows and
   every episode action targets its own downloaded file. Focused routes disable

@@ -74,10 +74,7 @@ function generateVodEpisodeId(options: {
     );
 }
 
-function generateRegularEpisodeId(
-    seed: string,
-    episodeNum: number
-): number {
+function generateRegularEpisodeId(seed: string, episodeNum: number): number {
     return hashString(`${seed}_ep_${episodeNum}`);
 }
 
@@ -269,8 +266,13 @@ export function getVodSeriesSeasonNumber(
     season: VodSeriesSeasonVm,
     seasons: ReadonlyArray<VodSeriesSeasonVm>
 ): number {
-    const parsedSeasonNumber = Number(season.season_number);
-    if (Number.isInteger(parsedSeasonNumber) && parsedSeasonNumber > 0) {
+    const normalizedSeasonNumber = season.season_number.trim();
+    const parsedSeasonNumber = Number(normalizedSeasonNumber);
+    if (
+        normalizedSeasonNumber !== '' &&
+        Number.isInteger(parsedSeasonNumber) &&
+        parsedSeasonNumber >= 0
+    ) {
         return parsedSeasonNumber;
     }
 

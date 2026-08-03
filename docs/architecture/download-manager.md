@@ -54,11 +54,81 @@ variants, contextual buttons, and theme-aware styling.
   `DownloadsService.downloads` is the renderer's authoritative **global** list.
   `loadDownloads()` therefore always invokes the Electron list IPC without its
   legacy optional playlist scope. Route scope, category, and search must never
-  replace or narrow that signal. Overlapping loads are request-ordered so a
-  late response cannot replace a newer snapshot. Before each fresh download or
-  resume the service asks the main process for an authorized folder and calls
-  the corresponding IPC command. The `onDownloadsUpdate` broadcast triggers a
-  new global load.
+  replace or narrow that signal. Loads are serialized: at most one list IPC is
+  active, and callers arriving during it coalesce behind one trailing refresh.
+  Each response therefore commits in request order. A caller assigned to the
+  trailing refresh resolves after that refresh settles even when later
+  broadcasts queue the following refresh, preventing both stale continuation
+  and starvation during frequent progress updates.
+  `hasLoadedDownloads` records that the latest attempt completed, including an
+  error, while
+  `hasAuthoritativeDownloadList` becomes true after a successful request,
+  remains true while a later refresh is in flight, and clears only if the
+  latest request fails. Series download actions require both loaded and
+  authoritative state so a failed refresh cannot restart rows missing from a
+  stale or empty renderer snapshot. Before each fresh download or resume the
+  service asks the main process for an authorized folder and calls the
+  corresponding IPC command. The `onDownloadsUpdate` broadcast triggers a new
+  global load.
+- **Series season queueing**
+  `SeasonDownloadCoordinator` owns synchronous, per-identity pending
+  reservations and submits an individual episode or selected-season snapshot
+  through `DownloadsService.startDownload()`. Season batches are sequential
+  and best-effort: one candidate failing does not stop later candidates. After
+  added or stable duplicate submissions, one authoritative list refresh closes
+  the pending-to-queued/downloaded handoff, and the coordinator returns
+  `added`, `skipped`, and `failed` counts. Xtream and Stalker adapters own
+  provider URL, request header, and metadata preparation; the coordinator owns
+  only provider-neutral orchestration. When a reserved candidate matches a
+  completed-missing row, the coordinator performs one authoritative preflight
+  refresh before any provider preparation. If another list request is active,
+  the preflight joins the single trailing refresh; later download-update
+  broadcasts cannot delay that assigned refresh. Restored files therefore
+  become stable skips without requiring a Stalker URL/network request. Both
+  providers use normalized `episode.id` as the canonical
+  episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
+  in URL resolution. Provider adapters preserve numeric season zero, including
+  a fallback season key of `"0"`, so Specials keep distinct `S00` coordinates.
+  The exact `(playlistId, contentType, xtreamId)` identity is authoritative.
+  Complete `(playlistId, seriesXtreamId, seasonNumber, episodeNumber)`
+  coordinates are a legacy episode-compatibility fallback. Stalker also stores
+  an `episode_identity_scope` for regular `/series`, embedded VOD `series[]`,
+  and lazy Ministra VOD `is_series` origins. A known different scope is a
+  different episode owner; an older coordinate row without a provable scope
+  fails closed instead of being migrated across modes. Exact canonical legacy
+  rows remain authoritative. Other ambiguous or conflicting matches resolve to
+  the same explicit renderer conflict state rather than masquerading as a
+  missing row, so both the episode action and season count fail closed.
+  SQLite `null` and optional `undefined` coordinates both mean that a canonical
+  legacy row is incomplete, matching the backend resolver. Renderer-pending,
+  queued, downloading, and paused episodes are skipped, as are completed rows
+  whose file is available or whose availability is still unknown. Failed,
+  canceled, completed-missing, and unambiguous row-less episodes are eligible;
+  a completed-missing row is restarted as a fresh download. Before resetting
+  such a completed row, `DOWNLOADS_START` asynchronously rechecks its retained
+  path in the main process. A restored file returns stable
+  `reason: 'already-downloaded'` without mutation; active matches return
+  `reason: 'already-in-progress'`. The recheck has a one-second caller deadline
+  that starts before shared-slot acquisition; timeout or probe failure leaves
+  the row untouched and returns a failed submission, allowing the sequential
+  season loop to continue. Completed-file list callers have the same deadline
+  and report a timeout as missing for that snapshot. The underlying filesystem
+  operation remains coalesced and charged against the four-probe cap until it
+  actually settles, so later callers get independent bounded waits without
+  duplicating stalled native work. Only `ENOENT` and `ENOTDIR` are authoritative
+  absence; permission, I/O, and other probe errors remain unknown, so
+  `DOWNLOADS_START` leaves the completed row and file path untouched. Before a
+  completed-missing, failed, or canceled row clears its path, the same start IPC
+  asynchronously removes any retained `.part`. Cleanup coalesces same-path work
+  and allows at most four underlying unlinks. A one-second admission deadline
+  rejects queued work before it can mutate the filesystem; once an unlink
+  starts, the request awaits its authoritative result so no late side effect can
+  race a retry. Permission and I/O failures keep the row's ownership intact,
+  while `ENOENT` and `ENOTDIR` safely proceed. The coordinator counts both stable
+  duplicate reasons as skipped. There is no batch IPC,
+  parallel transfer, or queue reordering: destination authorization, persisted
+  header handling, and the backend's one-active-transfer FIFO semantics remain
+  unchanged.
 - **Pure manager model**
   (`download-manager.viewmodel.ts` and `download-library.viewmodel.ts`)
   derives the current route scope, search/category filtering, queue partitions,

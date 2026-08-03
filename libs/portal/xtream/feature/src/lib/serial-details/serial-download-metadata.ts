@@ -1,4 +1,4 @@
-import type { SeasonContainerDownloadMetadataContext } from '@iptvnator/ui/components';
+import type { DownloadMovieSnapshotInput } from '@iptvnator/portal/shared/util';
 import type {
     DownloadMetadataPerson,
     TmdbEnrichedCastMember,
@@ -41,7 +41,7 @@ function people(
 export function createXtreamSeriesDownloadMetadataContext(
     info: XtreamSerieInfo,
     language: string
-): SeasonContainerDownloadMetadataContext {
+): DownloadMovieSnapshotInput {
     const runtimeMinutes = finiteNumber(info.episode_run_time);
     return {
         language,

@@ -1,11 +1,18 @@
-import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import type {
+    DownloadMetadataSnapshot,
+    ElectronBridgeEpisodeIdentityScope,
+    ElectronBridgeDownloadStartResult,
+} from '@iptvnator/shared/interfaces';
+import { ELECTRON_BRIDGE_DOWNLOAD_START_REASONS } from '@iptvnator/shared/interfaces';
 import { and, eq, sql } from 'drizzle-orm';
 import { basename, dirname, extname } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
-import { removePartialDownloadFile } from './download-file-path';
+import { getDownloadFileAvailabilityWithTimeoutAsync } from './download-file-availability';
+import { removePartialDownloadFileAsync } from './download-partial-cleanup';
+import { resolveExistingDownloadIdentity } from './download-request-identity';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
 import {
     assertDownloadMetadataArtworkDiffersFromStream,
@@ -28,6 +35,7 @@ export interface StartDownloadRequest {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
     playlistName?: string;
     playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
     serverUrl?: string;
@@ -84,7 +92,7 @@ function serializeHeaders(
 export async function startDownloadRequest(
     data: StartDownloadRequest,
     authorizer: DownloadDirectoryAuthorizer
-): Promise<{ success: boolean; error?: string; id?: number }> {
+): Promise<ElectronBridgeDownloadStartResult> {
     const encodedMetadataSnapshot =
         data.metadataSnapshot === undefined
             ? undefined
@@ -113,22 +121,18 @@ export async function startDownloadRequest(
         .from(schema.playlists)
         .where(eq(schema.playlists.id, data.playlistId))
         .limit(1);
-    const existing = await db
-        .select()
-        .from(schema.downloads)
-        .where(
-            and(
-                eq(schema.downloads.playlistId, data.playlistId),
-                eq(schema.downloads.xtreamId, data.xtreamId),
-                eq(schema.downloads.contentType, data.contentType)
-            )
-        )
-        .limit(1);
+    const identity = await resolveExistingDownloadIdentity(db, data);
+    if (identity.kind === 'conflict') {
+        return {
+            error: 'Download identity conflict',
+            success: false,
+        };
+    }
     const fileName = createFileName(data.title, data.url);
     const headers = createHeaders(data.headers);
 
-    if (existing.length > 0) {
-        const item = existing[0];
+    if (identity.kind === 'match') {
+        const item = identity.item;
         if (normalizedMetadataSnapshot) {
             assertDownloadMetadataMatchesContentType(
                 normalizedMetadataSnapshot,
@@ -143,25 +147,45 @@ export async function startDownloadRequest(
                 data.url
             );
         }
+        if (item.contentType === 'episode' && item.status === 'completed') {
+            const completedFileAvailability =
+                await getDownloadFileAvailabilityWithTimeoutAsync(item);
+            if (completedFileAvailability === 'unknown') {
+                return {
+                    error: 'Could not verify the completed download file',
+                    id: item.id,
+                    success: false,
+                };
+            }
+            if (completedFileAvailability === 'available') {
+                return {
+                    error: 'Download already completed',
+                    id: item.id,
+                    reason: ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyDownloaded,
+                    success: false,
+                };
+            }
+        }
         if (!['completed', 'failed', 'canceled'].includes(item.status)) {
             return {
                 error: 'Download already in progress',
                 id: item.id,
+                reason: 'already-in-progress',
                 success: false,
             };
         }
 
-        if (item.status === 'failed' && item.filePath) {
-            // A failed row can still reference a retained .part; delete it
+        if (
+            ['completed', 'failed', 'canceled'].includes(item.status) &&
+            item.filePath
+        ) {
+            // A terminal row can still reference a retained .part; delete it
             // before the restart clears filePath, or the file is orphaned.
-            // A locked .part must keep its database owner, so fail the
-            // restart instead of proceeding without the cleanup.
-            try {
-                removePartialDownloadFile(item.filePath);
-            } catch (error) {
+            // An unavailable or slow .part must keep its database owner.
+            const cleanup = await removePartialDownloadFileAsync(item.filePath);
+            if (cleanup === 'unknown') {
                 console.error(
-                    '[Downloads] Failed to delete retained partial before re-download:',
-                    error
+                    '[Downloads] Could not verify retained partial cleanup'
                 );
                 return {
                     error: 'Could not delete the previous partial file',
@@ -187,6 +211,12 @@ export async function startDownloadRequest(
                 totalBytes: null,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
                 url: data.url,
+                ...(identity.migrateCanonicalId
+                    ? { xtreamId: data.xtreamId }
+                    : {}),
+                ...(data.episodeIdentityScope === undefined
+                    ? {}
+                    : { episodeIdentityScope: data.episodeIdentityScope }),
             })
             .where(eq(schema.downloads.id, item.id));
         enqueueDownload({
@@ -227,6 +257,7 @@ export async function startDownloadRequest(
     const result = await db.insert(schema.downloads).values({
         contentType: data.contentType,
         episodeNumber: data.episodeNumber,
+        episodeIdentityScope: data.episodeIdentityScope,
         fileName,
         metadataSnapshot: encodedMetadataSnapshot,
         playlistId: data.playlistId,

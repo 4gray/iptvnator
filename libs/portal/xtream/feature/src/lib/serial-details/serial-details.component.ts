@@ -21,9 +21,8 @@ import {
     PortalDetailShellComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
-    type SeasonContainerDownloadMetadataContext,
-    SeasonContainerXtreamDownloadContext,
 } from '@iptvnator/ui/components';
+import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     buildUpNextRailItems,
@@ -53,6 +52,7 @@ import {
     matchRecommendationsToCatalog,
 } from '../tmdb-similar.util';
 import { createXtreamSeriesDownloadMetadataContext } from './serial-download-metadata';
+import { createXtreamSeriesDownloadAdapter } from './xtream-series-download.adapter';
 
 @Component({
     selector: 'app-serial-details',
@@ -102,19 +102,31 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
     readonly currentPlaylistId = signal('');
-    readonly xtreamDownloadContext =
-        signal<SeasonContainerXtreamDownloadContext | null>(null);
-    readonly downloadMetadataContext =
-        computed<SeasonContainerDownloadMetadataContext | null>(() => {
-            const info = this.selectedItem()?.info;
-            return info
-                ? createXtreamSeriesDownloadMetadataContext(
-                      info,
-                      this.translateService.currentLang ||
-                          this.translateService.defaultLang ||
-                          'en'
-                  )
-                : null;
+    readonly episodeDownloadAdapter =
+        computed<SeasonEpisodeDownloadAdapter | null>(() => {
+            const playlist = this.xtreamStore.currentPlaylist();
+            const item = this.selectedItem();
+            if (!playlist || !item) {
+                return null;
+            }
+
+            return createXtreamSeriesDownloadAdapter({
+                playlistId: playlist.id,
+                seriesId: Number(item.series_id),
+                title: item.info.name,
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+                userAgent: playlist.userAgent,
+                referrer: playlist.referrer,
+                origin: playlist.origin,
+                metadataContext: createXtreamSeriesDownloadMetadataContext(
+                    item.info,
+                    this.translateService.currentLang ||
+                        this.translateService.defaultLang ||
+                        'en'
+                ),
+            });
         });
     /** `playlistId:categoryId:serialId` of the last initialized view */
     private readonly lastInitKey = signal<string | null>(null);
@@ -254,18 +266,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         effect(() => {
             const playlist = this.xtreamStore.currentPlaylist();
             this.currentPlaylistId.set(playlist?.id ?? '');
-            this.xtreamDownloadContext.set(
-                playlist
-                    ? {
-                          serverUrl: playlist.serverUrl,
-                          username: playlist.username,
-                          password: playlist.password,
-                          userAgent: playlist.userAgent,
-                          referrer: playlist.referrer,
-                          origin: playlist.origin,
-                      }
-                    : null
-            );
         });
 
         // Initializes on first render and RE-initializes when the route

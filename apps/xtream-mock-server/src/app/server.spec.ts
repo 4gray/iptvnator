@@ -1,9 +1,14 @@
 import { connect } from 'node:net';
+import express from 'express';
 import { resetAll } from './data-store.js';
 import {
     createXtreamMockApp,
     parseXtreamMockServerEnvironment,
 } from './server.js';
+import {
+    type SlowSeriesDownloadOptions,
+    streamSlowSeriesDownload,
+} from './slow-series-download.js';
 import { startLoopbackServer } from './testing/http-server.fixture.js';
 
 jest.mock('@faker-js/faker', () => {
@@ -117,6 +122,38 @@ describe('Xtream mock server factory', () => {
         }
     });
 
+    it('serves the download queue series fixture locally without changing ordinary series redirects', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const localSeries = await fetch(
+                `${running.origin}/series/downloadqueue/downloadqueue/80000.mkv`,
+                { redirect: 'manual' }
+            );
+            const ordinarySeries = await fetch(
+                `${running.origin}/series/user1/pass1/80000.mkv`,
+                { redirect: 'manual' }
+            );
+
+            expect(localSeries.status).toBe(200);
+            expect(localSeries.headers.get('content-type')).toContain(
+                'video/mp4'
+            );
+            expect(
+                Number(localSeries.headers.get('content-length'))
+            ).toBeGreaterThan(1024 * 1024);
+            await localSeries.body?.cancel();
+
+            expect(ordinarySeries.status).toBe(302);
+            expect(ordinarySeries.headers.get('location')).toBe(
+                'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
+            );
+        } finally {
+            await running.close();
+        }
+    });
+
     it('keeps a non-EPG timezone stream empty across repeated short-EPG requests', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })
@@ -188,6 +225,64 @@ describe('Xtream mock server factory', () => {
             expect(globalFetch).not.toHaveBeenCalled();
         } finally {
             await running.close();
+        }
+    });
+});
+
+describe('Slow series download stream', () => {
+    it('completes the configured byte count over a loopback response', async () => {
+        const options = {
+            chunkSize: 1_024,
+            intervalMs: 1,
+            totalBytes: 10 * 1_024 + 7,
+        } satisfies SlowSeriesDownloadOptions;
+        const running = await startLoopbackServer(
+            createSlowSeriesDownloadApp(options)
+        );
+        let closed = false;
+
+        try {
+            const response = await fetch(`${running.origin}/slow-series`);
+            const body = await response.arrayBuffer();
+
+            expect(response.status).toBe(200);
+            expect(response.headers.get('content-type')).toContain('video/mp4');
+            expect(Number(response.headers.get('content-length'))).toBe(
+                options.totalBytes
+            );
+            expect(body.byteLength).toBe(options.totalBytes);
+
+            await within(running.close(), 1_000);
+            closed = true;
+        } finally {
+            if (!closed) await running.close().catch(() => undefined);
+        }
+    });
+
+    it('stops a longer recursive stream after the response body is cancelled', async () => {
+        const options = {
+            chunkSize: 1_024,
+            intervalMs: 25,
+            totalBytes: 64 * 1_024,
+        } satisfies SlowSeriesDownloadOptions;
+        const running = await startLoopbackServer(
+            createSlowSeriesDownloadApp(options)
+        );
+        let closed = false;
+
+        try {
+            const response = await fetch(`${running.origin}/slow-series`);
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('Expected a streaming response body.');
+
+            const firstChunk = await within(reader.read(), 1_000);
+            expect(firstChunk.done).toBe(false);
+            expect(firstChunk.value?.byteLength).toBeGreaterThan(0);
+            await within(reader.cancel(), 1_000);
+            await within(running.close(), 1_000);
+            closed = true;
+        } finally {
+            if (!closed) await running.close().catch(() => undefined);
         }
     });
 });
@@ -270,4 +365,29 @@ async function rawLoopbackGet(
             );
         });
     });
+}
+
+function createSlowSeriesDownloadApp(
+    options: SlowSeriesDownloadOptions
+): express.Express {
+    const app = express();
+    app.get('/slow-series', (request, response) => {
+        streamSlowSeriesDownload(request, response, options);
+    });
+    return app;
+}
+
+async function within<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+            () => reject(new Error(`Operation exceeded ${timeoutMs}ms.`)),
+            timeoutMs
+        );
+    });
+    try {
+        return await Promise.race([promise, timeout]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
 }
