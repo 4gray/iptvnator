@@ -1,5 +1,6 @@
 import { DataService } from '@iptvnator/services';
 import {
+    isStalkerStreamCredentialSafe,
     PlaylistMeta,
     StalkerPortalActions,
     StalkerPortalItem,
@@ -75,8 +76,26 @@ export async function fetchStalkerPlaybackLink(
             // Favorites on a cold start would play a same-host gated stream
             // without a Bearer token. Warming at this single choke point
             // covers ITV, VOD, radio and downloads alike.
-            await ensureStalkerSession(deps, options.playlist);
-            return staticUrl;
+            const sessionUsable = await ensureStalkerSession(
+                deps,
+                options.playlist
+            );
+
+            // A stream on a foreign host never needed the session, so serve it
+            // regardless. A portal-owned one with no usable session would be
+            // served knowing it will 401 — fall back to the request path
+            // instead, which both mints a URL that carries its own token and
+            // is the only path that can observe a failure and trigger the
+            // lazy portal repair.
+            if (
+                sessionUsable ||
+                !isStalkerStreamCredentialSafe(
+                    options.playlist.portalUrl ?? '',
+                    staticUrl
+                )
+            ) {
+                return staticUrl;
+            }
         }
     }
 

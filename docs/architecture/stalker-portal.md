@@ -389,9 +389,18 @@ validates the identity the cached token was negotiated for — which the raw
 needed: a simple portal returns immediately and a warm cache with a matching
 fingerprint resolves without a request.
 
-The call is best-effort: a static URL may point at a CDN needing no credentials
-at all, so a failed handshake degrades to the token-less header set rather than
-costing the user their playback.
+The call is best-effort in one direction only. A **foreign-host** static URL
+never needed the session, so a failed or skipped handshake still serves it. A
+**portal-owned** one with no usable session would be served knowing it will
+401, so both call sites fall back to `create_link` instead — which mints a URL
+carrying its own token and, crucially, is the only path that can observe a
+failure and trigger the lazy portal repair. That keeps a playlist still
+misclassified as token-free, or pointing at an unrepaired endpoint, on the
+self-healing path it was on before this change.
+
+`ensureStalkerSession` returns that verdict: `true` for a portal that needs no
+token and for one holding a usable token, `false` for a full portal left
+without one.
 
 **Known trade-off: a cached token is not revalidated.** `ensureToken` returns a
 same-identity cache entry without touching the network, so the static path no
@@ -475,7 +484,9 @@ Revisit both only with a portal that demonstrably fails without them.
   `buildStalkerSelectedVodItem` / `normalizeStalkerVodDetailsItem` /
   `normalizeStalkerFavoriteItem`, and an unflagged row gains no flags.
 - `stalker-player-request.utils.spec.ts` — static short-circuit, both flags,
-  the `series` exception, relative VOD commands.
+  the `series` exception, relative VOD commands, the session warm-up (simple
+  portal skipped, repaired endpoint used, failure degraded) and the
+  portal-owned-without-session fallback to `create_link`.
 - `with-stalker-player.feature.spec.ts` — ITV/radio store paths and proof that
   Recently Viewed stores the `cmd`, never the stream URL.
 - `stream-resolver.service.spec.ts` — the collection route, plus the cold

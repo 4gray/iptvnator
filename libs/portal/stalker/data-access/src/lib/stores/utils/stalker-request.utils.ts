@@ -53,14 +53,21 @@ export function toStalkerSessionPlaylist(playlist: PlaylistMeta): Playlist {
  *
  * Best-effort on purpose — a static URL may point at a CDN that needs no
  * credentials, so a failed handshake must not cost the user their playback.
+ *
+ * Returns whether the session is good enough to serve a stream that needs
+ * portal credentials: `true` for a portal that needs no token at all and for
+ * one that has a usable token, `false` for a full portal left without one.
+ * Callers use it to decide whether a portal-owned static URL can be trusted or
+ * whether they should fall back to the request path — which is also the path
+ * that can observe a failure and trigger the lazy repair.
  */
 export async function ensureStalkerSession(
     deps: StalkerRequestDeps,
     playlist: PlaylistMeta | undefined,
     logger?: { warn(...args: unknown[]): void }
-): Promise<void> {
+): Promise<boolean> {
     if (!playlist) {
-        return;
+        return false;
     }
 
     // The repair override is applied here for the same reason
@@ -72,16 +79,20 @@ export async function ensureStalkerSession(
         ? deps.portalRepair.applyOverride(playlist)
         : playlist;
 
+    // A token-free panel needs no session, so it can serve credentialed
+    // streams as well as it ever could.
     if (!isFullStalkerPortalPlaylist(effective)) {
-        return;
+        return true;
     }
 
     try {
-        await deps.stalkerSession.ensureToken(
+        const { token } = await deps.stalkerSession.ensureToken(
             toStalkerSessionPlaylist(effective)
         );
+        return Boolean(token);
     } catch (error) {
         logger?.warn('Could not establish the Stalker session', error);
+        return false;
     }
 }
 

@@ -9,6 +9,7 @@ import {
     EpgItem,
     EpgProgram,
     Playlist,
+    isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
@@ -378,14 +379,24 @@ export class StreamResolverService {
             // link; a simple portal returns null immediately. The raw row goes
             // in: the helper applies the repair override itself, exactly as
             // `executeStalkerRequest` does on the branch below.
-            await this.warmStalkerSession(playlist);
+            const sessionUsable = await this.warmStalkerSession(playlist);
 
-            return this.buildStalkerPlayback(item, playlist, {
-                macAddress,
-                portalUrl,
-                streamUrl: staticUrl,
-                isLive: item.radio === 'true' ? undefined : true,
-            });
+            // A foreign-host stream never needed the session. A portal-owned
+            // one with no usable session would be served knowing it will 401,
+            // so fall through to `create_link` instead — it mints a URL that
+            // carries its own token and is the only path that can observe a
+            // failure and trigger the lazy portal repair.
+            if (
+                sessionUsable ||
+                !isStalkerStreamCredentialSafe(portalUrl, staticUrl)
+            ) {
+                return this.buildStalkerPlayback(item, playlist, {
+                    macAddress,
+                    portalUrl,
+                    streamUrl: staticUrl,
+                    isLive: item.radio === 'true' ? undefined : true,
+                });
+            }
         }
 
         const contentType = item.radio === 'true' ? 'radio' : 'itv';
@@ -455,8 +466,8 @@ export class StreamResolverService {
      */
     private async warmStalkerSession(
         playlist: Playlist | undefined
-    ): Promise<void> {
-        await ensureStalkerSession(
+    ): Promise<boolean> {
+        return ensureStalkerSession(
             {
                 dataService: this.dataService,
                 stalkerSession: this.stalkerSession,

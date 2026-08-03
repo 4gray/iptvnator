@@ -199,6 +199,9 @@ describe('stalker-player-request.utils', () => {
                 ...PLAYLIST,
                 isFullStalkerPortal: true,
             } as PlaylistMeta;
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: 'TOKEN-WARM',
+            });
 
             const streamUrl = await fetchStalkerPlaybackLink(deps(), {
                 playlist: fullPortal,
@@ -211,6 +214,64 @@ describe('stalker-player-request.utils', () => {
             expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
                 expect.objectContaining({ _id: PLAYLIST._id })
             );
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it('falls back to create_link for a portal-owned url with no session', async () => {
+            // Serving a same-host static URL without a token means serving a
+            // known 401. The request path both mints a URL carrying its own
+            // token and is the only path that can observe a failure and
+            // trigger the lazy portal repair.
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: null,
+            });
+            // A full portal dispatches through the authenticated session, not
+            // the raw IPC bridge.
+            (
+                stalkerSession.makeAuthenticatedRequest as jest.Mock
+            ).mockResolvedValue({
+                js: { cmd: 'http://demo.example/tmp/1.mkv?tok=1' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://demo.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://demo.example/tmp/1.mkv?tok=1');
+            expect(
+                stalkerSession.makeAuthenticatedRequest
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    action: StalkerPortalActions.CreateLink,
+                })
+            );
+        });
+
+        it('serves a foreign-host static url even with no session', async () => {
+            // A CDN stream never needed the portal session, so a failed or
+            // skipped handshake must not push it onto the request path.
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: null,
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://cdn.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/movies/1.mkv');
             expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         });
 
