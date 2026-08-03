@@ -393,6 +393,23 @@ The call is best-effort: a static URL may point at a CDN needing no credentials
 at all, so a failed handshake degrades to the token-less header set rather than
 costing the user their playback.
 
+**Known trade-off: a cached token is not revalidated.** `ensureToken` returns a
+same-identity cache entry without touching the network, so the static path no
+longer self-heals a token the server has retired — something `create_link`
+used to do for free, since `makeAuthenticatedRequest` retires and re-auths on
+an authorization failure. This is narrower than it sounds: per the 4.9.35
+reference, handshake tokens have **no TTL**, and failing to send the watchdog
+does **not** invalidate auth (it only clears the admin panel's "online"
+status). The one real vector left is another device performing `get_profile`
+on the same MAC — common enough on shared subscriptions. Where a watchdog is
+running it still self-heals within a ping cycle, because the ping goes through
+`makeAuthenticatedRequest`.
+
+Revalidating on every static playback would cost exactly the round trip this
+section exists to remove, so it is deliberately not done here. The right home
+for a fix is the auth lifecycle (PR 6): refresh on an observed playback
+authorization failure, rather than pre-emptively on every play.
+
 **Downloads are the exception, and cannot use this.** A download request cannot
 carry portal credentials at all — the main-process stored-header allowlist is
 `User-Agent` / `Origin` / `Referer` only
