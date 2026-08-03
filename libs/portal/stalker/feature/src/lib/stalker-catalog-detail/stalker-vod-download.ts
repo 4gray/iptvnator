@@ -10,6 +10,7 @@ type StalkerVodDetailsItem = Extract<VodDetailsItem, { type: 'stalker' }>;
 import {
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
+    type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
 
 /**
@@ -25,6 +26,9 @@ import {
 export interface DownloadVodData {
     id?: string | number;
     has_files?: unknown;
+    /** Temporary-link flags — see {@link StalkerLinkFlagSource}. */
+    use_http_tmp_link?: unknown;
+    use_load_balancing?: unknown;
     title?: string;
     category_id?: string | number;
     info?: {
@@ -61,7 +65,8 @@ export interface StalkerVodDownloadDeps {
     fetchLinkToPlay: (
         portalUrl: string,
         macAddress: string,
-        cmd: string
+        cmd: string,
+        linkFlags?: StalkerLinkFlagSource | null
     ) => Promise<string | null>;
     language?: string;
 }
@@ -124,10 +129,14 @@ export async function startStalkerVodDownload(
         firstText(itemData?.info?.name, itemData?.title) ?? 'Unknown';
     const cmdToUse = await resolveDownloadCmd(item, itemData, deps);
 
+    // A movie whose row needs no temporary link yields a permanent URL, which
+    // is what the download row stores — a 5 s link would only ever survive the
+    // first attempt.
     const url = await deps.fetchLinkToPlay(
         playlist.portalUrl,
         playlist.macAddress,
-        cmdToUse
+        cmdToUse,
+        itemData
     );
     if (!url) {
         return;

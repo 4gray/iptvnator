@@ -32,14 +32,16 @@ import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
     fetchStalkerPlaybackLink,
-    normalizeStalkerPlaybackCommand,
+    resolveStalkerStaticPlaybackUrl,
     shouldResolveMovieFileId,
+    type StalkerLinkFlagSource,
 } from '../utils';
 
-type StalkerPlayableItem = StalkerPortalItem & {
-    cmd?: string;
-    has_files?: unknown;
-};
+type StalkerPlayableItem = StalkerPortalItem &
+    StalkerLinkFlagSource & {
+        cmd?: string;
+        has_files?: unknown;
+    };
 
 /**
  * Playback/link/player concern methods.
@@ -189,6 +191,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd: cmdToUse,
                             series: episodeNum,
+                            linkFlags: item,
                         }
                     );
 
@@ -265,6 +268,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd: item.cmd,
                             forcedContentType: 'itv',
+                            linkFlags: item,
                         }
                     );
 
@@ -318,22 +322,20 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    let streamUrl = normalizeStalkerPlaybackCommand(item.cmd);
-                    if (
-                        !streamUrl.startsWith('http://') &&
-                        !streamUrl.startsWith('https://')
-                    ) {
-                        streamUrl = await fetchStalkerPlaybackLink(
-                            requestDeps,
-                            {
-                                playlist,
-                                selectedContentType:
-                                    storeState.selectedContentType(),
-                                cmd: item.cmd,
-                                forcedContentType: 'radio',
-                            }
-                        );
-                    }
+                    // Radio already skipped `create_link` for a directly
+                    // playable command; going through the shared decision adds
+                    // the flags, so a station the portal proxies now gets its
+                    // temporary link instead of a dead static URL.
+                    const streamUrl =
+                        resolveStalkerStaticPlaybackUrl(item, item.cmd) ??
+                        (await fetchStalkerPlaybackLink(requestDeps, {
+                            playlist,
+                            selectedContentType:
+                                storeState.selectedContentType(),
+                            cmd: item.cmd,
+                            forcedContentType: 'radio',
+                            linkFlags: item,
+                        }));
 
                     if (!streamUrl) {
                         throw new Error('nothing_to_play');
@@ -384,7 +386,8 @@ export function withStalkerPlayer() {
                         portalUrl: string,
                         macAddress: string,
                         cmd: string,
-                        series?: number
+                        series?: number,
+                        linkFlags?: StalkerLinkFlagSource | null
                     ) {
                         return fetchStalkerPlaybackLink(requestDeps, {
                             playlist: createRequestPlaylist(
@@ -395,6 +398,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd,
                             series,
+                            linkFlags,
                         });
                     },
                     async getExpireDate() {

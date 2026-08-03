@@ -22,10 +22,11 @@ import {
     executeStalkerRequest,
     getStalkerPortalOrigin,
     isCrossOriginStalkerStream,
-    normalizeStalkerPlaybackCommand,
     resolveStalkerPlaybackUrl,
+    resolveStalkerStaticPlaybackUrl,
     StalkerPortalRepairService,
     StalkerSessionService,
+    type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 
@@ -333,14 +334,26 @@ export class StreamResolverService {
         const portalUrl =
             item.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
         const macAddress = item.stalkerMacAddress ?? playlist?.macAddress ?? '';
-        const normalizedCmd = normalizeStalkerPlaybackCommand(
+        // Favorites and Recently Viewed persist the raw catalog row, so the
+        // temporary-link flags travel with the item and this route makes the
+        // same decision the portal views make: an unflagged, directly playable
+        // `cmd` plays as-is and never mints a 5 s link. An item that carries
+        // no row snapshot (router state holds only the projection) gets no
+        // verdict — except radio, whose directly usable commands have always
+        // played as-is, so it keeps behaving like a row without flags.
+        const linkFlags =
+            (item.stalkerItem as StalkerLinkFlagSource | undefined) ??
+            (item.radio === 'true' ? {} : undefined);
+        const staticUrl = resolveStalkerStaticPlaybackUrl(
+            linkFlags,
             item.stalkerCmd ?? ''
         );
-        if (item.radio === 'true' && this.isHttpUrl(normalizedCmd)) {
+        if (staticUrl) {
             return this.buildStalkerPlayback(item, playlist, {
                 macAddress,
                 portalUrl,
-                streamUrl: normalizedCmd,
+                streamUrl: staticUrl,
+                isLive: item.radio === 'true' ? undefined : true,
             });
         }
 
@@ -1166,10 +1179,6 @@ export class StreamResolverService {
                 Math.floor(new Date(program.stop).getTime() / 1000)
             ),
         }));
-    }
-
-    private isHttpUrl(value: string): boolean {
-        return value.startsWith('http://') || value.startsWith('https://');
     }
 
     /**

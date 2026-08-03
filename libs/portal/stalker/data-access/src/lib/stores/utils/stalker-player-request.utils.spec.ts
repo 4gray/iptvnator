@@ -1,10 +1,10 @@
 import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
+import { shouldResolveMovieFileId } from './stalker-playback-command.utils';
 import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
     fetchStalkerPlaybackLink,
-    shouldResolveMovieFileId,
 } from './stalker-player-request.utils';
 
 const PLAYLIST = {
@@ -178,6 +178,112 @@ describe('stalker-player-request.utils', () => {
                 }),
             })
         );
+    });
+
+    describe('temporary-link semantics', () => {
+        const deps = () => ({
+            dataService: dataService as never,
+            stalkerSession: stalkerSession as StalkerSessionService,
+        });
+
+        it('plays the static cmd of an unflagged row without asking the portal', async () => {
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'itv',
+                cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                linkFlags: {
+                    use_http_tmp_link: '0',
+                    use_load_balancing: '0',
+                },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/live/42.m3u8');
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it.each(['use_http_tmp_link', 'use_load_balancing'] as const)(
+            'mints a temporary link when %s is set',
+            async (flag) => {
+                dataService.sendIpcEvent.mockResolvedValue({
+                    js: { cmd: 'http://cdn.example/tmp/42.m3u8?tok=1' },
+                });
+
+                const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                    playlist: PLAYLIST,
+                    selectedContentType: 'itv',
+                    cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                    linkFlags: { [flag]: '1' },
+                });
+
+                expect(streamUrl).toBe('http://cdn.example/tmp/42.m3u8?tok=1');
+                expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                    expect.anything(),
+                    expect.objectContaining({
+                        params: expect.objectContaining({
+                            action: StalkerPortalActions.CreateLink,
+                        }),
+                    })
+                );
+            }
+        );
+
+        it('mints a link when the caller supplies no flags', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { cmd: 'http://cdn.example/tmp/42.m3u8' },
+            });
+
+            await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'itv',
+                cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+            });
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalled();
+        });
+
+        it('always mints a link for an episode, whose cmd addresses the series', async () => {
+            // `series` selects the episode server-side, so the parent row's
+            // static cmd is not an answer even when it is unflagged.
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { cmd: 'http://cdn.example/tmp/ep3.m3u8' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'series',
+                cmd: 'ffrt3 http://cdn.example/series/7.m3u8',
+                series: 3,
+                linkFlags: {
+                    use_http_tmp_link: '0',
+                    use_load_balancing: '0',
+                },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/tmp/ep3.m3u8');
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    params: expect.objectContaining({ series: '3' }),
+                })
+            );
+        });
+
+        it('still mints a link for a relative unflagged VOD command', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { cmd: '/media/video_77.mpg' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'vod',
+                cmd: '/media/file_42.mpg',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe(
+                'http://demo.example/stalker_portal/media/video_77.mpg'
+            );
+        });
     });
 
     it('returns a localized expire date string from account info', async () => {

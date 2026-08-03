@@ -262,8 +262,14 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             playlist: this.catalog.playlist(),
             downloadsService: this.downloadsService,
             fetchMovieFileId: (id) => this.catalog.fetchMovieFileId(id),
-            fetchLinkToPlay: (portalUrl, macAddress, cmd) =>
-                this.catalog.fetchLinkToPlay(portalUrl, macAddress, cmd),
+            fetchLinkToPlay: (portalUrl, macAddress, cmd, linkFlags) =>
+                this.catalog.fetchLinkToPlay(
+                    portalUrl,
+                    macAddress,
+                    cmd,
+                    undefined,
+                    linkFlags
+                ),
             language:
                 this.translateService.currentLang ||
                 this.translateService.defaultLang ||

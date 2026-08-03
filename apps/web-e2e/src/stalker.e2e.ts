@@ -66,6 +66,13 @@ const EMBEDDED_SERIES_MAC = '00:1A:79:00:00:05';
 const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
 
 /**
+ * Static-cmd MAC — ITV rows carrying a directly playable `cmd` with
+ * `use_http_tmp_link` and `use_load_balancing` both `'0'`, i.e. a portal that
+ * expects no `create_link` call at all.
+ */
+const STATIC_CMD_MAC = '00:1A:79:00:00:0A';
+
+/**
  * Dedicated MACs for the full-portal authentication tests. Mock state is keyed
  * by MAC, so keeping these distinct from the content scenarios above means an
  * auth test can never consume or invalidate a session another test relies on.
@@ -120,6 +127,7 @@ const OWNED_MACS = [
     MINIMAL_MAC,
     EMBEDDED_SERIES_MAC,
     LEGACY_PAGINATION_MAC,
+    STATIC_CMD_MAC,
     AUTH_FLOW_MAC,
     AUTH_REAUTH_MAC,
     AUTH_REJECTED_MAC,
@@ -679,6 +687,62 @@ test('@stalker create_link returns a playable stream URL', async ({
     const streamUrl: string = body.payload.js.cmd;
     expect(streamUrl).toMatch(/^https?:\/\//);
     expect(streamUrl).toMatch(/\.m3u8$/);
+});
+
+/**
+ * Play the first channel of the first ITV category and report every
+ * `create_link` request the page made while doing so.
+ */
+async function playFirstItvChannel(page: Page): Promise<string[]> {
+    const createLinkRequests: string[] = [];
+    page.on('request', (request) => {
+        if (request.url().includes('action=create_link')) {
+            createLinkRequests.push(request.url());
+        }
+    });
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    await channels.first().click();
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    await expect(page.locator('app-web-player-view')).toBeVisible({
+        timeout: 20_000,
+    });
+
+    return createLinkRequests;
+}
+
+test('@stalker ITV plays an unflagged channel without minting a link', async ({
+    page,
+}) => {
+    // The reference client only calls create_link when the row sets
+    // use_http_tmp_link or use_load_balancing; this portal sets neither, so
+    // the static cmd must reach the player untouched. The companion test
+    // below proves the recorder does see a create_link when one is due.
+    await addStalkerPortal(page, {
+        name: 'Static Cmd Portal',
+        mac: STATIC_CMD_MAC,
+    });
+
+    expect(await playFirstItvChannel(page)).toEqual([]);
+});
+
+test('@stalker ITV mints a link for a channel that asks for one', async ({
+    page,
+}) => {
+    await addStalkerPortal(page, { name: 'Tmp Link Portal' });
+
+    const createLinkRequests = await playFirstItvChannel(page);
+
+    expect(createLinkRequests.length).toBeGreaterThan(0);
+    expect(createLinkRequests[0]).toContain('type=itv');
 });
 
 test('@stalker mock server returns radio categories and stations', async ({

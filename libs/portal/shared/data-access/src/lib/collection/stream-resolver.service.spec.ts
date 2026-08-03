@@ -808,6 +808,91 @@ describe('StreamResolverService', () => {
         expect(playback.origin).toBeUndefined();
     });
 
+    it('plays an unflagged Stalker favorite from its stored cmd without create_link', async () => {
+        // Favorites persist the raw catalog row, so `use_http_tmp_link` /
+        // `use_load_balancing` come back with it — a row that sets neither is
+        // playable as it stands and must not cost a portal round trip.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::90',
+            name: 'Static Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '90',
+            stalkerCmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+            stalkerItem: {
+                id: '90',
+                cmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        // The detail route still loads EPG; what must not happen is a link
+        // request.
+        const requestedActions = [
+            ...dataService.sendIpcEvent.mock.calls,
+            ...stalkerSession.makeAuthenticatedRequest.mock.calls,
+        ].map(
+            (call) =>
+                (call[1] as { params?: { action?: string } } | undefined)
+                    ?.params?.action
+        );
+        expect(requestedActions).not.toContain('create_link');
+        expect(playback.streamUrl).toBe('http://cdn.example.com/live/90.m3u8');
+        expect(playback.isLive).toBe(true);
+    });
+
+    it('mints a link for a flagged Stalker favorite', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg http://cdn.example.com/tmp/90.m3u8?tok=1' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::90',
+            name: 'Balanced Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '90',
+            stalkerCmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+            stalkerItem: {
+                id: '90',
+                cmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+                use_load_balancing: '1',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                params: expect.objectContaining({ action: 'create_link' }),
+            })
+        );
+        expect(playback.streamUrl).toBe(
+            'http://cdn.example.com/tmp/90.m3u8?tok=1'
+        );
+    });
+
     it('appends query-only Stalker create_link responses to the original cmd URL', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

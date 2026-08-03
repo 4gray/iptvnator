@@ -698,6 +698,23 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Xtream Codes API (`username`, `password`, `serverUrl`)
 - Stalker portal (`macAddress`, `url`)
 
+**Stalker playback links**: `create_link` runs only when the catalog row sets
+`use_http_tmp_link` or `use_load_balancing`; otherwise the static `cmd` plays
+directly. One helper decides
+(`resolveStalkerStaticPlaybackUrl` in
+`libs/portal/stalker/data-access/.../stalker-link-semantics.utils.ts`), applied
+by `fetchStalkerPlaybackLink()` for ITV/VOD/radio and by
+`StreamResolverService` for Favorites/Recently Viewed. It falls back to
+`create_link` for anything it cannot resolve alone: no row to read flags from,
+a relative/query-only command (the VOD `has_files` rewrite), a non-HTTP scheme,
+or a loopback host; an episode (`series` set) always mints, since the parameter
+selects the episode server-side. Temporary links live ~5 s, so no resolved URL
+is persisted or replayed — favorites and recently-viewed store the `cmd`,
+playback positions store ids, and the main-process context map stores headers
+keyed by origin+path. Downloads are the one exception (they must retry a URL).
+`forced_storage`/`play_token` are deliberately unwired. Contract:
+`docs/architecture/stalker-portal.md` ("Playback Link Resolution").
+
 **Opening a playlist from the OS** (Electron only): a `.m3u`/`.m3u8` path passed
 on the command line, opened through a file association, or delivered by macOS'
 `open-file` event is normalized to an absolute path in the main process
