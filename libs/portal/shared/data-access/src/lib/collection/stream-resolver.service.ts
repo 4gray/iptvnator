@@ -23,6 +23,7 @@ import {
     ensureStalkerSession,
     executeStalkerRequest,
     getStalkerPortalOrigin,
+    hasStalkerLinkFlagEvidence,
     isCrossOriginStalkerStream,
     resolveStalkerPlaybackUrl,
     resolveStalkerStaticPlaybackUrl,
@@ -360,15 +361,21 @@ export class StreamResolverService {
         // no row snapshot (router state holds only the projection) gets no
         // verdict — except radio, whose directly usable commands have always
         // played as-is, so it keeps behaving like a row without flags.
+        const snapshot = item.stalkerItem as StalkerLinkFlagSource | undefined;
+        // Radio keeps its historical rule: a directly usable command plays as
+        // as-is. That has to key off flag EVIDENCE, not merely a present
+        // snapshot — a radio row persisted before the flags were carried has a
+        // snapshot that lacks them, and testing presence alone would skip this
+        // fallback and start minting for exactly those rows. Mirrors
+        // `withStalkerPlayer`'s radio branch; the two must not drift.
         const linkFlags =
-            (item.stalkerItem as StalkerLinkFlagSource | undefined) ??
-            // Explicit zeros rather than `{}`: the helper now requires the
-            // flag keys to be PRESENT before it will trust a row, and a radio
-            // item without a snapshot has to keep the behaviour this route has
-            // always had — a directly usable command plays as-is.
-            (item.radio === 'true'
-                ? { use_http_tmp_link: '0', use_load_balancing: '0' }
-                : undefined);
+            item.radio === 'true' && !hasStalkerLinkFlagEvidence(snapshot)
+                ? {
+                      ...(snapshot ?? {}),
+                      use_http_tmp_link: '0',
+                      use_load_balancing: '0',
+                  }
+                : snapshot;
         const staticUrl = resolveStalkerStaticPlaybackUrl(
             linkFlags,
             item.stalkerCmd ?? ''

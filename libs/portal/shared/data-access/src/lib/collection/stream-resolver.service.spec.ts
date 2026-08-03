@@ -704,6 +704,48 @@ describe('StreamResolverService', () => {
         expect(detail.playback.headers?.['Authorization']).toBeUndefined();
     });
 
+    it('plays a legacy radio favorite whose snapshot lost the flags', async () => {
+        // The row above this one carries NO `stalkerItem`, so it exercises the
+        // missing-snapshot arm. A radio favorite persisted before the flags
+        // were carried has a snapshot that simply lacks them — testing
+        // presence instead of evidence would skip the radio fallback and start
+        // minting for exactly those rows, breaking portals whose radio
+        // `create_link` is unsupported.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+
+        const detail = await service.resolveLiveDetail({
+            uid: 'stalker::stalker-1::40003',
+            name: 'Legacy Radio',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '40003',
+            stalkerCmd: 'ffmpeg https://media.example.com/legacy.mp3',
+            logo: 'legacy.png',
+            radio: 'true',
+            // Present, but stripped of the flags by the old whitelist.
+            stalkerItem: {
+                id: '40003',
+                cmd: 'ffmpeg https://media.example.com/legacy.mp3',
+                name: 'Legacy Radio',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(detail.playback.streamUrl).toBe(
+            'https://media.example.com/legacy.mp3'
+        );
+    });
+
     it('resolves relative Stalker create_link responses against the portal base', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

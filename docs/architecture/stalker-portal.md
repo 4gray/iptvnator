@@ -362,8 +362,12 @@ Callers pass the row they resolved the `cmd` from:
   `fetchLinkToPlay()`, but only for a credential-free URL (see below).
 - Favorites and Recently Viewed — `StreamResolverService.resolveStalker()`
   reads the flags off the persisted raw row (`UnifiedCollectionItem.stalkerItem`).
-  An item with no row snapshot gets no verdict, except radio, which keeps its
-  long-standing "directly usable command plays as-is" behaviour.
+  Radio keeps its long-standing "directly usable command plays as-is"
+  behaviour, keyed off flag EVIDENCE rather than snapshot presence — a radio
+  row persisted before the flags were carried has a snapshot that simply lacks
+  them, and testing presence would skip the fallback for exactly those rows.
+  `withStalkerPlayer`'s radio branch applies the identical rule; the two must
+  not drift.
 
 ### The static path still needs the session
 
