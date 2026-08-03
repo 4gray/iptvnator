@@ -71,7 +71,17 @@ Two portal modes exist, persisted per playlist as
   except `handshake`, `get_profile`, `get_localization`, and `do_auth`
   requires `Authorization: Bearer <token>`; auth failures are HTTP 200 with a
   plain-text body (`Authorization failed.`, `Access denied.`,
-  `Unauthorized request.`), never a 401/403. While a full portal is the
+  `Unauthorized request.`), never a 401/403. Detection of those bodies — and
+  of the JSON envelope (`{js: {error|msg}}`) some panels answer instead —
+  lives in `libs/shared/interfaces/src/lib/stalker-auth-failure.util.ts`, so
+  the Electron main process (where the bodies actually arrive) and the
+  renderer classify identically; `stalker-portal-discovery.utils.ts`
+  re-exports it. The body match is anchored to the whole reply: these are
+  bare phrases, and a substring rule also accepted a short proxy or WAF page
+  containing one, which then triggered portal reclassification against a
+  portal that never answered. The structured `js.error`/`js.msg` fields keep
+  the wider phrase set (`Invalid token`, `Auth failed`, bare `unauthorized`),
+  since a panel fills those in deliberately. While a full portal is the
   active playlist, `StalkerSessionService` keeps a **watchdog** running —
   periodic authenticated `watchdog/get_events` pings (currently every 25 s;
   the protocol default expects 120 s, tracked for a later PR) whose failures
