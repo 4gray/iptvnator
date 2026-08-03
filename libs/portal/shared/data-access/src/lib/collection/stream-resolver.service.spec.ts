@@ -4,7 +4,10 @@ import {
     XtreamApiService,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerPortalRepairService,
+    StalkerSessionService,
+} from '@iptvnator/portal/stalker/data-access';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
@@ -47,7 +50,6 @@ describe('StreamResolverService', () => {
             getCachedToken: jest.fn(() => null),
             ensureToken: jest.fn().mockResolvedValue({ token: null }),
             makeAuthenticatedRequest: jest.fn(),
-            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
         epgBridge = {
             getChannelPrograms: jest.fn(),
@@ -823,6 +825,50 @@ describe('StreamResolverService', () => {
         expect(playback.origin).toBe('https://stalker.example.com');
     });
 
+    it('binds the playback token to the endpoint the headers claim', async () => {
+        // A completed repair moved the endpoint. The headers are built from
+        // that moved endpoint, so the session must be negotiated for it too —
+        // authenticating against the pre-repair row would send a token minted
+        // for one host to another (and key the session cache differently from
+        // every other consumer, forcing a redundant handshake).
+        const stored = {
+            _id: 'stalker-1',
+            portalUrl: 'https://old.example.com/stalker_portal/server/load.php',
+            macAddress: '00:11:22:33:44:55',
+            isFullStalkerPortal: true,
+        } satisfies Partial<Playlist>;
+        const repaired =
+            'https://new.example.com/stalker_portal/server/load.php';
+        playlistsService.getPlaylistById.mockReturnValue(of(stored));
+        jest.spyOn(
+            TestBed.inject(StalkerPortalRepairService),
+            'applyOverride'
+        ).mockImplementation(
+            (playlist: any) => ({ ...playlist, portalUrl: repaired }) as any
+        );
+        stalkerSession.ensureToken.mockResolvedValue({ token: 'TOKEN88' });
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
+            js: { cmd: 'ffmpeg https://new.example.com:8080/live/88.ts' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::88',
+            name: 'Moved Portal Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '88',
+            stalkerCmd: 'ffrt3 http://old.example.com/media/88.mpg',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({ portalUrl: repaired })
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN88');
+        expect(playback.origin).toBe('https://new.example.com');
+    });
+
     it('authenticates a cold session for a direct-URL radio favorite', async () => {
         // A direct-URL radio favorite skips create_link entirely, so on a
         // cold session nothing has authenticated and the in-memory cache is
@@ -861,9 +907,11 @@ describe('StreamResolverService', () => {
         expect(playback.headers?.['Authorization']).toBe('Bearer PERSISTED77');
     });
 
-    it('still plays when cold-session authentication fails', async () => {
-        // Many portals do not gate the stream itself — a failed handshake
-        // must not block playback, only omit the Bearer header.
+    it('falls back to create_link when the cold session cannot be established', async () => {
+        // A portal-owned static stream with no usable session would be served
+        // knowing it will 401, so playback is not blocked — it takes the
+        // `create_link` route instead, which mints a URL carrying its own
+        // token and is the only path that can trigger the lazy portal repair.
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'stalker-1',
@@ -877,6 +925,9 @@ describe('StreamResolverService', () => {
         stalkerSession.ensureToken.mockRejectedValue(
             new Error('handshake refused')
         );
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
+            js: { cmd: 'ffmpeg https://stalker.example.com/radio/99-tmp.mp3' },
+        });
 
         const playback = await service.resolvePlayback({
             uid: 'stalker::stalker-1::99',
@@ -891,8 +942,9 @@ describe('StreamResolverService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(playback.streamUrl).toBe(
-            'https://stalker.example.com/radio/99.mp3'
+            'https://stalker.example.com/radio/99-tmp.mp3'
         );
+        // No session, so no Bearer — the minted URL carries its own token.
         expect(playback.headers?.['Authorization']).toBeUndefined();
     });
 
@@ -1131,10 +1183,12 @@ describe('StreamResolverService', () => {
                 _id: 'stalker-1',
                 portalUrl: 'https://new.example.com/portal.php',
                 macAddress: 'AA:BB:CC:00:00:99',
-                isFullStalkerPortal: false,
+                isFullStalkerPortal: true,
             } satisfies Partial<Playlist>)
         );
-        stalkerSession.getCachedToken.mockReturnValue('TOKEN-NEW');
+        // A full portal, so the Bearer assertion below is meaningful: only a
+        // portal with a session has a token to attach at all.
+        stalkerSession.ensureToken.mockResolvedValue({ token: 'TOKEN-NEW' });
 
         const playback = await service.resolvePlayback({
             uid: 'stalker::stalker-1::93',

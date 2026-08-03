@@ -523,17 +523,32 @@ export class StreamResolverService {
             macAddress: resolved.macAddress,
             portalUrl: resolved.portalUrl,
         } as Playlist;
-        const token = await this.resolveStalkerPlaybackToken(
-            item.playlistId,
-            playlist
+        const crossOriginStream = isCrossOriginStalkerStream(
+            headerPlaylist,
+            resolved.streamUrl
         );
+        // Classified before authenticating, for the same reason the static
+        // branch classifies first: the header builder gives a foreign host the
+        // credential-free profile, so a token obtained here would be discarded
+        // — after stalling playback behind a handshake against a portal that
+        // may be slow or offline while the CDN is perfectly reachable.
+        //
+        // When it IS needed, the token is resolved from `headerPlaylist`
+        // rather than the row it came from: those are the exact coordinates
+        // the headers claim, so the bearer token and the MAC cookie cannot end
+        // up bound to a different endpoint than the one they are sent to. A
+        // repair override that moved the endpoint is the live case — it
+        // reaches `resolved.portalUrl` but not the raw row, and every other
+        // session consumer (`ensureStalkerSession`, `executeStalkerRequest`)
+        // already authenticates against the override, so this also stops the
+        // resolver from keying the session cache differently and re-shaking.
+        const token =
+            playlist && !crossOriginStream
+                ? await this.resolveStalkerPlaybackToken(headerPlaylist)
+                : null;
         const headers = buildStalkerExternalPlaybackHeaders(
             headerPlaylist,
             token,
-            resolved.streamUrl
-        );
-        const crossOriginStream = isCrossOriginStalkerStream(
-            headerPlaylist,
             resolved.streamUrl
         );
         const portalOrigin = getStalkerPortalOrigin(headerPlaylist);
@@ -565,7 +580,6 @@ export class StreamResolverService {
      * stay non-fatal: many portals do not gate the stream itself.
      */
     private async resolveStalkerPlaybackToken(
-        playlistId: string,
         playlist: Playlist | undefined
     ): Promise<string | null> {
         // The shared mode contract, not the raw flag: a legacy row with an
