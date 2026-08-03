@@ -31,6 +31,20 @@ const PLAYLIST = {
     isFullStalkerPortal: false,
 } as PlaylistMeta;
 
+interface SelectedTestItem {
+    id: string;
+    cmd: string;
+    has_files?: boolean;
+    title?: string;
+    name?: string;
+    o_name?: string;
+    logo?: string;
+    category_id?: string;
+    cover?: string;
+    use_http_tmp_link?: unknown;
+    use_load_balancing?: unknown;
+}
+
 const TestPlayerStore = signalStore(
     withState({
         currentPlaylist: PLAYLIST,
@@ -41,31 +55,13 @@ const TestPlayerStore = signalStore(
             has_files: true,
             title: 'Original Title',
             category_id: 'vod',
-        } as {
-            id: string;
-            cmd: string;
-            has_files?: boolean;
-            title?: string;
-            name?: string;
-            o_name?: string;
-            logo?: string;
-            category_id?: string;
-            cover?: string;
-        },
+        } as SelectedTestItem,
     }),
     withMethods((store) => ({
         setSelectedContentType(type: 'vod' | 'series' | 'itv' | 'radio') {
             patchState(store, { selectedContentType: type });
         },
-        setSelectedItem(item: {
-            id: string;
-            cmd: string;
-            title?: string;
-            name?: string;
-            o_name?: string;
-            logo?: string;
-            category_id?: string;
-        }) {
+        setSelectedItem(item: SelectedTestItem) {
             patchState(store, { selectedItem: item });
         },
     })),
@@ -423,6 +419,61 @@ describe('withStalkerPlayer', () => {
                 })
             );
             expect(playback.streamUrl).toBe('http://cdn.example/tmp/jazz.mp3');
+        });
+
+        it('mints a link for a flagged VOD row with a directly playable cmd', async () => {
+            // The VOD row reaches this method through
+            // `buildStalkerSelectedVodItem`, a whitelist — if it ever drops
+            // the flags again, this row reads as unflagged and the static
+            // path silently plays the portal's non-final URL.
+            store.setSelectedContentType('vod');
+            store.setSelectedItem({
+                id: '42',
+                cmd: 'ffrt3 http://cdn.example/movie.mkv',
+                title: 'Flagged Movie',
+                category_id: 'vod',
+                use_http_tmp_link: '1',
+            });
+            dataService.sendIpcEvent.mockResolvedValueOnce({
+                js: { cmd: 'http://cdn.example/tmp/movie.mkv?tok=1' },
+            });
+
+            const playback = await store.resolveVodPlayback(
+                undefined,
+                'Flagged Movie'
+            );
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        action: StalkerPortalActions.CreateLink,
+                    }),
+                })
+            );
+            expect(playback.streamUrl).toBe(
+                'http://cdn.example/tmp/movie.mkv?tok=1'
+            );
+        });
+
+        it('plays an unflagged VOD row from its static cmd', async () => {
+            store.setSelectedContentType('vod');
+            store.setSelectedItem({
+                id: '43',
+                cmd: 'ffrt3 http://cdn.example/movie.mkv',
+                title: 'Static Movie',
+                category_id: 'vod',
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            });
+
+            const playback = await store.resolveVodPlayback(
+                undefined,
+                'Static Movie'
+            );
+
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+            expect(playback.streamUrl).toBe('http://cdn.example/movie.mkv');
         });
 
         it.each([

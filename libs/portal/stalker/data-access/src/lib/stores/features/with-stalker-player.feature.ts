@@ -32,7 +32,6 @@ import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
     fetchStalkerPlaybackLink,
-    resolveStalkerStaticPlaybackUrl,
     shouldResolveMovieFileId,
     type StalkerLinkFlagSource,
 } from '../utils';
@@ -322,24 +321,21 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    // Radio already skipped `create_link` for a directly
-                    // playable command; going through the shared decision adds
-                    // the flags, so a station the portal proxies now gets its
-                    // temporary link instead of a dead static URL.
-                    const streamUrl =
-                        resolveStalkerStaticPlaybackUrl(item, item.cmd) ??
-                        (await fetchStalkerPlaybackLink(requestDeps, {
+                    // Radio used to skip `create_link` for any directly
+                    // playable command. Handing the row to the shared decision
+                    // adds the flags, so a station the portal proxies now gets
+                    // its temporary link instead of a dead static URL.
+                    const streamUrl = await fetchStalkerPlaybackLink(
+                        requestDeps,
+                        {
                             playlist,
                             selectedContentType:
                                 storeState.selectedContentType(),
                             cmd: item.cmd,
                             forcedContentType: 'radio',
                             linkFlags: item,
-                        }));
-
-                    if (!streamUrl) {
-                        throw new Error('nothing_to_play');
-                    }
+                        }
+                    );
 
                     recordRecentlyViewed(
                         item,

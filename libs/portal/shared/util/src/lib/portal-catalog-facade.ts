@@ -91,6 +91,11 @@ export interface StalkerPortalCatalogFacade<
      * `linkFlags` carries the catalog row's `use_http_tmp_link` /
      * `use_load_balancing`; without it the portal is always asked for a
      * temporary link.
+     *
+     * The shape is spelled out rather than imported as `StalkerLinkFlagSource`
+     * on purpose: this lib is `type:util`/`domain:portal-shared` and may not
+     * depend on `portal-stalker-data-access` (`type:data-access`/`domain:stalker`)
+     * — the Nx module-boundary rule rejects that edge.
      */
     fetchLinkToPlay(
         portalUrl: string,

@@ -340,6 +340,17 @@ short-circuits before the request. It never applies it when `series` is set:
 an episode is selected server-side by that parameter, so the parent row's
 static `cmd` addresses the series, not the episode.
 
+**The flags must survive normalization.** `buildStalkerSelectedVodItem()`
+(`stalker-vod.utils.ts`) narrows a raw portal row to a whitelist, so a field it
+does not name is silently dropped — and it feeds both VOD playback
+(`selectedItem()`) and the download payload (`createStalkerVodItem` passes its
+`data` straight through). Losing a flag there fails **open**: the row reads as
+"no temporary link needed" and the static path plays the portal's non-final
+URL. Both flags are therefore on the whitelist, on `StalkerVodSource` /
+`StalkerSelectedVodItem`, and pinned by tests in `stalker-vod.utils.spec.ts`.
+Any new normalizer between a portal response and a playback call has the same
+obligation.
+
 Callers pass the row they resolved the `cmd` from:
 
 - ITV and radio — the channel/station row (`withStalkerPlayer`); radio
@@ -402,6 +413,9 @@ Revisit both only with a portal that demonstrably fails without them.
 ### Regression coverage
 
 - `stalker-link-semantics.utils.spec.ts` — the decision table above.
+- `stalker-vod.utils.spec.ts` — both flags survive
+  `buildStalkerSelectedVodItem` / `normalizeStalkerVodDetailsItem` /
+  `normalizeStalkerFavoriteItem`, and an unflagged row gains no flags.
 - `stalker-player-request.utils.spec.ts` — static short-circuit, both flags,
   the `series` exception, relative VOD commands.
 - `with-stalker-player.feature.spec.ts` — ITV/radio store paths and proof that
