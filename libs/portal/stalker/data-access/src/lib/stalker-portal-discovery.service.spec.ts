@@ -379,17 +379,75 @@ describe('StalkerPortalDiscoveryService', () => {
             await Promise.resolve();
             await Promise.resolve();
 
-            jest.advanceTimersByTime(45_000);
+            jest.advanceTimersByTime(65_000);
             await Promise.resolve();
 
             // The abandoned attempt is cancelled, so its get_profile never
             // goes out to adopt the MAC's token behind a later candidate.
             expect(captured?.aborted).toBe(true);
+
+            // …and discovery does not RACE it: a request already dispatched
+            // cannot be un-sent, so the run drains it (bounded) instead of
+            // probing the next candidate while it may still land.
+            jest.advanceTimersByTime(15_000);
             // Outcome shape is unchanged: a timed-out confirmation is still
             // reported as a refusal of that endpoint.
             await expect(discovery).resolves.toMatchObject({
                 status: 'auth-rejected',
                 portalUrl: 'http://slow.example/portal.php',
+            });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('drains an abandoned attempt instead of probing the next candidate', async () => {
+        jest.useFakeTimers();
+        try {
+            // Two candidates both answer "auth required", so a resolved first
+            // attempt would stop the run — only a timed-out one advances.
+            mockProbes({
+                'http://slow.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+                'http://slow.example/server/load.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+
+            let settleFirst: (() => void) | undefined;
+            authenticate
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((_resolve, reject) => {
+                            settleFirst = () => reject(new Error('late'));
+                        })
+                )
+                .mockResolvedValue({ token: 'SECOND' });
+
+            const discovery = service.discover('http://slow.example/c', MAC);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+
+            jest.advanceTimersByTime(65_000);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+
+            // The first attempt is still on the wire: the second candidate
+            // must NOT have been authenticated yet, or its token could be
+            // invalidated by the first one's late get_profile.
+            expect(authenticate).toHaveBeenCalledTimes(1);
+
+            // Once it settles, the run continues immediately.
+            settleFirst?.();
+            for (let i = 0; i < 10; i += 1) {
+                await Promise.resolve();
+            }
+            expect(authenticate).toHaveBeenCalledTimes(2);
+            await expect(discovery).resolves.toMatchObject({
+                status: 'resolved',
             });
         } finally {
             jest.useRealTimers();

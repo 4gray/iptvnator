@@ -361,6 +361,17 @@ regardless of what the client does, so tearing the socket down would not
 prevent the adoption. Only not sending the request does, which is exactly what
 the between-calls check guarantees.
 
+That leaves the window where the timer fires while a `get_profile` is already
+dispatched — which the check cannot cover, but sequencing can: discovery
+**drains** the abandoned attempt (bounded by one request budget) before probing
+the next candidate, instead of racing it. The request cannot be un-sent, but
+nothing forces us to have a competing session in flight while it lands.
+
+The budget itself covers the longest real flow: a status-2 portal costs four
+sequential requests (handshake, profile, `do_auth`, profile retry) and the
+Electron transport allows each 15 s, so a two-request budget would have failed
+valid but slow login portals.
+
 ### Watchdog
 
 The portal expects `get_events` every `watchdog_timeout` seconds — **120 by

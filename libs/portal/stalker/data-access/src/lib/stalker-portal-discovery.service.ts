@@ -59,8 +59,27 @@ export type StalkerPortalDiscoveryOutcome =
 
 /** Per-request guard so a hanging host cannot stall discovery forever. */
 const PROBE_TIMEOUT_MS = 20_000;
-/** authenticate() is two sequential requests; give it a matching budget. */
-const AUTH_TIMEOUT_MS = 45_000;
+/**
+ * `authenticate()` is up to FOUR sequential requests once a portal answers
+ * `get_profile` with status 2 — handshake, profile, `do_auth`, profile retry —
+ * and the Electron transport allows each non-`create_link` call 15 s. A budget
+ * that only covered two would abort a valid but slow login-required portal
+ * before its final profile and report it as `auth-rejected`.
+ */
+const AUTH_TIMEOUT_MS = 4 * 15_000 + 5_000;
+
+/**
+ * How long to wait for an abandoned attempt to settle before probing the next
+ * candidate.
+ *
+ * Aborting cannot un-send a request: if its `get_profile` was already
+ * dispatched, the portal adopts that token regardless of what the client does
+ * to its socket. What we CAN do is refuse to race it — advancing while it is
+ * still in flight is what lets it invalidate the token the next candidate
+ * negotiates. Bounded by one request budget so a genuinely hung host cannot
+ * stall discovery forever; past that the risk is accepted rather than hanging.
+ */
+const ABANDONED_DRAIN_MS = 15_000;
 
 function withTimeout<T>(
     promise: Promise<T>,
@@ -212,16 +231,16 @@ export class StalkerPortalDiscoveryService {
         // portal call, so a timed-out attempt never sends the `get_profile`
         // that would adopt the MAC's token behind the next candidate's back.
         const abandon = new AbortController();
+        // Kept so a timed-out attempt can be drained rather than raced.
+        const pending = this.stalkerSession.authenticate(
+            candidate,
+            macAddress,
+            identity,
+            { credentials, signal: abandon.signal }
+        );
         try {
-            const auth = await withTimeout(
-                this.stalkerSession.authenticate(
-                    candidate,
-                    macAddress,
-                    identity,
-                    { credentials, signal: abandon.signal }
-                ),
-                AUTH_TIMEOUT_MS,
-                () => abandon.abort()
+            const auth = await withTimeout(pending, AUTH_TIMEOUT_MS, () =>
+                abandon.abort()
             );
             // A handshake can hand out a token whose `get_profile` still
             // answers a structured denial (`{js:{error:'Invalid token'}}`);
@@ -245,6 +264,16 @@ export class StalkerPortalDiscoveryService {
                 timeslotSeconds: auth.timeslotSeconds,
             };
         } catch (error) {
+            // Do not advance while the abandoned attempt may still be on the
+            // wire: its `get_profile` adopts the MAC's token portal-side, so
+            // racing it is exactly what invalidates the next candidate's
+            // freshly issued session.
+            await Promise.race([
+                pending.catch(() => undefined),
+                new Promise((resolve) =>
+                    setTimeout(resolve, ABANDONED_DRAIN_MS)
+                ),
+            ]);
             return {
                 status: 'auth-rejected',
                 portalUrl: candidate,
