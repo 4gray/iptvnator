@@ -541,9 +541,15 @@ Every static return therefore warms first, through one primitive —
 
 `ensureToken` performs handshake + `get_profile` with no link minted, and
 validates the identity the cached token was negotiated for — which the raw
-`getCachedToken()` the header builders use cannot. It is cheap where it is not
-needed: a simple portal returns immediately and a warm cache with a matching
-fingerprint resolves without a request.
+`getCachedToken()` cannot. It is cheap where it is not needed: a simple portal
+returns immediately and a warm cache with a matching fingerprint resolves
+without a request.
+
+The store's player feature reads `getCachedToken()` for its header set, which
+is safe there because it runs immediately after the warm above populated the
+cache for that same playlist. `StreamResolverService` cannot make that
+assumption — a direct-URL favorite reaches it with nothing warmed — so it goes
+through `ensureToken` instead; see "Playback Header Contract" below.
 
 The classification happens BEFORE the handshake, not after: a **foreign-host**
 static URL never needs the session at all, and warming it anyway would stall
@@ -713,6 +719,21 @@ Two stream profiles exist, selected by one shared predicate:
   `Accept`, `Range`, `Icy-MetaData`, `Connection`). Portal credentials must
   never reach a third-party host; direct stream URLs carry their access token
   in the URL minted by `create_link`.
+
+**The token is bound to the endpoint the headers claim.** Both header inputs —
+the portal coordinates and the Bearer token — must describe the same portal, or
+a session negotiated for one host is presented to another. In
+`StreamResolverService` that is structural: the token is resolved from the same
+`headerPlaylist` object the headers are built from, never from the row it was
+derived from. The live case is a completed lazy repair, which moves the
+endpoint in the override but not in the stored row. Resolving from the override
+also keys the session cache the way `ensureStalkerSession()` and
+`executeStalkerRequest()` already do, so the collection route reuses their
+session instead of handshaking again for a second fingerprint.
+
+That resolution is skipped for a foreign host, whose profile carries no token
+anyway — obtaining one would only stall playback behind a handshake, exactly
+the trade the static branch avoids by classifying first.
 
 The Electron main process keeps a fallback header context per resolved
 `create_link` URL (`stalker-playback-context.service.ts`) for external-player
