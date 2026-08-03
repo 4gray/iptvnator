@@ -518,8 +518,17 @@ export class StreamResolverService {
     ): Promise<ResolvedPortalPlayback> {
         // The item may carry portal/mac overrides for playlists that no
         // longer exist; the builder only reads header-relevant fields.
+        //
+        // The override is applied to the ROW, not just folded in as the two
+        // resolved coordinates: a repair rewrites the portal MODE as well as
+        // the URL, and a playlist repaired from simple to full would otherwise
+        // keep its stale `isFullStalkerPortal: false` here. The request that
+        // just ran adopted a token under the repaired mode, but the mode-aware
+        // token resolver below would read the stale flag and hand back none —
+        // emitting a same-host gated stream without the Bearer header on the
+        // very playback the repair existed to rescue.
         const headerPlaylist = {
-            ...(playlist ?? {}),
+            ...(playlist ? this.portalRepair.applyOverride(playlist) : {}),
             macAddress: resolved.macAddress,
             portalUrl: resolved.portalUrl,
         } as Playlist;

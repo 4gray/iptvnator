@@ -869,6 +869,53 @@ describe('StreamResolverService', () => {
         expect(playback.origin).toBe('https://new.example.com');
     });
 
+    it('carries a repaired simple→full mode into the playback headers', async () => {
+        // A lazy repair rewrites the portal MODE as well as the URL. The
+        // create_link request runs under the repaired mode and adopts a token,
+        // so reading the stored row's stale `isFullStalkerPortal: false` when
+        // resolving that token would drop the Bearer header from the very
+        // playback the repair was meant to rescue.
+        const stored = {
+            _id: 'stalker-1',
+            portalUrl: 'https://portal.example.com/portal.php',
+            macAddress: '00:11:22:33:44:55',
+            isFullStalkerPortal: false,
+        } satisfies Partial<Playlist>;
+        playlistsService.getPlaylistById.mockReturnValue(of(stored));
+        jest.spyOn(
+            TestBed.inject(StalkerPortalRepairService),
+            'applyOverride'
+        ).mockImplementation(
+            (playlist: any) =>
+                ({
+                    ...playlist,
+                    portalUrl:
+                        'https://portal.example.com/stalker_portal/server/load.php',
+                    isFullStalkerPortal: true,
+                }) as any
+        );
+        stalkerSession.ensureToken.mockResolvedValue({ token: 'REPAIRED77' });
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
+            js: { cmd: 'ffmpeg https://portal.example.com:8080/live/95.ts' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::95',
+            name: 'Repaired Portal Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '95',
+            stalkerCmd: 'ffrt3 http://portal.example.com/media/95.mpg',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({ isFullStalkerPortal: true })
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer REPAIRED77');
+    });
+
     it('authenticates a cold session for a direct-URL radio favorite', async () => {
         // A direct-URL radio favorite skips create_link entirely, so on a
         // cold session nothing has authenticated and the in-memory cache is

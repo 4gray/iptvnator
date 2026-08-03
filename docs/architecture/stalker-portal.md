@@ -731,6 +731,15 @@ also keys the session cache the way `ensureStalkerSession()` and
 `executeStalkerRequest()` already do, so the collection route reuses their
 session instead of handshaking again for a second fingerprint.
 
+For the same reason `headerPlaylist` is built by applying the override to the
+row rather than folding in the two resolved coordinates: a repair rewrites the
+portal **mode** as well as the URL, and the token resolver is mode-aware. A
+playlist repaired from simple to full would otherwise keep its stale
+`isFullStalkerPortal: false` here — the `create_link` request having already
+run under the repaired mode and adopted a token — and the same-host gated
+stream would go out with no Bearer header on the very playback the repair
+existed to rescue.
+
 That resolution is skipped for a foreign host, whose profile carries no token
 anyway — obtaining one would only stall playback behind a handshake, exactly
 the trade the static branch avoids by classifying first.
