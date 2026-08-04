@@ -1008,9 +1008,11 @@ player in settings.
   unknown stage/failure. Public DASH text-parser codes likewise retain their
   exact `TEXT` category/code but keep stage/failure unknown. A failed
   `Player.isBrowserSupported()` preflight also stays unknown rather than
-  claiming container incompatibility; clear DASH still offers configured
-  external-player actions, while KODIPROP DRM keeps them disabled because
-  those players never receive its keys.
+  claiming container incompatibility. It carries only the enumerated,
+  app-owned `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker — never a
+  producer recommendation hint or engine payload. Clear DASH still offers
+  configured external-player actions, while KODIPROP DRM keeps them disabled
+  because those players never receive its keys.
   Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
   with a fixed safe detail string and without starting an engine.
 - HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:

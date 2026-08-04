@@ -398,6 +398,7 @@ describe('ShakaVideoSession', () => {
         });
         expect(JSON.stringify(issues[0])).not.toContain(secret);
         expect(JSON.stringify(issues[0])).not.toContain('provider.example');
+        expect(issues[0].runtimeSupport).toBeUndefined();
     });
 
     it('recovers from a stalled load: stop() interrupts it and the next start proceeds', async () => {
@@ -508,6 +509,10 @@ describe('ShakaVideoSession', () => {
             stage: 'unknown',
             failure: 'unknown',
         });
+        expect(issues[0]).toHaveProperty(
+            'runtimeSupport',
+            'shaka-browser-unsupported'
+        );
     });
 
     it('emits the same unknown diagnostic when browser support fails with DRM', async () => {
@@ -525,6 +530,10 @@ describe('ShakaVideoSession', () => {
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(
             PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issues[0]).toHaveProperty(
+            'runtimeSupport',
+            'shaka-browser-unsupported'
         );
     });
 

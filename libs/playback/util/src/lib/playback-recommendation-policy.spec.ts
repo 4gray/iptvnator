@@ -18,6 +18,7 @@ import { recommendPlaybackRecovery } from './playback-recommendation-policy';
 import { createPlaybackTargetCapabilities } from './playback-target-capabilities';
 
 interface ContextOptions {
+    readonly diagnostic?: PlaybackDiagnostic;
     readonly code?: PlaybackDiagnosticCode;
     readonly sourceKind?: PlaybackSourceKind;
     readonly activeTarget?: PlaybackRecommendationTarget;
@@ -43,9 +44,11 @@ function diagnostic(code: PlaybackDiagnosticCode): PlaybackDiagnostic {
 function context(options: ContextOptions = {}): PlaybackRecommendationContext {
     const sourceKind = options.sourceKind ?? PlaybackSourceKind.Hls;
     return {
-        diagnostic: diagnostic(
-            options.code ?? PlaybackDiagnosticCode.UnknownPlaybackError
-        ),
+        diagnostic:
+            options.diagnostic ??
+            diagnostic(
+                options.code ?? PlaybackDiagnosticCode.UnknownPlaybackError
+            ),
         activeTarget: options.activeTarget ?? InlinePlaybackPlayer.VideoJs,
         attemptedTargets: options.attemptedTargets ?? new Set(),
         targetCapabilities:
@@ -62,6 +65,16 @@ function context(options: ContextOptions = {}): PlaybackRecommendationContext {
             externalTransferable: options.externalTransferable ?? true,
         },
         alternativeSourceCount: options.alternativeSourceCount ?? 1,
+    };
+}
+
+function unsupportedShakaBrowserDiagnostic(): PlaybackDiagnostic {
+    return {
+        ...diagnostic(PlaybackDiagnosticCode.UnknownPlaybackError),
+        source: PlaybackDiagnosticSource.Shaka,
+        container: 'mpd',
+        mimeType: 'application/dash+xml',
+        runtimeSupport: 'shaka-browser-unsupported',
     };
 }
 
@@ -448,6 +461,74 @@ describe('recommendPlaybackRecovery', () => {
             ),
             alternative(),
         ]);
+    });
+
+    it('excludes an inline family already attempted through a sibling target', () => {
+        expect(
+            recommendPlaybackRecovery(
+                context({
+                    code: PlaybackDiagnosticCode.MediaDecodeError,
+                    activeTarget: InlinePlaybackPlayer.VideoJs,
+                    attemptedTargets: new Set([InlinePlaybackPlayer.ArtPlayer]),
+                })
+            )
+        ).toEqual([
+            player(
+                'mpv',
+                PlaybackRecommendationReason.ExternalCodecOrContainerSupport,
+                'primary'
+            ),
+            player(
+                'vlc',
+                PlaybackRecommendationReason.ExternalCodecOrContainerSupport
+            ),
+            alternative(),
+        ]);
+    });
+
+    it('keeps managed external recovery for exact clear DASH browser-support evidence', () => {
+        expect(
+            recommendPlaybackRecovery(
+                context({
+                    diagnostic: unsupportedShakaBrowserDiagnostic(),
+                    sourceKind: PlaybackSourceKind.Dash,
+                    activeTarget: InlinePlaybackPlayer.Html5,
+                })
+            )
+        ).toEqual([
+            player(
+                'mpv',
+                PlaybackRecommendationReason.ExternalCodecOrContainerSupport,
+                'primary'
+            ),
+            player(
+                'vlc',
+                PlaybackRecommendationReason.ExternalCodecOrContainerSupport
+            ),
+            alternative(),
+        ]);
+    });
+
+    it.each([
+        {
+            name: 'PWA runtime',
+            options: { managedExternalPlayersAvailable: false },
+        },
+        {
+            name: 'untransferable ClearKey DRM',
+            options: { drm: 'untransferable' as const },
+        },
+    ])('suppresses DASH browser-support fallback in $name', ({ options }) => {
+        expect(
+            recommendPlaybackRecovery(
+                context({
+                    diagnostic: unsupportedShakaBrowserDiagnostic(),
+                    sourceKind: PlaybackSourceKind.Dash,
+                    activeTarget: InlinePlaybackPlayer.Html5,
+                    ...options,
+                })
+            )
+        ).toEqual([alternative('primary')]);
     });
 
     it('ignores capability array order when choosing canonical HTML5', () => {

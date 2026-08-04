@@ -11,6 +11,7 @@ import {
     ShakaPlaybackCategory,
     ShakaPlaybackDisposition as ShakaDisposition,
     ShakaPlaybackFailure,
+    PlaybackRuntimeSupport,
 } from './playback-diagnostics.model';
 import { createPlaybackDiagnostic } from './playback-diagnostics.util';
 import { SHAKA_ERROR_CODE } from './shaka-error-contract';
@@ -88,6 +89,19 @@ export function createUnsupportedDrmDiagnostic(
         source: DiagnosticSource.Shaka,
         metadata,
         details: 'Unsupported DRM license configuration',
+    });
+}
+
+/** Exact app-owned evidence for Shaka's browser-support preflight. */
+export function createShakaBrowserUnsupportedDiagnostic(
+    metadata: PlaybackSourceMetadata
+): PlaybackDiagnostic {
+    return createPlaybackDiagnostic({
+        code: DiagnosticCode.UnknownPlaybackError,
+        source: DiagnosticSource.Shaka,
+        metadata,
+        runtimeSupport: PlaybackRuntimeSupport.ShakaBrowserUnsupported,
+        shaka: createShakaPlaybackEvidence(null, ShakaDisposition.Terminal),
     });
 }
 

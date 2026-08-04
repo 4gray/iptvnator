@@ -4,6 +4,7 @@ import {
     asShakaError,
     classifyShakaPlaybackIssue,
     createPlaybackSourceMetadata,
+    createShakaBrowserUnsupportedDiagnostic,
     createUnsupportedDrmDiagnostic,
     getShakaErrorEventDisposition,
     isShakaLoadInterrupted,
@@ -139,7 +140,12 @@ export class ShakaVideoSession {
         }
 
         if (!module.Player.isBrowserSupported()) {
-            this.emitTerminalIfCurrent(generation, null, url);
+            this.emitIfCurrent(
+                generation,
+                createShakaBrowserUnsupportedDiagnostic(
+                    this.createMetadata(url)
+                )
+            );
             return;
         }
 

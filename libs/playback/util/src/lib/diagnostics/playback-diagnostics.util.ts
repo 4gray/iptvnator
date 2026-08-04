@@ -5,6 +5,7 @@ import type {
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
+    PlaybackRuntimeSupport,
     PlaybackSourceMetadata,
     ShakaPlaybackEvidence,
     VhsPlaybackEngineType as VhsPlaybackEngineTypeValue,
@@ -200,6 +201,7 @@ export function createPlaybackDiagnostic(options: {
     readonly code: PlaybackDiagnosticCode;
     readonly source: PlaybackDiagnosticSource;
     readonly metadata: PlaybackSourceMetadata;
+    readonly runtimeSupport?: PlaybackRuntimeSupport;
     readonly details?: string;
     readonly nativeErrorCode?: number;
     readonly nativeErrorMessage?: string;
@@ -214,6 +216,7 @@ export function createPlaybackDiagnostic(options: {
         code,
         source,
         metadata,
+        runtimeSupport,
         details,
         nativeErrorCode,
         nativeErrorMessage,
@@ -234,6 +237,7 @@ export function createPlaybackDiagnostic(options: {
         player: metadata.player,
         audioCodecs: metadata.audioCodecs,
         videoCodecs: metadata.videoCodecs,
+        runtimeSupport,
         details: details || undefined,
         nativeErrorCode,
         nativeErrorMessage,

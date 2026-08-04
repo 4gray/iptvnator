@@ -2,16 +2,25 @@ import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnosticCode,
+    PlaybackDiagnosticSource,
+    PlaybackRuntimeSupport,
 } from './diagnostics/playback-diagnostics.model';
 import {
     PlaybackEngineFamily,
     PlaybackRecommendationReason,
+    PlaybackSourceKind,
     type PlaybackRecommendation,
     type PlaybackRecommendationContext,
     type PlaybackRecommendationTarget,
     type PlaybackTargetCapability,
 } from './playback-recommendation.model';
-import { getInlinePlaybackEngineFamily } from './playback-target-capabilities';
+import {
+    createPlaybackCapabilityIndex,
+    getAttemptedInlineFamilies,
+    hasAvailableCapability,
+    isInlineFamilyAttempted,
+    type PlaybackCapabilityIndex,
+} from './playback-recommendation-capabilities';
 
 type WithoutPriority<T> = T extends unknown ? Omit<T, 'priority'> : never;
 
@@ -27,32 +36,16 @@ type AvailableInlineCapability = InlineCapability & {
     readonly engineFamily: PlaybackEngineFamily;
 };
 
-interface RuntimeCapabilityRecord {
-    readonly target: unknown;
-    readonly kind: unknown;
-    readonly available: unknown;
-    readonly engineFamily?: unknown;
-}
-
-type CapabilityIndex = ReadonlyMap<
-    PlaybackRecommendationTarget,
-    PlaybackTargetCapability
->;
-
-const CANONICAL_TARGETS: readonly PlaybackRecommendationTarget[] = [
-    InlinePlaybackPlayer.VideoJs,
-    InlinePlaybackPlayer.Html5,
-    InlinePlaybackPlayer.ArtPlayer,
-    'mpv',
-    'vlc',
-];
-
 export function recommendPlaybackRecovery(
     context: PlaybackRecommendationContext
 ): readonly PlaybackRecommendation[] {
-    const capabilityIndex = isPlayerOrientedDiagnostic(context.diagnostic.code)
-        ? createCapabilityIndex(context)
+    const capabilityIndex = hasPlayerRecoveryEvidence(context)
+        ? createPlaybackCapabilityIndex(context)
         : null;
+    const attemptedInlineFamilies = getAttemptedInlineFamilies(
+        context,
+        capabilityIndex
+    );
     const seenTargets = new Set<PlaybackRecommendationTarget>();
     const candidates = buildCandidates(context, capabilityIndex).filter(
         isCandidate
@@ -66,6 +59,15 @@ export function recommendPlaybackRecovery(
             context.attemptedTargets.has(candidate.target) ||
             seenTargets.has(candidate.target) ||
             !hasAvailableCapability(capabilityIndex, candidate.target)
+        ) {
+            return false;
+        }
+        if (
+            isInlineFamilyAttempted(
+                candidate.target,
+                capabilityIndex,
+                attemptedInlineFamilies
+            )
         ) {
             return false;
         }
@@ -87,13 +89,18 @@ export function recommendPlaybackRecovery(
 
 function buildCandidates(
     context: PlaybackRecommendationContext,
-    capabilityIndex: CapabilityIndex | null
+    capabilityIndex: PlaybackCapabilityIndex | null
 ): readonly (PlaybackRecommendationCandidate | null)[] {
-    if (
-        isPlayerOrientedDiagnostic(context.diagnostic.code) &&
-        capabilityIndex === null
-    ) {
+    if (hasPlayerRecoveryEvidence(context) && capabilityIndex === null) {
         return [retryUnknown(), alternative(context)];
+    }
+
+    if (isShakaBrowserUnsupported(context)) {
+        return [
+            externalCodecSupport('mpv'),
+            externalCodecSupport('vlc'),
+            alternative(context),
+        ];
     }
 
     switch (context.diagnostic.code) {
@@ -174,7 +181,7 @@ function alternative(
 
 function distinctInline(
     context: PlaybackRecommendationContext,
-    capabilityIndex: CapabilityIndex | null,
+    capabilityIndex: PlaybackCapabilityIndex | null,
     reason: PlaybackRecommendationCandidate['reason']
 ): PlaybackRecommendationCandidate | null {
     const activeCapability = getActiveInlineCapability(
@@ -213,7 +220,7 @@ function getCanonicalDistinctInlineTarget(
 
 function getActiveInlineCapability(
     context: PlaybackRecommendationContext,
-    capabilityIndex: CapabilityIndex | null
+    capabilityIndex: PlaybackCapabilityIndex | null
 ): AvailableInlineCapability | null {
     const capability = capabilityIndex?.get(context.activeTarget);
     return capability?.kind === 'inline' &&
@@ -251,86 +258,26 @@ function isPlayerOrientedDiagnostic(
     );
 }
 
-function hasAvailableCapability(
-    capabilityIndex: CapabilityIndex | null,
-    target: PlaybackRecommendationTarget
-): boolean {
-    return capabilityIndex?.get(target)?.available === true;
-}
-
-function createCapabilityIndex(
+function hasPlayerRecoveryEvidence(
     context: PlaybackRecommendationContext
-): CapabilityIndex | null {
-    const index = new Map<
-        PlaybackRecommendationTarget,
-        PlaybackTargetCapability
-    >();
-    for (const capability of context.targetCapabilities) {
-        if (!isValidCapability(context, capability, index)) {
-            return null;
-        }
-        index.set(capability.target, capability);
-    }
-    if (index.size !== CANONICAL_TARGETS.length) {
-        return null;
-    }
-    const active = index.get(context.activeTarget);
-    return active?.kind === 'inline' &&
-        active.available &&
-        active.engineFamily !== null
-        ? index
-        : null;
-}
-
-function isValidCapability(
-    context: PlaybackRecommendationContext,
-    capability: unknown,
-    index: CapabilityIndex
-): capability is PlaybackTargetCapability {
-    if (
-        !hasRequiredCapabilityFields(capability) ||
-        !isKnownTarget(capability.target) ||
-        index.has(capability.target) ||
-        typeof capability.available !== 'boolean'
-    ) {
-        return false;
-    }
-    if (!isInlineTarget(capability.target)) {
-        return capability.kind === 'external';
-    }
-    if (capability.kind !== 'inline' || !('engineFamily' in capability)) {
-        return false;
-    }
-    const expectedFamily = getInlinePlaybackEngineFamily(
-        context.source.kind,
-        capability.target
-    );
+): boolean {
     return (
-        capability.engineFamily === expectedFamily &&
-        !(expectedFamily === null && capability.available)
+        isPlayerOrientedDiagnostic(context.diagnostic.code) ||
+        isShakaBrowserUnsupported(context)
     );
 }
 
-function hasRequiredCapabilityFields(
-    value: unknown
-): value is RuntimeCapabilityRecord {
+function isShakaBrowserUnsupported(
+    context: PlaybackRecommendationContext
+): boolean {
     return (
-        typeof value === 'object' &&
-        value !== null &&
-        'target' in value &&
-        'kind' in value &&
-        'available' in value
+        context.diagnostic.code ===
+            PlaybackDiagnosticCode.UnknownPlaybackError &&
+        context.diagnostic.source === PlaybackDiagnosticSource.Shaka &&
+        context.diagnostic.runtimeSupport ===
+            PlaybackRuntimeSupport.ShakaBrowserUnsupported &&
+        context.source.kind === PlaybackSourceKind.Dash
     );
-}
-
-function isKnownTarget(value: unknown): value is PlaybackRecommendationTarget {
-    return CANONICAL_TARGETS.includes(value as PlaybackRecommendationTarget);
-}
-
-function isInlineTarget(
-    value: PlaybackRecommendationTarget
-): value is InlinePlaybackPlayer {
-    return !isExternalTarget(value);
 }
 
 function isExternalTarget(
