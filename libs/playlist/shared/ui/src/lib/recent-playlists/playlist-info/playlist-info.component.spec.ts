@@ -12,7 +12,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistInfoComponent } from './playlist-info.component';
 
 describe('PlaylistInfoComponent', () => {
@@ -614,6 +614,43 @@ describe('PlaylistInfoComponent', () => {
 
             expect(control?.valid).toBe(false);
             expect(component.playlistDetails.valid).toBe(false);
+        });
+
+        it('canonicalizes the MAC on submit when no blur fired', async () => {
+            // Pressing Enter inside the field submits without the field losing
+            // focus, so `onMacAddressBlur` never runs.
+            createStalkerComponent();
+            component.playlistDetails.get('macAddress')?.setValue(
+                '00-1a-79-ab-cd-ef'
+            );
+
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: '00:1A:79:AB:CD:EF',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it('persists a grandfathered MAC untouched on submit', async () => {
+            createStalkerComponent({ macAddress: 'legacy-device-42' });
+
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: 'legacy-device-42',
+                    }) as PlaylistMeta,
+                })
+            );
         });
 
         it('keeps a MAC outside the Infomir range saveable', () => {

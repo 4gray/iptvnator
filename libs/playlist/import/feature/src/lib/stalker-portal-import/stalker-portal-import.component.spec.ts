@@ -670,6 +670,63 @@ describe('StalkerPortalImportComponent identity handling', () => {
             expect(component.form.controls.deviceId1.value).toBe('');
         });
 
+        it('keeps the identity it authenticated with when unticked mid-import', async () => {
+            // Discovery has already sent these IDs to the portal by the time a
+            // slow answer comes back, so the portal has pinned them. Persisting
+            // what the user unticked to instead — nothing — is the permanent
+            // lockout, so the snapshot has to win. The toggle is locked while
+            // the import runs precisely so the UI cannot imply otherwise.
+            component.form.patchValue({
+                _id: 'playlist-slow-discovery',
+                title: 'Slow Portal',
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+            await component.toggleDeriveDeviceIds(true);
+
+            let finishDiscovery = (): void => undefined;
+            portalDiscovery.discover.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        finishDiscovery = () =>
+                            resolve({
+                                status: 'resolved',
+                                portalUrl: 'https://portal.example.com/c',
+                                isFullStalkerPortal: false,
+                            });
+                    })
+            );
+
+            const importing = component.addPlaylist();
+            // Submitting settles the derivation first, so several microtasks
+            // pass before discovery is reached; poll rather than guess.
+            for (
+                let i = 0;
+                i < 100 && portalDiscovery.discover.mock.calls.length === 0;
+                i += 1
+            ) {
+                await new Promise((resolve) => setTimeout(resolve, 1));
+            }
+
+            expect(portalDiscovery.discover).toHaveBeenCalledTimes(1);
+            expect(component.isLoading()).toBe(true);
+            expect(component.hasManualDeviceIds).toBe(true);
+
+            // Even if the toggle were reachable, the import must not change.
+            await component.toggleDeriveDeviceIds(false);
+            finishDiscovery();
+            await importing;
+
+            const playlist = store.dispatch.mock.calls[0][0].playlist;
+            expect(playlist.stalkerDeviceId1).toBe(
+                DERIVED_FOR_AABBCC.deviceId1
+            );
+            expect(playlist.stalkerDeviceId2).toBe(
+                DERIVED_FOR_AABBCC.deviceId2
+            );
+        });
+
         it('refuses to overwrite a hand-entered device ID', () => {
             expect(component.hasManualDeviceIds).toBe(false);
 

@@ -128,8 +128,23 @@ export class StalkerPortalImportComponent {
             !hasInfomirMacOui(value);
     }
 
-    /** Derivation would overwrite a device ID the user entered by hand. */
+    /**
+     * The toggle is unavailable while an import is running, and while
+     * derivation would overwrite a device ID the user entered by hand.
+     *
+     * Locking it during the import is not cosmetic. `addPlaylist()` snapshots
+     * the identity and then hands it to portal discovery, which authenticates
+     * with it — so by the time a slow discovery returns, the portal has
+     * already pinned those IDs to the MAC. The snapshot is therefore the only
+     * correct thing to persist, and unticking mid-flight cannot change that.
+     * Leaving the box live would show the fields emptying and imply the
+     * opposite.
+     */
     get hasManualDeviceIds(): boolean {
+        if (this.isLoading()) {
+            return true;
+        }
+
         return (
             !this.derivesDeviceIds() &&
             Boolean(
@@ -282,6 +297,15 @@ export class StalkerPortalImportComponent {
             // this snapshot produces is the one the portal pins forever.
             await this.settleMacAddressIdentity();
 
+            // This snapshot is authoritative for the rest of the import, and
+            // deliberately so: discovery below authenticates with exactly
+            // these values, and `get_profile` is what makes the portal pin
+            // them to the MAC. Re-reading the form after discovery — to pick
+            // up an edit made while it was running — would persist device IDs
+            // that differ from the ones already pinned, or none at all, and
+            // sending nothing after a value was pinned is the permanent
+            // lockout. The identity controls are locked while `isLoading()`
+            // so the UI cannot suggest otherwise.
             const formValue = this.form.getRawValue();
             const originalUrl = formValue.portalUrl ?? '';
             // `getRawValue()` also carries the device ID controls while they

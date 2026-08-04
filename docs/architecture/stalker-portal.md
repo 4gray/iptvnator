@@ -246,8 +246,11 @@ library is the contract layer the Electron main process imports and must stay
 framework-free.
 
 Normalization runs **only at the input boundary** — on blur and again on
-submit, so a keyboard user who never blurs the field still gets it. Stored MAC
-addresses are deliberately never rewritten on read:
+submit, in both dialogs. The submit pass is not redundant: clicking Add or
+pressing Enter inside the field submits without the field necessarily losing
+focus, so the blur handler never runs and the raw `00-1a-79-…` would be the
+value that gets persisted and sent. Stored MAC addresses are deliberately
+never rewritten on read:
 
 - the MAC is the account key, and the bytes an already-working playlist puts
   in its `mac` cookie are the bytes that portal accepted;
@@ -323,6 +326,15 @@ later empty value as a permanent lockout. Therefore:
   digest settles (hold it behind a gate, or delay the older invocation):
   Node resolves digests this small in start order, so the naive versions pass
   with the guards removed;
+- **the snapshot `addPlaylist()` takes is authoritative for the whole import,
+  by design.** Discovery authenticates with exactly those values, and
+  `get_profile` is what pins them to the MAC — so by the time a slow discovery
+  answers, the portal has already committed. Re-reading the form afterwards to
+  pick up a mid-flight edit would persist device IDs that differ from the
+  pinned ones, or none at all, and sending nothing after a value was pinned is
+  the permanent lockout. The identity toggle is therefore locked while
+  `isLoading()` rather than the submission being re-snapshotted: the UI must
+  not imply an opt-out that cannot exist;
 - an unusable MAC (or a runtime without WebCrypto) derives nothing rather than
   hashing a typo into a permanent binding;
 - the playlist-info edit dialog offers no derivation. It shows

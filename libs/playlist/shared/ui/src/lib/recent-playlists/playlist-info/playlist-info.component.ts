@@ -306,8 +306,9 @@ export class PlaylistInfoComponent {
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
         try {
-            const normalizedPlaylist =
-                this.normalizeXtreamPlaylistMeta(playlist);
+            const normalizedPlaylist = this.normalizeStalkerPlaylistMeta(
+                this.normalizeXtreamPlaylistMeta(playlist)
+            );
             const isXtream =
                 this.playlist &&
                 this.playlist.username &&
@@ -343,6 +344,27 @@ export class PlaylistInfoComponent {
                 }
             );
         }
+    }
+
+    /**
+     * Canonicalizes the MAC on the submit path as well as on blur. Pressing
+     * Enter inside the field submits the dialog without the field losing
+     * focus, so the blur handler never runs and the raw `00-1a-79-…` the user
+     * typed would be persisted and sent to a portal whose format check
+     * refuses it.
+     *
+     * A value that does not parse is left exactly as it is: that is the
+     * grandfathered case, where a playlist stored before this validation
+     * existed may be working on a panel that ignores the MAC entirely.
+     */
+    private normalizeStalkerPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
+        const normalizedMac = normalizeStalkerMacAddress(playlist.macAddress);
+
+        if (!normalizedMac || normalizedMac === playlist.macAddress) {
+            return playlist;
+        }
+
+        return { ...playlist, macAddress: normalizedMac };
     }
 
     private normalizeXtreamPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
