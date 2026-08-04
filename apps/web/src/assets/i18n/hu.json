@@ -549,9 +549,9 @@
         "BROWSER_ACCESS_ERROR": {
             "TITLE": "A böngészőben működő lejátszó nem tudott hozzáférni ehhez az adatfolyamhoz",
             "DESCRIPTION": "A kérést CORS-korlátozás, vegyes tartalom, illetve a szolgáltató fejléc- vagy proxykorlátozásai akadályozhatják. Az MPV vagy a VLC gyakran képes megkerülni a böngészőben működő lejátszó hozzáférési korlátait.",
-            "PWA_DESCRIPTION": "A kérést CORS-korlátozás, vegyes tartalom, illetve a szolgáltató fejléc- vagy proxykorlátozásai akadályozhatják. A PWA nem tud közvetlenül külső lejátszót indítani; válassza az Adatfolyam URL-címének másolása műveletet, majd nyissa meg kézzel MPV-ben, VLC-ben, IINA-ban vagy más lejátszóban.",
-            "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL."
+            "PWA_DESCRIPTION": "A kérést CORS-korlátozás, vegyes tartalom, illetve a szolgáltató fejléc- vagy proxykorlátozásai akadályozhatják. A PWA nem tud közvetlenül külső lejátszót indítani; válassza az Adatfolyam URL-címének másolása műveletet, majd nyissa meg kézzel MPV-ben, VLC-ben, IINA-ban vagy más lejátszóban."
         },
+        "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL.",
         "DRM_OR_ENCRYPTION": {
             "TITLE": "Az adatfolyam titkosított vagy DRM-védelemmel ellátott lehet",
             "DESCRIPTION": "A böngészőben működő lejátszó a jelzett titkosítási vagy kulcshiba miatt nem tudja folytatni a lejátszást. Ha a szolgáltató DRM-védelmet alkalmaz, a külső lejátszás is sikertelen lehet."

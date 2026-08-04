@@ -328,43 +328,49 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('uses neutral browser-access guidance when DRM cannot be transferred', () => {
-        runtimeCapabilities.supportsManagedExternalPlayers = true;
-        fixture.componentRef.setInput('playback', {
-            streamUrl: 'https://provider.example/protected.mpd',
-            title: 'Protected stream',
-            drm: {
-                licenseType: 'clearkey',
-                supported: true,
-                clearKeys: {
-                    '00112233445566778899aabbccddeeff':
-                        'ffeeddccbbaa99887766554433221100',
+    it.each([
+        ['browser-access', createBrowserAccessDiagnostic],
+        ['unsupported-codec', createUnsupportedCodecDiagnostic],
+    ])(
+        'uses neutral %s guidance when ClearKey playback cannot be transferred',
+        (_diagnostic, createDiagnostic) => {
+            runtimeCapabilities.supportsManagedExternalPlayers = true;
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://provider.example/protected.mpd',
+                title: 'Protected stream',
+                drm: {
+                    licenseType: 'clearkey',
+                    supported: true,
+                    clearKeys: {
+                        '00112233445566778899aabbccddeeff':
+                            'ffeeddccbbaa99887766554433221100',
+                    },
                 },
-            },
-        });
+            });
 
-        fixture.detectChanges();
-        emitPlaybackIssue(createBrowserAccessDiagnostic());
-        fixture.detectChanges();
+            fixture.detectChanges();
+            emitPlaybackIssue(createDiagnostic());
+            fixture.detectChanges();
 
-        const banner = fixture.debugElement.query(
-            By.css('[data-test-id="playback-diagnostic-banner"]')
-        );
+            const banner = fixture.debugElement.query(
+                By.css('[data-test-id="playback-diagnostic-banner"]')
+            );
 
-        expect(banner.nativeElement.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_FAILURE_TITLE'
-        );
-        expect(banner.nativeElement.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.UNTRANSFERABLE_DESCRIPTION'
-        );
-        expect(
-            banner.query(
-                By.css(
-                    '[data-test-id="playback-fallback-mpv"], [data-test-id="playback-fallback-vlc"]'
+            expect(banner.nativeElement.textContent).toContain(
+                'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_FAILURE_TITLE'
+            );
+            expect(banner.nativeElement.textContent).toContain(
+                'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_DESCRIPTION'
+            );
+            expect(
+                banner.query(
+                    By.css(
+                        '[data-test-id="playback-fallback-mpv"], [data-test-id="playback-fallback-vlc"]'
+                    )
                 )
-            )
-        ).toBeNull();
-    });
+            ).toBeNull();
+        }
+    );
 
     it('renders only sanitized structured HLS evidence in technical details', () => {
         const issue = createStructuredHlsDiagnostic();

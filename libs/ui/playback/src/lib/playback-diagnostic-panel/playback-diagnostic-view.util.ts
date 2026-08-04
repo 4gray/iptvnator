@@ -4,6 +4,15 @@ import {
     getLikelyBrowserUnsupportedCodecLabels,
 } from '@iptvnator/playback/util';
 
+const UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES: ReadonlySet<
+    PlaybackDiagnostic['code']
+> = new Set([
+    PlaybackDiagnosticCode.BrowserAccessError,
+    PlaybackDiagnosticCode.UnsupportedCodec,
+    PlaybackDiagnosticCode.UnsupportedContainer,
+    PlaybackDiagnosticCode.MediaDecodeError,
+]);
+
 export type PlaybackDiagnosticDetail = {
     readonly labelKey: string;
     readonly value: string;
@@ -19,10 +28,10 @@ export function getDiagnosticDescriptionKey(
     playbackExternallyTransferable: boolean
 ): string {
     if (
-        issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
-        !playbackExternallyTransferable
+        !playbackExternallyTransferable &&
+        UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES.has(issue.code)
     ) {
-        return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.UNTRANSFERABLE_DESCRIPTION';
+        return 'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_DESCRIPTION';
     }
 
     if (
