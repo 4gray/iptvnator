@@ -25,7 +25,6 @@ export interface StalkerEpisodePlaybackSessionIdentity {
     readonly seasonKey: string;
     readonly seasonNumber: number;
     readonly episodeNumber: number;
-    readonly episodeTrackingId: string | number;
     readonly sessionKey: string;
 }
 
@@ -67,8 +66,9 @@ export function captureStalkerEpisodePlaybackSessionIdentity({
         return null;
     }
 
-    // Provider commands and IDs remain transient request guards below. They
-    // may contain credentials and must never enter recovery ownership state.
+    // Recovery ownership uses provider commands and IDs only for the transient
+    // request guard below. They may contain credentials and must never enter
+    // the session key or retained recovery state.
     const structuralContentId = JSON.stringify([
         seriesMode,
         seriesId,
@@ -92,7 +92,6 @@ export function captureStalkerEpisodePlaybackSessionIdentity({
         seasonKey,
         seasonNumber,
         episodeNumber,
-        episodeTrackingId: episodeState.episode.id,
         sessionKey,
     });
 }

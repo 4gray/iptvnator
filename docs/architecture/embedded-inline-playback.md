@@ -48,11 +48,13 @@ stream or catch-up URL. VOD and series hosts use the route or catalog
 content identity, with series episode coordinates. Stalker episode identity
 also includes the explicit series mode, normalized parent, exact season key,
 season number, and episode number; synthesized episode hashes are not identity.
-The original provider command or episode ID exists only in the short-lived
-pending-request guard used to locate the exact selected episode and reject
-stale or out-of-order completion. It is never serialized into the recovery
-session key. This keeps token refreshes in one logical session while ensuring
-colliding tracking hashes cannot select a sibling episode.
+Mapped episodes retain the original provider command or episode ID for playback
+resolution. Recovery ownership never serializes that value into the session
+key or retained recovery state; its recovery-ownership use is limited to a
+short-lived exact pending-request snapshot/guard that locates the selected
+episode and rejects stale or out-of-order completion. This keeps token refreshes
+in one logical session while ensuring colliding tracking hashes cannot select a
+sibling episode.
 Shared wrappers (`VodDetailsComponent` and `PortalInlinePlayerComponent`) pass
 the key unchanged to `WebPlayerViewComponent`.
 

@@ -76,6 +76,33 @@ describe('createStalkerEpisodePlaybackSessionKey', () => {
         }
     );
 
+    it('retains the exact pending guard without a synthesized tracking hash', () => {
+        const originalCmd =
+            'https://stream.example.invalid/episode.mpg?access_token=example-token';
+        const state = episodeState({
+            id: 'command-derived-tracking-hash',
+            originalCmd,
+        });
+        const identity = captureStalkerEpisodePlaybackSessionIdentity({
+            sourceId: 'playlist',
+            parentSeriesId: 'series',
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            episodeState: state,
+        });
+        if (!identity) throw new Error('Expected a captured request identity');
+
+        expect(identity).toEqual({
+            sourceId: 'playlist',
+            parentSeriesId: 'series',
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            originalEpisodeIdentity: originalCmd,
+            seasonKey: state.seasonKey,
+            seasonNumber: state.seasonNumber,
+            episodeNumber: state.episodeNumber,
+            sessionKey: identity.sessionKey,
+        });
+    });
+
     it('keeps lazy provider ids transient while rejecting an id refresh for a pending request', () => {
         const stateA = episodeState({ originalId: 'provider|episode:token-a' });
         const stateB = episodeState({ originalId: 'provider|episode:token-b' });
