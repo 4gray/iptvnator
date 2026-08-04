@@ -654,6 +654,33 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
+        it('leaves a non-canonical MAC alone when focus passes through it', async () => {
+            // Tabbing through the dialog fires blur with no edit. Rewriting
+            // there would mark the form dirty AND make the value differ from
+            // the stored one, which is what the submit guard reads — so a
+            // later title-only save would carry the rewritten identity.
+            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            const control = component.playlistDetails.get('macAddress');
+
+            component.onMacAddressBlur();
+
+            expect(control?.value).toBe('00-1a-79-aa-bb-cc');
+            expect(control?.dirty).toBe(false);
+
+            component.playlistDetails.get('title')?.setValue('Renamed');
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: '00-1a-79-aa-bb-cc',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
         it('leaves an untouched non-canonical MAC alone on an unrelated save', async () => {
             // Renaming a playlist must not rewrite its MAC: those bytes are
             // what a permissive portal registered, and changing them moves

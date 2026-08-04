@@ -273,12 +273,19 @@ the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
 `stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
 endpoint and be refused *there*, not in the form.
 
-In the edit dialog the submit pass normalizes **only a MAC the user actually
-changed** (compared against the stored value). Renaming a playlist, or editing
-its EPG sources, must not rewrite a non-canonical MAC as a side effect: those
-bytes are what a permissive portal registered, and rewriting them would move
-the session fingerprint and re-authenticate under a spelling the portal never
-saw — the same reason a stored MAC is not rewritten on load.
+In the edit dialog **both** passes — blur and submit — normalize only a MAC the
+user actually changed, compared against the value the dialog was opened with
+(`isStalkerMacAddressEdited`). Renaming a playlist, or editing its EPG sources,
+must not rewrite a non-canonical MAC as a side effect: those bytes are what a
+permissive portal registered, and rewriting them would move the session
+fingerprint and re-authenticate under a spelling the portal never saw — the
+same reason a stored MAC is not rewritten on load.
+
+Guarding the submit pass alone is not enough, and this is the subtle part:
+tabbing through the dialog fires blur with no edit, and a blur that rewrites
+the control both marks the form dirty and makes the value differ from the
+stored one — which is precisely what the submit guard reads. The identity would
+then ride out on a title-only save.
 
 The edit dialog goes one step further: `createStalkerMacAddressValidator`
 grandfathers the value a playlist already stored. Before there was any
@@ -362,6 +369,18 @@ later empty value as a permanent lockout. Therefore:
   `isFullStalkerPortal` — telling those users a change "will lock this source
   out" would be false and would discourage them from fixing an ID that was
   never pinned.
+
+  **Known imprecision, deliberately not closed here.** The gate proves that
+  *some* device ID reached the portal, not that the currently stored one did:
+  a user who edits the ID after import keeps `isFullStalkerPortal` true while
+  the new value has never seen `get_profile`. The copy is hedged for exactly
+  that ("a device ID", not "this one") and the fields stay editable, so the
+  remedy — restoring the ID that was pinned — is never blocked. Making it
+  exact needs a per-identity confirmation signal;
+  `Playlist.stalkerSessionIdentity` already carries a session fingerprint that
+  would serve, but reading it here would make a `type:ui` playlist library
+  depend on the Stalker data-access lib, which the Nx boundaries forbid. Worth
+  revisiting behind a shared contract, not worth a boundary exception.
 
 The trade-off the option exists for is interoperability, not obfuscation: a
 user who reaches the same account from StbEmu already has this exact value

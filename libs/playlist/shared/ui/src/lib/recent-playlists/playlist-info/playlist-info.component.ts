@@ -230,18 +230,33 @@ export class PlaylistInfoComponent {
 
     /**
      * Canonicalizes an edited MAC on blur, so the stored value is the one the
-     * portal's own format check accepts. Only an edit normalizes it: a stored
-     * MAC is never rewritten on load, since that would move the session
-     * fingerprint — and with it the account identity — with no user action.
+     * portal's own format check accepts.
+     *
+     * Only an EDIT normalizes it. Merely focusing the field and tabbing on
+     * must leave it alone: rewriting it there would mark the form dirty and
+     * make the value differ from the stored one, which is exactly what the
+     * submit-path guard reads — so a later title-only save would carry the
+     * rewritten identity through and move the session fingerprint without the
+     * user having touched the MAC at all.
      */
     onMacAddressBlur(): void {
         const control = this.playlistDetails.get('macAddress');
-        const normalized = normalizeStalkerMacAddress(control?.value);
 
-        if (control && normalized && normalized !== control.value) {
+        if (!control || !this.isStalkerMacAddressEdited(control.value)) {
+            return;
+        }
+
+        const normalized = normalizeStalkerMacAddress(control.value);
+
+        if (normalized && normalized !== control.value) {
             control.setValue(normalized);
             control.markAsDirty();
         }
+    }
+
+    /** Whether a MAC value differs from the one the playlist was loaded with. */
+    private isStalkerMacAddressEdited(value: unknown): boolean {
+        return value !== this.playlist.macAddress;
     }
 
     get playlistEpgSourceInputs(): UntypedFormArray {
@@ -376,7 +391,7 @@ export class PlaylistInfoComponent {
      * on a panel that ignores the MAC entirely.
      */
     private normalizeStalkerPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
-        if (playlist.macAddress === this.playlist.macAddress) {
+        if (!this.isStalkerMacAddressEdited(playlist.macAddress)) {
             return playlist;
         }
 
