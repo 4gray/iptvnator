@@ -60,6 +60,7 @@ export class PlaybackDiagnosticPanelComponent {
         input.required<readonly PlaybackRecommendation[]>();
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly supportsManagedExternalPlayers = input.required<boolean>();
+    readonly playbackExternallyTransferable = input.required<boolean>();
     readonly alternativeSources = input<readonly VodSourceDescriptor[]>([]);
     readonly pending = input(false);
 
@@ -80,11 +81,14 @@ export class PlaybackDiagnosticPanelComponent {
     readonly hasExternalPlayerRecommendation = computed(() =>
         this.recommendations().some(isExternalPlayerRecommendation)
     );
-    readonly diagnosticHeadlineKey = computed(() =>
-        this.hasExternalPlayerRecommendation()
-            ? 'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
-            : 'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
-    );
+    readonly diagnosticHeadlineKey = computed(() => {
+        if (this.hasExternalPlayerRecommendation()) {
+            return 'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE';
+        }
+        return this.playbackExternallyTransferable()
+            ? 'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+            : 'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_FAILURE_TITLE';
+    });
 
     readonly getDiagnosticTitleKey = getDiagnosticTitleKey;
     readonly getDiagnosticMeta = getDiagnosticMeta;
@@ -102,7 +106,8 @@ export class PlaybackDiagnosticPanelComponent {
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
         return getDiagnosticDescriptionKey(
             issue,
-            this.supportsManagedExternalPlayers()
+            this.supportsManagedExternalPlayers(),
+            this.playbackExternallyTransferable()
         );
     }
 

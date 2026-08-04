@@ -549,7 +549,8 @@
         "BROWSER_ACCESS_ERROR": {
             "TITLE": "A böngészőben működő lejátszó nem tudott hozzáférni ehhez az adatfolyamhoz",
             "DESCRIPTION": "A kérést CORS-korlátozás, vegyes tartalom, illetve a szolgáltató fejléc- vagy proxykorlátozásai akadályozhatják. Az MPV vagy a VLC gyakran képes megkerülni a böngészőben működő lejátszó hozzáférési korlátait.",
-            "PWA_DESCRIPTION": "A kérést CORS-korlátozás, vegyes tartalom, illetve a szolgáltató fejléc- vagy proxykorlátozásai akadályozhatják. A PWA nem tud közvetlenül külső lejátszót indítani; válassza az Adatfolyam URL-címének másolása műveletet, majd nyissa meg kézzel MPV-ben, VLC-ben, IINA-ban vagy más lejátszóban."
+            "PWA_DESCRIPTION": "A kérést CORS-korlátozás, vegyes tartalom, illetve a szolgáltató fejléc- vagy proxykorlátozásai akadályozhatják. A PWA nem tud közvetlenül külső lejátszót indítani; válassza az Adatfolyam URL-címének másolása műveletet, majd nyissa meg kézzel MPV-ben, VLC-ben, IINA-ban vagy más lejátszóban.",
+            "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL."
         },
         "DRM_OR_ENCRYPTION": {
             "TITLE": "Az adatfolyam titkosított vagy DRM-védelemmel ellátott lehet",
@@ -561,6 +562,7 @@
         },
         "NATIVE_FALLBACK_TITLE": "Nyissa meg inkább külső lejátszóban",
         "INLINE_FAILURE_TITLE": "Másolja ki az URL-címet, vagy próbálja újra",
+        "UNTRANSFERABLE_FAILURE_TITLE": "Protected playback could not continue",
         "RECOMMENDATIONS_LABEL": "Ajánlott helyreállítási műveletek",
         "ACTION_TRY_PLAYER": "A(z) {{player}} kipróbálása",
         "ACTION_TRY_PLAYER_HINT": "Csak ennél az elemnél ideiglenes; a mentett lejátszó változatlan marad",

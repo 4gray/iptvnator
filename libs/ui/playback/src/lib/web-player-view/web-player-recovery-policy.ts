@@ -18,7 +18,7 @@ export function createWebPlayerRecommendations(options: {
     readonly binding: PlaybackBinding | null;
     readonly attemptedTargets: ReadonlySet<PlaybackRecommendationTarget>;
     readonly managedExternalPlayersAvailable: boolean;
-    readonly playback: ResolvedPortalPlayback;
+    readonly playbackExternallyTransferable: boolean;
     readonly isLive: boolean;
     readonly alternativeSourceCount: number;
 }): readonly PlaybackRecommendation[] {
@@ -26,7 +26,6 @@ export function createWebPlayerRecommendations(options: {
         return [];
     }
     const sourceKind = resolvePlaybackSourceKind(options.diagnostic);
-    const drm = options.playback.drm;
     return recommendPlaybackRecovery({
         diagnostic: options.diagnostic,
         activeTarget: options.binding.target,
@@ -39,11 +38,19 @@ export function createWebPlayerRecommendations(options: {
         source: {
             kind: sourceKind,
             isLive: options.isLive,
-            drm: drm ? 'untransferable' : 'none',
-            externalTransferable: !drm,
+            drm: options.playbackExternallyTransferable
+                ? 'none'
+                : 'untransferable',
+            externalTransferable: options.playbackExternallyTransferable,
         },
         alternativeSourceCount: options.alternativeSourceCount,
     });
+}
+
+export function isPlaybackExternallyTransferable(
+    playback: ResolvedPortalPlayback
+): boolean {
+    return playback.drm === undefined;
 }
 
 export function toVideoPlayer(target: InlinePlaybackPlayer): VideoPlayer {

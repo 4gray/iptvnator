@@ -147,6 +147,7 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         fixture.componentRef.setInput('recommendations', []);
         fixture.componentRef.setInput('playback', PLAYBACK);
         fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
+        fixture.componentRef.setInput('playbackExternallyTransferable', true);
     });
 
     it('applies the component host style from the actual panel stylesheet', () => {
@@ -496,12 +497,16 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         );
     });
 
-    it('does not infer external recovery copy for DRM without a ranked external target', () => {
+    it('uses a neutral headline for untransferable DRM without a ranked external target', () => {
         fixture.componentRef.setInput('diagnostic', {
             ...DIAGNOSTIC,
             code: PlaybackDiagnosticCode.DrmOrEncryption,
         });
         fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
+        fixture.componentRef.setInput(
+            'playbackExternallyTransferable',
+            false
+        );
         fixture.componentRef.setInput('recommendations', [
             recommendation('alternative-source', { priority: 'primary' }),
         ]);
@@ -509,7 +514,7 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+            'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_FAILURE_TITLE'
         );
         expect(fixture.nativeElement.textContent).not.toContain(
             'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'

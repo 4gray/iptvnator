@@ -328,6 +328,44 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
+    it('uses neutral browser-access guidance when DRM cannot be transferred', () => {
+        runtimeCapabilities.supportsManagedExternalPlayers = true;
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://provider.example/protected.mpd',
+            title: 'Protected stream',
+            drm: {
+                licenseType: 'clearkey',
+                supported: true,
+                clearKeys: {
+                    '00112233445566778899aabbccddeeff':
+                        'ffeeddccbbaa99887766554433221100',
+                },
+            },
+        });
+
+        fixture.detectChanges();
+        emitPlaybackIssue(createBrowserAccessDiagnostic());
+        fixture.detectChanges();
+
+        const banner = fixture.debugElement.query(
+            By.css('[data-test-id="playback-diagnostic-banner"]')
+        );
+
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_FAILURE_TITLE'
+        );
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.UNTRANSFERABLE_DESCRIPTION'
+        );
+        expect(
+            banner.query(
+                By.css(
+                    '[data-test-id="playback-fallback-mpv"], [data-test-id="playback-fallback-vlc"]'
+                )
+            )
+        ).toBeNull();
+    });
+
     it('renders only sanitized structured HLS evidence in technical details', () => {
         const issue = createStructuredHlsDiagnostic();
 
@@ -1004,7 +1042,8 @@ describe('WebPlayerViewComponent', () => {
     function getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
         return resolveDiagnosticDescriptionKey(
             issue,
-            runtimeCapabilities.supportsManagedExternalPlayers
+            runtimeCapabilities.supportsManagedExternalPlayers,
+            true
         );
     }
 });

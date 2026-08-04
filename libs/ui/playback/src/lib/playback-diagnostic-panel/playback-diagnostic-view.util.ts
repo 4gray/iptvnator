@@ -15,8 +15,16 @@ export function getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
 
 export function getDiagnosticDescriptionKey(
     issue: PlaybackDiagnostic,
-    supportsManagedExternalPlayers: boolean
+    supportsManagedExternalPlayers: boolean,
+    playbackExternallyTransferable: boolean
 ): string {
+    if (
+        issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
+        !playbackExternallyTransferable
+    ) {
+        return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.UNTRANSFERABLE_DESCRIPTION';
+    }
+
     if (
         issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
         !supportsManagedExternalPlayers

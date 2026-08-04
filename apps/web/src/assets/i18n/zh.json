@@ -549,7 +549,8 @@
         "BROWSER_ACCESS_ERROR": {
             "TITLE": "The browser player could not access this stream",
             "DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. MPV or VLC can often bypass browser-player access limits.",
-            "PWA_DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. The PWA cannot launch external players directly; use the Copy stream URL action and open it manually in MPV, VLC, IINA, or another player."
+            "PWA_DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. The PWA cannot launch external players directly; use the Copy stream URL action and open it manually in MPV, VLC, IINA, or another player.",
+            "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL."
         },
         "DRM_OR_ENCRYPTION": {
             "TITLE": "This stream may be encrypted or DRM-protected",
@@ -561,6 +562,7 @@
         },
         "NATIVE_FALLBACK_TITLE": "Open it in a native player instead",
         "INLINE_FAILURE_TITLE": "Copy the URL or try again",
+        "UNTRANSFERABLE_FAILURE_TITLE": "Protected playback could not continue",
         "RECOMMENDATIONS_LABEL": "推荐的恢复操作",
         "ACTION_TRY_PLAYER": "尝试 {{player}}",
         "ACTION_TRY_PLAYER_HINT": "仅临时用于此项目；已保存的播放器不会更改",

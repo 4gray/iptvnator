@@ -54,6 +54,7 @@ import {
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import {
     createWebPlayerRecommendations,
+    isPlaybackExternallyTransferable,
     toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
@@ -178,6 +179,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedMediaTitle = computed(() =>
         resolveWebPlayerMediaTitle(this.mediaTitle(), this.resolvedPlayback())
     );
+    readonly playbackExternallyTransferable = computed(() =>
+        isPlaybackExternallyTransferable(this.resolvedPlayback())
+    );
     readonly recordingFolder = computed(
         () => this.settings()?.recordingFolder ?? ''
     );
@@ -196,7 +200,8 @@ export class WebPlayerViewComponent implements OnDestroy {
             attemptedTargets: this.recoverySession.attemptedTargets(),
             managedExternalPlayersAvailable:
                 this.runtime.supportsManagedExternalPlayers,
-            playback: this.resolvedPlayback(),
+            playbackExternallyTransferable:
+                this.playbackExternallyTransferable(),
             isLive: this.resolvedIsLive(),
             alternativeSourceCount: this.alternativeSources().length,
         });

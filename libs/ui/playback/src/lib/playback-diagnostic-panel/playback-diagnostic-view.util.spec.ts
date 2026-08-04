@@ -43,17 +43,50 @@ describe('playback diagnostic view formatters', () => {
         );
     });
 
-    it('uses external recommendation presence for browser-access copy', () => {
+    it.each([
+        {
+            runtime: 'desktop',
+            supportsManagedExternalPlayers: true,
+            externallyTransferable: true,
+            expected:
+                'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION',
+        },
+        {
+            runtime: 'PWA',
+            supportsManagedExternalPlayers: false,
+            externallyTransferable: true,
+            expected:
+                'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION',
+        },
+        {
+            runtime: 'desktop with protected playback',
+            supportsManagedExternalPlayers: true,
+            externallyTransferable: false,
+            expected:
+                'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.UNTRANSFERABLE_DESCRIPTION',
+        },
+        {
+            runtime: 'PWA with protected playback',
+            supportsManagedExternalPlayers: false,
+            externallyTransferable: false,
+            expected:
+                'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.UNTRANSFERABLE_DESCRIPTION',
+        },
+    ])('uses $runtime browser-access copy', ({
+        supportsManagedExternalPlayers,
+        externallyTransferable,
+        expected,
+    }) => {
         const browserIssue: PlaybackDiagnostic = {
             ...issue,
             code: PlaybackDiagnosticCode.BrowserAccessError,
         };
-
-        expect(getDiagnosticDescriptionKey(browserIssue, true)).toBe(
-            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
-        );
-        expect(getDiagnosticDescriptionKey(browserIssue, false)).toBe(
-            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
-        );
+        expect(
+            getDiagnosticDescriptionKey(
+                browserIssue,
+                supportsManagedExternalPlayers,
+                externallyTransferable
+            )
+        ).toBe(expected);
     });
 });
