@@ -46,10 +46,13 @@ Every inline playback host owns a required, URL-independent
 current channel identity; an M3U session uses `Channel.id` rather than a mutable
 stream or catch-up URL. VOD and series hosts use the route or catalog
 content identity, with series episode coordinates. Stalker episode identity
-also includes the series mode, normalized parent, exact season key, and the
-original provider command or episode ID; synthesized episode hashes are not
-identity. Selection and pending-resolution guards use that exact provider
-episode identity, so colliding tracking hashes cannot select a sibling episode.
+also includes the explicit series mode, normalized parent, exact season key,
+season number, and episode number; synthesized episode hashes are not identity.
+The original provider command or episode ID exists only in the short-lived
+pending-request guard used to locate the exact selected episode and reject
+stale or out-of-order completion. It is never serialized into the recovery
+session key. This keeps token refreshes in one logical session while ensuring
+colliding tracking hashes cannot select a sibling episode.
 Shared wrappers (`VodDetailsComponent` and `PortalInlinePlayerComponent`) pass
 the key unchanged to `WebPlayerViewComponent`.
 

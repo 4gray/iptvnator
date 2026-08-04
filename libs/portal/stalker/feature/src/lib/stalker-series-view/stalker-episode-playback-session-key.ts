@@ -67,18 +67,19 @@ export function captureStalkerEpisodePlaybackSessionIdentity({
         return null;
     }
 
-    const contentId = JSON.stringify([
+    // Provider commands and IDs remain transient request guards below. They
+    // may contain credentials and must never enter recovery ownership state.
+    const structuralContentId = JSON.stringify([
         seriesMode,
         seriesId,
         seasonKey,
         seasonNumber,
         episodeNumber,
-        originalIdentity,
     ]);
     const sessionKey = createPlaybackSessionKey({
         kind: 'episode',
         sourceId: normalizedSourceId,
-        contentId,
+        contentId: structuralContentId,
         seriesId,
         seasonNumber,
         episodeNumber,

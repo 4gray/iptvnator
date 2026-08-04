@@ -1,7 +1,11 @@
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import type { StalkerMappedEpisode } from '@iptvnator/portal/stalker/data-access';
 import { STALKER_SERIES_DOWNLOAD_MODES } from './stalker-series-download.adapter';
-import { createStalkerEpisodePlaybackSessionKey } from './stalker-episode-playback-session-key';
+import {
+    captureStalkerEpisodePlaybackSessionIdentity,
+    createStalkerEpisodePlaybackSessionKey,
+    resolveStalkerEpisodeStateByIdentity,
+} from './stalker-episode-playback-session-key';
 
 const episodeState = (
     episode: Partial<StalkerMappedEpisode>,
@@ -25,57 +29,95 @@ describe('createStalkerEpisodePlaybackSessionKey', () => {
     it.each([
         STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
         STALKER_SERIES_DOWNLOAD_MODES.EmbeddedVod,
-    ])('uses the complete source command for %s episodes', (seriesMode) => {
-        const state = episodeState({ originalCmd: 'ffrt4://cmd|full:2' });
-        const composite = JSON.stringify([
-            seriesMode,
-            'parent|series',
-            state.seasonKey,
-            state.seasonNumber,
-            state.episodeNumber,
-            'ffrt4://cmd|full:2',
-        ]);
+    ])(
+        'keeps %s provider credentials out of the structural key',
+        (seriesMode) => {
+            const originalCmdA =
+                'https://user:password@stream.example/episode.mpg?access_token=secret-a';
+            const originalCmdB =
+                'https://user:password@stream.example/episode.mpg?access_token=secret-b';
+            const stateA = episodeState({ originalCmd: originalCmdA });
+            const stateB = episodeState({ originalCmd: originalCmdB });
+            const composite = JSON.stringify([
+                seriesMode,
+                'parent|series',
+                stateA.seasonKey,
+                stateA.seasonNumber,
+                stateA.episodeNumber,
+            ]);
 
-        expect(
-            createStalkerEpisodePlaybackSessionKey({
+            const keyA = createStalkerEpisodePlaybackSessionKey({
                 sourceId: 'playlist|source',
                 parentSeriesId: 'parent|series',
                 seriesMode,
-                episodeState: state,
-            })
-        ).toBe(
-            createPlaybackSessionKey({
-                kind: 'episode',
+                episodeState: stateA,
+            });
+            const keyB = createStalkerEpisodePlaybackSessionKey({
                 sourceId: 'playlist|source',
-                contentId: composite,
-                seriesId: 'parent|series',
-                seasonNumber: 1,
-                episodeNumber: 2,
-            })
-        );
-    });
+                parentSeriesId: 'parent|series',
+                seriesMode,
+                episodeState: stateB,
+            });
 
-    it('uses the complete provider episode id for lazy VOD episodes', () => {
-        const state = episodeState({ originalId: 'provider|episode:full' });
-        const key = createStalkerEpisodePlaybackSessionKey({
+            expect(keyA).toBe(
+                createPlaybackSessionKey({
+                    kind: 'episode',
+                    sourceId: 'playlist|source',
+                    contentId: composite,
+                    seriesId: 'parent|series',
+                    seasonNumber: 1,
+                    episodeNumber: 2,
+                })
+            );
+            expect(keyB).toBe(keyA);
+            expect(keyA).not.toContain(originalCmdA);
+            expect(keyA).not.toContain('password');
+            expect(keyA).not.toContain('secret-a');
+        }
+    );
+
+    it('keeps lazy provider ids transient while rejecting an id refresh for a pending request', () => {
+        const stateA = episodeState({ originalId: 'provider|episode:token-a' });
+        const stateB = episodeState({ originalId: 'provider|episode:token-b' });
+        const options = {
             sourceId: 'playlist',
             parentSeriesId: '50001',
             seriesMode: STALKER_SERIES_DOWNLOAD_MODES.LazyVod,
-            episodeState: state,
+        } as const;
+        const identityA = captureStalkerEpisodePlaybackSessionIdentity({
+            ...options,
+            episodeState: stateA,
         });
+        const keyB = createStalkerEpisodePlaybackSessionKey({
+            ...options,
+            episodeState: stateB,
+        });
+        if (!identityA) throw new Error('Expected a captured request identity');
 
-        expect(key).toContain('provider|episode:full');
-        expect(key).not.toContain('synthesized-32-bit-id');
+        expect(identityA.originalEpisodeIdentity).toBe(
+            'provider|episode:token-a'
+        );
+        expect(keyB).toBe(identityA.sessionKey);
+        expect(keyB).not.toContain('provider|episode:token-a');
+        expect(keyB).not.toContain('provider|episode:token-b');
+        expect(keyB).not.toContain('synthesized-32-bit-id');
+        expect(
+            resolveStalkerEpisodeStateByIdentity({
+                episodesBySeason: { [stateB.seasonKey]: [stateB.episode] },
+                identity: identityA,
+            })
+        ).toBeNull();
     });
 
-    it('separates parent, mode, season, command, and episode identity without delimiter collisions', () => {
+    it('separates every structural coordinate without delimiter collisions', () => {
         const base = {
-            sourceId: 'playlist',
+            sourceId: 'playlist|a',
             parentSeriesId: 'parent|a',
             seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
             episodeState: episodeState({ originalCmd: 'cmd|a' }),
         } as const;
         const variants = [
+            { ...base, sourceId: 'playlist|b' },
             { ...base, parentSeriesId: 'parent|b' },
             {
                 ...base,
@@ -88,7 +130,13 @@ describe('createStalkerEpisodePlaybackSessionKey', () => {
                     'season|2'
                 ),
             },
-            { ...base, episodeState: episodeState({ originalCmd: 'cmd|b' }) },
+            {
+                ...base,
+                episodeState: {
+                    ...base.episodeState,
+                    seasonNumber: 2,
+                },
+            },
             {
                 ...base,
                 episodeState: {
@@ -98,20 +146,43 @@ describe('createStalkerEpisodePlaybackSessionKey', () => {
             },
         ];
         const baseKey = createStalkerEpisodePlaybackSessionKey(base);
+        const delimiterVariantKey = createStalkerEpisodePlaybackSessionKey({
+            ...base,
+            sourceId: 'playlist',
+            parentSeriesId: 'a|parent|a',
+        });
 
         expect(
             variants.map(createStalkerEpisodePlaybackSessionKey)
         ).not.toContain(baseKey);
+        expect(delimiterVariantKey).not.toBe(baseKey);
     });
 
-    it.each([episodeState({}), episodeState({ originalCmd: '' })])(
+    it.each([
+        {
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            state: episodeState({}),
+        },
+        {
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            state: episodeState({ originalCmd: '' }),
+        },
+        {
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.LazyVod,
+            state: episodeState({}),
+        },
+        {
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.LazyVod,
+            state: episodeState({ originalId: '' }),
+        },
+    ])(
         'fails closed when original episode identity is absent',
-        (state) => {
+        ({ seriesMode, state }) => {
             expect(
                 createStalkerEpisodePlaybackSessionKey({
                     sourceId: 'playlist',
                     parentSeriesId: 'series',
-                    seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+                    seriesMode,
                     episodeState: state,
                 })
             ).toBe('');

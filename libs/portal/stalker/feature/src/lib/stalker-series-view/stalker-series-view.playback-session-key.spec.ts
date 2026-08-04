@@ -252,7 +252,7 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         expect(fixture.componentInstance.playbackSessionKey()).toBe(key);
     });
 
-    it('changes when the original full episode command changes', async () => {
+    it('preserves the logical key when the provider command rotates', async () => {
         await playFirstEpisode();
         const firstKey = fixture.componentInstance.playbackSessionKey();
         serialSeasons.set([
@@ -266,8 +266,94 @@ describe('StalkerSeriesViewComponent playback session key', () => {
 
         await playFirstEpisode();
 
-        expect(fixture.componentInstance.playbackSessionKey()).not.toBe(
-            firstKey
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(firstKey);
+        expect(firstKey).not.toContain('ffrt4://regular|full-command');
+        expect(firstKey).not.toContain('ffrt4://different|full-command');
+    });
+
+    it('rejects a pending command refresh but lets the refreshed episode reuse its logical key', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const pending = deferred<ResolvedPortalPlayback>();
+        resolveVodPlayback.mockReturnValueOnce(pending.promise);
+        const [seasonKeyA, episodesA] = Object.entries(
+            fixture.componentInstance.mappedSeasons()
+        )[0];
+        const episodeA = episodesA[0] as StalkerMappedEpisode;
+        const expectedKey = createStalkerEpisodePlaybackSessionKey({
+            sourceId: 'stalker|playlist',
+            parentSeriesId: 'series|parent',
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            episodeState: {
+                seasonKey: seasonKeyA,
+                seasonNumber: Number(episodeA.season) || Number(seasonKeyA),
+                episodeNumber: Number(episodeA.episode_num),
+                episode: episodeA,
+                previous: null,
+                next: null,
+            },
+        });
+        fixture.componentInstance.onEpisodeClicked(episodeA);
+
+        serialSeasons.set([
+            {
+                id: 'replacement-season',
+                name: 'Season 1',
+                cmd: 'ffrt4://refreshed|full-command',
+                series: [1, 2],
+            },
+        ]);
+        fixture.detectChanges();
+        const [seasonKeyB, episodesB] = Object.entries(
+            fixture.componentInstance.mappedSeasons()
+        )[0];
+        const episodeB = episodesB[0] as StalkerMappedEpisode;
+        const refreshedKey = createStalkerEpisodePlaybackSessionKey({
+            sourceId: 'stalker|playlist',
+            parentSeriesId: 'series|parent',
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            episodeState: {
+                seasonKey: seasonKeyB,
+                seasonNumber: Number(episodeB.season) || Number(seasonKeyB),
+                episodeNumber: Number(episodeB.episode_num),
+                episode: episodeB,
+                previous: null,
+                next: episodesB[1] ?? null,
+            },
+        });
+
+        expect(episodeB.originalCmd).not.toBe(episodeA.originalCmd);
+        expect(episodeB.id).not.toBe(episodeA.id);
+        expect(refreshedKey).toBe(expectedKey);
+
+        pending.resolve({
+            streamUrl: 'https://stale.example/old-command.mpg',
+            contentInfo: {
+                playlistId: 'transport-playlist',
+                contentXtreamId: episodeA.id,
+                contentType: 'episode',
+            },
+        });
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.inlinePlayback()).toBeNull();
+        expect(fixture.componentInstance.playbackSessionKey()).toBe('');
+        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+
+        fixture.componentInstance.onEpisodeClicked(episodeB);
+        await fixture.whenStable();
+
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            'ffrt4://refreshed|full-command',
+            'Series',
+            'poster.jpg',
+            1,
+            Number(episodeB.id),
+            undefined
+        );
+        expect(fixture.componentInstance.inlinePlayback()).not.toBeNull();
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(
+            expectedKey
         );
     });
 
