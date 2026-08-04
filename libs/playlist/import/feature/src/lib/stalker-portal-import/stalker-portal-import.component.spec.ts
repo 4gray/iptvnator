@@ -727,6 +727,94 @@ describe('StalkerPortalImportComponent identity handling', () => {
             );
         });
 
+        it('never pairs one MAC with another MAC\'s device IDs', async () => {
+            // The submit-time digest is asynchronous, so a MAC edit can land
+            // while it runs. Reading the MAC from the form afterwards would
+            // ship the new address with the old address's IDs — a mismatch
+            // the portal pins permanently as a device conflict.
+            component.form.patchValue({
+                _id: 'playlist-desync',
+                title: 'Desync Portal',
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+            await component.toggleDeriveDeviceIds(true);
+
+            const { release, restore } = holdDigests();
+            try {
+                const importing = component.addPlaylist();
+                await Promise.resolve();
+                // Simulates the field changing mid-digest.
+                component.form.controls.macAddress.setValue(
+                    '00:1A:79:AA:BB:CD'
+                );
+                release();
+                await importing;
+            } finally {
+                restore();
+            }
+
+            const playlist = store.dispatch.mock.calls[0][0].playlist;
+            expect(playlist.macAddress).toBe('00:1A:79:AA:BB:CC');
+            expect(playlist.stalkerDeviceId1).toBe(
+                DERIVED_FOR_AABBCC.deviceId1
+            );
+            expect(playlist.stalkerDeviceId2).toBe(
+                DERIVED_FOR_AABBCC.deviceId2
+            );
+            expect(portalDiscovery.discover).toHaveBeenCalledWith(
+                expect.any(String),
+                '00:1A:79:AA:BB:CC',
+                expect.objectContaining({
+                    deviceId1: DERIVED_FOR_AABBCC.deviceId1,
+                }),
+                expect.any(Object)
+            );
+        });
+
+        it('freezes the identity fields while the import runs', async () => {
+            component.form.patchValue({
+                _id: 'playlist-frozen',
+                title: 'Frozen Portal',
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+
+            await component.toggleDeriveDeviceIds(true);
+
+            let finishDiscovery = (): void => undefined;
+            portalDiscovery.discover.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        finishDiscovery = () =>
+                            resolve({
+                                status: 'unreachable',
+                            });
+                    })
+            );
+
+            const importing = component.addPlaylist();
+            for (
+                let i = 0;
+                i < 100 && portalDiscovery.discover.mock.calls.length === 0;
+                i += 1
+            ) {
+                await new Promise((resolve) => setTimeout(resolve, 1));
+            }
+
+            expect(component.form.controls.macAddress.disabled).toBe(true);
+            expect(component.form.controls.title.disabled).toBe(true);
+
+            finishDiscovery();
+            await importing;
+
+            // Restored afterwards, with derivation keeping its own lock.
+            expect(component.form.controls.macAddress.enabled).toBe(true);
+            expect(component.form.controls.deviceId1.disabled).toBe(true);
+        });
+
         it('refuses to overwrite a hand-entered device ID', () => {
             expect(component.hasManualDeviceIds).toBe(false);
 

@@ -326,6 +326,15 @@ later empty value as a permanent lockout. Therefore:
   digest settles (hold it behind a gate, or delay the older invocation):
   Node resolves digests this small in start order, so the naive versions pass
   with the guards removed;
+- **the MAC and its device IDs travel as one value.**
+  `settleMacAddressIdentity()` reads the MAC once, before it awaits, and
+  returns it together with the IDs derived from exactly it; `addPlaylist()`
+  uses that triple rather than re-reading the form. Taking the MAC from
+  `getRawValue()` after the digest would ship a newly typed address paired
+  with the previous one's IDs, which the portal pins as a permanent device
+  conflict. The whole form is also frozen (`form.disable()`) for the duration
+  of an import and restored in `finally`, since an edit made then can neither
+  reach the portal nor be undone on it;
 - **the snapshot `addPlaylist()` takes is authoritative for the whole import,
   by design.** Discovery authenticates with exactly those values, and
   `get_profile` is what pins them to the MAC — so by the time a slow discovery

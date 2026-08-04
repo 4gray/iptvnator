@@ -29,12 +29,24 @@ import {
     isFullStalkerPortalUrl,
     normalizeStalkerMacAddress,
     Playlist,
+    type StalkerDerivedDeviceIds,
     validateStalkerMacAddressControl,
 } from '@iptvnator/shared/interfaces';
 import {
     STALKER_IMPORT_ERROR_KEY_BY_KIND,
     toStalkerPlaylistIdentityFields,
 } from './stalker-import-identity';
+
+/**
+ * A MAC and the device IDs that belong to exactly it. Kept together because
+ * the portal binds the pair permanently on first use — a MAC carrying another
+ * address's IDs is a device conflict nobody can undo.
+ */
+interface StalkerSettledIdentity {
+    macAddress: string;
+    deviceId1: string;
+    deviceId2: string;
+}
 
 @Component({
     imports: [
@@ -177,7 +189,7 @@ export class StalkerPortalImportComponent {
      * permanently, so there is no recovering from it afterwards. Re-running
      * also covers the case where no blur fired at all.
      */
-    private async settleMacAddressIdentity(): Promise<void> {
+    private async settleMacAddressIdentity(): Promise<StalkerSettledIdentity> {
         const control = this.form.controls.macAddress;
         const normalized = normalizeStalkerMacAddress(control.value);
 
@@ -185,10 +197,24 @@ export class StalkerPortalImportComponent {
             control.setValue(normalized);
         }
 
+        // Read ONCE, before the await. Everything returned below describes
+        // this MAC, so a field edit landing while the digest runs cannot
+        // produce a snapshot whose device IDs belong to a different address —
+        // the pairing the portal would then pin permanently.
+        const macAddress = normalized ?? '';
+
         // Re-derive while the box is ticked: nothing is pinned until the
         // import actually runs, so correcting a typo must correct the ID it
         // would otherwise bind the account to forever.
-        await this.applyDerivedDeviceIds();
+        const derived = await this.applyDerivedDeviceIds(macAddress);
+
+        return {
+            macAddress,
+            deviceId1:
+                derived?.deviceId1 ?? this.form.controls.deviceId1.value ?? '',
+            deviceId2:
+                derived?.deviceId2 ?? this.form.controls.deviceId2.value ?? '',
+        };
     }
 
     /**
@@ -220,7 +246,9 @@ export class StalkerPortalImportComponent {
 
         deviceId1.disable();
         deviceId2.disable();
-        await this.applyDerivedDeviceIds();
+        // Through the same single-read path as blur and submit, so the MAC
+        // the IDs are derived from is never read twice.
+        await this.settleMacAddressIdentity();
     }
 
     /**
@@ -236,9 +264,15 @@ export class StalkerPortalImportComponent {
         this.deriveGeneration += 1;
     }
 
-    private async applyDerivedDeviceIds(): Promise<void> {
+    /**
+     * Writes the derived pair into the form and returns it, or `null` when
+     * derivation is off or the result was superseded before it landed.
+     */
+    private async applyDerivedDeviceIds(
+        macAddress: string
+    ): Promise<StalkerDerivedDeviceIds | null> {
         if (!this.derivesDeviceIds()) {
-            return;
+            return null;
         }
 
         // Two edits in quick succession leave two digests in flight, and
@@ -246,18 +280,18 @@ export class StalkerPortalImportComponent {
         // generation stamp discards every completion but the newest, so the
         // fields can never end up holding an older MAC's IDs.
         const generation = ++this.deriveGeneration;
-        const derived = await deriveStalkerDeviceIdsFromMac(
-            this.form.controls.macAddress.value
-        );
+        const derived = await deriveStalkerDeviceIdsFromMac(macAddress);
 
         if (generation !== this.deriveGeneration) {
-            return;
+            return null;
         }
 
         this.form.patchValue({
             deviceId1: derived?.deviceId1 ?? '',
             deviceId2: derived?.deviceId2 ?? '',
         });
+
+        return derived;
     }
 
     clearForm(): void {
@@ -290,37 +324,37 @@ export class StalkerPortalImportComponent {
         }
 
         this.isLoading.set(true);
+        // The identity is frozen for the duration: an edit made now cannot
+        // reach the portal (discovery has the snapshot) and cannot be undone
+        // on it either (`get_profile` pins what it was sent), so the fields
+        // must not invite one.
+        this.form.disable({ emitEvent: false });
 
         try {
             // Before anything reads the form: clicking Add blurs the MAC
             // field, so a derivation may still be in flight, and the pairing
-            // this snapshot produces is the one the portal pins forever.
-            await this.settleMacAddressIdentity();
+            // this produces is the one the portal pins forever. The MAC and
+            // the device IDs come back TOGETHER from one read — taking them
+            // from `getRawValue()` below would let an edit that landed during
+            // the digest pair a new MAC with the old MAC's IDs.
+            const identity = await this.settleMacAddressIdentity();
+            const macAddress = identity.macAddress;
 
-            // This snapshot is authoritative for the rest of the import, and
-            // deliberately so: discovery below authenticates with exactly
-            // these values, and `get_profile` is what makes the portal pin
-            // them to the MAC. Re-reading the form after discovery — to pick
-            // up an edit made while it was running — would persist device IDs
-            // that differ from the ones already pinned, or none at all, and
-            // sending nothing after a value was pinned is the permanent
-            // lockout. The identity controls are locked while `isLoading()`
-            // so the UI cannot suggest otherwise.
+            // Authoritative for the rest of the import, and deliberately so:
+            // discovery below authenticates with exactly these values, and
+            // `get_profile` is what makes the portal pin them to the MAC.
+            // Re-reading the form after discovery — to pick up an edit made
+            // while it was running — would persist device IDs that differ
+            // from the ones already pinned, or none at all, and sending
+            // nothing after a value was pinned is the permanent lockout. The
+            // identity controls are locked while `isLoading()` so the UI
+            // cannot suggest otherwise.
             const formValue = this.form.getRawValue();
             const originalUrl = formValue.portalUrl ?? '';
-            // `getRawValue()` also carries the device ID controls while they
-            // are disabled by the derivation toggle — the derived value must
-            // reach the playlist.
-            //
-            // The validator already refused anything unparseable, so this only
-            // covers the submit-without-blur path; `??` keeps a hypothetical
-            // gap from silently sending the raw string instead.
-            const macAddress =
-                normalizeStalkerMacAddress(formValue.macAddress) ?? '';
             const stalkerIdentity = normalizeStalkerPortalIdentity({
                 serialNumber: formValue.serialNumber ?? undefined,
-                deviceId1: formValue.deviceId1 ?? undefined,
-                deviceId2: formValue.deviceId2 ?? undefined,
+                deviceId1: identity.deviceId1 || undefined,
+                deviceId2: identity.deviceId2 || undefined,
                 signature1: formValue.signature1 ?? undefined,
                 signature2: formValue.signature2 ?? undefined,
             });
@@ -476,6 +510,14 @@ export class StalkerPortalImportComponent {
             this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
             this.addClicked.emit();
         } finally {
+            this.form.enable({ emitEvent: false });
+            // `enable()` clears the derivation toggle's own lock on the
+            // device ID controls, so restore it for a form the user stays on
+            // after a refused import.
+            if (this.derivesDeviceIds()) {
+                this.form.controls.deviceId1.disable({ emitEvent: false });
+                this.form.controls.deviceId2.disable({ emitEvent: false });
+            }
             this.isLoading.set(false);
         }
     }
