@@ -18,8 +18,8 @@ description: Use when changing Stalker or Ministra routes, stores, catalog or se
   `libs/portal/stalker/data-access/src/lib/`
 - Wire-format and identity contracts: `libs/shared/interfaces/src/lib/` —
   portal-mode predicate, MAC/device-ID utils, auth-failure classifier, `cmd`
-  encoder, URL/identity builders. They live there because the Electron main
-  process cannot import renderer libs; never fork them.
+  encoder, URL/identity builders. There because Electron main cannot import
+  renderer libs; never fork them.
 - Electron transport: `apps/electron-backend/src/app/events/stalker.events.ts`
 - Provider-neutral collections: `libs/portal/shared/data-access/src/lib/`
 
@@ -29,11 +29,13 @@ must remain provider-neutral.
 ## Portal Mode And Session
 
 Full vs. simple mode is decided by observed behavior, not URL shape, and read
-only through `isFullStalkerPortalPlaylist()`. Route every portal call through
-`executeStalkerRequest()`; repair is lazy and per session, never an eager
-migration. Full portals reuse the persisted idempotent handshake token while
-its session fingerprint matches, and ping `get_events` at the profile cadence
-(default 120 s). Auth failures are HTTP 200 plus a plain-text body.
+only through `isFullStalkerPortalPlaylist()`. Route catalog, content and
+playback calls through `executeStalkerRequest()`; the auth, discovery and
+account-profile layers below it call `STALKER_REQUEST` directly and wire
+repair themselves. Repair is lazy per session, never an eager migration.
+Full portals reuse the persisted idempotent handshake token while its session
+fingerprint matches, and ping `get_events` at the profile cadence (default
+120 s). Auth failures are HTTP 200 plus plain text.
 
 ## Series Contract
 
@@ -82,5 +84,5 @@ Run:
   `workspace-dashboard-feature` test targets
 
 For the user workflow, run
-`pnpm nx run web-e2e:e2e-ci--src/stalker.e2e.ts` or document the missing
-fixture and strongest focused coverage.
+`pnpm nx run web-e2e:e2e-ci--src/stalker.e2e.ts` or document the strongest
+focused coverage available.

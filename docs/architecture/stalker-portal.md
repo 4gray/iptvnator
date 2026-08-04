@@ -52,13 +52,34 @@ below is reached as `/workspace/stalker/:id/…`.
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
 2. `StalkerStore` builds request params based on selected content type and current view state.
-3. Every portal API call funnels through `executeStalkerRequest()`
+3. Catalog, content and playback calls funnel through `executeStalkerRequest()`
    (`libs/portal/stalker/data-access/src/lib/stores/utils/stalker-request.utils.ts`),
-   the single choke point that decides the transport per portal mode:
+   the choke point that decides the transport per portal mode:
    full portals go through `StalkerSessionService` (handshake + Bearer token +
    retry), token-free panels call
    `DataService.sendIpcEvent(STALKER_REQUEST, ...)` directly. It also hooks
    the lazy portal repair (see "Portal Mode and Endpoint Discovery").
+
+   Four callers deliberately sit outside it and issue `STALKER_REQUEST`
+   themselves, because each one runs *below* or *before* what it routes on:
+
+   - `StalkerAuthApi` — `handshake` / `get_profile` / `do_auth` are what the
+     full-portal branch is implemented in terms of, so routing them back
+     through it would recurse.
+   - `StalkerPortalDiscoveryService` — probes run before a mode exists; the
+     mode is what they are determining.
+   - `StalkerAccountInfoService.fetchViaProfile()` — the full-mode refresh is
+     a profile request, so it takes the same exemption as the auth layer.
+   - `StreamResolverService`, for a collection item carrying its own portal
+     coordinates with **no playlist row** — there is no meta to route or
+     repair with. The playlist-backed branch beside it does use
+     `executeStalkerRequest()`, and wins when a row exists, so a repaired
+     endpoint beats a stale favorite's snapshot.
+
+   The exemption is from the routing, not from repair: the two that can
+   observe a wrong-endpoint failure (`fetchViaProfile`, and discovery by
+   definition) wire `StalkerPortalRepairService` explicitly. Anything new
+   that is not auth or discovery belongs on `executeStalkerRequest()`.
 4. Electron main process handles `STALKER_REQUEST` in
    `apps/electron-backend/src/app/events/stalker.events.ts`.
 5. Axios calls the portal's persisted API endpoint (`portal.php` on
