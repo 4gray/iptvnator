@@ -485,10 +485,14 @@ or media cause, so stage and failure remain unknown.
 
 A failed public `Player.isBrowserSupported()` preflight is not a Shaka error
 and therefore retains fully unknown technical evidence instead of being
-mislabelled as an unsupported container. Clear DASH can still rank configured
-MPV/VLC actions when the structured diagnostic and runtime capabilities permit
-them. KODIPROP DRM sources never rank external players because the external
-launch contract does not transfer their key configuration.
+mislabelled as an unsupported container. The app adds only the exact,
+enumerated `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker to that
+otherwise unknown diagnostic. This Shaka/DASH runtime-preflight marker is the
+sole unknown-code exception that can rank configured MPV/VLC actions, and only
+for clear, externally transferable DASH in a managed-external runtime. Generic
+unknown diagnostics remain Retry/alternative-source only. PWA capability and
+KODIPROP DRM suppress the external actions because those players are absent or
+the launch contract cannot transfer the key configuration.
 
 Shaka messages, URLs, headers, request/response bodies, credentials,
 license/key payloads, and arbitrary `error.data` objects are neither retained
@@ -570,20 +574,27 @@ also suppress built-in recommendations.
 
 The pure policy builds the following order, filters the current, unavailable,
 incompatible, and already attempted targets, and then returns at most three
-actions. The first surviving action is primary and later actions are secondary.
+actions. It also projects attempted inline target IDs through the validated
+canonical source/target capability matrix and filters every engine family that
+has already been attempted. HTML5 and ArtPlayer therefore cannot be offered as
+separate hls.js recovery attempts. The first surviving action is primary and
+later actions are secondary.
 
 | Sanitized evidence                        | Candidate order                                              |
 | ----------------------------------------- | ------------------------------------------------------------ |
 | HTTP, timeout, or generic network failure | Retry -> Alternative source                                  |
-| Unknown playback error                    | Retry -> Alternative source                                  |
+| Generic unknown playback error            | Retry -> Alternative source                                  |
+| Exact Shaka browser-unsupported preflight | MPV -> VLC -> Alternative source                             |
 | Browser access/CORS/CSP-class failure     | MPV -> VLC -> Alternative source                             |
 | Unsupported codec or container            | MPV -> VLC -> Alternative source                             |
 | Media/decode/engine processing failure    | Distinct built-in family -> MPV -> VLC -> Alternative source |
 | DRM/encryption failure                    | Compatible built-in path -> Alternative source -> MPV -> VLC |
 
-Network and unknown evidence fail closed: they never claim that changing a
-decoder will repair the provider response. Contradictory or incomplete
-capability facts fail closed to Retry and an available alternative source.
+Network and generic unknown evidence fail closed: they never claim that
+changing a decoder will repair the provider response. The exact app-owned
+Shaka browser-unsupported runtime-preflight marker above is the only
+unknown-code exception. Contradictory or incomplete capability facts fail
+closed to Retry and an available alternative source.
 External targets require both managed external-player support and a transferable
 payload. PWA builds therefore never rank MPV/VLC. Any ClearKey/KODIPROP DRM
 payload is non-transferable and suppresses both external targets; the policy

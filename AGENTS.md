@@ -229,9 +229,12 @@ Key files:
   treats rejected loads as terminal lifecycle outcomes, preserves exact public
   DASH text-parser category/code evidence with unknown stage/failure, and never
   retains or renders raw messages or `error.data`. A failed browser-support
-  preflight stays unknown but keeps external fallback for clear DASH; KODIPROP
-  DRM still suppresses it. See the CLAUDE.md "Video Players" feature entry and
-  `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
+  preflight stays generic-unknown but carries the exact app-owned
+  `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker, preserving managed
+  external fallback only for clear transferable DASH; PWA capability and
+  KODIPROP DRM still suppress it. See the CLAUDE.md "Video Players" feature
+  entry and the "DASH + ClearKey Playback" section of
+  `docs/architecture/m3u-playlist-module.md`.
 - mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
   version-locked structured evidence boundary in `libs/playback/util`. Only
   exact public type/detail pairs, pair-derived stage/failure, terminal
@@ -261,10 +264,14 @@ Key files:
   alternative sources preserve attempts, while a different content-session key
   or component teardown resets them. Recovery recommendations never
   auto-switch, persist history, learn across sessions, or emit telemetry.
-  Network and unknown evidence fail closed to Retry/alternative source; PWA
-  capability suppresses managed MPV/VLC, and ClearKey/KODIPROP DRM suppresses
-  external targets because its payload is not transferable. Raw engine
-  messages, arbitrary data, and credentials never enter recommendation
+  The policy projects attempted inline target IDs through the validated
+  canonical source/target capabilities and excludes every attempted engine
+  family, so HTML5 and ArtPlayer are not separate hls.js recoveries. Network
+  and generic unknown evidence fail closed to Retry/alternative source; the
+  exact Shaka browser-unsupported preflight marker is the sole unknown-code
+  exception. PWA capability suppresses managed MPV/VLC, and ClearKey/KODIPROP
+  DRM suppresses external targets because its payload is not transferable. Raw
+  engine messages, arbitrary data, and credentials never enter recommendation
   evidence or ownership state.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped

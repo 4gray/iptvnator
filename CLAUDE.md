@@ -788,10 +788,14 @@ app as a real argument, so it is not an option.
   alternative sources preserve attempts, while a different content-session key
   or component teardown resets them. Recovery recommendations never
   auto-switch, persist history, learn across sessions, or emit telemetry.
-  Network and unknown evidence fail closed to Retry/alternative source; PWA
-  capability suppresses managed MPV/VLC, and ClearKey/KODIPROP DRM suppresses
-  external targets because its payload is not transferable. Raw engine
-  messages, arbitrary data, and credentials never enter recommendation
+  The policy projects attempted inline target IDs through the validated
+  canonical source/target capabilities and excludes every attempted engine
+  family, so HTML5 and ArtPlayer are not separate hls.js recoveries. Network
+  and generic unknown evidence fail closed to Retry/alternative source; the
+  exact Shaka browser-unsupported preflight marker is the sole unknown-code
+  exception. PWA capability suppresses managed MPV/VLC, and ClearKey/KODIPROP
+  DRM suppresses external targets because its payload is not transferable. Raw
+  engine messages, arbitrary data, and credentials never enter recommendation
   evidence or ownership state.
 - DASH + ClearKey (M3U module): `.mpd` channels play through a lazily loaded
   Shaka Player source engine inside the HTML5 and ArtPlayer components (no new
@@ -810,8 +814,11 @@ app as a real argument, so it is not an option.
   recoverable error events, treats rejected loads as terminal lifecycle
   outcomes, preserves exact public DASH text-parser category/code evidence with
   unknown stage/failure, and never retains or renders raw messages or
-  `error.data`. A failed browser-support preflight stays unknown but keeps
-  external fallback for clear DASH; KODIPROP DRM still suppresses it. Details in
+  `error.data`. A failed browser-support preflight stays generic-unknown but
+  carries the exact app-owned
+  `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker, preserving managed
+  external fallback only for clear transferable DASH; PWA capability and
+  KODIPROP DRM still suppress it. Details in
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
 - External players: MPV, VLC (via IPC to Electron backend)
 - Embedded MPV (experimental, macOS/Windows/Linux): renders mpv video inside the Electron window through a native addon. macOS uses the libmpv render API in an `NSOpenGLView`; Windows uses in-process libmpv with `--wid` against an app-owned child `HWND`; Linux spawns an out-of-process `mpv --wid=<x11-window>` controlled over a JSON IPC socket (X11/XWayland only, requires system `mpv` on PATH; subtitles/speed/aspect/recording are not exported there). mpv's own screensaver inhibition does not apply to any of these paths, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever any session's status is `playing`, and releases it on pause, dispose, or shutdown. Renderer bounds are CSS pixels; the service converts them to native units in the main process (`embedded-mpv-bounds.util.ts`: × page zoom everywhere, × display scale on Windows/Linux whose child windows are positioned in physical pixels; frame-copy bounds stay unscaled), and the session controller re-syncs bounds when `devicePixelRatio` changes. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`; full architecture: `docs/architecture/embedded-mpv-native.md`.
