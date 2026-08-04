@@ -15,6 +15,16 @@
  * credentials to a third party, and an https→http downgrade would replay a
  * TLS-obtained session in cleartext — both stay credential-free.
  */
+/**
+ * A terminal dot is the DNS root: `portal.example.` and `portal.example`
+ * resolve to the same host, but `URL` preserves the dot, so a literal
+ * comparison would call them different origins — classifying a portal-owned
+ * stream as third-party and stripping the credentials it needs.
+ */
+function normalizeHostname(hostname: string): string {
+    return hostname.toLowerCase().replace(/\.$/, '');
+}
+
 export function isStalkerStreamCredentialSafe(
     portalUrl: string | undefined | null,
     streamUrl: string | undefined | null
@@ -36,7 +46,10 @@ export function isStalkerStreamCredentialSafe(
         return false;
     }
 
-    if (portal.hostname.toLowerCase() !== stream.hostname.toLowerCase()) {
+    if (
+        normalizeHostname(portal.hostname) !==
+        normalizeHostname(stream.hostname)
+    ) {
         return false;
     }
 

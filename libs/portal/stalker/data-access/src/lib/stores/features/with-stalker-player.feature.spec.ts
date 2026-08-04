@@ -31,6 +31,20 @@ const PLAYLIST = {
     isFullStalkerPortal: false,
 } as PlaylistMeta;
 
+interface SelectedTestItem {
+    id: string;
+    cmd: string;
+    has_files?: boolean;
+    title?: string;
+    name?: string;
+    o_name?: string;
+    logo?: string;
+    category_id?: string;
+    cover?: string;
+    use_http_tmp_link?: unknown;
+    use_load_balancing?: unknown;
+}
+
 const TestPlayerStore = signalStore(
     withState({
         currentPlaylist: PLAYLIST,
@@ -41,31 +55,13 @@ const TestPlayerStore = signalStore(
             has_files: true,
             title: 'Original Title',
             category_id: 'vod',
-        } as {
-            id: string;
-            cmd: string;
-            has_files?: boolean;
-            title?: string;
-            name?: string;
-            o_name?: string;
-            logo?: string;
-            category_id?: string;
-            cover?: string;
-        },
+        } as SelectedTestItem,
     }),
     withMethods((store) => ({
         setSelectedContentType(type: 'vod' | 'series' | 'itv' | 'radio') {
             patchState(store, { selectedContentType: type });
         },
-        setSelectedItem(item: {
-            id: string;
-            cmd: string;
-            title?: string;
-            name?: string;
-            o_name?: string;
-            logo?: string;
-            category_id?: string;
-        }) {
+        setSelectedItem(item: SelectedTestItem) {
             patchState(store, { selectedItem: item });
         },
     })),
@@ -337,6 +333,183 @@ describe('withStalkerPlayer', () => {
         expect(playback.headers?.['User-Agent']).toBe('KSPlayer');
         expect(playback.referer).toBeUndefined();
         expect(playback.origin).toBeUndefined();
+    });
+
+    describe('temporary-link semantics', () => {
+        const CHANNEL = {
+            id: '10001',
+            cmd: 'ffrt3 http://cdn.example/live/10001.m3u8',
+            name: 'Static TV',
+            o_name: 'Static TV',
+            logo: 'static-tv.png',
+            category_id: '1001',
+        };
+
+        it('plays an unflagged ITV channel straight from its static cmd', async () => {
+            store.setSelectedContentType('itv');
+
+            const playback = await store.resolveItvPlayback({
+                ...CHANNEL,
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            });
+
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+            expect(playback.streamUrl).toBe(
+                'http://cdn.example/live/10001.m3u8'
+            );
+            expect(playback.isLive).toBe(true);
+        });
+
+        it.each(['use_http_tmp_link', 'use_load_balancing'] as const)(
+            'mints a temporary link for an ITV channel with %s set',
+            async (flag) => {
+                store.setSelectedContentType('itv');
+                dataService.sendIpcEvent.mockResolvedValueOnce({
+                    js: { cmd: 'ffmpeg http://cdn.example/tmp/10001.m3u8' },
+                });
+
+                const playback = await store.resolveItvPlayback({
+                    ...CHANNEL,
+                    [flag]: '1',
+                });
+
+                expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                    expect.anything(),
+                    expect.objectContaining({
+                        params: expect.objectContaining({
+                            action: StalkerPortalActions.CreateLink,
+                            cmd: CHANNEL.cmd,
+                            type: 'itv',
+                        }),
+                    })
+                );
+                expect(playback.streamUrl).toBe(
+                    'http://cdn.example/tmp/10001.m3u8'
+                );
+            }
+        );
+
+        it('mints a temporary link for a flagged radio station with a playable cmd', async () => {
+            // Before the flags were read, a directly playable radio command
+            // always bypassed create_link — a proxied station then played a
+            // URL the portal never intended to serve.
+            store.setSelectedContentType('radio');
+            dataService.sendIpcEvent.mockResolvedValueOnce({
+                js: { cmd: 'http://cdn.example/tmp/jazz.mp3' },
+            });
+
+            const playback = await store.resolveRadioPlayback({
+                id: 'radio-3',
+                cmd: 'ifm https://stream.example/jazz.mp3',
+                name: 'Jazz FM',
+                o_name: 'Jazz FM',
+                logo: 'jazz.png',
+                category_id: '4001',
+                use_http_tmp_link: '1',
+            });
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        action: StalkerPortalActions.CreateLink,
+                        type: 'radio',
+                    }),
+                })
+            );
+            expect(playback.streamUrl).toBe('http://cdn.example/tmp/jazz.mp3');
+        });
+
+        it('mints a link for a flagged VOD row with a directly playable cmd', async () => {
+            // The VOD row reaches this method through
+            // `buildStalkerSelectedVodItem`, a whitelist — if it ever drops
+            // the flags again, this row reads as unflagged and the static
+            // path silently plays the portal's non-final URL.
+            store.setSelectedContentType('vod');
+            store.setSelectedItem({
+                id: '42',
+                cmd: 'ffrt3 http://cdn.example/movie.mkv',
+                title: 'Flagged Movie',
+                category_id: 'vod',
+                use_http_tmp_link: '1',
+            });
+            dataService.sendIpcEvent.mockResolvedValueOnce({
+                js: { cmd: 'http://cdn.example/tmp/movie.mkv?tok=1' },
+            });
+
+            const playback = await store.resolveVodPlayback(
+                undefined,
+                'Flagged Movie'
+            );
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        action: StalkerPortalActions.CreateLink,
+                    }),
+                })
+            );
+            expect(playback.streamUrl).toBe(
+                'http://cdn.example/tmp/movie.mkv?tok=1'
+            );
+        });
+
+        it('plays an unflagged VOD row from its static cmd', async () => {
+            store.setSelectedContentType('vod');
+            store.setSelectedItem({
+                id: '43',
+                cmd: 'ffrt3 http://cdn.example/movie.mkv',
+                title: 'Static Movie',
+                category_id: 'vod',
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            });
+
+            const playback = await store.resolveVodPlayback(
+                undefined,
+                'Static Movie'
+            );
+
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+            expect(playback.streamUrl).toBe('http://cdn.example/movie.mkv');
+        });
+
+        it.each([
+            ['static', { use_http_tmp_link: '0' }, undefined],
+            [
+                'minted',
+                { use_http_tmp_link: '1' },
+                { js: { cmd: 'http://cdn.example/tmp/10001.m3u8?tok=SECRET' } },
+            ],
+        ])(
+            'stores the portal cmd, never the %s stream URL, in recently viewed',
+            async (_label, flags, response) => {
+                // A temporary link dies after ~5 s, so a replayed one is worse
+                // than useless — the row has to keep the `cmd` and re-resolve.
+                store.setSelectedContentType('itv');
+                if (response) {
+                    dataService.sendIpcEvent.mockResolvedValueOnce(response);
+                }
+
+                await store.resolveItvPlayback({ ...CHANNEL, ...flags });
+
+                expect(
+                    playlistService.addPortalRecentlyViewed
+                ).toHaveBeenCalledWith(
+                    PLAYLIST._id,
+                    expect.objectContaining({
+                        id: '10001',
+                        cmd: CHANNEL.cmd,
+                    })
+                );
+                const [, persisted] =
+                    playlistService.addPortalRecentlyViewed.mock.calls[0];
+                expect(JSON.stringify(persisted)).not.toContain('SECRET');
+                expect(JSON.stringify(persisted)).not.toContain('/tmp/');
+            }
+        );
     });
 
     it('attaches the portal header set to radio playback resolved from the portal', async () => {

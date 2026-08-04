@@ -322,6 +322,11 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             playlist.portalUrl ?? '',
             isFullStalkerPortalPlaylist(playlist),
             stalkerIdentityFingerprint(playlist),
+            // Credentials are part of the discovery outcome now: a probe that
+            // failed on a wrong login must be retried once the login is
+            // corrected, instead of staying declined until the app restarts.
+            playlist.username ?? '',
+            playlist.password ?? '',
         ]);
     }
 
@@ -336,7 +341,18 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         const outcome = await this.discovery.discover(
             playlist.portalUrl ?? '',
             playlist.macAddress ?? '',
-            getStalkerPortalIdentityFromPlaylist(playlist)
+            getStalkerPortalIdentityFromPlaylist(playlist),
+            {
+                // A login/password portal answers `get_profile` with status 2
+                // during confirmation. Without the stored credentials the
+                // probe reports `login-required` and such a source could
+                // never be repaired, even though the playlist holds a
+                // working login.
+                credentials: {
+                    username: playlist.username,
+                    password: playlist.password,
+                },
+            }
         );
 
         if (outcome.status !== 'resolved') {
@@ -416,14 +432,22 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             ?.set(this.repairSourceFingerprint(playlist), override);
 
         if (outcome.isFullStalkerPortal && outcome.token) {
-            // The classification handshake already authenticated; reuse its
-            // token so the retry does not immediately handshake again. The
-            // playlist itself is the identity source — a repair never
-            // changes WHO the session belongs to, only WHERE it talks.
-            this.stalkerSession.setCachedToken(
+            // The classification handshake already authenticated; adopt the
+            // whole session so the retry does not handshake again AND the
+            // cadence that profile advertised is applied — caching the token
+            // alone would satisfy the retry and leave the repaired playlist
+            // pinging on the default until restart. The identity source is
+            // the REPAIRED configuration: a repair never changes WHO the
+            // session belongs to, only WHERE it talks, and the session is
+            // bound to that endpoint.
+            this.stalkerSession.adoptDiscoveredSession(
                 playlist._id,
-                outcome.token,
-                playlist
+                toStalkerSessionPlaylist(this.applyOverride(playlist)),
+                {
+                    token: outcome.token,
+                    watchdogTimeoutSeconds: outcome.watchdogTimeoutSeconds,
+                    timeslotSeconds: outcome.timeslotSeconds,
+                }
             );
         } else if (!outcome.isFullStalkerPortal) {
             this.stalkerSession.clearCachedToken(playlist._id);
@@ -483,7 +507,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             row.portalUrl === playlist.portalUrl &&
             isFullStalkerPortalPlaylist(row) === sourceMode &&
             stalkerIdentityFingerprint(row) ===
-                stalkerIdentityFingerprint(playlist)
+                stalkerIdentityFingerprint(playlist) &&
+            // Credentials too, matching repairSourceFingerprint(): discovery
+            // can run for tens of seconds, and a login saved meanwhile means
+            // the outcome was negotiated for an account the row no longer
+            // belongs to — committing it would adopt the wrong session.
+            (row.username ?? '') === (playlist.username ?? '') &&
+            (row.password ?? '') === (playlist.password ?? '')
         );
     }
 

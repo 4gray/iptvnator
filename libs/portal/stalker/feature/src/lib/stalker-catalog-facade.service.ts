@@ -10,6 +10,7 @@ import {
 import {
     buildStalkerSelectedVodItem,
     isStalkerSeriesFlag,
+    StalkerLinkFlagSource,
     StalkerStore,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
@@ -251,9 +252,17 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     async fetchLinkToPlay(
         portalUrl: string,
         macAddress: string,
-        cmd: string
+        cmd: string,
+        series?: number,
+        linkFlags?: StalkerLinkFlagSource | null
     ): Promise<string> {
-        return this.stalkerStore.fetchLinkToPlay(portalUrl, macAddress, cmd);
+        return this.stalkerStore.fetchLinkToPlay(
+            portalUrl,
+            macAddress,
+            cmd,
+            series,
+            linkFlags
+        );
     }
 
     resolveVodPlayback(

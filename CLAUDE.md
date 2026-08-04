@@ -698,6 +698,23 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Xtream Codes API (`username`, `password`, `serverUrl`)
 - Stalker portal (`macAddress`, `url`)
 
+**Stalker playback links**: `create_link` runs only when the catalog row sets
+`use_http_tmp_link` or `use_load_balancing`; otherwise the static `cmd` plays
+directly. One helper decides
+(`resolveStalkerStaticPlaybackUrl` in
+`libs/portal/stalker/data-access/.../stalker-link-semantics.utils.ts`), applied
+by `fetchStalkerPlaybackLink()` for ITV/VOD/radio and by
+`StreamResolverService` for Favorites/Recently Viewed. It falls back to
+`create_link` for anything it cannot resolve alone: no row to read flags from,
+a relative/query-only command (the VOD `has_files` rewrite), a non-HTTP scheme,
+or a loopback host; an episode (`series` set) always mints, since the parameter
+selects the episode server-side. Temporary links live ~5 s, so no resolved URL
+is persisted or replayed — favorites and recently-viewed store the `cmd`,
+playback positions store ids, and the main-process context map stores headers
+keyed by origin+path. Downloads are the one exception (they must retry a URL).
+`forced_storage`/`play_token` are deliberately unwired. Contract:
+`docs/architecture/stalker-portal.md` ("Playback Link Resolution").
+
 **Opening a playlist from the OS** (Electron only): a `.m3u`/`.m3u8` path passed
 on the command line, opened through a file association, or delivered by macOS'
 `open-file` event is normalized to an absolute path in the main process
@@ -1093,6 +1110,16 @@ engine` (restart required) or
 - Xtream: `AccountInfoComponent` (`libs/portal/xtream/feature/src/lib/account-info/`), queries `get_account_info` live.
 - Stalker: `StalkerAccountInfoComponent` (`libs/portal/stalker/feature/src/lib/stalker-account-info/`), cached-first — renders the import-time `stalkerAccountInfo` snapshot instantly, then `StalkerAccountInfoService` refreshes, routing by the observed portal MODE rather than the URL shape (full mode: handshake+`get_profile`; simple mode: best-effort `account_info/get_main_info`, nested `js.account_info` envelope or flat fields), and re-routing when a lazy repair changes the mode mid-request. Details: `docs/architecture/stalker-portal.md` ("Account Info Dialog").
 - Dashboard source cards carry a passive subscription-expiry chip (amber within 7 days, error-toned once expired); account details remain behind ⋮ → Account info. `DashboardSourceExpiryService` (`libs/workspace/dashboard/data-access/`) gathers the facts: Xtream from `PortalStatusService.checkPortalStatusDetails()` (the switcher's cached status check, now carrying `exp_date`), Stalker from the persisted `stalkerAccountInfo` snapshot — it lives in the playlist payload, not on meta rows, so each Stalker source costs one memoized full-playlist read.
+
+**Stalker Session Authentication**:
+
+- Full portals authenticate through `StalkerSessionService` (`libs/portal/stalker/data-access/src/lib/stalker-session.service.ts`), a facade over `stalker-auth.api.ts` (handshake / `get_profile` / `do_auth` + the `authenticate()` orchestration), `stalker-watchdog.controller.ts`, `stalker-portal-error.ts` and `stalker-response-classification.ts`.
+- `get_profile`'s `js.status` decodes as: full profile/`0` = OK, `1` = blocked, `2` = login/password required → `do_auth` then `get_profile` with `auth_second_step=1` (only that retry sets it). Credentials come from the import dialog's username/password fields and are persisted so runtime re-auth can repeat `do_auth`. Status is read through a numeric coercion — portals stringify it.
+- Refusals throw `StalkerPortalError` (`login-required` / `login-rejected` / `blocked` / `auth-failed`) carrying the portal's markup-stripped `msg`/`block_msg` in `portalText`; the import dialog and the workspace context panel render it. Read it with `asStalkerPortalError()`, never `instanceof` in lazy-loaded code.
+- Auth failures are HTTP 200 + plain text (`Authorization failed.` / `Access denied.` / `Unauthorized request.`), classified at the transport boundary by `libs/shared/interfaces/src/lib/stalker-auth-failure.util.ts`; the Electron handler **returns** a `{stalkerAuthFailure}` marker rather than throwing, because `ipcRenderer.invoke` strips custom properties off rejections.
+- The handshake is idempotent, so `Playlist.stalkerToken` is re-presented and `get_profile` is skipped when it comes back unchanged (unless `not_valid` is set, or the persisted `stalkerSessionIdentity` no longer matches `stalkerSessionFingerprint(playlist)` — portal endpoint (origin **and** path) + identity + credentials; an edited endpoint, MAC or login must never inherit the previous session, and a token with no recorded fingerprint counts as unverified. The path is deliberate: discovery preserves tenant base paths, so `/tenant-a/server/load.php` and `/tenant-b/server/load.php` are different portals on one host and must not share a session). The advertised watchdog cadence is persisted alongside it (`stalkerWatchdogTimeout`/`stalkerTimeslot`) precisely because that reuse skips the response carrying it — and the skip only applies once the cadence is known, so a legacy token-only playlist profiles once instead of being stranded on the default. The *effective* cadence is stored, so stored absence means "never profiled" and nothing re-profiles on every start.
+- Watchdog: `get_events` immediately (`init=1`), then every `watchdog_timeout` s (default **120**, clamped 30–3600) offset by `timeslot`. Ping failures are logged only — a missed ping never invalidates auth, it only affects the portal's "online" reporting.
+- Full contract: `docs/architecture/stalker-portal.md` ("Session Authentication Lifecycle").
 
 **Favorites and Recently Viewed**:
 

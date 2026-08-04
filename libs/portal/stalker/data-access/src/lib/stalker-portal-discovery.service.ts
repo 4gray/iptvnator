@@ -3,6 +3,7 @@ import { DataService } from '@iptvnator/services';
 import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    StalkerPortalCredentials,
     StalkerProfileResponse,
     StalkerSessionService,
 } from './stalker-session.service';
@@ -26,6 +27,13 @@ export interface StalkerPortalEndpointResolution {
     token?: string;
     /** Account block from the classification `get_profile` (full portals only). */
     accountInfo?: StalkerProfileResponse['js']['account_info'];
+    /**
+     * Watchdog cadence the confirming `get_profile` advertised. Persisted at
+     * import because a later start reuses the token and skips the only
+     * response that carries it.
+     */
+    watchdogTimeoutSeconds?: number;
+    timeslotSeconds?: number;
 }
 
 /**
@@ -37,6 +45,16 @@ export interface StalkerPortalDiscoveryRejection {
     status: 'auth-rejected';
     portalUrl: string;
     error?: unknown;
+    /**
+     * The abandoned attempt was STILL in flight when the drain deadline
+     * expired, so discovery must not advance. Cancellation is cooperative —
+     * neither transport can pull a request off the wire (the PWA `fetch()`
+     * takes no signal, and the Electron main process runs its HTTP request to
+     * completion) — so an attempt this far past its deadline may still land a
+     * `get_profile`, which adopts the MAC's token portal-side and would
+     * invalidate the session a later candidate had just established.
+     */
+    abandonedInFlight?: boolean;
 }
 
 /** No candidate answered like a Stalker portal (host down or not a portal). */
@@ -51,15 +69,42 @@ export type StalkerPortalDiscoveryOutcome =
 
 /** Per-request guard so a hanging host cannot stall discovery forever. */
 const PROBE_TIMEOUT_MS = 20_000;
-/** authenticate() is two sequential requests; give it a matching budget. */
-const AUTH_TIMEOUT_MS = 45_000;
+/**
+ * `authenticate()` is up to FOUR sequential requests once a portal answers
+ * `get_profile` with status 2 — handshake, profile, `do_auth`, profile retry —
+ * and the Electron transport allows each non-`create_link` call 15 s. A budget
+ * that only covered two would abort a valid but slow login-required portal
+ * before its final profile and report it as `auth-rejected`.
+ */
+const AUTH_TIMEOUT_MS = 4 * 15_000 + 5_000;
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+/**
+ * How long to wait for an abandoned attempt to settle before probing the next
+ * candidate.
+ *
+ * Aborting cannot un-send a request: if its `get_profile` was already
+ * dispatched, the portal adopts that token regardless of what the client does
+ * to its socket. What we CAN do is refuse to race it — advancing while it is
+ * still in flight is what lets it invalidate the token the next candidate
+ * negotiates. Bounded by one request budget so a genuinely hung host cannot
+ * stall discovery forever; past that the risk is accepted rather than hanging.
+ */
+const ABANDONED_DRAIN_MS = 15_000;
+
+function withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    onTimeout?: () => void
+): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(
-            () => reject(new Error('Stalker portal probe timed out')),
-            timeoutMs
-        );
+        const timer = setTimeout(() => {
+            // Abandon the underlying operation BEFORE advancing: the timer
+            // only rejects this wrapper, and a late `get_profile` would adopt
+            // the MAC's token portal-side, invalidating whatever the next
+            // candidate just negotiated.
+            onTimeout?.();
+            reject(new Error('Stalker portal probe timed out'));
+        }, timeoutMs);
         promise.then(
             (value) => {
                 clearTimeout(timer);
@@ -95,7 +140,8 @@ export class StalkerPortalDiscoveryService {
     async discover(
         rawUrl: string,
         macAddress: string,
-        identity: StalkerPortalIdentity = {}
+        identity: StalkerPortalIdentity = {},
+        options: { credentials?: StalkerPortalCredentials } = {}
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
@@ -114,10 +160,14 @@ export class StalkerPortalDiscoveryService {
                     const outcome = await this.confirmFullPortal(
                         candidate,
                         macAddress,
-                        identity
+                        identity,
+                        options.credentials
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
+                    }
+                    if (outcome.abandonedInFlight) {
+                        return authRejection ?? outcome;
                     }
                     authRejection = authRejection ?? outcome;
                     continue;
@@ -158,10 +208,16 @@ export class StalkerPortalDiscoveryService {
                     const outcome = await this.confirmFullPortal(
                         candidate,
                         macAddress,
-                        identity
+                        identity,
+                        options.credentials
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
+                    }
+                    // An attempt still on the wire outranks further probing:
+                    // see `abandonedInFlight`.
+                    if (outcome.abandonedInFlight) {
+                        return authRejection ?? outcome;
                     }
                     // The endpoint is real but refused our credentials;
                     // remember the first such endpoint in case no later
@@ -184,18 +240,25 @@ export class StalkerPortalDiscoveryService {
     private async confirmFullPortal(
         candidate: string,
         macAddress: string,
-        identity: StalkerPortalIdentity
+        identity: StalkerPortalIdentity,
+        credentials?: StalkerPortalCredentials
     ): Promise<
         StalkerPortalEndpointResolution | StalkerPortalDiscoveryRejection
     > {
+        // Cooperative cancellation: `authenticate()` checks this before each
+        // portal call, so a timed-out attempt never sends the `get_profile`
+        // that would adopt the MAC's token behind the next candidate's back.
+        const abandon = new AbortController();
+        // Kept so a timed-out attempt can be drained rather than raced.
+        const pending = this.stalkerSession.authenticate(
+            candidate,
+            macAddress,
+            identity,
+            { credentials, signal: abandon.signal }
+        );
         try {
-            const auth = await withTimeout(
-                this.stalkerSession.authenticate(
-                    candidate,
-                    macAddress,
-                    identity
-                ),
-                AUTH_TIMEOUT_MS
+            const auth = await withTimeout(pending, AUTH_TIMEOUT_MS, () =>
+                abandon.abort()
             );
             // A handshake can hand out a token whose `get_profile` still
             // answers a structured denial (`{js:{error:'Invalid token'}}`);
@@ -215,12 +278,41 @@ export class StalkerPortalDiscoveryService {
                 isFullStalkerPortal: true,
                 token: auth.token,
                 accountInfo: auth.accountInfo,
+                watchdogTimeoutSeconds: auth.watchdogTimeoutSeconds,
+                timeslotSeconds: auth.timeslotSeconds,
             };
         } catch (error) {
+            // Do not advance while the abandoned attempt may still be on the
+            // wire: its `get_profile` adopts the MAC's token portal-side, so
+            // racing it is exactly what invalidates the next candidate's
+            // freshly issued session.
+            //
+            // Draining is the normal case and usually returns at once — an
+            // aborted attempt settles as soon as its in-flight request errors
+            // out. The deadline exists for the attempt that does not settle,
+            // and reaching it is reported rather than swallowed: continuing
+            // would stake a working candidate's session on a request nobody
+            // can recall.
+            const DRAINED = Symbol('drained');
+            const outcome = await Promise.race([
+                pending.then(
+                    () => DRAINED,
+                    () => DRAINED
+                ),
+                new Promise<undefined>((resolve) =>
+                    setTimeout(resolve, ABANDONED_DRAIN_MS)
+                ),
+            ]);
+            if (outcome !== DRAINED) {
+                this.logger.warn(
+                    'Abandoned Stalker authentication is still in flight after the drain deadline; stopping discovery rather than racing it'
+                );
+            }
             return {
                 status: 'auth-rejected',
                 portalUrl: candidate,
                 error,
+                ...(outcome === DRAINED ? {} : { abandonedInFlight: true }),
             };
         }
     }

@@ -39,6 +39,64 @@ export function toStalkerSessionPlaylist(playlist: PlaylistMeta): Playlist {
 }
 
 /**
+ * Establishes the portal session WITHOUT issuing a content request.
+ *
+ * Needed wherever playback returns a URL without calling the portal: minting
+ * a link used to be what authenticated, and tokens live in memory only
+ * (`StalkerSessionService.tokenCache`), so a cold start would otherwise hand
+ * a same-host gated stream headers with no `Authorization`. `ensureToken`
+ * also validates the identity the cached token was negotiated for, which the
+ * raw `getCachedToken()` the header builders use cannot.
+ *
+ * Cheap where it is not needed: a simple portal returns immediately, and a
+ * warm cache with a matching fingerprint resolves without a request.
+ *
+ * Best-effort on purpose — a static URL may point at a CDN that needs no
+ * credentials, so a failed handshake must not cost the user their playback.
+ *
+ * Returns whether the session is good enough to serve a stream that needs
+ * portal credentials: `true` for a portal that needs no token at all and for
+ * one that has a usable token, `false` for a full portal left without one.
+ * Callers use it to decide whether a portal-owned static URL can be trusted or
+ * whether they should fall back to the request path — which is also the path
+ * that can observe a failure and trigger the lazy repair.
+ */
+export async function ensureStalkerSession(
+    deps: StalkerRequestDeps,
+    playlist: PlaylistMeta | undefined,
+    logger?: { warn(...args: unknown[]): void }
+): Promise<boolean> {
+    if (!playlist) {
+        return false;
+    }
+
+    // The repair override is applied here for the same reason
+    // `executeStalkerRequest` applies it on its first line: a completed repair
+    // may have moved the endpoint or the mode while the caller still holds the
+    // pre-repair row, and handshaking against the configuration a repair has
+    // already proven broken would strand the session.
+    const effective = deps.portalRepair
+        ? deps.portalRepair.applyOverride(playlist)
+        : playlist;
+
+    // A token-free panel needs no session, so it can serve credentialed
+    // streams as well as it ever could.
+    if (!isFullStalkerPortalPlaylist(effective)) {
+        return true;
+    }
+
+    try {
+        const { token } = await deps.stalkerSession.ensureToken(
+            toStalkerSessionPlaylist(effective)
+        );
+        return Boolean(token);
+    } catch (error) {
+        logger?.warn('Could not establish the Stalker session', error);
+        return false;
+    }
+}
+
+/**
  * Routes one Stalker request according to the playlist's portal mode:
  * full portals go through the authenticated session (handshake + Bearer
  * token + retry), token-free panels are called directly. The mode comes

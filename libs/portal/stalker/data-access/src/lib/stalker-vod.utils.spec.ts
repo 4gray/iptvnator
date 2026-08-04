@@ -2,12 +2,14 @@ import { VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { StalkerFavoriteItem } from './models';
 import {
     buildStalkerFavoritePayload,
+    buildStalkerSelectedVodItem,
     createStalkerInfo,
     createStalkerInlineDetailState,
     createStalkerDetailViewState,
     isStalkerSeriesFlag,
     normalizeStalkerFavoriteItem,
     normalizeStalkerSeriesFlag,
+    normalizeStalkerVodDetailsItem,
     toggleStalkerVodFavorite,
 } from './stalker-vod.utils';
 
@@ -285,5 +287,53 @@ describe('stalker-vod.utils regressions', () => {
         );
         expect(info.tmdb_trailer).toBe('abc123def');
         expect(info.tmdb_recommendations).toEqual(tmdbRecommendations);
+    });
+
+    describe('temporary-link flags survive normalization', () => {
+        // `buildStalkerSelectedVodItem` is a whitelist, so a field it forgets
+        // is silently gone. For these two that fails OPEN: playback and
+        // downloads would read "no temporary link needed" and play the
+        // portal's non-final URL instead of minting one.
+        const FLAGGED_ROW = {
+            id: '42',
+            cmd: 'ffrt3 http://cdn.example/movie.mkv',
+            use_http_tmp_link: '1',
+            use_load_balancing: '0',
+            info: { name: 'Flagged Movie' },
+        };
+
+        it('keeps both flags on the selected VOD item', () => {
+            const selected = buildStalkerSelectedVodItem(FLAGGED_ROW);
+
+            expect(selected.use_http_tmp_link).toBe('1');
+            expect(selected.use_load_balancing).toBe('0');
+        });
+
+        it('keeps both flags through the VOD details normalizer', () => {
+            const normalized = normalizeStalkerVodDetailsItem(FLAGGED_ROW);
+
+            expect(normalized.use_http_tmp_link).toBe('1');
+            expect(normalized.use_load_balancing).toBe('0');
+        });
+
+        it('keeps both flags on a normalized favorite', () => {
+            const normalized = normalizeStalkerFavoriteItem(
+                FLAGGED_ROW as StalkerFavoriteItem
+            );
+
+            expect(normalized.details.use_http_tmp_link).toBe('1');
+            expect(normalized.details.use_load_balancing).toBe('0');
+        });
+
+        it('leaves an unflagged row without inventing flags', () => {
+            const selected = buildStalkerSelectedVodItem({
+                id: '43',
+                cmd: 'ffrt3 http://cdn.example/other.mkv',
+                info: { name: 'Plain Movie' },
+            });
+
+            expect(selected.use_http_tmp_link).toBeUndefined();
+            expect(selected.use_load_balancing).toBeUndefined();
+        });
     });
 });

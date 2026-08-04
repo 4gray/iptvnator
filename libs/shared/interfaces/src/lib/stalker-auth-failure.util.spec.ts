@@ -1,5 +1,7 @@
 import {
     classifyStalkerAuthFailureBody,
+    createStalkerAuthFailureMarker,
+    extractStalkerAuthFailureBody,
     isStalkerAuthFailureBody,
     isStalkerAuthFailureMessage,
     isStalkerAuthFailureResponse,
@@ -95,6 +97,58 @@ describe('isStalkerAuthFailureResponse', () => {
         expect(isStalkerAuthFailureResponse({ js: [] })).toBe(false);
         expect(isStalkerAuthFailureResponse({ js: false })).toBe(false);
         expect(isStalkerAuthFailureResponse(undefined)).toBe(false);
+    });
+});
+
+describe('transport marker', () => {
+    it('round-trips through create / detect / extract', () => {
+        const marker = createStalkerAuthFailureMarker('Access denied.');
+        expect(isStalkerAuthFailureResponse(marker)).toBe(true);
+        expect(extractStalkerAuthFailureBody(marker)).toBe('Access denied.');
+    });
+
+    it('is what keeps the repair trigger working once Electron classifies', () => {
+        // The main process replaces the plain-text body with this marker, so
+        // a detector that only knew the raw string would silently stop
+        // triggering portal repair on the desktop app.
+        expect(
+            isStalkerAuthFailureResponse({
+                stalkerAuthFailure: 'Authorization failed.',
+            })
+        ).toBe(true);
+    });
+
+    it('does not accept arbitrary objects as markers', () => {
+        expect(isStalkerAuthFailureResponse({ stalkerAuthFailure: 'nope' })).toBe(
+            false
+        );
+        expect(extractStalkerAuthFailureBody({})).toBeNull();
+    });
+});
+
+describe('extractStalkerAuthFailureBody', () => {
+    it('extracts from the raw PWA payload string', () => {
+        expect(extractStalkerAuthFailureBody('Authorization failed. 12')).toBe(
+            'Authorization failed.'
+        );
+    });
+
+    it('extracts from a {js: body} envelope', () => {
+        expect(
+            extractStalkerAuthFailureBody({ js: 'Authorization failed. 75' })
+        ).toBe('Authorization failed.');
+    });
+
+    it('reports no canonical body for the structured panel wording', () => {
+        // Still an auth failure — just not one of the middleware's bodies.
+        const response = { js: { error: 'Invalid token' } };
+        expect(extractStalkerAuthFailureBody(response)).toBeNull();
+        expect(isStalkerAuthFailureResponse(response)).toBe(true);
+    });
+
+    it('returns null for ordinary responses', () => {
+        expect(extractStalkerAuthFailureBody({ js: { data: [] } })).toBeNull();
+        expect(extractStalkerAuthFailureBody(undefined)).toBeNull();
     });
 });
 

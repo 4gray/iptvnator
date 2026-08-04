@@ -13,11 +13,15 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    asStalkerPortalError,
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
+    STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
     StalkerPortalDiscoveryService,
     StalkerPortalIdentity,
     normalizeStalkerPortalIdentity,
+    stalkerSessionFingerprint,
+    type StalkerPortalErrorKind,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     createRandomId,
@@ -129,18 +133,37 @@ export class StalkerPortalImportComponent {
             const discovery = await this.portalDiscovery.discover(
                 originalUrl,
                 formValue.macAddress ?? '',
-                stalkerIdentity
+                stalkerIdentity,
+                {
+                    credentials: {
+                        username: formValue.username ?? '',
+                        password: formValue.password ?? '',
+                    },
+                }
             );
 
             let portalUrl: string;
             let isFullStalkerPortal: boolean;
             let stalkerToken: string | undefined;
             let stalkerAccountInfo: Playlist['stalkerAccountInfo'] | undefined;
+            // The import profile is the only get_profile some portals ever
+            // see: later starts reuse the token and skip it, so the cadence
+            // it advertises has to be persisted here or the watchdog would
+            // stay on the 120 s default forever. Effective values, so stored
+            // absence keeps meaning "never profiled".
+            let stalkerWatchdogTimeout: number | undefined;
+            let stalkerTimeslot: number | undefined;
 
             if (discovery.status === 'resolved') {
                 portalUrl = discovery.portalUrl;
                 isFullStalkerPortal = discovery.isFullStalkerPortal;
                 stalkerToken = discovery.token;
+                if (stalkerToken) {
+                    stalkerWatchdogTimeout =
+                        discovery.watchdogTimeoutSeconds ??
+                        STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS;
+                    stalkerTimeslot = discovery.timeslotSeconds ?? 0;
+                }
 
                 if (discovery.accountInfo) {
                     stalkerAccountInfo = {
@@ -167,10 +190,13 @@ export class StalkerPortalImportComponent {
                     '[StalkerImport] Authentication failed:',
                     discovery.error
                 );
+                // The portal explains its own refusals — a demanded login, a
+                // rejected one, a device conflict — so relay those words
+                // instead of the generic "check URL and MAC".
                 this.snackBar.open(
-                    'Failed to authenticate with portal. Please check URL and MAC address.',
+                    this.buildAuthErrorMessage(discovery.error),
                     undefined,
-                    { duration: 5000 }
+                    { duration: 8000 }
                 );
                 return;
             } else if (
@@ -219,6 +245,25 @@ export class StalkerPortalImportComponent {
                 portalUrl,
                 isFullStalkerPortal,
                 stalkerToken,
+                // What this token was negotiated for: endpoint, identity AND
+                // credentials. Reuse is refused when any of them no longer
+                // matches — and the credentials must be included here, or the
+                // first runtime `ensureToken()` would compute a fingerprint
+                // WITH them, mismatch this one, and throw away the session
+                // the import just established.
+                ...(stalkerToken
+                    ? {
+                          stalkerSessionIdentity: stalkerSessionFingerprint({
+                              portalUrl,
+                              macAddress: formValue.macAddress ?? '',
+                              username: formValue.username ?? '',
+                              password: formValue.password ?? '',
+                              ...this.toPlaylistIdentityFields(stalkerIdentity),
+                          } as Playlist),
+                      }
+                    : {}),
+                stalkerWatchdogTimeout,
+                stalkerTimeslot,
                 stalkerAccountInfo,
                 ...this.toPlaylistIdentityFields(stalkerIdentity),
             } as Playlist;
@@ -228,6 +273,36 @@ export class StalkerPortalImportComponent {
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    /**
+     * Turns an authentication failure into a message the user can act on.
+     * The portal explains refusals itself (`msg`/`block_msg`, or one of the
+     * documented plain-text bodies); its own words are appended verbatim.
+     */
+    private buildAuthErrorMessage(error: unknown): string {
+        const portalError = asStalkerPortalError(error);
+        const keyByKind: Record<StalkerPortalErrorKind, string> = {
+            'login-required': 'HOME.STALKER_PORTAL.LOGIN_REQUIRED',
+            'login-rejected': 'HOME.STALKER_PORTAL.LOGIN_REJECTED',
+            blocked: 'HOME.STALKER_PORTAL.PORTAL_REFUSED',
+            'auth-failed': 'HOME.STALKER_PORTAL.AUTH_FAILED',
+        };
+        const base = this.translate.instant(
+            portalError
+                ? keyByKind[portalError.kind]
+                : 'HOME.STALKER_PORTAL.AUTH_FAILED'
+        );
+
+        if (portalError?.portalText) {
+            const detail = this.translate.instant(
+                'HOME.STALKER_PORTAL.PORTAL_MESSAGE',
+                { message: portalError.portalText }
+            );
+            return `${base} ${detail}`;
+        }
+
+        return base;
     }
 
     private toPlaylistIdentityFields(identity: StalkerPortalIdentity): {

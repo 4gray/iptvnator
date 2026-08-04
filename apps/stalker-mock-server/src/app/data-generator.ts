@@ -17,7 +17,17 @@ export interface RawCategory {
     censored?: string;
 }
 
-export interface RawChannel {
+/**
+ * The two flags that tell a client whether the row needs `create_link`. Real
+ * portals send them on every ITV/radio row as `'0'`/`'1'` strings; a client
+ * that honours them plays the static `cmd` when both are `'0'`.
+ */
+export interface RawTemporaryLinkFlags {
+    use_http_tmp_link: '0' | '1';
+    use_load_balancing: '0' | '1';
+}
+
+export interface RawChannel extends RawTemporaryLinkFlags {
     id: string;
     name: string;
     o_name: string;
@@ -28,7 +38,7 @@ export interface RawChannel {
     xmltv_id: string;
 }
 
-export interface RawRadioStation {
+export interface RawRadioStation extends RawTemporaryLinkFlags {
     id: string;
     name: string;
     o_name: string;
@@ -238,7 +248,12 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
     });
     let channelIndex = 0;
     for (const cat of data.itvCategories) {
-        const channels = generateChannels(cat.id, config.itemsPerCategory, channelIndex);
+        const channels = generateChannels(
+            cat.id,
+            config.itemsPerCategory,
+            channelIndex,
+            config.staticChannelCmd === true
+        );
         data.channels.set(cat.id, channels);
         for (const ch of channels) {
             data.epg.set(ch.id, generateEpg(ch.name));
@@ -377,7 +392,12 @@ function generateCategories(
 // Channel generators
 // ---------------------------------------------------------------------------
 
-function generateChannels(categoryId: string, count: number, startIndex: number): RawChannel[] {
+function generateChannels(
+    categoryId: string,
+    count: number,
+    startIndex: number,
+    staticCmd: boolean
+): RawChannel[] {
     return Array.from({ length: count }, (_, i) => {
         const globalIndex = startIndex + i;
         const id = String(10000 + globalIndex);
@@ -386,11 +406,19 @@ function generateChannels(categoryId: string, count: number, startIndex: number)
             id,
             name,
             o_name: name,
-            cmd: `ffrt4://ch/live/${id}/index.m3u8`,
+            // A static row carries a playable address with the usual
+            // `<solution> <url>` prefix; the default `ffrt4://` command is a
+            // portal-internal pseudo-URL that only `create_link` can resolve,
+            // which is exactly what `use_http_tmp_link` announces.
+            cmd: staticCmd
+                ? `ffrt3 ${pickStream(globalIndex)}`
+                : `ffrt4://ch/live/${id}/index.m3u8`,
             logo: logoUrl(`ch-${id}`),
             category_id: categoryId,
             tv_genre_id: categoryId,
             xmltv_id: `channel-${id}.example`,
+            use_http_tmp_link: staticCmd ? '0' : '1',
+            use_load_balancing: '0',
         };
     });
 }
@@ -414,6 +442,8 @@ function generateRadioStations(
             tv_genre_id: categoryId,
             number: String(globalIndex + 1),
             radio: true,
+            use_http_tmp_link: '1',
+            use_load_balancing: '0',
         };
     });
 }

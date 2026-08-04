@@ -242,6 +242,13 @@ export class PlaylistsService {
             stalkerSignature2: playlist.stalkerSignature2,
             isFullStalkerPortal: playlist.isFullStalkerPortal,
             stalkerToken: playlist.stalkerToken,
+            // Without these the Electron cold read loses the persisted
+            // cadence AND the identity the token was negotiated for, so the
+            // mismatch check cannot run and the watchdog falls back to the
+            // default.
+            stalkerSessionIdentity: playlist.stalkerSessionIdentity,
+            stalkerWatchdogTimeout: playlist.stalkerWatchdogTimeout,
+            stalkerTimeslot: playlist.stalkerTimeslot,
             stalkerAccountInfo: playlist.stalkerAccountInfo,
         } as Playlist;
     }
@@ -726,6 +733,45 @@ export class PlaylistsService {
             };
 
             return this.persistPlaylistMutation(nextPlaylist);
+        });
+    }
+
+    /**
+     * Persists a freshly negotiated Stalker session on the playlist so the
+     * next app start can re-present the token (the portal handshake is
+     * idempotent) and keep the portal's own watchdog cadence — reusing a
+     * token skips the `get_profile` that carries the cadence, so it has to
+     * survive with the token. No-ops when the playlist row does not exist
+     * yet: the import flow saves both with the playlist itself.
+     */
+    updateStalkerSession(
+        playlistId: string,
+        session: {
+            stalkerToken: string;
+            stalkerSessionIdentity?: string;
+            stalkerWatchdogTimeout?: number;
+            stalkerTimeslot?: number;
+        }
+    ) {
+        return this.serializePlaylistWrite(playlistId, async () => {
+            const playlist = await firstValueFrom(
+                this.getPlaylistById(playlistId)
+            );
+            if (!playlist) {
+                return null;
+            }
+
+            // The cadence is written unconditionally, including as
+            // `undefined`: a portal that stops advertising one must not leave
+            // a stale value behind for the next restart to re-apply, since
+            // reusing the token skips the profile that would correct it.
+            return this.persistPlaylistMutation({
+                ...playlist,
+                stalkerToken: session.stalkerToken,
+                stalkerSessionIdentity: session.stalkerSessionIdentity,
+                stalkerWatchdogTimeout: session.stalkerWatchdogTimeout,
+                stalkerTimeslot: session.stalkerTimeslot,
+            });
         });
     }
 

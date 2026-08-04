@@ -101,7 +101,12 @@ describe('StalkerPortalDiscoveryService', () => {
         expect(authenticate).toHaveBeenCalledWith(
             'http://ministra.example/server/load.php',
             MAC,
-            { serialNumber: 'SN1' }
+            { serialNumber: 'SN1' },
+            // Import credentials ride along for portals that answer
+            // get_profile with status 2 (login/password required).
+            // A per-attempt abort signal: a timed-out authentication must
+            // not send its get_profile behind the next candidate's back.
+            { credentials: undefined, signal: expect.any(AbortSignal) }
         );
     });
 
@@ -190,7 +195,10 @@ describe('StalkerPortalDiscoveryService', () => {
         expect(authenticate).toHaveBeenCalledWith(
             'http://gated.example/portal.php',
             MAC,
-            {}
+            {},
+            // A per-attempt abort signal: a timed-out authentication must
+            // not send its get_profile behind the next candidate's back.
+            { credentials: undefined, signal: expect.any(AbortSignal) }
         );
     });
 
@@ -342,5 +350,154 @@ describe('StalkerPortalDiscoveryService', () => {
             portalUrl: 'http://mixed.example/server/load.php',
             isFullStalkerPortal: false,
         });
+    });
+
+    it('aborts a timed-out authentication before advancing to the next candidate', async () => {
+        jest.useFakeTimers();
+        try {
+            mockProbes({
+                'http://slow.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+
+            let captured: AbortSignal | undefined;
+            authenticate.mockImplementation(
+                (_url, _mac, _identity, options) => {
+                    captured = options?.signal;
+                    // Hangs past the auth budget, like the real symptom.
+                    return new Promise(() => undefined);
+                }
+            );
+
+            const discovery = service.discover(
+                'http://slow.example/c',
+                MAC
+            );
+            // Let the probe resolve so the auth attempt actually starts.
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
+
+            jest.advanceTimersByTime(65_000);
+            await Promise.resolve();
+
+            // The abandoned attempt is cancelled, so its get_profile never
+            // goes out to adopt the MAC's token behind a later candidate.
+            expect(captured?.aborted).toBe(true);
+
+            // …and discovery does not RACE it: a request already dispatched
+            // cannot be un-sent, so the run drains it (bounded) instead of
+            // probing the next candidate while it may still land.
+            jest.advanceTimersByTime(15_000);
+            // Outcome shape is unchanged: a timed-out confirmation is still
+            // reported as a refusal of that endpoint.
+            await expect(discovery).resolves.toMatchObject({
+                status: 'auth-rejected',
+                portalUrl: 'http://slow.example/portal.php',
+            });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('drains an abandoned attempt instead of probing the next candidate', async () => {
+        jest.useFakeTimers();
+        try {
+            // Two candidates both answer "auth required", so a resolved first
+            // attempt would stop the run — only a timed-out one advances.
+            mockProbes({
+                'http://slow.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+                'http://slow.example/server/load.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+
+            let settleFirst: (() => void) | undefined;
+            authenticate
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((_resolve, reject) => {
+                            settleFirst = () => reject(new Error('late'));
+                        })
+                )
+                .mockResolvedValue({ token: 'SECOND' });
+
+            const discovery = service.discover('http://slow.example/c', MAC);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+
+            jest.advanceTimersByTime(65_000);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+
+            // The first attempt is still on the wire: the second candidate
+            // must NOT have been authenticated yet, or its token could be
+            // invalidated by the first one's late get_profile.
+            expect(authenticate).toHaveBeenCalledTimes(1);
+
+            // Once it settles, the run continues immediately.
+            settleFirst?.();
+            for (let i = 0; i < 10; i += 1) {
+                await Promise.resolve();
+            }
+            expect(authenticate).toHaveBeenCalledTimes(2);
+            await expect(discovery).resolves.toMatchObject({
+                status: 'resolved',
+            });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('stops discovery when the drain deadline expires with the attempt still live', async () => {
+        jest.useFakeTimers();
+        try {
+            // Cancellation is cooperative: neither transport can pull a
+            // request off the wire. An attempt still unsettled 80 s in may
+            // yet land its `get_profile`, which adopts the MAC's token
+            // portal-side — so probing on would stake the next candidate's
+            // freshly issued session on a request nobody can recall.
+            mockProbes({
+                'http://hung.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+                'http://hung.example/server/load.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+
+            // Never settles — not even after the drain.
+            authenticate
+                .mockImplementationOnce(() => new Promise(() => undefined))
+                .mockResolvedValue({ token: 'SECOND' });
+
+            const discovery = service.discover('http://hung.example/c', MAC);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+
+            jest.advanceTimersByTime(65_000);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+            jest.advanceTimersByTime(15_000);
+            for (let i = 0; i < 10; i += 1) {
+                await Promise.resolve();
+            }
+
+            await expect(discovery).resolves.toMatchObject({
+                status: 'auth-rejected',
+                abandonedInFlight: true,
+            });
+            // The second candidate was never authenticated.
+            expect(authenticate).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

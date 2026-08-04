@@ -157,9 +157,7 @@
         } @else if (isStalkerCategoryFailed()) {
             <app-workspace-context-error-view
                 [title]="'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR' | translate"
-                [description]="
-                    'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR_HINT' | translate
-                "
+                [description]="stalkerCategoryErrorDescription()"
                 [showActionButtons]="false"
             />
         } @else {

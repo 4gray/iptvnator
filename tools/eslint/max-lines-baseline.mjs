@@ -38,7 +38,6 @@ export const maxLinesBaseline = [
     'libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.ts',
     'libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.ts',
     'libs/portal/shared/util/src/lib/navigation/workspace-portal-navigation.ts',
-    'libs/portal/stalker/data-access/src/lib/stalker-session.service.ts',
     'libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-content.feature.ts',
     'libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-epg.feature.ts',
     'libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-player.feature.ts',

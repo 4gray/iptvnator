@@ -297,6 +297,9 @@ interface ScenarioConfig {
   supportsGetAllChannels?: boolean; // default true; false mimics legacy portals
                                     // without the ITV get_all_channels action
   marketingFixture?: true;          // replace generated VOD with shared posters
+  requiresLogin?: true;             // get_profile answers status 2 until do_auth
+  gatedStream?: true;               // create_link returns a credential-gated URL
+  staticChannelCmd?: true;          // ITV rows need no temporary link
 }
 ```
 
@@ -316,6 +319,16 @@ then the JSON middleware resolves them against the request origin (including
 forwarded host/protocol) as
 `<portal-origin>/assets/marketing/poster/<slug>.png`. `main.ts` serves the
 committed PNG directory directly, so the Xtream server does not need to run.
+
+Every generated ITV channel and radio station carries `use_http_tmp_link` and
+`use_load_balancing`, the flags a real portal uses to tell a client whether the
+row needs `create_link`. They are `'1'`/`'0'` for the default generators —
+honest, because those rows carry `ffrt4://…` pseudo-URLs. The
+`static-channel-cmd` scenario (`00:1A:79:00:00:0A`) sets `staticChannelCmd`,
+which gives ITV rows both flags at `'0'` and a real
+`ffrt3 https://…m3u8` command, so `apps/web-e2e/src/stalker.e2e.ts` can assert
+that no `create_link` request reaches the portal. See
+`docs/architecture/stalker-portal.md`, "Playback Link Resolution".
 
 ### Adding a New Scenario
 

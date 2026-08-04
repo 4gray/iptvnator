@@ -195,7 +195,13 @@
             "SERVER_URL": "Sunucu URL'si",
             "URL_VALIDATION_ERROR": "Geçerli bir URL olmalıdır (örn. http://example.com/c veya https://example.com/stalker_portal/c)",
             "ADD": "Ekle",
-            "VALIDATING": "Portal doğrulanıyor..."
+            "VALIDATING": "Portal doğrulanıyor...",
+            "CREDENTIALS_HINT": "Yalnızca portal kullanıcı adı ve parola istediğinde gereklidir",
+            "AUTH_FAILED": "Portalda kimlik doğrulaması başarısız oldu. URL'yi ve MAC adresini kontrol edin.",
+            "LOGIN_REQUIRED": "Bu portal kullanıcı adı ve parola gerektiriyor. Kullanıcı adı ve parola alanlarını doldurup tekrar deneyin.",
+            "LOGIN_REJECTED": "Portal, kullanıcı adı ve parolayı reddetti.",
+            "PORTAL_REFUSED": "Portal bu cihaz için erişimi reddetti.",
+            "PORTAL_MESSAGE": "Portal şunu bildirdi: {{message}}"
         },
         "FILTER_BY_NAME": "İsime göre filtrele",
         "FILTER_AND_SORT": "Filtrele ve Sırala",
@@ -957,6 +963,7 @@
                 "TITLE": "Kategori seçilmedi",
                 "DESCRIPTION": "İçeriği görmek için lütfen bir kategori seçin"
             },
+            "STALKER_LOGIN_REQUIRED": "Portal, kullanıcı adı ve parola gerektiriyor. Portalı yeniden içe aktarın ve kullanıcı adı ile parola alanlarını doldurun.",
             "PLAYLIST_SETTINGS": "Oynatma Listesi Ayarları",
             "HOME": "Ana Sayfa",
             "DELETE": "Sil"

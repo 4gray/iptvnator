@@ -38,6 +38,21 @@ import {
  *
  * Giving each test its own MAC instead would mean inventing a scenario per
  * test; serializing one file is the cheaper trade.
+ *
+ * ACROSS BROWSER PROJECTS this does NOT hold, and it is a local-run hazard
+ * only. `mode: 'serial'` orders tests within one project; chromium, firefox
+ * and webkit still run the file concurrently against the SAME mock server, so
+ * one project's `beforeEach` reset can drop a session another project is
+ * mid-test on — the auth specs below are the ones that notice, failing as if
+ * the portal had dropped them. CI never sees it: the Web E2E job runs
+ * `--project=chromium` alone (`.github/workflows/e2e-tests.yaml`). If a local
+ * all-project run shows a lone auth failure that passes on rerun, this is why;
+ * `--project=chromium` reproduces CI exactly.
+ *
+ * Most tests here tolerate that reset anyway — they re-authenticate, or assert
+ * that a NEW token appears. The token-reuse test cannot: its assertion IS that
+ * the portal session survives, so it uses per-project MACs held outside
+ * `OWNED_MACS`. See `AUTH_REUSE_MACS`.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -66,6 +81,20 @@ const EMBEDDED_SERIES_MAC = '00:1A:79:00:00:05';
 const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
 
 /**
+ * Static-cmd MAC — ITV rows carrying a directly playable `cmd` with
+ * `use_http_tmp_link` and `use_load_balancing` both `'0'`, i.e. a portal that
+ * expects no `create_link` call at all.
+ */
+const STATIC_CMD_MAC = '00:1A:79:00:00:0A';
+
+/**
+ * Login-required scenario MAC — get_profile answers status 2 until do_auth
+ * completes with non-empty credentials (empty credentials return {js:false},
+ * as the operator billing script would).
+ */
+const LOGIN_REQUIRED_MAC = '00:1A:79:00:00:08';
+
+/**
  * Dedicated MACs for the full-portal authentication tests. Mock state is keyed
  * by MAC, so keeping these distinct from the content scenarios above means an
  * auth test can never consume or invalidate a session another test relies on.
@@ -73,6 +102,25 @@ const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
  */
 const AUTH_FLOW_MAC = '00:1A:79:AD:00:01';
 const AUTH_REAUTH_MAC = '00:1A:79:AD:00:03';
+
+/**
+ * The token-reuse test needs the portal session to SURVIVE untouched between
+ * its import and its reload — that persistence is the whole assertion. Every
+ * other test here is reset-tolerant (they either re-authenticate or assert a
+ * new token), so they can share `OWNED_MACS`, which each `beforeEach` clears.
+ *
+ * `mode: 'serial'` only serializes within one project; the browser projects
+ * still run concurrently, so a sibling project's reset would rotate this
+ * session mid-test. Hence one MAC per project, and deliberately NOT in
+ * `OWNED_MACS`: nothing may reset them. Leftover state from an earlier run is
+ * harmless — the import negotiates and adopts its own token first.
+ */
+const AUTH_REUSE_MACS: Record<string, string> = {
+    chromium: '00:1A:79:AD:01:01',
+    firefox: '00:1A:79:AD:01:02',
+    webkit: '00:1A:79:AD:01:03',
+};
+const AUTH_REUSE_FALLBACK_MAC = '00:1A:79:AD:01:04';
 /**
  * Deliberately NOT an Infomir MAC: the strict endpoint rejects get_profile for
  * it, so no token is ever adopted and content requests fail permanently.
@@ -120,6 +168,8 @@ const OWNED_MACS = [
     MINIMAL_MAC,
     EMBEDDED_SERIES_MAC,
     LEGACY_PAGINATION_MAC,
+    STATIC_CMD_MAC,
+    LOGIN_REQUIRED_MAC,
     AUTH_FLOW_MAC,
     AUTH_REAUTH_MAC,
     AUTH_REJECTED_MAC,
@@ -194,9 +244,21 @@ async function addStalkerPortal(
  */
 async function addFullStalkerPortal(
     page: Page,
-    options: { name?: string; mac: string; expectContent?: boolean }
+    options: {
+        name?: string;
+        mac: string;
+        expectContent?: boolean;
+        username?: string;
+        password?: string;
+    }
 ): Promise<void> {
-    const { name = 'Full Stalker Portal', mac, expectContent = true } = options;
+    const {
+        name = 'Full Stalker Portal',
+        mac,
+        expectContent = true,
+        username,
+        password,
+    } = options;
 
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
@@ -206,6 +268,12 @@ async function addFullStalkerPortal(
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), mac);
+    if (username !== undefined) {
+        await setInputValue(dialog.locator('input#username'), username);
+    }
+    if (password !== undefined) {
+        await setInputValue(dialog.locator('input#password'), password);
+    }
 
     const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -681,6 +749,62 @@ test('@stalker create_link returns a playable stream URL', async ({
     expect(streamUrl).toMatch(/\.m3u8$/);
 });
 
+/**
+ * Play the first channel of the first ITV category and report every
+ * `create_link` request the page made while doing so.
+ */
+async function playFirstItvChannel(page: Page): Promise<string[]> {
+    const createLinkRequests: string[] = [];
+    page.on('request', (request) => {
+        if (request.url().includes('action=create_link')) {
+            createLinkRequests.push(request.url());
+        }
+    });
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    await channels.first().click();
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    await expect(page.locator('app-web-player-view')).toBeVisible({
+        timeout: 20_000,
+    });
+
+    return createLinkRequests;
+}
+
+test('@stalker ITV plays an unflagged channel without minting a link', async ({
+    page,
+}) => {
+    // The reference client only calls create_link when the row sets
+    // use_http_tmp_link or use_load_balancing; this portal sets neither, so
+    // the static cmd must reach the player untouched. The companion test
+    // below proves the recorder does see a create_link when one is due.
+    await addStalkerPortal(page, {
+        name: 'Static Cmd Portal',
+        mac: STATIC_CMD_MAC,
+    });
+
+    expect(await playFirstItvChannel(page)).toEqual([]);
+});
+
+test('@stalker ITV mints a link for a channel that asks for one', async ({
+    page,
+}) => {
+    await addStalkerPortal(page, { name: 'Tmp Link Portal' });
+
+    const createLinkRequests = await playFirstItvChannel(page);
+
+    expect(createLinkRequests.length).toBeGreaterThan(0);
+    expect(createLinkRequests[0]).toContain('type=itv');
+});
+
 test('@stalker mock server returns radio categories and stations', async ({
     request,
 }) => {
@@ -917,12 +1041,171 @@ test.describe('@stalker full portal authentication', () => {
             .toBe(true);
     });
 
-    test('never surfaces the portal plain-text auth failure as content', async ({
+    test('completes the documented login flow behind get_profile status 2', async ({
+        page,
+    }) => {
+        const requests = recordPortalRequests(page);
+        // The second auth step must only be claimed on the retry AFTER
+        // do_auth — a client that always sends auth_second_step=1 works
+        // against the mock but violates the documented protocol.
+        const profileSteps: string[] = [];
+        page.on('request', (request) => {
+            const url = new URL(request.url());
+            if (!url.pathname.endsWith('/stalker')) {
+                return;
+            }
+            if (url.searchParams.get('action') !== 'get_profile') {
+                return;
+            }
+            profileSteps.push(url.searchParams.get('auth_second_step') ?? '');
+        });
+
+        await addFullStalkerPortal(page, {
+            mac: LOGIN_REQUIRED_MAC,
+            username: 'user',
+            password: 'secret',
+        });
+
+        // The mock only adopts the token (and answers content) after do_auth
+        // completed with non-empty credentials, so rendered categories prove
+        // the whole status 2 -> do_auth -> profile retry chain ran.
+        await expect(page.locator('.category-item').first()).toBeVisible({
+            timeout: 30_000,
+        });
+
+        const actions = requests.map((entry) => entry.action);
+        expect(actions).toContain('do_auth');
+        expect(actions.indexOf('get_profile')).toBeLessThan(
+            actions.indexOf('do_auth')
+        );
+        expect(actions.lastIndexOf('get_profile')).toBeGreaterThan(
+            actions.indexOf('do_auth')
+        );
+
+        expect(profileSteps[0]).toBe('0');
+        expect(profileSteps).toContain('1');
+
+        // Content only flows once the token is adopted, which the mock does
+        // only after do_auth completed. Look AFTER the last get_profile:
+        // discovery's classification probe is itself a token-less
+        // `get_genres`, so the first CONTENT_ACTIONS hit is that probe.
+        const contentRequest = requests
+            .slice(actions.lastIndexOf('get_profile') + 1)
+            .find((entry) => CONTENT_ACTIONS.includes(entry.action));
+        expect(contentRequest).toBeDefined();
+        expect(contentRequest?.token).toBeTruthy();
+    });
+
+    test('explains a login-required portal and recovers once credentials are entered', async ({
+        page,
+    }) => {
+        // First attempt without credentials: the import must fail with the
+        // portal's actual reason, not a generic "check URL and MAC" error.
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.locator('mat-dialog-container');
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
+
+        await setInputValue(dialog.locator('input#title'), 'Login Portal');
+        await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
+        await setInputValue(
+            dialog.locator('input#macAddress'),
+            LOGIN_REQUIRED_MAC
+        );
+
+        const addButton = dialog.getByRole('button', {
+            name: 'Add',
+            exact: true,
+        });
+        await expect(addButton).toBeEnabled({ timeout: 10_000 });
+        await addButton.click();
+
+        await expect(
+            page.getByText(/requires a login and password/i)
+        ).toBeVisible({ timeout: 15_000 });
+        // The dialog stays open so the user can add the credentials.
+        await expect(dialog).toBeVisible();
+
+        // Second attempt with credentials in the same dialog succeeds.
+        await setInputValue(dialog.locator('input#username'), 'user');
+        await setInputValue(dialog.locator('input#password'), 'secret');
+        await expect(addButton).toBeEnabled({ timeout: 10_000 });
+        await addButton.click();
+        await expect(dialog).toBeHidden({ timeout: 30_000 });
+
+        await page.waitForURL(/stalker.*vod/, { timeout: 30_000 });
+        await expect(page.locator('.category-item').first()).toBeVisible({
+            timeout: 30_000,
+        });
+    });
+
+    test('reuses the persisted token after a reload instead of re-running get_profile', async ({
+        page,
+    }, testInfo) => {
+        const requests = recordPortalRequests(page);
+        const mac =
+            AUTH_REUSE_MACS[testInfo.project.name] ?? AUTH_REUSE_FALLBACK_MAC;
+
+        await addFullStalkerPortal(page, { mac });
+
+        await expect
+            .poll(
+                () =>
+                    requests.some(
+                        (entry) =>
+                            CONTENT_ACTIONS.includes(entry.action) &&
+                            entry.token
+                    ),
+                { timeout: 30_000 }
+            )
+            .toBe(true);
+
+        const sessionToken = requests.find(
+            (entry) => CONTENT_ACTIONS.includes(entry.action) && entry.token
+        )?.token;
+        expect(sessionToken).toBeTruthy();
+
+        const requestCountBeforeReload = requests.length;
+        await page.reload();
+
+        // Wait on the UI rather than the request log: a reload restores the
+        // route, boots the app and re-authenticates before the first content
+        // request goes out, and rendered categories prove that whole chain
+        // finished (the portal only answers content for an adopted token).
+        await expect(page.locator('.category-item').first()).toBeVisible({
+            timeout: 60_000,
+        });
+
+        const afterReload = requests.slice(requestCountBeforeReload);
+
+        // Content came back under the SAME token, negotiated by re-presenting
+        // the persisted one in the handshake.
+        expect(
+            afterReload.filter(
+                (entry) =>
+                    CONTENT_ACTIONS.includes(entry.action) &&
+                    entry.token === sessionToken
+            ).length
+        ).toBeGreaterThan(0);
+
+        // The handshake re-presented the persisted token...
+        const reloadHandshake = afterReload.find(
+            (entry) => entry.action === 'handshake'
+        );
+        expect(reloadHandshake?.token).toBe(sessionToken);
+
+        // ...and because the portal returned it unchanged (idempotent
+        // handshake, still-adopted session), the profile round trip was
+        // skipped entirely.
+        expect(
+            afterReload.filter((entry) => entry.action === 'get_profile')
+        ).toHaveLength(0);
+    });
+
+    test('refuses a rejected portal at import and never renders its plain-text failure', async ({
         page,
         request,
     }) => {
-        const requests = recordPortalRequests(page);
-
         // A MAC outside the Infomir OUI makes the strict endpoint answer
         // get_profile with a bare {status:1}, so no token is ever adopted and
         // every content request keeps returning the plain-text failure. Unlike
@@ -940,25 +1223,38 @@ test.describe('@stalker full portal authentication', () => {
         ).json();
         expect(failureBody.payload).toBe('Authorization failed.');
 
-        await addFullStalkerPortal(page, {
-            mac: AUTH_REJECTED_MAC,
-            expectContent: false,
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.locator('mat-dialog-container');
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
+
+        await setInputValue(dialog.locator('input#title'), 'Rejected Portal');
+        await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
+        await setInputValue(
+            dialog.locator('input#macAddress'),
+            AUTH_REJECTED_MAC
+        );
+
+        const addButton = dialog.getByRole('button', {
+            name: 'Add',
+            exact: true,
         });
+        await expect(addButton).toBeEnabled({ timeout: 10_000 });
+        await addButton.click();
 
-        // The app must have actually hit the failing portal...
-        await expect
-            .poll(
-                () =>
-                    requests.filter((entry) =>
-                        CONTENT_ACTIONS.includes(entry.action)
-                    ).length,
-                { timeout: 30_000 }
-            )
-            .toBeGreaterThan(0);
+        // `status: 1` means the portal refused this device, so the import must
+        // stop there instead of persisting a portal that can never load. (It
+        // used to be treated as success whenever the portal sent no msg text,
+        // which imported a dead source.)
+        await expect(page.getByText(/refused access/i)).toBeVisible({
+            timeout: 15_000,
+        });
+        await expect(dialog).toBeVisible();
+        await expect(page).not.toHaveURL(/stalker/);
 
-        // ...and must never render the raw portal response as content. A
-        // portal answers auth failures with HTTP 200 + plain text, so an app
-        // that trusts the status code would happily paint these strings.
+        // And the raw portal response is never painted as UI. A portal answers
+        // auth failures with HTTP 200 + plain text, so an app that trusts the
+        // status code would happily render these strings.
         await expect(page.locator('body')).not.toContainText(
             'Authorization failed.'
         );

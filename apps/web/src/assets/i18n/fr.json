@@ -195,7 +195,13 @@
             "SERVER_URL": "URL du serveur",
             "URL_VALIDATION_ERROR": "Doit être une URL valide avec un protocole (par exemple http://example.com/c ou https://example.com/stalker_portal/c)",
             "ADD": "Ajouter",
-            "VALIDATING": "Validation du portail…"
+            "VALIDATING": "Validation du portail…",
+            "CREDENTIALS_HINT": "Nécessaire uniquement lorsque le portail demande un identifiant et un mot de passe",
+            "AUTH_FAILED": "Échec de l'authentification auprès du portail. Vérifiez l'URL et l'adresse MAC.",
+            "LOGIN_REQUIRED": "Ce portail nécessite un identifiant et un mot de passe. Renseignez les champs nom d'utilisateur et mot de passe, puis réessayez.",
+            "LOGIN_REJECTED": "Le portail a rejeté l'identifiant et le mot de passe.",
+            "PORTAL_REFUSED": "Le portail a refusé l'accès pour cet appareil.",
+            "PORTAL_MESSAGE": "Le portail a signalé : {{message}}"
         },
         "FILTER_BY_NAME": "Filtrer par nom",
         "FILTER_AND_SORT": "Filtrer et trier",
@@ -957,6 +963,7 @@
                 "TITLE": "Aucune catégorie sélectionnée",
                 "DESCRIPTION": "Veuillez sélectionner une catégorie pour voir le contenu"
             },
+            "STALKER_LOGIN_REQUIRED": "Le portail nécessite un identifiant et un mot de passe. Importez à nouveau le portail et renseignez les champs nom d'utilisateur et mot de passe.",
             "PLAYLIST_SETTINGS": "Paramètres de la liste",
             "HOME": "Accueil",
             "DELETE": "Supprimer"
