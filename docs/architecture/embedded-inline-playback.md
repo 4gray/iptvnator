@@ -639,11 +639,14 @@ change the resume position only while that exact capture still owns the current
 application, so a replaced source cannot repopulate cleared handoff state.
 
 A separate fieldless intent token invalidates on each new source, target, or
-reload intent. It clears the prior diagnostic from visible and actionable state
-before any asynchronous Electron header handoff completes, without retaining
-source material. False or rejected current handoffs leave it detached, and a
-stale success, false result, or rejection cannot restore the old diagnostic or
-mutate the newer application state.
+reload intent. The application effect synchronizes the content session before
+tracking that intent, so clearing a temporary player override is incorporated
+into one application instead of scheduling a duplicate Electron header handoff.
+Each application start clears both the diagnostic owner and backing signal,
+making the prior diagnostic neither retained nor actionable before asynchronous
+header setup completes. False or rejected current handoffs leave it clear, and
+a stale success, false result, or rejection cannot erase a newer owned
+diagnostic or mutate the newer application state.
 
 Selecting a built-in recommendation records the target, immediately detaches
 the diagnostic, and installs a temporary local override ahead of the host

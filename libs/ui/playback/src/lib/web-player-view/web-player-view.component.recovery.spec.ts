@@ -267,6 +267,36 @@ describe('WebPlayerViewComponent recovery integration', () => {
         ]);
     });
 
+    it('applies a new content once after clearing a temporary player override', async () => {
+        await switchToHtml5();
+        const oldIssue = mediaIssue('html5', 'live.m3u8');
+        html5().playbackIssue.emit(oldIssue);
+        fixture.detectChanges();
+        expect(component.playbackDiagnostic()).toBe(oldIssue);
+        holdHeaderHandoff = true;
+        streamHeaders.apply.mockClear();
+
+        fixture.componentRef.setInput('playbackSessionKey', 'content-b');
+        setPlayback({ streamUrl: 'https://example.com/next.m3u8' });
+        fixture.detectChanges();
+
+        expect(streamHeaders.apply).toHaveBeenCalledTimes(1);
+        expect(headerResolvers).toHaveLength(1);
+        expect(component.activeBinding()?.target).toBe(
+            InlinePlaybackPlayer.VideoJs
+        );
+        expect(component.playbackDiagnostic()).toBeNull();
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
+
+        headerResolvers[0](true);
+        await fixture.whenStable();
+
+        expect(streamHeaders.apply).toHaveBeenCalledTimes(1);
+        expect(component.selectedPlayer()).toBe(VideoPlayer.VideoJs);
+        expect(component.channel?.url).toBe('https://example.com/next.m3u8');
+        expect(component.playbackDiagnostic()).toBeNull();
+    });
+
     it('hands the latest finite VOD time to a switch and starts live at zero', async () => {
         setPlayback({
             streamUrl: 'https://example.com/movie.m3u8',
@@ -764,36 +794,88 @@ describe('WebPlayerViewComponent recovery integration', () => {
     });
 
     it.each([
-        {
-            outcome: 'false',
-            complete: () => headerResolvers[0](false),
-        },
-        {
-            outcome: 'rejection',
-            complete: () => headerRejectors[0](new Error('header IPC failed')),
-        },
-    ])(
-        'settles the current handoff after a $outcome without applying the source',
-        async ({ complete }) => {
+        ['source', 'false'],
+        ['source', 'rejection'],
+        ['player', 'false'],
+        ['player', 'rejection'],
+        ['reload', 'false'],
+        ['reload', 'rejection'],
+    ] as const)(
+        'clears the backing diagnostic for a $intent intent whose handoff ends in $outcome',
+        async (intent, outcome) => {
             await render();
-            vjs().playbackIssue.emit(mediaIssue('videojs'));
+            const oldIssue = mediaIssue('videojs');
+            vjs().playbackIssue.emit(oldIssue);
             fixture.detectChanges();
+            expect(component.playbackDiagnostic()).toBe(oldIssue);
             holdHeaderHandoff = true;
 
-            click('playback-recommendation-html5');
+            if (intent === 'source') {
+                setPlayback({
+                    streamUrl: 'https://example.com/replacement.m3u8',
+                });
+            } else if (intent === 'player') {
+                click('playback-recommendation-html5');
+            } else {
+                component.retryPlayback();
+            }
             fixture.detectChanges();
-            expect(component.recoveryPending()).toBe(true);
+            expect(headerResolvers).toHaveLength(1);
+            expect(component.recoveryPending()).toBe(intent !== 'source');
+            expect(component.playbackDiagnostic()).toBeNull();
             expect(component.visiblePlaybackDiagnostic()).toBeNull();
             expect(query('playback-diagnostic-banner')).toBeNull();
 
-            complete();
+            if (outcome === 'false') {
+                headerResolvers[0](false);
+            } else {
+                headerRejectors[0](new Error('header IPC failed'));
+            }
             await fixture.whenStable();
             fixture.detectChanges();
 
             expect(component.recoveryPending()).toBe(false);
+            expect(component.playbackDiagnostic()).toBeNull();
             expect(component.visiblePlaybackDiagnostic()).toBeNull();
             expect(query('playback-diagnostic-banner')).toBeNull();
             expect(component.channel).toBeUndefined();
+        }
+    );
+
+    it.each(['success', 'false', 'rejection'] as const)(
+        'preserves the exact newer diagnostic after a stale handoff $outcome',
+        async (outcome) => {
+            await render();
+            holdHeaderHandoff = true;
+            setPlayback({ streamUrl: 'https://example.com/stale.m3u8' });
+            fixture.detectChanges();
+            expect(headerResolvers).toHaveLength(1);
+
+            holdHeaderHandoff = false;
+            setPlayback({ streamUrl: 'https://example.com/current.m3u8' });
+            fixture.detectChanges();
+            const currentBinding = component.activeBinding();
+            const currentIssue = mediaIssue('videojs', 'current.m3u8');
+            vjs().playbackIssue.emit(currentIssue);
+            fixture.detectChanges();
+            expect(component.playbackDiagnostic()).toBe(currentIssue);
+            expect(component.visiblePlaybackDiagnostic()).toBe(currentIssue);
+
+            if (outcome === 'success') {
+                headerResolvers[0](true);
+            } else if (outcome === 'false') {
+                headerResolvers[0](false);
+            } else {
+                headerRejectors[0](new Error('stale header IPC failed'));
+            }
+            await fixture.whenStable();
+
+            expect(component.activeBinding()).toBe(currentBinding);
+            expect(component.playbackDiagnostic()).toBe(currentIssue);
+            expect(component.visiblePlaybackDiagnostic()).toBe(currentIssue);
+            expect(component.channel?.url).toBe(
+                'https://example.com/current.m3u8'
+            );
         }
     );
 

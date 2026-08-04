@@ -162,8 +162,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedIsLive = this.applicationState.isLive;
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
-    // Diagnostic visibility follows raw intent so an old action disappears
-    // before the application effect enters an asynchronous Electron handoff.
+    // Diagnostic ownership follows raw intent so an old action disappears;
+    // the application effect then clears its backing state before handoff.
     // Keep this token opaque: it must never retain playback payload fields.
     private readonly playbackDiagnosticIntentToken =
         computed<WebPlayerApplicationToken>(() => {
@@ -246,8 +246,10 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     constructor() {
         effect(() => {
-            void this.playbackDiagnosticIntentToken();
+            // Session sync may clear a temporary player override. Run it before
+            // tracking intent so that reset is folded into this application.
             this.syncRecoverySession();
+            void this.playbackDiagnosticIntentToken();
             const sourceRevision = this.playbackSourceRevisionToken();
             untracked(() =>
                 this.recoverySession.syncSourceRevision(sourceRevision)
@@ -260,10 +262,10 @@ export class WebPlayerViewComponent implements OnDestroy {
             const target = toInlinePlaybackPlayer(selectedPlayer);
             this.channel = undefined;
             this.vjsOptions = undefined;
+            this.clearPlaybackDiagnostic();
             if (target === null) {
                 this.applicationHandoff.release();
                 this.recoverySession.clearPlaybackBinding();
-                this.playbackDiagnostic.set(null);
                 return;
             }
             const binding = untracked(() =>
@@ -279,7 +281,6 @@ export class WebPlayerViewComponent implements OnDestroy {
                 (handoff) => {
                     this.channel = handoff.channel;
                     this.vjsOptions = handoff.vjsOptions;
-                    this.playbackDiagnostic.set(null);
                 }
             );
         });
@@ -305,12 +306,12 @@ export class WebPlayerViewComponent implements OnDestroy {
         ) {
             this.applicationHandoff.invalidate();
             this.recoverySession.clearPlaybackBinding();
-            this.playbackDiagnostic.set(null);
+            this.clearPlaybackDiagnostic();
             return;
         }
         if (!issue) {
             this.recoverySession.settle(binding);
-            this.playbackDiagnostic.set(null);
+            this.clearPlaybackDiagnostic();
             return;
         }
         if (!this.recoverySession.recordFailure(binding)) {
@@ -371,8 +372,13 @@ export class WebPlayerViewComponent implements OnDestroy {
     private syncRecoverySession(): void {
         const sessionKey = this.playbackSessionKey();
         if (untracked(() => this.recoverySession.syncSession(sessionKey))) {
-            this.playbackDiagnostic.set(null);
+            this.clearPlaybackDiagnostic();
         }
+    }
+
+    private clearPlaybackDiagnostic(): void {
+        this.playbackDiagnosticOwnerToken.set(null);
+        this.playbackDiagnostic.set(null);
     }
 
     private ownsPlaybackApplication(

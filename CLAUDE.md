@@ -777,13 +777,21 @@ app as a real argument, so it is not an option.
   stable for the mounted logical selection, attempted target IDs, the temporary
   player override, and VOD handoff position. Its `PlaybackBinding` is exactly
   `{ generation, target }`, while every source/target/reload application uses a
-  fieldless opaque `Symbol` token. Source applications also advance a second
-  fieldless revision `Symbol` that clears only the VOD handoff position;
-  target-only switches and Retry leave it stable. None of these ownership
-  primitives contains URLs, headers, DRM material, or credentials. Each
-  rendered web or Embedded MPV application captures its nullable binding, both
-  tokens, and live/VOD flag; a time update changes resume state only while that
-  exact capture still owns the current application. A recommended built-in
+  fieldless opaque `Symbol` token. Diagnostic storage uses a separate fieldless
+  intent `Symbol`, and source applications advance a third fieldless revision
+  `Symbol` that clears only the VOD handoff position; target-only switches and
+  Retry leave that revision stable. None of these ownership primitives contains
+  URLs, headers, DRM material, or credentials. The application effect
+  synchronizes the content session before tracking intent, so clearing a
+  temporary player override cannot schedule a duplicate application or header
+  handoff. Every application start clears both the diagnostic owner and backing
+  signal before asynchronous header setup; a current false result or rejection
+  leaves them clear, and a stale completion cannot erase a newer owned
+  diagnostic. Each
+  rendered web or Embedded MPV application captures its nullable binding, the
+  application and source-revision tokens, and live/VOD flag; a time update
+  changes resume state only while that exact capture still owns the current
+  application. A recommended built-in
   player temporarily
   outranks the host override and saved player for that mounted content session,
   never mutates `Settings.player`, and resumes finite VOD position on a
