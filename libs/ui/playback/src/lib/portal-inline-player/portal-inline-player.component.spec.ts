@@ -160,7 +160,6 @@ describe('PortalInlinePlayerComponent', () => {
                 mimeType: '',
                 videoCodecs: [],
                 audioCodecs: [],
-                externalFallbackRecommended: true,
             },
         };
         let forwarded: PlaybackFallbackRequest | undefined;

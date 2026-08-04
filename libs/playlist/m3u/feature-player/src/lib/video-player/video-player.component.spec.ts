@@ -590,7 +590,6 @@ describe('VideoPlayerComponent', () => {
                 container: 'm3u8',
                 audioCodecs: ['ac-3'],
                 videoCodecs: ['avc1.64001f'],
-                externalFallbackRecommended: true,
             },
         } satisfies PlaybackFallbackRequest);
 

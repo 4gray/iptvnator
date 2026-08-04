@@ -170,6 +170,14 @@ describe('PlaybackRecoverySession', () => {
 
         expect(Object.isFrozen(binding)).toBe(true);
         expect(activeBinding).toBe(binding);
+        expect(activeBinding).toEqual({
+            generation: 1,
+            target: InlinePlaybackPlayer.VideoJs,
+        });
+        expect(Object.keys(activeBinding ?? {})).toEqual([
+            'generation',
+            'target',
+        ]);
         expect(Object.isFrozen(activeBinding)).toBe(true);
         expect('set' in session.attemptedTargets).toBe(false);
         expect('set' in session.temporaryPlayerOverride).toBe(false);

@@ -556,7 +556,6 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 mimeType: '',
                 videoCodecs: [],
                 audioCodecs: [],
-                externalFallbackRecommended: true,
             },
         };
 

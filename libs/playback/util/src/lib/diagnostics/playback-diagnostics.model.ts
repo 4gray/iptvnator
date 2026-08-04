@@ -264,7 +264,6 @@ export interface PlaybackDiagnostic {
     readonly hls?: HlsPlaybackEvidence;
     readonly mpegTs?: MpegTsPlaybackEvidence;
     readonly shaka?: ShakaPlaybackEvidence;
-    readonly externalFallbackRecommended: boolean;
 }
 
 export interface PlaybackFallbackRequest {

@@ -7,7 +7,10 @@ import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
  * without pulling in video.js, ArtPlayer or the Electron bridge.
  */
 
-@Component({ selector: 'app-vjs-player', template: '' })
+@Component({
+    selector: 'app-vjs-player',
+    template: '<div data-test-id="stub-vjs-player"></div>',
+})
 export class StubVjsPlayerComponent {
     readonly options = input<unknown>();
     readonly mediaTitle = input<unknown>(null);
@@ -23,7 +26,10 @@ export class StubVjsPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
-@Component({ selector: 'app-html-video-player', template: '' })
+@Component({
+    selector: 'app-html-video-player',
+    template: '<div data-test-id="stub-html-player"></div>',
+})
 export class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
     readonly mediaTitle = input<unknown>(null);
@@ -40,7 +46,10 @@ export class StubHtmlVideoPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
-@Component({ selector: 'app-art-player', template: '' })
+@Component({
+    selector: 'app-art-player',
+    template: '<div data-test-id="stub-art-player"></div>',
+})
 export class StubArtPlayerComponent {
     readonly channel = input<unknown>();
     readonly mediaTitle = input<unknown>(null);
@@ -57,7 +66,10 @@ export class StubArtPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
-@Component({ selector: 'app-embedded-mpv-player', template: '' })
+@Component({
+    selector: 'app-embedded-mpv-player',
+    template: '<div data-test-id="stub-embedded-mpv-player"></div>',
+})
 export class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
     readonly mediaTitle = input<unknown>(null);

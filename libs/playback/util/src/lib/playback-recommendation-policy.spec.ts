@@ -37,7 +37,6 @@ function diagnostic(code: PlaybackDiagnosticCode): PlaybackDiagnostic {
         container: '',
         audioCodecs: [],
         videoCodecs: [],
-        externalFallbackRecommended: false,
     };
 }
 

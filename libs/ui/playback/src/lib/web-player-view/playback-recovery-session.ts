@@ -62,6 +62,11 @@ export class PlaybackRecoverySession {
         this.invalidatePlaybackBinding();
     }
 
+    endPlayback(): void {
+        this.switchPendingState.set(false);
+        this.invalidatePlaybackBinding();
+    }
+
     recordFailure(binding: PlaybackBinding): boolean {
         if (!this.accepts(binding)) {
             return false;

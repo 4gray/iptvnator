@@ -209,9 +209,6 @@ export function createPlaybackDiagnostic(options: {
     readonly hls?: HlsPlaybackEvidence;
     readonly mpegTs?: MpegTsPlaybackEvidence;
     readonly shaka?: ShakaPlaybackEvidence;
-    /** Overrides the code-derived recommendation, e.g. when external players
-     * are known to be unable to handle the stream either. */
-    readonly externalFallbackRecommended?: boolean;
 }): PlaybackDiagnostic {
     const {
         code,
@@ -246,9 +243,6 @@ export function createPlaybackDiagnostic(options: {
         hls,
         mpegTs,
         shaka,
-        externalFallbackRecommended:
-            options.externalFallbackRecommended ??
-            isExternalFallbackRecommended(code),
     };
 }
 
@@ -320,16 +314,6 @@ function getNativeErrorType(errorType: unknown): string | undefined {
         NATIVE_ERROR_TYPE_PATTERN.test(errorType)
         ? errorType
         : undefined;
-}
-
-function isExternalFallbackRecommended(code: PlaybackDiagnosticCode): boolean {
-    return (
-        code === DiagnosticCode.UnsupportedContainer ||
-        code === DiagnosticCode.UnsupportedCodec ||
-        code === DiagnosticCode.MediaDecodeError ||
-        code === DiagnosticCode.BrowserAccessError ||
-        code === DiagnosticCode.DrmOrEncryption
-    );
 }
 
 function hasCodecs(metadata: PlaybackSourceMetadata): boolean {

@@ -88,9 +88,6 @@ export function createUnsupportedDrmDiagnostic(
         source: DiagnosticSource.Shaka,
         metadata,
         details: 'Unsupported DRM license configuration',
-        // External MPV/VLC cannot receive the KODIPROP license config either,
-        // so offering them as a fallback would just fail differently.
-        externalFallbackRecommended: false,
     });
 }
 

@@ -24,7 +24,6 @@ function diagnostic(
         container: '',
         audioCodecs: [],
         videoCodecs: [],
-        externalFallbackRecommended: false,
         ...overrides,
     };
 }

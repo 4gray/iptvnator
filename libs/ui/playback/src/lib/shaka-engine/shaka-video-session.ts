@@ -139,18 +139,13 @@ export class ShakaVideoSession {
         }
 
         if (!module.Player.isBrowserSupported()) {
-            this.emitTerminalIfCurrent(
-                generation,
-                null,
-                url,
-                drm === undefined
-            );
+            this.emitTerminalIfCurrent(generation, null, url);
             return;
         }
 
         const player = new module.Player();
         this.player = player;
-        this.bindPlayerListeners(player, generation, url, drm !== undefined);
+        this.bindPlayerListeners(player, generation, url);
 
         if (drm?.clearKeys) {
             player.configure({ drm: { clearKeys: drm.clearKeys } });
@@ -160,13 +155,7 @@ export class ShakaVideoSession {
             await player.attach(video);
             await player.load(url);
         } catch (error: unknown) {
-            this.handleLoadFailure(
-                generation,
-                player,
-                url,
-                error,
-                drm !== undefined
-            );
+            this.handleLoadFailure(generation, player, url, error);
             return;
         }
 
@@ -202,8 +191,7 @@ export class ShakaVideoSession {
         generation: number,
         player: ShakaPlayerLike,
         url: string,
-        error: unknown,
-        drmProvided: boolean
+        error: unknown
     ): void {
         const shakaError = asShakaError(error);
         if (
@@ -220,36 +208,17 @@ export class ShakaVideoSession {
             ShakaDisposition.Terminal
         );
         if (issue) {
-            this.config.emitPlaybackIssue(
-                this.withoutUnusableDrmFallback(issue, drmProvided)
-            );
+            this.config.emitPlaybackIssue(issue);
         }
         // Never leave a non-functional engine attached to the media element
         // or exposed to the shared-controls bridge.
         this.beginPlayerTeardown();
     }
 
-    /**
-     * Channels carrying KODIPROP ClearKey config cannot be handed to MPV/VLC
-     * at all — external players never receive the license config, so the
-     * encrypted stream fails there regardless of what broke inline (DRM,
-     * manifest, codec, network, …). Suppress the fallback hint entirely.
-     */
-    private withoutUnusableDrmFallback(
-        issue: PlaybackDiagnostic,
-        drmProvided: boolean
-    ): PlaybackDiagnostic {
-        if (!drmProvided || !issue.externalFallbackRecommended) {
-            return issue;
-        }
-        return { ...issue, externalFallbackRecommended: false };
-    }
-
     private bindPlayerListeners(
         player: ShakaPlayerLike,
         generation: number,
-        url: string,
-        drmProvided: boolean
+        url: string
     ): void {
         const errorListener = (event: Event): void => {
             if (this.isStale(generation) || this.player !== player) {
@@ -272,9 +241,7 @@ export class ShakaVideoSession {
                 return;
             }
 
-            this.config.emitPlaybackIssue(
-                this.withoutUnusableDrmFallback(issue, drmProvided)
-            );
+            this.config.emitPlaybackIssue(issue);
             // Critical errors end playback; never leave the dead engine
             // attached or exposed to the shared-controls bridge.
             this.beginPlayerTeardown();
@@ -366,8 +333,7 @@ export class ShakaVideoSession {
     private emitTerminalIfCurrent(
         generation: number,
         error: Partial<ShakaErrorLike> | null,
-        url: string,
-        externalFallbackRecommended?: boolean
+        url: string
     ): void {
         const issue = classifyShakaPlaybackIssue(
             error,
@@ -375,12 +341,7 @@ export class ShakaVideoSession {
             ShakaDisposition.Terminal
         );
         if (issue) {
-            this.emitIfCurrent(
-                generation,
-                externalFallbackRecommended === undefined
-                    ? issue
-                    : { ...issue, externalFallbackRecommended }
-            );
+            this.emitIfCurrent(generation, issue);
         }
     }
 

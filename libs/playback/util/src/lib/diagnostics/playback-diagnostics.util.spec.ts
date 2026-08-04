@@ -90,7 +90,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
-        expect(issue?.externalFallbackRecommended).toBe(true);
         expect(issue?.audioCodecs).toEqual(['ac-3']);
         expect(issue?.videoCodecs).toEqual(['avc1.64001f']);
     });
@@ -111,7 +110,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
-        expect(issue?.externalFallbackRecommended).toBe(true);
     });
 
     it('classifies native decode and unsupported source errors without using network wording', () => {
@@ -133,11 +131,9 @@ describe('playback diagnostics', () => {
         );
 
         expect(decodeIssue.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
-        expect(decodeIssue.externalFallbackRecommended).toBe(true);
         expect(unsupportedSourceIssue.code).toBe(
             PlaybackDiagnosticCode.UnsupportedContainer
         );
-        expect(unsupportedSourceIssue.externalFallbackRecommended).toBe(true);
     });
 
     it('classifies MIME-only unsupported containers as container diagnostics', () => {
@@ -166,7 +162,6 @@ describe('playback diagnostics', () => {
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
         expect(issue.container).toBe('mp2t');
-        expect(issue.externalFallbackRecommended).toBe(false);
     });
 
     it('classifies native HTTP source failures from a safe status and error type', () => {
@@ -186,7 +181,6 @@ describe('playback diagnostics', () => {
         expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
         expect(issue.httpStatus).toBe(404);
         expect(issue.nativeErrorType).toBe('networkrequestfailed');
-        expect(issue.externalFallbackRecommended).toBe(false);
     });
 
     it('classifies exact VHS network evidence without using provider text', () => {
@@ -210,7 +204,6 @@ describe('playback diagnostics', () => {
                 source: 'vhs',
                 httpStatus: undefined,
                 nativeErrorMessage: undefined,
-                externalFallbackRecommended: false,
                 vhs: {
                     engineType: 'networkrequestfailed',
                     mediaErrorCode: 4,
@@ -238,7 +231,6 @@ describe('playback diagnostics', () => {
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
         expect(issue.source).toBe('vhs');
-        expect(issue.externalFallbackRecommended).toBe(true);
         expect(issue.nativeErrorMessage).toBeUndefined();
         expect(issue.vhs).toEqual({
             engineType: 'streamingfailedtodecryptsegment',
@@ -280,7 +272,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(vhsIssue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
-        expect(vhsIssue.externalFallbackRecommended).toBe(false);
         expect(vhsIssue.nativeErrorMessage).toBeUndefined();
         expect(nativeIssue.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
     });
@@ -343,7 +334,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
-        expect(issue.externalFallbackRecommended).toBe(false);
         expect(issue.httpStatus).toBeUndefined();
     });
 
@@ -364,7 +354,6 @@ describe('playback diagnostics', () => {
         expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
         expect(issue.httpStatus).toBeUndefined();
         expect(issue.nativeErrorType).toBeUndefined();
-        expect(issue.externalFallbackRecommended).toBe(false);
     });
 
     it.each([
@@ -433,7 +422,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.NetworkError);
-        expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
     it('retains structured HLS HTTP and stage evidence', () => {
@@ -464,7 +452,6 @@ describe('playback diagnostics', () => {
                     failure: 'http',
                     httpStatus: 404,
                 }),
-                externalFallbackRecommended: false,
             })
         );
     });
@@ -504,7 +491,6 @@ describe('playback diagnostics', () => {
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.NetworkError);
         expect(issue?.httpStatus).toBeUndefined();
-        expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
     it('classifies exact HLS decrypt evidence as DRM or encryption', () => {
@@ -523,7 +509,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
-        expect(issue?.externalFallbackRecommended).toBe(true);
     });
 
     it('classifies exact HLS key load failures as network errors', () => {
@@ -542,7 +527,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.NetworkError);
-        expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
     it.each([ErrorTypes.MEDIA_ERROR, ErrorTypes.MUX_ERROR])(
@@ -582,7 +566,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue?.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
-        expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
     it('classifies native CORS failures as browser access errors', () => {
@@ -599,7 +582,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue.code).toBe('browser-access-error');
-        expect(issue.externalFallbackRecommended).toBe(true);
     });
 
     it('keeps opaque native network failures generic when the browser hides access details', () => {
@@ -615,7 +597,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
-        expect(issue.externalFallbackRecommended).toBe(false);
     });
 
     it('does not guess mpegts browser access from exception messages', () => {
@@ -632,7 +613,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
-        expect(issue.externalFallbackRecommended).toBe(false);
         expect(JSON.stringify(issue)).not.toContain(secret);
     });
 
@@ -651,7 +631,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
-        expect(issue.externalFallbackRecommended).toBe(true);
         expect(issue.mpegTs?.failure).toBe('truncated-stream');
         expect(issue.details).toBeUndefined();
     });
@@ -671,7 +650,6 @@ describe('playback diagnostics', () => {
         );
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
-        expect(issue.externalFallbackRecommended).toBe(true);
     });
 
     it('prefers stream extension query metadata over web script path extensions', () => {

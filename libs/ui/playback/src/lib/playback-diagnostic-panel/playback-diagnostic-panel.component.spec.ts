@@ -26,7 +26,6 @@ const DIAGNOSTIC: PlaybackDiagnostic = {
     player: 'videojs',
     audioCodecs: [],
     videoCodecs: [],
-    externalFallbackRecommended: true,
 };
 
 const PLAYBACK: ResolvedPortalPlayback = {

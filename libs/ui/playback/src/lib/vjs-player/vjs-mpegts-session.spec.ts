@@ -143,7 +143,6 @@ describe('VjsMpegTsSession', () => {
                     failure: 'http',
                     httpStatus: 503,
                 }),
-                externalFallbackRecommended: false,
             })
         );
         expect(JSON.stringify(emitPlaybackIssue.mock.calls)).not.toContain(
@@ -167,7 +166,6 @@ describe('VjsMpegTsSession', () => {
             expect.objectContaining({
                 code: 'network-error',
                 mpegTs: expect.objectContaining({ failure: 'network' }),
-                externalFallbackRecommended: false,
             })
         );
         expect(JSON.stringify(emitPlaybackIssue.mock.calls)).not.toContain(

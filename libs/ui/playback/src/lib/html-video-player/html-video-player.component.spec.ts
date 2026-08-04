@@ -203,7 +203,6 @@ describe('HtmlVideoPlayerComponent', () => {
                 code: 'unsupported-container',
                 source: 'native',
                 sourceUrl: 'http://test.ts',
-                externalFallbackRecommended: true,
             }),
         ]);
     });

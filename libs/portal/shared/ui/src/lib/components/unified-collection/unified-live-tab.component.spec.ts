@@ -619,7 +619,6 @@ describe('UnifiedLiveTabComponent', () => {
                 mimeType: '',
                 videoCodecs: [],
                 audioCodecs: [],
-                externalFallbackRecommended: false,
             },
         });
 

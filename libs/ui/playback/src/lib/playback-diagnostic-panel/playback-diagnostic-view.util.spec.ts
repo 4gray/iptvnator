@@ -21,7 +21,6 @@ describe('playback diagnostic view formatters', () => {
         player: 'videojs',
         audioCodecs: ['ac-3'],
         videoCodecs: ['hvc1.1.6.L93.B0'],
-        externalFallbackRecommended: true,
     };
 
     it('preserves existing title, metadata, codec and detail formatting', () => {

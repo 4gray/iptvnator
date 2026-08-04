@@ -22,6 +22,14 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
 } from '@iptvnator/playback/util';
+import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
+import {
+    getDiagnosticCodecHint,
+    getDiagnosticDescriptionKey as resolveDiagnosticDescriptionKey,
+    getDiagnosticDetails,
+    getDiagnosticMeta,
+    getDiagnosticTitleKey,
+} from '../playback-diagnostic-panel/playback-diagnostic-view.util';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -141,6 +149,7 @@ describe('WebPlayerViewComponent', () => {
                         StubEmbeddedMpvPlayerComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
+                        PlaybackDiagnosticPanelComponent,
                         // Real, not stubbed: the point of the test below is
                         // that this row's Check action reaches the host.
                         VodSourceRowComponent,
@@ -237,7 +246,7 @@ describe('WebPlayerViewComponent', () => {
         ]);
 
         fixture.detectChanges();
-        component.handlePlaybackIssue(createUnsupportedContainerDiagnostic());
+        emitPlaybackIssue(createUnsupportedContainerDiagnostic());
         fixture.detectChanges();
 
         const check = fixture.debugElement.query(
@@ -259,7 +268,7 @@ describe('WebPlayerViewComponent', () => {
         );
 
         fixture.detectChanges();
-        component.handlePlaybackIssue(createUnsupportedContainerDiagnostic());
+        emitPlaybackIssue(createUnsupportedContainerDiagnostic());
         fixture.detectChanges();
 
         const banner = fixture.debugElement.query(
@@ -296,7 +305,7 @@ describe('WebPlayerViewComponent', () => {
         const issue = createHttpDiagnostic();
 
         fixture.detectChanges();
-        component.handlePlaybackIssue(issue);
+        emitPlaybackIssue(issue);
         fixture.detectChanges();
 
         const banner = fixture.debugElement.query(
@@ -308,8 +317,8 @@ describe('WebPlayerViewComponent', () => {
 
         expect(banner.nativeElement.textContent).toContain('HTTP 404');
         expect(mpvButton).toBeNull();
-        expect(component.getDiagnosticMeta(issue)).toBe('HTTP 404');
-        expect(component.getDiagnosticDetails(issue)).toEqual(
+        expect(getDiagnosticMeta(issue)).toBe('HTTP 404');
+        expect(getDiagnosticDetails(issue)).toEqual(
             expect.arrayContaining([
                 {
                     labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
@@ -322,10 +331,10 @@ describe('WebPlayerViewComponent', () => {
     it('renders only sanitized structured HLS evidence in technical details', () => {
         const issue = createStructuredHlsDiagnostic();
 
-        component.handlePlaybackIssue(issue);
+        emitPlaybackIssue(issue);
         fixture.detectChanges();
 
-        const details = component.getDiagnosticDetails(issue);
+        const details = getDiagnosticDetails(issue);
         const renderedDetails = details.map(({ value }) => value).join(' ');
 
         expect(details).toEqual(
@@ -346,10 +355,10 @@ describe('WebPlayerViewComponent', () => {
     it('renders only sanitized structured VHS evidence in technical details', () => {
         const issue = createStructuredVhsDiagnostic();
 
-        component.handlePlaybackIssue(issue);
+        emitPlaybackIssue(issue);
         fixture.detectChanges();
 
-        const details = component.getDiagnosticDetails(issue);
+        const details = getDiagnosticDetails(issue);
         const renderedDetails = details.map(({ value }) => value).join(' ');
 
         expect(details).toEqual(
@@ -375,10 +384,10 @@ describe('WebPlayerViewComponent', () => {
     it('renders only sanitized structured Shaka evidence in technical details', () => {
         const issue = createStructuredShakaDiagnostic();
 
-        component.handlePlaybackIssue(issue);
+        emitPlaybackIssue(issue);
         fixture.detectChanges();
 
-        const details = component.getDiagnosticDetails(issue);
+        const details = getDiagnosticDetails(issue);
         const renderedDetails = details.map(({ value }) => value).join(' ');
 
         expect(details).toEqual(
@@ -405,13 +414,13 @@ describe('WebPlayerViewComponent', () => {
     it('renders only sanitized structured mpegts evidence in technical details', () => {
         const issue = createStructuredMpegTsDiagnostic();
 
-        component.handlePlaybackIssue(issue);
+        emitPlaybackIssue(issue);
         fixture.detectChanges();
 
-        const details = component.getDiagnosticDetails(issue);
+        const details = getDiagnosticDetails(issue);
         const renderedDetails = details.map(({ value }) => value).join(' ');
 
-        expect(component.getDiagnosticMeta(issue)).toBe('HTTP 404');
+        expect(getDiagnosticMeta(issue)).toBe('HTTP 404');
         expect(details).toEqual(
             expect.arrayContaining([
                 {
@@ -431,59 +440,6 @@ describe('WebPlayerViewComponent', () => {
         expect(renderedDetails).not.toContain('provider.example');
         expect(renderedDetails).not.toContain('Authorization');
         expect(renderedDetails).not.toContain('response body');
-    });
-
-    it('keeps query-declared HLS streams on the HLS mime type', () => {
-        const streamUrl =
-            'https://example.com/play?extension=m3u8&token=signed';
-
-        component.setVjsOptions(streamUrl);
-
-        expect(component.vjsOptions.sources).toEqual([
-            {
-                src: streamUrl,
-                type: 'application/x-mpegURL',
-            },
-        ]);
-    });
-
-    it('uses the Matroska mime type for MKV paths', () => {
-        const streamUrl = 'https://example.com/archive/movie.mkv';
-
-        component.setVjsOptions(streamUrl);
-
-        expect(component.vjsOptions.sources).toEqual([
-            {
-                src: streamUrl,
-                type: 'video/matroska',
-            },
-        ]);
-    });
-
-    it('uses the Matroska mime type for query-declared MKV streams', () => {
-        const streamUrl = 'https://example.com/play?container=mkv&token=signed';
-
-        component.setVjsOptions(streamUrl);
-
-        expect(component.vjsOptions.sources).toEqual([
-            {
-                src: streamUrl,
-                type: 'video/matroska',
-            },
-        ]);
-    });
-
-    it('treats web script playback URLs without declared media extension as MPEG-TS', () => {
-        const streamUrl = 'https://example.com/live.php?stream=123&token=x';
-
-        component.setVjsOptions(streamUrl);
-
-        expect(component.vjsOptions.sources).toEqual([
-            {
-                src: streamUrl,
-                type: 'video/mp2t',
-            },
-        ]);
     });
 
     it('marks portal VOD playback as non-live for Video.js MPEG-TS playback', async () => {
@@ -629,11 +585,11 @@ describe('WebPlayerViewComponent', () => {
         );
 
         fixture.detectChanges();
-        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        component.playbackDiagnostic.set(createUnsupportedCodecDiagnostic());
         fixture.detectChanges();
-        component.requestExternalFallback('mpv');
+        component.requestRecommendedPlayer('mpv');
 
-        expect(component.playbackDiagnostic()).toBeNull();
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
         expect(
             fixture.debugElement.query(
                 By.directive(StubEmbeddedMpvPlayerComponent)
@@ -798,10 +754,10 @@ describe('WebPlayerViewComponent', () => {
     it('uses the PWA browser access diagnostic description key outside desktop', () => {
         const issue = createBrowserAccessDiagnostic();
 
-        expect(component.getDiagnosticTitleKey(issue)).toBe(
+        expect(getDiagnosticTitleKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.TITLE'
         );
-        expect(component.getDiagnosticDescriptionKey(issue)).toBe(
+        expect(getDiagnosticDescriptionKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
         );
     });
@@ -810,14 +766,14 @@ describe('WebPlayerViewComponent', () => {
         runtimeCapabilities.supportsManagedExternalPlayers = true;
         const issue = createBrowserAccessDiagnostic();
 
-        expect(component.getDiagnosticDescriptionKey(issue)).toBe(
+        expect(getDiagnosticDescriptionKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
         );
     });
 
     it('uses an inline recovery headline when external fallback actions are unavailable', () => {
         fixture.detectChanges();
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
 
         const banner = fixture.debugElement.query(
@@ -840,7 +796,7 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
         const issue = createUnsupportedCodecDiagnostic();
 
-        component.handlePlaybackIssue(issue);
+        emitPlaybackIssue(issue);
         fixture.detectChanges();
 
         const details = fixture.debugElement.query(
@@ -853,8 +809,8 @@ describe('WebPlayerViewComponent', () => {
         expect(details.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY'
         );
-        expect(component.getDiagnosticCodecHint(issue)).toBe('HEVC, AC-3');
-        expect(component.getDiagnosticDetails(issue)).toEqual(
+        expect(getDiagnosticCodecHint(issue)).toBe('HEVC, AC-3');
+        expect(getDiagnosticDetails(issue)).toEqual(
             expect.arrayContaining([
                 {
                     labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
@@ -890,7 +846,7 @@ describe('WebPlayerViewComponent', () => {
             expect.objectContaining({ reloadToken: 0 })
         );
 
-        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
 
         const retryButton = fixture.debugElement.query(
@@ -904,9 +860,12 @@ describe('WebPlayerViewComponent', () => {
 
         retryButton.nativeElement.click();
         fixture.detectChanges();
+        const retriedPlayer = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
 
         expect(component.playbackDiagnostic()).toBeNull();
-        expect(player.options()).toEqual(
+        expect(retriedPlayer.options()).toEqual(
             expect.objectContaining({ reloadToken: 1 })
         );
         expect(
@@ -1031,6 +990,23 @@ describe('WebPlayerViewComponent', () => {
             );
         });
     });
+
+    function emitPlaybackIssue(issue: PlaybackDiagnostic | null): void {
+        fixture.detectChanges();
+        const binding = component.activeBinding();
+        expect(binding).not.toBeNull();
+        if (!binding) {
+            throw new Error('Expected an active inline playback binding');
+        }
+        component.handlePlaybackIssue(issue, binding);
+    }
+
+    function getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
+        return resolveDiagnosticDescriptionKey(
+            issue,
+            runtimeCapabilities.supportsManagedExternalPlayers
+        );
+    }
 });
 
 function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {
@@ -1043,7 +1019,6 @@ function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {
         player: 'videojs',
         audioCodecs: [],
         videoCodecs: [],
-        externalFallbackRecommended: true,
     };
 }
 
@@ -1058,7 +1033,6 @@ function createBrowserAccessDiagnostic(): PlaybackDiagnostic {
         audioCodecs: [],
         videoCodecs: [],
         details: 'blocked by CORS policy',
-        externalFallbackRecommended: true,
     };
 }
 
@@ -1073,7 +1047,6 @@ function createUnsupportedCodecDiagnostic(): PlaybackDiagnostic {
         audioCodecs: ['ac-3'],
         videoCodecs: ['hvc1.1.6.L93.B0'],
         details: 'manifestIncompatibleCodecsError',
-        externalFallbackRecommended: true,
     };
 }
 
@@ -1088,7 +1061,6 @@ function createNetworkDiagnostic(): PlaybackDiagnostic {
         audioCodecs: [],
         videoCodecs: [],
         details: 'HttpStatusCodeInvalid {"code":456,"msg":"<none>"}',
-        externalFallbackRecommended: false,
     };
 }
 
@@ -1106,7 +1078,6 @@ function createHttpDiagnostic(): PlaybackDiagnostic {
         nativeErrorMessage: 'source not supported',
         httpStatus: 404,
         nativeErrorType: 'networkrequestfailed',
-        externalFallbackRecommended: false,
     };
 }
 
@@ -1130,7 +1101,6 @@ function createStructuredHlsDiagnostic(): PlaybackDiagnostic {
             failure: 'http',
             httpStatus: 404,
         },
-        externalFallbackRecommended: false,
     };
 }
 
@@ -1156,7 +1126,6 @@ function createStructuredVhsDiagnostic(): PlaybackDiagnostic {
             stage: 'unknown',
             httpStatus: 503,
         },
-        externalFallbackRecommended: false,
     };
 }
 
@@ -1184,7 +1153,6 @@ function createStructuredShakaDiagnostic(): PlaybackDiagnostic {
             failure: 'network',
             httpStatus: 503,
         },
-        externalFallbackRecommended: false,
     };
 }
 
@@ -1211,6 +1179,5 @@ function createStructuredMpegTsDiagnostic(): PlaybackDiagnostic {
             failure: 'http',
             httpStatus: 404,
         },
-        externalFallbackRecommended: false,
     };
 }

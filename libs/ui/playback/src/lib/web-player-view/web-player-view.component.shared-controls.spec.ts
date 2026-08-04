@@ -30,6 +30,7 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
 } from '@iptvnator/playback/util';
+import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -85,6 +86,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
                         StubEmbeddedMpvPlayerComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
+                        PlaybackDiagnosticPanelComponent,
                         ClipboardModule,
                         MatButtonModule,
                         MatIconModule,
@@ -199,11 +201,11 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         expect(artPlayer.showCaptions()).toBe(true);
         expect(artPlayer.interactionEnabled()).toBe(true);
 
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
         expect(artPlayer.interactionEnabled()).toBe(false);
 
-        component.handlePlaybackIssue(null);
+        emitPlaybackIssue(null);
         fixture.detectChanges();
         expect(artPlayer.interactionEnabled()).toBe(true);
     });
@@ -211,7 +213,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
     it('disables HTML5 surface interaction while a diagnostic is visible', async () => {
         const htmlPlayer = await renderHtmlPlayer();
 
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
 
         expect(component.playbackInteractionEnabled()).toBe(false);
@@ -221,43 +223,49 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
     it('re-enables HTML5 interaction after retrying or clearing the issue', async () => {
         const htmlPlayer = await renderHtmlPlayer();
 
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
         expect(htmlPlayer.interactionEnabled()).toBe(false);
 
         component.retryPlayback();
         fixture.detectChanges();
+        const retriedHtmlPlayer = fixture.debugElement.query(
+            By.directive(StubHtmlVideoPlayerComponent)
+        ).componentInstance as StubHtmlVideoPlayerComponent;
         expect(component.playbackInteractionEnabled()).toBe(true);
-        expect(htmlPlayer.interactionEnabled()).toBe(true);
+        expect(retriedHtmlPlayer.interactionEnabled()).toBe(true);
 
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
-        expect(htmlPlayer.interactionEnabled()).toBe(false);
+        expect(retriedHtmlPlayer.interactionEnabled()).toBe(false);
 
-        component.handlePlaybackIssue(null);
+        emitPlaybackIssue(null);
         fixture.detectChanges();
         expect(component.playbackInteractionEnabled()).toBe(true);
-        expect(htmlPlayer.interactionEnabled()).toBe(true);
+        expect(retriedHtmlPlayer.interactionEnabled()).toBe(true);
     });
 
     it('disables and restores Video.js interaction around diagnostics', async () => {
         const vjsPlayer = await renderVjsPlayer();
 
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
         expect(vjsPlayer.interactionEnabled()).toBe(false);
 
         component.retryPlayback();
         fixture.detectChanges();
-        expect(vjsPlayer.interactionEnabled()).toBe(true);
+        const retriedVjsPlayer = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
+        expect(retriedVjsPlayer.interactionEnabled()).toBe(true);
 
-        component.handlePlaybackIssue(createNetworkDiagnostic());
+        emitPlaybackIssue(createNetworkDiagnostic());
         fixture.detectChanges();
-        expect(vjsPlayer.interactionEnabled()).toBe(false);
+        expect(retriedVjsPlayer.interactionEnabled()).toBe(false);
 
-        component.handlePlaybackIssue(null);
+        emitPlaybackIssue(null);
         fixture.detectChanges();
-        expect(vjsPlayer.interactionEnabled()).toBe(true);
+        expect(retriedVjsPlayer.interactionEnabled()).toBe(true);
     });
 
     it.each([
@@ -271,17 +279,20 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         'uses the resolved value for Video.js effect and retry: %s',
         (_label, metadata, expected) => {
             const streamUrl = 'https://example.com/video.ts';
-            const setVjsOptions = jest.spyOn(component, 'setVjsOptions');
             setPlayback(metadata, streamUrl);
 
             fixture.detectChanges();
 
-            expect(setVjsOptions).toHaveBeenCalledWith(streamUrl, expected);
+            expect(component.vjsOptions).toEqual(
+                expect.objectContaining({ isLive: expected, reloadToken: 0 })
+            );
 
-            setVjsOptions.mockClear();
             component.retryPlayback();
+            fixture.detectChanges();
 
-            expect(setVjsOptions).toHaveBeenCalledWith(streamUrl, expected);
+            expect(component.vjsOptions).toEqual(
+                expect.objectContaining({ isLive: expected, reloadToken: 1 })
+            );
         }
     );
 
@@ -338,6 +349,16 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         return fixture.debugElement.query(By.directive(StubArtPlayerComponent))
             .componentInstance as StubArtPlayerComponent;
     }
+
+    function emitPlaybackIssue(issue: PlaybackDiagnostic | null): void {
+        fixture.detectChanges();
+        const binding = component.activeBinding();
+        expect(binding).not.toBeNull();
+        if (!binding) {
+            throw new Error('Expected an active inline playback binding');
+        }
+        component.handlePlaybackIssue(issue, binding);
+    }
 });
 
 function createVodContentInfo() {
@@ -358,6 +379,5 @@ function createNetworkDiagnostic(): PlaybackDiagnostic {
         player: 'html5',
         audioCodecs: [],
         videoCodecs: [],
-        externalFallbackRecommended: false,
     };
 }
