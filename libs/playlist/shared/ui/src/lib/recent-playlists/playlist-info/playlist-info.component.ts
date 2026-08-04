@@ -203,14 +203,25 @@ export class PlaylistInfoComponent {
     }
 
     /**
-     * True once a device ID has been sent to the portal at least once, which
-     * is the point of no return: the stock server pins the first non-empty
+     * True once a device ID has actually reached the portal, which is the
+     * point of no return: the stock server pins the first non-empty
      * `device_id`/`device_id2` to the MAC permanently, refuses a different one
      * as a device conflict, and treats a later empty value as a lockout. The
      * fields stay editable — a value that was never accepted may well need
      * correcting — but the consequence has to be on screen.
+     *
+     * Storage is not transmission, so `isFullStalkerPortal` gates it.
+     * `device_id` travels only on `get_profile`/`do_auth`, which simple
+     * panel-style portals never run; the import's offline fallback also
+     * persists whatever was typed and records the playlist as simple. Warning
+     * those users that a change "will lock this source out" would be false,
+     * and would discourage them from fixing an ID that was never pinned.
      */
     get hasStoredStalkerDeviceIds(): boolean {
+        if (!this.playlist.isFullStalkerPortal) {
+            return false;
+        }
+
         return Boolean(
             normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId1) ??
                 normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId2)
@@ -353,11 +364,22 @@ export class PlaylistInfoComponent {
      * typed would be persisted and sent to a portal whose format check
      * refuses it.
      *
-     * A value that does not parse is left exactly as it is: that is the
-     * grandfathered case, where a playlist stored before this validation
-     * existed may be working on a panel that ignores the MAC entirely.
+     * Only an ACTUAL edit is normalized. A MAC the user never touched is
+     * passed through byte for byte, even when it is non-canonical: those
+     * bytes are what a permissive portal registered, and rewriting them
+     * because someone renamed the playlist would move the session
+     * fingerprint and re-authenticate under a spelling the portal never saw.
+     * That is the same reason a stored MAC is not rewritten on load.
+     *
+     * A value that does not parse is left alone too — the grandfathered case,
+     * where a playlist stored before this validation existed may be working
+     * on a panel that ignores the MAC entirely.
      */
     private normalizeStalkerPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
+        if (playlist.macAddress === this.playlist.macAddress) {
+            return playlist;
+        }
+
         const normalizedMac = normalizeStalkerMacAddress(playlist.macAddress);
 
         if (!normalizedMac || normalizedMac === playlist.macAddress) {

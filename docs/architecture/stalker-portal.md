@@ -273,6 +273,13 @@ the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
 `stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
 endpoint and be refused *there*, not in the form.
 
+In the edit dialog the submit pass normalizes **only a MAC the user actually
+changed** (compared against the stored value). Renaming a playlist, or editing
+its EPG sources, must not rewrite a non-canonical MAC as a side effect: those
+bytes are what a permissive portal registered, and rewriting them would move
+the session fingerprint and re-authenticate under a spelling the portal never
+saw — the same reason a stored MAC is not rewritten on load.
+
 The edit dialog goes one step further: `createStalkerMacAddressValidator`
 grandfathers the value a playlist already stored. Before there was any
 validation the field accepted arbitrary text, and on a panel that ignores the
@@ -347,8 +354,14 @@ later empty value as a permanent lockout. Therefore:
 - an unusable MAC (or a runtime without WebCrypto) derives nothing rather than
   hashing a typo into a permanent binding;
 - the playlist-info edit dialog offers no derivation. It shows
-  `DEVICE_ID_PINNED_WARNING` instead whenever a device ID is already stored,
-  since by then the portal has seen it.
+  `DEVICE_ID_PINNED_WARNING` instead once a device ID has actually reached the
+  portal. **Storage is not transmission**: `device_id` travels only on
+  `get_profile`/`do_auth`, which a simple panel-style portal never runs, and
+  the import's offline fallback persists whatever was typed while recording
+  the playlist as simple. `hasStoredStalkerDeviceIds` therefore gates on
+  `isFullStalkerPortal` — telling those users a change "will lock this source
+  out" would be false and would discourage them from fixing an ID that was
+  never pinned.
 
 The trade-off the option exists for is interoperability, not obfuscation: a
 user who reaches the same account from StbEmu already has this exact value

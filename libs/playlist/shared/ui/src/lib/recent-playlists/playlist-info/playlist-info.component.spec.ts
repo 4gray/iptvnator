@@ -576,6 +576,7 @@ describe('PlaylistInfoComponent', () => {
                     url: undefined,
                     portalUrl: 'https://portal.example.com/c',
                     macAddress: '00:1a:79:aa:bb:cc',
+                    isFullStalkerPortal: true,
                     ...overrides,
                 } as Playlist & { id: string },
             });
@@ -650,6 +651,43 @@ describe('PlaylistInfoComponent', () => {
                         macAddress: 'legacy-device-42',
                     }) as PlaylistMeta,
                 })
+            );
+        });
+
+        it('leaves an untouched non-canonical MAC alone on an unrelated save', async () => {
+            // Renaming a playlist must not rewrite its MAC: those bytes are
+            // what a permissive portal registered, and changing them moves
+            // the session fingerprint and re-authenticates under a spelling
+            // the portal never saw.
+            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            component.playlistDetails.get('title')?.setValue('Renamed');
+
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: '00-1a-79-aa-bb-cc',
+                        title: 'Renamed',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it('does not claim a simple portal has pinned its device IDs', () => {
+            // device_id travels only on get_profile/do_auth, which a
+            // panel-style portal never runs — so nothing was pinned and the
+            // lockout warning would be false.
+            createStalkerComponent({
+                isFullStalkerPortal: false,
+                stalkerDeviceId1: 'ABCDEF',
+            });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(false);
+            expect(fixture.nativeElement.textContent).not.toContain(
+                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
             );
         });
 
