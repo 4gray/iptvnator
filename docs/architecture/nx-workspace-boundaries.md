@@ -78,6 +78,21 @@ in `libs/ui/playback`, while DOM-free diagnostic contracts and classifiers live
 in `libs/playback/util` and receive browser capability checks as explicit
 probes.
 
+`libs/playback/util` is the `playback-util` Nx project and is imported through
+`@iptvnator/playback/util`. Its exact tags are `scope:shared`,
+`domain:playback`, and `type:util`. It owns the public playback diagnostic,
+structured engine-evidence, source/engine-family, target-capability,
+content-session-key, and recovery-recommendation contracts and pure helpers.
+Its public API is `libs/playback/util/src/index.ts`.
+
+`playback-util` has no Angular, DOM, settings, storage, UI, or Electron IPC
+ownership. Browser/player adapters collect public engine events and supply
+explicit capability facts; `playback-util` classifies and ranks them without
+inspecting runtime globals. As a `type:util` project it may depend only on
+other utility projects, including shared interface contracts, while
+`ui-playback` and feature hosts may depend on it to render and execute
+session-local recovery actions.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:

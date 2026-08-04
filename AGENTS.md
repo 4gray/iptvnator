@@ -239,6 +239,31 @@ Key files:
   messages and arbitrary `info`
   never reach diagnostics. This is a sibling of `PlayerController`, not part
   of the controls contract.
+- Browser playback diagnostics and recovery policy live in
+  `libs/playback/util` and are exported by `@iptvnator/playback/util`.
+  Public engine errors cross allowlisted sanitizers into a
+  `PlaybackDiagnostic`; `recommendPlaybackRecovery(context)` then ranks at
+  most three actions, and `WebPlayerViewComponent` executes only the action
+  the user selects. The policy is a sibling of `PlayerController`; shared
+  controls only gate interaction while the diagnostic panel is visible.
+  `WebPlayerViewComponent` owns a host-derived content-session key that is
+  stable for the mounted logical selection, attempted target IDs, the temporary
+  player override, and VOD handoff position. Its `PlaybackBinding` is exactly
+  `{ generation, target }`, while
+  source/header/DRM/application changes use a separate fieldless opaque
+  `Symbol` token; neither ownership primitive contains URLs, headers, DRM
+  material, or credentials. A recommended built-in player temporarily
+  outranks the host override and saved player for that mounted content session,
+  never mutates `Settings.player`, and resumes finite VOD position on a
+  best-effort basis; live playback returns to the live edge. Retry and
+  alternative sources preserve attempts, while a different content-session key
+  or component teardown resets them. Recovery recommendations never
+  auto-switch, persist history, learn across sessions, or emit telemetry.
+  Network and unknown evidence fail closed to Retry/alternative source; PWA
+  capability suppresses managed MPV/VLC, and ClearKey/KODIPROP DRM suppresses
+  external targets because its payload is not transferable. Raw engine
+  messages, arbitrary data, and credentials never enter recommendation
+  evidence or ownership state.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared
