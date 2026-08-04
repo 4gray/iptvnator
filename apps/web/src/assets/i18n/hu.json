@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Cím",
             "MAC_ADDRESS": "MAC-cím",
+            "MAC_ADDRESS_HINT": "Formátum: 00:1A:79:XX:XX:XX. A kötőjeleket, a pontokat és a kisbetűket az alkalmazás automatikusan kijavítja.",
+            "MAC_ADDRESS_OUI_HINT": "Ez a cím az Infomir 00:1A:79 tartományán kívül esik. A legtöbb portál csak ezt a tartományt fogadja el, minden mást indoklás nélkül elutasít.",
+            "MAC_ADDRESS_ERROR": "Adjon meg 12 jegyű MAC-címet, például 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Sorozatszám (nem kötelező)",
             "SERIAL_NUMBER_HINT": "Akkor használja, ha az eszköz már regisztrálva van a szolgáltatónál",
             "DEVICE_ID_1": "1. eszközazonosító (nem kötelező)",
             "DEVICE_ID_2": "2. eszközazonosító (nem kötelező)",
             "DEVICE_ID_HINT": "64 hexadecimális karakter – csak akkor adja meg, ha a szolgáltató meghatározott eszközazonosítót kér",
+            "DERIVE_DEVICE_IDS": "Eszközazonosítók előállítása a MAC-címből",
+            "DERIVE_DEVICE_IDS_HINT": "Ugyanazt az értéket állítja elő, mint a StbEmu (a MAC-cím SHA-256 lenyomata). A portál véglegesen megjegyzi az elsőként kapott eszközazonosítót, és minden későbbit elutasít, ezért csak olyan MAC-címhez kapcsolja be, amelyet a portál még soha nem látott, vagy amelyet már StbEmu által előállított azonosítóval használ.",
+            "DEVICE_ID_PINNED_WARNING": "A portál már rögzített egy eszközazonosítót ehhez a MAC-címhez. Ha megváltoztatja vagy törli, ez a forrás elérhetetlenné válik, mert a portál kizárólag az elsőként látott eszközazonosítót fogadja el.",
             "SIGNATURE_1": "1. aláírás (nem kötelező)",
             "SIGNATURE_2": "2. aláírás (nem kötelező)",
             "SIGNATURE_HINT": "64 hexadecimális karakter – csak akkor adja meg, ha a szolgáltató eszközellenőrzési aláírást kér",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Ez a portál felhasználónevet és jelszót igényel. Töltse ki a felhasználónév és a jelszó mezőt, majd próbálja újra.",
             "LOGIN_REJECTED": "A portál elutasította a felhasználónevet és a jelszót.",
             "PORTAL_REFUSED": "A portál megtagadta a hozzáférést ettől az eszköztől.",
+            "DEVICE_CONFLICT": "A portálon más eszközazonosító van regisztrálva ehhez a MAC-címhez.",
             "PORTAL_MESSAGE": "A portál a következőt jelezte: {{message}}"
         },
         "FILTER_BY_NAME": "Szűrés név alapján",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "A tartalom megjelenítéséhez válasszon egy kategóriát."
             },
             "STALKER_LOGIN_REQUIRED": "A portál felhasználónevet és jelszót igényel. Importálja újra a portált, és töltse ki a felhasználónév és a jelszó mezőt.",
+            "STALKER_DEVICE_CONFLICT": "A portálon más eszközazonosító van regisztrálva ehhez a MAC-címhez. Állítsa vissza az elsőként használt eszközazonosítót, vagy kérje a szolgáltatótól az ehhez a MAC-címhez rögzített eszköz alaphelyzetbe állítását.",
             "PLAYLIST_SETTINGS": "Lejátszási lista beállításai",
             "HOME": "Kezdőlap",
             "DELETE": "Törlés"

@@ -77,9 +77,16 @@ export interface Playlist {
     stalkerTimeslot?: number;
     /** Serial number for stalker portal - generated once and stored for consistency */
     stalkerSerialNumber?: string;
-    /** Optional device ID 1 for stalker portal - if not provided, auto-generated from MAC */
+    /**
+     * Optional device ID 1 for stalker portal. Absent means absent — nothing
+     * generates one at request time. The import dialog can pre-fill a
+     * MAC-derived value on request, but it is stored here as a literal string
+     * from then on: the portal pins the first non-empty value to the MAC
+     * permanently, so a value that silently followed a later MAC edit would be
+     * refused as a device conflict.
+     */
     stalkerDeviceId1?: string;
-    /** Optional device ID 2 for stalker portal - if not provided, auto-generated from MAC */
+    /** Optional device ID 2 for stalker portal - same pinning rules as `stalkerDeviceId1`. */
     stalkerDeviceId2?: string;
     /** Optional signature 1 for stalker portal - required by some portals for device verification */
     stalkerSignature1?: string;

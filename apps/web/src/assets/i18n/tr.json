@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Başlık",
             "MAC_ADDRESS": "MAC Adresi",
+            "MAC_ADDRESS_HINT": "Biçim: 00:1A:79:XX:XX:XX. Tireler, noktalar ve küçük harfler sizin için düzeltilir.",
+            "MAC_ADDRESS_OUI_HINT": "Bu adres, Infomir'in 00:1A:79 aralığının dışında kalıyor. Çoğu portal yalnızca bu aralığı kabul eder ve diğer adresleri nedenini belirtmeden reddeder.",
+            "MAC_ADDRESS_ERROR": "12 haneli bir MAC adresi girin, örneğin 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Seri Numarası (İsteğe Bağlı)",
             "SERIAL_NUMBER_HINT": "Sağlayıcıya zaten kayıtlıysa kullanın",
             "DEVICE_ID_1": "Cihaz Kimliği 1 (İsteğe Bağlı)",
             "DEVICE_ID_2": "Cihaz Kimliği 2 (İsteğe Bağlı)",
             "DEVICE_ID_HINT": "64 onaltılık karakter - sağlayıcı belirli bir cihaz kimliği gerektiriyorsa kullanın",
+            "DERIVE_DEVICE_IDS": "Cihaz kimliklerini MAC adresinden oluştur",
+            "DERIVE_DEVICE_IDS_HINT": "StbEmu ile aynı değeri üretir (MAC adresinin SHA-256 özeti). Portal, aldığı ilk cihaz kimliğine kalıcı olarak sabitlenir ve sonraki tüm kimlikleri reddeder; bu nedenle bunu yalnızca portalın hiç görmediği bir MAC adresi için ya da StbEmu tarafından oluşturulmuş bir kimlikle zaten kullandığınız bir MAC adresi için açın.",
+            "DEVICE_ID_PINNED_WARNING": "Portal, bu MAC adresi için bir cihaz kimliğini zaten kaydetti. Bu kimliği değiştirmek veya silmek bu kaynağa erişiminizi engeller; çünkü portal yalnızca ilk gördüğü cihaz kimliğini kabul eder.",
             "SIGNATURE_1": "İmza 1 (İsteğe Bağlı)",
             "SIGNATURE_2": "İmza 2 (İsteğe Bağlı)",
             "SIGNATURE_HINT": "64 onaltılık karakter - sağlayıcı cihaz doğrulama imzaları gerektiriyorsa kullanın",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Bu portal kullanıcı adı ve parola gerektiriyor. Kullanıcı adı ve parola alanlarını doldurup tekrar deneyin.",
             "LOGIN_REJECTED": "Portal, kullanıcı adı ve parolayı reddetti.",
             "PORTAL_REFUSED": "Portal bu cihaz için erişimi reddetti.",
+            "DEVICE_CONFLICT": "Portalda bu MAC adresi için farklı bir cihaz kimliği kayıtlı.",
             "PORTAL_MESSAGE": "Portal şunu bildirdi: {{message}}"
         },
         "FILTER_BY_NAME": "İsime göre filtrele",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "İçeriği görmek için lütfen bir kategori seçin"
             },
             "STALKER_LOGIN_REQUIRED": "Portal, kullanıcı adı ve parola gerektiriyor. Portalı yeniden içe aktarın ve kullanıcı adı ile parola alanlarını doldurun.",
+            "STALKER_DEVICE_CONFLICT": "Portalda bu MAC adresi için farklı bir cihaz kimliği kayıtlı. İlk kullandığınız cihaz kimliğini geri getirin veya sağlayıcınızdan bu MAC adresi için kayıtlı cihazı sıfırlamasını isteyin.",
             "PLAYLIST_SETTINGS": "Oynatma Listesi Ayarları",
             "HOME": "Ana Sayfa",
             "DELETE": "Sil"

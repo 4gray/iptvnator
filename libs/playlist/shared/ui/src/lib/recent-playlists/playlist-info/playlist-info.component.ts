@@ -32,6 +32,9 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    createStalkerMacAddressValidator,
+    normalizeStalkerIdentityValue,
+    normalizeStalkerMacAddress,
     normalizeXtreamServerUrl,
     Playlist,
     PlaylistMeta,
@@ -80,6 +83,10 @@ const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
                 color: var(--mat-sys-on-surface-variant);
                 font-size: 12.5px;
                 line-height: 1.45;
+            }
+
+            mat-dialog-content p.stalker-device-id-warning {
+                color: var(--mat-sys-error);
             }
 
             .playlist-epg-sources {
@@ -195,6 +202,63 @@ export class PlaylistInfoComponent {
         return !this.playlist.serverUrl && !this.playlist.macAddress;
     }
 
+    /**
+     * True once a device ID has actually reached the portal, which is the
+     * point of no return: the stock server pins the first non-empty
+     * `device_id`/`device_id2` to the MAC permanently, refuses a different one
+     * as a device conflict, and treats a later empty value as a lockout. The
+     * fields stay editable — a value that was never accepted may well need
+     * correcting — but the consequence has to be on screen.
+     *
+     * Storage is not transmission, so `isFullStalkerPortal` gates it.
+     * `device_id` travels only on `get_profile`/`do_auth`, which simple
+     * panel-style portals never run; the import's offline fallback also
+     * persists whatever was typed and records the playlist as simple. Warning
+     * those users that a change "will lock this source out" would be false,
+     * and would discourage them from fixing an ID that was never pinned.
+     */
+    get hasStoredStalkerDeviceIds(): boolean {
+        if (!this.playlist.isFullStalkerPortal) {
+            return false;
+        }
+
+        return Boolean(
+            normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId1) ??
+                normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId2)
+        );
+    }
+
+    /**
+     * Canonicalizes an edited MAC on blur, so the stored value is the one the
+     * portal's own format check accepts.
+     *
+     * Only an EDIT normalizes it. Merely focusing the field and tabbing on
+     * must leave it alone: rewriting it there would mark the form dirty and
+     * make the value differ from the stored one, which is exactly what the
+     * submit-path guard reads — so a later title-only save would carry the
+     * rewritten identity through and move the session fingerprint without the
+     * user having touched the MAC at all.
+     */
+    onMacAddressBlur(): void {
+        const control = this.playlistDetails.get('macAddress');
+
+        if (!control || !this.isStalkerMacAddressEdited(control.value)) {
+            return;
+        }
+
+        const normalized = normalizeStalkerMacAddress(control.value);
+
+        if (normalized && normalized !== control.value) {
+            control.setValue(normalized);
+            control.markAsDirty();
+        }
+    }
+
+    /** Whether a MAC value differs from the one the playlist was loaded with. */
+    private isStalkerMacAddressEdited(value: unknown): boolean {
+        return value !== this.playlist.macAddress;
+    }
+
     get playlistEpgSourceInputs(): UntypedFormArray {
         return this.playlistDetails.get(
             'playlistEpgSourceInputs'
@@ -244,7 +308,14 @@ export class PlaylistInfoComponent {
             serverUrl: new FormControl(this.playlist.serverUrl),
             username: new FormControl(this.playlist.username),
             password: new FormControl(this.playlist.password),
-            macAddress: new FormControl(this.playlist.macAddress),
+            macAddress: new FormControl(
+                this.playlist.macAddress,
+                // Grandfathered: a playlist stored before this validation
+                // existed may hold anything, and on a panel that ignores the
+                // MAC it works. Blocking Save over it would strand the user's
+                // title/URL/EPG edits too.
+                createStalkerMacAddressValidator(this.playlist.macAddress)
+            ),
             portalUrl: new FormControl(this.playlist.portalUrl),
             stalkerSerialNumber: new FormControl(
                 this.playlist.stalkerSerialNumber
@@ -261,8 +332,9 @@ export class PlaylistInfoComponent {
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
         try {
-            const normalizedPlaylist =
-                this.normalizeXtreamPlaylistMeta(playlist);
+            const normalizedPlaylist = this.normalizeStalkerPlaylistMeta(
+                this.normalizeXtreamPlaylistMeta(playlist)
+            );
             const isXtream =
                 this.playlist &&
                 this.playlist.username &&
@@ -298,6 +370,38 @@ export class PlaylistInfoComponent {
                 }
             );
         }
+    }
+
+    /**
+     * Canonicalizes the MAC on the submit path as well as on blur. Pressing
+     * Enter inside the field submits the dialog without the field losing
+     * focus, so the blur handler never runs and the raw `00-1a-79-…` the user
+     * typed would be persisted and sent to a portal whose format check
+     * refuses it.
+     *
+     * Only an ACTUAL edit is normalized. A MAC the user never touched is
+     * passed through byte for byte, even when it is non-canonical: those
+     * bytes are what a permissive portal registered, and rewriting them
+     * because someone renamed the playlist would move the session
+     * fingerprint and re-authenticate under a spelling the portal never saw.
+     * That is the same reason a stored MAC is not rewritten on load.
+     *
+     * A value that does not parse is left alone too — the grandfathered case,
+     * where a playlist stored before this validation existed may be working
+     * on a panel that ignores the MAC entirely.
+     */
+    private normalizeStalkerPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
+        if (!this.isStalkerMacAddressEdited(playlist.macAddress)) {
+            return playlist;
+        }
+
+        const normalizedMac = normalizeStalkerMacAddress(playlist.macAddress);
+
+        if (!normalizedMac || normalizedMac === playlist.macAddress) {
+            return playlist;
+        }
+
+        return { ...playlist, macAddress: normalizedMac };
     }
 
     private normalizeXtreamPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {

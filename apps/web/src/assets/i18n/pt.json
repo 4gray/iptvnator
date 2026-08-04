@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Título",
             "MAC_ADDRESS": "Endereço Mac",
+            "MAC_ADDRESS_HINT": "Formato 00:1A:79:XX:XX:XX. Hífens, pontos e letras minúsculas são corrigidos automaticamente.",
+            "MAC_ADDRESS_OUI_HINT": "Este endereço está fora da faixa 00:1A:79 da Infomir. A maioria dos portais aceita apenas essa faixa e rejeita qualquer outra sem informar o motivo.",
+            "MAC_ADDRESS_ERROR": "Digite um endereço MAC de 12 dígitos, por exemplo 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Número de série (opcional)",
             "SERIAL_NUMBER_HINT": "Use se já estiver registrado com o provedor",
             "DEVICE_ID_1": "ID do dispositivo 1 (opcional)",
             "DEVICE_ID_2": "ID do dispositivo 2 (opcional)",
             "DEVICE_ID_HINT": "64 caracteres hexadecimais - use se o provedor exigir um ID de dispositivo específico",
+            "DERIVE_DEVICE_IDS": "Gerar os IDs do dispositivo a partir do endereço MAC",
+            "DERIVE_DEVICE_IDS_HINT": "Gera o mesmo valor que o StbEmu (SHA-256 do MAC). O portal fixa o primeiro ID de dispositivo que recebe e recusa todos os posteriores, portanto ative esta opção apenas para um MAC que o portal nunca viu ou que você já usa com um ID gerado pelo StbEmu.",
+            "DEVICE_ID_PINNED_WARNING": "O portal já registrou um ID de dispositivo para este endereço MAC. Alterá-lo ou removê-lo bloqueará o acesso a esta fonte, porque o portal só aceita o ID de dispositivo que recebeu primeiro.",
             "SIGNATURE_1": "Assinatura 1 (opcional)",
             "SIGNATURE_2": "Assinatura 2 (opcional)",
             "SIGNATURE_HINT": "64 caracteres hexadecimais - use se o provedor exigir assinaturas de verificação do dispositivo",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Este portal exige login e senha. Preencha os campos de nome de usuário e senha e tente novamente.",
             "LOGIN_REJECTED": "O portal rejeitou o login e a senha.",
             "PORTAL_REFUSED": "O portal recusou o acesso para este dispositivo.",
+            "DEVICE_CONFLICT": "O portal tem um ID de dispositivo diferente registrado para este endereço MAC.",
             "PORTAL_MESSAGE": "O portal informou: {{message}}"
         },
         "FILTER_BY_NAME": "Filtrar por nome",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "Selecione uma categoria para ver o conteúdo"
             },
             "STALKER_LOGIN_REQUIRED": "O portal exige login e senha. Importe o portal novamente e preencha os campos de nome de usuário e senha.",
+            "STALKER_DEVICE_CONFLICT": "O portal tem um ID de dispositivo diferente registrado para este endereço MAC. Restaure o ID de dispositivo que você usou primeiro ou peça ao seu provedor para redefinir o dispositivo deste MAC.",
             "PLAYLIST_SETTINGS": "Configurações da playlist",
             "HOME": "Início",
             "DELETE": "Excluir"

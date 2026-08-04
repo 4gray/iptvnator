@@ -127,6 +127,14 @@ const AUTH_REUSE_FALLBACK_MAC = '00:1A:79:AD:01:04';
  */
 const AUTH_REJECTED_MAC = 'AA:BB:CC:DD:EE:01';
 
+/**
+ * Its own MAC because the test PINS a device id on the portal, and a pin is
+ * the one piece of mock state that outlives an invalidated session (a real
+ * portal never unpins `device_id` either). `beforeEach` clears it through
+ * `OWNED_MACS`, which drops the whole session record including the pin.
+ */
+const DEVICE_CONFLICT_MAC = '00:1A:79:00:00:0B';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -173,6 +181,7 @@ const OWNED_MACS = [
     AUTH_FLOW_MAC,
     AUTH_REAUTH_MAC,
     AUTH_REJECTED_MAC,
+    DEVICE_CONFLICT_MAC,
 ];
 
 /**
@@ -1261,6 +1270,64 @@ test.describe('@stalker full portal authentication', () => {
         await expect(page.locator('body')).not.toContainText(
             'Unauthorized request.'
         );
+    });
+
+    test('explains a device conflict instead of relaying "STB is damaged"', async ({
+        page,
+        request,
+    }) => {
+        // Pin a device id the way another client (StbEmu, a set-top box)
+        // would have: the stock server binds the first non-empty `device_id`
+        // it sees to the MAC and refuses every different one afterwards.
+        const pinned = await (
+            await request.get(
+                `${BACKEND_PROXY}?url=${encodeURIComponent(
+                    FULL_PORTAL_URL
+                )}&macAddress=${encodeURIComponent(
+                    DEVICE_CONFLICT_MAC
+                )}&action=get_profile&type=stb&device_id=PINNED-DEVICE-A`
+            )
+        ).json();
+        // Guard against a vacuous test: if the pin did not take, the import
+        // below would fail for some other reason and still show an error.
+        expect(pinned.js?.msg).toBeUndefined();
+
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.locator('mat-dialog-container');
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
+
+        await setInputValue(dialog.locator('input#title'), 'Conflict Portal');
+        await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
+        await setInputValue(
+            dialog.locator('input#macAddress'),
+            DEVICE_CONFLICT_MAC
+        );
+        await setInputValue(
+            dialog.locator('input#deviceId1'),
+            'DIFFERENT-DEVICE-B'
+        );
+
+        const addButton = dialog.getByRole('button', {
+            name: 'Add',
+            exact: true,
+        });
+        await expect(addButton).toBeEnabled({ timeout: 10_000 });
+        await addButton.click();
+
+        // The conflict gets its own headline. Asserting the generic one is
+        // ABSENT is what makes this test fail if the classification is
+        // removed — `blocked` would still surface the portal's text.
+        await expect(
+            page.getByText(/different device ID registered/i)
+        ).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText(/refused access/i)).toHaveCount(0);
+        // The portal's own words still travel with it, markup stripped.
+        await expect(page.getByText(/device_id mismatch/i)).toBeVisible();
+        await expect(page.locator('body')).not.toContainText('<br/>');
+
+        await expect(dialog).toBeVisible();
+        await expect(page).not.toHaveURL(/stalker/);
     });
 
     test('re-authenticates after the portal drops the session', async ({

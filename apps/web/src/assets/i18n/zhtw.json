@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "標題",
             "MAC_ADDRESS": "Mac 位址",
+            "MAC_ADDRESS_HINT": "格式為 00:1A:79:XX:XX:XX。連字號、點號與小寫字母會自動為您修正。",
+            "MAC_ADDRESS_OUI_HINT": "此位址不在 Infomir 的 00:1A:79 範圍內。多數入口網站只接受該範圍的位址，並會在不說明原因的情況下拒絕其他位址。",
+            "MAC_ADDRESS_ERROR": "請輸入 12 位十六進位數字的 MAC 位址，例如 00:1A:79:12:34:56。",
             "SERIAL_NUMBER": "序號（選填）",
             "SERIAL_NUMBER_HINT": "若已向供應商註冊，請填寫此項",
             "DEVICE_ID_1": "裝置 ID 1（選填）",
             "DEVICE_ID_2": "裝置 ID 2（選填）",
             "DEVICE_ID_HINT": "64 個十六進位字元——若供應商要求特定裝置 ID 時請填寫",
+            "DERIVE_DEVICE_IDS": "由 MAC 位址產生裝置 ID",
+            "DERIVE_DEVICE_IDS_HINT": "產生的值與 StbEmu 相同（MAC 的 SHA-256）。入口網站會鎖定它收到的第一組裝置 ID，並拒絕之後的所有裝置 ID；因此請只在入口網站從未見過的 MAC 位址，或您原本就搭配 StbEmu 產生的 ID 使用的 MAC 位址上啟用此選項。",
+            "DEVICE_ID_PINNED_WARNING": "入口網站已為此 MAC 位址記錄了一組裝置 ID。變更或清除該 ID 會導致您無法再存取此來源，因為入口網站只接受它最先看到的裝置 ID。",
             "SIGNATURE_1": "簽章 1（選填）",
             "SIGNATURE_2": "簽章 2（選填）",
             "SIGNATURE_HINT": "64 個十六進位字元——若供應商要求裝置驗證簽章時請填寫",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "此入口網站需要登入名稱與密碼。請填寫使用者名稱與密碼欄位後重試。",
             "LOGIN_REJECTED": "入口網站拒絕了此登入名稱與密碼。",
             "PORTAL_REFUSED": "入口網站拒絕了此裝置的存取。",
+            "DEVICE_CONFLICT": "入口網站為此 MAC 位址註冊的是另一組裝置 ID。",
             "PORTAL_MESSAGE": "入口網站回報：{{message}}"
         },
         "FILTER_BY_NAME": "依名稱篩選",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "請選擇一個類別以查看內容"
             },
             "STALKER_LOGIN_REQUIRED": "入口網站需要登入名稱與密碼。請重新匯入入口網站並填寫使用者名稱與密碼欄位。",
+            "STALKER_DEVICE_CONFLICT": "入口網站為此 MAC 位址註冊的是另一組裝置 ID。請還原您最初使用的裝置 ID，或請您的供應商重設此 MAC 位址所註冊的裝置。",
             "PLAYLIST_SETTINGS": "播放清單設定",
             "HOME": "首頁",
             "DELETE": "刪除"

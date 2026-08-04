@@ -12,7 +12,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistInfoComponent } from './playlist-info.component';
 
 describe('PlaylistInfoComponent', () => {
@@ -564,6 +564,222 @@ describe('PlaylistInfoComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             'SETTINGS.EPG_URL_ERROR'
         );
+    });
+
+    describe('Stalker identity fields', () => {
+        function createStalkerComponent(
+            overrides: Partial<Playlist> = {}
+        ): void {
+            TestBed.overrideProvider(MAT_DIALOG_DATA, {
+                useValue: {
+                    ...playlist,
+                    url: undefined,
+                    portalUrl: 'https://portal.example.com/c',
+                    macAddress: '00:1a:79:aa:bb:cc',
+                    isFullStalkerPortal: true,
+                    ...overrides,
+                } as Playlist & { id: string },
+            });
+            createComponent();
+            fixture.detectChanges();
+        }
+
+        it('canonicalizes an edited MAC on blur', () => {
+            createStalkerComponent();
+            const control = component.playlistDetails.get('macAddress');
+            control?.setValue('00-1a-79-ab-cd-ef');
+
+            component.onMacAddressBlur();
+
+            expect(control?.value).toBe('00:1A:79:AB:CD:EF');
+            // The rewrite is a change the user has to save deliberately.
+            expect(control?.dirty).toBe(true);
+        });
+
+        it('leaves a stored MAC untouched until it is edited', () => {
+            // Loading the dialog must not move the session fingerprint: the
+            // stored lowercase MAC is what the portal already accepted.
+            createStalkerComponent();
+
+            expect(component.playlistDetails.get('macAddress')?.value).toBe(
+                '00:1a:79:aa:bb:cc'
+            );
+            expect(component.playlistDetails.pristine).toBe(true);
+        });
+
+        it('refuses to save a malformed MAC', () => {
+            createStalkerComponent();
+            const control = component.playlistDetails.get('macAddress');
+
+            control?.setValue('00:1A:79:AA:BB');
+
+            expect(control?.valid).toBe(false);
+            expect(component.playlistDetails.valid).toBe(false);
+        });
+
+        it('canonicalizes the MAC on submit when no blur fired', async () => {
+            // Pressing Enter inside the field submits without the field losing
+            // focus, so `onMacAddressBlur` never runs.
+            createStalkerComponent();
+            component.playlistDetails.get('macAddress')?.setValue(
+                '00-1a-79-ab-cd-ef'
+            );
+
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: '00:1A:79:AB:CD:EF',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it('persists a grandfathered MAC untouched on submit', async () => {
+            createStalkerComponent({ macAddress: 'legacy-device-42' });
+
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: 'legacy-device-42',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it('leaves a non-canonical MAC alone when focus passes through it', async () => {
+            // Tabbing through the dialog fires blur with no edit. Rewriting
+            // there would mark the form dirty AND make the value differ from
+            // the stored one, which is what the submit guard reads — so a
+            // later title-only save would carry the rewritten identity.
+            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            const control = component.playlistDetails.get('macAddress');
+
+            component.onMacAddressBlur();
+
+            expect(control?.value).toBe('00-1a-79-aa-bb-cc');
+            expect(control?.dirty).toBe(false);
+
+            component.playlistDetails.get('title')?.setValue('Renamed');
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: '00-1a-79-aa-bb-cc',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it('leaves an untouched non-canonical MAC alone on an unrelated save', async () => {
+            // Renaming a playlist must not rewrite its MAC: those bytes are
+            // what a permissive portal registered, and changing them moves
+            // the session fingerprint and re-authenticates under a spelling
+            // the portal never saw.
+            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            component.playlistDetails.get('title')?.setValue('Renamed');
+
+            await component.saveChanges(
+                component.playlistDetails.value as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        macAddress: '00-1a-79-aa-bb-cc',
+                        title: 'Renamed',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it('does not claim a simple portal has pinned its device IDs', () => {
+            // device_id travels only on get_profile/do_auth, which a
+            // panel-style portal never runs — so nothing was pinned and the
+            // lockout warning would be false.
+            createStalkerComponent({
+                isFullStalkerPortal: false,
+                stalkerDeviceId1: 'ABCDEF',
+            });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(false);
+            expect(fixture.nativeElement.textContent).not.toContain(
+                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+            );
+        });
+
+        it('keeps a MAC outside the Infomir range saveable', () => {
+            // Most reseller panels do not run the stock OUI filter, so this is
+            // a working configuration — the import hint explains the risk, the
+            // form must not block it.
+            createStalkerComponent({ macAddress: 'AA:BB:CC:DD:EE:01' });
+
+            expect(component.playlistDetails.get('macAddress')?.valid).toBe(
+                true
+            );
+        });
+
+        it('grandfathers a stored MAC it would now reject', () => {
+            // Before this validation existed the field accepted anything, and
+            // on a panel that ignores the MAC such a playlist works. Blocking
+            // Save would also strand the title, URL and EPG edits in the same
+            // dialog.
+            createStalkerComponent({ macAddress: 'legacy-device-42' });
+
+            expect(component.playlistDetails.get('macAddress')?.valid).toBe(
+                true
+            );
+            expect(component.playlistDetails.valid).toBe(true);
+        });
+
+        it('still refuses a newly typed malformed MAC on a grandfathered playlist', () => {
+            createStalkerComponent({ macAddress: 'legacy-device-42' });
+            const control = component.playlistDetails.get('macAddress');
+
+            control?.setValue('legacy-device-43');
+
+            expect(control?.valid).toBe(false);
+        });
+
+        it('does not warn about a pinning that has not happened', () => {
+            createStalkerComponent();
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(false);
+            expect(fixture.nativeElement.textContent).not.toContain(
+                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+            );
+        });
+
+        it('treats a blank stored device ID as never sent', () => {
+            createStalkerComponent({ stalkerDeviceId2: '   ' });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(false);
+        });
+
+        it('warns once a device ID has been pinned', () => {
+            createStalkerComponent({ stalkerDeviceId1: 'ABCDEF' });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(true);
+            expect(fixture.nativeElement.textContent).toContain(
+                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+            );
+        });
+
+        it('warns when only the second device ID is pinned', () => {
+            createStalkerComponent({ stalkerDeviceId2: 'FEDCBA' });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(true);
+        });
     });
 
     it('falls back to browser download when desktop file saving is unavailable', async () => {

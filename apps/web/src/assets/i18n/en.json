@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Title",
             "MAC_ADDRESS": "Mac Address",
+            "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Hyphens, dots and lowercase are corrected for you.",
+            "MAC_ADDRESS_OUI_HINT": "This address is outside Infomir's 00:1A:79 range. Most portals only accept that range and reject anything else without saying why.",
+            "MAC_ADDRESS_ERROR": "Enter a 12-digit MAC address, for example 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Serial Number (Optional)",
             "SERIAL_NUMBER_HINT": "Use if already registered with provider",
             "DEVICE_ID_1": "Device ID 1 (Optional)",
             "DEVICE_ID_2": "Device ID 2 (Optional)",
             "DEVICE_ID_HINT": "64 hex characters - use if provider requires specific device ID",
+            "DERIVE_DEVICE_IDS": "Generate device IDs from the MAC address",
+            "DERIVE_DEVICE_IDS_HINT": "Produces the same value as StbEmu (SHA-256 of the MAC). The portal locks on to the first device ID it receives and refuses every later one, so only turn this on for a MAC the portal has never seen, or one you already use with a StbEmu-generated ID.",
+            "DEVICE_ID_PINNED_WARNING": "The portal has already recorded a device ID for this MAC address. Changing or clearing it will lock this source out, because the portal only accepts the device ID it saw first.",
             "SIGNATURE_1": "Signature 1 (Optional)",
             "SIGNATURE_2": "Signature 2 (Optional)",
             "SIGNATURE_HINT": "64 hex characters - use if provider requires device verification signatures",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "This portal requires a login and password. Fill in the username and password fields and try again.",
             "LOGIN_REJECTED": "The portal rejected the login and password.",
             "PORTAL_REFUSED": "The portal refused access for this device.",
+            "DEVICE_CONFLICT": "The portal has a different device ID registered for this MAC address.",
             "PORTAL_MESSAGE": "The portal reported: {{message}}"
         },
         "FILTER_BY_NAME": "Filter by name",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "Please select a category to see the content"
             },
             "STALKER_LOGIN_REQUIRED": "The portal requires a login and password. Import the portal again and fill in the username and password fields.",
+            "STALKER_DEVICE_CONFLICT": "The portal has a different device ID registered for this MAC address. Restore the device ID you used first, or ask your provider to reset the device for this MAC.",
             "PLAYLIST_SETTINGS": "Playlist Settings",
             "HOME": "Home",
             "DELETE": "Delete"

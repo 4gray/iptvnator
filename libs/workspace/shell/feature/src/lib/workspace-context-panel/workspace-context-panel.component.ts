@@ -165,6 +165,17 @@ export class WorkspaceContextPanelComponent {
         const portalError = asStalkerPortalError(
             this.isStalkerCategoryFailed()
         );
+        // Device conflicts are the exception to "the portal explains itself":
+        // its own wording blames the hardware, so the actionable sentence
+        // leads and the portal's text follows it.
+        if (portalError?.kind === 'device-conflict') {
+            const hint = this.translate.instant(
+                'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT'
+            );
+            return portalError.portalText
+                ? `${hint} ${portalError.portalText}`
+                : hint;
+        }
         if (portalError?.portalText) {
             return portalError.portalText;
         }

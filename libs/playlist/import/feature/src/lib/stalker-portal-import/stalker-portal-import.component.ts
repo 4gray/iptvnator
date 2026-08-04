@@ -6,6 +6,7 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -18,20 +19,39 @@ import {
     normalizeStalkerPortalInputUrl,
     STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
     StalkerPortalDiscoveryService,
-    StalkerPortalIdentity,
     normalizeStalkerPortalIdentity,
     stalkerSessionFingerprint,
-    type StalkerPortalErrorKind,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     createRandomId,
+    deriveStalkerDeviceIdsFromMac,
+    hasInfomirMacOui,
     isFullStalkerPortalUrl,
+    normalizeStalkerMacAddress,
     Playlist,
+    type StalkerDerivedDeviceIds,
+    validateStalkerMacAddressControl,
 } from '@iptvnator/shared/interfaces';
+import {
+    STALKER_IMPORT_ERROR_KEY_BY_KIND,
+    toStalkerPlaylistIdentityFields,
+} from './stalker-import-identity';
+
+/**
+ * A MAC and the device IDs that belong to exactly it. Kept together because
+ * the portal binds the pair permanently on first use — a MAC carrying another
+ * address's IDs is a device conflict nobody can undo.
+ */
+interface StalkerSettledIdentity {
+    macAddress: string;
+    deviceId1: string;
+    deviceId2: string;
+}
 
 @Component({
     imports: [
         FormsModule,
+        MatCheckboxModule,
         MatFormFieldModule,
         MatInputModule,
         ReactiveFormsModule,
@@ -56,6 +76,17 @@ import {
                 align-items: center;
                 gap: 8px;
             }
+
+            .derive-device-ids {
+                margin: 4px 0 12px;
+            }
+
+            .derive-device-ids__note {
+                margin: 4px 0 0;
+                color: var(--mat-sys-on-surface-variant);
+                font-size: 12px;
+                line-height: 1.45;
+            }
         `,
     ],
 })
@@ -66,7 +97,10 @@ export class StalkerPortalImportComponent {
     readonly form = new FormGroup({
         _id: new FormControl(createRandomId()),
         title: new FormControl('', [Validators.required]),
-        macAddress: new FormControl('', [Validators.required]),
+        macAddress: new FormControl('', [
+            Validators.required,
+            validateStalkerMacAddressControl,
+        ]),
         serialNumber: new FormControl(''),
         deviceId1: new FormControl(''),
         deviceId2: new FormControl(''),
@@ -89,7 +123,184 @@ export class StalkerPortalImportComponent {
 
     readonly isLoading = signal(false);
 
+    /** Whether the device IDs are being generated from the MAC. */
+    readonly derivesDeviceIds = signal(false);
+
+    /** Stamps each derivation so a late one cannot overwrite a newer one. */
+    private deriveGeneration = 0;
+
+    /**
+     * A MAC outside Infomir's range is imported anyway — plenty of resellers
+     * disable the check — but the stock portal answers a bare `{status: 1}`
+     * for it, so the hint has to say where that dead end comes from.
+     */
+    get showsForeignOuiHint(): boolean {
+        const value = this.form.controls.macAddress.value;
+        return Boolean(normalizeStalkerMacAddress(value)) &&
+            !hasInfomirMacOui(value);
+    }
+
+    /**
+     * The toggle is unavailable while an import is running, and while
+     * derivation would overwrite a device ID the user entered by hand.
+     *
+     * Locking it during the import is not cosmetic. `addPlaylist()` snapshots
+     * the identity and then hands it to portal discovery, which authenticates
+     * with it — so by the time a slow discovery returns, the portal has
+     * already pinned those IDs to the MAC. The snapshot is therefore the only
+     * correct thing to persist, and unticking mid-flight cannot change that.
+     * Leaving the box live would show the fields emptying and imply the
+     * opposite.
+     */
+    get hasManualDeviceIds(): boolean {
+        if (this.isLoading()) {
+            return true;
+        }
+
+        return (
+            !this.derivesDeviceIds() &&
+            Boolean(
+                this.form.controls.deviceId1.value ||
+                    this.form.controls.deviceId2.value
+            )
+        );
+    }
+
+    /**
+     * Rewrites what the user typed into the canonical `00:1A:79:…` form on
+     * blur. Only input is normalized: the field shows the exact bytes that
+     * will go into the `mac` cookie, so the change is visible and editable
+     * rather than something the transport does silently later.
+     */
+    async onMacAddressBlur(): Promise<void> {
+        await this.settleMacAddressIdentity();
+    }
+
+    /**
+     * Brings the MAC field and the derived device IDs into agreement, and
+     * resolves only once they are.
+     *
+     * Both the blur handler and the submit path go through here. Submitting
+     * has to re-run it rather than trust the blur: clicking Add moves focus
+     * out of the field, so the blur's `SHA256` is still in flight when Angular
+     * invokes the click handler — and a form read at that moment pairs the
+     * corrected MAC with the PREVIOUS MAC's device IDs (or with empty ones).
+     * The portal pins whatever pair it first receives to that MAC
+     * permanently, so there is no recovering from it afterwards. Re-running
+     * also covers the case where no blur fired at all.
+     */
+    private async settleMacAddressIdentity(): Promise<StalkerSettledIdentity> {
+        const control = this.form.controls.macAddress;
+        const normalized = normalizeStalkerMacAddress(control.value);
+
+        if (normalized && normalized !== control.value) {
+            control.setValue(normalized);
+        }
+
+        // Read ONCE, before the await. Everything returned below describes
+        // this MAC, so a field edit landing while the digest runs cannot
+        // produce a snapshot whose device IDs belong to a different address —
+        // the pairing the portal would then pin permanently.
+        const macAddress = normalized ?? '';
+
+        // Re-derive while the box is ticked: nothing is pinned until the
+        // import actually runs, so correcting a typo must correct the ID it
+        // would otherwise bind the account to forever.
+        const derived = await this.applyDerivedDeviceIds(macAddress);
+
+        return {
+            macAddress,
+            deviceId1:
+                derived?.deviceId1 ?? this.form.controls.deviceId1.value ?? '',
+            deviceId2:
+                derived?.deviceId2 ?? this.form.controls.deviceId2.value ?? '',
+        };
+    }
+
+    /**
+     * Fills both device ID fields with the StbEmu / stalker-to-m3u pair
+     * (`SHA256(MAC)` and `SHA256(MAC + "stalker")`, which a real box never
+     * reports as equal) — or empties them again.
+     *
+     * The derived values are written into the visible fields and persisted as
+     * literal strings, never recomputed at request time. `device_id` is pinned
+     * to the MAC by the portal on first use: a value that silently followed a
+     * later MAC edit would be refused as a device conflict, and one that
+     * silently disappeared would lock the account out for good.
+     */
+    async toggleDeriveDeviceIds(enabled: boolean): Promise<void> {
+        this.derivesDeviceIds.set(enabled);
+        const { deviceId1, deviceId2 } = this.form.controls;
+
+        if (!enabled) {
+            // Turning it off has to invalidate work already in flight, or the
+            // digest started a moment ago lands afterwards and writes the IDs
+            // straight back into the fields the user just opted out of —
+            // which then reach the portal and get pinned permanently.
+            this.invalidatePendingDerivation();
+            deviceId1.enable();
+            deviceId2.enable();
+            this.form.patchValue({ deviceId1: '', deviceId2: '' });
+            return;
+        }
+
+        deviceId1.disable();
+        deviceId2.disable();
+        // Through the same single-read path as blur and submit, so the MAC
+        // the IDs are derived from is never read twice.
+        await this.settleMacAddressIdentity();
+    }
+
+    /**
+     * Makes every derivation currently in flight a no-op.
+     *
+     * `applyDerivedDeviceIds` can only check the toggle before it awaits, so
+     * anything that stops the user from wanting derived IDs — unticking the
+     * box, clearing the form — has to invalidate the outstanding digest here
+     * as well. Otherwise it resolves into fields that were deliberately
+     * emptied, and the portal pins whatever the import then sends.
+     */
+    private invalidatePendingDerivation(): void {
+        this.deriveGeneration += 1;
+    }
+
+    /**
+     * Writes the derived pair into the form and returns it, or `null` when
+     * derivation is off or the result was superseded before it landed.
+     */
+    private async applyDerivedDeviceIds(
+        macAddress: string
+    ): Promise<StalkerDerivedDeviceIds | null> {
+        if (!this.derivesDeviceIds()) {
+            return null;
+        }
+
+        // Two edits in quick succession leave two digests in flight, and
+        // nothing guarantees they resolve in the order they were started. The
+        // generation stamp discards every completion but the newest, so the
+        // fields can never end up holding an older MAC's IDs.
+        const generation = ++this.deriveGeneration;
+        const derived = await deriveStalkerDeviceIdsFromMac(macAddress);
+
+        if (generation !== this.deriveGeneration) {
+            return null;
+        }
+
+        this.form.patchValue({
+            deviceId1: derived?.deviceId1 ?? '',
+            deviceId2: derived?.deviceId2 ?? '',
+        });
+
+        return derived;
+    }
+
     clearForm(): void {
+        // Same hazard as unticking the box: a digest still in flight would
+        // resolve into the freshly cleared form.
+        this.invalidatePendingDerivation();
+        this.derivesDeviceIds.set(false);
+        this.form.controls.deviceId1.enable();
+        this.form.controls.deviceId2.enable();
         this.form.reset({
             _id: createRandomId(),
             title: '',
@@ -113,14 +324,37 @@ export class StalkerPortalImportComponent {
         }
 
         this.isLoading.set(true);
+        // The identity is frozen for the duration: an edit made now cannot
+        // reach the portal (discovery has the snapshot) and cannot be undone
+        // on it either (`get_profile` pins what it was sent), so the fields
+        // must not invite one.
+        this.form.disable({ emitEvent: false });
 
         try {
+            // Before anything reads the form: clicking Add blurs the MAC
+            // field, so a derivation may still be in flight, and the pairing
+            // this produces is the one the portal pins forever. The MAC and
+            // the device IDs come back TOGETHER from one read — taking them
+            // from `getRawValue()` below would let an edit that landed during
+            // the digest pair a new MAC with the old MAC's IDs.
+            const identity = await this.settleMacAddressIdentity();
+            const macAddress = identity.macAddress;
+
+            // Authoritative for the rest of the import, and deliberately so:
+            // discovery below authenticates with exactly these values, and
+            // `get_profile` is what makes the portal pin them to the MAC.
+            // Re-reading the form after discovery — to pick up an edit made
+            // while it was running — would persist device IDs that differ
+            // from the ones already pinned, or none at all, and sending
+            // nothing after a value was pinned is the permanent lockout. The
+            // identity controls are locked while `isLoading()` so the UI
+            // cannot suggest otherwise.
             const formValue = this.form.getRawValue();
             const originalUrl = formValue.portalUrl ?? '';
             const stalkerIdentity = normalizeStalkerPortalIdentity({
                 serialNumber: formValue.serialNumber ?? undefined,
-                deviceId1: formValue.deviceId1 ?? undefined,
-                deviceId2: formValue.deviceId2 ?? undefined,
+                deviceId1: identity.deviceId1 || undefined,
+                deviceId2: identity.deviceId2 || undefined,
                 signature1: formValue.signature1 ?? undefined,
                 signature2: formValue.signature2 ?? undefined,
             });
@@ -132,7 +366,7 @@ export class StalkerPortalImportComponent {
             // rewrote `…/c` to a `portal.php` official Ministra never serves.
             const discovery = await this.portalDiscovery.discover(
                 originalUrl,
-                formValue.macAddress ?? '',
+                macAddress,
                 stalkerIdentity,
                 {
                     credentials: {
@@ -242,6 +476,9 @@ export class StalkerPortalImportComponent {
 
             const playlist: Playlist = {
                 ...playlistFormValue,
+                // Canonical form, so the stored MAC is the one that was
+                // validated against the portal a moment ago.
+                macAddress,
                 portalUrl,
                 isFullStalkerPortal,
                 stalkerToken,
@@ -255,22 +492,32 @@ export class StalkerPortalImportComponent {
                     ? {
                           stalkerSessionIdentity: stalkerSessionFingerprint({
                               portalUrl,
-                              macAddress: formValue.macAddress ?? '',
+                              macAddress,
                               username: formValue.username ?? '',
                               password: formValue.password ?? '',
-                              ...this.toPlaylistIdentityFields(stalkerIdentity),
+                              ...toStalkerPlaylistIdentityFields(
+                                  stalkerIdentity
+                              ),
                           } as Playlist),
                       }
                     : {}),
                 stalkerWatchdogTimeout,
                 stalkerTimeslot,
                 stalkerAccountInfo,
-                ...this.toPlaylistIdentityFields(stalkerIdentity),
+                ...toStalkerPlaylistIdentityFields(stalkerIdentity),
             } as Playlist;
 
             this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
             this.addClicked.emit();
         } finally {
+            this.form.enable({ emitEvent: false });
+            // `enable()` clears the derivation toggle's own lock on the
+            // device ID controls, so restore it for a form the user stays on
+            // after a refused import.
+            if (this.derivesDeviceIds()) {
+                this.form.controls.deviceId1.disable({ emitEvent: false });
+                this.form.controls.deviceId2.disable({ emitEvent: false });
+            }
             this.isLoading.set(false);
         }
     }
@@ -282,15 +529,9 @@ export class StalkerPortalImportComponent {
      */
     private buildAuthErrorMessage(error: unknown): string {
         const portalError = asStalkerPortalError(error);
-        const keyByKind: Record<StalkerPortalErrorKind, string> = {
-            'login-required': 'HOME.STALKER_PORTAL.LOGIN_REQUIRED',
-            'login-rejected': 'HOME.STALKER_PORTAL.LOGIN_REJECTED',
-            blocked: 'HOME.STALKER_PORTAL.PORTAL_REFUSED',
-            'auth-failed': 'HOME.STALKER_PORTAL.AUTH_FAILED',
-        };
         const base = this.translate.instant(
             portalError
-                ? keyByKind[portalError.kind]
+                ? STALKER_IMPORT_ERROR_KEY_BY_KIND[portalError.kind]
                 : 'HOME.STALKER_PORTAL.AUTH_FAILED'
         );
 
@@ -304,31 +545,4 @@ export class StalkerPortalImportComponent {
 
         return base;
     }
-
-    private toPlaylistIdentityFields(identity: StalkerPortalIdentity): {
-        stalkerSerialNumber?: string;
-        stalkerDeviceId1?: string;
-        stalkerDeviceId2?: string;
-        stalkerSignature1?: string;
-        stalkerSignature2?: string;
-    } {
-        return {
-            ...(identity.serialNumber
-                ? { stalkerSerialNumber: identity.serialNumber }
-                : {}),
-            ...(identity.deviceId1
-                ? { stalkerDeviceId1: identity.deviceId1 }
-                : {}),
-            ...(identity.deviceId2
-                ? { stalkerDeviceId2: identity.deviceId2 }
-                : {}),
-            ...(identity.signature1
-                ? { stalkerSignature1: identity.signature1 }
-                : {}),
-            ...(identity.signature2
-                ? { stalkerSignature2: identity.signature2 }
-                : {}),
-        };
-    }
-
 }

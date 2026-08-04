@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Tytuł",
             "MAC_ADDRESS": "Adres Mac",
+            "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Myślniki, kropki i małe litery zostaną poprawione automatycznie.",
+            "MAC_ADDRESS_OUI_HINT": "Ten adres jest spoza zakresu 00:1A:79 firmy Infomir. Większość portali akceptuje tylko ten zakres i bez wyjaśnienia odrzuca wszystkie inne adresy.",
+            "MAC_ADDRESS_ERROR": "Wprowadź adres MAC złożony z 12 znaków szesnastkowych, na przykład 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Numer seryjny (opcjonalnie)",
             "SERIAL_NUMBER_HINT": "Użyj, jeśli konto jest już zarejestrowane u dostawcy",
             "DEVICE_ID_1": "ID urządzenia 1 (opcjonalnie)",
             "DEVICE_ID_2": "ID urządzenia 2 (opcjonalnie)",
             "DEVICE_ID_HINT": "64 znaki szesnastkowe – użyj, jeśli dostawca wymaga konkretnego ID urządzenia",
+            "DERIVE_DEVICE_IDS": "Generowanie ID urządzenia na podstawie adresu MAC",
+            "DERIVE_DEVICE_IDS_HINT": "Daje tę samą wartość co StbEmu (SHA-256 adresu MAC). Portal zapamiętuje na stałe pierwsze otrzymane ID urządzenia i odrzuca każde kolejne, dlatego włącz tę opcję tylko dla adresu MAC, którego portal jeszcze nie widział, albo takiego, który jest już używany z ID wygenerowanym przez StbEmu.",
+            "DEVICE_ID_PINNED_WARNING": "Portal zapisał już ID urządzenia dla tego adresu MAC. Zmiana lub usunięcie tej wartości zablokuje dostęp do tego źródła, ponieważ portal akceptuje wyłącznie ID urządzenia, które otrzymał jako pierwsze.",
             "SIGNATURE_1": "Sygnatura 1 (opcjonalnie)",
             "SIGNATURE_2": "Sygnatura 2 (opcjonalnie)",
             "SIGNATURE_HINT": "64 znaki szesnastkowe – użyj, jeśli dostawca wymaga sygnatur weryfikacji urządzenia",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Ten portal wymaga loginu i hasła. Wypełnij pola nazwy użytkownika i hasła i spróbuj ponownie.",
             "LOGIN_REJECTED": "Portal odrzucił login i hasło.",
             "PORTAL_REFUSED": "Portal odmówił dostępu temu urządzeniu.",
+            "DEVICE_CONFLICT": "Portal ma zarejestrowane inne ID urządzenia dla tego adresu MAC.",
             "PORTAL_MESSAGE": "Portal zgłosił: {{message}}"
         },
         "FILTER_BY_NAME": "Filtruj według nazwy",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "Wybierz kategorię, aby zobaczyć treści"
             },
             "STALKER_LOGIN_REQUIRED": "Portal wymaga loginu i hasła. Zaimportuj portal ponownie i wypełnij pola nazwy użytkownika i hasła.",
+            "STALKER_DEVICE_CONFLICT": "Portal ma zarejestrowane inne ID urządzenia dla tego adresu MAC. Przywróć pierwotnie użyte ID urządzenia lub poproś dostawcę o zresetowanie urządzenia przypisanego do tego adresu MAC.",
             "PLAYLIST_SETTINGS": "Ustawienia listy odtwarzania",
             "HOME": "Strona główna",
             "DELETE": "Usuń"

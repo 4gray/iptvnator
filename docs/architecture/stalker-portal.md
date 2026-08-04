@@ -216,8 +216,9 @@ blank fields are not generated or forwarded to `get_profile`.
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
   and reused for initial auth, token refresh, retry auth, normal API requests,
   and same-origin playback headers.
-- Empty optional identity fields remain absent. IPTVnator must not generate a
-  device ID from the MAC address or duplicate `device_id2` from `device_id1`.
+- Empty optional identity fields remain absent. IPTVnator must never generate a
+  device ID behind the user's back, and must never duplicate `device_id2` from
+  `device_id1` on its own.
 - The legacy default serial value `BEDACD4569BAF` is treated as absent at
   runtime so older blank imports do not keep sending a synthetic serial number.
 - Playback headers use the same serial normalization, so the legacy default is
@@ -225,15 +226,182 @@ blank fields are not generated or forwarded to `get_profile`.
   playback requests do not synthesize `__cfduid`; when a real serial is
   present, same-origin playback uses a canonical 32-character `__cfduid`
   protocol cookie.
-- Generated MAG-like identity remains a future explicit setting. It must not be
-  the default because strict portals can bind accounts to the first device
-  fingerprint they receive.
 - Stalker workspace routes must initialize `StalkerStore` from a playlist object
   with an explicit `isFullStalkerPortal` mode. If the active route metadata is a
   lightweight playlist record without that field, the route session must load the
   full playlist by id before category/content resources run. Stalker auth
   metadata is independent from M3U playlist EPG metadata and must not depend on
   M3U-specific EPG fields.
+
+### MAC address normalization
+
+The MAC is canonicalized to the uppercase colon form a real STB sends
+(`normalizeStalkerMacAddress` in
+`libs/shared/interfaces/src/lib/stalker-mac-address.util.ts`), accepting
+hyphens, dots, embedded whitespace or no separator at all. The same module
+exports `validateStalkerMacAddressControl`, used as a form validator by the
+import dialog and the playlist-info edit dialog; it is typed structurally
+(`{ value: unknown }`) rather than as Angular's `ValidatorFn`, because this
+library is the contract layer the Electron main process imports and must stay
+framework-free.
+
+Normalization runs **only at the input boundary** — on blur and again on
+submit, in both dialogs. The submit pass is not redundant: clicking Add or
+pressing Enter inside the field submits without the field necessarily losing
+focus, so the blur handler never runs and the raw `00-1a-79-…` would be the
+value that gets persisted and sent. Stored MAC addresses are deliberately
+never rewritten on read:
+
+- the MAC is the account key, and the bytes an already-working playlist puts
+  in its `mac` cookie are the bytes that portal accepted;
+- rewriting them at the transport would move `stalkerSessionFingerprint` for
+  every existing playlist at once, with no user action and no way to opt out.
+
+An edit therefore *does* move the fingerprint and force a re-authentication.
+That is intended: the user changed the identity, and the field shows exactly
+what will be sent.
+
+Format validity is enforced; the Infomir OUI is **advisory only**. The stock
+server's MAC filter (`enable_mac_format_validation`) is on by default and only
+accepts `00:1A:79:XX:XX:XX`, answering a bare `{status: 1}` for anything else —
+which is why `hasInfomirMacOui` drives a hint on the import field. It must stay
+a hint: reseller panels, which is what most users actually run, do not check
+the format at all, so a large share of working installations use a non-Infomir
+MAC. Refusing one would stop those users adding or editing a portal that works
+for them. The mock encodes the same split (`enforceMacFormat` is set only on
+the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
+`stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
+endpoint and be refused *there*, not in the form.
+
+In the edit dialog **both** passes — blur and submit — normalize only a MAC the
+user actually changed, compared against the value the dialog was opened with
+(`isStalkerMacAddressEdited`). Renaming a playlist, or editing its EPG sources,
+must not rewrite a non-canonical MAC as a side effect: those bytes are what a
+permissive portal registered, and rewriting them would move the session
+fingerprint and re-authenticate under a spelling the portal never saw — the
+same reason a stored MAC is not rewritten on load.
+
+Guarding the submit pass alone is not enough, and this is the subtle part:
+tabbing through the dialog fires blur with no edit, and a blur that rewrites
+the control both marks the form dirty and makes the value differ from the
+stored one — which is precisely what the submit guard reads. The identity would
+then ride out on a title-only save.
+
+The edit dialog goes one step further: `createStalkerMacAddressValidator`
+grandfathers the value a playlist already stored. Before there was any
+validation the field accepted arbitrary text, and on a panel that ignores the
+MAC such a playlist works today — marking the form invalid on open would
+disable Save and strand the user's title, URL and EPG-source edits in the same
+dialog. Newly typed values are still held to the format.
+
+### Deriving device IDs from the MAC
+
+`deriveStalkerDeviceIdsFromMac` (`stalker-identity.utils.ts`) returns the pair
+StbEmu and `stalker-to-m3u` generate: uppercase hex `SHA256` of the canonical
+MAC for `device_id`, and of that MAC plus a `stalker` salt for `device_id2`.
+The import dialog offers it behind an opt-in checkbox that fills both fields.
+
+**The two values must differ.** On a real box they come from separate firmware
+calls (`gSTB.GetUID()` and `gSTB.GetUID('device_id', token)`) and are never
+equal, so an identical pair is a fingerprint no STB produces — and since the
+first non-empty value is pinned to the MAC permanently, it cannot be corrected
+afterwards. They are derived by one function returning both, so nothing can
+fill one without the other.
+
+The shape of that feature is dictated by the pinning semantics: the stock
+server binds the **first non-empty** `device_id`/`device_id2` it sees to the
+MAC permanently, refuses a different one as a device conflict, and treats a
+later empty value as a permanent lockout. Therefore:
+
+- the derived value is written into the **visible form fields** and persisted
+  as a literal string. Nothing recomputes it at request time, where a MAC edit
+  would silently re-derive it into a conflict;
+- the checkbox is offered at import only — the point where the identity is
+  being established for the first time — and is disabled when the user has
+  typed a device ID by hand;
+- while it is ticked, correcting the MAC re-derives, because nothing is pinned
+  until the import actually runs;
+- **derivation is asynchronous, and every way out of it is guarded.**
+  `applyDerivedDeviceIds` can only read the toggle before it awaits, so three
+  things protect what happens after:
+    - submitting re-runs `settleMacAddressIdentity()` and awaits it before
+      reading the form — clicking Add blurs the MAC field, so the blur's
+      `SHA256` is still in flight when the click handler runs, and a snapshot
+      taken then pairs the corrected MAC with the previous MAC's IDs;
+    - a generation stamp discards every completion but the newest, so two
+      edits in quick succession cannot leave the older pair in the fields;
+    - `invalidatePendingDerivation()` bumps that stamp whenever the user stops
+      wanting derived IDs — unticking the box, clearing the form — because an
+      outstanding digest would otherwise resolve into fields that were
+      deliberately emptied, and the import would pin IDs the user opted out
+      of.
+
+  All three are mutation-verified. Note the tests have to control when the
+  digest settles (hold it behind a gate, or delay the older invocation):
+  Node resolves digests this small in start order, so the naive versions pass
+  with the guards removed;
+- **the MAC and its device IDs travel as one value.**
+  `settleMacAddressIdentity()` reads the MAC once, before it awaits, and
+  returns it together with the IDs derived from exactly it; `addPlaylist()`
+  uses that triple rather than re-reading the form. Taking the MAC from
+  `getRawValue()` after the digest would ship a newly typed address paired
+  with the previous one's IDs, which the portal pins as a permanent device
+  conflict. The whole form is also frozen (`form.disable()`) for the duration
+  of an import and restored in `finally`, since an edit made then can neither
+  reach the portal nor be undone on it;
+- **the snapshot `addPlaylist()` takes is authoritative for the whole import,
+  by design.** Discovery authenticates with exactly those values, and
+  `get_profile` is what pins them to the MAC — so by the time a slow discovery
+  answers, the portal has already committed. Re-reading the form afterwards to
+  pick up a mid-flight edit would persist device IDs that differ from the
+  pinned ones, or none at all, and sending nothing after a value was pinned is
+  the permanent lockout. The identity toggle is therefore locked while
+  `isLoading()` rather than the submission being re-snapshotted: the UI must
+  not imply an opt-out that cannot exist;
+- an unusable MAC (or a runtime without WebCrypto) derives nothing rather than
+  hashing a typo into a permanent binding;
+- the playlist-info edit dialog offers no derivation. It shows
+  `DEVICE_ID_PINNED_WARNING` instead once a device ID has actually reached the
+  portal. **Storage is not transmission**: `device_id` travels only on
+  `get_profile`/`do_auth`, which a simple panel-style portal never runs, and
+  the import's offline fallback persists whatever was typed while recording
+  the playlist as simple. `hasStoredStalkerDeviceIds` therefore gates on
+  `isFullStalkerPortal` — telling those users a change "will lock this source
+  out" would be false and would discourage them from fixing an ID that was
+  never pinned.
+
+  **Known imprecision, deliberately not closed here.** The gate proves that
+  *some* device ID reached the portal, not that the currently stored one did:
+  a user who edits the ID after import keeps `isFullStalkerPortal` true while
+  the new value has never seen `get_profile`. The copy is hedged for exactly
+  that ("a device ID", not "this one") and the fields stay editable, so the
+  remedy — restoring the ID that was pinned — is never blocked. Making it
+  exact needs a per-identity confirmation signal;
+  `Playlist.stalkerSessionIdentity` already carries a session fingerprint that
+  would serve, but reading it here would make a `type:ui` playlist library
+  depend on the Stalker data-access lib, which the Nx boundaries forbid. Worth
+  revisiting behind a shared contract, not worth a boundary exception.
+
+The trade-off the option exists for is interoperability, not obfuscation: a
+user who reaches the same account from StbEmu already has this exact value
+pinned, and IPTVnator has to send it or be refused.
+
+### Reported device profile
+
+`get_profile` carries a fixed MAG250 description from
+`STALKER_STB_PROFILE_PARAMS`
+(`libs/shared/interfaces/src/lib/stalker-stb-profile.const.ts`): `ver`,
+`stb_type` (`MAG250`, previously sent as an empty string), `hw_version`,
+`image_version`, `client_type`, plus the `num_banks`/`video_out`/`hd` the
+request already carried. The stock middleware stores these for the admin panel
+and only an operator's optional `access_filter.php` inspects them, so they are
+free to send — but they must describe the same box as `metrics.model` and the
+`STALKER_MAG_USER_AGENT` header, or the profile reads as a forgery.
+
+They are constants, identical for every playlist, and deliberately excluded
+from `stalkerIdentityFingerprint` / `stalkerSessionFingerprint`: including them
+would invalidate every persisted session for no gain, since the portal binds
+nothing to them.
 
 ## Session Authentication Lifecycle
 
@@ -306,9 +474,11 @@ every start.
 
 - full profile / `status: 0` — OK; `watchdog_timeout` and `timeslot` are read
   for the watchdog cadence.
-- `status: 1` — blocked (device conflict, malformed MAC, disabled account).
+- `status: 1` — refused (device conflict, malformed MAC, disabled account).
   `msg`/`block_msg` carry the portal's own explanation; they are
-  markup-stripped, combined, and thrown as `StalkerPortalError('blocked')`.
+  markup-stripped, combined, and thrown as `StalkerPortalError`. The kind is
+  `device-conflict` when `isStalkerDeviceConflictMessage` matches the combined
+  text, otherwise `blocked` — see "Device conflicts" below.
 - `status: 2` — login/password required. The client runs `do_auth`
   (`login`, `password`, plus `device_id`/`device_id2` when configured) and
   retries `get_profile` with `auth_second_step=1`. Only that retry claims the
@@ -356,6 +526,26 @@ text is the retry's, since quoting the first profile back would describe a
 request that already succeeded. `do_auth` itself answers a bare `{js: false}`,
 so a rejection there keeps the profile's text — the one that asked for the
 login.
+
+### Device conflicts
+
+A device conflict is the one refusal with a concrete remedy, and the one where
+relaying the portal verbatim actively misleads: the stock server answers
+`{status: 1, msg: "device conflict — device_id mismatch", block_msg: "Your STB
+is damaged…"}`, and hardware failure is not what happened. It therefore gets
+its own `StalkerPortalErrorKind` and its own headline — the import dialog maps
+it to `HOME.STALKER_PORTAL.DEVICE_CONFLICT`, and the workspace context panel is
+the single place that overrides its otherwise kind-agnostic "portal text wins"
+rule: `PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT` leads, the portal's own
+sentence follows.
+
+`isStalkerDeviceConflictMessage` (`stalker-portal-error.ts`) matches a small
+phrase set against `msg`/`block_msg`. Two boundaries are deliberate: it reads a
+STRUCTURED field the middleware wrote, so a phrase set is safe here in a way it
+would not be against a raw HTML body (the asymmetry documented for
+`isStalkerAuthFailureBody`); and it stays narrow around the binding itself,
+because "device limit reached" or "no device selected" are different refusals
+and offering "restore your first device ID" for them is a dead end.
 
 ### Abandoning an authentication
 
@@ -1215,6 +1405,21 @@ branching and the cross-surface series contract live in:
 - `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.position-compatibility.spec.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.spec.ts`
 - `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.spec.ts`
+
+Identity hardening (MAC normalization, derived device IDs, the reported device
+profile and device-conflict classification) is covered by:
+
+- `libs/shared/interfaces/src/lib/stalker-mac-address.util.spec.ts`
+- `libs/shared/interfaces/src/lib/stalker-identity.utils.spec.ts`
+- `libs/portal/stalker/data-access/src/lib/stalker-portal-error.spec.ts`
+- `libs/portal/stalker/data-access/src/lib/stalker-auth.api.spec.ts`
+- `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.spec.ts`
+- `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.spec.ts`
+- `apps/web-e2e/src/stalker.e2e.ts` — "explains a device conflict instead of
+  relaying 'STB is damaged'", which pins a device ID through the proxy and then
+  imports with a different one. Its negative assertion (the generic "refused
+  access" headline must be absent) is what makes it fail if the classification
+  is removed; verified by mutation.
 
 Covered scenarios include:
 

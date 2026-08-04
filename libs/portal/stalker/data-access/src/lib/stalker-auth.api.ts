@@ -2,6 +2,7 @@ import type { DataService } from '@iptvnator/services';
 import {
     extractStalkerAuthFailureBody,
     STALKER_REQUEST,
+    STALKER_STB_PROFILE_PARAMS,
 } from '@iptvnator/shared/interfaces';
 import type { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -10,6 +11,7 @@ import {
 } from './stalker-identity.utils';
 import {
     combineStalkerPortalMessages,
+    isStalkerDeviceConflictMessage,
     StalkerPortalError,
 } from './stalker-portal-error';
 
@@ -278,11 +280,12 @@ export class StalkerAuthApi {
         const params: Record<string, string> = {
             type: 'stb',
             action: 'get_profile',
-            hd: '1',
+            // One coherent MAG250: firmware, hardware revision, image version
+            // and `stb_type` (which used to go out empty), alongside the
+            // `hd`/`video_out`/`num_banks` this request already carried.
+            ...STALKER_STB_PROFILE_PARAMS,
             not_valid_token: options.notValidToken ? '1' : '0',
-            video_out: 'hdmi',
             auth_second_step: options.authSecondStep ? '1' : '0',
-            num_banks: '2',
             metrics: JSON.stringify(metrics),
             ...(normalizedIdentity.serialNumber
                 ? { sn: normalizedIdentity.serialNumber }
@@ -300,7 +303,6 @@ export class StalkerAuthApi {
                 ? { signature2: normalizedIdentity.signature2 }
                 : {}),
             prehash: prehash,
-            stb_type: '',
             JsHttpRequest: '1-xml',
         };
 
@@ -538,7 +540,15 @@ export class StalkerAuthApi {
 
         if (toFiniteNumber(js?.status) === 1 || portalText) {
             this.logger.error('Profile error:', portalText ?? 'status 1');
-            throw new StalkerPortalError('blocked', portalText);
+            // A device conflict is the one refusal the user can act on, and
+            // the portal's own wording for it ("Your STB is damaged") points
+            // at the wrong problem entirely.
+            throw new StalkerPortalError(
+                isStalkerDeviceConflictMessage(portalText)
+                    ? 'device-conflict'
+                    : 'blocked',
+                portalText
+            );
         }
 
         return settled;

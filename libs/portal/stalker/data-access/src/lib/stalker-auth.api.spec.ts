@@ -48,6 +48,49 @@ describe('StalkerAuthApi', () => {
         );
     }
 
+    it('reports one coherent MAG250 in the profile request', async () => {
+        sendIpcEvent
+            .mockResolvedValueOnce({ js: { token: 'TOKEN-1', random: 'r1' } })
+            .mockResolvedValueOnce({ js: { status: 0 } });
+
+        await api.authenticate(portalUrl, macAddress);
+
+        const [profile] = callsByAction('get_profile');
+        expect(profile[1].params).toEqual(
+            expect.objectContaining({
+                // `stb_type` used to go out as an empty string.
+                stb_type: 'MAG250',
+                ver: expect.stringContaining('0.2.18-r14-pub-250'),
+                hw_version: '1.7-BD-00',
+                image_version: '218',
+                client_type: 'STB',
+                num_banks: '2',
+                video_out: 'hdmi',
+                hd: '1',
+            })
+        );
+        // Same box as the metrics payload and the MAG User-Agent header.
+        expect(JSON.parse(profile[1].params.metrics).model).toBe('MAG250');
+    });
+
+    it('keeps the box description out of the flow-control params', async () => {
+        // The constants are spread first, so a name collision would let them
+        // silently overwrite a computed value.
+        sendIpcEvent
+            .mockResolvedValueOnce({
+                js: { token: 'TOKEN-1', random: 'r1', not_valid: 1 },
+            })
+            .mockResolvedValueOnce({ js: { status: 0 } });
+
+        await api.authenticate(portalUrl, macAddress);
+
+        const [profile] = callsByAction('get_profile');
+        expect(profile[1].params.not_valid_token).toBe('1');
+        expect(profile[1].params.auth_second_step).toBe('0');
+        expect(profile[1].params.action).toBe('get_profile');
+        expect(profile[1].params.type).toBe('stb');
+    });
+
     it('walks the login-required flow: status 2 -> do_auth -> profile retry', async () => {
         sendIpcEvent
             .mockResolvedValueOnce({
@@ -188,7 +231,7 @@ describe('StalkerAuthApi', () => {
         });
     });
 
-    it('decodes a blocked profile into the portal explanation', async () => {
+    it('decodes a device conflict into its own kind', async () => {
         sendIpcEvent
             .mockResolvedValueOnce({
                 js: { token: 'TOKEN-1', random: 'r1' },
@@ -204,9 +247,33 @@ describe('StalkerAuthApi', () => {
         await expect(
             api.authenticate(portalUrl, macAddress)
         ).rejects.toMatchObject({
-            kind: 'blocked',
+            // Not `blocked`: this refusal has a remedy, and the portal's own
+            // "STB is damaged" wording actively points away from it.
+            kind: 'device-conflict',
             portalText:
                 'device conflict - device_id mismatch — Your STB is damaged. Call the provider.',
+        });
+    });
+
+    it('decodes any other blocked profile into the portal explanation', async () => {
+        sendIpcEvent
+            .mockResolvedValueOnce({
+                js: { token: 'TOKEN-1', random: 'r1' },
+            })
+            .mockResolvedValueOnce({
+                js: {
+                    status: 1,
+                    msg: 'Account disabled',
+                    block_msg: 'Contact your provider.<br/> Subscription ended.',
+                },
+            });
+
+        await expect(
+            api.authenticate(portalUrl, macAddress)
+        ).rejects.toMatchObject({
+            kind: 'blocked',
+            portalText:
+                'Account disabled — Contact your provider. Subscription ended.',
         });
     });
 
