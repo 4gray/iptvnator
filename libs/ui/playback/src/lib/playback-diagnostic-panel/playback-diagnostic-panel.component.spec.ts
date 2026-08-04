@@ -146,6 +146,7 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         fixture.componentRef.setInput('diagnostic', DIAGNOSTIC);
         fixture.componentRef.setInput('recommendations', []);
         fixture.componentRef.setInput('playback', PLAYBACK);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
     });
 
     it('applies the component host style from the actual panel stylesheet', () => {
@@ -432,12 +433,52 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         );
     });
 
-    it('derives native-player copy from actual ranked MPV or VLC entries', () => {
+    it('uses runtime capability for browser-access guidance without implying an external action', () => {
         const browserIssue: PlaybackDiagnostic = {
             ...DIAGNOSTIC,
             code: PlaybackDiagnosticCode.BrowserAccessError,
         };
         fixture.componentRef.setInput('diagnostic', browserIssue);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
+        fixture.componentRef.setInput('recommendations', []);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+        );
+        expect(fixture.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
+        );
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="playback-fallback-mpv"], [data-test-id="playback-fallback-vlc"]'
+            )
+        ).toBeNull();
+    });
+
+    it('uses PWA browser-access guidance when managed external players are unavailable', () => {
+        fixture.componentRef.setInput('diagnostic', {
+            ...DIAGNOSTIC,
+            code: PlaybackDiagnosticCode.BrowserAccessError,
+        });
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
+        fixture.componentRef.setInput('recommendations', []);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+        );
+        expect(fixture.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
+        );
+    });
+
+    it('uses a native headline only when an external player is ranked', () => {
+        fixture.componentRef.setInput('diagnostic', {
+            ...DIAGNOSTIC,
+            code: PlaybackDiagnosticCode.BrowserAccessError,
+        });
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.componentRef.setInput('recommendations', [
             recommendation('player', {
                 target: 'vlc',
@@ -453,16 +494,6 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
         );
-
-        fixture.componentRef.setInput('recommendations', []);
-        fixture.detectChanges();
-
-        expect(fixture.nativeElement.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
-        );
-        expect(fixture.nativeElement.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
-        );
     });
 
     it('does not infer external recovery copy for DRM without a ranked external target', () => {
@@ -470,6 +501,7 @@ describe('PlaybackDiagnosticPanelComponent', () => {
             ...DIAGNOSTIC,
             code: PlaybackDiagnosticCode.DrmOrEncryption,
         });
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.componentRef.setInput('recommendations', [
             recommendation('alternative-source', { priority: 'primary' }),
         ]);

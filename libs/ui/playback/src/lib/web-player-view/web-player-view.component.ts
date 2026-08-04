@@ -169,6 +169,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly recordingFolder = computed(
         () => this.settings()?.recordingFolder ?? ''
     );
+    get supportsManagedExternalPlayers(): boolean {
+        return this.runtime.supportsManagedExternalPlayers;
+    }
     readonly recommendations = computed(() => {
         const binding = this.activeBinding();
         const token = this.playbackApplicationToken();

@@ -203,6 +203,29 @@ describe('WebPlayerViewComponent recovery integration', () => {
         ]);
     });
 
+    it('keeps desktop browser-access guidance after external recommendations are exhausted', async () => {
+        await render();
+        vjs().playbackIssue.emit(browserAccessIssue('videojs'));
+        fixture.detectChanges();
+
+        click('playback-fallback-mpv');
+        fixture.detectChanges();
+        click('playback-fallback-vlc');
+        fixture.detectChanges();
+
+        const banner = query('playback-diagnostic-banner');
+        expect(banner?.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+        );
+        expect(banner?.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
+        );
+        expect(banner?.textContent).not.toContain(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
+        );
+        expect(playerActionIds()).toEqual([]);
+    });
+
     it('preserves attempts when the URL changes under the same content key', async () => {
         await render();
         vjs().playbackIssue.emit(mediaIssue('videojs'));
@@ -1088,5 +1111,12 @@ function networkIssue(player: 'videojs' | 'html5'): PlaybackDiagnostic {
     return {
         ...mediaIssue(player),
         code: PlaybackDiagnosticCode.NetworkError,
+    };
+}
+
+function browserAccessIssue(player: 'videojs' | 'html5'): PlaybackDiagnostic {
+    return {
+        ...mediaIssue(player),
+        code: PlaybackDiagnosticCode.BrowserAccessError,
     };
 }

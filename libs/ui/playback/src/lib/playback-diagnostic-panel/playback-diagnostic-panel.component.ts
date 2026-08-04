@@ -59,6 +59,7 @@ export class PlaybackDiagnosticPanelComponent {
     readonly recommendations =
         input.required<readonly PlaybackRecommendation[]>();
     readonly playback = input.required<ResolvedPortalPlayback>();
+    readonly supportsManagedExternalPlayers = input.required<boolean>();
     readonly alternativeSources = input<readonly VodSourceDescriptor[]>([]);
     readonly pending = input(false);
 
@@ -101,7 +102,7 @@ export class PlaybackDiagnosticPanelComponent {
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
         return getDiagnosticDescriptionKey(
             issue,
-            this.hasExternalPlayerRecommendation()
+            this.supportsManagedExternalPlayers()
         );
     }
 
