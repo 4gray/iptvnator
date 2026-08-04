@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Titolo",
             "MAC_ADDRESS": "Indirizzo MAC",
+            "MAC_ADDRESS_HINT": "Formato 00:1A:79:XX:XX:XX. Trattini, punti e lettere minuscole vengono corretti automaticamente.",
+            "MAC_ADDRESS_OUI_HINT": "Questo indirizzo non rientra nell'intervallo 00:1A:79 di Infomir. La maggior parte dei portali accetta solo quell'intervallo e rifiuta tutto il resto senza spiegarne il motivo.",
+            "MAC_ADDRESS_ERROR": "Inserisci un indirizzo MAC di 12 cifre esadecimali, ad esempio 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Numero di serie (opzionale)",
             "SERIAL_NUMBER_HINT": "Usa se già registrato presso il fornitore",
             "DEVICE_ID_1": "ID dispositivo 1 (opzionale)",
             "DEVICE_ID_2": "ID dispositivo 2 (opzionale)",
             "DEVICE_ID_HINT": "64 caratteri esadecimali — usa se il fornitore richiede un ID dispositivo specifico",
+            "DERIVE_DEVICE_IDS": "Genera gli ID dispositivo dall'indirizzo MAC",
+            "DERIVE_DEVICE_IDS_HINT": "Produce lo stesso valore di StbEmu (SHA-256 del MAC). Il portale registra in modo permanente il primo ID dispositivo che riceve e rifiuta tutti quelli successivi, quindi attiva questa opzione solo per un MAC che il portale non ha mai visto, oppure per uno che usi già con un ID generato da StbEmu.",
+            "DEVICE_ID_PINNED_WARNING": "Il portale ha già registrato un ID dispositivo per questo indirizzo MAC. Modificarlo o cancellarlo renderà inaccessibile questa sorgente, perché il portale accetta solo il primo ID dispositivo che ha ricevuto.",
             "SIGNATURE_1": "Firma 1 (opzionale)",
             "SIGNATURE_2": "Firma 2 (opzionale)",
             "SIGNATURE_HINT": "64 caratteri esadecimali — usa se il fornitore richiede firme di verifica del dispositivo",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Questo portale richiede nome utente e password. Compila i campi nome utente e password e riprova.",
             "LOGIN_REJECTED": "Il portale ha rifiutato il nome utente e la password.",
             "PORTAL_REFUSED": "Il portale ha negato l'accesso a questo dispositivo.",
+            "DEVICE_CONFLICT": "Il portale ha registrato un ID dispositivo diverso per questo indirizzo MAC.",
             "PORTAL_MESSAGE": "Il portale ha segnalato: {{message}}"
         },
         "FILTER_BY_NAME": "Filtra per nome",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "Seleziona una categoria per vedere i contenuti"
             },
             "STALKER_LOGIN_REQUIRED": "Il portale richiede nome utente e password. Importa di nuovo il portale e compila i campi nome utente e password.",
+            "STALKER_DEVICE_CONFLICT": "Il portale ha registrato un ID dispositivo diverso per questo indirizzo MAC. Ripristina l'ID dispositivo che hai usato inizialmente oppure chiedi al tuo fornitore di reimpostare il dispositivo associato a questo MAC.",
             "PLAYLIST_SETTINGS": "Impostazioni Playlist",
             "HOME": "Home",
             "DELETE": "Elimina"

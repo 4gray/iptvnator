@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "标题",
             "MAC_ADDRESS": "MAC 地址",
+            "MAC_ADDRESS_HINT": "格式为 00:1A:79:XX:XX:XX。连字符、点号和小写字母会自动更正。",
+            "MAC_ADDRESS_OUI_HINT": "此地址不在 Infomir 的 00:1A:79 范围内。多数门户只接受该范围内的地址，对其他地址会直接拒绝且不作说明。",
+            "MAC_ADDRESS_ERROR": "请输入 12 位十六进制的 MAC 地址，例如 00:1A:79:12:34:56。",
             "SERIAL_NUMBER": "序列号（可选）",
             "SERIAL_NUMBER_HINT": "如已在提供商处注册时使用",
             "DEVICE_ID_1": "设备 ID 1（可选）",
             "DEVICE_ID_2": "设备 ID 2（可选）",
             "DEVICE_ID_HINT": "64 位十六进制字符 — 如提供商需要特定设备 ID 时使用",
+            "DERIVE_DEVICE_IDS": "根据 MAC 地址生成设备 ID",
+            "DERIVE_DEVICE_IDS_HINT": "生成的值与 StbEmu 相同（MAC 地址的 SHA-256）。门户会锁定收到的第一个设备 ID，并拒绝之后的所有设备 ID；因此仅当该 MAC 地址从未被门户使用过，或本来就搭配 StbEmu 生成的 ID 使用时，才启用此项。",
+            "DEVICE_ID_PINNED_WARNING": "门户已为此 MAC 地址记录了设备 ID。修改或清空该 ID 会导致无法再访问此源，因为门户只接受最先收到的那个设备 ID。",
             "SIGNATURE_1": "签名 1（可选）",
             "SIGNATURE_2": "签名 2（可选）",
             "SIGNATURE_HINT": "64 位十六进制字符 — 如提供商需要设备验证签名时使用",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "此门户需要登录名和密码。请填写用户名和密码字段后重试。",
             "LOGIN_REJECTED": "门户拒绝了该登录名和密码。",
             "PORTAL_REFUSED": "门户拒绝了此设备的访问。",
+            "DEVICE_CONFLICT": "门户为此 MAC 地址注册的是另一个设备 ID。",
             "PORTAL_MESSAGE": "门户返回信息：{{message}}"
         },
         "FILTER_BY_NAME": "按名称筛选",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "请选择一个分类以查看内容"
             },
             "STALKER_LOGIN_REQUIRED": "门户需要登录名和密码。请重新导入该门户并填写用户名和密码字段。",
+            "STALKER_DEVICE_CONFLICT": "门户为此 MAC 地址注册的是另一个设备 ID。请恢复最初使用的设备 ID，或请提供商重置此 MAC 地址对应的设备。",
             "PLAYLIST_SETTINGS": "播放列表设置",
             "HOME": "首页",
             "DELETE": "删除"

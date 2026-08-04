@@ -1288,7 +1288,7 @@ describe('StalkerSessionService identity payloads', () => {
     });
 
     it('throws StalkerPortalError with the portal text when auth is refused', async () => {
-        // Blocked account: get_profile answers status 1 with msg/block_msg.
+        // Device conflict: get_profile answers status 1 with msg/block_msg.
         dataService.sendIpcEvent
             .mockResolvedValueOnce({
                 js: { token: 'token-1', random: 'random-1' },
@@ -1305,7 +1305,7 @@ describe('StalkerSessionService identity payloads', () => {
             service.authenticate(portalUrl, macAddress)
         ).rejects.toMatchObject({
             name: 'StalkerPortalError',
-            kind: 'blocked',
+            kind: 'device-conflict',
             portalText:
                 'device conflict - device_id mismatch — Your STB is damaged. Call the provider.',
         });

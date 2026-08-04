@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Titel",
             "MAC_ADDRESS": "Mac-Adresse",
+            "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Bindestriche, Punkte und Kleinbuchstaben werden automatisch korrigiert.",
+            "MAC_ADDRESS_OUI_HINT": "Diese Adresse liegt außerhalb des Infomir-Bereichs 00:1A:79. Die meisten Portale akzeptieren nur diesen Bereich und lehnen alles andere ohne Begründung ab.",
+            "MAC_ADDRESS_ERROR": "Geben Sie eine 12-stellige MAC-Adresse ein, zum Beispiel 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Seriennummer (optional)",
             "SERIAL_NUMBER_HINT": "Verwenden, wenn bereits beim Anbieter registriert",
             "DEVICE_ID_1": "Geräte-ID 1 (optional)",
             "DEVICE_ID_2": "Geräte-ID 2 (optional)",
             "DEVICE_ID_HINT": "64 Hex-Zeichen – verwenden, wenn der Anbieter eine bestimmte Geräte-ID verlangt",
+            "DERIVE_DEVICE_IDS": "Geräte-IDs aus der MAC-Adresse erzeugen",
+            "DERIVE_DEVICE_IDS_HINT": "Erzeugt denselben Wert wie StbEmu (SHA-256 der MAC-Adresse). Das Portal merkt sich dauerhaft die erste Geräte-ID, die es erhält, und lehnt jede spätere ab. Aktivieren Sie die Option deshalb nur für eine MAC-Adresse, die das Portal noch nie gesehen hat, oder für eine, die Sie bereits mit einer von StbEmu erzeugten ID verwenden.",
+            "DEVICE_ID_PINNED_WARNING": "Das Portal hat für diese MAC-Adresse bereits eine Geräte-ID gespeichert. Wenn Sie sie ändern oder löschen, sperren Sie sich aus dieser Quelle aus, denn das Portal akzeptiert nur die Geräte-ID, die es zuerst gesehen hat.",
             "SIGNATURE_1": "Signatur 1 (optional)",
             "SIGNATURE_2": "Signatur 2 (optional)",
             "SIGNATURE_HINT": "64 Hex-Zeichen – verwenden, wenn der Anbieter Geräte-Verifizierungssignaturen verlangt",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Dieses Portal erfordert Benutzername und Passwort. Füllen Sie die Felder Benutzername und Passwort aus und versuchen Sie es erneut.",
             "LOGIN_REJECTED": "Das Portal hat Benutzername und Passwort abgelehnt.",
             "PORTAL_REFUSED": "Das Portal hat den Zugriff für dieses Gerät verweigert.",
+            "DEVICE_CONFLICT": "Für diese MAC-Adresse ist im Portal eine andere Geräte-ID registriert.",
             "PORTAL_MESSAGE": "Das Portal meldet: {{message}}"
         },
         "FILTER_BY_NAME": "Nach Namen filtern",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "Bitte wählen Sie eine Kategorie aus, um den Inhalt anzuzeigen"
             },
             "STALKER_LOGIN_REQUIRED": "Das Portal erfordert Benutzername und Passwort. Importieren Sie das Portal erneut und füllen Sie die Felder Benutzername und Passwort aus.",
+            "STALKER_DEVICE_CONFLICT": "Für diese MAC-Adresse ist im Portal eine andere Geräte-ID registriert. Stellen Sie die zuerst verwendete Geräte-ID wieder her oder bitten Sie Ihren Anbieter, das für diese MAC-Adresse registrierte Gerät zurückzusetzen.",
             "PLAYLIST_SETTINGS": "Playlist-Einstellungen",
             "HOME": "Startseite",
             "DELETE": "Löschen"

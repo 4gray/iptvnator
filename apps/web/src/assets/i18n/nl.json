@@ -184,11 +184,17 @@
         "STALKER_PORTAL": {
             "TITLE": "Titel",
             "MAC_ADDRESS": "Mac adres",
+            "MAC_ADDRESS_HINT": "Formaat 00:1A:79:XX:XX:XX. Streepjes, punten en kleine letters worden automatisch voor je gecorrigeerd.",
+            "MAC_ADDRESS_OUI_HINT": "Dit adres valt buiten het 00:1A:79-bereik van Infomir. De meeste portalen accepteren alleen dat bereik en weigeren al het andere zonder uitleg.",
+            "MAC_ADDRESS_ERROR": "Voer een MAC-adres van 12 hex-tekens in, bijvoorbeeld 00:1A:79:12:34:56.",
             "SERIAL_NUMBER": "Serienummer (optioneel)",
             "SERIAL_NUMBER_HINT": "Gebruiken indien al geregistreerd bij de provider",
             "DEVICE_ID_1": "Apparaat-ID 1 (optioneel)",
             "DEVICE_ID_2": "Apparaat-ID 2 (optioneel)",
             "DEVICE_ID_HINT": "64 hex-tekens — gebruiken als de provider een specifieke apparaat-ID vereist",
+            "DERIVE_DEVICE_IDS": "Apparaat-ID's genereren uit het MAC-adres",
+            "DERIVE_DEVICE_IDS_HINT": "Levert dezelfde waarde op als StbEmu (SHA-256 van het MAC-adres). Het portaal legt de eerste apparaat-ID die het ontvangt definitief vast en weigert elke volgende, dus schakel dit alleen in voor een MAC-adres dat het portaal nog nooit heeft gezien, of voor een MAC-adres dat je al gebruikt met een door StbEmu gegenereerde ID.",
+            "DEVICE_ID_PINNED_WARNING": "Het portaal heeft al een apparaat-ID vastgelegd voor dit MAC-adres. Als je die wijzigt of wist, is deze bron niet meer toegankelijk, omdat het portaal alleen de apparaat-ID accepteert die het als eerste heeft gezien.",
             "SIGNATURE_1": "Handtekening 1 (optioneel)",
             "SIGNATURE_2": "Handtekening 2 (optioneel)",
             "SIGNATURE_HINT": "64 hex-tekens — gebruiken als de provider apparaatverificatiehandtekeningen vereist",
@@ -201,6 +207,7 @@
             "LOGIN_REQUIRED": "Dit portaal vereist een gebruikersnaam en wachtwoord. Vul de velden gebruikersnaam en wachtwoord in en probeer het opnieuw.",
             "LOGIN_REJECTED": "Het portaal heeft de gebruikersnaam en het wachtwoord geweigerd.",
             "PORTAL_REFUSED": "Het portaal heeft de toegang voor dit apparaat geweigerd.",
+            "DEVICE_CONFLICT": "Het portaal heeft een andere apparaat-ID geregistreerd voor dit MAC-adres.",
             "PORTAL_MESSAGE": "Het portaal meldde: {{message}}"
         },
         "FILTER_BY_NAME": "Filter op naam",
@@ -964,6 +971,7 @@
                 "DESCRIPTION": "Selecteer een categorie om de inhoud te bekijken"
             },
             "STALKER_LOGIN_REQUIRED": "Het portaal vereist een gebruikersnaam en wachtwoord. Importeer het portaal opnieuw en vul de velden gebruikersnaam en wachtwoord in.",
+            "STALKER_DEVICE_CONFLICT": "Het portaal heeft een andere apparaat-ID geregistreerd voor dit MAC-adres. Herstel de apparaat-ID die je als eerste hebt gebruikt, of vraag je provider om het apparaat voor dit MAC-adres te resetten.",
             "PLAYLIST_SETTINGS": "Afspeellijst instellingen",
             "HOME": "Home",
             "DELETE": "Verwijderen"

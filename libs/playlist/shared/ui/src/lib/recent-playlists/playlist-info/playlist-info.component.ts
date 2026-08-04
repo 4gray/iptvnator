@@ -32,9 +32,12 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    normalizeStalkerIdentityValue,
+    normalizeStalkerMacAddress,
     normalizeXtreamServerUrl,
     Playlist,
     PlaylistMeta,
+    validateStalkerMacAddressControl,
 } from '@iptvnator/shared/interfaces';
 import {
     normalizeEpgUrls,
@@ -80,6 +83,10 @@ const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
                 color: var(--mat-sys-on-surface-variant);
                 font-size: 12.5px;
                 line-height: 1.45;
+            }
+
+            mat-dialog-content p.stalker-device-id-warning {
+                color: var(--mat-sys-error);
             }
 
             .playlist-epg-sources {
@@ -195,6 +202,37 @@ export class PlaylistInfoComponent {
         return !this.playlist.serverUrl && !this.playlist.macAddress;
     }
 
+    /**
+     * True once a device ID has been sent to the portal at least once, which
+     * is the point of no return: the stock server pins the first non-empty
+     * `device_id`/`device_id2` to the MAC permanently, refuses a different one
+     * as a device conflict, and treats a later empty value as a lockout. The
+     * fields stay editable — a value that was never accepted may well need
+     * correcting — but the consequence has to be on screen.
+     */
+    get hasStoredStalkerDeviceIds(): boolean {
+        return Boolean(
+            normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId1) ??
+                normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId2)
+        );
+    }
+
+    /**
+     * Canonicalizes an edited MAC on blur, so the stored value is the one the
+     * portal's own format check accepts. Only an edit normalizes it: a stored
+     * MAC is never rewritten on load, since that would move the session
+     * fingerprint — and with it the account identity — with no user action.
+     */
+    onMacAddressBlur(): void {
+        const control = this.playlistDetails.get('macAddress');
+        const normalized = normalizeStalkerMacAddress(control?.value);
+
+        if (control && normalized && normalized !== control.value) {
+            control.setValue(normalized);
+            control.markAsDirty();
+        }
+    }
+
     get playlistEpgSourceInputs(): UntypedFormArray {
         return this.playlistDetails.get(
             'playlistEpgSourceInputs'
@@ -244,7 +282,10 @@ export class PlaylistInfoComponent {
             serverUrl: new FormControl(this.playlist.serverUrl),
             username: new FormControl(this.playlist.username),
             password: new FormControl(this.playlist.password),
-            macAddress: new FormControl(this.playlist.macAddress),
+            macAddress: new FormControl(
+                this.playlist.macAddress,
+                validateStalkerMacAddressControl
+            ),
             portalUrl: new FormControl(this.playlist.portalUrl),
             stalkerSerialNumber: new FormControl(
                 this.playlist.stalkerSerialNumber

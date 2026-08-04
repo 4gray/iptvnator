@@ -8,8 +8,13 @@ import type { StalkerAuthFailureBody } from '@iptvnator/shared/interfaces';
  * - `login-rejected` — `do_auth` answered `{js: false}` (the operator billing
  *   script refused the credentials), or the profile still demanded a login
  *   after a successful `do_auth`.
- * - `blocked` — `get_profile` answered `status: 1`: the account is blocked or
- *   the device identity conflicts. `msg`/`block_msg` explain why.
+ * - `device-conflict` — a `status: 1` refusal whose `msg` names the device
+ *   binding: the portal already pinned a different `device_id`/`device_id2` to
+ *   this MAC. Split out of `blocked` because it is the one refusal with a
+ *   concrete remedy, and because the portal's own words for it ("Your STB is
+ *   damaged") describe hardware failure rather than what actually happened.
+ * - `blocked` — any other `get_profile` `status: 1`: the account is disabled,
+ *   the MAC is unknown or malformed. `msg`/`block_msg` explain why.
  * - `auth-failed` — a request came back as one of the plain-text bodies
  *   (`Authorization failed.`, `Access denied.`, `Unauthorized request.`) and
  *   re-authentication did not recover it.
@@ -17,8 +22,39 @@ import type { StalkerAuthFailureBody } from '@iptvnator/shared/interfaces';
 export type StalkerPortalErrorKind =
     | 'login-required'
     | 'login-rejected'
+    | 'device-conflict'
     | 'blocked'
     | 'auth-failed';
+
+/**
+ * Device-conflict phrasings seen in the wild, matched against the portal's
+ * `msg`/`block_msg` — a STRUCTURED field the middleware wrote, so a phrase set
+ * is safe here in a way it would not be against a raw HTML body.
+ *
+ * Kept to the binding itself: "device" alone appears in unrelated refusals
+ * ("device limit reached", "no device selected"), and mislabelling one of
+ * those would hand the user a remedy that cannot work.
+ */
+const DEVICE_CONFLICT_PATTERNS: readonly RegExp[] = [
+    /device\s*conflict/i,
+    /device[\s_-]?id[^.!?]{0,40}?(mismatch|conflict|does\s*not\s*match|not\s*match)/i,
+];
+
+/**
+ * True when a `status: 1` refusal is the portal reporting that this MAC is
+ * already bound to a different device ID.
+ */
+export function isStalkerDeviceConflictMessage(
+    portalText: string | undefined
+): boolean {
+    if (!portalText) {
+        return false;
+    }
+
+    return DEVICE_CONFLICT_PATTERNS.some((pattern) =>
+        pattern.test(portalText)
+    );
+}
 
 /**
  * `block_msg` routinely carries markup ("Your STB is damaged.<br/> Call the

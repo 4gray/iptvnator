@@ -1,3 +1,4 @@
+import { webcrypto } from 'node:crypto';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
@@ -15,6 +16,23 @@ describe('StalkerPortalImportComponent identity handling', () => {
     let portalDiscovery: { discover: jest.Mock };
     let store: { dispatch: jest.Mock };
     let snackBar: { open: jest.Mock };
+
+    // jsdom ships no WebCrypto. Install Node's real implementation rather
+    // than a stub, so the derived device IDs asserted below are the values a
+    // portal would actually be handed.
+    const originalCrypto = globalThis.crypto;
+    beforeAll(() => {
+        Object.defineProperty(globalThis, 'crypto', {
+            configurable: true,
+            value: webcrypto,
+        });
+    });
+    afterAll(() => {
+        Object.defineProperty(globalThis, 'crypto', {
+            configurable: true,
+            value: originalCrypto,
+        });
+    });
 
     beforeEach(() => {
         portalDiscovery = {
@@ -326,6 +344,210 @@ describe('StalkerPortalImportComponent identity handling', () => {
                 portalUrl: 'https://panel.example.com/portal.php',
                 isFullStalkerPortal: false,
             })
+        );
+    });
+
+    describe('MAC address handling', () => {
+        it('canonicalizes the typed MAC on blur', async () => {
+            component.form.patchValue({ macAddress: '00-1a-79-ab-cd-ef' });
+
+            await component.onMacAddressBlur();
+
+            expect(component.form.controls.macAddress.value).toBe(
+                '00:1A:79:AB:CD:EF'
+            );
+        });
+
+        it('rejects a malformed MAC before anything reaches the portal', async () => {
+            component.form.patchValue({
+                _id: 'playlist-bad-mac',
+                title: 'Typo Portal',
+                macAddress: '00:1A:79:AA:BB',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+
+            expect(component.form.controls.macAddress.valid).toBe(false);
+
+            await component.addPlaylist();
+
+            expect(portalDiscovery.discover).not.toHaveBeenCalled();
+            expect(store.dispatch).not.toHaveBeenCalled();
+        });
+
+        it('canonicalizes a submitted MAC that was never blurred', async () => {
+            // Keyboard users can reach Add without the field losing focus.
+            component.form.patchValue({
+                _id: 'playlist-unblurred',
+                title: 'Panel',
+                macAddress: '001a79aabbcc',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+
+            await component.addPlaylist();
+
+            expect(portalDiscovery.discover).toHaveBeenCalledWith(
+                'https://portal.example.com/c',
+                '00:1A:79:AA:BB:CC',
+                expect.any(Object),
+                expect.any(Object)
+            );
+            expect(store.dispatch.mock.calls[0][0].playlist.macAddress).toBe(
+                '00:1A:79:AA:BB:CC'
+            );
+        });
+
+        it('hints only when the MAC is valid but outside the Infomir range', () => {
+            expect(component.showsForeignOuiHint).toBe(false);
+
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            expect(component.showsForeignOuiHint).toBe(false);
+
+            component.form.patchValue({ macAddress: '00:1B:79:AA:BB:CC' });
+            expect(component.showsForeignOuiHint).toBe(true);
+
+            // A half-typed address is an error, not an OUI warning.
+            component.form.patchValue({ macAddress: '00:1B' });
+            expect(component.showsForeignOuiHint).toBe(false);
+        });
+    });
+
+    describe('device ID derivation', () => {
+        // Uppercase hex SHA-256 of the canonical MAC — the value StbEmu and
+        // stalker-to-m3u pin server-side. Asserted literally: matching those
+        // clients byte for byte is the entire point of the option.
+        const DERIVED_FOR_AABBCC =
+            '21DA59C248805FDF0F36FA2C4CA4569E10D1F80268D8104C7AF8BB776D657ED8';
+
+        it('fills both device IDs with the StbEmu-compatible hash', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+
+            await component.toggleDeriveDeviceIds(true);
+
+            const derived = component.form.controls.deviceId1.value;
+            expect(derived).toBe(DERIVED_FOR_AABBCC);
+            expect(component.form.controls.deviceId2.value).toBe(derived);
+            // Derived values are shown, not hidden state — but they are not
+            // hand-editable while derivation owns them.
+            expect(component.form.controls.deviceId1.disabled).toBe(true);
+            expect(component.form.controls.deviceId2.disabled).toBe(true);
+        });
+
+        it('persists the derived ID as a literal value', async () => {
+            component.form.patchValue({
+                _id: 'playlist-derived',
+                title: 'Derived Portal',
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+            await component.toggleDeriveDeviceIds(true);
+            const derived = component.form.controls.deviceId1.value;
+
+            await component.addPlaylist();
+
+            // A disabled control still has to reach the playlist, and it has
+            // to arrive as a string — nothing may recompute it later, when a
+            // MAC edit would turn it into a device conflict.
+            const playlist = store.dispatch.mock.calls[0][0].playlist;
+            expect(playlist.stalkerDeviceId1).toBe(derived);
+            expect(playlist.stalkerDeviceId2).toBe(derived);
+        });
+
+        it('follows a corrected MAC while the box is still ticked', async () => {
+            // Nothing is pinned until the import actually runs, so fixing a
+            // typo has to fix the ID it would bind the account to.
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            await component.toggleDeriveDeviceIds(true);
+
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CD' });
+            await component.onMacAddressBlur();
+
+            expect(component.form.controls.deviceId1.value).toBe(
+                'A1474C4E43345F99C018F151C2D401A0231CFADC310E2514944641590F9C4504'
+            );
+        });
+
+        it('leaves the fields alone once the box is unticked', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            await component.toggleDeriveDeviceIds(true);
+            await component.toggleDeriveDeviceIds(false);
+
+            expect(component.form.controls.deviceId1.value).toBe('');
+            expect(component.form.controls.deviceId1.enabled).toBe(true);
+
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CD' });
+            await component.onMacAddressBlur();
+
+            expect(component.form.controls.deviceId1.value).toBe('');
+        });
+
+        it('refuses to overwrite a hand-entered device ID', () => {
+            expect(component.hasManualDeviceIds).toBe(false);
+
+            component.form.patchValue({ deviceId1: 'PROVIDER-SUPPLIED' });
+
+            expect(component.hasManualDeviceIds).toBe(true);
+        });
+
+        it('derives nothing while the MAC is unusable', async () => {
+            component.form.patchValue({ macAddress: 'not-a-mac' });
+
+            await component.toggleDeriveDeviceIds(true);
+
+            // Hashing a typo would pin the account to it permanently.
+            expect(component.form.controls.deviceId1.value).toBe('');
+            expect(component.form.controls.deviceId2.value).toBe('');
+        });
+
+        it('clears derivation state on form reset', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            await component.toggleDeriveDeviceIds(true);
+
+            component.clearForm();
+
+            expect(component.derivesDeviceIds()).toBe(false);
+            expect(component.form.controls.deviceId1.enabled).toBe(true);
+            expect(component.form.controls.deviceId1.value).toBe('');
+        });
+
+        it('is deterministic across input formatting', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            await component.toggleDeriveDeviceIds(true);
+            const canonical = component.form.controls.deviceId1.value;
+
+            component.form.patchValue({ macAddress: '00-1a-79-aa-bb-cc' });
+            await component.onMacAddressBlur();
+
+            expect(canonical).toBe(DERIVED_FOR_AABBCC);
+            expect(component.form.controls.deviceId1.value).toBe(canonical);
+        });
+    });
+
+    it('gives a device conflict its own headline', async () => {
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'auth-rejected',
+            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            error: new StalkerPortalError(
+                'device-conflict',
+                'device conflict - device_id mismatch'
+            ),
+        });
+        component.form.patchValue({
+            _id: 'playlist-conflict',
+            title: 'Conflicting Portal',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        await component.addPlaylist();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'HOME.STALKER_PORTAL.DEVICE_CONFLICT HOME.STALKER_PORTAL.PORTAL_MESSAGE',
+            undefined,
+            expect.any(Object)
         );
     });
 

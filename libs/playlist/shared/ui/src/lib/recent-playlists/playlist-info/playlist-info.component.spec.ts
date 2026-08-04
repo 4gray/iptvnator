@@ -566,6 +566,87 @@ describe('PlaylistInfoComponent', () => {
         );
     });
 
+    describe('Stalker identity fields', () => {
+        function createStalkerComponent(
+            overrides: Partial<Playlist> = {}
+        ): void {
+            TestBed.overrideProvider(MAT_DIALOG_DATA, {
+                useValue: {
+                    ...playlist,
+                    url: undefined,
+                    portalUrl: 'https://portal.example.com/c',
+                    macAddress: '00:1a:79:aa:bb:cc',
+                    ...overrides,
+                } as Playlist & { id: string },
+            });
+            createComponent();
+            fixture.detectChanges();
+        }
+
+        it('canonicalizes an edited MAC on blur', () => {
+            createStalkerComponent();
+            const control = component.playlistDetails.get('macAddress');
+            control?.setValue('00-1a-79-ab-cd-ef');
+
+            component.onMacAddressBlur();
+
+            expect(control?.value).toBe('00:1A:79:AB:CD:EF');
+            // The rewrite is a change the user has to save deliberately.
+            expect(control?.dirty).toBe(true);
+        });
+
+        it('leaves a stored MAC untouched until it is edited', () => {
+            // Loading the dialog must not move the session fingerprint: the
+            // stored lowercase MAC is what the portal already accepted.
+            createStalkerComponent();
+
+            expect(component.playlistDetails.get('macAddress')?.value).toBe(
+                '00:1a:79:aa:bb:cc'
+            );
+            expect(component.playlistDetails.pristine).toBe(true);
+        });
+
+        it('refuses to save a malformed MAC', () => {
+            createStalkerComponent();
+            const control = component.playlistDetails.get('macAddress');
+
+            control?.setValue('00:1A:79:AA:BB');
+
+            expect(control?.valid).toBe(false);
+            expect(component.playlistDetails.valid).toBe(false);
+        });
+
+        it('does not warn about a pinning that has not happened', () => {
+            createStalkerComponent();
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(false);
+            expect(fixture.nativeElement.textContent).not.toContain(
+                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+            );
+        });
+
+        it('treats a blank stored device ID as never sent', () => {
+            createStalkerComponent({ stalkerDeviceId2: '   ' });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(false);
+        });
+
+        it('warns once a device ID has been pinned', () => {
+            createStalkerComponent({ stalkerDeviceId1: 'ABCDEF' });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(true);
+            expect(fixture.nativeElement.textContent).toContain(
+                'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+            );
+        });
+
+        it('warns when only the second device ID is pinned', () => {
+            createStalkerComponent({ stalkerDeviceId2: 'FEDCBA' });
+
+            expect(component.hasStoredStalkerDeviceIds).toBe(true);
+        });
+    });
+
     it('falls back to browser download when desktop file saving is unavailable', async () => {
         const clickSpy = jest
             .spyOn(HTMLAnchorElement.prototype, 'click')

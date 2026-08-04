@@ -21,14 +21,29 @@
             </mat-form-field>
         }
         @if (playlist.macAddress) {
-            <mat-form-field class="w-full">
+            <mat-form-field class="w-full" subscriptSizing="dynamic">
                 <mat-label>{{
                     'HOME.PLAYLISTS.INFO_DIALOG.MAC_ADDRESS' | translate
                 }}</mat-label>
-                <input matInput formControlName="macAddress" />
+                <input
+                    matInput
+                    formControlName="macAddress"
+                    (blur)="onMacAddressBlur()"
+                />
+                <mat-error>{{
+                    'HOME.STALKER_PORTAL.MAC_ADDRESS_ERROR' | translate
+                }}</mat-error>
             </mat-form-field>
         }
         @if (playlist.portalUrl) {
+            @if (hasStoredStalkerDeviceIds) {
+                <p class="stalker-device-id-warning">
+                    {{
+                        'HOME.STALKER_PORTAL.DEVICE_ID_PINNED_WARNING'
+                            | translate
+                    }}
+                </p>
+            }
             <mat-form-field class="w-full">
                 <mat-label>{{
                     'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
