@@ -46,7 +46,11 @@ import {
     PlaybackRecoverySession,
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
-import { createWebPlayerApplicationState } from './web-player-application-state';
+import {
+    createWebPlayerApplicationState,
+    type WebPlayerApplicationToken,
+    type WebPlayerSourceRevisionToken,
+} from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import {
     createWebPlayerRecommendations,
@@ -59,6 +63,14 @@ function resolveWebPlayerSharedControls(): boolean {
     return typeof storedValue === 'boolean'
         ? storedValue
         : WEB_PLAYER_SHARED_CONTROLS_ENABLED;
+}
+
+interface PlaybackApplicationOwnership {
+    readonly binding: PlaybackBinding | null;
+    readonly embeddedMpv: boolean;
+    readonly isLive: boolean;
+    readonly sourceRevision: WebPlayerSourceRevisionToken;
+    readonly token: WebPlayerApplicationToken;
 }
 
 @Component({
@@ -189,9 +201,25 @@ export class WebPlayerViewComponent implements OnDestroy {
             alternativeSourceCount: this.alternativeSources().length,
         });
     });
-    readonly renderedBindings = computed<readonly PlaybackBinding[]>(() => {
+    readonly renderedApplications = computed<
+        readonly PlaybackApplicationOwnership[]
+    >(() => {
         const binding = this.activeBinding();
-        return binding ? [binding] : [];
+        const embeddedMpv =
+            this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
+        if (!binding && !embeddedMpv) {
+            return [];
+        }
+
+        return [
+            Object.freeze({
+                binding,
+                embeddedMpv,
+                isLive: this.resolvedIsLive(),
+                sourceRevision: this.playbackSourceRevisionToken(),
+                token: this.playbackApplicationToken(),
+            }),
+        ];
     });
 
     constructor() {
@@ -269,8 +297,15 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.playbackFailed.emit(issue.code);
     }
 
-    handleTimeUpdate(event: { currentTime: number; duration: number }): void {
-        this.recoverySession.recordTimeUpdate(event, this.resolvedIsLive());
+    handleTimeUpdate(
+        event: { currentTime: number; duration: number },
+        ownership: PlaybackApplicationOwnership
+    ): void {
+        if (!this.ownsPlaybackApplication(ownership)) {
+            return;
+        }
+
+        this.recoverySession.recordTimeUpdate(event, ownership.isLive);
         this.timeUpdate.emit(event);
     }
 
@@ -312,5 +347,26 @@ export class WebPlayerViewComponent implements OnDestroy {
         if (untracked(() => this.recoverySession.syncSession(sessionKey))) {
             this.playbackDiagnostic.set(null);
         }
+    }
+
+    private ownsPlaybackApplication(
+        ownership: PlaybackApplicationOwnership
+    ): boolean {
+        if (
+            ownership.token !== this.playbackApplicationToken() ||
+            ownership.sourceRevision !== this.playbackSourceRevisionToken()
+        ) {
+            return false;
+        }
+        if (ownership.binding) {
+            return (
+                !ownership.embeddedMpv &&
+                this.applicationHandoff.owns(ownership.binding, ownership.token)
+            );
+        }
+        return (
+            ownership.embeddedMpv &&
+            this.selectedPlayer() === VideoPlayer.EmbeddedMpv
+        );
     }
 }

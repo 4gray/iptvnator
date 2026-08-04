@@ -624,7 +624,10 @@ applications also advance a second fieldless source-revision `Symbol` that
 resets the VOD handoff position; target-only switches and Retry leave that
 revision stable. None of these ownership objects embed source material, and
 recovery ownership state never stores URLs, headers, DRM keys, error payloads,
-or credentials.
+or credentials. Each rendered web or Embedded MPV application captures the
+nullable binding, both opaque tokens, and its live/VOD flag. A time update can
+change the resume position only while that exact capture still owns the current
+application, so a replaced source cannot repopulate cleared handoff state.
 
 Selecting a built-in recommendation records the target, clears the diagnostic,
 and installs a temporary local override ahead of the host override and saved

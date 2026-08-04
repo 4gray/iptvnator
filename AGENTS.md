@@ -256,8 +256,11 @@ Key files:
   fieldless opaque `Symbol` token. Source applications also advance a second
   fieldless revision `Symbol` that clears only the VOD handoff position;
   target-only switches and Retry leave it stable. None of these ownership
-  primitives contains URLs, headers, DRM material, or credentials. A
-  recommended built-in player temporarily
+  primitives contains URLs, headers, DRM material, or credentials. Each
+  rendered web or Embedded MPV application captures its nullable binding, both
+  tokens, and live/VOD flag; a time update changes resume state only while that
+  exact capture still owns the current application. A recommended built-in
+  player temporarily
   outranks the host override and saved player for that mounted content session,
   never mutates `Settings.player`, and resumes finite VOD position on a
   best-effort basis; live playback returns to the live edge. Retry and

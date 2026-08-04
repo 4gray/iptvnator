@@ -320,6 +320,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         await fixture.whenStable();
         fixture.detectChanges();
         expect(html5().startTime()).toBe(48);
+        const sourceAOwnership = captureTimeUpdateOwnership();
 
         setPlayback({
             streamUrl: 'https://example.com/program-b.m3u8',
@@ -330,12 +331,48 @@ describe('WebPlayerViewComponent recovery integration', () => {
         fixture.detectChanges();
 
         expect(html5().startTime()).toBe(0);
+        deliverTimeUpdate({ currentTime: 79, duration: 120 }, sourceAOwnership);
+        component.retryPlayback();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(html5().startTime()).toBe(0);
+
         html5().playbackIssue.emit(mediaIssue('html5', 'program-b.m3u8'));
         fixture.detectChanges();
         expect(playerActionIds()).toEqual([
             'playback-fallback-mpv',
             'playback-fallback-vlc',
         ]);
+    });
+
+    it('rejects a late live Embedded MPV time update after a same-key VOD source replaces it', async () => {
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.EmbeddedMpv
+        );
+        setPlayback({
+            streamUrl: 'https://example.com/live-program.m3u8',
+            isLive: true,
+        });
+        await render();
+        const sourceAOwnership = captureTimeUpdateOwnership();
+
+        setPlayback({
+            streamUrl: 'https://example.com/vod-program.m3u8',
+            isLive: false,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        deliverTimeUpdate({ currentTime: 91, duration: 120 }, sourceAOwnership);
+
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(vjs().startTime()).toBe(0);
     });
 
     it('preserves the latest VOD position across a same-source retry', async () => {
@@ -543,13 +580,22 @@ describe('WebPlayerViewComponent recovery integration', () => {
         };
         const applicationToken = tokens.playbackApplicationToken?.();
         const sourceRevisionToken = tokens.playbackSourceRevisionToken?.();
+        const ownership = captureTimeUpdateOwnership();
         expect(applicationToken).toBeDefined();
         expect(sourceRevisionToken).toBeDefined();
         expect(typeof applicationToken).toBe('symbol');
         expect(typeof sourceRevisionToken).toBe('symbol');
         expect(Reflect.ownKeys(Object(applicationToken))).toEqual([]);
         expect(Reflect.ownKeys(Object(sourceRevisionToken))).toEqual([]);
-        const inspected = `${String(applicationToken)} ${String(sourceRevisionToken)} ${JSON.stringify({ applicationToken, sourceRevisionToken })}`;
+        expect(Object.isFrozen(ownership)).toBe(true);
+        expect(Object.keys(ownership)).toEqual([
+            'binding',
+            'embeddedMpv',
+            'isLive',
+            'sourceRevision',
+            'token',
+        ]);
+        const inspected = `${String(applicationToken)} ${String(sourceRevisionToken)} ${JSON.stringify({ applicationToken, sourceRevisionToken, ownership })}`;
         for (const sentinel of sentinels) {
             expect(inspected).not.toContain(sentinel);
         }
@@ -1088,6 +1134,34 @@ describe('WebPlayerViewComponent recovery integration', () => {
                 '.web-player-diagnostic__player-card'
             ) as NodeListOf<HTMLElement>
         ).map((element) => element.dataset['testId'] ?? '');
+    }
+
+    interface TestTimeUpdateOwnership {
+        readonly binding: unknown;
+        readonly embeddedMpv: boolean;
+        readonly isLive: boolean;
+        readonly sourceRevision: symbol;
+        readonly token: symbol;
+    }
+
+    function captureTimeUpdateOwnership(): TestTimeUpdateOwnership {
+        const ownership = component.renderedApplications()[0];
+        expect(ownership).toBeDefined();
+        if (!ownership) {
+            throw new Error('Expected a rendered playback application');
+        }
+        return ownership;
+    }
+
+    function deliverTimeUpdate(
+        event: { readonly currentTime: number; readonly duration: number },
+        ownership: TestTimeUpdateOwnership
+    ): void {
+        const handler = component.handleTimeUpdate as unknown as (
+            event: { readonly currentTime: number; readonly duration: number },
+            ownership: TestTimeUpdateOwnership
+        ) => void;
+        handler.call(component, event, ownership);
     }
 });
 
