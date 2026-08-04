@@ -398,6 +398,34 @@ describe('StalkerPortalImportComponent identity handling', () => {
             );
         });
 
+        it('imports a MAC outside the Infomir range', async () => {
+            // The stock portal's OUI filter is off on most reseller panels, so
+            // a non-Infomir MAC is a working setup for a lot of users. The
+            // hint explains what stock Ministra will do; it must not block.
+            component.form.patchValue({
+                _id: 'playlist-foreign-oui',
+                title: 'Reseller Panel',
+                macAddress: 'AA:BB:CC:DD:EE:01',
+                portalUrl: 'https://panel.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+
+            expect(component.form.controls.macAddress.valid).toBe(true);
+            expect(component.showsForeignOuiHint).toBe(true);
+
+            await component.addPlaylist();
+
+            expect(portalDiscovery.discover).toHaveBeenCalledWith(
+                'https://panel.example.com/c',
+                'AA:BB:CC:DD:EE:01',
+                expect.any(Object),
+                expect.any(Object)
+            );
+            expect(store.dispatch.mock.calls[0][0].playlist.macAddress).toBe(
+                'AA:BB:CC:DD:EE:01'
+            );
+        });
+
         it('hints only when the MAC is valid but outside the Infomir range', () => {
             expect(component.showsForeignOuiHint).toBe(false);
 
@@ -414,27 +442,41 @@ describe('StalkerPortalImportComponent identity handling', () => {
     });
 
     describe('device ID derivation', () => {
-        // Uppercase hex SHA-256 of the canonical MAC — the value StbEmu and
-        // stalker-to-m3u pin server-side. Asserted literally: matching those
-        // clients byte for byte is the entire point of the option.
-        const DERIVED_FOR_AABBCC =
-            '21DA59C248805FDF0F36FA2C4CA4569E10D1F80268D8104C7AF8BB776D657ED8';
+        // Uppercase hex SHA-256 of the canonical MAC, and of that MAC plus
+        // the `stalker` salt — the values StbEmu and stalker-to-m3u pin
+        // server-side. Asserted literally: matching those clients byte for
+        // byte is the entire point of the option.
+        const DERIVED_FOR_AABBCC = {
+            deviceId1:
+                '21DA59C248805FDF0F36FA2C4CA4569E10D1F80268D8104C7AF8BB776D657ED8',
+            deviceId2:
+                'C6BA0906206A93A6CC4B6C2E94AC92EBC1A217784B692979DB373FABE0B3D2F5',
+        };
 
-        it('fills both device IDs with the StbEmu-compatible hash', async () => {
+        it('fills both device IDs with the StbEmu-compatible pair', async () => {
             component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
 
             await component.toggleDeriveDeviceIds(true);
 
-            const derived = component.form.controls.deviceId1.value;
-            expect(derived).toBe(DERIVED_FOR_AABBCC);
-            expect(component.form.controls.deviceId2.value).toBe(derived);
+            expect(component.form.controls.deviceId1.value).toBe(
+                DERIVED_FOR_AABBCC.deviceId1
+            );
+            // A real box reports the two from separate firmware calls and they
+            // are never equal; the portal pins them permanently, so an
+            // identical pair could not be corrected later.
+            expect(component.form.controls.deviceId2.value).toBe(
+                DERIVED_FOR_AABBCC.deviceId2
+            );
+            expect(component.form.controls.deviceId2.value).not.toBe(
+                component.form.controls.deviceId1.value
+            );
             // Derived values are shown, not hidden state — but they are not
             // hand-editable while derivation owns them.
             expect(component.form.controls.deviceId1.disabled).toBe(true);
             expect(component.form.controls.deviceId2.disabled).toBe(true);
         });
 
-        it('persists the derived ID as a literal value', async () => {
+        it('persists the derived IDs as literal values', async () => {
             component.form.patchValue({
                 _id: 'playlist-derived',
                 title: 'Derived Portal',
@@ -443,16 +485,19 @@ describe('StalkerPortalImportComponent identity handling', () => {
                 importDate: '2026-05-15T00:00:00.000Z',
             });
             await component.toggleDeriveDeviceIds(true);
-            const derived = component.form.controls.deviceId1.value;
 
             await component.addPlaylist();
 
-            // A disabled control still has to reach the playlist, and it has
-            // to arrive as a string — nothing may recompute it later, when a
-            // MAC edit would turn it into a device conflict.
+            // Disabled controls still have to reach the playlist, and they
+            // have to arrive as strings — nothing may recompute them later,
+            // when a MAC edit would turn them into a device conflict.
             const playlist = store.dispatch.mock.calls[0][0].playlist;
-            expect(playlist.stalkerDeviceId1).toBe(derived);
-            expect(playlist.stalkerDeviceId2).toBe(derived);
+            expect(playlist.stalkerDeviceId1).toBe(
+                DERIVED_FOR_AABBCC.deviceId1
+            );
+            expect(playlist.stalkerDeviceId2).toBe(
+                DERIVED_FOR_AABBCC.deviceId2
+            );
         });
 
         it('follows a corrected MAC while the box is still ticked', async () => {
@@ -466,6 +511,9 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
             expect(component.form.controls.deviceId1.value).toBe(
                 'A1474C4E43345F99C018F151C2D401A0231CFADC310E2514944641590F9C4504'
+            );
+            expect(component.form.controls.deviceId2.value).toBe(
+                'EF401CECA8498585809B8D0FC20640A51148B72343D39DBC0A442AD26ED7A8DD'
             );
         });
 
@@ -520,7 +568,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
             component.form.patchValue({ macAddress: '00-1a-79-aa-bb-cc' });
             await component.onMacAddressBlur();
 
-            expect(canonical).toBe(DERIVED_FOR_AABBCC);
+            expect(canonical).toBe(DERIVED_FOR_AABBCC.deviceId1);
             expect(component.form.controls.deviceId1.value).toBe(canonical);
         });
     });

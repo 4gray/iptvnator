@@ -616,6 +616,39 @@ describe('PlaylistInfoComponent', () => {
             expect(component.playlistDetails.valid).toBe(false);
         });
 
+        it('keeps a MAC outside the Infomir range saveable', () => {
+            // Most reseller panels do not run the stock OUI filter, so this is
+            // a working configuration — the import hint explains the risk, the
+            // form must not block it.
+            createStalkerComponent({ macAddress: 'AA:BB:CC:DD:EE:01' });
+
+            expect(component.playlistDetails.get('macAddress')?.valid).toBe(
+                true
+            );
+        });
+
+        it('grandfathers a stored MAC it would now reject', () => {
+            // Before this validation existed the field accepted anything, and
+            // on a panel that ignores the MAC such a playlist works. Blocking
+            // Save would also strand the title, URL and EPG edits in the same
+            // dialog.
+            createStalkerComponent({ macAddress: 'legacy-device-42' });
+
+            expect(component.playlistDetails.get('macAddress')?.valid).toBe(
+                true
+            );
+            expect(component.playlistDetails.valid).toBe(true);
+        });
+
+        it('still refuses a newly typed malformed MAC on a grandfathered playlist', () => {
+            createStalkerComponent({ macAddress: 'legacy-device-42' });
+            const control = component.playlistDetails.get('macAddress');
+
+            control?.setValue('legacy-device-43');
+
+            expect(control?.valid).toBe(false);
+        });
+
         it('does not warn about a pinning that has not happened', () => {
             createStalkerComponent();
 

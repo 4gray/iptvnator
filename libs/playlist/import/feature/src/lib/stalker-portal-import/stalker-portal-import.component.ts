@@ -24,7 +24,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import {
     createRandomId,
-    deriveStalkerDeviceIdFromMac,
+    deriveStalkerDeviceIdsFromMac,
     hasInfomirMacOui,
     isFullStalkerPortalUrl,
     normalizeStalkerMacAddress,
@@ -157,11 +157,12 @@ export class StalkerPortalImportComponent {
     }
 
     /**
-     * Fills both device ID fields with `SHA256(MAC)` — the value StbEmu and
-     * stalker-to-m3u send — or empties them again.
+     * Fills both device ID fields with the StbEmu / stalker-to-m3u pair
+     * (`SHA256(MAC)` and `SHA256(MAC + "stalker")`, which a real box never
+     * reports as equal) — or empties them again.
      *
-     * The derived value is written into the visible fields and persisted as a
-     * literal string, never recomputed at request time. `device_id` is pinned
+     * The derived values are written into the visible fields and persisted as
+     * literal strings, never recomputed at request time. `device_id` is pinned
      * to the MAC by the portal on first use: a value that silently followed a
      * later MAC edit would be refused as a device conflict, and one that
      * silently disappeared would lock the account out for good.
@@ -187,12 +188,14 @@ export class StalkerPortalImportComponent {
             return;
         }
 
-        const derived =
-            (await deriveStalkerDeviceIdFromMac(
-                this.form.controls.macAddress.value
-            )) ?? '';
+        const derived = await deriveStalkerDeviceIdsFromMac(
+            this.form.controls.macAddress.value
+        );
 
-        this.form.patchValue({ deviceId1: derived, deviceId2: derived });
+        this.form.patchValue({
+            deviceId1: derived?.deviceId1 ?? '',
+            deviceId2: derived?.deviceId2 ?? '',
+        });
     }
 
     clearForm(): void {

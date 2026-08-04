@@ -63,7 +63,11 @@ export const STALKER_MAC_ADDRESS_ERROR = 'stalkerMacAddress';
  * `{ value: unknown }`, so the function is assignable wherever a `ValidatorFn`
  * is expected.
  *
- * An empty control is left alone — requiredness is a separate concern.
+ * An empty control is left alone — requiredness is a separate concern. The OUI
+ * is not checked at all: a MAC outside Infomir's range is refused by the stock
+ * portal but accepted by most reseller panels, so rejecting it here would lock
+ * users out of a portal that works for them (`hasInfomirMacOui` drives a hint
+ * instead).
  */
 export function validateStalkerMacAddressControl(control: {
     value: unknown;
@@ -77,4 +81,32 @@ export function validateStalkerMacAddressControl(control: {
     return normalizeStalkerMacAddress(value)
         ? null
         : { [STALKER_MAC_ADDRESS_ERROR]: true };
+}
+
+/**
+ * Same validator, but one specific value is grandfathered in.
+ *
+ * The edit dialog needs this: before there was any validation a user could
+ * store an arbitrary string as the MAC, and on a panel that ignores the MAC
+ * entirely such a playlist works today. Attaching the plain validator there
+ * would mark the form invalid on open and disable Save — locking the user out
+ * of editing the title, the URL or the EPG sources of a working source,
+ * forever, over a field the portal may not even read.
+ *
+ * So the value that was already stored stays acceptable, while anything newly
+ * typed is held to the format. `grandfatheredValue` is compared verbatim: the
+ * exemption covers the string that is already on the wire, not a shape.
+ */
+export function createStalkerMacAddressValidator(
+    grandfatheredValue: string | null | undefined
+): (control: { value: unknown }) => Record<
+    typeof STALKER_MAC_ADDRESS_ERROR,
+    true
+> | null {
+    return (control) =>
+        grandfatheredValue !== undefined &&
+        grandfatheredValue !== null &&
+        control.value === grandfatheredValue
+            ? null
+            : validateStalkerMacAddressControl(control);
 }

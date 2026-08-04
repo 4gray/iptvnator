@@ -258,20 +258,38 @@ An edit therefore *does* move the fingerprint and force a re-authentication.
 That is intended: the user changed the identity, and the field shows exactly
 what will be sent.
 
-Format validity is enforced; the Infomir OUI is not. The stock server's MAC
-filter is on by default and only accepts `00:1A:79:XX:XX:XX`, answering a bare
-`{status: 1}` for anything else — which is why `hasInfomirMacOui` drives a
-hint on the import field. It stays a hint: plenty of resellers disable the
-check, and refusing the import would lock those users out of a portal that
-works. `AUTH_REJECTED_MAC` in `stalker.e2e.ts` depends on this — it is a
-non-Infomir MAC used precisely to make the strict endpoint refuse.
+Format validity is enforced; the Infomir OUI is **advisory only**. The stock
+server's MAC filter (`enable_mac_format_validation`) is on by default and only
+accepts `00:1A:79:XX:XX:XX`, answering a bare `{status: 1}` for anything else —
+which is why `hasInfomirMacOui` drives a hint on the import field. It must stay
+a hint: reseller panels, which is what most users actually run, do not check
+the format at all, so a large share of working installations use a non-Infomir
+MAC. Refusing one would stop those users adding or editing a portal that works
+for them. The mock encodes the same split (`enforceMacFormat` is set only on
+the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
+`stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
+endpoint and be refused *there*, not in the form.
+
+The edit dialog goes one step further: `createStalkerMacAddressValidator`
+grandfathers the value a playlist already stored. Before there was any
+validation the field accepted arbitrary text, and on a panel that ignores the
+MAC such a playlist works today — marking the form invalid on open would
+disable Save and strand the user's title, URL and EPG-source edits in the same
+dialog. Newly typed values are still held to the format.
 
 ### Deriving device IDs from the MAC
 
-`deriveStalkerDeviceIdFromMac` (`stalker-identity.utils.ts`) returns the
-uppercase hex `SHA256` of the canonical MAC — the value StbEmu and
-`stalker-to-m3u` generate. The import dialog offers it behind an opt-in
-checkbox that fills both device ID fields.
+`deriveStalkerDeviceIdsFromMac` (`stalker-identity.utils.ts`) returns the pair
+StbEmu and `stalker-to-m3u` generate: uppercase hex `SHA256` of the canonical
+MAC for `device_id`, and of that MAC plus a `stalker` salt for `device_id2`.
+The import dialog offers it behind an opt-in checkbox that fills both fields.
+
+**The two values must differ.** On a real box they come from separate firmware
+calls (`gSTB.GetUID()` and `gSTB.GetUID('device_id', token)`) and are never
+equal, so an identical pair is a fingerprint no STB produces — and since the
+first non-empty value is pinned to the MAC permanently, it cannot be corrected
+afterwards. They are derived by one function returning both, so nothing can
+fill one without the other.
 
 The shape of that feature is dictated by the pinning semantics: the stock
 server binds the **first non-empty** `device_id`/`device_id2` it sees to the

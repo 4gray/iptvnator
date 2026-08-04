@@ -32,12 +32,12 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    createStalkerMacAddressValidator,
     normalizeStalkerIdentityValue,
     normalizeStalkerMacAddress,
     normalizeXtreamServerUrl,
     Playlist,
     PlaylistMeta,
-    validateStalkerMacAddressControl,
 } from '@iptvnator/shared/interfaces';
 import {
     normalizeEpgUrls,
@@ -284,7 +284,11 @@ export class PlaylistInfoComponent {
             password: new FormControl(this.playlist.password),
             macAddress: new FormControl(
                 this.playlist.macAddress,
-                validateStalkerMacAddressControl
+                // Grandfathered: a playlist stored before this validation
+                // existed may hold anything, and on a panel that ignores the
+                // MAC it works. Blocking Save over it would strand the user's
+                // title/URL/EPG edits too.
+                createStalkerMacAddressValidator(this.playlist.macAddress)
             ),
             portalUrl: new FormControl(this.playlist.portalUrl),
             stalkerSerialNumber: new FormControl(
