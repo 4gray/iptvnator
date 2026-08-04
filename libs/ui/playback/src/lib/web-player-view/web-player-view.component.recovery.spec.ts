@@ -307,6 +307,11 @@ describe('WebPlayerViewComponent recovery integration', () => {
     });
 
     it('resets the VOD handoff for a new same-key source without clearing recovery history', async () => {
+        const timeUpdates: Array<{
+            currentTime: number;
+            duration: number;
+        }> = [];
+        component.timeUpdate.subscribe((event) => timeUpdates.push(event));
         setPlayback({
             streamUrl: 'https://example.com/program-a.m3u8',
             isLive: false,
@@ -331,7 +336,9 @@ describe('WebPlayerViewComponent recovery integration', () => {
         fixture.detectChanges();
 
         expect(html5().startTime()).toBe(0);
+        timeUpdates.length = 0;
         deliverTimeUpdate({ currentTime: 79, duration: 120 }, sourceAOwnership);
+        expect(timeUpdates).toEqual([]);
         component.retryPlayback();
         fixture.detectChanges();
         await fixture.whenStable();
@@ -346,26 +353,32 @@ describe('WebPlayerViewComponent recovery integration', () => {
         ]);
     });
 
-    it('rejects a late live Embedded MPV time update after a same-key VOD source replaces it', async () => {
+    it('rejects a late Embedded MPV VOD time update after a same-key VOD source replaces it', async () => {
+        const timeUpdates: Array<{
+            currentTime: number;
+            duration: number;
+        }> = [];
+        component.timeUpdate.subscribe((event) => timeUpdates.push(event));
         fixture.componentRef.setInput(
             'playerOverride',
             VideoPlayer.EmbeddedMpv
         );
         setPlayback({
-            streamUrl: 'https://example.com/live-program.m3u8',
-            isLive: true,
+            streamUrl: 'https://example.com/vod-program-a.m3u8',
+            isLive: false,
         });
         await render();
         const sourceAOwnership = captureTimeUpdateOwnership();
 
         setPlayback({
-            streamUrl: 'https://example.com/vod-program.m3u8',
+            streamUrl: 'https://example.com/vod-program-b.m3u8',
             isLive: false,
         });
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
         deliverTimeUpdate({ currentTime: 91, duration: 120 }, sourceAOwnership);
+        expect(timeUpdates).toEqual([]);
 
         fixture.componentRef.setInput('playerOverride', VideoPlayer.VideoJs);
         fixture.detectChanges();
@@ -373,6 +386,29 @@ describe('WebPlayerViewComponent recovery integration', () => {
         fixture.detectChanges();
 
         expect(vjs().startTime()).toBe(0);
+    });
+
+    it('emits and records a time update owned by the current application', async () => {
+        const timeUpdates: Array<{
+            currentTime: number;
+            duration: number;
+        }> = [];
+        component.timeUpdate.subscribe((event) => timeUpdates.push(event));
+        setPlayback({
+            streamUrl: 'https://example.com/current-movie.m3u8',
+            isLive: false,
+        });
+        await render();
+        const event = { currentTime: 37, duration: 120 };
+
+        vjs().timeUpdate.emit(event);
+
+        expect(timeUpdates).toEqual([event]);
+        component.retryPlayback();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(vjs().startTime()).toBe(37);
     });
 
     it('preserves the latest VOD position across a same-source retry', async () => {
