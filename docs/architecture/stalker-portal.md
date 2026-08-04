@@ -304,6 +304,15 @@ later empty value as a permanent lockout. Therefore:
   typed a device ID by hand;
 - while it is ticked, correcting the MAC re-derives, because nothing is pinned
   until the import actually runs;
+- **derivation is asynchronous, so both ends of that are guarded.** Submitting
+  re-runs `settleMacAddressIdentity()` and awaits it before reading the form —
+  clicking Add blurs the MAC field, so the blur's `SHA256` is still in flight
+  when the click handler runs, and a snapshot taken then pairs the corrected
+  MAC with the previous MAC's IDs. A generation stamp discards every
+  completion but the newest, so two edits in quick succession cannot leave the
+  older pair in the fields. Both are mutation-verified; note the ordering test
+  has to hold the older digest back explicitly, because Node resolves small
+  digests in start order and the test would otherwise pass with no guard;
 - an unusable MAC (or a runtime without WebCrypto) derives nothing rather than
   hashing a typo into a permanent binding;
 - the playlist-info edit dialog offers no derivation. It shows

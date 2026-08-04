@@ -517,6 +517,81 @@ describe('StalkerPortalImportComponent identity handling', () => {
             );
         });
 
+        it('does not submit a MAC paired with the previous MAC\'s IDs', async () => {
+            // Clicking Add blurs the MAC field, so the blur's SHA-256 is
+            // still in flight when the click handler runs. Snapshotting the
+            // form there pairs the corrected MAC with the old MAC's device
+            // IDs — and the portal pins that pairing permanently.
+            component.form.patchValue({
+                _id: 'playlist-race',
+                title: 'Race Portal',
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://portal.example.com/c',
+                importDate: '2026-05-15T00:00:00.000Z',
+            });
+            await component.toggleDeriveDeviceIds(true);
+
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CD' });
+            const blur = component.onMacAddressBlur();
+            await component.addPlaylist();
+            await blur;
+
+            const playlist = store.dispatch.mock.calls[0][0].playlist;
+            expect(playlist.macAddress).toBe('00:1A:79:AA:BB:CD');
+            expect(playlist.stalkerDeviceId1).toBe(
+                'A1474C4E43345F99C018F151C2D401A0231CFADC310E2514944641590F9C4504'
+            );
+            expect(playlist.stalkerDeviceId2).toBe(
+                'EF401CECA8498585809B8D0FC20640A51148B72343D39DBC0A442AD26ED7A8DD'
+            );
+        });
+
+        it('discards a derivation the next MAC edit superseded', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            await component.toggleDeriveDeviceIds(true);
+
+            // Two digests end up in flight at once, and nothing guarantees
+            // they settle in the order they started. Node resolves them in
+            // order for inputs this small, which would let this test pass
+            // with no guard at all — so the older pair is explicitly held
+            // back until the newer one has landed.
+            const realDigest = webcrypto.subtle.digest.bind(webcrypto.subtle);
+            let call = 0;
+            const digest = jest
+                .spyOn(globalThis.crypto.subtle, 'digest')
+                .mockImplementation((async (
+                    algorithm: AlgorithmIdentifier,
+                    data: BufferSource
+                ) => {
+                    // One derivation is two digests, so the first invocation
+                    // is calls 0 and 1.
+                    const delayed = call++ < 2;
+                    const result = await realDigest(algorithm, data);
+                    if (delayed) {
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 20)
+                        );
+                    }
+                    return result;
+                }) as typeof globalThis.crypto.subtle.digest);
+
+            try {
+                const superseded = component.onMacAddressBlur();
+                component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CD' });
+                const latest = component.onMacAddressBlur();
+                await Promise.all([latest, superseded]);
+            } finally {
+                digest.mockRestore();
+            }
+
+            expect(component.form.controls.deviceId1.value).toBe(
+                'A1474C4E43345F99C018F151C2D401A0231CFADC310E2514944641590F9C4504'
+            );
+            expect(component.form.controls.deviceId2.value).toBe(
+                'EF401CECA8498585809B8D0FC20640A51148B72343D39DBC0A442AD26ED7A8DD'
+            );
+        });
+
         it('leaves the fields alone once the box is unticked', async () => {
             component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
             await component.toggleDeriveDeviceIds(true);

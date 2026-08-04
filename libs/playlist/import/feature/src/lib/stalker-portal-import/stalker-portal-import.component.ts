@@ -114,6 +114,9 @@ export class StalkerPortalImportComponent {
     /** Whether the device IDs are being generated from the MAC. */
     readonly derivesDeviceIds = signal(false);
 
+    /** Stamps each derivation so a late one cannot overwrite a newer one. */
+    private deriveGeneration = 0;
+
     /**
      * A MAC outside Infomir's range is imported anyway — plenty of resellers
      * disable the check — but the stock portal answers a bare `{status: 1}`
@@ -143,6 +146,23 @@ export class StalkerPortalImportComponent {
      * rather than something the transport does silently later.
      */
     async onMacAddressBlur(): Promise<void> {
+        await this.settleMacAddressIdentity();
+    }
+
+    /**
+     * Brings the MAC field and the derived device IDs into agreement, and
+     * resolves only once they are.
+     *
+     * Both the blur handler and the submit path go through here. Submitting
+     * has to re-run it rather than trust the blur: clicking Add moves focus
+     * out of the field, so the blur's `SHA256` is still in flight when Angular
+     * invokes the click handler — and a form read at that moment pairs the
+     * corrected MAC with the PREVIOUS MAC's device IDs (or with empty ones).
+     * The portal pins whatever pair it first receives to that MAC
+     * permanently, so there is no recovering from it afterwards. Re-running
+     * also covers the case where no blur fired at all.
+     */
+    private async settleMacAddressIdentity(): Promise<void> {
         const control = this.form.controls.macAddress;
         const normalized = normalizeStalkerMacAddress(control.value);
 
@@ -188,9 +208,18 @@ export class StalkerPortalImportComponent {
             return;
         }
 
+        // Two edits in quick succession leave two digests in flight, and
+        // nothing guarantees they resolve in the order they were started. The
+        // generation stamp discards every completion but the newest, so the
+        // fields can never end up holding an older MAC's IDs.
+        const generation = ++this.deriveGeneration;
         const derived = await deriveStalkerDeviceIdsFromMac(
             this.form.controls.macAddress.value
         );
+
+        if (generation !== this.deriveGeneration) {
+            return;
+        }
 
         this.form.patchValue({
             deviceId1: derived?.deviceId1 ?? '',
@@ -227,6 +256,11 @@ export class StalkerPortalImportComponent {
         this.isLoading.set(true);
 
         try {
+            // Before anything reads the form: clicking Add blurs the MAC
+            // field, so a derivation may still be in flight, and the pairing
+            // this snapshot produces is the one the portal pins forever.
+            await this.settleMacAddressIdentity();
+
             const formValue = this.form.getRawValue();
             const originalUrl = formValue.portalUrl ?? '';
             // `getRawValue()` also carries the device ID controls while they
