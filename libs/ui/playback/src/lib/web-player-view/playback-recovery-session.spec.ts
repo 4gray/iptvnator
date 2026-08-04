@@ -70,6 +70,28 @@ describe('PlaybackRecoverySession', () => {
         expect(session.accepts(binding)).toBe(false);
     });
 
+    it('resets only the resume position when the source revision changes', () => {
+        const session = new PlaybackRecoverySession();
+        const firstRevision = Symbol();
+        session.syncSession('channel-a');
+        expect(session.syncSourceRevision(firstRevision)).toBe(true);
+        session.recordInlineAttempt(InlinePlaybackPlayer.VideoJs);
+        session.recordTimeUpdate({ currentTime: 24, duration: 100 }, false);
+        session.beginPlayerSwitch(InlinePlaybackPlayer.Html5, false);
+        const attempts = session.attemptedTargets();
+
+        expect(session.syncSourceRevision(firstRevision)).toBe(false);
+        expect(session.resumeStartTime(5, false)).toBe(24);
+
+        expect(session.syncSourceRevision(Symbol())).toBe(true);
+        expect(session.resumeStartTime(5, false)).toBe(5);
+        expect(session.attemptedTargets()).toBe(attempts);
+        expect(session.temporaryPlayerOverride()).toBe(
+            InlinePlaybackPlayer.Html5
+        );
+        expect(session.switchPending()).toBe(true);
+    });
+
     it('accepts an empty session key and compares keys exactly', () => {
         const session = new PlaybackRecoverySession();
 

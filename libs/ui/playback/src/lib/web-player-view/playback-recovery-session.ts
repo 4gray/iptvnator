@@ -21,6 +21,7 @@ export class PlaybackRecoverySession {
     private readonly sessionKey = signal<string | null>(null);
     private readonly generation = signal(0);
     private readonly resumePosition = signal<number | null>(null);
+    private sourceRevision: symbol | null = null;
 
     public readonly attemptedTargets: Signal<
         ReadonlySet<PlaybackRecommendationTarget>
@@ -42,8 +43,19 @@ export class PlaybackRecoverySession {
         this.temporaryPlayerOverrideState.set(null);
         this.switchPendingState.set(false);
         this.resumePosition.set(null);
+        this.sourceRevision = null;
         this.activeBindingState.set(null);
         this.generation.update((generation) => generation + 1);
+        return true;
+    }
+
+    syncSourceRevision(revision: symbol): boolean {
+        if (this.sourceRevision === revision) {
+            return false;
+        }
+
+        this.sourceRevision = revision;
+        this.resumePosition.set(null);
         return true;
     }
 

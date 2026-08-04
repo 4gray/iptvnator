@@ -147,6 +147,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     });
     readonly resolvedPlayback = this.applicationState.playback;
     readonly resolvedIsLive = this.applicationState.isLive;
+    readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
     readonly effectiveStartTime = computed(() =>
         this.recoverySession.resumeStartTime(
@@ -193,6 +194,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     constructor() {
         effect(() => {
             this.syncRecoverySession();
+            const sourceRevision = this.playbackSourceRevisionToken();
+            untracked(() =>
+                this.recoverySession.syncSourceRevision(sourceRevision)
+            );
             const token = this.playbackApplicationToken();
             const playback = untracked(this.resolvedPlayback);
             const isLive = untracked(this.resolvedIsLive);

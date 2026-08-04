@@ -249,10 +249,12 @@ Key files:
   `WebPlayerViewComponent` owns a host-derived content-session key that is
   stable for the mounted logical selection, attempted target IDs, the temporary
   player override, and VOD handoff position. Its `PlaybackBinding` is exactly
-  `{ generation, target }`, while
-  source/header/DRM/application changes use a separate fieldless opaque
-  `Symbol` token; neither ownership primitive contains URLs, headers, DRM
-  material, or credentials. A recommended built-in player temporarily
+  `{ generation, target }`, while every source/target/reload application uses a
+  fieldless opaque `Symbol` token. Source applications also advance a second
+  fieldless revision `Symbol` that clears only the VOD handoff position;
+  target-only switches and Retry leave it stable. None of these ownership
+  primitives contains URLs, headers, DRM material, or credentials. A
+  recommended built-in player temporarily
   outranks the host override and saved player for that mounted content session,
   never mutates `Settings.player`, and resumes finite VOD position on a
   best-effort basis; live playback returns to the live edge. Retry and

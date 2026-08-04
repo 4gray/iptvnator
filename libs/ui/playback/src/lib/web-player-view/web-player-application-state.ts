@@ -9,6 +9,7 @@ import {
 } from './web-player-playback-state';
 
 export type WebPlayerApplicationToken = symbol;
+export type WebPlayerSourceRevisionToken = symbol;
 
 export function createWebPlayerApplicationState(sources: {
     readonly playback: Signal<ResolvedPortalPlayback | null>;
@@ -20,6 +21,7 @@ export function createWebPlayerApplicationState(sources: {
 }): {
     readonly playback: Signal<ResolvedPortalPlayback>;
     readonly isLive: Signal<boolean>;
+    readonly sourceRevision: Signal<WebPlayerSourceRevisionToken>;
     readonly token: Signal<WebPlayerApplicationToken>;
 } {
     const playback = computed(() => {
@@ -38,15 +40,19 @@ export function createWebPlayerApplicationState(sources: {
         const explicit = sources.playback();
         return explicit ? resolveWebPlayerIsLive(explicit) : true;
     });
-    const token = computed<WebPlayerApplicationToken>(() => {
+    const sourceRevision = computed<WebPlayerSourceRevisionToken>(() => {
         if (sources.playback() === null) {
             void sources.streamUrl();
             void sources.startTime();
         }
         void isLive();
+        return Symbol();
+    });
+    const token = computed<WebPlayerApplicationToken>(() => {
+        void sourceRevision();
         void sources.selectedPlayer();
         void sources.reloadToken();
         return Symbol();
     });
-    return { playback, isLive, token };
+    return { playback, isLive, sourceRevision, token };
 }

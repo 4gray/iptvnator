@@ -776,10 +776,12 @@ app as a real argument, so it is not an option.
   `WebPlayerViewComponent` owns a host-derived content-session key that is
   stable for the mounted logical selection, attempted target IDs, the temporary
   player override, and VOD handoff position. Its `PlaybackBinding` is exactly
-  `{ generation, target }`, while
-  source/header/DRM/application changes use a separate fieldless opaque
-  `Symbol` token; neither ownership primitive contains URLs, headers, DRM
-  material, or credentials. A recommended built-in player temporarily
+  `{ generation, target }`, while every source/target/reload application uses a
+  fieldless opaque `Symbol` token. Source applications also advance a second
+  fieldless revision `Symbol` that clears only the VOD handoff position;
+  target-only switches and Retry leave it stable. None of these ownership
+  primitives contains URLs, headers, DRM material, or credentials. A
+  recommended built-in player temporarily
   outranks the host override and saved player for that mounted content session,
   never mutates `Settings.player`, and resumes finite VOD position on a
   best-effort basis; live playback returns to the live edge. Retry and
@@ -1144,7 +1146,7 @@ engine` (restart required) or
 - `get_profile`'s `js.status` decodes as: full profile/`0` = OK, `1` = blocked, `2` = login/password required → `do_auth` then `get_profile` with `auth_second_step=1` (only that retry sets it). Credentials come from the import dialog's username/password fields and are persisted so runtime re-auth can repeat `do_auth`. Status is read through a numeric coercion — portals stringify it.
 - Refusals throw `StalkerPortalError` (`login-required` / `login-rejected` / `device-conflict` / `blocked` / `auth-failed`) carrying the portal's markup-stripped `msg`/`block_msg` in `portalText`; the import dialog and the workspace context panel render it. Read it with `asStalkerPortalError()`, never `instanceof` in lazy-loaded code. `device-conflict` splits off `blocked` via `isStalkerDeviceConflictMessage` (narrow phrase set, structured `msg` only): it is the one refusal with a remedy, and the portal's own "Your STB is damaged" wording points away from it, so both surfaces lead with their own headline and append the portal text.
 - Auth failures are HTTP 200 + plain text (`Authorization failed.` / `Access denied.` / `Unauthorized request.`), classified at the transport boundary by `libs/shared/interfaces/src/lib/stalker-auth-failure.util.ts`; the Electron handler **returns** a `{stalkerAuthFailure}` marker rather than throwing, because `ipcRenderer.invoke` strips custom properties off rejections.
-- The handshake is idempotent, so `Playlist.stalkerToken` is re-presented and `get_profile` is skipped when it comes back unchanged (unless `not_valid` is set, or the persisted `stalkerSessionIdentity` no longer matches `stalkerSessionFingerprint(playlist)` — portal endpoint (origin **and** path) + identity + credentials; an edited endpoint, MAC or login must never inherit the previous session, and a token with no recorded fingerprint counts as unverified. The path is deliberate: discovery preserves tenant base paths, so `/tenant-a/server/load.php` and `/tenant-b/server/load.php` are different portals on one host and must not share a session). The advertised watchdog cadence is persisted alongside it (`stalkerWatchdogTimeout`/`stalkerTimeslot`) precisely because that reuse skips the response carrying it — and the skip only applies once the cadence is known, so a legacy token-only playlist profiles once instead of being stranded on the default. The *effective* cadence is stored, so stored absence means "never profiled" and nothing re-profiles on every start.
+- The handshake is idempotent, so `Playlist.stalkerToken` is re-presented and `get_profile` is skipped when it comes back unchanged (unless `not_valid` is set, or the persisted `stalkerSessionIdentity` no longer matches `stalkerSessionFingerprint(playlist)` — portal endpoint (origin **and** path) + identity + credentials; an edited endpoint, MAC or login must never inherit the previous session, and a token with no recorded fingerprint counts as unverified. The path is deliberate: discovery preserves tenant base paths, so `/tenant-a/server/load.php` and `/tenant-b/server/load.php` are different portals on one host and must not share a session). The advertised watchdog cadence is persisted alongside it (`stalkerWatchdogTimeout`/`stalkerTimeslot`) precisely because that reuse skips the response carrying it — and the skip only applies once the cadence is known, so a legacy token-only playlist profiles once instead of being stranded on the default. The _effective_ cadence is stored, so stored absence means "never profiled" and nothing re-profiles on every start.
 - Watchdog: `get_events` immediately (`init=1`), then every `watchdog_timeout` s (default **120**, clamped 30–3600) offset by `timeslot`. Ping failures are logged only — a missed ping never invalidates auth, it only affects the portal's "online" reporting.
 - Full contract: `docs/architecture/stalker-portal.md` ("Session Authentication Lifecycle").
 

@@ -283,6 +283,56 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(html5().startTime()).toBe(0);
     });
 
+    it('resets the VOD handoff for a new same-key source without clearing recovery history', async () => {
+        setPlayback({
+            streamUrl: 'https://example.com/program-a.m3u8',
+            isLive: false,
+        });
+        await render();
+        vjs().timeUpdate.emit({ currentTime: 48, duration: 120 });
+        vjs().playbackIssue.emit(mediaIssue('videojs', 'program-a.m3u8'));
+        fixture.detectChanges();
+        click('playback-recommendation-html5');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(html5().startTime()).toBe(48);
+
+        setPlayback({
+            streamUrl: 'https://example.com/program-b.m3u8',
+            isLive: false,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(html5().startTime()).toBe(0);
+        html5().playbackIssue.emit(mediaIssue('html5', 'program-b.m3u8'));
+        fixture.detectChanges();
+        expect(playerActionIds()).toEqual([
+            'playback-fallback-mpv',
+            'playback-fallback-vlc',
+        ]);
+    });
+
+    it('preserves the latest VOD position across a same-source retry', async () => {
+        setPlayback({
+            streamUrl: 'https://example.com/retry-movie.m3u8',
+            isLive: false,
+        });
+        await render();
+        vjs().timeUpdate.emit({ currentTime: 63, duration: 120 });
+        vjs().playbackIssue.emit(networkIssue('videojs'));
+        fixture.detectChanges();
+
+        click('playback-retry');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(vjs().startTime()).toBe(63);
+    });
+
     it('ignores actual outputs from the destroyed target generation after switching players', async () => {
         const failures: PlaybackDiagnosticCode[] = [];
         component.playbackFailed.subscribe((code) => failures.push(code));
@@ -445,7 +495,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         }
     });
 
-    it('exposes a fieldless opaque application token without source material', async () => {
+    it('exposes fieldless opaque application tokens without source material', async () => {
         const sentinels = [
             'opaque-stream.example/private.m3u8',
             'OpaqueAgent/4.0',
@@ -464,15 +514,19 @@ describe('WebPlayerViewComponent recovery integration', () => {
         });
         await render();
 
-        const token = (
-            component as unknown as {
-                readonly playbackApplicationToken?: () => unknown;
-            }
-        ).playbackApplicationToken?.();
-        expect(token).toBeDefined();
-        expect(typeof token).toBe('symbol');
-        expect(Reflect.ownKeys(Object(token))).toEqual([]);
-        const inspected = `${String(token)} ${JSON.stringify({ token })}`;
+        const tokens = component as unknown as {
+            readonly playbackApplicationToken?: () => unknown;
+            readonly playbackSourceRevisionToken?: () => unknown;
+        };
+        const applicationToken = tokens.playbackApplicationToken?.();
+        const sourceRevisionToken = tokens.playbackSourceRevisionToken?.();
+        expect(applicationToken).toBeDefined();
+        expect(sourceRevisionToken).toBeDefined();
+        expect(typeof applicationToken).toBe('symbol');
+        expect(typeof sourceRevisionToken).toBe('symbol');
+        expect(Reflect.ownKeys(Object(applicationToken))).toEqual([]);
+        expect(Reflect.ownKeys(Object(sourceRevisionToken))).toEqual([]);
+        const inspected = `${String(applicationToken)} ${String(sourceRevisionToken)} ${JSON.stringify({ applicationToken, sourceRevisionToken })}`;
         for (const sentinel of sentinels) {
             expect(inspected).not.toContain(sentinel);
         }

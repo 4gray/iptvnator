@@ -599,16 +599,21 @@ logical content keep the key and attempted-target set. A different channel,
 movie, or exact episode changes the key and synchronously clears the diagnostic,
 attempts, temporary player override, and handoff position. Destroying the
 component also ends the session; the same key in a later component is a new
-session.
+session. Applying a different source under the same key, including another
+catch-up programme, clears only the VOD handoff position; attempts and the
+temporary player override remain available for the recovery session.
 
 On a terminal failure, the current binding is accepted only when both its
 generation and inline target still match. The current target becomes attempted,
 the sanitized diagnostic is stored, and recommendations are reranked. The
 `PlaybackBinding` contains exactly `{ generation, target }`. Changes to the
 playback URL, headers, DRM, live/VOD mode, target, or reload generation are
-instead correlated with a fieldless opaque `Symbol` application token. Neither
-object embeds source material, and recovery ownership state never stores URLs,
-headers, DRM keys, error payloads, or credentials.
+instead correlated with a fieldless opaque `Symbol` application token. Source
+applications also advance a second fieldless source-revision `Symbol` that
+resets the VOD handoff position; target-only switches and Retry leave that
+revision stable. None of these ownership objects embed source material, and
+recovery ownership state never stores URLs, headers, DRM keys, error payloads,
+or credentials.
 
 Selecting a built-in recommendation records the target, clears the diagnostic,
 and installs a temporary local override ahead of the host override and saved
