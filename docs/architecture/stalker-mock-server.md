@@ -102,6 +102,13 @@ tests can assert the client re-handshakes and retries instead of surfacing an
 error; pinned device identity survives invalidation, as it does on a real
 portal.
 
+Beside the portal endpoints, `main.ts` mounts a handful of non-portal routes:
+`GET /stalker` (the PWA CORS-proxy mirror), `GET /stream/gated/:file` (the
+credential-gated media fixtures for the `gated-stream` scenario),
+`GET /assets/marketing/poster/*` (the committed screenshot-safe posters) and
+the `/health` + `/reset` + `/invalidate-session` utilities. The full list with
+request shapes is in `apps/stalker-mock-server/README.md`.
+
 ## Data Generation Pipeline
 
 ```
@@ -340,7 +347,9 @@ that no `create_link` request reaches the portal. See
 
 Favorites are stored in a `Map<mac, Set<itemId>>` in `src/app/data-store.ts`. They persist for the lifetime of the server process and are shared across all requests for the same MAC.
 
-Call `POST /reset` to clear all favorites (and regenerated data) between test runs.
+Call `POST /reset?macAddress=<mac>` to clear a MAC's favorites (and its cached
+generated data) between test runs — see "Test Isolation" for why the scoped
+form is the one specs should use.
 
 ## Playwright Integration
 
@@ -348,26 +357,43 @@ Call `POST /reset` to clear all favorites (and regenerated data) between test ru
 
 ```typescript
 webServer: [
-  {
-    command: 'pnpm nx run web:serve',
-    url: 'http://localhost:4200',
-    reuseExistingServer: !process.env['CI'],
-  },
+  { command: webServerCommand /* web:serve */, url: baseURL },
   {
     command: 'pnpm nx run stalker-mock-server:serve',
-    url: 'http://localhost:3210/health',
+    url: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/health`,
     reuseExistingServer: !process.env['CI'],
   },
+  // plus the xtream mock (3211) and web-backend (3333) entries
 ]
 ```
 
-Playwright waits for both servers to be healthy before starting tests. If either is already running (e.g. in local dev), it reuses the existing instance.
+Playwright waits for every server to be healthy before starting tests. If one is already running (e.g. in local dev), it reuses the existing instance. `MOCK_PORT` overrides the mock's port for both the config and the specs.
 
 ### Test Isolation
 
-Each stalker e2e test calls `POST http://localhost:3210/reset` in `beforeEach` to clear in-memory state. This ensures tests don't bleed favorites or other mutable state into each other.
+Mock state is keyed by MAC and one mock-server process is shared by every spec
+file running in parallel workers, so isolation is per-MAC rather than global:
 
-`resetAll()` clears both the generated-content cache and in-memory favorites (`data-store.ts`). Because generation is seed-deterministic, the next request regenerates identical content, so the observable data does not change across resets.
+- `POST /reset` accepts one or more `?macAddress=` params and clears only those
+  MACs. A bare `POST /reset` clears everything and is only safe when nothing
+  else is talking to the server — a spec that used it would wipe a sibling
+  spec's session mid-test.
+- `apps/web-e2e/src/stalker.e2e.ts` declares the MACs it owns in `OWNED_MACS`
+  and clears exactly those in one batched request. The sibling specs that reach
+  this server (`self-hosted.e2e.ts`, the `sources-pwa` helpers) own a disjoint
+  `00:1A:79:5F:*` range, so neither file can clear the other's state.
+- Within the file, tests deliberately share scenario MACs (their fixture shapes
+  are what the assertions are written against), so it pins itself to one worker
+  with `test.describe.configure({ mode: 'serial' })`.
+- A few MACs are deliberately kept OUT of `OWNED_MACS`: the token-reuse test
+  asserts that a session SURVIVES, so nothing may reset it, and it uses one MAC
+  per browser project.
+
+A reset drops the generated content cache, favorites (`data-store.ts`), the
+auth/session record (`auth-store.ts`, including any pinned device identity) and
+the watchdog ping counters. Because generation is seed-deterministic, the next
+request regenerates identical content, so the observable data does not change
+across resets.
 
 ### Recommended Test Structure
 
@@ -376,9 +402,16 @@ import { test, expect } from '@playwright/test';
 
 const MOCK_URL = 'http://localhost:3210/portal.php';
 const MOCK_MAC = '00:1A:79:00:00:01'; // default scenario
+const OWNED_MACS = [MOCK_MAC];
+
+test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ request }) => {
-  await request.post('http://localhost:3210/reset');
+  // Scoped reset: only the MACs this file owns.
+  const query = OWNED_MACS.map(
+    (mac) => `macAddress=${encodeURIComponent(mac)}`
+  ).join('&');
+  await request.post(`http://localhost:3210/reset?${query}`);
 });
 
 test('browse VOD categories', async ({ page }) => {
@@ -393,5 +426,5 @@ test('browse VOD categories', async ({ page }) => {
 - **New content types**: Add a new generator function in `data-generator.ts` and a new handler in `handlers/`.
 - **New scenarios**: Add to `SCENARIOS` in `scenarios.ts`.
 - **Session behaviour**: `auth-store.ts` owns tokens and device pinning. Add TTLs or a "token replaced by another device" mode there rather than in the handlers.
-- **Error simulation**: Add a special MAC or query param to trigger error responses for testing error handling in the Stalker store. Note that portal-level auth errors are *not* HTTP errors — see [Two Endpoints With Different Strictness](#two-endpoints-with-different-strictness).
+- **Error simulation**: Add a special MAC or query param to trigger error responses for testing error handling in the Stalker store. Note that portal-level auth errors are *not* HTTP errors — see [Endpoints With Different Strictness](#endpoints-with-different-strictness).
 - **Slow responses**: Add a `MOCK_DELAY_MS` env var and apply it in middleware for testing loading states.

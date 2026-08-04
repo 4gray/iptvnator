@@ -30,19 +30,23 @@ Stalker support covers:
 ## Routing Structure
 
 Primary route tree lives in
-`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`.
+`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
+(`createStalkerRoutes()`), mounted under the workspace shell, so every path
+below is reached as `/workspace/stalker/:id/…`.
 
-- `/stalker/:id/vod` (plus `vod/:categoryId` child)
-- `/stalker/:id/series` (plus `series/:categoryId` child)
-- `/stalker/:id/itv`
-- `/stalker/:id/radio`
-- `/stalker/:id/favorites`
-- `/stalker/:id/recent`
-- `/stalker/:id/search`
-- `/stalker/:id/actor/:personId`
-- `/stalker/:id/downloads` (shared `DownloadsComponent` from `@iptvnator/portal/downloads/feature`)
-- `/stalker/:id/downloads/:downloadId` (focused local movie/series detail with
-  no category context panel)
+- `/workspace/stalker/:id/vod` (plus `vod/:categoryId` child)
+- `/workspace/stalker/:id/series` (plus `series/:categoryId` child)
+- `/workspace/stalker/:id/itv`
+- `/workspace/stalker/:id/radio`
+- `/workspace/stalker/:id/favorites`
+- `/workspace/stalker/:id/recent`
+- `/workspace/stalker/:id/search`
+- `/workspace/stalker/:id/actor/:personId`
+- `/workspace/stalker/:id/downloads` (shared `DownloadsComponent` from `@iptvnator/portal/downloads/feature`)
+- `/workspace/stalker/:id/downloads/:downloadId` (focused local movie/series
+  detail with no category context panel)
+
+`/workspace/stalker/:id` itself redirects to `vod`.
 
 ## Runtime Architecture
 
@@ -86,8 +90,18 @@ Two portal modes exist, persisted per playlist as
   periodic authenticated `watchdog/get_events` pings at the cadence the
   portal advertises (`watchdog_timeout`, default 120 s — see "Watchdog"
   below) whose failures are non-fatal.
-- **Simple portal** (reseller-style `portal.php` panels): no auth lifecycle
-  at all — requests carry only the `mac=` cookie.
+- **Simple portal** (typically a reseller-style `portal.php` panel): no auth
+  lifecycle at all — no handshake, no Bearer token, no watchdog. The requests
+  themselves are not stripped down: every Stalker request goes through the
+  shared identity builder, so a simple portal still receives the full STB
+  identity (the `mac`/`stb_lang`/`timezone` cookie, the MAG `User-Agent` /
+  `X-User-Agent` pair, `SN` when a serial exists — see "Request Transport and
+  `cmd` Encoding"). Only the `Authorization: Bearer` header is absent.
+
+Neither label is tied to a URL shape: mode follows OBSERVED behavior, so a
+`portal.php` panel that enforces the token is classified — and treated
+everywhere — as a full portal, and a canonical `server/load.php` endpoint that
+answers without one is a simple portal.
 
 The single predicate lives in `@iptvnator/shared/interfaces`
 (`stalker-portal-mode.util.ts`): `isFullStalkerPortalPlaylist()` treats the
@@ -209,8 +223,13 @@ Failure-handling rule:
 ## Stalker Identity Policy
 
 Full Stalker/Ministra portal authentication defaults to MAC-only identity. The
-import UI can capture optional serial number, device IDs, and signatures, but
-blank fields are not generated or forwarded to `get_profile`.
+import UI can capture optional serial number, device IDs, and signatures, but a
+field the user leaves blank stays blank — nothing is invented for it, and
+nothing empty is forwarded to `get_profile`. The one way a value appears
+without being typed is the explicit import-time opt-in described under
+"Deriving device IDs from the MAC" below, which writes into the visible fields
+first. (The fixed MAG250 description `get_profile` reports is separate: it
+describes the emulated box, not the account — see "Reported device profile".)
 
 - User-provided `sn`, `device_id`, `device_id2`, `signature`, and `signature2`
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
@@ -296,7 +315,10 @@ dialog. Newly typed values are still held to the format.
 
 ### Deriving device IDs from the MAC
 
-`deriveStalkerDeviceIdsFromMac` (`stalker-identity.utils.ts`) returns the pair
+`deriveStalkerDeviceIdsFromMac`
+(`libs/shared/interfaces/src/lib/stalker-identity.utils.ts` — note the
+same-named file in `libs/portal/stalker/data-access` is a different module)
+returns the pair
 StbEmu and `stalker-to-m3u` generate: uppercase hex `SHA256` of the canonical
 MAC for `device_id`, and of that MAC plus a `stalker` salt for `device_id2`.
 The import dialog offers it behind an opt-in checkbox that fills both fields.
@@ -407,7 +429,8 @@ nothing to them.
 
 Full portals authenticate through `StalkerSessionService`
 (`libs/portal/stalker/data-access/src/lib/stalker-session.service.ts`), which
-is a facade over three focused modules:
+is a thin facade over focused modules (it was split when the single file
+outgrew the `max-lines` budget; never re-add it to the baseline):
 
 - `stalker-auth.api.ts` — the raw `handshake` / `get_profile` / `do_auth`
   requests and the `authenticate()` orchestration.
@@ -478,7 +501,11 @@ every start.
   `msg`/`block_msg` carry the portal's own explanation; they are
   markup-stripped, combined, and thrown as `StalkerPortalError`. The kind is
   `device-conflict` when `isStalkerDeviceConflictMessage` matches the combined
-  text, otherwise `blocked` — see "Device conflicts" below.
+  text, otherwise `blocked` — see "Device conflicts" below. A **bare**
+  `{status: 1}` with no message is a refusal too: it used to be read as success
+  whenever the portal sent no `msg`, which imported dead sources (the stock
+  MAC-format rejection is exactly that shape). A profile that carries refusal
+  text without setting the status is likewise refused.
 - `status: 2` — login/password required. The client runs `do_auth`
   (`login`, `password`, plus `device_id`/`device_id2` when configured) and
   retries `get_profile` with `auth_second_step=1`. Only that retry claims the
@@ -908,11 +935,18 @@ streams it resolves, so a channel opened from a collection carries the same
 credentials as one opened from the portal.
 The resolved `ResolvedPortalPlayback.headers` feed both the external players
 (MPV/VLC/Embedded MPV via the launch IPC) and the built-in players via the
-scoped Electron request-header override (`ElectronStreamHeadersService`,
-applied by `WebPlayerViewComponent` for the video players and by the Stalker
-live layout for the radio audio player, which renders outside
-`WebPlayerViewComponent` — see `docs/architecture/electron-security.md`,
-"Scoped Request Header Overrides").
+scoped Electron request-header override (`ElectronStreamHeadersService` — see
+`docs/architecture/electron-security.md`, "Scoped Request Header Overrides").
+Three surfaces apply that override, because `WebPlayerViewComponent` owns it
+only for the video players and radio renders `AudioPlayerComponent` outside it:
+
+- `WebPlayerViewComponent` — every built-in video player, on every route.
+- `StalkerLiveStreamLayoutComponent` — the Stalker radio route's audio player.
+- `UnifiedLiveTabComponent` (`libs/portal/shared/ui`) — the radio audio player
+  of the Favorites / Recently Viewed collection routes.
+
+Each owns a single scope slot and clears it only while it still owns it, so a
+handover between them cannot drop the other's credentials.
 
 Two stream profiles exist, selected by one shared predicate:
 
@@ -1303,9 +1337,13 @@ Exported fields:
 - full-portal serial/device/signature fields when present
 - favorites and recently viewed collections
 
-Excluded fields:
+Excluded fields — everything that describes a negotiated session rather than
+the connection:
 
 - `stalkerToken`
+- `stalkerSessionIdentity` (the fingerprint the token was negotiated for)
+- `stalkerWatchdogTimeout` / `stalkerTimeslot` (the cadence the profile
+  advertised)
 - `stalkerAccountInfo`
 - playback positions in backup v1
 

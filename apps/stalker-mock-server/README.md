@@ -59,7 +59,10 @@ actually get wrong:
   accepted, so a client with a broken token pipeline fails loudly.
 - Auth failures come back as **HTTP 200 with a plain-text body**
   (`Authorization failed.`, `Unauthorized request.`), never a 401/403. Clients
-  that only check status codes will silently render nothing.
+  that only check status codes will silently render nothing. The stock server
+  has a third body, `Access denied.` (blocked account), which the mock does not
+  produce — the app classifies all three
+  (`libs/shared/interfaces/src/lib/stalker-auth-failure.util.ts`).
 - The handshake is **idempotent**: presenting the MAC's current token returns
   that same token instead of rotating it.
 - `device_id`/`device_id2` are pinned to the MAC on first non-empty value; any
@@ -98,19 +101,27 @@ flags a real portal sends. Outside the `static-channel-cmd` scenario they are
 | Environment Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3210` | HTTP port the server listens on |
+| `HOST` | `127.0.0.1` | Bind address. Loopback by default — the fixture serves fabricated, unauthenticated content, so set `HOST=0.0.0.0` only to deliberately point a phone or STB at it |
 | `NODE_ENV` | `development` | Node environment |
 
-## Utility Endpoints
+## Non-Portal Endpoints
+
+Besides the portal paths above, `src/main.ts` mounts:
 
 | Endpoint | Method | Description |
 |---|---|---|
+| `/stalker?url=<portal_url>&macAddress=<mac>&action=<action>&…` | `GET` | CORS-proxy mirror of the IPTVnator web-backend `/stalker` endpoint, used by PWA/Playwright runs. `macAddress`, `token` and `serialNumber` are control params turned into headers and stripped from the portal query (except `handshake`'s candidate token); the response is wrapped as `{ payload }`. Strictness follows the proxied `url`'s shape |
+| `/stream/gated/:file` | `GET` | `video.mp4` / `audio.mp4` fixtures for the `gated-stream` scenario — 403 without the mac cookie **and** the MAC's current Bearer token |
+| `/assets/marketing/poster/<slug>.png` | `GET` | The committed screenshot-safe poster catalog shared with the Xtream mock, served from this process so `marketing-demo` needs no second server |
 | `/health` | `GET` | Health check — returns `{ status: "ok" }` |
-| `/reset` | `POST` | Clear all in-memory data, favorites, sessions and watchdog counters (useful between test runs) |
+| `/reset[?macAddress=<mac>&macAddress=…]` | `POST` | Clear generated data, favorites, session/auth state (including pinned device IDs) and watchdog counters. **Pass the MACs you own**: state is per-MAC and parallel spec files share this process, so a bare `/reset` wipes their state mid-test. Repeated params clear several MACs in one request |
 | `/invalidate-session?macAddress=<mac>` | `POST` | Drop that MAC's tokens so the next portal call fails with `Authorization failed.` — lets tests assert the client re-handshakes and retries. Pinned device identity survives, as on a real portal |
 
 ## API Coverage
 
-All endpoints are served at `GET /portal.php?action=<action>&...` matching the real Stalker protocol:
+Every action is served by the same dispatcher (`src/app/routes/dispatch.ts`) at
+every portal path — `GET /portal.php?action=<action>&...` and the strict
+`server/load.php` shapes alike — matching the real Stalker protocol:
 
 | Action | Description |
 |---|---|
@@ -118,11 +129,12 @@ All endpoints are served at `GET /portal.php?action=<action>&...` matching the r
 | `get_profile` | Turns the handshake token into a session; enforces device-id pinning, and on the strict endpoint the MAC format |
 | `get_events` | Watchdog ping; records the call and returns an empty event set (never affects authorization, as on a real portal) |
 | `do_auth` | Boolean login step: `{js:true}` for non-empty credentials (recorded for the login-required scenario), `{js:false}` otherwise |
-| `get_categories` | Category list filtered by `type` (itv/vod/series) |
+| `get_main_info` | `account_info/get_main_info` — simple-mode subscription facts for the Stalker account-info dialog, in the nested `js.account_info` envelope |
+| `get_categories` | Category list filtered by `type` (itv/vod/series); `get_genres_itv` / `get_genres_vod` are handled by the same handler |
 | `get_genres` | Genre list (mirrors categories) |
 | `get_ordered_list` | Paginated content list; if `movie_id` is present → returns seasons |
 | `get_all_channels` | Complete ITV channel list in one response (`type=itv` only); excludes censored (adult) genres; disabled in the `legacy-pagination` scenario |
-| `create_link` | Returns a real public HLS stream URL for playback |
+| `create_link` | Returns a playable stream URL — a real public HLS stream, or the credential-gated local URL in the `gated-stream` scenario. Also echoes the mock-only `cmd_received` / `query_keys_received` diagnostics that pin the client's `cmd` wire format |
 | `favorites` | Add / remove / get favorites (in-memory, resets on restart) |
 | `get_short_epg` | Current-and-upcoming EPG window for a channel (`ch_id`, `size`) |
 | `get_epg_info` | Bulk EPG keyed by channel id for a requested `period` window |
@@ -159,7 +171,15 @@ nx e2e web-e2e
 nx e2e web-e2e --grep "@stalker"
 ```
 
-The test suite uses `00:1A:79:00:00:01` (default scenario) for most tests, and calls `POST /reset` in `beforeEach` to ensure a clean state between tests.
+The test suite uses `00:1A:79:00:00:01` (default scenario) for most tests. State
+is per-MAC and several spec files share this one server process, so `beforeEach`
+resets **only the MACs the file owns** (`OWNED_MACS` in `stalker.e2e.ts`, sent as
+repeated `macAddress` params in a single request) rather than clearing
+everything. The sibling specs that talk to this server (`self-hosted.e2e.ts`,
+the `sources-pwa` helpers) own a disjoint `00:1A:79:5F:*` range for the same
+reason, and `stalker.e2e.ts` runs `mode: 'serial'` because its tests
+deliberately share scenario MACs. Full contract:
+[`docs/architecture/stalker-mock-server.md`](../../docs/architecture/stalker-mock-server.md#test-isolation).
 
 ## EPG Behavior
 
@@ -182,25 +202,32 @@ See [`docs/architecture/stalker-mock-server.md`](../../docs/architecture/stalker
 ```
 apps/stalker-mock-server/
 ├── src/
-│   ├── main.ts                            # Express bootstrap
+│   ├── main.ts                            # Express bootstrap + non-portal routes
 │   └── app/
 │       ├── scenarios.ts                   # MAC → scenario config mapping
 │       ├── data-generator.ts              # Seeded faker data generation
 │       ├── data-store.ts                  # Lazy per-MAC in-memory cache
+│       ├── auth-store.ts                  # Tokens, device pinning, do_auth state
+│       ├── request-mac.ts                 # MAC read from the `mac=` cookie
+│       ├── marketing-poster-url.ts        # Origin-resolved poster paths
 │       ├── routes/
-│       │   ├── portal.route.ts            # /portal.php route
+│       │   ├── portal.route.ts            # Portal router (tolerant + strict)
 │       │   └── dispatch.ts                # Shared Stalker action dispatcher
 │       └── handlers/
 │           ├── handshake.handler.ts
+│           ├── get-profile.handler.ts
+│           ├── get-events.handler.ts
 │           ├── do-auth.handler.ts
+│           ├── get-main-info.handler.ts
 │           ├── get-categories.handler.ts
+│           ├── get-genres.handler.ts
 │           ├── get-ordered-list.handler.ts
+│           ├── get-all-channels.handler.ts
 │           ├── get-seasons.handler.ts
 │           ├── create-link.handler.ts
 │           ├── favorites.handler.ts
 │           ├── get-epg-info.handler.ts
-│           ├── get-short-epg.handler.ts
-│           └── get-genres.handler.ts
+│           └── get-short-epg.handler.ts
 ├── project.json
 ├── tsconfig.json
 └── README.md
