@@ -162,6 +162,21 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedIsLive = this.applicationState.isLive;
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
+    // Diagnostic visibility follows raw intent so an old action disappears
+    // before the application effect enters an asynchronous Electron handoff.
+    // Keep this token opaque: it must never retain playback payload fields.
+    private readonly playbackDiagnosticIntentToken =
+        computed<WebPlayerApplicationToken>(() => {
+            if (this.playback() === null) {
+                void this.streamUrl();
+                void this.startTime();
+            }
+            void this.selectedPlayer();
+            void this.reloadToken();
+            return Symbol();
+        });
+    private readonly playbackDiagnosticOwnerToken =
+        signal<WebPlayerApplicationToken | null>(null);
     readonly effectiveStartTime = computed(() =>
         this.recoverySession.resumeStartTime(
             this.startTime(),
@@ -169,7 +184,9 @@ export class WebPlayerViewComponent implements OnDestroy {
         )
     );
     readonly visiblePlaybackDiagnostic = computed(() =>
-        this.selectedPlayer() === VideoPlayer.EmbeddedMpv
+        this.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
+        this.playbackDiagnosticOwnerToken() !==
+            this.playbackDiagnosticIntentToken()
             ? null
             : this.playbackDiagnostic()
     );
@@ -229,6 +246,7 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     constructor() {
         effect(() => {
+            void this.playbackDiagnosticIntentToken();
             this.syncRecoverySession();
             const sourceRevision = this.playbackSourceRevisionToken();
             untracked(() =>
@@ -298,6 +316,9 @@ export class WebPlayerViewComponent implements OnDestroy {
         if (!this.recoverySession.recordFailure(binding)) {
             return;
         }
+        this.playbackDiagnosticOwnerToken.set(
+            this.playbackDiagnosticIntentToken()
+        );
         this.playbackDiagnostic.set(issue);
         this.playbackFailed.emit(issue.code);
     }

@@ -28,6 +28,16 @@ export interface StalkerEpisodePlaybackSessionIdentity {
     readonly sessionKey: string;
 }
 
+export interface StalkerEpisodePlaybackStructuralIdentity {
+    readonly sourceId: string;
+    readonly parentSeriesId: string;
+    readonly seriesMode: StalkerSeriesDownloadMode;
+    readonly seasonKey: string;
+    readonly seasonNumber: number;
+    readonly episodeNumber: number;
+    readonly sessionKey: string;
+}
+
 interface StalkerEpisodeStateLookupOptions {
     readonly episodesBySeason: Record<string, readonly XtreamSerieEpisode[]>;
 }
@@ -104,6 +114,29 @@ export function createStalkerEpisodePlaybackSessionKey(
     );
 }
 
+export function toStalkerEpisodePlaybackStructuralIdentity(
+    identity: StalkerEpisodePlaybackSessionIdentity
+): StalkerEpisodePlaybackStructuralIdentity {
+    const {
+        sourceId,
+        parentSeriesId,
+        seriesMode,
+        seasonKey,
+        seasonNumber,
+        episodeNumber,
+        sessionKey,
+    } = identity;
+    return Object.freeze({
+        sourceId,
+        parentSeriesId,
+        seriesMode,
+        seasonKey,
+        seasonNumber,
+        episodeNumber,
+        sessionKey,
+    });
+}
+
 export function resolveSelectedStalkerEpisodeState({
     episodesBySeason,
     episode,
@@ -155,13 +188,30 @@ export function resolveStalkerEpisodeStateByIdentity({
     );
 }
 
+export function resolveStalkerEpisodeStateByStructuralIdentity({
+    episodesBySeason,
+    identity,
+}: StalkerEpisodeStateLookupOptions & {
+    readonly identity: StalkerEpisodePlaybackStructuralIdentity;
+}): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
+    return findStalkerEpisodeState(
+        { [identity.seasonKey]: episodesBySeason[identity.seasonKey] ?? [] },
+        (_candidate, state) =>
+            state.seasonNumber === identity.seasonNumber &&
+            state.episodeNumber === identity.episodeNumber,
+        true
+    );
+}
+
 function findStalkerEpisodeState(
     episodesBySeason: Record<string, readonly XtreamSerieEpisode[]>,
     matches: (
         episode: XtreamSerieEpisode,
         state: SeriesPlaybackEpisodeState<XtreamSerieEpisode>
-    ) => boolean
+    ) => boolean,
+    requireUnique = false
 ): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
+    let match: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null = null;
     for (const [seasonKey, episodes] of Object.entries(episodesBySeason)) {
         for (
             let episodeIndex = 0;
@@ -177,8 +227,11 @@ function findStalkerEpisodeState(
                 previous: episodes[episodeIndex - 1] ?? null,
                 next: episodes[episodeIndex + 1] ?? null,
             };
-            if (matches(episode, state)) return state;
+            if (!matches(episode, state)) continue;
+            if (!requireUnique) return state;
+            if (match) return null;
+            match = state;
         }
     }
-    return null;
+    return match;
 }

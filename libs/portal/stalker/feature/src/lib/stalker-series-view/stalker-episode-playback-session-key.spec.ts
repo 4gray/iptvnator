@@ -5,6 +5,8 @@ import {
     captureStalkerEpisodePlaybackSessionIdentity,
     createStalkerEpisodePlaybackSessionKey,
     resolveStalkerEpisodeStateByIdentity,
+    resolveStalkerEpisodeStateByStructuralIdentity,
+    toStalkerEpisodePlaybackStructuralIdentity,
 } from './stalker-episode-playback-session-key';
 
 const episodeState = (
@@ -101,6 +103,64 @@ describe('createStalkerEpisodePlaybackSessionKey', () => {
             episodeNumber: state.episodeNumber,
             sessionKey: identity.sessionKey,
         });
+    });
+
+    it('freezes only credential-free structural fields for a mounted session', () => {
+        const originalCmd =
+            'https://user:password@stream.example/episode.mpg?access_token=secret';
+        const identity = captureStalkerEpisodePlaybackSessionIdentity({
+            sourceId: 'playlist',
+            parentSeriesId: 'series',
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            episodeState: episodeState({ originalCmd }),
+        });
+        if (!identity) throw new Error('Expected a captured request identity');
+
+        const retained = toStalkerEpisodePlaybackStructuralIdentity(identity);
+
+        expect(Object.isFrozen(retained)).toBe(true);
+        expect(retained).toEqual({
+            sourceId: identity.sourceId,
+            parentSeriesId: identity.parentSeriesId,
+            seriesMode: identity.seriesMode,
+            seasonKey: identity.seasonKey,
+            seasonNumber: identity.seasonNumber,
+            episodeNumber: identity.episodeNumber,
+            sessionKey: identity.sessionKey,
+        });
+        expect(JSON.stringify(retained)).not.toContain(originalCmd);
+        expect(retained).not.toHaveProperty('originalEpisodeIdentity');
+    });
+
+    it('fails closed when structural coordinates match multiple episodes', () => {
+        const state = episodeState({ originalCmd: 'command-a' });
+        const requestIdentity = captureStalkerEpisodePlaybackSessionIdentity({
+            sourceId: 'playlist',
+            parentSeriesId: 'series',
+            seriesMode: STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            episodeState: state,
+        });
+        if (!requestIdentity) {
+            throw new Error('Expected a captured request identity');
+        }
+        const identity =
+            toStalkerEpisodePlaybackStructuralIdentity(requestIdentity);
+
+        expect(
+            resolveStalkerEpisodeStateByStructuralIdentity({
+                episodesBySeason: {
+                    [state.seasonKey]: [
+                        state.episode,
+                        {
+                            ...state.episode,
+                            id: 'another-tracking-id',
+                            originalCmd: 'command-b',
+                        },
+                    ],
+                },
+                identity,
+            })
+        ).toBeNull();
     });
 
     it('keeps lazy provider ids transient while rejecting an id refresh for a pending request', () => {

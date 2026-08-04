@@ -732,7 +732,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(playerActionIds()).toEqual(['playback-recommendation-html5']);
     });
 
-    it('prevents a second rendered action while a player switch is pending', async () => {
+    it('detaches the diagnostic while a player switch handoff is pending', async () => {
         const fallbackRequests: unknown[] = [];
         component.externalFallbackRequested.subscribe((request) =>
             fallbackRequests.push(request)
@@ -742,13 +742,13 @@ describe('WebPlayerViewComponent recovery integration', () => {
         fixture.detectChanges();
         holdHeaderHandoff = true;
         const htmlButton = requiredButton('playback-recommendation-html5');
+        const staleMpvButton = requiredButton('playback-fallback-mpv');
 
         htmlButton.click();
         fixture.detectChanges();
-        const mpvButton = requiredButton('playback-fallback-mpv');
-        expect(query('playback-diagnostic-banner')).not.toBeNull();
-        expect(mpvButton.disabled).toBe(true);
-        mpvButton.click();
+        expect(query('playback-diagnostic-banner')).toBeNull();
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
+        staleMpvButton.click();
         expect(fallbackRequests).toEqual([]);
 
         expect(headerResolvers).toHaveLength(1);
@@ -783,17 +783,16 @@ describe('WebPlayerViewComponent recovery integration', () => {
             click('playback-recommendation-html5');
             fixture.detectChanges();
             expect(component.recoveryPending()).toBe(true);
-            expect(requiredButton('playback-fallback-mpv').disabled).toBe(true);
+            expect(component.visiblePlaybackDiagnostic()).toBeNull();
+            expect(query('playback-diagnostic-banner')).toBeNull();
 
             complete();
             await fixture.whenStable();
             fixture.detectChanges();
 
             expect(component.recoveryPending()).toBe(false);
-            expect(requiredButton('playback-fallback-mpv').disabled).toBe(
-                false
-            );
-            expect(component.playbackDiagnostic()).not.toBeNull();
+            expect(component.visiblePlaybackDiagnostic()).toBeNull();
+            expect(query('playback-diagnostic-banner')).toBeNull();
             expect(component.channel).toBeUndefined();
         }
     );
@@ -827,8 +826,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
             fixture.detectChanges();
 
             expect(component.recoveryPending()).toBe(true);
-            expect(requiredButton('playback-fallback-mpv').disabled).toBe(true);
-            expect(component.playbackDiagnostic()).not.toBeNull();
+            expect(component.visiblePlaybackDiagnostic()).toBeNull();
             expect(component.channel).toBeUndefined();
 
             headerResolvers[1](false);
@@ -840,7 +838,6 @@ describe('WebPlayerViewComponent recovery integration', () => {
         await render();
         vjs().playbackIssue.emit(mediaIssue('videojs'));
         fixture.detectChanges();
-        const diagnostic = component.playbackDiagnostic();
         const failures: PlaybackDiagnosticCode[] = [];
         component.playbackFailed.subscribe((code) => failures.push(code));
         holdHeaderHandoff = true;
@@ -851,6 +848,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(sourceABinding).not.toBeNull();
         expect(headerResolvers).toHaveLength(1);
         expect(component.channel).toBeUndefined();
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
 
         setPlayback({ streamUrl: 'https://example.com/source-b.m3u8' });
         const pendingState = {
@@ -873,7 +871,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
             vjsOptions: component.vjsOptions,
             failures,
         }).toEqual(pendingState);
-        expect(component.playbackDiagnostic()).toBe(diagnostic);
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
         expect(streamHeaders.apply).toHaveBeenCalledTimes(2);
 
         fixture.detectChanges();
@@ -881,7 +879,6 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(component.activeBinding()).not.toBe(sourceABinding);
         headerResolvers[1](true);
         await fixture.whenStable();
-        fixture.detectChanges();
 
         expect(component.channel?.url).toBe(
             'https://example.com/source-b.m3u8'
@@ -1060,7 +1057,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         }
     );
 
-    it('clears a diagnostic only after the current header handoff succeeds', async () => {
+    it('keeps a replaced-source diagnostic detached across every handoff outcome', async () => {
         await render();
         vjs().playbackIssue.emit(mediaIssue('videojs'));
         fixture.detectChanges();
@@ -1068,27 +1065,28 @@ describe('WebPlayerViewComponent recovery integration', () => {
 
         setPlayback({ streamUrl: 'https://example.com/alternate.m3u8' });
         fixture.detectChanges();
+        expect(query('playback-diagnostic-banner')).toBeNull();
         setPlayback({ streamUrl: 'https://example.com/current.m3u8' });
         fixture.detectChanges();
         expect(headerResolvers).toHaveLength(2);
+        expect(query('playback-diagnostic-banner')).toBeNull();
 
         headerResolvers[0](true);
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(query('playback-diagnostic-banner')).not.toBeNull();
+        expect(query('playback-diagnostic-banner')).toBeNull();
 
         headerResolvers[1](false);
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(query('playback-diagnostic-banner')).not.toBeNull();
+        expect(query('playback-diagnostic-banner')).toBeNull();
 
         setPlayback({ streamUrl: 'https://example.com/final.m3u8' });
         fixture.detectChanges();
         headerResolvers[2](true);
         await fixture.whenStable();
-        fixture.detectChanges();
-        expect(query('playback-diagnostic-banner')).toBeNull();
-        expect(vjs().options()).toEqual(
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
+        expect(component.vjsOptions).toEqual(
             expect.objectContaining({
                 sources: [
                     expect.objectContaining({

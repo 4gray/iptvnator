@@ -1162,7 +1162,19 @@ Series inline playback behavior is shared across all three modes:
   blocks the action rather than binding regular, embedded, or lazy VOD content
   to another mode; an exact canonical episode id still wins.
 
-- `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and derives the currently playing episode from `inlinePlayback.contentInfo.contentXtreamId`.
+- `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and uses
+  two episode identities. A pending playback request keeps an exact,
+  request-local provider command or episode ID so command rotation and hash
+  collisions reject stale completion. Once mounted, the component freezes only
+  the credential-free structural identity and session key (source, normalized
+  parent, mode, season key, season number, and episode number).
+- The mounted structural identity is re-resolved against the current
+  `mappedSeasons()` for metadata, Previous/Next, and autoplay. Same-owner
+  provider and TMDB refreshes therefore expose current episode objects and
+  commands without remounting the player; if the episode is missing or its
+  structural coordinates are ambiguous, those surfaces and commands fail
+  closed. Provider commands and IDs are never retained in mounted session
+  state.
 - The inline player header shows the current episode metadata below the title, for example `S01E03 - Episode title`.
 - Embedded players receive previous/next episode state for the current season only.
 - Inline series autoplay is enabled by default. On player EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.

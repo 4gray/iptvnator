@@ -35,6 +35,7 @@ describe('StalkerSeriesViewComponent playback session key', () => {
     const serialSeasons = signal<unknown[]>([]);
     const vodSeasons = signal<unknown[]>([]);
     const resolveVodPlayback = jest.fn();
+    const tmdbGetSeason = jest.fn();
     const currentPlaylist = signal({
         _id: 'stalker|playlist',
         title: 'Portal',
@@ -78,6 +79,7 @@ describe('StalkerSeriesViewComponent playback session key', () => {
                     },
                 })
             );
+        tmdbGetSeason.mockReset().mockResolvedValue(null);
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -124,7 +126,7 @@ describe('StalkerSeriesViewComponent playback session key', () => {
                     provide: TmdbEnrichmentService,
                     useValue: {
                         isEnabled: () => false,
-                        getSeason: jest.fn(),
+                        getSeason: tmdbGetSeason,
                         getSeasonEpisodes: jest.fn(),
                     },
                 },
@@ -469,6 +471,192 @@ describe('StalkerSeriesViewComponent playback session key', () => {
 
         expect(fixture.componentInstance.inlinePlayback()).toBe(playback);
         expect(fixture.componentInstance.playbackSessionKey()).toBe(key);
+    });
+
+    it('re-resolves mounted episode metadata and neighbors after a same-owner season refresh', async () => {
+        serialSeasons.set([
+            {
+                id: 'regular-season',
+                name: 'Season 1',
+                cmd: 'ffrt4://regular|full-command',
+                series: [1, 2, 3],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const initialEpisodes = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0] as StalkerMappedEpisode[];
+        fixture.componentInstance.onEpisodeClicked(initialEpisodes[1]);
+        await fixture.whenStable();
+        const key = fixture.componentInstance.playbackSessionKey();
+
+        serialSeasons.set([
+            {
+                id: 'refreshed-season',
+                name: 'Season 1',
+                cmd: 'ffrt4://refreshed|full-command',
+                series: [1, 2, 3],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const refreshedEpisodes = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0] as StalkerMappedEpisode[];
+        const state = fixture.componentInstance.inlineEpisodeState();
+
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(key);
+        expect(state?.episode).toBe(refreshedEpisodes[1]);
+        expect(state?.previous).toBe(refreshedEpisodes[0]);
+        expect(state?.next).toBe(refreshedEpisodes[2]);
+
+        fixture.componentInstance.handleInlinePlaybackEnded();
+        await fixture.whenStable();
+
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(2);
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            'ffrt4://refreshed|full-command',
+            'Series',
+            'poster.jpg',
+            3,
+            Number(refreshedEpisodes[2].id),
+            undefined
+        );
+    });
+
+    it('re-resolves mounted episode metadata after same-owner TMDB enrichment', async () => {
+        await playFirstEpisode();
+        const key = fixture.componentInstance.playbackSessionKey();
+        tmdbGetSeason.mockResolvedValue({
+            overview: 'Season overview',
+            episodes: [{ episode_number: 1, name: 'TMDB Pilot' }],
+        });
+        const item = selectedItem();
+        if (!item) throw new Error('Expected the selected series');
+        selectedItem.set({
+            ...item,
+            info: { ...item.info, tmdb_id: 314 },
+        });
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const currentEpisode = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0][0];
+
+        expect(tmdbGetSeason).toHaveBeenCalledWith(314, 1);
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(key);
+        expect(fixture.componentInstance.inlineEpisodeState()?.episode).toBe(
+            currentEpisode
+        );
+        expect(fixture.componentInstance.inlineEpisodeMetadata()?.title).toBe(
+            'TMDB Pilot'
+        );
+    });
+
+    it('uses the current mapped episode when a stale lazy-series event resolves', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: 'series|parent',
+            is_series: true,
+            info: {
+                name: 'Lazy series',
+                movie_image: 'poster.jpg',
+                tmdb_id: 2718,
+            },
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'lazy-season',
+                video_id: 'series|parent',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [
+                    {
+                        id: 'provider-episode',
+                        series_number: 3,
+                        name: 'Episode 3',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const staleEpisode = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0][0] as StalkerMappedEpisode;
+        tmdbGetSeason.mockResolvedValue({
+            episodes: [{ episode_number: 3, name: 'Current TMDB title' }],
+        });
+
+        fixture.componentInstance.onSeasonSelected('2');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(
+            Object.values(fixture.componentInstance.mappedSeasons())[0][0].title
+        ).toBe('Current TMDB title');
+
+        fixture.componentInstance.onEpisodeClicked(staleEpisode);
+        await fixture.whenStable();
+
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            '/media/file_provider-episode.mpg',
+            'Lazy series - Current TMDB title',
+            'poster.jpg',
+            3,
+            expect.any(Number),
+            undefined
+        );
+    });
+
+    it('fails mounted episode commands closed when a same-owner refresh removes the episode', async () => {
+        serialSeasons.set([
+            {
+                id: 'regular-season',
+                name: 'Season 1',
+                cmd: 'ffrt4://regular|full-command',
+                series: [1, 2, 3],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const episodes = Object.values(
+            fixture.componentInstance.mappedSeasons()
+        )[0] as StalkerMappedEpisode[];
+        fixture.componentInstance.onEpisodeClicked(episodes[1]);
+        await fixture.whenStable();
+        const key = fixture.componentInstance.playbackSessionKey();
+
+        serialSeasons.set([
+            {
+                id: 'refreshed-season',
+                name: 'Season 1',
+                cmd: 'ffrt4://refreshed|full-command',
+                series: [1],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(key);
+        expect(fixture.componentInstance.inlineEpisodeState()).toBeNull();
+        expect(fixture.componentInstance.inlineEpisodeMetadata()).toBeNull();
+        expect(fixture.componentInstance.inlineSeriesNavigation()).toBeNull();
+
+        fixture.componentInstance.playPreviousEpisode();
+        fixture.componentInstance.playNextEpisode();
+        fixture.componentInstance.handleInlinePlaybackEnded();
+        await fixture.whenStable();
+
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(1);
     });
 
     it('rejects a completion after its playlist, parent, mode, and episode owner change', async () => {

@@ -55,6 +55,15 @@ short-lived exact pending-request snapshot/guard that locates the selected
 episode and rejects stale or out-of-order completion. This keeps token refreshes
 in one logical session while ensuring colliding tracking hashes cannot select a
 sibling episode.
+After a Stalker episode mounts, the host retains only a frozen structural
+identity (source, normalized parent, series mode, exact season key, season and
+episode coordinates, and the credential-free session key). Each metadata,
+navigation, or autoplay read resolves those coordinates against the current
+`mappedSeasons()` value. Same-owner provider or TMDB refreshes therefore update
+the mounted episode without changing its session key; if the episode disappears,
+or if multiple episodes claim the same structural coordinates, the mounted
+commands fail closed. The command/ID-bearing identity never outlives the pending
+playback request.
 Shared wrappers (`VodDetailsComponent` and `PortalInlinePlayerComponent`) pass
 the key unchanged to `WebPlayerViewComponent`.
 
@@ -629,13 +638,21 @@ nullable binding, both opaque tokens, and its live/VOD flag. A time update can
 change the resume position only while that exact capture still owns the current
 application, so a replaced source cannot repopulate cleared handoff state.
 
-Selecting a built-in recommendation records the target, clears the diagnostic,
-and installs a temporary local override ahead of the host override and saved
-player setting. The new engine receives the latest finite VOD position as a
-best-effort resume point; live playback starts at the live edge. Retry reloads
-the active target without clearing attempts. Selecting MPV or VLC records the
-external target before emitting the existing fallback request. The system does
-not infer whether the external process ultimately played the stream.
+A separate fieldless intent token invalidates on each new source, target, or
+reload intent. It clears the prior diagnostic from visible and actionable state
+before any asynchronous Electron header handoff completes, without retaining
+source material. False or rejected current handoffs leave it detached, and a
+stale success, false result, or rejection cannot restore the old diagnostic or
+mutate the newer application state.
+
+Selecting a built-in recommendation records the target, immediately detaches
+the diagnostic, and installs a temporary local override ahead of the host
+override and saved player setting. The new engine receives the latest finite
+VOD position as a best-effort resume point; live playback starts at the live
+edge. Retry reloads the active target without clearing attempts. Selecting MPV
+or VLC records the external target before emitting the existing fallback
+request. The system does not infer whether the external process ultimately
+played the stream.
 
 No recommendation mutates `Settings.player` or another persisted setting.
 Recovery recommendations never auto-switch a player or source and do not

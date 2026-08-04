@@ -88,7 +88,10 @@ import {
     captureStalkerEpisodePlaybackSessionIdentity,
     resolveSelectedStalkerEpisodeState,
     resolveStalkerEpisodeStateByIdentity,
+    resolveStalkerEpisodeStateByStructuralIdentity,
+    toStalkerEpisodePlaybackStructuralIdentity,
     type StalkerEpisodePlaybackSessionIdentity,
+    type StalkerEpisodePlaybackStructuralIdentity,
 } from './stalker-episode-playback-session-key';
 
 interface SeriesPositionContext {
@@ -186,8 +189,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private seriesPositionsLoadGeneration = 0;
     private seriesPlaybackRequestGeneration = 0;
     private currentSeriesPlaybackOwnerKey = '';
-    private readonly inlinePlaybackEpisodeState =
-        signal<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(null);
+    private readonly inlinePlaybackEpisodeIdentity =
+        signal<StalkerEpisodePlaybackStructuralIdentity | null>(null);
     private lastSaveTime = 0;
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
@@ -578,9 +581,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             vodSeriesSeasons: this.vodSeriesSeasons(),
         });
     });
-    readonly inlineEpisodeState = computed(() =>
-        this.inlinePlaybackEpisodeState()
-    );
+    readonly inlineEpisodeState = computed(() => {
+        const identity = this.inlinePlaybackEpisodeIdentity();
+        const sourceId = this.stalkerStore.currentPlaylist()?._id?.trim() ?? '';
+        const parentSeriesId = normalizeStalkerEntityId(this.displayItem()?.id);
+        if (
+            !identity ||
+            this.playbackSessionKey() !== identity.sessionKey ||
+            sourceId !== identity.sourceId ||
+            parentSeriesId !== identity.parentSeriesId ||
+            this.seriesMode() !== identity.seriesMode
+        ) {
+            return null;
+        }
+        return resolveStalkerEpisodeStateByStructuralIdentity({
+            episodesBySeason: this.mappedSeasons(),
+            identity,
+        });
+    });
     readonly playbackSessionKey = signal('');
     readonly inlineEpisodeMetadata = computed(() =>
         getSeriesEpisodeMetadata(this.inlineEpisodeState())
@@ -755,7 +773,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * Handles episode click from the container
      */
     onEpisodeClicked(episode: XtreamSerieEpisode) {
-        const mappedEpisode = episode as StalkerMappedEpisode;
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
             episodesBySeason: this.mappedSeasons(),
@@ -764,14 +781,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (!item || !episodeState) return;
         this.syncSeriesPlaybackOwner(this.seriesPlaybackOwnerKey());
 
+        const mappedEpisode = episodeState.episode as StalkerMappedEpisode;
         const isLazyVod = mappedEpisode.custom_sid === 'vod-series';
         const command = isLazyVod
             ? `/media/file_${mappedEpisode.originalId ?? ''}.mpg`
             : mappedEpisode.originalCmd;
         const title = isLazyVod
-            ? `${item.info.name} - ${episode.title || `Episode ${episodeState.episodeNumber}`}`
+            ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
             : item.info.name;
-        const trackingId = Number(episode.id);
+        const trackingId = Number(mappedEpisode.id);
         const startTime =
             this.episodePlaybackPositions().get(trackingId)?.positionSeconds;
 
@@ -839,7 +857,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     closeInlinePlayer(): void {
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
-        this.inlinePlaybackEpisodeState.set(null);
+        this.inlinePlaybackEpisodeIdentity.set(null);
         this.playbackSessionKey.set('');
         this.lastSaveTime = 0;
     }
@@ -963,11 +981,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             this.lastSaveTime = 0;
             if (request.usesEmbeddedPlayer && request.identity) {
-                this.setInlinePlayback(
-                    resolvedPlayback,
-                    request.identity.sessionKey,
-                    episodeState
-                );
+                this.setInlinePlayback(resolvedPlayback, request.identity);
                 return;
             }
 
@@ -1017,11 +1031,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     private setInlinePlayback(
         playback: ResolvedPortalPlayback,
-        sessionKey: string,
-        episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null
+        identity: StalkerEpisodePlaybackSessionIdentity
     ): void {
-        this.playbackSessionKey.set(sessionKey);
-        this.inlinePlaybackEpisodeState.set(episodeState);
+        this.playbackSessionKey.set(identity.sessionKey);
+        this.inlinePlaybackEpisodeIdentity.set(
+            toStalkerEpisodePlaybackStructuralIdentity(identity)
+        );
         this.inlinePlayback.set(playback);
     }
 
