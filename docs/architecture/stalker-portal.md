@@ -304,15 +304,25 @@ later empty value as a permanent lockout. Therefore:
   typed a device ID by hand;
 - while it is ticked, correcting the MAC re-derives, because nothing is pinned
   until the import actually runs;
-- **derivation is asynchronous, so both ends of that are guarded.** Submitting
-  re-runs `settleMacAddressIdentity()` and awaits it before reading the form —
-  clicking Add blurs the MAC field, so the blur's `SHA256` is still in flight
-  when the click handler runs, and a snapshot taken then pairs the corrected
-  MAC with the previous MAC's IDs. A generation stamp discards every
-  completion but the newest, so two edits in quick succession cannot leave the
-  older pair in the fields. Both are mutation-verified; note the ordering test
-  has to hold the older digest back explicitly, because Node resolves small
-  digests in start order and the test would otherwise pass with no guard;
+- **derivation is asynchronous, and every way out of it is guarded.**
+  `applyDerivedDeviceIds` can only read the toggle before it awaits, so three
+  things protect what happens after:
+    - submitting re-runs `settleMacAddressIdentity()` and awaits it before
+      reading the form — clicking Add blurs the MAC field, so the blur's
+      `SHA256` is still in flight when the click handler runs, and a snapshot
+      taken then pairs the corrected MAC with the previous MAC's IDs;
+    - a generation stamp discards every completion but the newest, so two
+      edits in quick succession cannot leave the older pair in the fields;
+    - `invalidatePendingDerivation()` bumps that stamp whenever the user stops
+      wanting derived IDs — unticking the box, clearing the form — because an
+      outstanding digest would otherwise resolve into fields that were
+      deliberately emptied, and the import would pin IDs the user opted out
+      of.
+
+  All three are mutation-verified. Note the tests have to control when the
+  digest settles (hold it behind a gate, or delay the older invocation):
+  Node resolves digests this small in start order, so the naive versions pass
+  with the guards removed;
 - an unusable MAC (or a runtime without WebCrypto) derives nothing rather than
   hashing a typo into a permanent binding;
 - the playlist-info edit dialog offers no derivation. It shows

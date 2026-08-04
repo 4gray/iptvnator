@@ -192,6 +192,11 @@ export class StalkerPortalImportComponent {
         const { deviceId1, deviceId2 } = this.form.controls;
 
         if (!enabled) {
+            // Turning it off has to invalidate work already in flight, or the
+            // digest started a moment ago lands afterwards and writes the IDs
+            // straight back into the fields the user just opted out of —
+            // which then reach the portal and get pinned permanently.
+            this.invalidatePendingDerivation();
             deviceId1.enable();
             deviceId2.enable();
             this.form.patchValue({ deviceId1: '', deviceId2: '' });
@@ -201,6 +206,19 @@ export class StalkerPortalImportComponent {
         deviceId1.disable();
         deviceId2.disable();
         await this.applyDerivedDeviceIds();
+    }
+
+    /**
+     * Makes every derivation currently in flight a no-op.
+     *
+     * `applyDerivedDeviceIds` can only check the toggle before it awaits, so
+     * anything that stops the user from wanting derived IDs — unticking the
+     * box, clearing the form — has to invalidate the outstanding digest here
+     * as well. Otherwise it resolves into fields that were deliberately
+     * emptied, and the portal pins whatever the import then sends.
+     */
+    private invalidatePendingDerivation(): void {
+        this.deriveGeneration += 1;
     }
 
     private async applyDerivedDeviceIds(): Promise<void> {
@@ -228,6 +246,9 @@ export class StalkerPortalImportComponent {
     }
 
     clearForm(): void {
+        // Same hazard as unticking the box: a digest still in flight would
+        // resolve into the freshly cleared form.
+        this.invalidatePendingDerivation();
         this.derivesDeviceIds.set(false);
         this.form.controls.deviceId1.enable();
         this.form.controls.deviceId2.enable();

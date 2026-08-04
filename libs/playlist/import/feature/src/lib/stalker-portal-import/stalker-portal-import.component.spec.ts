@@ -592,6 +592,70 @@ describe('StalkerPortalImportComponent identity handling', () => {
             );
         });
 
+        /**
+         * Holds every digest until `release()` is called, so a toggle can be
+         * observed landing WHILE one is in flight. Without this the digest
+         * settles first and the assertions below hold either way.
+         */
+        function holdDigests(): {
+            release: () => void;
+            restore: () => void;
+        } {
+            const realDigest = webcrypto.subtle.digest.bind(webcrypto.subtle);
+            let release = (): void => undefined;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const spy = jest
+                .spyOn(globalThis.crypto.subtle, 'digest')
+                .mockImplementation((async (
+                    algorithm: AlgorithmIdentifier,
+                    data: BufferSource
+                ) => {
+                    await gate;
+                    return realDigest(algorithm, data);
+                }) as typeof globalThis.crypto.subtle.digest);
+
+            return { release, restore: () => spy.mockRestore() };
+        }
+
+        it('does not repopulate the fields when the box is unticked mid-digest', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            const { release, restore } = holdDigests();
+
+            try {
+                const pending = component.toggleDeriveDeviceIds(true);
+                await component.toggleDeriveDeviceIds(false);
+                release();
+                await pending;
+            } finally {
+                restore();
+            }
+
+            // The user opted out; a digest that was already running must not
+            // put IDs back that the portal would then pin permanently.
+            expect(component.derivesDeviceIds()).toBe(false);
+            expect(component.form.controls.deviceId1.value).toBe('');
+            expect(component.form.controls.deviceId2.value).toBe('');
+        });
+
+        it('does not repopulate the fields when the form is cleared mid-digest', async () => {
+            component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
+            const { release, restore } = holdDigests();
+
+            try {
+                const pending = component.toggleDeriveDeviceIds(true);
+                component.clearForm();
+                release();
+                await pending;
+            } finally {
+                restore();
+            }
+
+            expect(component.form.controls.deviceId1.value).toBe('');
+            expect(component.form.controls.deviceId2.value).toBe('');
+        });
+
         it('leaves the fields alone once the box is unticked', async () => {
             component.form.patchValue({ macAddress: '00:1A:79:AA:BB:CC' });
             await component.toggleDeriveDeviceIds(true);
