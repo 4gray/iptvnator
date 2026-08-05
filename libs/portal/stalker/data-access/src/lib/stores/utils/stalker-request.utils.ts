@@ -145,9 +145,14 @@ async function dispatchStalkerRequest<T>(
  *   coordinates with no playlist row — there is no meta to route or repair
  *   with. Its row-backed branch does come through here.
  *
- * The exemption is from the ROUTING, not from repair: the callers that can
- * observe a wrong-endpoint failure wire `StalkerPortalRepairService`
- * explicitly. Anything new that is not auth or discovery belongs here.
+ * The exemption is from the ROUTING, not from the repair hooked above — but
+ * only `fetchViaProfile()` wires `StalkerPortalRepairService` itself.
+ * Discovery is what repair drives, the row-less branch has no playlist to
+ * repair, and the auth layer needs nothing: a terminal handshake failure
+ * propagates out of the full-portal branch below and is caught here, which is
+ * why it is one of the triggers listed above.
+ *
+ * Anything new that is not auth or discovery belongs here.
  */
 export async function executeStalkerRequest<T>(
     deps: StalkerRequestDeps,

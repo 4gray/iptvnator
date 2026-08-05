@@ -76,10 +76,25 @@ below is reached as `/workspace/stalker/:id/…`.
      `executeStalkerRequest()`, and wins when a row exists, so a repaired
      endpoint beats a stale favorite's snapshot.
 
-   The exemption is from the routing, not from repair: the two that can
-   observe a wrong-endpoint failure (`fetchViaProfile`, and discovery by
-   definition) wire `StalkerPortalRepairService` explicitly. Anything new
-   that is not auth or discovery belongs on `executeStalkerRequest()`.
+   The exemption is from the routing, not from the repair it hooks — but only
+   **one** of the four wires `StalkerPortalRepairService` itself, and the
+   asymmetry is worth knowing before adding a fifth:
+
+   - `StalkerAccountInfoService.fetchViaProfile()` wires it explicitly,
+     because opening the account dialog on a playlist with a stale endpoint
+     must be able to fix it instead of waiting for an unrelated catalog
+     request.
+   - `StalkerPortalDiscoveryService` is what repair *drives*, so it cannot
+     repair itself.
+   - The auth layer wires nothing. It does not need to: a terminal handshake
+     failure propagates out of the full-portal branch and is caught by
+     whichever `executeStalkerRequest()` call triggered the authentication,
+     which is exactly why "terminal handshake failures" is one of the repair
+     triggers listed above.
+   - `StreamResolverService`'s row-less branch has no playlist to repair.
+
+   Anything new that is not auth or discovery belongs on
+   `executeStalkerRequest()`.
 4. Electron main process handles `STALKER_REQUEST` in
    `apps/electron-backend/src/app/events/stalker.events.ts`.
 5. Axios calls the portal's persisted API endpoint (`portal.php` on

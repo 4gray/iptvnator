@@ -29,10 +29,11 @@ must remain provider-neutral.
 ## Portal Mode And Session
 
 Full vs. simple mode is decided by observed behavior, not URL shape, and read
-only through `isFullStalkerPortalPlaylist()`. Route catalog, content and
-playback calls through `executeStalkerRequest()`; the auth, discovery and
-account-profile layers below it call `STALKER_REQUEST` directly and wire
-repair themselves. Repair is lazy per session, never an eager migration.
+only through `isFullStalkerPortalPlaylist()`. Route playlist-backed catalog,
+content and playback calls through `executeStalkerRequest()`. Auth, discovery,
+account-profile refresh and row-less collection resolution go direct; read
+`stalker-request.utils.ts` before adding a fifth. Repair is lazy per session,
+never eager.
 Full portals reuse the persisted idempotent handshake token while its session
 fingerprint matches, and ping `get_events` at the profile cadence (default
 120 s). Auth failures are HTTP 200 plus plain text.
