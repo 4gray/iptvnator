@@ -123,13 +123,31 @@ async function dispatchStalkerRequest<T>(
 }
 
 /**
- * Single choke point for Stalker API calls. On top of the mode routing it
- * hooks the lazy portal repair: when a request fails in a way only a wrong
- * persisted endpoint/mode produces (plain-text `Authorization failed.`
- * bodies on token-less requests, HTTP 404 on a vanished endpoint, terminal
- * handshake failures), the repair service re-probes the portal once per
- * session and — only when a different configuration is PROVEN to work —
- * the request is retried against it. Healthy portals never probe.
+ * Choke point for Stalker catalog, content and playback calls. On top of the
+ * mode routing it hooks the lazy portal repair: when a request fails in a way
+ * only a wrong persisted endpoint/mode produces (plain-text
+ * `Authorization failed.` bodies on token-less requests, HTTP 404 on a
+ * vanished endpoint, terminal handshake failures), the repair service
+ * re-probes the portal once per session and — only when a different
+ * configuration is PROVEN to work — the request is retried against it.
+ * Healthy portals never probe.
+ *
+ * Four callers deliberately issue `STALKER_REQUEST` themselves, because each
+ * runs BELOW or BEFORE what this routes on:
+ *
+ * - `StalkerAuthApi` — `handshake`/`get_profile`/`do_auth` are what the
+ *   full-portal branch here is implemented in terms of, so routing them back
+ *   through it would recurse.
+ * - `StalkerPortalDiscoveryService` — probes precede the mode they determine.
+ * - `StalkerAccountInfoService.fetchViaProfile()` — a profile request, so it
+ *   takes the same exemption as the auth layer.
+ * - `StreamResolverService`, for a collection item carrying its own portal
+ *   coordinates with no playlist row — there is no meta to route or repair
+ *   with. Its row-backed branch does come through here.
+ *
+ * The exemption is from the ROUTING, not from repair: the callers that can
+ * observe a wrong-endpoint failure wire `StalkerPortalRepairService`
+ * explicitly. Anything new that is not auth or discovery belongs here.
  */
 export async function executeStalkerRequest<T>(
     deps: StalkerRequestDeps,

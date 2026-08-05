@@ -105,11 +105,16 @@ app.use('/server/load.php', createPortalRouter(true));
 app.use('/ministra/server/load.php', createPortalRouter(true));
 
 /**
- * Mirror of the app's full-portal predicates (`isFullStalkerPortal` checks
- * `/stalker_portal/` or `/server/load.php`; import-time normalization checks
- * `/stalker_portal`). Any URL shape the client would authenticate against must
- * be enforced by the proxy too, or tests would silently exercise the tolerant
- * branch.
+ * Which proxied portal URLs this mock enforces the token on. It mirrors
+ * `isFullStalkerPortalUrl()` in `@iptvnator/shared/interfaces` — the union of
+ * the three predicates that used to diverge in the app before endpoint
+ * discovery unified them.
+ *
+ * The app itself no longer classifies by URL shape (mode is an observed,
+ * persisted fact), but a fixture has to decide strictness from the path
+ * alone: it IS the behavior being observed. Every URL shape the client would
+ * authenticate against must be enforced here, or tests silently exercise the
+ * tolerant branch.
  */
 function isFullPortalUrlShape(url: string): boolean {
     return url.includes('/stalker_portal') || url.includes('/server/load.php');
