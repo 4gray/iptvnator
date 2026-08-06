@@ -141,7 +141,11 @@ Two portal modes exist, persisted per playlist as
   `Authorization: Bearer` (there is none to send), and no `SN` header or
   serial-derived `__cfduid` cookie **even when the playlist stores a serial**.
   The full-portal branch forwards both, because `makeAuthenticatedRequest()`
-  passes `token` and `serialNumber`. Whether a simple panel ought to receive
+  passes `token` and `serialNumber`. This covers portal API requests only —
+  playback headers are built from the playlist row by a different helper and
+  are NOT mode-gated, so the same simple-mode playlist does send its serial
+  with a portal-owned stream (see "Stalker Identity Policy").
+  Whether a simple panel ought to receive
   the serial is unproven: no reference portal is known to require it, and the
   `sn` *parameter* only ever travels on `get_profile`, which a simple portal
   never calls. Treat it as an open question rather than a bug to fix blind.
@@ -282,10 +286,22 @@ describes the emulated box, not the account — see "Reported device profile".)
 - User-provided `sn`, `device_id`, `device_id2`, `signature`, and `signature2`
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
   and reused for initial auth, token refresh, retry auth, normal API requests,
-  and same-origin playback headers. This describes the **full-portal** path:
-  the serial reaches the transport through `makeAuthenticatedRequest()`, and a
-  simple-mode playlist's requests carry no serial at all (see "Portal Mode and
-  Endpoint Discovery").
+  and same-origin playback headers.
+
+  Those last two reach the wire by different routes, and **only one is
+  mode-gated** — the asymmetry is easy to get backwards:
+
+    - **Portal API requests** receive the serial through
+      `makeAuthenticatedRequest()`, which only the full-portal branch of
+      `dispatchStalkerRequest()` calls. A simple-mode playlist therefore sends
+      no serial on any API call, whatever it has stored (see "Portal Mode and
+      Endpoint Discovery").
+    - **Same-origin playback headers** are built by
+      `buildStalkerExternalPlaybackHeaders()`, which reads
+      `playlist.stalkerSerialNumber` straight off the row with no mode check
+      at all. So a simple-mode playlist holding a real serial *does* send `SN`
+      and the serial-derived `__cfduid` on portal-owned streams — while its
+      API calls do not.
 - Empty optional identity fields remain absent. IPTVnator must never generate a
   device ID behind the user's back, and must never duplicate `device_id2` from
   `device_id1` on its own.
