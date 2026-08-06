@@ -367,7 +367,17 @@ webServer: [
 ]
 ```
 
-Playwright waits for every server to be healthy before starting tests. If one is already running (e.g. in local dev), it reuses the existing instance. `MOCK_PORT` overrides the mock's port for both the config and the specs.
+Playwright waits for every server to be healthy before starting tests. If one is already running (e.g. in local dev), it reuses the existing instance.
+
+**`MOCK_PORT` moves the CLIENT side only** — Playwright's health-check URL and
+the `MOCK_SERVER` constants in the specs. The server's own port comes from
+`PORT` (`main.ts`), which the `serve` and `serve-with-watch` targets pin to
+`3210` in `project.json`, and nothing maps one variable to the other. Setting
+`MOCK_PORT` alone therefore points Playwright at a port nothing is listening
+on and the run times out waiting for `/health`. It is only useful against a
+mock you started yourself on that port (`reuseExistingServer` is on outside
+CI); relocating the Nx-managed one would need `MOCK_PORT` passed through as
+`PORT`.
 
 ### Test Isolation
 
