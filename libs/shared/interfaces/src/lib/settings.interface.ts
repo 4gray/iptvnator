@@ -178,6 +178,13 @@ export interface Settings {
      * for its preload frame pump, which is fixed at window creation.
      */
     embeddedMpvFrameCopy?: boolean;
+    /**
+     * Free-form extra libmpv options for the embedded engine, one
+     * "key=value" pair per line (no leading "--"). Applied after the
+     * built-in defaults, so a value here can override anything except
+     * "wid" itself.
+     */
+    embeddedMpvExtraOptions?: string;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */
@@ -210,3 +217,4 @@ export interface Settings {
      */
     tmdb?: TmdbSettings;
 }
+

@@ -1,7 +1,11 @@
 import { ipcMain } from 'electron';
-import { normalizeExternalPlayerArguments } from '@iptvnator/shared/interfaces';
+import {
+    normalizeEmbeddedMpvExtraOptions,
+    normalizeExternalPlayerArguments,
+} from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
@@ -46,6 +50,12 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     if (arg.embeddedMpvFrameCopy !== undefined) {
         store.set(EMBEDDED_MPV_FRAME_COPY, !!arg.embeddedMpvFrameCopy);
     }
+    if (arg.embeddedMpvExtraOptions !== undefined) {
+        store.set(
+            EMBEDDED_MPV_EXTRA_OPTIONS,
+            normalizeEmbeddedMpvExtraOptions(arg.embeddedMpvExtraOptions)
+        );
+    }
 
     if (arg.vlcReuseInstance !== undefined) {
         store.set(VLC_REUSE_INSTANCE, arg.vlcReuseInstance);
@@ -72,3 +82,5 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         httpServer.updateSettings(enabled, port);
     }
 });
+
+

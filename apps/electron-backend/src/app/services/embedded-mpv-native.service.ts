@@ -32,6 +32,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { embeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';
+import { EMBEDDED_MPV_EXTRA_OPTIONS, store } from './store.service';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
     getFrameCopyRuntimeAvailability,
@@ -69,7 +70,8 @@ export interface NativeEmbeddedMpvAddon {
         windowHandle: Buffer,
         bounds: EmbeddedMpvBounds,
         title?: string,
-        initialVolume?: number
+        initialVolume?: number,
+        extraOptions?: string
     ): string;
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void;
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void;
@@ -99,6 +101,9 @@ interface EmbeddedMpvRuntimeSession {
     updatedAt: string;
     lastPayloadKey: string;
     lastStatus: EmbeddedMpvSessionStatus | null;
+    lastLoadedPlayback: ResolvedPortalPlayback | null;
+    reconnectAttempts: number;
+    reconnectTimer: NodeJS.Timeout | null;
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -469,11 +474,15 @@ export class EmbeddedMpvNativeService {
             ? Buffer.alloc(0)
             : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
+        const extraOptions = usesFrameCopyAddon
+            ? undefined
+            : store.get(EMBEDDED_MPV_EXTRA_OPTIONS, '');
         const sessionId = addon.createSession(
             windowHandle,
             usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds),
             title,
-            initialVolume
+            initialVolume,
+            extraOptions
         );
 
         this.sessions.set(sessionId, {
@@ -484,6 +493,9 @@ export class EmbeddedMpvNativeService {
             updatedAt: startedAt,
             lastPayloadKey: '',
             lastStatus: null,
+            lastLoadedPlayback: null,
+            reconnectAttempts: 0,
+            reconnectTimer: null,
         });
 
         this.ensurePolling();
@@ -517,6 +529,8 @@ export class EmbeddedMpvNativeService {
         session.title = playback.title ?? session.title;
         session.streamUrl = playback.streamUrl ?? session.streamUrl;
         session.updatedAt = new Date().toISOString();
+        session.lastLoadedPlayback = playback;
+        this.cancelReconnect(session);
         addon.loadPlayback(sessionId, playback);
         this.refreshSession(sessionId);
     }
@@ -741,11 +755,74 @@ export class EmbeddedMpvNativeService {
         return result.filePaths[0];
     }
 
+    private static readonly MAX_RECONNECT_ATTEMPTS = 6;
+    private static readonly RECONNECT_BASE_DELAY_MS = 2000;
+    private static readonly RECONNECT_MAX_DELAY_MS = 30000;
+
+    /**
+     * Automatic network reconnection: a dropped IPTV stream surfaces as the
+     * native session moving to 'error' status. Rather than leaving the
+     * viewer stuck on a black screen, retry the last successful
+     * loadPlayback() call with capped exponential backoff (2s, 4s, 8s, 16s,
+     * 30s, 30s) up to MAX_RECONNECT_ATTEMPTS, then give up and leave the
+     * session in 'error' so the UI's manual retry stays available.
+     */
+    private cancelReconnect(session: EmbeddedMpvRuntimeSession): void {
+        if (session.reconnectTimer) {
+            clearTimeout(session.reconnectTimer);
+            session.reconnectTimer = null;
+        }
+        session.reconnectAttempts = 0;
+    }
+
+    private scheduleReconnect(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (!session || session.reconnectTimer || !session.lastLoadedPlayback) {
+            return;
+        }
+        if (
+            session.reconnectAttempts >=
+            EmbeddedMpvNativeService.MAX_RECONNECT_ATTEMPTS
+        ) {
+            return;
+        }
+        const delay = Math.min(
+            EmbeddedMpvNativeService.RECONNECT_BASE_DELAY_MS *
+                2 ** session.reconnectAttempts,
+            EmbeddedMpvNativeService.RECONNECT_MAX_DELAY_MS
+        );
+        console.log(
+            `[Embedded MPV][reconnect] session ${sessionId} lost connection, ` +
+                `retrying in ${delay}ms (attempt ${
+                    session.reconnectAttempts + 1
+                }/${EmbeddedMpvNativeService.MAX_RECONNECT_ATTEMPTS})`
+        );
+        session.reconnectTimer = setTimeout(() => {
+            session.reconnectTimer = null;
+            session.reconnectAttempts += 1;
+            const current = this.sessions.get(sessionId);
+            if (!current || !current.lastLoadedPlayback) {
+                return;
+            }
+            try {
+                const addon = this.getAddon();
+                addon.loadPlayback(sessionId, current.lastLoadedPlayback);
+            } catch (error) {
+                console.warn(
+                    `[Embedded MPV][reconnect] attempt failed for session ${sessionId}:`,
+                    error
+                );
+            }
+            this.refreshSession(sessionId);
+        }, delay);
+    }
+
     disposeSession(sessionId: string): EmbeddedMpvSession | null {
         const session = this.sessions.get(sessionId);
         if (!session) {
             return null;
         }
+        this.cancelReconnect(session);
 
         let lastRecording: EmbeddedMpvRecordingState | undefined;
         try {
@@ -938,9 +1015,18 @@ export class EmbeddedMpvNativeService {
             ...(snapshot.error ? { error: snapshot.error } : {}),
         };
 
+        const previousStatus = session.lastStatus;
         session.streamUrl = payload.streamUrl;
         session.updatedAt = payload.updatedAt;
         session.lastStatus = payload.status;
+        if (payload.status === 'error' && previousStatus !== 'error') {
+            this.scheduleReconnect(sessionId);
+        } else if (
+            payload.status === 'playing' ||
+            payload.status === 'paused'
+        ) {
+            this.cancelReconnect(session);
+        }
         // The refresh timestamp must not participate in the diff key,
         // otherwise every poll tick looks like a change and the renderer
         // receives an IPC update every 500 ms even while paused.
@@ -1294,3 +1380,15 @@ export class EmbeddedMpvNativeService {
 }
 
 export const embeddedMpvNativeService = new EmbeddedMpvNativeService();
+
+
+
+
+
+
+
+
+
+
+
+

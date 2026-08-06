@@ -492,6 +492,9 @@
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: frame-copy engine (experimental)",
         "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Render video onto the app canvas so menus and dialogs stack above it.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Takes effect after restarting the app.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS": "Extra embedded MPV options",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Advanced libmpv options for the embedded player, one key=value pair per line (no leading --).",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Example: hwdec=auto-safe. Applied when a new embedded MPV session starts.",
         "VOD_AUTO_FAILOVER": "Auto-switch source on playback error",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "When a movie fails to play and the same film exists in another playlist, switch to it automatically and keep the timecode. Off by default; the switch is always announced because another source can carry a different dub."
     },
@@ -1637,3 +1640,4 @@
         }
     }
 }
+

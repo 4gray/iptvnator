@@ -492,6 +492,9 @@
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV : moteur frame-copy (expérimental)",
         "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "La vidéo est rendue sur le canevas de l'application, les menus et boîtes de dialogue s'affichent donc au-dessus.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Prend effet après le redémarrage de l'application.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS": "Options MPV intégré supplémentaires",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Options libmpv avancées pour le lecteur intégré, une paire cle=valeur par ligne (sans -- au début).",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Exemple : hwdec=auto-safe. Appliqué au démarrage d'une nouvelle session MPV intégrée.",
         "VOD_AUTO_FAILOVER": "Changer de source automatiquement en cas d'erreur de lecture",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Lorsqu'un film ne parvient pas à démarrer et que le même film existe dans une autre liste de lecture, bascule automatiquement vers celle-ci en conservant la position de lecture. Désactivé par défaut ; le changement est toujours annoncé, car une autre source peut proposer un doublage différent."
     },
@@ -1637,3 +1640,4 @@
         }
     }
 }
+

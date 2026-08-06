@@ -5,6 +5,8 @@
 #include <napi.h>
 
 #include <mpv/client.h>
+#include <sstream>
+#include <string>
 
 #ifdef IPTVNATOR_DYNAMIC_LIBMPV
 #ifndef IPTVNATOR_MPV_SELECTANY
@@ -1692,6 +1694,18 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     mpv_set_option_string(session->handle, "vo", "gpu");
     mpv_set_option_string(session->handle, "hwdec", "auto-safe");
 #endif
+    // Network resilience: without an explicit timeout, a stalled IPTV
+    // connection just hangs on the OS read() until a multi-minute TCP
+    // timeout, so the Electron-side reconnect watchdog in
+    // EmbeddedMpvNativeService never sees an 'error' status to act on.
+    // A short network-timeout plus ffmpeg-level auto-reconnect makes a
+    // dropped stream surface (and recover) within seconds instead.
+    mpv_set_option_string(session->handle, "network-timeout", "10");
+    mpv_set_option_string(
+        session->handle,
+        "demuxer-lavf-o",
+        "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5"
+    );
     if (std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV")) {
         mpv_set_option_string(session->handle, "msg-level", "all=trace");
         mpv_set_option_string(
@@ -1705,6 +1719,38 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         session->snapshot.volumePercent
     );
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
+
+    if (info.Length() >= 5 && info[4].IsString()) {
+        const std::string extraOptionsRaw =
+            info[4].As<Napi::String>().Utf8Value();
+        std::istringstream extraOptionsStream(extraOptionsRaw);
+        std::string extraOptionLine;
+        while (std::getline(extraOptionsStream, extraOptionLine)) {
+            if (!extraOptionLine.empty() && extraOptionLine.back() == '\r') {
+                extraOptionLine.pop_back();
+            }
+            const auto separatorPos = extraOptionLine.find('=');
+            if (separatorPos == std::string::npos) {
+                continue;
+            }
+            std::string key = extraOptionLine.substr(0, separatorPos);
+            std::string value = extraOptionLine.substr(separatorPos + 1);
+            const auto trim = [](std::string& s) {
+                const auto first = s.find_first_not_of(" \t");
+                const auto last = s.find_last_not_of(" \t");
+                s = (first == std::string::npos)
+                    ? std::string()
+                    : s.substr(first, last - first + 1);
+            };
+            trim(key);
+            trim(value);
+            if (key.empty()) {
+                continue;
+            }
+            traceMpvCommon(("applying extra mpv option: " + key).c_str());
+            mpv_set_option_string(session->handle, key.c_str(), value.c_str());
+        }
+    }
     mpv_request_log_messages(session->handle, "warn");
 
     traceMpvCommon("initializing libmpv");
@@ -2377,3 +2423,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
 } // namespace
 
 NODE_API_MODULE(embedded_mpv, Init)
+
+
+
+

@@ -235,6 +235,48 @@
             </div>
         }
 
+        @if (form().value.player === 'embedded-mpv') {
+            <div
+                class="setting-item"
+                data-test-id="embedded-mpv-extra-options-setting"
+            >
+                <div class="setting-item__meta">
+                    <h4>
+                        {{ 'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS' | translate }}
+                    </h4>
+                    <p>
+                        {{
+                            'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-label for="embeddedMpvExtraOptions">{{
+                            'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS' | translate
+                        }}</mat-label>
+                        <textarea
+                            matInput
+                            id="embeddedMpvExtraOptions"
+                            formControlName="embeddedMpvExtraOptions"
+                            placeholder="hwdec=auto-safe"
+                            rows="3"
+                            spellcheck="false"
+                            autocomplete="off"
+                        ></textarea>
+                        <mat-hint>{{
+                            'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_HINT'
+                                | translate
+                        }}</mat-hint>
+                    </mat-form-field>
+                </div>
+            </div>
+        }
+
         <div class="setting-item" data-test-id="recording-folder-setting">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.RECORDING_FOLDER_LABEL' | translate }}</h4>
@@ -414,3 +456,4 @@
         </div>
     }
 </section>
+

@@ -8,6 +8,7 @@ export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
 export const VLC_PLAYER_ARGUMENTS = 'VLC_PLAYER_ARGUMENTS';
 export const MPV_REUSE_INSTANCE = 'MPV_REUSE_INSTANCE';
 export const VLC_REUSE_INSTANCE = 'VLC_REUSE_INSTANCE';
+
 /**
  * Embedded MPV frame-copy engine opt-in (macOS arm64, Linux x64). Lives in the
  * main process config file because it must be readable synchronously before
@@ -15,6 +16,14 @@ export const VLC_REUSE_INSTANCE = 'VLC_REUSE_INSTANCE';
  * its preload frame pump, which cannot change after window creation.
  */
 export const EMBEDDED_MPV_FRAME_COPY = 'EMBEDDED_MPV_FRAME_COPY';
+
+/**
+ * Free-form extra libmpv options for the embedded (--wid) engine, one
+ * "key=value" pair per line (no leading "--"). Applied via
+ * mpv_set_option_string after the built-in defaults, so a user value can
+ * override anything except "wid" itself.
+ */
+export const EMBEDDED_MPV_EXTRA_OPTIONS = 'EMBEDDED_MPV_EXTRA_OPTIONS';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
@@ -25,6 +34,7 @@ export type StoreType = {
     [MPV_REUSE_INSTANCE]: boolean;
     [VLC_REUSE_INSTANCE]: boolean;
     [EMBEDDED_MPV_FRAME_COPY]: boolean;
+    [EMBEDDED_MPV_EXTRA_OPTIONS]: string;
 };
 
 // Export singleton store instance
@@ -32,5 +42,4 @@ const electronConfigDirectory = getElectronConfigDirectory();
 const storeOptions = electronConfigDirectory
     ? { dir: electronConfigDirectory }
     : {};
-
 export const store = new Conf<StoreType>(storeOptions);
