@@ -128,11 +128,23 @@ Two portal modes exist, persisted per playlist as
   below) whose failures are non-fatal.
 - **Simple portal** (typically a reseller-style `portal.php` panel): no auth
   lifecycle at all — no handshake, no Bearer token, no watchdog. The requests
-  themselves are not stripped down: every Stalker request goes through the
-  shared identity builder, so a simple portal still receives the full STB
-  identity (the `mac`/`stb_lang`/`timezone` cookie, the MAG `User-Agent` /
-  `X-User-Agent` pair, `SN` when a serial exists — see "Request Transport and
-  `cmd` Encoding"). Only the `Authorization: Bearer` header is absent.
+  are not stripped down to a bare cookie either: every Stalker request goes
+  through the shared identity builder, so a simple portal receives everything
+  that builder can derive from a MAC alone — the `mac`/`stb_lang`/`timezone`
+  cookie, the MAG `User-Agent` / `X-User-Agent` pair and the
+  `Accept`/`Accept-Language`/`Connection` set (see "Request Transport and
+  `cmd` Encoding").
+
+  What it does **not** get is anything carried by the session. The direct
+  branch of `dispatchStalkerRequest()` forwards only `url`, `macAddress` and
+  `params`, so the builder never sees a token *or* a serial: no
+  `Authorization: Bearer` (there is none to send), and no `SN` header or
+  serial-derived `__cfduid` cookie **even when the playlist stores a serial**.
+  The full-portal branch forwards both, because `makeAuthenticatedRequest()`
+  passes `token` and `serialNumber`. Whether a simple panel ought to receive
+  the serial is unproven: no reference portal is known to require it, and the
+  `sn` *parameter* only ever travels on `get_profile`, which a simple portal
+  never calls. Treat it as an open question rather than a bug to fix blind.
 
 Neither label is tied to a URL shape: mode follows OBSERVED behavior, so a
 `portal.php` panel that enforces the token is classified — and treated
@@ -270,7 +282,10 @@ describes the emulated box, not the account — see "Reported device profile".)
 - User-provided `sn`, `device_id`, `device_id2`, `signature`, and `signature2`
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
   and reused for initial auth, token refresh, retry auth, normal API requests,
-  and same-origin playback headers.
+  and same-origin playback headers. This describes the **full-portal** path:
+  the serial reaches the transport through `makeAuthenticatedRequest()`, and a
+  simple-mode playlist's requests carry no serial at all (see "Portal Mode and
+  Endpoint Discovery").
 - Empty optional identity fields remain absent. IPTVnator must never generate a
   device ID behind the user's back, and must never duplicate `device_id2` from
   `device_id1` on its own.
