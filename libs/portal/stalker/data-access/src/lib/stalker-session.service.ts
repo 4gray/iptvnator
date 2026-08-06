@@ -52,8 +52,16 @@ export const STALKER_SERIAL_NUMBER = LEGACY_DEFAULT_STALKER_SERIAL;
 
 /**
  * Service to manage Stalker portal session tokens.
- * Handles handshake authentication for full stalker portals (/stalker_portal/c URLs).
- * Persists tokens during session and handles re-authentication on auth failures.
+ *
+ * Handles handshake authentication for playlists in FULL portal mode. Mode is
+ * a persisted, behavior-observed fact read through
+ * `isFullStalkerPortalPlaylist()` — never a URL substring: since endpoint
+ * discovery, a token-enforcing `portal.php` panel is a full portal and a
+ * `server/load.php` endpoint that answers without a token is a simple one.
+ *
+ * Tokens are cached in-run and written back to the playlist row, so a session
+ * survives a restart; both are tagged with the identity fingerprint they were
+ * negotiated for. Re-authenticates on auth failures.
  */
 @Injectable({
     providedIn: 'root',

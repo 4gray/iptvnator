@@ -14,13 +14,29 @@ description: Use when changing Stalker or Ministra routes, stores, catalog or se
 ## Ownership
 
 - Routed UI: `libs/portal/stalker/feature/src/lib/`
-- API, session, store, and normalization:
+- Session, store, and normalization:
   `libs/portal/stalker/data-access/src/lib/`
+- Wire-format and identity contracts: `libs/shared/interfaces/src/lib/` —
+  portal-mode predicate, MAC/device-ID utils, auth-failure classifier, `cmd`
+  encoder, URL/identity builders. There because Electron main cannot import
+  renderer libs; never fork them.
 - Electron transport: `apps/electron-backend/src/app/events/stalker.events.ts`
 - Provider-neutral collections: `libs/portal/shared/data-access/src/lib/`
 
-Keep Stalker request and shape rules in Stalker data access. Shared portal UI
+Keep Stalker shape and store rules in Stalker data access. Shared portal UI
 must remain provider-neutral.
+
+## Portal Mode And Session
+
+Full vs. simple mode is decided by observed behavior, not URL shape, and read
+only through `isFullStalkerPortalPlaylist()`. Route playlist-backed catalog,
+content and playback calls through `executeStalkerRequest()`. Auth, discovery,
+account-profile refresh and row-less collection resolution go direct; read
+`stalker-request.utils.ts` before adding a fifth. Repair is lazy per session,
+never eager.
+Full portals reuse the persisted idempotent handshake token while its session
+fingerprint matches, and ping `get_events` at the profile cadence (default
+120 s). Auth failures are HTTP 200 plus plain text.
 
 ## Series Contract
 
@@ -69,5 +85,5 @@ Run:
   `workspace-dashboard-feature` test targets
 
 For the user workflow, run
-`pnpm nx run web-e2e:e2e-ci--src/stalker.e2e.ts` or document the missing
-fixture and strongest focused coverage.
+`pnpm nx run web-e2e:e2e-ci--src/stalker.e2e.ts` or document the strongest
+focused coverage available.

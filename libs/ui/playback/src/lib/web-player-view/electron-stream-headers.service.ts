@@ -19,9 +19,10 @@ function getHeaderValue(
  * Single owner of the scoped Electron request-header override for built-in
  * playback. There is exactly one scoped override slot in the main process, so
  * every surface that plays a stream inline goes through this service:
- * `WebPlayerViewComponent` for the web video players, and the Stalker live
- * layout for the dedicated radio audio player, which never mounts a
- * `WebPlayerViewComponent` at all.
+ * `WebPlayerViewComponent` for the web video players, plus the two surfaces
+ * that render `AudioPlayerComponent` for radio and therefore never mount a
+ * `WebPlayerViewComponent` at all — the Stalker live layout, and the unified
+ * live tab behind the Favorites / Recently Viewed collection routes.
  *
  * `apply()` extracts the full header set from the resolved playback —
  * including the portal Cookie/Authorization that auth-gated streams require —

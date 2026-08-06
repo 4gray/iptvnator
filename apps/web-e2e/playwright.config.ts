@@ -51,7 +51,12 @@ export default defineConfig({
     },
     /* Run local dev servers before starting the tests.
      * Both the Angular app and the Stalker mock server start in parallel.
-     * Set MOCK_PORT to override the default mock server port (3210).
+     *
+     * MOCK_PORT only moves where the CLIENT looks — this health check and the
+     * specs' MOCK_SERVER constants. The mock reads PORT, which
+     * stalker-mock-server's serve target pins to 3210, and nothing maps one to
+     * the other, so MOCK_PORT alone makes the wait below time out. Use it to
+     * point at a mock you started yourself on that port.
      */
     webServer: [
         {
