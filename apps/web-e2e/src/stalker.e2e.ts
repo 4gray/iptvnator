@@ -40,9 +40,10 @@ import {
  * test; serializing one file is the cheaper trade.
  *
  * - ACROSS BROWSER PROJECTS/WORKERS: state-sensitive auth tests use one MAC
- *   range per Playwright worker. Their `beforeEach` adds only that worker's
- *   MACs to the scoped reset, so concurrent projects or repeat workers cannot
- *   clear one another's token, invalidated session or pinned device id.
+ *   range per Playwright parallel slot. Their `beforeEach` adds only that
+ *   slot's MACs to the scoped reset, so concurrent projects cannot clear one
+ *   another's token, invalidated session or pinned device id. A restarted
+ *   worker retains its bounded `parallelIndex`.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -80,8 +81,8 @@ const STATIC_CMD_MAC = '00:1A:79:00:00:0A';
 /**
  * These tests assert state transitions within one portal session, so a reset
  * from a concurrent browser project or repeat worker would invalidate the
- * assertion itself. Giving every worker its own MAC range preserves browser
- * parallelism and also keeps `--repeat-each` runs isolated.
+ * assertion itself. Giving every concurrent worker slot its own MAC range
+ * preserves browser parallelism and also keeps `--repeat-each` runs isolated.
  */
 interface StatefulAuthMacs {
     authenticatedFlow: string;
@@ -91,16 +92,25 @@ interface StatefulAuthMacs {
     reauthentication: string;
 }
 
-function getStatefulAuthMacs(workerIndex: number): StatefulAuthMacs {
+function getStatefulAuthMacs({
+    parallelIndex,
+}: {
+    parallelIndex: number;
+}): StatefulAuthMacs {
     if (
-        !Number.isSafeInteger(workerIndex) ||
-        workerIndex < 0 ||
-        workerIndex > 255
+        !Number.isSafeInteger(parallelIndex) ||
+        parallelIndex < 0 ||
+        parallelIndex > 255
     ) {
-        throw new Error(`Unsupported Playwright worker index: ${workerIndex}`);
+        throw new Error(
+            `Unsupported Playwright parallel index: ${parallelIndex}`
+        );
     }
 
-    const workerOctet = workerIndex.toString(16).padStart(2, '0').toUpperCase();
+    const workerOctet = parallelIndex
+        .toString(16)
+        .padStart(2, '0')
+        .toUpperCase();
     const workerPrefix = `00:1A:79:AE:${workerOctet}`;
 
     return {
@@ -311,7 +321,7 @@ function recordPortalRequests(
 
 test.beforeEach(async ({ page, request }, testInfo) => {
     // Reset mock server state (clears in-memory favorites and cache)
-    await resetMockServer(request, getStatefulAuthMacs(testInfo.workerIndex));
+    await resetMockServer(request, getStatefulAuthMacs(testInfo));
 
     // Playwright creates a fresh browser context per test, so extra
     // IndexedDB cleanup here only risks racing with app-managed DB handles.
@@ -330,6 +340,14 @@ test('@stalker health check — mock server is running', async ({ request }) => 
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
     expect(body.status).toBe('ok');
+});
+
+test('@stalker auth MAC allocation survives worker process restarts', () => {
+    const restartedWorker = { parallelIndex: 7, workerIndex: 256 };
+
+    expect(getStatefulAuthMacs(restartedWorker).loginRequired).toBe(
+        '00:1A:79:AE:07:02'
+    );
 });
 
 test('@stalker add a Stalker portal and see it in the playlist list', async ({
@@ -980,7 +998,7 @@ test.describe('@stalker full portal authentication', () => {
     }, testInfo) => {
         const requests = recordPortalRequests(page);
         const actionsInOrder = () => requests.map((entry) => entry.action);
-        const mac = getStatefulAuthMacs(testInfo.workerIndex).authenticatedFlow;
+        const mac = getStatefulAuthMacs(testInfo).authenticatedFlow;
 
         await addFullStalkerPortal(page, { mac });
 
@@ -1038,7 +1056,7 @@ test.describe('@stalker full portal authentication', () => {
         page,
     }, testInfo) => {
         const requests = recordPortalRequests(page);
-        const mac = getStatefulAuthMacs(testInfo.workerIndex).loginRequired;
+        const mac = getStatefulAuthMacs(testInfo).loginRequired;
         // The second auth step must only be claimed on the retry AFTER
         // do_auth — a client that always sends auth_second_step=1 works
         // against the mock but violates the documented protocol.
@@ -1093,7 +1111,7 @@ test.describe('@stalker full portal authentication', () => {
     test('explains a login-required portal and recovers once credentials are entered', async ({
         page,
     }, testInfo) => {
-        const mac = getStatefulAuthMacs(testInfo.workerIndex).loginRequired;
+        const mac = getStatefulAuthMacs(testInfo).loginRequired;
         // First attempt without credentials: the import must fail with the
         // portal's actual reason, not a generic "check URL and MAC" error.
         await page.getByRole('button', { name: 'Add playlist' }).click();
@@ -1135,7 +1153,7 @@ test.describe('@stalker full portal authentication', () => {
         page,
     }, testInfo) => {
         const requests = recordPortalRequests(page);
-        const mac = getStatefulAuthMacs(testInfo.workerIndex).tokenReuse;
+        const mac = getStatefulAuthMacs(testInfo).tokenReuse;
 
         await addFullStalkerPortal(page, { mac });
 
@@ -1258,7 +1276,7 @@ test.describe('@stalker full portal authentication', () => {
         page,
         request,
     }, testInfo) => {
-        const mac = getStatefulAuthMacs(testInfo.workerIndex).deviceConflict;
+        const mac = getStatefulAuthMacs(testInfo).deviceConflict;
         // Pin a device id the way another client (StbEmu, a set-top box)
         // would have: the stock server binds the first non-empty `device_id`
         // it sees to the MAC and refuses every different one afterwards.
@@ -1315,7 +1333,7 @@ test.describe('@stalker full portal authentication', () => {
         request,
     }, testInfo) => {
         const requests = recordPortalRequests(page);
-        const mac = getStatefulAuthMacs(testInfo.workerIndex).reauthentication;
+        const mac = getStatefulAuthMacs(testInfo).reauthentication;
 
         await addFullStalkerPortal(page, { mac });
 

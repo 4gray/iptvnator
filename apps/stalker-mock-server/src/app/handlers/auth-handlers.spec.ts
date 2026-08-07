@@ -126,7 +126,7 @@ describe('stalker mock authentication handlers', () => {
         ).toBe(null);
     });
 
-    it('applies the login-required scenario to worker-scoped MACs', () => {
+    it('applies the login-required scenario to parallel-slot MACs', () => {
         const token = invoke(handleHandshake, { action: 'handshake' }, {
             mac: WORKER_LOGIN_REQUIRED_MAC,
         })['token'] as string;

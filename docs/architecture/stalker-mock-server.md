@@ -319,9 +319,9 @@ supporting scenarios, `get_all_channels` (`get-all-channels.handler.ts`,
 (adult) genres.
 
 The login-required scenario also recognizes
-`00:1A:79:AE:<worker>:02`. This test-only alias range preserves the same
-`status: 2`/`do_auth` contract while giving concurrent Playwright workers
-independent per-MAC auth state.
+`00:1A:79:AE:<slot>:02`. This test-only alias range preserves the same
+`status: 2`/`do_auth` contract while giving concurrent Playwright parallel
+slots independent per-MAC auth state.
 
 The `marketing-demo` scenario (`00:1A:79:00:00:07`) replaces faker-generated
 VOD with the 35-movie provider-neutral showcase catalog from
@@ -401,10 +401,12 @@ file running in parallel workers, so isolation is per-MAC rather than global:
   (their fixture shapes are what the assertions are written against), so the
   file uses `test.describe.configure({ mode: 'serial' })`.
 - Authentication tests whose assertions span multiple requests derive a
-  disjoint `00:1A:79:AE:<worker>:*` range from Playwright's `workerIndex`.
-  Their `beforeEach` adds only the current worker's range to the batched reset,
-  so browser projects and `--repeat-each` workers cannot clear one another's
-  token, login completion, invalidated session or pinned device identity.
+  disjoint `00:1A:79:AE:<slot>:*` range from Playwright's bounded
+  `parallelIndex`. Their `beforeEach` adds only the current parallel slot's
+  range to the batched reset, so browser projects cannot clear one another's
+  token, login completion, invalidated session or pinned device identity; a
+  restarted worker retains the same slot instead of consuming a wider MAC
+  value.
 
 A reset drops the generated content cache, favorites (`data-store.ts`), the
 auth/session record (`auth-store.ts`, including any pinned device identity) and
