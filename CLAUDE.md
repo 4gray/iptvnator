@@ -76,6 +76,10 @@ pnpm nx show projects
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
 - Keep `nx` and every official `@nx/*` package on the same exact version; run
   `pnpm run deps:nx:validate` after dependency updates.
+- Vite `7.3.5`, resolved through Angular's build tooling, is patched with the
+  upstream precise transform filters in `patches/vite@7.3.5.patch`. Keep the
+  patch until supported Angular tooling resolves a Vite version containing the
+  fix, and run `pnpm run deps:vite:test` after related dependency updates.
 - A directory holding files consumed by other projects must be an Nx project.
   Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
   across project roots creates no edge and the imported file lands in no task
