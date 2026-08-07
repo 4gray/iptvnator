@@ -179,6 +179,9 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
     },
 };
 
+/** Worker-scoped aliases used by parallel auth E2E runs. */
+const WORKER_LOGIN_REQUIRED_MAC = /^00:1a:79:ae:[0-9a-f]{2}:02$/;
+
 /**
  * Convert a MAC address string to a numeric seed for unknown MACs.
  * e.g. "AA:BB:CC:DD:EE:FF" -> sum of byte values
@@ -195,6 +198,9 @@ export function getScenario(mac: string): ScenarioConfig {
     const normalizedMac = mac.toLowerCase();
     if (SCENARIOS[normalizedMac]) {
         return SCENARIOS[normalizedMac];
+    }
+    if (WORKER_LOGIN_REQUIRED_MAC.test(normalizedMac)) {
+        return SCENARIOS['00:1a:79:00:00:08'];
     }
     // Unknown MAC: use MAC bytes as seed, default shape
     return {

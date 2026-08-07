@@ -21,6 +21,7 @@ import { handleHandshake } from './handshake.handler';
  */
 
 const LOGIN_REQUIRED_MAC = '00:1A:79:00:00:08';
+const WORKER_LOGIN_REQUIRED_MAC = '00:1A:79:AE:05:02';
 const PLAIN_MAC = '00:1A:79:00:00:01';
 const BAD_FORMAT_MAC = 'AA:BB:CC:DD:EE:01';
 
@@ -123,6 +124,34 @@ describe('stalker mock authentication handlers', () => {
                 true
             )
         ).toBe(null);
+    });
+
+    it('applies the login-required scenario to worker-scoped MACs', () => {
+        const token = invoke(handleHandshake, { action: 'handshake' }, {
+            mac: WORKER_LOGIN_REQUIRED_MAC,
+        })['token'] as string;
+
+        expect(
+            invoke(
+                handleGetProfile,
+                { action: 'get_profile' },
+                { mac: WORKER_LOGIN_REQUIRED_MAC, token }
+            )['status']
+        ).toBe(2);
+
+        invoke(
+            handleDoAuth,
+            { action: 'do_auth', login: 'user', password: 'secret' },
+            { mac: WORKER_LOGIN_REQUIRED_MAC }
+        );
+
+        expect(
+            invoke(
+                handleGetProfile,
+                { action: 'get_profile' },
+                { mac: WORKER_LOGIN_REQUIRED_MAC, token }
+            )['status']
+        ).toBe(0);
     });
 
     it('rejects a non-Infomir MAC and never adopts its token', () => {
