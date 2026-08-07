@@ -2,7 +2,16 @@ import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     getLikelyBrowserUnsupportedCodecLabels,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
+
+const UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES: ReadonlySet<
+    PlaybackDiagnostic['code']
+> = new Set([
+    PlaybackDiagnosticCode.BrowserAccessError,
+    PlaybackDiagnosticCode.UnsupportedCodec,
+    PlaybackDiagnosticCode.UnsupportedContainer,
+    PlaybackDiagnosticCode.MediaDecodeError,
+]);
 
 export type PlaybackDiagnosticDetail = {
     readonly labelKey: string;
@@ -15,8 +24,16 @@ export function getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
 
 export function getDiagnosticDescriptionKey(
     issue: PlaybackDiagnostic,
-    supportsManagedExternalPlayers: boolean
+    supportsManagedExternalPlayers: boolean,
+    playbackExternallyTransferable: boolean
 ): string {
+    if (
+        !playbackExternallyTransferable &&
+        UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES.has(issue.code)
+    ) {
+        return 'PLAYBACK_DIAGNOSTICS.UNTRANSFERABLE_DESCRIPTION';
+    }
+
     if (
         issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
         !supportsManagedExternalPlayers

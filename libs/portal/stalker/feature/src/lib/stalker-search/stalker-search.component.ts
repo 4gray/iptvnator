@@ -6,6 +6,7 @@ import {
     inject,
     resource,
     signal,
+    untracked,
 } from '@angular/core';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -57,6 +58,7 @@ import {
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 interface StalkerFilter {
     key: StalkerSearchContentType;
@@ -103,6 +105,7 @@ export class StalkerSearchComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerSearch');
+    private currentPlaybackOwnerKey = '';
 
     readonly filters = signal<Record<StalkerSearchContentType, boolean>>({
         series: false,
@@ -141,6 +144,16 @@ export class StalkerSearchComponent {
     readonly itemDetails = signal<StalkerSelectedVodItem | null>(null);
     readonly vodDetailsItem = signal<VodDetailsItem | null>(null);
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly playbackSessionKey = computed(() => {
+        const sourceId = this.currentPlaylist()?._id;
+        const contentId = normalizeStalkerEntityId(this.itemDetails()?.id);
+        return sourceId && contentId
+            ? createPlaybackSessionKey({ kind: 'vod', sourceId, contentId })
+            : '';
+    });
+    private readonly playbackOwnerKey = computed(() =>
+        JSON.stringify([this.playbackSessionKey(), this.selectedFilterType()])
+    );
     readonly selectedVodPosition = signal<PlaybackPositionData | null>(null);
     readonly selectedVodPlaybackPosition = computed<number | null>(
         () => this.selectedVodPosition()?.positionSeconds ?? null
@@ -154,6 +167,7 @@ export class StalkerSearchComponent {
         translateService: this.translateService,
         logger: this.logger,
         playbackErrorLogMessage: 'Failed to start search VOD playback',
+        playbackOwnerKey: () => this.playbackOwnerKey(),
     });
 
     readonly portalFavorites = createPortalFavoritesResource(
@@ -197,16 +211,15 @@ export class StalkerSearchComponent {
             // executeStalkerRequest owns the portal-mode decision (shared
             // predicate with URL fallback for legacy rows) and the lazy
             // portal repair, so search cannot drift from the catalog paths.
-            const response =
-                await executeStalkerRequest<StalkerSearchResponse>(
-                    {
-                        dataService: this.dataService,
-                        stalkerSession: this.stalkerSession,
-                        portalRepair: this.portalRepair,
-                    },
-                    playlist,
-                    requestParams
-                );
+            const response = await executeStalkerRequest<StalkerSearchResponse>(
+                {
+                    dataService: this.dataService,
+                    stalkerSession: this.stalkerSession,
+                    portalRepair: this.portalRepair,
+                },
+                playlist,
+                requestParams
+            );
             const items = response.js?.data || [];
             return items.map((item: StalkerVodSource) =>
                 this.processItemUrls(item, portalUrl)
@@ -217,6 +230,12 @@ export class StalkerSearchComponent {
     readonly isSelectedVodFavorite = signal<boolean>(false);
 
     constructor() {
+        this.currentPlaybackOwnerKey = this.playbackOwnerKey();
+        effect(() => {
+            const ownerKey = this.playbackOwnerKey();
+            untracked(() => this.syncPlaybackOwner(ownerKey));
+        });
+
         effect(() => {
             const routeTerm = this.routeSearchTerm();
             if (routeTerm !== this.searchTerm()) {
@@ -293,7 +312,6 @@ export class StalkerSearchComponent {
     }
 
     selectItem(item: StalkerVodSource) {
-        this.closeInlinePlayer();
         const filterType = this.selectedFilterType();
         const hasEmbeddedSeries = (item.series?.length ?? 0) > 0;
         const needsSeriesFetch =
@@ -338,6 +356,7 @@ export class StalkerSearchComponent {
             default:
                 break;
         }
+        this.syncPlaybackOwner(this.playbackOwnerKey());
     }
 
     onVodPlay(item: VodDetailsItem): void {
@@ -428,6 +447,12 @@ export class StalkerSearchComponent {
                 this.portalFavorites.value() ?? []
             )
         );
+    }
+
+    private syncPlaybackOwner(ownerKey: string): void {
+        if (ownerKey === this.currentPlaybackOwnerKey) return;
+        this.currentPlaybackOwnerKey = ownerKey;
+        this.closeInlinePlayer();
     }
 
     inlineDetail() {

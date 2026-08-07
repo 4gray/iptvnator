@@ -254,6 +254,7 @@
     @if (playableVodItem()) {
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
+                [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
                 [alternativeSources]="multiSource.alternatives()"
                 [allSources]="multiSource.sources()"

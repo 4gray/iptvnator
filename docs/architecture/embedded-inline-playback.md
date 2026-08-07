@@ -19,7 +19,8 @@ This document records the current contract for embedded playback in portal detai
   saved episode playback positions.
 - Embedded playback UI is always hosted by the current view. `PlayerService`
   launches MPV/VLC only and does not open an embedded-player dialog.
-- Browser-player failures are diagnosed client-side and can offer explicit MPV/VLC fallback actions without changing the saved player setting.
+- Browser-player failures are diagnosed client-side and produce ranked,
+  user-triggered recovery actions without changing the saved player setting.
 
 ## Scope
 
@@ -37,6 +38,58 @@ Collection/search VOD surfaces that expose embedded playback must host
 `ResolvedPortalPlayback` inline state locally. They must not call
 `PlayerService.openPlayer(...)` or `PlayerService.openResolvedPlayback(...)` to
 create embedded UI.
+
+## Logical Playback Identity
+
+Every inline playback host owns a required, URL-independent
+`playbackSessionKey`. Live hosts derive it from the playlist/source and the
+current channel identity; an M3U session uses `Channel.id` rather than a mutable
+stream or catch-up URL. VOD and series hosts use the route or catalog
+content identity, with series episode coordinates. Stalker episode identity
+also includes the explicit series mode, normalized parent, exact season key,
+season number, and episode number; synthesized episode hashes are not identity.
+Mapped episodes retain the original provider command or episode ID for playback
+resolution. Recovery ownership never serializes that value into the session
+key or retained recovery state; its recovery-ownership use is limited to a
+short-lived exact pending-request snapshot/guard that locates the selected
+episode and rejects stale or out-of-order completion. This keeps token refreshes
+in one logical session while ensuring colliding tracking hashes cannot select a
+sibling episode.
+After a Stalker episode mounts, the host retains only a frozen structural
+identity (source, normalized parent, series mode, exact season key, season and
+episode coordinates, and the credential-free session key). Each metadata,
+navigation, or autoplay read resolves those coordinates against the current
+`mappedSeasons()` value. Same-owner provider or TMDB refreshes therefore update
+the mounted episode without changing its session key; if the episode disappears,
+or if multiple episodes claim the same structural coordinates, the mounted
+commands fail closed. The command/ID-bearing identity never outlives the pending
+playback request.
+Shared wrappers (`VodDetailsComponent` and `PortalInlinePlayerComponent`) pass
+the key unchanged to `WebPlayerViewComponent`.
+
+Hosts invalidate both committed playback and pending resolution when the
+canonical owner changes (playlist/source, content, and mode where applicable).
+Refreshing data for the same canonical owner preserves the mounted player.
+Collection UIDs remain a separate persistence concern; legacy M3U collection
+UIDs continue to use stream URLs so saved favorites ordering remains compatible.
+
+Temporary portal URLs, catch-up URLs, headers, DRM data, and alternative source
+payloads are transport details and must not change this logical identity. A
+content or episode change must produce a different key. The serialized key is
+created with `createPlaybackSessionKey()` from `@iptvnator/playback/util` so
+delimiter-bearing provider IDs remain unambiguous.
+
+The key is host-owned and stable only for the logical selection represented by
+that mounted host. In particular, M3U identity uses the current playlist/source
+identity and `Channel.id`; it does not claim durability across a refresh that
+replaces either identity. Recovery state contains this credential-free key,
+target IDs, generation counters, and a finite VOD resume position. It never
+uses a playback URL, headers, DRM configuration, or credentials as identity.
+
+Inline hosts capture this identity before asynchronous playback resolution. A
+completion may mount only while the same owner is current; stale completions
+and embedded starts without a complete canonical identity are ignored without
+replacing an already committed session.
 
 ## Embedded MPV Harness
 
@@ -231,9 +284,9 @@ Embedded playback does not have a fallback dialog path.
 `PlayerService.openResolvedPlayback(...)` remains the MPV/VLC external launch
 entry point; for embedded players it returns without creating UI.
 
-Diagnostics and fallback UI:
+Diagnostics, recovery policy, and recovery UI:
 
-- `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/playback-diagnostics/playback-diagnostics.util.ts`
+- `/Users/4gray/Code/iptvnator/libs/playback/util/src/index.ts`
 - `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/web-player-view/web-player-view.component.ts`
 
 ## Playback Decision Rule
@@ -309,7 +362,30 @@ Current contract:
 
 ## Codec And Container Diagnostics
 
-The shared `WebPlayerViewComponent` is the central browser-player viewport for M3U, Xtream, and Stalker inline playback, including live streams opened from favorites and recently viewed collections. Video.js, HTML5, and ArtPlayer report native media errors, HLS.js errors, mpegts.js errors, and HLS manifest codec metadata into the shared diagnostics classifier.
+The shared `WebPlayerViewComponent` is the central browser-player viewport for
+M3U, Xtream, and Stalker inline playback, including live streams opened from
+favorites and recently viewed collections. Video.js, HTML5, and ArtPlayer
+report native media errors, hls.js errors, Video.js/VHS errors, Shaka errors,
+mpegts.js errors, and HLS manifest codec metadata into the DOM-free classifiers
+exported by `@iptvnator/playback/util`.
+
+The canonical recovery flow is:
+
+```text
+engine public error
+  -> sanitized PlaybackDiagnostic (@iptvnator/playback/util)
+  -> recommendPlaybackRecovery(context)
+  -> ranked maximum-three action model
+  -> WebPlayerView session-local user action
+```
+
+Engine adapters own public-event collection and sanitation. The playback
+utility owns diagnostic contracts, evidence classification, source/engine
+mapping, capability contracts, and the pure recommendation policy.
+`WebPlayerViewComponent` owns only the current session state and execution of a
+user-selected action. Diagnostic producers do not decide which player to show,
+and the recommendation policy does not inspect Angular, the DOM, settings,
+storage, or Electron globals.
 
 The diagnostics remain client-only:
 
@@ -418,10 +494,14 @@ or media cause, so stage and failure remain unknown.
 
 A failed public `Player.isBrowserSupported()` preflight is not a Shaka error
 and therefore retains fully unknown technical evidence instead of being
-mislabelled as an unsupported container. For clear DASH, the diagnostic still
-offers configured MPV/VLC actions because the failure is specific to the web
-engine. KODIPROP DRM sources keep external fallback disabled because external
-players do not receive their key configuration.
+mislabelled as an unsupported container. The app adds only the exact,
+enumerated `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker to that
+otherwise unknown diagnostic. This Shaka/DASH runtime-preflight marker is the
+sole unknown-code exception that can rank configured MPV/VLC actions, and only
+for clear, externally transferable DASH in a managed-external runtime. Generic
+unknown diagnostics remain Retry/alternative-source only. PWA capability and
+KODIPROP DRM suppress the external actions because those players are absent or
+the launch contract cannot transfer the key configuration.
 
 Shaka messages, URLs, headers, request/response bodies, credentials,
 license/key payloads, and arbitrary `error.data` objects are neither retained
@@ -443,7 +523,8 @@ status from the top-level `info.code` slot of
 Exact public pairs classify HTTP/timeout/exception as network failures,
 `FormatUnsupported` as an unsupported container, `CodecUnsupported` as an
 unsupported codec, and `FormatError`/`MediaMSEError` as media failures.
-`UnrecoverableEarlyEof` remains a fallback-actionable `media-decode-error`:
+`UnrecoverableEarlyEof` remains a `media-decode-error` that may rank a distinct
+engine or external player:
 mpegts.js has already exhausted its internal finite-source early-EOF recovery,
 and another demuxer may tolerate the truncated transport stream. Mismatched or
 unknown pairs fail closed to `unknown-playback-error`.
@@ -454,17 +535,20 @@ prove CORS, mixed content, CSP, or private-network access, so mpegts.js no
 longer creates `browser-access-error` from message text. HTTP and other network
 failures do not claim an external decoder will fix the provider response;
 container, codec, truncated-stream, format, and MediaSource failures retain
-the existing explicit MPV/VLC fallback behavior.
+evidence that can rank an explicit MPV/VLC action when the payload and runtime
+permit it.
 
 The diagnostic surface covers the inline player viewport when playback fails,
-with a compact warning badge, a native-player fallback headline, and
-player-card actions for configured external players. It exposes technical
-details on demand: diagnostic code, reporting player/source, detected
-container/MIME, video/audio codecs, native browser error fields, sanitized
-structured Video.js/VHS, HLS, Shaka, and mpegts.js evidence. HLS
-manifest codec metadata also drives a concise browser-support hint for codecs
-that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3,
-E-AC-3, DTS, and MPEG-2 video.
+with a compact warning badge, one primary recommendation, at most two secondary
+recommendations, and always-available Copy URL and Technical details utilities.
+An alternative-source recommendation consumes one of those three slots even
+when its bounded source list renders several rows. Technical details contain
+the diagnostic code, reporting player/source, detected container/MIME,
+video/audio codecs, native browser error fields, and sanitized structured
+Video.js/VHS, HLS, Shaka, and mpegts.js evidence. HLS manifest codec metadata
+also drives a concise browser-support hint for codecs that Chromium/Electron
+commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2
+video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
@@ -472,14 +556,125 @@ MKV sources are attempted through Chromium's native Matroska path. Video.js
 receives `video/matroska` for `.mkv` URLs and explicit query metadata such as
 `extension=mkv` or `container=mkv`; ArtPlayer and HTML5 continue to use their
 native video paths. This is container support rather than a universal codec
-guarantee: native source or decode failures still produce the existing
-diagnostic and explicit MPV/VLC fallback.
+guarantee: native source or decode failures still produce a diagnostic whose
+ranked actions may include MPV/VLC.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 
-When a diagnostic is actionable in Electron, the diagnostic surface may offer `Open in MPV`, `Open in VLC`, `Copy URL`, technical details, and `Retry`. Web builds only expose copy/help text and retry. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact. Retry clears the current diagnostic and rebuilds the active inline player inputs; it does not change the saved player setting.
+## Recovery Recommendation Policy
 
-`PortalPlayer.openExternalPlayback(playback, player)` is the forced external launch API. It sends the playback payload to MPV or VLC regardless of the current saved player setting, so fallback buttons do not mutate preferences.
+Recommendations change playback paths only when structured evidence supports
+that conclusion. A different skin over the same engine family is not a distinct
+recovery target.
+
+| Source path                              | Active engine family            | Distinct built-in recommendation |
+| ---------------------------------------- | ------------------------------- | -------------------------------- |
+| HLS in Video.js                          | Video.js/VHS                    | HTML5 through hls.js             |
+| HLS in HTML5 or ArtPlayer                | hls.js                          | Video.js/VHS                     |
+| MPEG-TS in any web player                | shared mpegts.js                | None                             |
+| DASH in HTML5 or ArtPlayer               | Shaka                           | None                             |
+| DASH in Video.js                         | unsupported recommendation path | None                             |
+| Native media/container in any web player | browser native-media            | None                             |
+
+HTML5 is the canonical hls.js alternative to Video.js/VHS; ArtPlayer is not a
+second independent hls.js choice. MPEG-TS, DASH/Shaka, and native media never
+offer a same-family built-in alternative. Unknown source or engine-family facts
+also suppress built-in recommendations.
+
+The pure policy builds the following order, filters the current, unavailable,
+incompatible, and already attempted targets, and then returns at most three
+actions. It also projects attempted inline target IDs through the validated
+canonical source/target capability matrix and filters every engine family that
+has already been attempted. HTML5 and ArtPlayer therefore cannot be offered as
+separate hls.js recovery attempts. The first surviving action is primary and
+later actions are secondary.
+
+| Sanitized evidence                        | Candidate order                                              |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| HTTP, timeout, or generic network failure | Retry -> Alternative source                                  |
+| Generic unknown playback error            | Retry -> Alternative source                                  |
+| Exact Shaka browser-unsupported preflight | MPV -> VLC -> Alternative source                             |
+| Browser access/CORS/CSP-class failure     | MPV -> VLC -> Alternative source                             |
+| Unsupported codec or container            | MPV -> VLC -> Alternative source                             |
+| Media/decode/engine processing failure    | Distinct built-in family -> MPV -> VLC -> Alternative source |
+| DRM/encryption failure                    | Compatible built-in path -> Alternative source -> MPV -> VLC |
+
+Network and generic unknown evidence fail closed: they never claim that
+changing a decoder will repair the provider response. The exact app-owned
+Shaka browser-unsupported runtime-preflight marker above is the only
+unknown-code exception. Contradictory or incomplete capability facts fail
+closed to Retry and an available alternative source.
+External targets require both managed external-player support and a transferable
+payload. PWA builds therefore never rank MPV/VLC. Any ClearKey/KODIPROP DRM
+payload is non-transferable and suppresses both external targets; the policy
+does not infer transferability from a message or URL. Eligible Electron portal
+fallback requests keep using the original `ResolvedPortalPlayback`, so the
+existing host path can forward its required headers and playback metadata.
+
+## Recovery Session Lifecycle And Privacy
+
+Each mounted `WebPlayerViewComponent` owns one in-memory recovery session for
+its required `playbackSessionKey`. Retry and an alternative source for the same
+logical content keep the key and attempted-target set. A different channel,
+movie, or exact episode changes the key and synchronously clears the diagnostic,
+attempts, temporary player override, and handoff position. Destroying the
+component also ends the session; the same key in a later component is a new
+session. Applying a different source under the same key, including another
+catch-up programme, clears only the VOD handoff position; attempts and the
+temporary player override remain available for the recovery session.
+
+On a terminal failure, the current binding is accepted only when both its
+generation and inline target still match. The current target becomes attempted,
+the sanitized diagnostic is stored, and recommendations are reranked. The
+`PlaybackBinding` contains exactly `{ generation, target }`. Changes to the
+playback URL, headers, DRM, live/VOD mode, target, or reload generation are
+instead correlated with a fieldless opaque `Symbol` application token. Source
+applications also advance a second fieldless source-revision `Symbol` that
+resets the VOD handoff position; target-only switches and Retry leave that
+revision stable. None of these ownership objects embed source material, and
+recovery ownership state never stores URLs, headers, DRM keys, error payloads,
+or credentials. Each rendered web or Embedded MPV application captures the
+nullable binding, both opaque tokens, and its live/VOD flag. A time update can
+change the resume position only while that exact capture still owns the current
+application, so a replaced source cannot repopulate cleared handoff state.
+
+A separate fieldless intent token invalidates on each new source, target, or
+reload intent. The application effect synchronizes the content session before
+tracking that intent, so clearing a temporary player override is incorporated
+into one application instead of scheduling a duplicate Electron header handoff.
+Each application start clears both the diagnostic owner and backing signal,
+making the prior diagnostic neither retained nor actionable before asynchronous
+header setup completes. False or rejected current handoffs leave it clear, and
+a stale success, false result, or rejection cannot erase a newer owned
+diagnostic or mutate the newer application state.
+
+Selecting a built-in recommendation records the target, immediately detaches
+the diagnostic, and installs a temporary local override ahead of the host
+override and saved player setting. The new engine receives the latest finite
+VOD position as a best-effort resume point; live playback starts at the live
+edge. Retry reloads the active target without clearing attempts. Selecting MPV
+or VLC records the external target before emitting the existing fallback
+request. The system does not infer whether the external process ultimately
+played the stream.
+
+No recommendation mutates `Settings.player` or another persisted setting.
+Recovery recommendations never auto-switch a player or source and do not
+replace the separate source-owner auto-failover feature. Attempts, overrides,
+resume handoff, and diagnostics are session-local: there is no persistent
+history, cross-session learning, correlation, or telemetry.
+
+Only allowlisted public engine evidence crosses the structured sanitizers.
+Provider/engine messages, request and response objects, arbitrary `error.data`
+or `info`, bodies, URLs copied from error payloads, headers, DRM material, and
+credentials do not enter recommendation evidence or recovery ownership state.
+The active playback URL remains available only through the pre-existing
+playback metadata needed by Retry, Copy URL, and eligible explicit
+external-player actions.
+
+`PortalPlayer.openExternalPlayback(playback, player)` remains the forced
+external launch API. It sends the resolved playback payload to MPV or VLC
+regardless of the current saved player setting, so a recommendation never
+mutates preferences.
 
 ## External Player Arguments
 

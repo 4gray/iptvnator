@@ -62,6 +62,7 @@ import {
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 
 @Component({
     selector: 'app-unified-live-tab',
@@ -123,6 +124,9 @@ export class UnifiedLiveTabComponent {
      *  portal archive fields (tvArchive/tvArchiveDuration) and to
      *  supply credentials for Xtream catch-up URL resolution. */
     readonly activeItem = signal<UnifiedCollectionItem | null>(null);
+    readonly playbackSessionKey = computed(() =>
+        createUnifiedLivePlaybackSessionKey(this.activeItem())
+    );
     readonly isSelecting = signal(false);
     readonly epgMap = signal<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = signal(0);
@@ -266,9 +270,7 @@ export class UnifiedLiveTabComponent {
         return getLiveEpgPanelSummary(this.activeDetail());
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
-        this.activeTimeshift()
-            ? 'EPG.ARCHIVE_PLAYBACK'
-            : 'EPG.CURRENT_PROGRAM'
+        this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
     );
 
     readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
@@ -480,10 +482,7 @@ export class UnifiedLiveTabComponent {
             program.startTimestamp,
             program.start
         );
-        const stopEpoch = toEpochSeconds(
-            program.stopTimestamp,
-            program.stop
-        );
+        const stopEpoch = toEpochSeconds(program.stopTimestamp, program.stop);
         if (startEpoch == null || stopEpoch == null) {
             this.snackBar.open(
                 this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
@@ -709,5 +708,4 @@ export class UnifiedLiveTabComponent {
             };
         });
     }
-
 }

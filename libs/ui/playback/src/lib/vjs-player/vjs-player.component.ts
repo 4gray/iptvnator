@@ -23,7 +23,7 @@ import {
     classifyNativePlaybackIssue,
     classifyVhsPlaybackIssue,
     createPlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
 import {
     PlayerControlsComponent,
     type PlayerMediaTitle,

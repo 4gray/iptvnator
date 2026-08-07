@@ -17,5 +17,6 @@
         "playwright.config.ts",
         "src/**/*.d.ts",
         "src/**/*.e2e.ts"
-    ]
+    ],
+    "exclude": ["src/fixtures/playback/corrupt.ts"]
 }

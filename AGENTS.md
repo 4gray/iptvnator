@@ -223,20 +223,67 @@ Key files:
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
-  source kind `shaka`. The Shaka `5.2.2` diagnostic boundary version-locks
-  public severity/category/code evidence, ignores recoverable error events,
+  source kind `shaka`. The DOM-free Shaka `5.2.2` diagnostic boundary lives in
+  `libs/playback/util`; it version-locks public severity/category/code evidence,
+  ignores recoverable error events,
   treats rejected loads as terminal lifecycle outcomes, preserves exact public
   DASH text-parser category/code evidence with unknown stage/failure, and never
   retains or renders raw messages or `error.data`. A failed browser-support
-  preflight stays unknown but keeps external fallback for clear DASH; KODIPROP
-  DRM still suppresses it. See the CLAUDE.md "Video Players" feature entry and
-  `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
+  preflight stays generic-unknown but carries the exact app-owned
+  `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker, preserving managed
+  external fallback only for clear transferable DASH; PWA capability and
+  KODIPROP DRM still suppress it. See the CLAUDE.md "Video Players" feature
+  entry and the "DASH + ClearKey Playback" section of
+  `docs/architecture/m3u-playlist-module.md`.
 - mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
-  version-locked structured evidence boundary. Only exact public type/detail
-  pairs, pair-derived stage/failure, terminal disposition, and the validated
-  HTTP 4xx/5xx status slot are retained; raw messages and arbitrary `info`
+  version-locked structured evidence boundary in `libs/playback/util`. Only
+  exact public type/detail pairs, pair-derived stage/failure, terminal
+  disposition, and the validated HTTP 4xx/5xx status slot are retained; raw
+  messages and arbitrary `info`
   never reach diagnostics. This is a sibling of `PlayerController`, not part
   of the controls contract.
+- Browser playback diagnostics and recovery policy live in
+  `libs/playback/util` and are exported by `@iptvnator/playback/util`.
+  Public engine errors cross allowlisted sanitizers into a
+  `PlaybackDiagnostic`; `recommendPlaybackRecovery(context)` then ranks at
+  most three actions, and `WebPlayerViewComponent` executes only the action
+  the user selects. The policy is a sibling of `PlayerController`; shared
+  controls only gate interaction while the diagnostic panel is visible.
+  `WebPlayerViewComponent` owns a host-derived content-session key that is
+  stable for the mounted logical selection, attempted target IDs, the temporary
+  player override, and VOD handoff position. Its `PlaybackBinding` is exactly
+  `{ generation, target }`, while every source/target/reload application uses a
+  fieldless opaque `Symbol` token. Diagnostic storage uses a separate fieldless
+  intent `Symbol`, and source applications advance a third fieldless revision
+  `Symbol` that clears only the VOD handoff position; target-only switches and
+  Retry leave that revision stable. None of these ownership primitives contains
+  URLs, headers, DRM material, or credentials. The application effect
+  synchronizes the content session before tracking intent, so clearing a
+  temporary player override cannot schedule a duplicate application or header
+  handoff. Every application start clears both the diagnostic owner and backing
+  signal before asynchronous header setup; a current false result or rejection
+  leaves them clear, and a stale completion cannot erase a newer owned
+  diagnostic. Each
+  rendered web or Embedded MPV application captures its nullable binding, the
+  application and source-revision tokens, and live/VOD flag; a time update
+  changes resume state only while that exact capture still owns the current
+  application. A recommended built-in
+  player temporarily
+  outranks the host override and saved player for that mounted content session,
+  never mutates `Settings.player`, and resumes finite VOD position on a
+  best-effort basis; live playback returns to the live edge. Retry and
+  alternative sources preserve attempts, while a different content-session key
+  or component teardown resets them. Recovery recommendations never
+  auto-switch, persist history, learn across sessions, or emit telemetry.
+  The policy projects attempted inline target IDs through the validated
+  canonical source/target capabilities and excludes every attempted engine
+  family, so HTML5 and ArtPlayer are not separate hls.js recoveries. Network
+  and generic unknown evidence fail closed to Retry/alternative source; the
+  exact Shaka browser-unsupported preflight marker is the sole unknown-code
+  exception. PWA capability suppresses managed MPV/VLC, and ClearKey/KODIPROP
+  DRM suppresses external targets because its payload is not transferable. Raw
+  engine messages, arbitrary data, and credentials never enter recommendation
+  evidence or ownership state.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared

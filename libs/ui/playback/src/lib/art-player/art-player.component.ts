@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
-import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import {
     PlayerControlsComponent,
     type PlayerMediaTitle,

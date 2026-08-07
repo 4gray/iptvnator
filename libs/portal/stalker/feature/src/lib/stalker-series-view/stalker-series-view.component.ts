@@ -61,7 +61,6 @@ import {
     getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
-    resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
@@ -85,6 +84,15 @@ import {
     createStalkerSeriesDownloadAdapter,
     STALKER_SERIES_DOWNLOAD_MODES,
 } from './stalker-series-download.adapter';
+import {
+    captureStalkerEpisodePlaybackSessionIdentity,
+    resolveSelectedStalkerEpisodeState,
+    resolveStalkerEpisodeStateByIdentity,
+    resolveStalkerEpisodeStateByStructuralIdentity,
+    toStalkerEpisodePlaybackStructuralIdentity,
+    type StalkerEpisodePlaybackSessionIdentity,
+    type StalkerEpisodePlaybackStructuralIdentity,
+} from './stalker-episode-playback-session-key';
 
 interface SeriesPositionContext {
     readonly generation: number;
@@ -93,46 +101,10 @@ interface SeriesPositionContext {
     readonly mutationKey: string;
 }
 
-function snapshotTextList(value: string | undefined): string[] | undefined {
-    const entries = value
-        ?.split(',')
-        .map((entry) => entry.trim())
-        .filter(Boolean);
-    return entries?.length ? entries : undefined;
-}
-
-function snapshotNumber(
-    value: string | number | undefined
-): number | undefined {
-    if (value === undefined || String(value).trim() === '') {
-        return undefined;
-    }
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function snapshotYear(value: string | undefined): number | undefined {
-    const match = value?.match(/(?:^|\D)((?:19|20)\d{2})(?:\D|$)/);
-    return match ? Number(match[1]) : undefined;
-}
-
-function snapshotPeople(
-    enriched: TmdbEnrichedCastMember[] | undefined,
-    fallback: string | undefined
-) {
-    return enriched?.length
-        ? enriched.map((person) => ({
-              name: person.name,
-              role: person.character,
-              profileUrl: person.profileUrl ?? undefined,
-              tmdbPersonId: person.tmdbPersonId,
-          }))
-        : snapshotTextList(fallback)?.map((name) => ({ name }));
-}
-
-function positiveCoordinate(value: number | string | undefined): number {
-    const parsed = Number(value);
-    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
+interface StalkerSeriesPlaybackRequestContext {
+    readonly generation: number;
+    readonly usesEmbeddedPlayer: boolean;
+    readonly identity: StalkerEpisodePlaybackSessionIdentity | null;
 }
 
 /**
@@ -215,6 +187,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     >();
     private readonly seriesPositionReloadKeys = new Set<string>();
     private seriesPositionsLoadGeneration = 0;
+    private seriesPlaybackRequestGeneration = 0;
+    private currentSeriesPlaybackOwnerKey = '';
+    private readonly inlinePlaybackEpisodeIdentity =
+        signal<StalkerEpisodePlaybackStructuralIdentity | null>(null);
     private lastSaveTime = 0;
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
@@ -308,6 +284,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
+        effect(() => {
+            const ownerKey = this.seriesPlaybackOwnerKey();
+            untracked(() => this.syncSeriesPlaybackOwner(ownerKey));
+        });
+
         // TMDB season fetch, keyed on (tmdb_id, selected season). With season
         // tabs the first seasonSelected fires immediately when seasons load —
         // usually BEFORE the async show-level TMDB enrichment has written
@@ -426,9 +407,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ) {
                 return;
             }
-            this.episodePlaybackPositions.set(
-                reconciled.positionsByTrackingId
-            );
+            this.episodePlaybackPositions.set(reconciled.positionsByTrackingId);
             this.legacyPositionByTrackingId.set(
                 reconciled.legacyPositionByTrackingId
             );
@@ -488,15 +467,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     // The facade/runtime already saved this row. Repeat the
                     // idempotent upsert because only this view owns the
                     // scoped-to-legacy cleanup mapping.
-                    void this.persistSeriesPosition(
-                        playlistId,
-                        data
-                    ).catch((error: unknown) => {
-                        this.logger.error(
-                            'Failed to persist runtime series position',
-                            error
-                        );
-                    });
+                    void this.persistSeriesPosition(playlistId, data).catch(
+                        (error: unknown) => {
+                            this.logger.error(
+                                'Failed to persist runtime series position',
+                                error
+                            );
+                        }
+                    );
                 }
             ) ?? null;
     }
@@ -534,6 +512,22 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         youtubeEmbedUrl(this.displayItem()?.info?.tmdb_trailer)
     );
 
+    readonly seriesMode = computed(() =>
+        this.isVodSeries()
+            ? STALKER_SERIES_DOWNLOAD_MODES.LazyVod
+            : this.vodWithSeries()
+              ? STALKER_SERIES_DOWNLOAD_MODES.EmbeddedVod
+              : STALKER_SERIES_DOWNLOAD_MODES.RegularSeries
+    );
+
+    private readonly seriesPlaybackOwnerKey = computed(() => {
+        const sourceId = this.stalkerStore.currentPlaylist()?._id?.trim() ?? '';
+        const parentSeriesId = normalizeStalkerEntityId(this.displayItem()?.id);
+        return sourceId && parentSeriesId
+            ? JSON.stringify([sourceId, parentSeriesId, this.seriesMode()])
+            : '';
+    });
+
     readonly episodeDownloadAdapter = computed(() => {
         const playlist = this.stalkerStore.currentPlaylist();
         const item = this.displayItem();
@@ -545,11 +539,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 this.translateService.defaultLang ||
                 'en',
             seriesId: this.toSeriesId(item?.id ?? 0),
-            seriesMode: this.isVodSeries()
-                ? STALKER_SERIES_DOWNLOAD_MODES.LazyVod
-                : this.vodWithSeries()
-                  ? STALKER_SERIES_DOWNLOAD_MODES.EmbeddedVod
-                  : STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
+            seriesMode: this.seriesMode(),
             resolveUrl: (command, episodeNumber) =>
                 this.stalkerStore.fetchLinkToPlay(
                     playlist?.portalUrl ?? '',
@@ -591,10 +581,25 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             vodSeriesSeasons: this.vodSeriesSeasons(),
         });
     });
-    readonly inlineEpisodeState =
-        computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() =>
-            this.getInlineEpisodeState()
-        );
+    readonly inlineEpisodeState = computed(() => {
+        const identity = this.inlinePlaybackEpisodeIdentity();
+        const sourceId = this.stalkerStore.currentPlaylist()?._id?.trim() ?? '';
+        const parentSeriesId = normalizeStalkerEntityId(this.displayItem()?.id);
+        if (
+            !identity ||
+            this.playbackSessionKey() !== identity.sessionKey ||
+            sourceId !== identity.sourceId ||
+            parentSeriesId !== identity.parentSeriesId ||
+            this.seriesMode() !== identity.seriesMode
+        ) {
+            return null;
+        }
+        return resolveStalkerEpisodeStateByStructuralIdentity({
+            episodesBySeason: this.mappedSeasons(),
+            identity,
+        });
+    });
+    readonly playbackSessionKey = signal('');
     readonly inlineEpisodeMetadata = computed(() =>
         getSeriesEpisodeMetadata(this.inlineEpisodeState())
     );
@@ -768,27 +773,33 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * Handles episode click from the container
      */
     onEpisodeClicked(episode: XtreamSerieEpisode) {
-        const mappedEpisode = episode as StalkerMappedEpisode;
+        const item = this.displayItem();
+        const episodeState = resolveSelectedStalkerEpisodeState({
+            episodesBySeason: this.mappedSeasons(),
+            episode,
+        });
+        if (!item || !episodeState) return;
+        this.syncSeriesPlaybackOwner(this.seriesPlaybackOwnerKey());
 
-        if (mappedEpisode.custom_sid === 'vod-series') {
-            // It's a VOD series episode (is_series=1 mode)
-            // Use originalId for playback URL, but use generated id for tracking
-            this.playVodSeriesEpisode({
-                originalId: mappedEpisode.originalId, // For constructing playback URL
-                trackingId: episode.id, // The generated unique ID for position tracking
-                name: episode.title,
-                series_number: episode.episode_num,
-            });
-        } else {
-            // Regular series or vclub mode (VOD with embedded series array)
-            // Use originalCmd for playback, episode.id for tracking
-            const trackingId = Number(episode.id);
-            this.playEpisodeClicked(
-                episode.episode_num,
-                mappedEpisode.originalCmd,
-                trackingId
-            );
-        }
+        const mappedEpisode = episodeState.episode as StalkerMappedEpisode;
+        const isLazyVod = mappedEpisode.custom_sid === 'vod-series';
+        const command = isLazyVod
+            ? `/media/file_${mappedEpisode.originalId ?? ''}.mpg`
+            : mappedEpisode.originalCmd;
+        const title = isLazyVod
+            ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
+            : item.info.name;
+        const trackingId = Number(mappedEpisode.id);
+        const startTime =
+            this.episodePlaybackPositions().get(trackingId)?.positionSeconds;
+
+        void this.startPlayback(
+            command,
+            title,
+            item.info.movie_image,
+            episodeState,
+            startTime
+        );
     }
 
     async playQuickStartEpisode(): Promise<void> {
@@ -805,69 +816,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (quickStart.lazySeason) {
             await this.loadAndPlayVodSeriesSeason(quickStart.lazySeason);
         }
-    }
-
-    /**
-     * Play episode - handles regular series and vclub mode
-     */
-    playEpisodeClicked(episodeNum: number, cmd?: string, trackingId?: number) {
-        const item = this.displayItem();
-        if (!item) return;
-        this.logger.debug('playEpisodeClicked', {
-            episodeNum,
-            cmd,
-            trackingId,
-            seriesId: item.id,
-        });
-
-        const position = trackingId
-            ? this.episodePlaybackPositions().get(trackingId)
-            : undefined;
-        const startTime = position?.positionSeconds;
-        void this.startPlayback(
-            cmd,
-            item.info.name,
-            item.info.movie_image,
-            episodeNum,
-            trackingId,
-            startTime
-        );
-    }
-
-    /**
-     * Play VOD series episode
-     */
-    playVodSeriesEpisode(episode: {
-        originalId?: string;
-        trackingId: string;
-        name: string;
-        series_number: number;
-    }) {
-        const item = this.displayItem();
-        if (!item) return;
-        // Use originalId for playback URL (this is what the Stalker API expects)
-        const cmd = `/media/file_${episode.originalId ?? ''}.mpg`;
-        const episodeName = episode.name || `Episode ${episode.series_number}`;
-        // Use trackingId (generated unique ID) for playback position tracking
-        const trackingId = Number(episode.trackingId);
-
-        this.logger.debug('playVodSeriesEpisode', {
-            originalId: episode.originalId,
-            trackingId,
-            seriesId: item.id,
-            episodeName,
-        });
-
-        const position = this.episodePlaybackPositions().get(trackingId);
-        const startTime = position?.positionSeconds;
-        void this.startPlayback(
-            cmd,
-            `${item.info.name} - ${episodeName}`,
-            item.info.movie_image,
-            episode.series_number,
-            trackingId,
-            startTime
-        );
     }
 
     openSimilarInPortals(item: CrossPortalSimilarItem): void {
@@ -907,7 +855,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
+        this.inlinePlaybackEpisodeIdentity.set(null);
+        this.playbackSessionKey.set('');
         this.lastSaveTime = 0;
     }
 
@@ -984,13 +935,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     private async startPlayback(
-        cmd?: string,
-        title?: string,
-        thumbnail?: string,
-        episodeNum?: number,
-        episodeId?: number,
+        cmd: string | undefined,
+        title: string | undefined,
+        thumbnail: string | undefined,
+        episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode>,
         startTime?: number
     ): Promise<void> {
+        const generation = ++this.seriesPlaybackRequestGeneration;
+        const episodeNum = episodeState.episodeNumber;
+        const episodeId = Number(episodeState.episode.id);
+        const request: StalkerSeriesPlaybackRequestContext = {
+            generation,
+            usesEmbeddedPlayer: this.portalPlayer.isEmbeddedPlayer(),
+            identity: captureStalkerEpisodePlaybackSessionIdentity({
+                sourceId: this.stalkerStore.currentPlaylist()?._id,
+                parentSeriesId: this.displayItem()?.id,
+                seriesMode: this.seriesMode(),
+                episodeState,
+            }),
+        };
+        if (request.usesEmbeddedPlayer && !request.identity) return;
+
         try {
             const playback = await this.stalkerStore.resolveVodPlayback(
                 cmd,
@@ -1000,14 +965,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 episodeId,
                 startTime
             );
-            const episodeState =
-                episodeId === undefined
-                    ? null
-                    : resolveSeriesPlaybackEpisodeState({
-                          episodesBySeason: this.mappedSeasons(),
-                          currentEpisodeId: episodeId,
-                          fallbackEpisodeNumber: episodeNum,
-                      });
+            if (!this.isPlaybackRequestCurrent(request)) return;
+
             const resolvedPlayback =
                 episodeState && playback.contentInfo?.contentType === 'episode'
                     ? {
@@ -1021,14 +980,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     : playback;
 
             this.lastSaveTime = 0;
-            if (this.portalPlayer.isEmbeddedPlayer()) {
-                this.inlinePlayback.set(resolvedPlayback);
+            if (request.usesEmbeddedPlayer && request.identity) {
+                this.setInlinePlayback(resolvedPlayback, request.identity);
                 return;
             }
 
             this.closeInlinePlayer();
             void this.portalPlayer.openResolvedPlayback(resolvedPlayback, true);
         } catch (error) {
+            if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
@@ -1042,25 +1002,48 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
     }
 
-    private getInlineEpisodeState(): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
-        const playback = this.inlinePlayback();
-        const currentEpisodeId = playback?.contentInfo?.contentXtreamId;
-
-        if (
-            playback?.contentInfo?.contentType !== 'episode' ||
-            currentEpisodeId === undefined
-        ) {
-            return null;
+    private isPlaybackRequestCurrent(
+        request: StalkerSeriesPlaybackRequestContext
+    ): boolean {
+        if (request.generation !== this.seriesPlaybackRequestGeneration) {
+            return false;
         }
+        if (!request.identity) return true;
 
-        return resolveSeriesPlaybackEpisodeState({
+        const identity = request.identity;
+        const episodeState = resolveStalkerEpisodeStateByIdentity({
             episodesBySeason: this.mappedSeasons(),
-            currentEpisodeId,
+            identity,
         });
+        const currentIdentity = captureStalkerEpisodePlaybackSessionIdentity({
+            sourceId: this.stalkerStore.currentPlaylist()?._id,
+            parentSeriesId: this.displayItem()?.id,
+            seriesMode: this.seriesMode(),
+            episodeState,
+        });
+        return currentIdentity?.sessionKey === identity.sessionKey;
     }
 
     ngOnDestroy(): void {
         this.unsubscribePositionUpdates?.();
+        this.closeInlinePlayer();
+    }
+
+    private setInlinePlayback(
+        playback: ResolvedPortalPlayback,
+        identity: StalkerEpisodePlaybackSessionIdentity
+    ): void {
+        this.playbackSessionKey.set(identity.sessionKey);
+        this.inlinePlaybackEpisodeIdentity.set(
+            toStalkerEpisodePlaybackStructuralIdentity(identity)
+        );
+        this.inlinePlayback.set(playback);
+    }
+
+    private syncSeriesPlaybackOwner(ownerKey: string): void {
+        if (ownerKey === this.currentSeriesPlaybackOwnerKey) return;
+        this.currentSeriesPlaybackOwnerKey = ownerKey;
+        this.closeInlinePlayer();
     }
 
     async handlePlaybackToggleRequested(
@@ -1072,17 +1055,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
 
         if (request.nextPosition) {
-            await this.persistSeriesPosition(
-                playlistId,
-                request.nextPosition
-            );
+            await this.persistSeriesPosition(playlistId, request.nextPosition);
             return;
         }
 
-        await this.clearSeriesPosition(
-            playlistId,
-            request.contentXtreamId
-        );
+        await this.clearSeriesPosition(playlistId, request.contentXtreamId);
     }
 
     handlePlaybackToggleRequestedFromUi(
@@ -1104,9 +1081,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const generation = ++this.seriesPositionsLoadGeneration;
         this.trackPendingSeriesPositionLoad(context, generation);
         try {
-            await this.waitForSeriesPositionMutations(
-                context.mutationKey
-            );
+            await this.waitForSeriesPositionMutations(context.mutationKey);
 
             if (
                 generation !== this.seriesPositionsLoadGeneration ||
@@ -1155,16 +1130,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         return (
             activeContext === context &&
             activeContext.generation === context.generation &&
-            this.stalkerStore.currentPlaylist()?._id ===
-                context.playlistId &&
+            this.stalkerStore.currentPlaylist()?._id === context.playlistId &&
             this.toSeriesId(this.displayItem()?.id ?? 0) ===
                 context.seriesXtreamId
         );
     }
 
-    private waitForSeriesPositionMutations(
-        mutationKey: string
-    ): Promise<void> {
+    private waitForSeriesPositionMutations(mutationKey: string): Promise<void> {
         return (
             this.seriesPositionMutationQueues.get(mutationKey) ??
             Promise.resolve()
@@ -1176,8 +1148,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         generation: number
     ): void {
         const generations =
-            this.pendingSeriesPositionLoads.get(context) ??
-            new Set<number>();
+            this.pendingSeriesPositionLoads.get(context) ?? new Set<number>();
         generations.add(generation);
         this.pendingSeriesPositionLoads.set(context, generations);
     }
@@ -1186,8 +1157,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         context: SeriesPositionContext,
         generation: number
     ): void {
-        const generations =
-            this.pendingSeriesPositionLoads.get(context);
+        const generations = this.pendingSeriesPositionLoads.get(context);
         generations?.delete(generation);
         if (generations?.size === 0) {
             this.pendingSeriesPositionLoads.delete(context);
@@ -1220,30 +1190,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             () => undefined,
             () => undefined
         );
-        this.seriesPositionMutationQueues.set(
-            context.mutationKey,
-            barrier
-        );
+        this.seriesPositionMutationQueues.set(context.mutationKey, barrier);
         void barrier.then(() => {
             if (
-                this.seriesPositionMutationQueues.get(
-                    context.mutationKey
-                ) === barrier
+                this.seriesPositionMutationQueues.get(context.mutationKey) ===
+                barrier
             ) {
-                this.seriesPositionMutationQueues.delete(
-                    context.mutationKey
-                );
-                this.reloadSeriesPositionsAfterMutations(
-                    context.mutationKey
-                );
+                this.seriesPositionMutationQueues.delete(context.mutationKey);
+                this.reloadSeriesPositionsAfterMutations(context.mutationKey);
             }
         });
         return result;
     }
 
-    private reloadSeriesPositionsAfterMutations(
-        mutationKey: string
-    ): void {
+    private reloadSeriesPositionsAfterMutations(mutationKey: string): void {
         if (!this.seriesPositionReloadKeys.delete(mutationKey)) {
             return;
         }
@@ -1286,10 +1246,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (!context) {
             return Promise.resolve();
         }
-        const legacyPosition =
-            this.legacyPositionByTrackingId().get(
-                position.contentXtreamId
-            );
+        const legacyPosition = this.legacyPositionByTrackingId().get(
+            position.contentXtreamId
+        );
         return this.enqueueSeriesPositionMutation(context, async () => {
             let clearedLegacy: boolean;
             try {
@@ -1301,8 +1260,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 });
             } catch (error) {
                 if (
-                    error instanceof
-                        StalkerSeriesPositionPartialSaveError &&
+                    error instanceof StalkerSeriesPositionPartialSaveError &&
                     this.isSeriesPositionContextActive(context)
                 ) {
                     this.publishSavedSeriesPosition(
@@ -1329,14 +1287,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         legacyPosition: PlaybackPositionData | undefined,
         clearedLegacy: boolean
     ): void {
-        const removedTrackingIds = new Set([
-            position.contentXtreamId,
-        ]);
+        const removedTrackingIds = new Set([position.contentXtreamId]);
         if (clearedLegacy && legacyPosition) {
             removedTrackingIds.add(legacyPosition.contentXtreamId);
-            const legacyPositions = new Map(
-                this.legacyPositionByTrackingId()
-            );
+            const legacyPositions = new Map(this.legacyPositionByTrackingId());
             legacyPositions.delete(position.contentXtreamId);
             this.legacyPositionByTrackingId.set(legacyPositions);
         }
@@ -1344,9 +1298,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.rawSeriesPositions.set([
             ...this.rawSeriesPositions().filter(
                 (candidate) =>
-                    !removedTrackingIds.has(
-                        candidate.contentXtreamId
-                    )
+                    !removedTrackingIds.has(candidate.contentXtreamId)
             ),
             position,
         ]);
@@ -1361,14 +1313,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (!context) {
             return Promise.resolve();
         }
-        const position =
-            this.episodePlaybackPositions().get(contentXtreamId) ?? {
-                contentXtreamId,
-                contentType: 'episode',
-                positionSeconds: 0,
-                playlistId,
-                seriesXtreamId: context.seriesXtreamId,
-            };
+        const position = this.episodePlaybackPositions().get(
+            contentXtreamId
+        ) ?? {
+            contentXtreamId,
+            contentType: 'episode',
+            positionSeconds: 0,
+            playlistId,
+            seriesXtreamId: context.seriesXtreamId,
+        };
         const legacyPosition =
             this.legacyPositionByTrackingId().get(contentXtreamId);
         return this.enqueueSeriesPositionMutation(context, async () => {
@@ -1397,9 +1350,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const removedTrackingIds = new Set([contentXtreamId]);
         if (clearedLegacy && legacyPosition) {
             removedTrackingIds.add(legacyPosition.contentXtreamId);
-            const legacyPositions = new Map(
-                this.legacyPositionByTrackingId()
-            );
+            const legacyPositions = new Map(this.legacyPositionByTrackingId());
             legacyPositions.delete(contentXtreamId);
             this.legacyPositionByTrackingId.set(legacyPositions);
         }
@@ -1407,9 +1358,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.rawSeriesPositions.set(
             this.rawSeriesPositions().filter(
                 (candidate) =>
-                    !removedTrackingIds.has(
-                        candidate.contentXtreamId
-                    )
+                    !removedTrackingIds.has(candidate.contentXtreamId)
             )
         );
         this.removeEpisodePlaybackPosition(contentXtreamId);

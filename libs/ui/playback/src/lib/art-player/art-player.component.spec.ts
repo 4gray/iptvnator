@@ -93,7 +93,6 @@ describe('ArtPlayerComponent', () => {
                 code: 'unsupported-container',
                 source: 'native',
                 sourceUrl: 'https://example.com/archive/movie.mkv',
-                externalFallbackRecommended: true,
             }),
         ]);
     });
@@ -124,7 +123,6 @@ describe('ArtPlayerComponent', () => {
                 code: 'unsupported-codec',
                 source: 'hls',
                 sourceUrl: 'https://example.com/live/playlist.m3u8',
-                externalFallbackRecommended: true,
             }),
         ]);
     });
@@ -256,7 +254,6 @@ describe('ArtPlayerComponent', () => {
                     engineDetails: 'CodecUnsupported',
                     failure: 'codec',
                 }),
-                externalFallbackRecommended: true,
             }),
         ]);
         expect(JSON.stringify(issues)).not.toContain(secret);

@@ -551,6 +551,7 @@
             "DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. MPV or VLC can often bypass browser-player access limits.",
             "PWA_DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. The PWA cannot launch external players directly; use the Copy stream URL action and open it manually in MPV, VLC, IINA, or another player."
         },
+        "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL.",
         "DRM_OR_ENCRYPTION": {
             "TITLE": "This stream may be encrypted or DRM-protected",
             "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
@@ -561,6 +562,17 @@
         },
         "NATIVE_FALLBACK_TITLE": "Open it in a native player instead",
         "INLINE_FAILURE_TITLE": "Copy the URL or try again",
+        "UNTRANSFERABLE_FAILURE_TITLE": "Protected playback could not continue",
+        "RECOMMENDATIONS_LABEL": "推奨される復旧操作",
+        "ACTION_TRY_PLAYER": "{{player}} を試す",
+        "ACTION_TRY_PLAYER_HINT": "この項目にのみ一時的に適用され、保存済みのプレーヤーは変更されません",
+        "REASON_RETRY_TRANSIENT_FAILURE": "一時的な読み込みエラーの後、同じプレーヤーで再試行します",
+        "REASON_RETRY_UNKNOWN_FAILURE": "エラーから別の互換プレーヤーを特定できなかったため、再試行します",
+        "REASON_ALTERNATIVE_SOURCE_AVAILABLE": "同じコンテンツで利用可能な別のソースを試します",
+        "REASON_DIFFERENT_ENGINE_FAMILY": "このプレーヤーは別のブラウザー再生エンジンを使用します",
+        "REASON_EXTERNAL_CODEC_OR_CONTAINER_SUPPORT": "ネイティブプレーヤーはより多くのコーデックとコンテナに対応しています",
+        "REASON_EXTERNAL_BROWSER_ACCESS": "ネイティブプレーヤーならブラウザーのアクセス制限を回避できる場合があります",
+        "REASON_COMPATIBLE_DRM_PATH": "この対象は利用可能な暗号化データに対応しています",
         "ACTION_OPEN_MPV": "Open in MPV",
         "ACTION_OPEN_VLC": "Open in VLC",
         "ACTION_OPEN_MPV_HINT": "configured player",

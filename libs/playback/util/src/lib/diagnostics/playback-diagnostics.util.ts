@@ -5,6 +5,7 @@ import type {
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
+    PlaybackRuntimeSupport,
     PlaybackSourceMetadata,
     ShakaPlaybackEvidence,
     VhsPlaybackEngineType as VhsPlaybackEngineTypeValue,
@@ -50,17 +51,13 @@ const VHS_NETWORK_ERROR_TYPES: ReadonlySet<VhsPlaybackEngineTypeValue> =
     ]);
 
 export function classifyNativePlaybackIssue(
-    error: NativePlaybackErrorInput | MediaError | null | undefined,
+    error: NativePlaybackErrorInput | null | undefined,
     metadata: PlaybackSourceMetadata
 ): PlaybackDiagnostic {
     const nativeErrorCode = error?.code;
     const nativeErrorMessage = error?.message || undefined;
-    const nativeErrorInput = error as
-        NativePlaybackErrorInput | null | undefined;
-    const httpStatus = getNativeHttpStatus(nativeErrorInput?.status);
-    const nativeErrorType = getNativeErrorType(
-        nativeErrorInput?.metadata?.errorType
-    );
+    const httpStatus = getNativeHttpStatus(error?.status);
+    const nativeErrorType = getNativeErrorType(error?.metadata?.errorType);
     const lowerNativeErrorMessage = nativeErrorMessage?.toLowerCase() ?? '';
 
     if (httpStatus !== undefined) {
@@ -175,17 +172,20 @@ export function classifyMpegTsPlaybackIssue(
     });
 }
 
+export type MediaTypeSupportProbe = (mimeType: string) => boolean | undefined;
+
 export function classifyUnsupportedHlsManifestCodecs(
-    metadata: PlaybackSourceMetadata
+    metadata: PlaybackSourceMetadata,
+    isTypeSupported: MediaTypeSupportProbe
 ): PlaybackDiagnostic | null {
-    if (!hasCodecs(metadata) || typeof MediaSource === 'undefined') {
+    if (!hasCodecs(metadata)) {
         return null;
     }
 
     const codecList = [...metadata.videoCodecs, ...metadata.audioCodecs];
     const mimeType = `video/mp4; codecs="${codecList.join(',')}"`;
 
-    if (MediaSource.isTypeSupported(mimeType)) {
+    if (isTypeSupported(mimeType) !== false) {
         return null;
     }
 
@@ -201,6 +201,7 @@ export function createPlaybackDiagnostic(options: {
     readonly code: PlaybackDiagnosticCode;
     readonly source: PlaybackDiagnosticSource;
     readonly metadata: PlaybackSourceMetadata;
+    readonly runtimeSupport?: PlaybackRuntimeSupport;
     readonly details?: string;
     readonly nativeErrorCode?: number;
     readonly nativeErrorMessage?: string;
@@ -210,14 +211,12 @@ export function createPlaybackDiagnostic(options: {
     readonly hls?: HlsPlaybackEvidence;
     readonly mpegTs?: MpegTsPlaybackEvidence;
     readonly shaka?: ShakaPlaybackEvidence;
-    /** Overrides the code-derived recommendation, e.g. when external players
-     * are known to be unable to handle the stream either. */
-    readonly externalFallbackRecommended?: boolean;
 }): PlaybackDiagnostic {
     const {
         code,
         source,
         metadata,
+        runtimeSupport,
         details,
         nativeErrorCode,
         nativeErrorMessage,
@@ -238,6 +237,7 @@ export function createPlaybackDiagnostic(options: {
         player: metadata.player,
         audioCodecs: metadata.audioCodecs,
         videoCodecs: metadata.videoCodecs,
+        runtimeSupport,
         details: details || undefined,
         nativeErrorCode,
         nativeErrorMessage,
@@ -247,9 +247,6 @@ export function createPlaybackDiagnostic(options: {
         hls,
         mpegTs,
         shaka,
-        externalFallbackRecommended:
-            options.externalFallbackRecommended ??
-            isExternalFallbackRecommended(code),
     };
 }
 
@@ -321,16 +318,6 @@ function getNativeErrorType(errorType: unknown): string | undefined {
         NATIVE_ERROR_TYPE_PATTERN.test(errorType)
         ? errorType
         : undefined;
-}
-
-function isExternalFallbackRecommended(code: PlaybackDiagnosticCode): boolean {
-    return (
-        code === DiagnosticCode.UnsupportedContainer ||
-        code === DiagnosticCode.UnsupportedCodec ||
-        code === DiagnosticCode.MediaDecodeError ||
-        code === DiagnosticCode.BrowserAccessError ||
-        code === DiagnosticCode.DrmOrEncryption
-    );
 }
 
 function hasCodecs(metadata: PlaybackSourceMetadata): boolean {

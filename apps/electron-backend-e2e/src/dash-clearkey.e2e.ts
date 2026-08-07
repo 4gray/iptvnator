@@ -1,6 +1,10 @@
 import { createServer, Server } from 'http';
 import { readFileSync } from 'fs';
 import { basename, join } from 'path';
+import type {
+    ExternalPlayerName,
+    PlayerContentInfo,
+} from '@iptvnator/shared/interfaces';
 import {
     channelItemByTitle,
     closeElectronApp,
@@ -19,7 +23,47 @@ import {
  * context). Uses the shared offline fixtures from apps/web-e2e/src/fixtures.
  */
 
-const FIXTURE_DIR = join(workspaceRoot, 'apps/web-e2e/src/fixtures/dash');
+const DASH_FIXTURE_DIR = join(workspaceRoot, 'apps/web-e2e/src/fixtures/dash');
+const PLAYBACK_FIXTURE_DIR = join(
+    workspaceRoot,
+    'apps/web-e2e/src/fixtures/playback'
+);
+
+type PlaybackFixture = {
+    readonly contentType: string;
+    readonly path: string;
+};
+
+const FIXTURE_FILES: ReadonlyMap<string, PlaybackFixture> = new Map([
+    [
+        'clearkey.mpd',
+        {
+            contentType: 'application/dash+xml',
+            path: join(DASH_FIXTURE_DIR, 'clearkey.mpd'),
+        },
+    ],
+    [
+        'clearkey-video.mp4',
+        {
+            contentType: 'video/mp4',
+            path: join(DASH_FIXTURE_DIR, 'clearkey-video.mp4'),
+        },
+    ],
+    [
+        'clearkey-audio.mp4',
+        {
+            contentType: 'video/mp4',
+            path: join(DASH_FIXTURE_DIR, 'clearkey-audio.mp4'),
+        },
+    ],
+    [
+        'unsupported.mkv',
+        {
+            contentType: 'video/matroska',
+            path: join(PLAYBACK_FIXTURE_DIR, 'unsupported.mkv'),
+        },
+    ],
+]);
 
 const CLEARKEY_KID = '00112233445566778899aabbccddeeff';
 const CLEARKEY_KEY = 'ffeeddccbbaa99887766554433221100';
@@ -29,31 +73,33 @@ type DashFixtureServer = {
     origin: string;
 };
 
-/** Serves the DASH fixture directory with HTTP Range support (Shaka fetches
- * init segments and the sidx via byte ranges). */
+/** Serves the explicit offline fixture allowlist with HTTP Range support
+ * (Shaka fetches init segments and the sidx via byte ranges). */
 async function startDashFixtureServer(): Promise<DashFixtureServer> {
     const server: Server = createServer((request, response) => {
         const pathname = (request.url ?? '').split('?')[0];
         const fileName = basename(pathname);
+        const fixture = FIXTURE_FILES.get(fileName);
+        if (!fixture) {
+            response.writeHead(404);
+            response.end('not found');
+            return;
+        }
         let body: Buffer;
         try {
-            body = readFileSync(join(FIXTURE_DIR, fileName));
+            body = readFileSync(fixture.path);
         } catch {
             response.writeHead(404);
             response.end('not found');
             return;
         }
 
-        const contentType = fileName.endsWith('.mpd')
-            ? 'application/dash+xml'
-            : 'video/mp4';
-        const range = /bytes=(\d+)-(\d+)?/.exec(
-            request.headers.range ?? ''
-        );
+        const range = /bytes=(\d+)-(\d+)?/.exec(request.headers.range ?? '');
         if (!range) {
             response.writeHead(200, {
-                'Content-Type': contentType,
+                'Content-Type': fixture.contentType,
                 'Accept-Ranges': 'bytes',
+                'Access-Control-Allow-Origin': '*',
                 'Content-Length': body.length,
             });
             response.end(body);
@@ -64,8 +110,9 @@ async function startDashFixtureServer(): Promise<DashFixtureServer> {
         const end = range[2] ? Number(range[2]) : body.length - 1;
         const chunk = body.subarray(start, end + 1);
         response.writeHead(206, {
-            'Content-Type': contentType,
+            'Content-Type': fixture.contentType,
             'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
             'Content-Range': `bytes ${start}-${end}/${body.length}`,
             'Content-Length': chunk.length,
         });
@@ -106,6 +153,8 @@ function buildDashPlaylist(origin: string): string {
         '#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha',
         '#KODIPROP:inputstream.adaptive.license_key=https://license.example.com/wv',
         `${origin}/clearkey.mpd`,
+        '#EXTINF:-1 tvg-id="unsupported-mkv" group-title="DASH",Unsupported MKV',
+        `${origin}/unsupported.mkv`,
     ].join('\n');
 }
 
@@ -122,13 +171,179 @@ async function importDashPlaylistFromText(
     await waitForM3uCatalog(app.mainWindow);
 }
 
-test('@electron @dash ClearKey DASH plays inline and unsupported DRM surfaces a diagnostic', async ({
+type ExternalPlayerIpcArguments = [
+    url: string,
+    title: string,
+    thumbnail: string | undefined,
+    userAgent: string | undefined,
+    referer: string | undefined,
+    origin: string | undefined,
+    contentInfo: PlayerContentInfo | undefined,
+    startTime: number | undefined,
+    headers: Record<string, string> | undefined,
+];
+
+type CapturedExternalPlayerLaunch = {
+    args: ExternalPlayerIpcArguments;
+    player: ExternalPlayerName;
+};
+
+type PlaybackRecommendationCaptureSnapshot = {
+    completed: number;
+    launches: CapturedExternalPlayerLaunch[];
+    released: boolean;
+};
+
+type PlaybackRecommendationCaptureState =
+    PlaybackRecommendationCaptureSnapshot & {
+        releaseFirstResponse: (() => void) | undefined;
+        waitForFirstResponse: Promise<void>;
+    };
+
+async function installPlaybackRecommendationLaunchCapture(
+    app: LaunchedElectronApp
+): Promise<void> {
+    await app.electronApp.evaluate(({ ipcMain }) => {
+        let releaseFirstResponse: (() => void) | undefined;
+        const waitForFirstResponse = new Promise<void>((resolve) => {
+            releaseFirstResponse = resolve;
+        });
+        const state: PlaybackRecommendationCaptureState = {
+            completed: 0,
+            launches: [],
+            released: false,
+            releaseFirstResponse,
+            waitForFirstResponse,
+        };
+        const globalRef = globalThis as typeof globalThis & {
+            __playbackRecommendationCapture?: PlaybackRecommendationCaptureState;
+        };
+        globalRef.__playbackRecommendationCapture = state;
+
+        const captureLaunch =
+            (player: ExternalPlayerName) =>
+            async (
+                _event: unknown,
+                url: string,
+                title: string,
+                thumbnail?: string,
+                userAgent?: string,
+                referer?: string,
+                origin?: string,
+                contentInfo?: PlayerContentInfo,
+                startTime?: number,
+                headers?: Record<string, string>
+            ) => {
+                const invocation = state.launches.push({
+                    args: [
+                        url,
+                        title,
+                        thumbnail,
+                        userAgent,
+                        referer,
+                        origin,
+                        contentInfo,
+                        startTime,
+                        headers,
+                    ],
+                    player,
+                });
+
+                if (invocation === 1 && !state.released) {
+                    await state.waitForFirstResponse;
+                }
+
+                state.completed += 1;
+                const now = new Date().toISOString();
+                return {
+                    canClose: false,
+                    id: `e2e-recommended-${player}-${invocation}`,
+                    player,
+                    startedAt: now,
+                    status: 'opened',
+                    streamUrl: url,
+                    thumbnail: thumbnail ?? null,
+                    title,
+                    updatedAt: now,
+                };
+            };
+
+        ipcMain.removeHandler('OPEN_MPV_PLAYER');
+        ipcMain.removeHandler('OPEN_VLC_PLAYER');
+        ipcMain.handle('OPEN_MPV_PLAYER', captureLaunch('mpv'));
+        ipcMain.handle('OPEN_VLC_PLAYER', captureLaunch('vlc'));
+    });
+}
+
+async function getPlaybackRecommendationCapture(
+    app: LaunchedElectronApp
+): Promise<PlaybackRecommendationCaptureSnapshot> {
+    return app.electronApp.evaluate(() => {
+        const globalRef = globalThis as typeof globalThis & {
+            __playbackRecommendationCapture?: PlaybackRecommendationCaptureState;
+        };
+        const capture = globalRef.__playbackRecommendationCapture;
+        if (!capture) {
+            throw new Error(
+                'Playback recommendation capture is not installed.'
+            );
+        }
+        return {
+            completed: capture.completed,
+            launches: capture.launches,
+            released: capture.released,
+        };
+    });
+}
+
+async function releasePlaybackRecommendationCapture(
+    app: LaunchedElectronApp
+): Promise<void> {
+    await app.electronApp.evaluate(() => {
+        const globalRef = globalThis as typeof globalThis & {
+            __playbackRecommendationCapture?: PlaybackRecommendationCaptureState;
+        };
+        const capture = globalRef.__playbackRecommendationCapture;
+        if (!capture || capture.released) {
+            return;
+        }
+        capture.released = true;
+        capture.releaseFirstResponse?.();
+        capture.releaseFirstResponse = undefined;
+    });
+}
+
+test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens in MPV', async ({
     dataDir,
 }) => {
     const fixtureServer = await startDashFixtureServer();
     const app = await launchElectronApp(dataDir);
 
     try {
+        const unsupportedFixtureResponse = await app.mainWindow.evaluate(
+            async (url) => {
+                const response = await fetch(url);
+                const body = await response.text();
+                return {
+                    body,
+                    bodyBytes: new TextEncoder().encode(body).byteLength,
+                    contentLength: response.headers.get('content-length'),
+                    contentType: response.headers.get('content-type'),
+                    rendererProtocol: window.location.protocol,
+                    status: response.status,
+                };
+            },
+            `${fixtureServer.origin}/unsupported.mkv`
+        );
+        expect(unsupportedFixtureResponse).toEqual({
+            body: 'This fixture intentionally declares Matroska without playable media bytes.\n',
+            bodyBytes: 75,
+            contentLength: '75',
+            contentType: 'video/matroska',
+            rendererProtocol: 'file:',
+            status: 200,
+        });
+
         await importDashPlaylistFromText(
             app,
             buildDashPlaylist(fixtureServer.origin)
@@ -160,12 +375,124 @@ test('@electron @dash ClearKey DASH plays inline and unsupported DRM surfaces a 
         await channelItemByTitle(app.mainWindow, 'Widevine DASH')
             .first()
             .click();
-        const banner = app.mainWindow.getByTestId(
-            'playback-diagnostic-banner'
-        );
+        const banner = app.mainWindow.getByTestId('playback-diagnostic-banner');
         await expect(banner).toBeVisible({ timeout: 15_000 });
         await expect(banner).toContainText(/encrypted or DRM-protected/i);
+        await expect(
+            banner.locator('[data-test-id="playback-fallback-mpv"]')
+        ).toHaveCount(0);
+        await expect(
+            banner.locator('[data-test-id="playback-fallback-vlc"]')
+        ).toHaveCount(0);
+        await expect(
+            banner.locator('[data-test-id^="playback-recommendation-"]')
+        ).toHaveCount(0);
+        const widevineDetails = banner.locator(
+            '[data-test-id="playback-diagnostic-details"]'
+        );
+        await widevineDetails.locator('summary').click();
+        await expect(widevineDetails).toContainText('drm-or-encryption');
+
+        await installPlaybackRecommendationLaunchCapture(app);
+        await channelItemByTitle(app.mainWindow, 'Unsupported MKV')
+            .first()
+            .click();
+        await expect(banner).toContainText(
+            /container is likely unsupported by the browser player/i,
+            { timeout: 15_000 }
+        );
+        const mkvDetails = banner.locator(
+            '[data-test-id="playback-diagnostic-details"]'
+        );
+        await mkvDetails.locator('summary').click();
+        await expect(mkvDetails).toContainText('unsupported-container');
+
+        const mpvFallback = banner.locator(
+            '[data-test-id="playback-fallback-mpv"]'
+        );
+        const vlcFallback = banner.locator(
+            '[data-test-id="playback-fallback-vlc"]'
+        );
+        await expect(mpvFallback).toBeVisible();
+        await expect(vlcFallback).toBeVisible();
+        await expect(mpvFallback).toHaveClass(
+            /web-player-diagnostic__player-card--primary/
+        );
+        await expect(vlcFallback).not.toHaveClass(
+            /web-player-diagnostic__player-card--primary/
+        );
+
+        const expectedLaunches = [
+            {
+                args: [
+                    `${fixtureServer.origin}/unsupported.mkv`,
+                    'Unsupported MKV',
+                    '',
+                    '',
+                    '',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                ],
+                player: 'mpv',
+            },
+        ] satisfies CapturedExternalPlayerLaunch[];
+        expect(await getPlaybackRecommendationCapture(app)).toEqual({
+            completed: 0,
+            launches: [],
+            released: false,
+        });
+
+        await mpvFallback.click();
+        await expect
+            .poll(() => getPlaybackRecommendationCapture(app), {
+                timeout: 10_000,
+            })
+            .toEqual({
+                completed: 0,
+                launches: expectedLaunches,
+                released: false,
+            });
+        expect(
+            (await getPlaybackRecommendationCapture(app)).launches.filter(
+                ({ player }) => player === 'vlc'
+            )
+        ).toHaveLength(0);
+        await expect(mpvFallback).toHaveCount(0);
+        await expect(vlcFallback).toHaveClass(
+            /web-player-diagnostic__player-card--primary/
+        );
+
+        await releasePlaybackRecommendationCapture(app);
+        await expect
+            .poll(() => getPlaybackRecommendationCapture(app), {
+                timeout: 10_000,
+            })
+            .toEqual({
+                completed: 1,
+                launches: expectedLaunches,
+                released: true,
+            });
+        await app.mainWindow.evaluate(
+            () =>
+                new Promise<void>((resolve) => {
+                    requestAnimationFrame(() =>
+                        requestAnimationFrame(() => resolve())
+                    );
+                })
+        );
+        expect(await getPlaybackRecommendationCapture(app)).toEqual({
+            completed: 1,
+            launches: expectedLaunches,
+            released: true,
+        });
+        await expect(mpvFallback).toHaveCount(0);
+        await expect(vlcFallback).toHaveClass(
+            /web-player-diagnostic__player-card--primary/
+        );
     } finally {
+        await releasePlaybackRecommendationCapture(app).catch(() => undefined);
         await closeElectronApp(app);
         await fixtureServer.close();
     }

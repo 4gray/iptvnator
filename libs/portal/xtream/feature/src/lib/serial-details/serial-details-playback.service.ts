@@ -71,6 +71,8 @@ export class SerialDetailsPlaybackService {
     private lastSaveTime = 0;
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly inlinePlaybackSessionEpisodeState =
+        signal<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(null);
     readonly episodePlaybackPositions = this.playbackPositionState.positions;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
@@ -221,7 +223,13 @@ export class SerialDetailsPlaybackService {
             contentInfo,
         };
 
-        this.startPlayback(playback);
+        const episodeState = resolveSeriesPlaybackEpisodeState({
+            episodesBySeason: selectedItem.episodes,
+            currentEpisodeId: episode.id,
+            fallbackSeasonNumber: Number(episode.season),
+            fallbackEpisodeNumber: Number(episode.episode_num),
+        });
+        this.startPlayback(playback, episodeState);
     }
 
     playQuickStartEpisode(): void {
@@ -259,6 +267,7 @@ export class SerialDetailsPlaybackService {
 
     closeInlinePlayer(): void {
         this.inlinePlayback.set(null);
+        this.inlinePlaybackSessionEpisodeState.set(null);
         this.lastSaveTime = 0;
     }
 
@@ -350,9 +359,13 @@ export class SerialDetailsPlaybackService {
         });
     }
 
-    private startPlayback(playback: ResolvedPortalPlayback): void {
+    private startPlayback(
+        playback: ResolvedPortalPlayback,
+        episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null
+    ): void {
         this.lastSaveTime = 0;
         if (this.portalPlayer.isEmbeddedPlayer()) {
+            this.inlinePlaybackSessionEpisodeState.set(episodeState);
             this.inlinePlayback.set(playback);
             return;
         }

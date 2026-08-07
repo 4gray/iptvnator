@@ -1,278 +1,112 @@
-@if (selectedPlayer() === 'videojs') {
-    @defer (on immediate) {
-        <!-- The source hand-off is deferred until the scoped Electron header
-             override is configured; mounting the player before `vjsOptions`
-             exists would fire a source-less (or credential-less) first load. -->
-        @if (vjsOptions) {
-            <app-vjs-player
-                [options]="vjsOptions"
-                [mediaTitle]="resolvedMediaTitle()"
-                [volume]="volume()"
-                [showCaptions]="showCaptions()"
-                [interactionEnabled]="playbackInteractionEnabled()"
-                [startTime]="startTime()"
-                [seriesNavigation]="seriesNavigation()"
-                (timeUpdate)="timeUpdate.emit($event)"
-                (playbackIssue)="handlePlaybackIssue($event)"
-                (playbackEnded)="playbackEnded.emit()"
-                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-            />
+@for (application of renderedApplications(); track application.token) {
+    @if (application.binding; as binding) {
+        @if (binding.target === 'videojs') {
+            @defer (on immediate) {
+                @if (vjsOptions) {
+                    <app-vjs-player
+                        [options]="vjsOptions"
+                        [mediaTitle]="resolvedMediaTitle()"
+                        [volume]="volume()"
+                        [showCaptions]="showCaptions()"
+                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [startTime]="effectiveStartTime()"
+                        [seriesNavigation]="seriesNavigation()"
+                        (timeUpdate)="handleTimeUpdate($event, application)"
+                        (playbackIssue)="handlePlaybackIssue($event, binding)"
+                        (playbackEnded)="playbackEnded.emit()"
+                        (previousEpisodeRequested)="
+                            previousEpisodeRequested.emit()
+                        "
+                        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+                    />
+                }
+            } @placeholder {
+                <div
+                    class="web-player-defer-placeholder"
+                    aria-hidden="true"
+                ></div>
+            }
+        } @else if (binding.target === 'html5') {
+            @defer (on immediate) {
+                @if (channel) {
+                    <app-html-video-player
+                        [channel]="$any(channel)"
+                        [mediaTitle]="resolvedMediaTitle()"
+                        [volume]="volume()"
+                        [showCaptions]="showCaptions()"
+                        [isLive]="resolvedIsLive()"
+                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [startTime]="effectiveStartTime()"
+                        [seriesNavigation]="seriesNavigation()"
+                        (timeUpdate)="handleTimeUpdate($event, application)"
+                        (playbackIssue)="handlePlaybackIssue($event, binding)"
+                        (playbackEnded)="playbackEnded.emit()"
+                        (previousEpisodeRequested)="
+                            previousEpisodeRequested.emit()
+                        "
+                        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+                    />
+                }
+            } @placeholder {
+                <div
+                    class="web-player-defer-placeholder"
+                    aria-hidden="true"
+                ></div>
+            }
+        } @else if (binding.target === 'artplayer') {
+            @defer (on immediate) {
+                @if (channel) {
+                    <app-art-player
+                        [channel]="$any(channel)"
+                        [mediaTitle]="resolvedMediaTitle()"
+                        [volume]="volume()"
+                        [showCaptions]="showCaptions()"
+                        [isLive]="resolvedIsLive()"
+                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [startTime]="effectiveStartTime()"
+                        [seriesNavigation]="seriesNavigation()"
+                        (timeUpdate)="handleTimeUpdate($event, application)"
+                        (playbackIssue)="handlePlaybackIssue($event, binding)"
+                        (playbackEnded)="playbackEnded.emit()"
+                        (previousEpisodeRequested)="
+                            previousEpisodeRequested.emit()
+                        "
+                        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+                    />
+                }
+            } @placeholder {
+                <div
+                    class="web-player-defer-placeholder"
+                    aria-hidden="true"
+                ></div>
+            }
         }
-    } @placeholder {
-        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
-    }
-} @else if (selectedPlayer() === 'html5') {
-    @defer (on immediate) {
-        @if (channel) {
-            <app-html-video-player
-                [channel]="$any(channel)"
-                [mediaTitle]="resolvedMediaTitle()"
-                [volume]="volume()"
-                [showCaptions]="showCaptions()"
-                [isLive]="resolvedIsLive()"
-                [interactionEnabled]="playbackInteractionEnabled()"
-                [startTime]="startTime()"
-                [seriesNavigation]="seriesNavigation()"
-                (timeUpdate)="timeUpdate.emit($event)"
-                (playbackIssue)="handlePlaybackIssue($event)"
-                (playbackEnded)="playbackEnded.emit()"
-                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-            />
-        }
-    } @placeholder {
-        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
-    }
-} @else if (selectedPlayer() === 'artplayer') {
-    @defer (on immediate) {
-        @if (channel) {
-            <app-art-player
-                [channel]="$any(channel)"
-                [mediaTitle]="resolvedMediaTitle()"
-                [volume]="volume()"
-                [showCaptions]="showCaptions()"
-                [isLive]="resolvedIsLive()"
-                [interactionEnabled]="playbackInteractionEnabled()"
-                [startTime]="startTime()"
-                [seriesNavigation]="seriesNavigation()"
-                (timeUpdate)="timeUpdate.emit($event)"
-                (playbackIssue)="handlePlaybackIssue($event)"
-                (playbackEnded)="playbackEnded.emit()"
-                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-            />
-        }
-    } @placeholder {
-        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
-    }
-} @else if (selectedPlayer() === 'embedded-mpv') {
-    <app-embedded-mpv-player
-        [playback]="resolvedPlayback()"
-        [mediaTitle]="resolvedMediaTitle()"
-        [recordingFolder]="recordingFolder()"
-        [seriesNavigation]="seriesNavigation()"
-        (timeUpdate)="timeUpdate.emit($event)"
-        (playbackEnded)="playbackEnded.emit()"
-        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-    />
-} @else {
-    @defer (on immediate) {
-        <app-vjs-player
-            [options]="vjsOptions"
+    } @else if (application.embeddedMpv) {
+        <app-embedded-mpv-player
+            [playback]="resolvedPlayback()"
             [mediaTitle]="resolvedMediaTitle()"
-            [volume]="volume()"
-            [showCaptions]="showCaptions()"
-            [interactionEnabled]="playbackInteractionEnabled()"
-            [startTime]="startTime()"
+            [recordingFolder]="recordingFolder()"
             [seriesNavigation]="seriesNavigation()"
-            (timeUpdate)="timeUpdate.emit($event)"
-            (playbackIssue)="handlePlaybackIssue($event)"
+            (timeUpdate)="handleTimeUpdate($event, application)"
             (playbackEnded)="playbackEnded.emit()"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"
             (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
-    } @placeholder {
-        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 }
 
 @if (visiblePlaybackDiagnostic(); as issue) {
-    <section
-        class="web-player-diagnostic"
-        data-test-id="playback-diagnostic-banner"
-        role="status"
-    >
-        <div class="web-player-diagnostic__content">
-            <div class="web-player-diagnostic__badge">
-                <mat-icon aria-hidden="true">warning</mat-icon>
-                <span>{{ getDiagnosticTitleKey(issue) | translate }}</span>
-            </div>
-
-            <h2 class="web-player-diagnostic__headline">
-                {{ diagnosticHeadlineKey() | translate }}
-            </h2>
-
-            <div class="web-player-diagnostic__description">
-                {{ getDiagnosticDescriptionKey(issue) | translate }}
-            </div>
-
-            @if (getDiagnosticMeta(issue); as meta) {
-                <div class="web-player-diagnostic__meta">
-                    {{ meta }}
-                </div>
-            }
-
-            @if (getDiagnosticCodecHint(issue); as codecHint) {
-                <div
-                    class="web-player-diagnostic__codec-hint"
-                    data-test-id="playback-codec-hint"
-                >
-                    {{
-                        'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
-                            | translate: { codecs: codecHint }
-                    }}
-                </div>
-            }
-
-            @if (alternativeSources().length > 0) {
-                <div
-                    class="web-player-diagnostic__alternatives"
-                    data-test-id="playback-alternative-sources"
-                >
-                    <h3 class="web-player-diagnostic__alternatives-title">
-                        {{
-                            'PORTALS.MULTI_SOURCE.TRY_ANOTHER_SOURCE'
-                                | translate
-                        }}
-                    </h3>
-                    @for (source of visibleAlternatives(); track source.id) {
-                        <app-vod-source-row
-                            [source]="source"
-                            [showPin]="false"
-                            (playRequested)="alternativeSourceRequested.emit($event)"
-                            (checkRequested)="sourceCheckRequested.emit($event)"
-                        />
-                    }
-                    @if (hiddenAlternativeCount() > 0) {
-                        <p class="web-player-diagnostic__alternatives-more">
-                            {{
-                                'PORTALS.MULTI_SOURCE.MORE_SOURCES'
-                                    | translate
-                                        : { count: hiddenAlternativeCount() }
-                            }}
-                        </p>
-                    }
-                </div>
-            }
-
-            @if (canShowExternalFallbackActions()) {
-                <div
-                    class="web-player-diagnostic__player-actions"
-                    aria-label="External player fallbacks"
-                >
-                    <button
-                        class="web-player-diagnostic__player-card web-player-diagnostic__player-card--primary"
-                        type="button"
-                        data-test-id="playback-fallback-mpv"
-                        (click)="requestExternalFallback('mpv')"
-                    >
-                        <mat-icon aria-hidden="true">open_in_new</mat-icon>
-                        <span class="web-player-diagnostic__player-copy">
-                            <span class="web-player-diagnostic__player-label">
-                                {{
-                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV'
-                                        | translate
-                                }}
-                            </span>
-                            <span class="web-player-diagnostic__player-hint">
-                                {{
-                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV_HINT'
-                                        | translate
-                                }}
-                            </span>
-                        </span>
-                    </button>
-
-                    <button
-                        class="web-player-diagnostic__player-card"
-                        type="button"
-                        data-test-id="playback-fallback-vlc"
-                        (click)="requestExternalFallback('vlc')"
-                    >
-                        <mat-icon aria-hidden="true">open_in_new</mat-icon>
-                        <span class="web-player-diagnostic__player-copy">
-                            <span class="web-player-diagnostic__player-label">
-                                {{
-                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC'
-                                        | translate
-                                }}
-                            </span>
-                            <span class="web-player-diagnostic__player-hint">
-                                {{
-                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC_HINT'
-                                        | translate
-                                }}
-                            </span>
-                        </span>
-                    </button>
-                </div>
-            }
-
-            <div class="web-player-diagnostic__utilities">
-                <button
-                    class="web-player-diagnostic__utility-button"
-                    type="button"
-                    [cdkCopyToClipboard]="resolvedPlayback().streamUrl"
-                    [matTooltip]="resolvedPlayback().streamUrl"
-                    data-test-id="playback-copy-url"
-                >
-                    <mat-icon aria-hidden="true">content_copy</mat-icon>
-                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_URL' | translate }}
-                </button>
-
-                <span
-                    class="web-player-diagnostic__divider"
-                    aria-hidden="true"
-                ></span>
-
-                <button
-                    class="web-player-diagnostic__utility-button"
-                    type="button"
-                    data-test-id="playback-retry"
-                    (click)="retryPlayback()"
-                >
-                    <mat-icon aria-hidden="true">refresh</mat-icon>
-                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_RETRY' | translate }}
-                </button>
-
-                <span
-                    class="web-player-diagnostic__divider"
-                    aria-hidden="true"
-                ></span>
-
-                <details
-                    class="web-player-diagnostic__details"
-                    data-test-id="playback-diagnostic-details"
-                >
-                    <summary>
-                        <mat-icon aria-hidden="true">expand_more</mat-icon>
-                        {{ 'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY' | translate }}
-                    </summary>
-                    <dl>
-                        @for (
-                            detail of getDiagnosticDetails(issue);
-                            track detail.labelKey
-                        ) {
-                            <div class="web-player-diagnostic__detail-row">
-                                <dt>{{ detail.labelKey | translate }}</dt>
-                                <dd>{{ detail.value }}</dd>
-                            </div>
-                        }
-                    </dl>
-                </details>
-            </div>
-        </div>
-    </section>
+    <app-playback-diagnostic-panel
+        [diagnostic]="issue"
+        [recommendations]="recommendations()"
+        [playback]="resolvedPlayback()"
+        [supportsManagedExternalPlayers]="supportsManagedExternalPlayers"
+        [playbackExternallyTransferable]="playbackExternallyTransferable()"
+        [alternativeSources]="alternativeSources()"
+        [pending]="recoveryPending()"
+        (retryRequested)="retryPlayback()"
+        (playerRequested)="requestRecommendedPlayer($event)"
+        (alternativeSourceRequested)="alternativeSourceRequested.emit($event)"
+        (sourceCheckRequested)="sourceCheckRequested.emit($event)"
+    />
 }

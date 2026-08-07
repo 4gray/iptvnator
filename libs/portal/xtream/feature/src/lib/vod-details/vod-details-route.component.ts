@@ -72,6 +72,7 @@ import { VodDetailsDownloadsService } from './vod-details-downloads.service';
 import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 type XtreamVodIdentityItem = XtreamVodDetails & {
     readonly id?: number | string;
@@ -162,6 +163,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    readonly playbackSessionKey = computed(() => {
+        const sourceId = this.xtreamStore.currentPlaylist()?.id;
+        const contentId = this.selectedVodId();
+        return sourceId && Number.isFinite(contentId) && contentId > 0
+            ? createPlaybackSessionKey({ kind: 'vod', sourceId, contentId })
+            : '';
+    });
     readonly providerOnly = computed(() => {
         this.routeParams();
         return isProviderOnlyDetailState(window.history.state);

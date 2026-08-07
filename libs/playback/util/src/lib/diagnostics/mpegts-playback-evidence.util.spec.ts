@@ -29,8 +29,7 @@ describe('mpegts.js playback evidence', () => {
             OTHER_ERROR: MpegTsPlaybackEngineType.Other,
         });
         expect(mpegts.ErrorDetails).toEqual({
-            NETWORK_EXCEPTION:
-                MpegTsPlaybackEngineDetails.NetworkException,
+            NETWORK_EXCEPTION: MpegTsPlaybackEngineDetails.NetworkException,
             NETWORK_STATUS_CODE_INVALID:
                 MpegTsPlaybackEngineDetails.HttpStatusCodeInvalid,
             NETWORK_TIMEOUT: MpegTsPlaybackEngineDetails.ConnectingTimeout,
@@ -46,47 +45,25 @@ describe('mpegts.js playback evidence', () => {
     });
 
     it.each([
-        [
-            'NetworkError',
-            'HttpStatusCodeInvalid',
-            'loader',
-            'http',
-        ],
+        ['NetworkError', 'HttpStatusCodeInvalid', 'loader', 'http'],
         ['NetworkError', 'ConnectingTimeout', 'loader', 'timeout'],
         ['NetworkError', 'Exception', 'loader', 'network'],
-        [
-            'NetworkError',
-            'UnrecoverableEarlyEof',
-            'loader',
-            'truncated-stream',
-        ],
+        ['NetworkError', 'UnrecoverableEarlyEof', 'loader', 'truncated-stream'],
         ['MediaError', 'FormatError', 'demux', 'format'],
         ['MediaError', 'FormatUnsupported', 'demux', 'format'],
         ['MediaError', 'CodecUnsupported', 'demux', 'codec'],
-        [
-            'MediaError',
-            'MediaMSEError',
-            'media-source',
-            'media-source',
-        ],
-    ])(
-        'maps %s + %s to %s/%s',
-        (engineType, engineDetails, stage, failure) => {
-            expect(
-                createMpegTsPlaybackEvidence(
-                    engineType,
-                    engineDetails,
-                    undefined
-                )
-            ).toEqual({
-                engineType,
-                engineDetails,
-                disposition: 'terminal',
-                stage,
-                failure,
-            });
-        }
-    );
+        ['MediaError', 'MediaMSEError', 'media-source', 'media-source'],
+    ])('maps %s + %s to %s/%s', (engineType, engineDetails, stage, failure) => {
+        expect(
+            createMpegTsPlaybackEvidence(engineType, engineDetails, undefined)
+        ).toEqual({
+            engineType,
+            engineDetails,
+            disposition: 'terminal',
+            stage,
+            failure,
+        });
+    });
 
     it.each([
         ['OtherError', 'CodecUnsupported'],
@@ -96,15 +73,18 @@ describe('mpegts.js playback evidence', () => {
         ['NetworkError', 'httpstatuscodeinvalid'],
         [{ type: 'NetworkError' }, 'Exception'],
         ['MediaError', { details: 'FormatError' }],
-    ])('keeps inconsistent or malformed %p + %p evidence unknown', (type, details) => {
-        const evidence = createMpegTsPlaybackEvidence(type, details, {
-            code: 503,
-        });
+    ])(
+        'keeps inconsistent or malformed %p + %p evidence unknown',
+        (type, details) => {
+            const evidence = createMpegTsPlaybackEvidence(type, details, {
+                code: 503,
+            });
 
-        expect(evidence.stage).toBe('unknown');
-        expect(evidence.failure).toBe('unknown');
-        expect(evidence.httpStatus).toBeUndefined();
-    });
+            expect(evidence.stage).toBe('unknown');
+            expect(evidence.failure).toBe('unknown');
+            expect(evidence.httpStatus).toBeUndefined();
+        }
+    );
 
     it.each([399, 600, 404.5, '404', null, undefined])(
         'rejects invalid HTTP status %p',
@@ -163,45 +143,24 @@ describe('mpegts.js playback evidence', () => {
     });
 
     it.each([
-        ['NetworkError', 'HttpStatusCodeInvalid', 'network-error', false],
-        ['NetworkError', 'ConnectingTimeout', 'network-error', false],
-        ['NetworkError', 'Exception', 'network-error', false],
-        [
-            'NetworkError',
-            'UnrecoverableEarlyEof',
-            'media-decode-error',
-            true,
-        ],
-        ['MediaError', 'FormatError', 'media-decode-error', true],
-        [
-            'MediaError',
-            'FormatUnsupported',
-            'unsupported-container',
-            true,
-        ],
-        [
-            'MediaError',
-            'CodecUnsupported',
-            'unsupported-codec',
-            true,
-        ],
-        ['MediaError', 'MediaMSEError', 'media-decode-error', true],
-        ['OtherError', 'Exception', 'unknown-playback-error', false],
-    ])(
-        'classifies %s + %s as %s with fallback=%s',
-        (type, details, code, externalFallbackRecommended) => {
-            const issue = classifyMpegTsPlaybackIssue(
-                createMpegTsPlaybackEvidence(type, details, undefined),
-                METADATA
-            );
+        ['NetworkError', 'HttpStatusCodeInvalid', 'network-error'],
+        ['NetworkError', 'ConnectingTimeout', 'network-error'],
+        ['NetworkError', 'Exception', 'network-error'],
+        ['NetworkError', 'UnrecoverableEarlyEof', 'media-decode-error'],
+        ['MediaError', 'FormatError', 'media-decode-error'],
+        ['MediaError', 'FormatUnsupported', 'unsupported-container'],
+        ['MediaError', 'CodecUnsupported', 'unsupported-codec'],
+        ['MediaError', 'MediaMSEError', 'media-decode-error'],
+        ['OtherError', 'Exception', 'unknown-playback-error'],
+    ])('classifies %s + %s as %s', (type, details, code) => {
+        const issue = classifyMpegTsPlaybackIssue(
+            createMpegTsPlaybackEvidence(type, details, undefined),
+            METADATA
+        );
 
-            expect(issue.code).toBe(code);
-            expect(issue.externalFallbackRecommended).toBe(
-                externalFallbackRecommended
-            );
-            expect(issue.details).toBeUndefined();
-        }
-    );
+        expect(issue.code).toBe(code);
+        expect(issue.details).toBeUndefined();
+    });
 
     it('preserves an exact HTTP failure without retaining provider details', () => {
         const secret = 'mpegts-http-secret';
@@ -230,7 +189,6 @@ describe('mpegts.js playback evidence', () => {
                     failure: 'http',
                     httpStatus: 404,
                 }),
-                externalFallbackRecommended: false,
             })
         );
         expect(issue.details).toBeUndefined();

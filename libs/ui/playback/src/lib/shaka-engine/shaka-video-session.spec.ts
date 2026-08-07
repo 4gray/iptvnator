@@ -4,7 +4,7 @@ import {
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
-} from '../playback-diagnostics/playback-diagnostics.model';
+} from '@iptvnator/playback/util';
 import {
     FakeShakaPlayer,
     createFakeShakaEnvironment,
@@ -116,8 +116,6 @@ describe('ShakaVideoSession', () => {
             stage: 'unknown',
             failure: 'drm',
         });
-        // Without KODIPROP config the DRM hint may still help externally.
-        expect(issues[0].externalFallbackRecommended).toBe(true);
         // Critical errors end playback: the dead engine must be torn down.
         expect(player.destroyCount).toBe(1);
         expect(session.getPlayer()).toBeNull();
@@ -142,7 +140,7 @@ describe('ShakaVideoSession', () => {
         expect(session.getPlayer()).toBe(player);
     });
 
-    it('drops the external-fallback hint for every failure on ClearKey channels', async () => {
+    it('emits structured failures without owning ClearKey recovery policy', async () => {
         const environment = createFakeShakaEnvironment();
         const session = createSession(environment);
         session.start(video, 'http://example.com/enc.mpd', {
@@ -160,12 +158,6 @@ describe('ShakaVideoSession', () => {
 
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
-        // MPV/VLC never receive the KODIPROP license config, so they are not
-        // offered as a fallback for key failures on ClearKey channels.
-        expect(issues[0].externalFallbackRecommended).toBe(false);
-
-        // Non-DRM failures (media/codec/manifest/…) are equally unsolvable
-        // externally while the stream itself stays encrypted.
         session.start(video, 'http://example.com/enc.mpd', {
             licenseType: 'clearkey',
             supported: true,
@@ -180,7 +172,6 @@ describe('ShakaVideoSession', () => {
 
         expect(issues).toHaveLength(2);
         expect(issues[1].code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
-        expect(issues[1].externalFallbackRecommended).toBe(false);
     });
 
     it('emits a diagnostic and tears the engine down when load rejects', async () => {
@@ -407,6 +398,7 @@ describe('ShakaVideoSession', () => {
         });
         expect(JSON.stringify(issues[0])).not.toContain(secret);
         expect(JSON.stringify(issues[0])).not.toContain('provider.example');
+        expect(issues[0].runtimeSupport).toBeUndefined();
     });
 
     it('recovers from a stalled load: stop() interrupts it and the next start proceeds', async () => {
@@ -497,7 +489,7 @@ describe('ShakaVideoSession', () => {
         expect(player.selectTextTrackCalls).toHaveLength(2);
     });
 
-    it('keeps external fallback available when the browser cannot run Shaka for clear DASH', async () => {
+    it('emits an unknown diagnostic when the browser cannot run Shaka for clear DASH', async () => {
         const environment = createFakeShakaEnvironment();
         environment.browserSupported = false;
         const session = createSession(environment);
@@ -517,10 +509,13 @@ describe('ShakaVideoSession', () => {
             stage: 'unknown',
             failure: 'unknown',
         });
-        expect(issues[0].externalFallbackRecommended).toBe(true);
+        expect(issues[0]).toHaveProperty(
+            'runtimeSupport',
+            'shaka-browser-unsupported'
+        );
     });
 
-    it('keeps external fallback unavailable when browser support fails for KODIPROP DRM', async () => {
+    it('emits the same unknown diagnostic when browser support fails with DRM', async () => {
         const environment = createFakeShakaEnvironment();
         environment.browserSupported = false;
         const session = createSession(environment);
@@ -536,7 +531,10 @@ describe('ShakaVideoSession', () => {
         expect(issues[0].code).toBe(
             PlaybackDiagnosticCode.UnknownPlaybackError
         );
-        expect(issues[0].externalFallbackRecommended).toBe(false);
+        expect(issues[0]).toHaveProperty(
+            'runtimeSupport',
+            'shaka-browser-unsupported'
+        );
     });
 
     it('destroy tears down the engine and blocks later starts', async () => {

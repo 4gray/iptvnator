@@ -150,4 +150,13 @@ test('@web @m3u @dash unsupported DRM shows the encryption diagnostic', async ({
     const banner = page.locator('[data-test-id="playback-diagnostic-banner"]');
     await expect(banner).toBeVisible({ timeout: 15_000 });
     await expect(banner).toContainText(/encrypted or DRM-protected/i);
+    await expect(
+        banner.locator('[data-test-id="playback-fallback-mpv"]')
+    ).toHaveCount(0);
+    await expect(
+        banner.locator('[data-test-id="playback-fallback-vlc"]')
+    ).toHaveCount(0);
+    await expect(
+        banner.locator('[data-test-id^="playback-recommendation-"]')
+    ).toHaveCount(0);
 });

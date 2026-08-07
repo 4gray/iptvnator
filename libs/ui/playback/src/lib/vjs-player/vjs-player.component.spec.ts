@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import type { NativePlaybackErrorInput } from '../playback-diagnostics/playback-diagnostics.model';
-import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
+import type { NativePlaybackErrorInput } from '@iptvnator/playback/util';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type { VideoJsPlayer } from './vjs-player.types';
 
@@ -196,7 +196,6 @@ describe('VjsPlayerComponent', () => {
                 code: 'unsupported-container',
                 source: 'native',
                 sourceUrl: 'https://example.test/archive/movie.mkv',
-                externalFallbackRecommended: true,
             })
         );
     });
@@ -236,7 +235,6 @@ describe('VjsPlayerComponent', () => {
                     stage: 'unknown',
                     httpStatus: 404,
                 },
-                externalFallbackRecommended: false,
             })
         );
     });
@@ -272,7 +270,6 @@ describe('VjsPlayerComponent', () => {
                     disposition: 'terminal',
                     stage: 'unknown',
                 },
-                externalFallbackRecommended: false,
             })
         );
     });
@@ -300,7 +297,6 @@ describe('VjsPlayerComponent', () => {
                 code: 'media-decode-error',
                 source: 'native',
                 nativeErrorMessage: 'Native media decode failed',
-                externalFallbackRecommended: true,
             })
         );
     });

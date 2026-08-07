@@ -17,11 +17,11 @@ import {
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import {
-    EpgListViewComponent,
-    EpgTimelineComponent,
-} from '@iptvnator/ui/epg';
-import { AudioPlayerComponent } from '@iptvnator/ui/playback';
+    AudioPlayerComponent,
+    type PlaybackFallbackRequest,
+} from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
@@ -31,7 +31,10 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    EpgProgram,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
@@ -66,10 +69,11 @@ class StubChannelListItemComponent {
     template: '',
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input('');
     readonly title = input('');
     readonly playback = input<unknown>(null);
-    readonly externalFallbackRequested = output<unknown>();
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 }
 
 @Component({
@@ -202,9 +206,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         loaded: number;
         total: number;
     } | null>(null);
-    const itvFullChannelList = signal<
-        ReturnType<typeof defaultItvChannels>
-    >([]);
+    const itvFullChannelList = signal<ReturnType<typeof defaultItvChannels>>(
+        []
+    );
     const itvSelectedCategoryFromCache = signal(false);
     const isPaginatedContentLoading = signal(false);
 
@@ -266,6 +270,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     const portalPlayer = {
         isEmbeddedPlayer: jest.fn(() => true),
         openResolvedPlayback: jest.fn(),
+        openExternalPlayback: jest.fn(),
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
@@ -277,6 +282,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         // The store mock is module-scoped: reset so a failed test can't leak
         // 'list' into siblings.
         settingsStore.resolvedEpgViewMode.set('timeline');
+        playlist.set({ _id: 'playlist-1', title: 'Demo Stalker' });
         window.electron = {
             platform: 'darwin',
             setUserAgent: jest.fn().mockResolvedValue(true),
@@ -327,6 +333,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         portalPlayer.isEmbeddedPlayer.mockReset();
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         portalPlayer.openResolvedPlayback.mockClear();
+        portalPlayer.openExternalPlayback.mockClear();
         fetchChannelEpg.mockReset();
         fetchChannelEpg.mockResolvedValue([]);
         ensureBulkItvEpg.mockReset();
@@ -407,9 +414,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     useValue: {
                         supportsEpgMapping: false,
                         getEpgMapping: jest.fn().mockResolvedValue(null),
-                        getEpgMappingsBatch: jest
-                            .fn()
-                            .mockResolvedValue(null),
+                        getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
                     },
                 },
             ],
@@ -503,7 +508,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         const channelRows = fixture.debugElement.queryAll(
             By.directive(StubChannelListItemComponent)
         );
@@ -524,6 +531,43 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     ).showDetailsContextMenu()
             )
         ).toBe(true);
+    });
+
+    it('forwards the exact resolved live playback to external fallback', () => {
+        const playback: ResolvedPortalPlayback = {
+            streamUrl: 'https://example.com/stalker-fallback.m3u8',
+            title: 'Alpha TV',
+            isLive: true,
+            headers: { Authorization: 'Bearer token' },
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 10001,
+                contentType: 'live',
+            },
+        };
+        const request: PlaybackFallbackRequest = {
+            player: 'vlc',
+            playback,
+            diagnostic: {
+                code: 'network-error',
+                player: 'html5',
+                source: 'hls',
+                container: '',
+                mimeType: '',
+                videoCodecs: [],
+                audioCodecs: [],
+            },
+        };
+
+        component.handleExternalFallbackRequest(request);
+
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            playback,
+            'vlc'
+        );
+        expect(portalPlayer.openExternalPlayback.mock.calls[0][0]).toBe(
+            playback
+        );
     });
 
     it('renders radio channel rows with compact no-EPG density', () => {
@@ -1115,7 +1159,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(ensureBulkItvEpg).not.toHaveBeenCalled();
         expect(fetchChannelEpg).not.toHaveBeenCalled();
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
@@ -1185,14 +1231,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         );
         // Once: only the apply call gets the pending promise — the destroy
         // clear below also calls the bridge and must not steal the resolver.
-        (
-            window.electron?.setUserAgent as jest.Mock
-        ).mockImplementationOnce(() => {
-            signalApplyIssued();
-            return new Promise<boolean>((resolve) => {
-                resolveApply = () => resolve(true);
-            });
-        });
+        (window.electron?.setUserAgent as jest.Mock).mockImplementationOnce(
+            () => {
+                signalApplyIssued();
+                return new Promise<boolean>((resolve) => {
+                    resolveApply = () => resolve(true);
+                });
+            }
+        );
         resolveRadioPlayback.mockResolvedValue({
             streamUrl: 'http://portal.example/radio_2.mpg',
             title: 'Portal FM',

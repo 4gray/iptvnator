@@ -551,6 +551,7 @@
             "DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. MPV or VLC can often bypass browser-player access limits.",
             "PWA_DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. The PWA cannot launch external players directly; use the Copy stream URL action and open it manually in MPV, VLC, IINA, or another player."
         },
+        "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL.",
         "DRM_OR_ENCRYPTION": {
             "TITLE": "This stream may be encrypted or DRM-protected",
             "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
@@ -561,6 +562,17 @@
         },
         "NATIVE_FALLBACK_TITLE": "Open it in a native player instead",
         "INLINE_FAILURE_TITLE": "Copy the URL or try again",
+        "UNTRANSFERABLE_FAILURE_TITLE": "Protected playback could not continue",
+        "RECOMMENDATIONS_LABEL": "Προτεινόμενες ενέργειες ανάκτησης",
+        "ACTION_TRY_PLAYER": "Δοκιμή του {{player}}",
+        "ACTION_TRY_PLAYER_HINT": "Προσωρινά για αυτό το στοιχείο· το αποθηκευμένο πρόγραμμα αναπαραγωγής δεν αλλάζει",
+        "REASON_RETRY_TRANSIENT_FAILURE": "Δοκιμάστε ξανά το ίδιο πρόγραμμα αναπαραγωγής μετά από μια προσωρινή αποτυχία φόρτωσης",
+        "REASON_RETRY_UNKNOWN_FAILURE": "Δοκιμάστε ξανά, επειδή το σφάλμα δεν εντόπισε άλλο συμβατό πρόγραμμα αναπαραγωγής",
+        "REASON_ALTERNATIVE_SOURCE_AVAILABLE": "Δοκιμάστε μια άλλη διαθέσιμη πηγή για το ίδιο περιεχόμενο",
+        "REASON_DIFFERENT_ENGINE_FAMILY": "Αυτό το πρόγραμμα αναπαραγωγής χρησιμοποιεί διαφορετική μηχανή αναπαραγωγής του προγράμματος περιήγησης",
+        "REASON_EXTERNAL_CODEC_OR_CONTAINER_SUPPORT": "Τα εγγενή προγράμματα αναπαραγωγής υποστηρίζουν περισσότερους κωδικοποιητές και περιέκτες",
+        "REASON_EXTERNAL_BROWSER_ACCESS": "Ένα εγγενές πρόγραμμα αναπαραγωγής μπορεί να παρακάμψει περιορισμούς πρόσβασης του προγράμματος περιήγησης",
+        "REASON_COMPATIBLE_DRM_PATH": "Αυτός ο στόχος είναι συμβατός με τα διαθέσιμα δεδομένα κρυπτογράφησης",
         "ACTION_OPEN_MPV": "Open in MPV",
         "ACTION_OPEN_VLC": "Open in VLC",
         "ACTION_OPEN_MPV_HINT": "configured player",

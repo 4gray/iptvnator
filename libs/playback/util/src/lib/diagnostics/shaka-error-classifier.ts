@@ -4,18 +4,19 @@ import type {
     PlaybackSourceMetadata,
     ShakaPlaybackDisposition,
     ShakaPlaybackEvidence,
-} from '../playback-diagnostics/playback-diagnostics.model';
+} from './playback-diagnostics.model';
 import {
     PlaybackDiagnosticCode as DiagnosticCode,
     PlaybackDiagnosticSource as DiagnosticSource,
     ShakaPlaybackCategory,
     ShakaPlaybackDisposition as ShakaDisposition,
     ShakaPlaybackFailure,
-} from '../playback-diagnostics/playback-diagnostics.model';
-import { createPlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
+    PlaybackRuntimeSupport,
+} from './playback-diagnostics.model';
+import { createPlaybackDiagnostic } from './playback-diagnostics.util';
 import { SHAKA_ERROR_CODE } from './shaka-error-contract';
 import { createShakaPlaybackEvidence } from './shaka-playback-evidence.util';
-import type { ShakaErrorLike } from './shaka-module.types';
+import type { ShakaErrorLike } from './shaka-error.types';
 
 export {
     SHAKA_DIAGNOSTIC_VERSION,
@@ -88,9 +89,19 @@ export function createUnsupportedDrmDiagnostic(
         source: DiagnosticSource.Shaka,
         metadata,
         details: 'Unsupported DRM license configuration',
-        // External MPV/VLC cannot receive the KODIPROP license config either,
-        // so offering them as a fallback would just fail differently.
-        externalFallbackRecommended: false,
+    });
+}
+
+/** Exact app-owned evidence for Shaka's browser-support preflight. */
+export function createShakaBrowserUnsupportedDiagnostic(
+    metadata: PlaybackSourceMetadata
+): PlaybackDiagnostic {
+    return createPlaybackDiagnostic({
+        code: DiagnosticCode.UnknownPlaybackError,
+        source: DiagnosticSource.Shaka,
+        metadata,
+        runtimeSupport: PlaybackRuntimeSupport.ShakaBrowserUnsupported,
+        shaka: createShakaPlaybackEvidence(null, ShakaDisposition.Terminal),
     });
 }
 

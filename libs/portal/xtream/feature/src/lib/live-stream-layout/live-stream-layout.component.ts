@@ -70,6 +70,7 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -269,11 +270,20 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
+    private playbackRequestId = 0;
 
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly activeLiveItemId = signal<number | null>(null);
+    readonly playbackSessionKey = computed(() => {
+        const sourceId = this.xtreamStore.currentPlaylist()?.id;
+        const contentId = this.activeLiveItemId();
+        return sourceId && contentId
+            ? createPlaybackSessionKey({ kind: 'live', sourceId, contentId })
+            : '';
+    });
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
@@ -435,12 +445,14 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         item: XtreamLiveChannelItem,
         startPlayback = !this.settingsStore.openStreamOnDoubleClick()
     ) {
+        this.playbackRequestId += 1;
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
         // store no-op.
         this.selectLiveItemCategory(item);
+        this.activeLiveItemId.set(item.xtream_id);
         this.activePlayback.set({
             streamUrl,
             title: item.title ?? item.name ?? '',
@@ -541,6 +553,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.playbackRequestId += 1;
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
     }
@@ -643,6 +656,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             return;
         }
 
+        const requestId = ++this.playbackRequestId;
+        this.activeLiveItemId.set(item.xtream_id);
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
@@ -656,6 +671,13 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             stopTimestamp,
             playlist.serverTimezone
         );
+        if (
+            requestId !== this.playbackRequestId ||
+            this.xtreamStore.currentPlaylist()?.id !== playlist.id ||
+            this.activeLiveItemId() !== item.xtream_id
+        ) {
+            return;
+        }
 
         this.activeCatchupProgram.set(program);
         this.activePlayback.set({

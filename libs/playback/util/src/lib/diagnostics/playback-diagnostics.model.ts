@@ -32,6 +32,13 @@ export const PlaybackDiagnosticSource = {
 export type PlaybackDiagnosticSource =
     (typeof PlaybackDiagnosticSource)[keyof typeof PlaybackDiagnosticSource];
 
+export const PlaybackRuntimeSupport = {
+    ShakaBrowserUnsupported: 'shaka-browser-unsupported',
+} as const;
+
+export type PlaybackRuntimeSupport =
+    (typeof PlaybackRuntimeSupport)[keyof typeof PlaybackRuntimeSupport];
+
 export const InlinePlaybackPlayer = {
     VideoJs: 'videojs',
     Html5: 'html5',
@@ -255,6 +262,7 @@ export interface PlaybackDiagnostic {
     readonly player?: InlinePlaybackPlayer;
     readonly audioCodecs: readonly string[];
     readonly videoCodecs: readonly string[];
+    readonly runtimeSupport?: PlaybackRuntimeSupport;
     readonly details?: string;
     readonly nativeErrorCode?: number;
     readonly nativeErrorMessage?: string;
@@ -264,7 +272,6 @@ export interface PlaybackDiagnostic {
     readonly hls?: HlsPlaybackEvidence;
     readonly mpegTs?: MpegTsPlaybackEvidence;
     readonly shaka?: ShakaPlaybackEvidence;
-    readonly externalFallbackRecommended: boolean;
 }
 
 export interface PlaybackFallbackRequest {

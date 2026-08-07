@@ -22,12 +22,7 @@ export interface ShakaTextTrackLike {
     kind: string | null;
 }
 
-export interface ShakaErrorLike {
-    severity: number;
-    category: number;
-    code: number;
-    data?: readonly unknown[];
-}
+export type { ShakaErrorLike } from '@iptvnator/playback/util';
 
 export interface ShakaPlayerLike {
     attach(mediaElement: HTMLMediaElement): Promise<unknown>;

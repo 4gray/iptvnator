@@ -994,8 +994,9 @@ player in settings.
 - `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
   engine: lazy `import('shaka-player')` on first use (the module is a separate
   lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
-  queue + generation guard against channel-switch races, and a Shaka `5.2.2`
-  public-error boundary. The boundary version-locks its allowlisted
+  queue + generation guard against channel-switch races. The DOM-free Shaka
+  `5.2.2` public-error boundary lives in `libs/playback/util`; it version-locks
+  its allowlisted
   severity/category/code values, emits only structured sanitized
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,
   and treats a rejected load as terminal even if its final retry error retains
@@ -1007,9 +1008,11 @@ player in settings.
   unknown stage/failure. Public DASH text-parser codes likewise retain their
   exact `TEXT` category/code but keep stage/failure unknown. A failed
   `Player.isBrowserSupported()` preflight also stays unknown rather than
-  claiming container incompatibility; clear DASH still offers configured
-  external-player actions, while KODIPROP DRM keeps them disabled because
-  those players never receive its keys.
+  claiming container incompatibility. It carries only the enumerated,
+  app-owned `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker — never a
+  producer recommendation hint or engine payload. Clear DASH still offers
+  configured external-player actions, while KODIPROP DRM keeps them disabled
+  because those players never receive its keys.
   Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
   with a fixed safe detail string and without starting an engine.
 - HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:

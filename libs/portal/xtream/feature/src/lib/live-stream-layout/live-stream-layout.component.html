@@ -96,6 +96,7 @@
         @if (isEmbeddedPlayer) {
             <div class="video-player">
                 <app-web-player-view
+                    [playbackSessionKey]="playbackSessionKey()"
                     [streamUrl]="streamUrl"
                     [title]="activePlayback()?.title ?? ''"
                     [playback]="activePlayback()"

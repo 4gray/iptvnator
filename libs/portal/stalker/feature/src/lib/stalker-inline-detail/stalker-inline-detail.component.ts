@@ -32,6 +32,7 @@ import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-serie
     ],
 })
 export class StalkerInlineDetailComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly categoryId = input<'vod' | 'series' | null>(null);
     readonly seriesItem = input<StalkerSelectedVodItem | null>(null);
     readonly isSeries = input<boolean>(false);

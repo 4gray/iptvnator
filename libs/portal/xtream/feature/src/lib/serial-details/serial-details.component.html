@@ -179,6 +179,7 @@
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
                 detail-player
+                [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="item.info.name"

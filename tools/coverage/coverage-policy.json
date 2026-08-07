@@ -90,6 +90,13 @@
                 "e2eTags": ["@m3u", "@persistence"]
             },
             {
+                "name": "playback-util",
+                "root": "libs/playback/util",
+                "sourceRoot": "libs/playback/util/src",
+                "validationCommand": "pnpm nx test playback-util",
+                "e2eTags": ["@playback", "@m3u", "@xtream", "@stalker"]
+            },
+            {
                 "name": "playlist-import-feature",
                 "root": "libs/playlist/import/feature",
                 "sourceRoot": "libs/playlist/import/feature/src",

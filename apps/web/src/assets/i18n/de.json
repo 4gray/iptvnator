@@ -551,6 +551,7 @@
             "DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. MPV or VLC can often bypass browser-player access limits.",
             "PWA_DESCRIPTION": "The request may be blocked by CORS, mixed content, or provider header/proxy restrictions. The PWA cannot launch external players directly; use the Copy stream URL action and open it manually in MPV, VLC, IINA, or another player."
         },
+        "UNTRANSFERABLE_DESCRIPTION": "This protected stream requires playback configuration that cannot be transferred with the stream URL.",
         "DRM_OR_ENCRYPTION": {
             "TITLE": "This stream may be encrypted or DRM-protected",
             "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
@@ -561,6 +562,17 @@
         },
         "NATIVE_FALLBACK_TITLE": "Open it in a native player instead",
         "INLINE_FAILURE_TITLE": "Copy the URL or try again",
+        "UNTRANSFERABLE_FAILURE_TITLE": "Protected playback could not continue",
+        "RECOMMENDATIONS_LABEL": "Empfohlene Wiederherstellungsaktionen",
+        "ACTION_TRY_PLAYER": "{{player}} ausprobieren",
+        "ACTION_TRY_PLAYER_HINT": "Nur vorübergehend für diesen Inhalt; der gespeicherte Player bleibt unverändert",
+        "REASON_RETRY_TRANSIENT_FAILURE": "Nach einem vorübergehenden Ladefehler denselben Player erneut versuchen",
+        "REASON_RETRY_UNKNOWN_FAILURE": "Erneut versuchen, da der Fehler keinen anderen kompatiblen Player erkennen ließ",
+        "REASON_ALTERNATIVE_SOURCE_AVAILABLE": "Eine andere verfügbare Quelle für denselben Inhalt ausprobieren",
+        "REASON_DIFFERENT_ENGINE_FAMILY": "Dieser Player verwendet eine andere Browser-Wiedergabe-Engine",
+        "REASON_EXTERNAL_CODEC_OR_CONTAINER_SUPPORT": "Native Player unterstützen mehr Codecs und Container",
+        "REASON_EXTERNAL_BROWSER_ACCESS": "Ein nativer Player kann Zugriffsbeschränkungen des Browsers umgehen",
+        "REASON_COMPATIBLE_DRM_PATH": "Dieses Ziel ist mit den verfügbaren Verschlüsselungsdaten kompatibel",
         "ACTION_OPEN_MPV": "Open in MPV",
         "ACTION_OPEN_VLC": "Open in VLC",
         "ACTION_OPEN_MPV_HINT": "configured player",

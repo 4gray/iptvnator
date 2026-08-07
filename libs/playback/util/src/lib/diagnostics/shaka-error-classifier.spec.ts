@@ -2,8 +2,8 @@ import {
     InlinePlaybackPlayer,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
-} from '../playback-diagnostics/playback-diagnostics.model';
-import { createPlaybackSourceMetadata } from '../playback-diagnostics/playback-diagnostics.util';
+} from './playback-diagnostics.model';
+import { createPlaybackSourceMetadata } from './playback-diagnostics.util';
 import {
     classifyShakaPlaybackIssue,
     createUnsupportedDrmDiagnostic,
@@ -216,8 +216,5 @@ describe('createUnsupportedDrmDiagnostic', () => {
         expect(issue.details).toBe('Unsupported DRM license configuration');
         expect(JSON.stringify(issue)).not.toContain(secret);
         expect(JSON.stringify(issue)).not.toContain('provider.example');
-        // MPV/VLC cannot receive KODIPROP license config, so the diagnostic
-        // must not offer them as a fallback.
-        expect(issue.externalFallbackRecommended).toBe(false);
     });
 });

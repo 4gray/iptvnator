@@ -12,50 +12,52 @@ import {
     untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ClipboardModule } from '@angular/cdk/clipboard';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
-    Channel,
-    ResolvedPortalPlayback,
-    Settings,
+    type PlaybackDiagnostic,
+    type PlaybackDiagnosticCode,
+    type PlaybackFallbackRequest,
+    type PlaybackRecommendationTarget,
+} from '@iptvnator/playback/util';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
     STORE_KEY,
     VideoPlayer,
+    type Channel,
+    type ResolvedPortalPlayback,
+    type Settings,
     type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
-import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { VodSourceRowComponent } from '@iptvnator/ui/components';
-
-/** How many recovery options the error screen shows before it stops helping. */
-const ERROR_SCREEN_ALTERNATIVES = 5;
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import {
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WEB_PLAYER_SHARED_CONTROLS_ENABLED,
 } from '../player-controls';
-import {
-    type PlaybackDiagnostic,
-    type PlaybackDiagnosticCode,
-    type PlaybackFallbackRequest,
-    getPlaybackMediaExtensionFromUrl,
-} from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import type { VideoPlayerOptions } from '../vjs-player/vjs-player.types';
 import { ElectronStreamHeadersService } from './electron-stream-headers.service';
 import {
-    getDiagnosticCodecHint,
-    getDiagnosticDescriptionKey,
-    getDiagnosticDetails,
-    getDiagnosticMeta,
-    getDiagnosticTitleKey,
-} from './web-player-view-diagnostics.utils';
+    type PlaybackBinding,
+    PlaybackRecoverySession,
+} from './playback-recovery-session';
+import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
+import {
+    createWebPlayerApplicationState,
+    type WebPlayerApplicationToken,
+    type WebPlayerSourceRevisionToken,
+} from './web-player-application-state';
+import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
+import {
+    createWebPlayerRecommendations,
+    isPlaybackExternallyTransferable,
+    toInlinePlaybackPlayer,
+    toVideoPlayer,
+} from './web-player-recovery-policy';
 
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
@@ -64,24 +66,25 @@ function resolveWebPlayerSharedControls(): boolean {
         : WEB_PLAYER_SHARED_CONTROLS_ENABLED;
 }
 
+interface PlaybackApplicationOwnership {
+    readonly binding: PlaybackBinding | null;
+    readonly embeddedMpv: boolean;
+    readonly isLive: boolean;
+    readonly sourceRevision: WebPlayerSourceRevisionToken;
+    readonly token: WebPlayerApplicationToken;
+}
+
 @Component({
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
-    host: {
-        class: 'web-player-view',
-    },
+    host: { class: 'web-player-view' },
     imports: [
         ArtPlayerComponent,
-        ClipboardModule,
         EmbeddedMpvPlayerComponent,
         HtmlVideoPlayerComponent,
-        MatButtonModule,
-        MatIconModule,
-        MatTooltipModule,
-        TranslatePipe,
+        PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
-        VodSourceRowComponent,
     ],
     providers: [
         {
@@ -92,307 +95,310 @@ function resolveWebPlayerSharedControls(): boolean {
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent implements OnDestroy {
-    storage = inject(StorageMap);
+    private readonly storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly recoverySession = new PlaybackRecoverySession();
+    private readonly applicationHandoff =
+        new WebPlayerApplicationHandoffCoordinator(
+            inject(ElectronStreamHeadersService),
+            this.recoverySession
+        );
 
-    streamUrl = input.required<string>();
-    title = input('');
-    playback = input<ResolvedPortalPlayback | null>(null);
-    startTime = input<number>(0);
-    volume = input<number>(1);
-    playerOverride = input<VideoPlayer | null>(null);
-    seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
-    /** Display-ready title lines for the fullscreen overlay; hosts with richer
-     * context (e.g. series name + episode label) pass it explicitly. */
-    mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly streamUrl = input.required<string>();
+    readonly playbackSessionKey = input.required<string>();
+    readonly title = input('');
+    readonly playback = input<ResolvedPortalPlayback | null>(null);
+    readonly startTime = input(0);
+    readonly volume = input(1);
+    readonly playerOverride = input<VideoPlayer | null>(null);
+    readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
+    readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly alternativeSources = input<VodSourceDescriptor[]>([]);
+
     readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
-    /**
-     * Alternative sources offered on the error screen, turning a dead end into
-     * a recovery point. Empty (the default) keeps the overlay exactly as it
-     * was for every non-multi-source host.
-     */
-    readonly alternativeSources = input<VodSourceDescriptor[]>([]);
     readonly alternativeSourceRequested = output<string>();
-    /** The row's Check action, which has to reach the host that can probe. */
     readonly sourceCheckRequested = output<string>();
-    /**
-     * A playback failure the host may be able to recover from by switching
-     * source. Emitted alongside showing the overlay, never instead of it: if
-     * the host does nothing, the user still sees the honest error.
-     */
     readonly playbackFailed = output<PlaybackDiagnosticCode>();
-
-    /**
-     * An error screen is a recovery point, not a catalogue. Offering fifty
-     * options here is worse than offering the best few — the full list stays
-     * one click away behind the player's own sources button.
-     */
-    readonly visibleAlternatives = computed(() =>
-        this.alternativeSources().slice(0, ERROR_SCREEN_ALTERNATIVES)
-    );
-    readonly hiddenAlternativeCount = computed(() =>
-        Math.max(0, this.alternativeSources().length - ERROR_SCREEN_ALTERNATIVES)
-    );
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
-    settings = toSignal(this.storage.get(STORE_KEY.Settings)) as Signal<
-        Settings | undefined
-    >;
-
-    /**
-     * Subtitle preference for the built-in web players. Read from the settings
-     * store instead of an input so every host (M3U, Xtream, Stalker, portal
-     * detail pages) gets it without having to wire it through — the missing
-     * bindings were why the setting looked like a no-op (#1155).
-     */
+    readonly settings = toSignal(
+        this.storage.get(STORE_KEY.Settings)
+    ) as Signal<Settings | undefined>;
     readonly showCaptions = computed(
         () => this.settingsStore.showCaptions?.() ?? false
     );
-
-    channel!: Channel;
-    vjsOptions!: {
-        isLive: boolean;
-        reloadToken: number;
-        sources: { src: string; type: string }[];
-    };
     readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
+    readonly recoveryPending = this.recoverySession.switchPending;
+    readonly activeBinding = this.recoverySession.activeBinding;
+
+    channel: Channel | undefined;
+    vjsOptions: VideoPlayerOptions | undefined;
+
+    readonly selectedPlayer = computed<VideoPlayer>(() => {
+        const temporary = this.recoverySession.temporaryPlayerOverride();
+        return temporary
+            ? toVideoPlayer(temporary)
+            : (this.playerOverride() ??
+                  this.settings()?.player ??
+                  VideoPlayer.VideoJs);
+    });
+    private readonly applicationState = createWebPlayerApplicationState({
+        playback: this.playback,
+        streamUrl: this.streamUrl,
+        title: this.title,
+        startTime: this.startTime,
+        selectedPlayer: this.selectedPlayer,
+        reloadToken: this.reloadToken,
+    });
+    readonly resolvedPlayback = this.applicationState.playback;
+    readonly resolvedIsLive = this.applicationState.isLive;
+    readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
+    readonly playbackApplicationToken = this.applicationState.token;
+    // Diagnostic ownership follows raw intent so an old action disappears;
+    // the application effect then clears its backing state before handoff.
+    // Keep this token opaque: it must never retain playback payload fields.
+    private readonly playbackDiagnosticIntentToken =
+        computed<WebPlayerApplicationToken>(() => {
+            if (this.playback() === null) {
+                void this.streamUrl();
+                void this.startTime();
+            }
+            void this.selectedPlayer();
+            void this.reloadToken();
+            return Symbol();
+        });
+    private readonly playbackDiagnosticOwnerToken =
+        signal<WebPlayerApplicationToken | null>(null);
+    readonly effectiveStartTime = computed(() =>
+        this.recoverySession.resumeStartTime(
+            this.startTime(),
+            this.resolvedIsLive()
+        )
+    );
     readonly visiblePlaybackDiagnostic = computed(() =>
-        this.selectedPlayer() === VideoPlayer.EmbeddedMpv
+        this.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
+        this.playbackDiagnosticOwnerToken() !==
+            this.playbackDiagnosticIntentToken()
             ? null
             : this.playbackDiagnostic()
     );
     readonly playbackInteractionEnabled = computed(
         () => this.visiblePlaybackDiagnostic() === null
     );
-    readonly canShowExternalFallbackActions = computed(
-        () =>
-            this.runtime.supportsManagedExternalPlayers &&
-            !!this.visiblePlaybackDiagnostic()?.externalFallbackRecommended
+    readonly resolvedMediaTitle = computed(() =>
+        resolveWebPlayerMediaTitle(this.mediaTitle(), this.resolvedPlayback())
     );
-    readonly diagnosticHeadlineKey = computed(() =>
-        this.canShowExternalFallbackActions()
-            ? 'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
-            : 'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+    readonly playbackExternallyTransferable = computed(() =>
+        isPlaybackExternallyTransferable(this.resolvedPlayback())
     );
-
-    readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => {
-        const playback = this.playback();
-        if (playback) {
-            return playback;
+    readonly recordingFolder = computed(
+        () => this.settings()?.recordingFolder ?? ''
+    );
+    get supportsManagedExternalPlayers(): boolean {
+        return this.runtime.supportsManagedExternalPlayers;
+    }
+    readonly recommendations = computed(() => {
+        const binding = this.activeBinding();
+        const token = this.playbackApplicationToken();
+        return createWebPlayerRecommendations({
+            diagnostic: this.visiblePlaybackDiagnostic(),
+            binding:
+                binding && this.applicationHandoff.owns(binding, token)
+                    ? binding
+                    : null,
+            attemptedTargets: this.recoverySession.attemptedTargets(),
+            managedExternalPlayersAvailable:
+                this.runtime.supportsManagedExternalPlayers,
+            playbackExternallyTransferable:
+                this.playbackExternallyTransferable(),
+            isLive: this.resolvedIsLive(),
+            alternativeSourceCount: this.alternativeSources().length,
+        });
+    });
+    readonly renderedApplications = computed<
+        readonly PlaybackApplicationOwnership[]
+    >(() => {
+        const binding = this.activeBinding();
+        const embeddedMpv =
+            this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
+        if (!binding && !embeddedMpv) {
+            return [];
         }
 
-        return {
-            streamUrl: this.streamUrl(),
-            title: this.title() || this.streamUrl(),
-            startTime: this.startTime(),
-        };
+        return [
+            Object.freeze({
+                binding,
+                embeddedMpv,
+                isLive: this.resolvedIsLive(),
+                sourceRevision: this.playbackSourceRevisionToken(),
+                token: this.playbackApplicationToken(),
+            }),
+        ];
     });
-    readonly resolvedIsLive = computed(() => {
-        const playback = this.resolvedPlayback();
-        return typeof playback.isLive === 'boolean'
-            ? playback.isLive
-            : !playback.contentInfo;
-    });
-    readonly selectedPlayer = computed(
-        () =>
-            this.playerOverride() ??
-            this.settings()?.player ??
-            VideoPlayer.VideoJs
-    );
-    readonly resolvedMediaTitle = computed<PlayerMediaTitle | null>(() => {
-        const explicit = this.mediaTitle();
-        if (explicit?.primary?.trim()) {
-            return explicit;
-        }
-        const playback = this.resolvedPlayback();
-        const title = playback.title?.trim();
-        // resolvedPlayback() falls back to the stream URL as title; a raw URL
-        // is not a watchable overlay title.
-        if (!title || title === playback.streamUrl) {
-            return null;
-        }
-        return { primary: title, secondary: null };
-    });
-    readonly recordingFolder = computed(() => this.settings()?.recordingFolder ?? '');
-
-    /** Stream URL the currently configured Electron header override belongs to. */
-    private headerScopeStreamUrl: string | null = null;
-    private readonly streamHeaders = inject(ElectronStreamHeadersService);
 
     constructor() {
         effect(() => {
-            // Track player changes so stale browser diagnostics are cleared on switch.
-            this.selectedPlayer();
-
-            const playback = this.resolvedPlayback();
-            const isLive = this.resolvedIsLive();
-            this.playbackDiagnostic.set(null);
-            this.applyPlayback(playback, isLive);
+            // Session sync may clear a temporary player override. Run it before
+            // tracking intent so that reset is folded into this application.
+            this.syncRecoverySession();
+            void this.playbackDiagnosticIntentToken();
+            const sourceRevision = this.playbackSourceRevisionToken();
+            untracked(() =>
+                this.recoverySession.syncSourceRevision(sourceRevision)
+            );
+            const token = this.playbackApplicationToken();
+            const playback = untracked(this.resolvedPlayback);
+            const isLive = untracked(this.resolvedIsLive);
+            const selectedPlayer = untracked(this.selectedPlayer);
+            const reloadToken = untracked(this.reloadToken);
+            const target = toInlinePlaybackPlayer(selectedPlayer);
+            this.channel = undefined;
+            this.vjsOptions = undefined;
+            this.clearPlaybackDiagnostic();
+            if (target === null) {
+                this.applicationHandoff.release();
+                this.recoverySession.clearPlaybackBinding();
+                return;
+            }
+            const binding = untracked(() =>
+                this.recoverySession.beginPlayback(target)
+            );
+            this.applicationHandoff.apply(
+                playback,
+                isLive,
+                reloadToken,
+                binding,
+                token,
+                () => this.playbackApplicationToken(),
+                (handoff) => {
+                    this.channel = handoff.channel;
+                    this.vjsOptions = handoff.vjsOptions;
+                }
+            );
         });
     }
 
     ngOnDestroy(): void {
-        // Portal credentials must not outlive the playback session that
-        // needed them: dropping the scoped override here keeps only the
-        // playlist-level (unscoped) User-Agent/Referer defaults active. The
-        // service no-ops if a newer consumer already owns the override slot.
-        this.streamHeaders.clear(this.headerScopeStreamUrl);
+        this.applicationHandoff.destroy();
     }
 
-    /**
-     * Configures the scoped Electron request headers BEFORE the stream source
-     * is handed to a player, so the very first media request already carries
-     * them — an auth-gated portal stream answers 403 without its
-     * Cookie/Authorization, and several engines treat that first failure as
-     * fatal. In the PWA there is no header bridge and the source applies
-     * synchronously, exactly as before.
-     */
-    private applyPlayback(
-        playback: ResolvedPortalPlayback,
-        isLive: boolean
+    handlePlaybackIssue(
+        issue: PlaybackDiagnostic | null,
+        binding: PlaybackBinding
     ): void {
-        const headerSync = this.streamHeaders.apply(playback);
-        this.headerScopeStreamUrl = playback.streamUrl;
-        const handOff = (): void => {
-            this.setChannel(playback);
-            this.setVjsOptions(playback.streamUrl, isLive);
-        };
-
-        if (!headerSync) {
-            handOff();
+        this.syncRecoverySession();
+        if (!this.recoverySession.accepts(binding)) {
             return;
         }
-
-        void headerSync.then((stillCurrent) => {
-            if (stillCurrent) {
-                handOff();
-            }
-        });
-    }
-
-    setVjsOptions(streamUrl: string, isLive = true) {
-        const extension = getPlaybackMediaExtensionFromUrl(streamUrl);
-        const mimeType =
-            extension === 'm3u' || extension === 'm3u8'
-                ? 'application/x-mpegURL'
-                : extension === 'ts' || !extension
-                  ? 'video/mp2t'
-                  : extension === 'mkv'
-                    ? 'video/matroska'
-                    : 'video/mp4';
-
-        this.vjsOptions = {
-            isLive,
-            reloadToken: untracked(() => this.reloadToken()),
-            sources: [{ src: streamUrl, type: mimeType }],
-        };
-    }
-
-    setChannel(playbackOrUrl: ResolvedPortalPlayback | string) {
-        const playback =
-            typeof playbackOrUrl === 'string'
-                ? {
-                      streamUrl: playbackOrUrl,
-                      title: playbackOrUrl,
-                  }
-                : playbackOrUrl;
-
-        this.channel = {
-            id: playback.streamUrl,
-            url: playback.streamUrl,
-            name: playback.title || playback.streamUrl,
-            group: { title: '' },
-            tvg: {
-                id: '',
-                name: playback.title || playback.streamUrl,
-                url: '',
-                logo: playback.thumbnail ?? '',
-                rec: '',
-            },
-            http: {
-                referrer:
-                    playback.referer ??
-                    this.getHeaderValue(playback.headers, 'Referer') ??
-                    '',
-                'user-agent':
-                    playback.userAgent ??
-                    this.getHeaderValue(playback.headers, 'User-Agent') ??
-                    '',
-                origin:
-                    playback.origin ??
-                    this.getHeaderValue(playback.headers, 'Origin') ??
-                    '',
-            },
-            radio: 'false',
-            drm: playback.drm,
-        };
-    }
-
-    handlePlaybackIssue(issue: PlaybackDiagnostic | null): void {
-        if (this.selectedPlayer() === VideoPlayer.EmbeddedMpv) {
-            this.playbackDiagnostic.set(null);
+        if (
+            !this.applicationHandoff.owns(
+                binding,
+                this.playbackApplicationToken()
+            )
+        ) {
+            this.applicationHandoff.invalidate();
+            this.recoverySession.clearPlaybackBinding();
+            this.clearPlaybackDiagnostic();
             return;
         }
-
+        if (!issue) {
+            this.recoverySession.settle(binding);
+            this.clearPlaybackDiagnostic();
+            return;
+        }
+        if (!this.recoverySession.recordFailure(binding)) {
+            return;
+        }
+        this.playbackDiagnosticOwnerToken.set(
+            this.playbackDiagnosticIntentToken()
+        );
         this.playbackDiagnostic.set(issue);
-        if (issue) {
-            this.playbackFailed.emit(issue.code);
-        }
+        this.playbackFailed.emit(issue.code);
     }
 
-    requestExternalFallback(player: ExternalPlayerName): void {
+    handleTimeUpdate(
+        event: { currentTime: number; duration: number },
+        ownership: PlaybackApplicationOwnership
+    ): void {
+        if (!this.ownsPlaybackApplication(ownership)) {
+            return;
+        }
+
+        this.recoverySession.recordTimeUpdate(event, ownership.isLive);
+        this.timeUpdate.emit(event);
+    }
+
+    requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {
         const diagnostic = this.visiblePlaybackDiagnostic();
         if (!diagnostic) {
             return;
         }
-
-        this.externalFallbackRequested.emit({
-            player,
-            playback: this.resolvedPlayback(),
-            diagnostic,
-        });
+        const available = this.recommendations().some(
+            (item) => item.action === 'player' && item.target === target
+        );
+        if (!available) {
+            if (target !== 'mpv' && target !== 'vlc') {
+                this.recoverySession.recordInlineAttempt(target);
+            }
+            return;
+        }
+        if (target === 'mpv' || target === 'vlc') {
+            this.recoverySession.recordExternalAttempt(target);
+            this.externalFallbackRequested.emit({
+                player: target,
+                playback: this.resolvedPlayback(),
+                diagnostic,
+            });
+            return;
+        }
+        this.recoverySession.beginPlayerSwitch(target, this.resolvedIsLive());
     }
 
     retryPlayback(): void {
-        const playback = this.resolvedPlayback();
-
-        this.playbackDiagnostic.set(null);
-        this.reloadToken.update((value) => value + 1);
-        this.setChannel(playback);
-        this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
-    }
-
-    readonly getDiagnosticTitleKey = getDiagnosticTitleKey;
-    readonly getDiagnosticMeta = getDiagnosticMeta;
-    readonly getDiagnosticCodecHint = getDiagnosticCodecHint;
-    readonly getDiagnosticDetails = getDiagnosticDetails;
-
-    getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
-        return getDiagnosticDescriptionKey(
-            issue,
-            this.runtime.supportsManagedExternalPlayers
-        );
-    }
-
-    private getHeaderValue(
-        headers: ResolvedPortalPlayback['headers'] | undefined,
-        name: string
-    ): string | undefined {
-        if (!headers) {
-            return undefined;
+        if (!this.recoverySession.beginRetry()) {
+            return;
         }
+        this.reloadToken.update((value) => value + 1);
+    }
 
-        const matchingKey = Object.keys(headers).find(
-            (key) => key.toLowerCase() === name.toLowerCase()
+    private syncRecoverySession(): void {
+        const sessionKey = this.playbackSessionKey();
+        if (untracked(() => this.recoverySession.syncSession(sessionKey))) {
+            this.clearPlaybackDiagnostic();
+        }
+    }
+
+    private clearPlaybackDiagnostic(): void {
+        this.playbackDiagnosticOwnerToken.set(null);
+        this.playbackDiagnostic.set(null);
+    }
+
+    private ownsPlaybackApplication(
+        ownership: PlaybackApplicationOwnership
+    ): boolean {
+        if (
+            ownership.token !== this.playbackApplicationToken() ||
+            ownership.sourceRevision !== this.playbackSourceRevisionToken()
+        ) {
+            return false;
+        }
+        if (ownership.binding) {
+            return (
+                !ownership.embeddedMpv &&
+                this.applicationHandoff.owns(ownership.binding, ownership.token)
+            );
+        }
+        return (
+            ownership.embeddedMpv &&
+            this.selectedPlayer() === VideoPlayer.EmbeddedMpv
         );
-        return matchingKey ? headers[matchingKey] : undefined;
     }
 }

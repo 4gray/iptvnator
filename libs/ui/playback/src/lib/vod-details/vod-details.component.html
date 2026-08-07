@@ -265,6 +265,7 @@
     @if (inlinePlayback(); as playback) {
         <app-portal-inline-player
             detail-player
+            [playbackSessionKey]="playbackSessionKey()"
             [playback]="playback"
             (timeUpdate)="onInlineTimeUpdate($event)"
             (closed)="closeInlinePlayback()"

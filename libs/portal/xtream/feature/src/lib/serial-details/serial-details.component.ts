@@ -53,6 +53,7 @@ import {
 } from '../tmdb-similar.util';
 import { createXtreamSeriesDownloadMetadataContext } from './serial-download-metadata';
 import { createXtreamSeriesDownloadAdapter } from './xtream-series-download.adapter';
+import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
 
 @Component({
     selector: 'app-serial-details',
@@ -152,6 +153,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly quickStartAction = this.playback.quickStartAction;
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
+    readonly playbackSessionKey = computed(() =>
+        createSerialPlaybackSessionKey(
+            this.xtreamStore.currentPlaylist()?.id,
+            this.routeParams().serialId,
+            this.playback.inlinePlaybackSessionEpisodeState()
+        )
+    );
     /** "Up Next" rail entries for the inline player (series only). */
     readonly upNextEpisodes = computed<UpNextRailItem[]>(() =>
         buildUpNextRailItems({

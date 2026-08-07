@@ -9,7 +9,7 @@ import {
     ShakaPlaybackSeverity,
     ShakaPlaybackStage,
     ShakaPlaybackUnknownCode,
-} from '../playback-diagnostics/playback-diagnostics.model';
+} from './playback-diagnostics.model';
 import {
     SHAKA_ERROR_CATEGORY,
     SHAKA_ERROR_CODE,
@@ -29,7 +29,7 @@ import {
     SHAKA_PUBLIC_CODES,
     SHAKA_SEGMENT_STAGE_CODES,
 } from './shaka-error-mapping';
-import type { ShakaErrorLike } from './shaka-module.types';
+import type { ShakaErrorLike } from './shaka-error.types';
 
 export function createShakaPlaybackEvidence(
     error: Partial<ShakaErrorLike> | null | undefined,

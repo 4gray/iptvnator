@@ -76,11 +76,23 @@ import {
     normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 type StalkerPlayableChannel = StalkerPortalItem & {
     cmd?: string;
     has_files?: unknown;
 };
+
+interface StalkerActiveLivePlaybackIdentity {
+    readonly sourceId: string;
+    readonly contentId: string;
+}
+
+interface StalkerPlaybackResolutionOwner {
+    readonly sourceId: string;
+    readonly contentType: string;
+    readonly channelId: string;
+}
 
 /** Channels rendered per "page" when the full list is served from the cache. */
 const FULL_LIST_RENDER_CHUNK = 100;
@@ -270,6 +282,14 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.portalPlayer.isEmbeddedPlayer()
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly activePlaybackIdentity =
+        signal<StalkerActiveLivePlaybackIdentity | null>(null);
+    readonly playbackSessionKey = computed(() => {
+        const identity = this.activePlaybackIdentity();
+        return identity
+            ? createPlaybackSessionKey({ kind: 'live', ...identity })
+            : '';
+    });
     readonly streamUrl = computed(() => this.activePlayback()?.streamUrl ?? '');
     readonly activePlaybackTitle = computed(
         () =>
@@ -366,7 +386,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Stream URL of the radio playback whose header override this layout configured. */
     private radioHeaderScopeUrl: string | null = null;
     private playbackResolution: {
-        channelId: string;
+        ownerKey: string;
         promise: Promise<ResolvedPortalPlayback>;
     } | null = null;
     private lastPlaylistId: string | null | undefined = undefined;
@@ -414,9 +434,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             untracked(() => {
                 if (contentType === 'radio') {
                     this.stalkerStore.setRadioChannels([]);
-                } else if (
-                    !this.stalkerStore.itvSelectedCategoryFromCache()
-                ) {
+                } else if (!this.stalkerStore.itvSelectedCategoryFromCache()) {
                     this.stalkerStore.setItvChannels([]);
                 }
                 this.stalkerStore.setPage(0);
@@ -449,8 +467,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             // store dedupes per channel id, so this is cheap on rerenders.
             if (this.supportsEpgMapping && channels.length > 0) {
                 const channelIds = channels.map((channel) => channel.id);
-                untracked(() =>
-                    void this.stalkerStore.applyMappedItvEpg(channelIds)
+                untracked(
+                    () => void this.stalkerStore.applyMappedItvEpg(channelIds)
                 );
             }
         });
@@ -567,6 +585,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         // override slot.
         this.playbackRequestId += 1;
         this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        this.clearActivePlayback();
     }
 
     isSelectedChannel(item: StalkerItvChannel): boolean {
@@ -581,6 +600,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     ) {
         const requestId = ++this.playbackRequestId;
         const channelId = normalizeStalkerEntityId(item.id);
+        const sourceId = normalizeStalkerEntityId(
+            this.stalkerStore.currentPlaylist()?._id
+        );
+        const contentType = this.stalkerStore.selectedContentType();
+        const isRadioMode = this.isRadioMode();
         this.stalkerStore.setSelectedItem(item);
         this.ensureChannelWithinRenderWindow(channelId);
         // A previously owned radio override must not survive into a
@@ -591,15 +615,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.radioHeaderScopeUrl = null;
 
         try {
-            const isRadioMode = this.isRadioMode();
             const playback = await this.resolvePlaybackForChannel(
                 item,
-                channelId
+                { sourceId, contentType, channelId },
+                isRadioMode
             );
-            if (
-                requestId !== this.playbackRequestId ||
-                this.selectedChannelId() !== channelId
-            ) {
+            const owner = { sourceId, contentType, channelId };
+            if (!this.isPlaybackRequestCurrent(requestId, owner)) {
                 return;
             }
 
@@ -618,12 +640,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 const stillCurrent = headerSync ? await headerSync : true;
                 if (
                     !stillCurrent ||
-                    requestId !== this.playbackRequestId ||
-                    this.selectedChannelId() !== channelId
+                    !this.isPlaybackRequestCurrent(requestId, owner)
                 ) {
                     return;
                 }
-                this.activePlayback.set(playback);
+                this.setActivePlayback(playback, null);
                 return;
             }
 
@@ -632,12 +653,22 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             }
 
             if (this.usesEmbeddedPlayer()) {
-                this.activePlayback.set(playback);
+                if (!sourceId || !channelId) return;
+                this.setActivePlayback(playback, {
+                    sourceId,
+                    contentId: channelId,
+                });
             } else if (startPlayback) {
                 void this.portalPlayer.openResolvedPlayback(playback, true);
             }
         } catch (error) {
-            if (requestId !== this.playbackRequestId) {
+            if (
+                !this.isPlaybackRequestCurrent(requestId, {
+                    sourceId,
+                    contentType,
+                    channelId,
+                })
+            ) {
                 return;
             }
 
@@ -652,21 +683,19 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     private resolvePlaybackForChannel(
         item: StalkerItvChannel,
-        channelId: string
+        owner: StalkerPlaybackResolutionOwner,
+        isRadioMode: boolean
     ): Promise<ResolvedPortalPlayback> {
-        const playbackChannelId = [
-            this.stalkerStore.selectedContentType(),
-            channelId,
-        ].join(':');
-        if (this.playbackResolution?.channelId === playbackChannelId) {
+        const ownerKey = JSON.stringify(owner);
+        if (this.playbackResolution?.ownerKey === ownerKey) {
             return this.playbackResolution.promise;
         }
 
         const playableItem = this.toPlayableChannel(item);
-        const promise = this.isRadioMode()
+        const promise = isRadioMode
             ? this.stalkerStore.resolveRadioPlayback(playableItem)
             : this.stalkerStore.resolveItvPlayback(playableItem);
-        this.playbackResolution = { channelId: playbackChannelId, promise };
+        this.playbackResolution = { ownerKey, promise };
 
         const cleanup = () => {
             if (this.playbackResolution?.promise === promise) {
@@ -677,6 +706,33 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         void promise.then(cleanup, cleanup);
 
         return promise;
+    }
+
+    private isPlaybackRequestCurrent(
+        requestId: number,
+        owner: StalkerPlaybackResolutionOwner
+    ): boolean {
+        return (
+            requestId === this.playbackRequestId &&
+            this.selectedChannelId() === owner.channelId &&
+            normalizeStalkerEntityId(
+                this.stalkerStore.currentPlaylist()?._id
+            ) === owner.sourceId &&
+            this.stalkerStore.selectedContentType() === owner.contentType
+        );
+    }
+
+    private setActivePlayback(
+        playback: ResolvedPortalPlayback,
+        identity: StalkerActiveLivePlaybackIdentity | null
+    ): void {
+        this.activePlaybackIdentity.set(identity);
+        this.activePlayback.set(playback);
+    }
+
+    private clearActivePlayback(): void {
+        this.activePlaybackIdentity.set(null);
+        this.activePlayback.set(null);
     }
 
     toggleFavorite(item: StalkerItvChannel) {
