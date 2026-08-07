@@ -23,7 +23,7 @@ import {
  *
  * Tag: @stalker — run only stalker tests with: nx e2e web-e2e --grep "@stalker"
  *
- * ISOLATION works on two levels, because one mock-server process is shared by
+ * ISOLATION works on three levels, because one mock-server process is shared by
  * every spec file and its state is keyed by MAC:
  *
  * - ACROSS FILES: `beforeEach` resets only the MACs in `OWNED_MACS`, and the
@@ -33,26 +33,17 @@ import {
  *   `minimal`, `embedded-series` — their fixture shapes are what the
  *   assertions are written against), and every `beforeEach` resets all of
  *   them. Under the workspace-wide `fullyParallel` preset that would let one
- *   test wipe another's data or session mid-run, so the file pins itself to a
- *   single worker.
+ *   test wipe another's data or session mid-run, so each project/repeat group
+ *   runs its tests serially in one worker.
  *
  * Giving each test its own MAC instead would mean inventing a scenario per
  * test; serializing one file is the cheaper trade.
  *
- * ACROSS BROWSER PROJECTS this does NOT hold, and it is a local-run hazard
- * only. `mode: 'serial'` orders tests within one project; chromium, firefox
- * and webkit still run the file concurrently against the SAME mock server, so
- * one project's `beforeEach` reset can drop a session another project is
- * mid-test on — the auth specs below are the ones that notice, failing as if
- * the portal had dropped them. CI never sees it: the Web E2E job runs
- * `--project=chromium` alone (`.github/workflows/e2e-tests.yaml`). If a local
- * all-project run shows a lone auth failure that passes on rerun, this is why;
- * `--project=chromium` reproduces CI exactly.
- *
- * Most tests here tolerate that reset anyway — they re-authenticate, or assert
- * that a NEW token appears. The token-reuse test cannot: its assertion IS that
- * the portal session survives, so it uses per-project MACs held outside
- * `OWNED_MACS`. See `AUTH_REUSE_MACS`.
+ * - ACROSS BROWSER PROJECTS/WORKERS: state-sensitive auth tests use one MAC
+ *   range per Playwright parallel slot. Their `beforeEach` adds only that
+ *   slot's MACs to the scoped reset, so concurrent projects cannot clear one
+ *   another's token, invalidated session or pinned device id. A restarted
+ *   worker retains its bounded `parallelIndex`.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -88,52 +79,54 @@ const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
 const STATIC_CMD_MAC = '00:1A:79:00:00:0A';
 
 /**
- * Login-required scenario MAC — get_profile answers status 2 until do_auth
- * completes with non-empty credentials (empty credentials return {js:false},
- * as the operator billing script would).
+ * These tests assert state transitions within one portal session, so a reset
+ * from a concurrent browser project or repeat worker would invalidate the
+ * assertion itself. Giving every concurrent worker slot its own MAC range
+ * preserves browser parallelism and also keeps `--repeat-each` runs isolated.
  */
-const LOGIN_REQUIRED_MAC = '00:1A:79:00:00:08';
+interface StatefulAuthMacs {
+    authenticatedFlow: string;
+    loginRequired: string;
+    tokenReuse: string;
+    deviceConflict: string;
+    reauthentication: string;
+}
 
-/**
- * Dedicated MACs for the full-portal authentication tests. Mock state is keyed
- * by MAC, so keeping these distinct from the content scenarios above means an
- * auth test can never consume or invalidate a session another test relies on.
- * The Infomir OUI matters: the strict endpoint validates the MAC format.
- */
-const AUTH_FLOW_MAC = '00:1A:79:AD:00:01';
-const AUTH_REAUTH_MAC = '00:1A:79:AD:00:03';
+function getStatefulAuthMacs({
+    parallelIndex,
+}: {
+    parallelIndex: number;
+}): StatefulAuthMacs {
+    if (
+        !Number.isSafeInteger(parallelIndex) ||
+        parallelIndex < 0 ||
+        parallelIndex > 255
+    ) {
+        throw new Error(
+            `Unsupported Playwright parallel index: ${parallelIndex}`
+        );
+    }
 
-/**
- * The token-reuse test needs the portal session to SURVIVE untouched between
- * its import and its reload — that persistence is the whole assertion. Every
- * other test here is reset-tolerant (they either re-authenticate or assert a
- * new token), so they can share `OWNED_MACS`, which each `beforeEach` clears.
- *
- * `mode: 'serial'` only serializes within one project; the browser projects
- * still run concurrently, so a sibling project's reset would rotate this
- * session mid-test. Hence one MAC per project, and deliberately NOT in
- * `OWNED_MACS`: nothing may reset them. Leftover state from an earlier run is
- * harmless — the import negotiates and adopts its own token first.
- */
-const AUTH_REUSE_MACS: Record<string, string> = {
-    chromium: '00:1A:79:AD:01:01',
-    firefox: '00:1A:79:AD:01:02',
-    webkit: '00:1A:79:AD:01:03',
-};
-const AUTH_REUSE_FALLBACK_MAC = '00:1A:79:AD:01:04';
+    const workerOctet = parallelIndex
+        .toString(16)
+        .padStart(2, '0')
+        .toUpperCase();
+    const workerPrefix = `00:1A:79:AE:${workerOctet}`;
+
+    return {
+        authenticatedFlow: `${workerPrefix}:01`,
+        loginRequired: `${workerPrefix}:02`,
+        tokenReuse: `${workerPrefix}:03`,
+        deviceConflict: `${workerPrefix}:04`,
+        reauthentication: `${workerPrefix}:05`,
+    };
+}
+
 /**
  * Deliberately NOT an Infomir MAC: the strict endpoint rejects get_profile for
  * it, so no token is ever adopted and content requests fail permanently.
  */
 const AUTH_REJECTED_MAC = 'AA:BB:CC:DD:EE:01';
-
-/**
- * Its own MAC because the test PINS a device id on the portal, and a pin is
- * the one piece of mock state that outlives an invalidated session (a real
- * portal never unpins `device_id` either). `beforeEach` clears it through
- * `OWNED_MACS`, which drops the whole session record including the pin.
- */
-const DEVICE_CONFLICT_MAC = '00:1A:79:00:00:0B';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -177,11 +170,7 @@ const OWNED_MACS = [
     EMBEDDED_SERIES_MAC,
     LEGACY_PAGINATION_MAC,
     STATIC_CMD_MAC,
-    LOGIN_REQUIRED_MAC,
-    AUTH_FLOW_MAC,
-    AUTH_REAUTH_MAC,
     AUTH_REJECTED_MAC,
-    DEVICE_CONFLICT_MAC,
 ];
 
 /**
@@ -190,10 +179,14 @@ const OWNED_MACS = [
  * workers, so a global reset here would wipe their state mid-test — and
  * theirs would wipe ours.
  */
-async function resetMockServer(request: APIRequestContext): Promise<void> {
-    const query = OWNED_MACS.map(
-        (mac) => `macAddress=${encodeURIComponent(mac)}`
-    ).join('&');
+async function resetMockServer(
+    request: APIRequestContext,
+    statefulAuthMacs: StatefulAuthMacs
+): Promise<void> {
+    const resetMacs = [...OWNED_MACS, ...Object.values(statefulAuthMacs)];
+    const query = resetMacs
+        .map((mac) => `macAddress=${encodeURIComponent(mac)}`)
+        .join('&');
     let lastError: unknown;
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -326,9 +319,9 @@ function recordPortalRequests(
 // Test setup
 // ---------------------------------------------------------------------------
 
-test.beforeEach(async ({ page, request }) => {
+test.beforeEach(async ({ page, request }, testInfo) => {
     // Reset mock server state (clears in-memory favorites and cache)
-    await resetMockServer(request);
+    await resetMockServer(request, getStatefulAuthMacs(testInfo));
 
     // Playwright creates a fresh browser context per test, so extra
     // IndexedDB cleanup here only risks racing with app-managed DB handles.
@@ -347,6 +340,14 @@ test('@stalker health check — mock server is running', async ({ request }) => 
     expect(response.ok()).toBeTruthy();
     const body = await response.json();
     expect(body.status).toBe('ok');
+});
+
+test('@stalker auth MAC allocation survives worker process restarts', () => {
+    const restartedWorker = { parallelIndex: 7, workerIndex: 256 };
+
+    expect(getStatefulAuthMacs(restartedWorker).loginRequired).toBe(
+        '00:1A:79:AE:07:02'
+    );
 });
 
 test('@stalker add a Stalker portal and see it in the playlist list', async ({
@@ -994,11 +995,12 @@ test.describe('@stalker full portal authentication', () => {
 
     test('handshakes and authenticates before loading content', async ({
         page,
-    }) => {
+    }, testInfo) => {
         const requests = recordPortalRequests(page);
         const actionsInOrder = () => requests.map((entry) => entry.action);
+        const mac = getStatefulAuthMacs(testInfo).authenticatedFlow;
 
-        await addFullStalkerPortal(page, { mac: AUTH_FLOW_MAC });
+        await addFullStalkerPortal(page, { mac });
 
         // The portal only answers content actions for an adopted token, so
         // reaching the VOD categories at all proves the whole chain ran.
@@ -1052,8 +1054,9 @@ test.describe('@stalker full portal authentication', () => {
 
     test('completes the documented login flow behind get_profile status 2', async ({
         page,
-    }) => {
+    }, testInfo) => {
         const requests = recordPortalRequests(page);
+        const mac = getStatefulAuthMacs(testInfo).loginRequired;
         // The second auth step must only be claimed on the retry AFTER
         // do_auth — a client that always sends auth_second_step=1 works
         // against the mock but violates the documented protocol.
@@ -1070,7 +1073,7 @@ test.describe('@stalker full portal authentication', () => {
         });
 
         await addFullStalkerPortal(page, {
-            mac: LOGIN_REQUIRED_MAC,
+            mac,
             username: 'user',
             password: 'secret',
         });
@@ -1107,7 +1110,8 @@ test.describe('@stalker full portal authentication', () => {
 
     test('explains a login-required portal and recovers once credentials are entered', async ({
         page,
-    }) => {
+    }, testInfo) => {
+        const mac = getStatefulAuthMacs(testInfo).loginRequired;
         // First attempt without credentials: the import must fail with the
         // portal's actual reason, not a generic "check URL and MAC" error.
         await page.getByRole('button', { name: 'Add playlist' }).click();
@@ -1117,10 +1121,7 @@ test.describe('@stalker full portal authentication', () => {
 
         await setInputValue(dialog.locator('input#title'), 'Login Portal');
         await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
-        await setInputValue(
-            dialog.locator('input#macAddress'),
-            LOGIN_REQUIRED_MAC
-        );
+        await setInputValue(dialog.locator('input#macAddress'), mac);
 
         const addButton = dialog.getByRole('button', {
             name: 'Add',
@@ -1152,8 +1153,7 @@ test.describe('@stalker full portal authentication', () => {
         page,
     }, testInfo) => {
         const requests = recordPortalRequests(page);
-        const mac =
-            AUTH_REUSE_MACS[testInfo.project.name] ?? AUTH_REUSE_FALLBACK_MAC;
+        const mac = getStatefulAuthMacs(testInfo).tokenReuse;
 
         await addFullStalkerPortal(page, { mac });
 
@@ -1275,7 +1275,8 @@ test.describe('@stalker full portal authentication', () => {
     test('explains a device conflict instead of relaying "STB is damaged"', async ({
         page,
         request,
-    }) => {
+    }, testInfo) => {
+        const mac = getStatefulAuthMacs(testInfo).deviceConflict;
         // Pin a device id the way another client (StbEmu, a set-top box)
         // would have: the stock server binds the first non-empty `device_id`
         // it sees to the MAC and refuses every different one afterwards.
@@ -1284,7 +1285,7 @@ test.describe('@stalker full portal authentication', () => {
                 `${BACKEND_PROXY}?url=${encodeURIComponent(
                     FULL_PORTAL_URL
                 )}&macAddress=${encodeURIComponent(
-                    DEVICE_CONFLICT_MAC
+                    mac
                 )}&action=get_profile&type=stb&device_id=PINNED-DEVICE-A`
             )
         ).json();
@@ -1299,10 +1300,7 @@ test.describe('@stalker full portal authentication', () => {
 
         await setInputValue(dialog.locator('input#title'), 'Conflict Portal');
         await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
-        await setInputValue(
-            dialog.locator('input#macAddress'),
-            DEVICE_CONFLICT_MAC
-        );
+        await setInputValue(dialog.locator('input#macAddress'), mac);
         await setInputValue(
             dialog.locator('input#deviceId1'),
             'DIFFERENT-DEVICE-B'
@@ -1333,10 +1331,11 @@ test.describe('@stalker full portal authentication', () => {
     test('re-authenticates after the portal drops the session', async ({
         page,
         request,
-    }) => {
+    }, testInfo) => {
         const requests = recordPortalRequests(page);
+        const mac = getStatefulAuthMacs(testInfo).reauthentication;
 
-        await addFullStalkerPortal(page, { mac: AUTH_REAUTH_MAC });
+        await addFullStalkerPortal(page, { mac });
 
         // `addFullStalkerPortal` only awaits the route change, and on a slow
         // runner the first authenticated content request has not necessarily
@@ -1364,7 +1363,7 @@ test.describe('@stalker full portal authentication', () => {
         // like: the next request gets "Authorization failed." with HTTP 200.
         const invalidated = await request.post(
             `${MOCK_SERVER}/invalidate-session?macAddress=${encodeURIComponent(
-                AUTH_REAUTH_MAC
+                mac
             )}`
         );
         expect(invalidated.ok()).toBe(true);

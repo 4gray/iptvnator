@@ -86,6 +86,7 @@ actually get wrong:
 | `00:1A:79:00:00:06` | **legacy-pagination** | No `get_all_channels` support — tests the paginated `get_ordered_list` crawl fallback for the full ITV channel list |
 | `00:1A:79:00:00:07` | **marketing-demo** | 35 original poster movies with the newest 20 first — safe for screenshots and marketing |
 | `00:1A:79:00:00:08` | **login-required** | `get_profile` answers `status: 2` until the client completes `do_auth` with non-empty credentials. The app drives this end to end: enter a username and password in the Stalker import dialog and it runs `do_auth`, then retries `get_profile` with `auth_second_step=1`. Covered by `stalker.e2e.ts` (`@stalker full portal authentication`) |
+| `00:1A:79:AE:<slot>:02` | **login-required** | Parallel-slot-scoped alias range used by concurrent auth E2E runs; it has the same login contract as `00:1A:79:00:00:08` but independent per-MAC state |
 | `00:1A:79:00:00:09` | **gated-stream** | `create_link` returns a local `/stream/gated/…` URL that answers 403 without the mac cookie and the MAC's current Bearer token — proves a player's media requests really carry the portal credentials |
 | `00:1A:79:00:00:0A` | **static-channel-cmd** | ITV rows carry a directly playable `cmd` with `use_http_tmp_link`/`use_load_balancing` both `'0'` — a client honouring the flags must play them without calling `create_link` |
 | `<any other MAC>` | **auto** | MAC bytes used as seed → deterministic unique dataset |
@@ -178,7 +179,11 @@ repeated `macAddress` params in a single request) rather than clearing
 everything. The sibling specs that talk to this server (`self-hosted.e2e.ts`,
 the `sources-pwa` helpers) own a disjoint `00:1A:79:5F:*` range for the same
 reason, and `stalker.e2e.ts` runs `mode: 'serial'` because its tests
-deliberately share scenario MACs. Full contract:
+deliberately share scenario MACs. Its stateful authentication tests derive a
+separate `00:1A:79:AE:<slot>:*` range from Playwright's bounded
+`parallelIndex` and add only that range to the scoped reset, so concurrent
+browser projects do not clear one another's sessions or pinned device
+identity; restarted workers retain their slot. Full contract:
 [`docs/architecture/stalker-mock-server.md`](../../docs/architecture/stalker-mock-server.md#test-isolation).
 
 ## EPG Behavior

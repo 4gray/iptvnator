@@ -318,6 +318,11 @@ supporting scenarios, `get_all_channels` (`get-all-channels.handler.ts`,
 `{ js: { data, total_items } }` response, excluding channels from censored
 (adult) genres.
 
+The login-required scenario also recognizes
+`00:1A:79:AE:<slot>:02`. This test-only alias range preserves the same
+`status: 2`/`do_auth` contract while giving concurrent Playwright parallel
+slots independent per-MAC auth state.
+
 The `marketing-demo` scenario (`00:1A:79:00:00:07`) replaces faker-generated
 VOD with the 35-movie provider-neutral showcase catalog from
 `@iptvnator/shared/marketing-fixtures`. Its newest 20 movies are returned first
@@ -388,16 +393,20 @@ file running in parallel workers, so isolation is per-MAC rather than global:
   MACs. A bare `POST /reset` clears everything and is only safe when nothing
   else is talking to the server — a spec that used it would wipe a sibling
   spec's session mid-test.
-- `apps/web-e2e/src/stalker.e2e.ts` declares the MACs it owns in `OWNED_MACS`
-  and clears exactly those in one batched request. The sibling specs that reach
-  this server (`self-hosted.e2e.ts`, the `sources-pwa` helpers) own a disjoint
-  `00:1A:79:5F:*` range, so neither file can clear the other's state.
-- Within the file, tests deliberately share scenario MACs (their fixture shapes
-  are what the assertions are written against), so it pins itself to one worker
-  with `test.describe.configure({ mode: 'serial' })`.
-- A few MACs are deliberately kept OUT of `OWNED_MACS`: the token-reuse test
-  asserts that a session SURVIVES, so nothing may reset it, and it uses one MAC
-  per browser project.
+- `apps/web-e2e/src/stalker.e2e.ts` declares its shared scenario MACs in
+  `OWNED_MACS` and clears them in one batched request. The sibling specs that
+  reach this server (`self-hosted.e2e.ts`, the `sources-pwa` helpers) own a
+  disjoint `00:1A:79:5F:*` range, so neither file can clear the other's state.
+- Within each browser project, tests deliberately share content-scenario MACs
+  (their fixture shapes are what the assertions are written against), so the
+  file uses `test.describe.configure({ mode: 'serial' })`.
+- Authentication tests whose assertions span multiple requests derive a
+  disjoint `00:1A:79:AE:<slot>:*` range from Playwright's bounded
+  `parallelIndex`. Their `beforeEach` adds only the current parallel slot's
+  range to the batched reset, so browser projects cannot clear one another's
+  token, login completion, invalidated session or pinned device identity; a
+  restarted worker retains the same slot instead of consuming a wider MAC
+  value.
 
 A reset drops the generated content cache, favorites (`data-store.ts`), the
 auth/session record (`auth-store.ts`, including any pinned device identity) and
