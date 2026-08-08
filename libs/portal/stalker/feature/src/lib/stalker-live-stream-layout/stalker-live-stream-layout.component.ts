@@ -312,17 +312,33 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     );
 
     /** EPG */
-    readonly fallbackEpgPrograms = signal<EpgProgram[]>([]);
+    /** Short-EPG panel fallback, tagged with the channel it was fetched for. */
+    readonly fallbackEpgPrograms = signal<{
+        channelId: string;
+        programs: EpgProgram[];
+    } | null>(null);
     readonly isLoadingFallbackEpg = signal(false);
     // Merged, not either/or: some portals' bulk get_epg_info carries only
     // future programmes, so a non-empty bulk list can still miss the one
-    // airing now — the short-EPG fallback fills exactly that gap.
-    readonly activeEpgPrograms = computed(() =>
-        mergeEpgProgramLists(
+    // airing now — the short-EPG fallback fills exactly that gap. The merge
+    // is scoped to the fallback's own channel: a channel switch moves the
+    // selection synchronously while the old fallback is only replaced once
+    // the new channel's EPG load runs, and an unscoped merge would mix the
+    // previous channel's programmes into the new panel meanwhile.
+    readonly activeEpgPrograms = computed(() => {
+        const fallback = this.fallbackEpgPrograms();
+        const selectedId = this.selectedChannelId();
+        const fallbackPrograms =
+            fallback &&
+            selectedId &&
+            fallback.channelId === normalizeStalkerEntityId(selectedId)
+                ? fallback.programs
+                : [];
+        return mergeEpgProgramLists(
             this.stalkerStore.selectedItvEpgPrograms(),
-            this.fallbackEpgPrograms()
-        )
-    );
+            fallbackPrograms
+        );
+    });
     readonly currentProgram = computed(() =>
         this.findCurrentProgram(this.activeEpgPrograms())
     );
@@ -462,7 +478,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 this.stalkerStore.setPage(0);
                 this.clearEpgPreviewMaps();
                 this.epgLoadRequestId += 1;
-                this.fallbackEpgPrograms.set([]);
+                this.fallbackEpgPrograms.set(null);
                 this.isLoadingFallbackEpg.set(false);
             });
         });
@@ -503,7 +519,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             this.lastPlaylistId = playlistId;
             this.epgLoadRequestId += 1;
-            this.fallbackEpgPrograms.set([]);
+            this.fallbackEpgPrograms.set(null);
             this.isLoadingFallbackEpg.set(false);
             // Channel ids are only unique per portal — cached previews of the
             // previous playlist must not leak into the new one.
@@ -960,7 +976,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     private async loadEpgForChannel(item: StalkerItvChannel) {
         if (!this.supportsEpg) {
-            this.fallbackEpgPrograms.set([]);
+            this.fallbackEpgPrograms.set(null);
             this.isLoadingFallbackEpg.set(false);
             this.clearEpgPreviewMaps();
             return;
@@ -974,7 +990,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.stalkerStore.bulkItvEpgPlaylistId() !== playlistId ||
             this.stalkerStore.bulkItvEpgPeriodHours() !== 168;
 
-        this.fallbackEpgPrograms.set([]);
+        this.fallbackEpgPrograms.set(null);
         this.isLoadingFallbackEpg.set(false);
 
         try {
@@ -1026,15 +1042,16 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 return;
             }
 
-            this.fallbackEpgPrograms.set(
-                fallbackItems.map((epgItem) =>
+            this.fallbackEpgPrograms.set({
+                channelId: normalizedChannelId,
+                programs: fallbackItems.map((epgItem) =>
                     this.toProgram(epgItem, normalizedChannelId)
-                )
-            );
+                ),
+            });
         } catch (error) {
             this.logger.warn('Failed to load Stalker live EPG', error);
             if (this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
-                this.fallbackEpgPrograms.set([]);
+                this.fallbackEpgPrograms.set(null);
             }
         } finally {
             if (this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
@@ -1105,6 +1122,18 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         programs: EpgProgram[]
     ): void {
         if (this.isRadioMode() || !this.supportsEpg) {
+            return;
+        }
+
+        // Revalidate ownership: the fetch was enqueued before mapping
+        // resolution (or a bulk refresh) could finish, and an owner installed
+        // in the meantime must not be overwritten by a late portal response.
+        if (
+            this.stalkerStore.hasItvEpgMappingOverride(channelId) ||
+            this.findCurrentProgram(
+                this.stalkerStore.bulkItvEpgByChannel()[channelId] ?? []
+            )
+        ) {
             return;
         }
 

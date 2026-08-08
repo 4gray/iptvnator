@@ -259,7 +259,10 @@ next gaps, so request count tracks how far the user actually scrolls rather
 than how many rows are rendered. Channels with a manual XMLTV mapping are
 excluded from the fallback entirely — their bulk record holds the mapped
 schedule, and the portal short EPG must not stand in for the data the
-mapping deliberately replaces.
+mapping deliberately replaces. Because a fetch can be enqueued before the
+mapping lookup resolves, the queue's completion callback revalidates
+ownership: a row claimed in the meantime by a mapping override or by bulk
+data is never overwritten by the late portal response.
 
 ## Cache Lifecycle
 
@@ -293,6 +296,12 @@ therefore falls back to `get_short_epg` when:
 
 The fallback is merged with the bulk list rather than replacing it, so the
 panel shows "now" from the short EPG and the days ahead from the bulk guide.
+The stored fallback is tagged with the channel it was fetched for and the
+merge only applies while that channel is still selected — a channel switch
+moves the selection synchronously, while the old fallback is replaced only
+after the new channel's EPG load runs, so an unscoped merge would leak the
+previous channel's programmes into the new panel during (or after a failed)
+playback resolution.
 Row previews use the same per-channel fallback through the throttled
 `StalkerEpgPreviewQueue` once the bulk request has settled (see "Channel row
 preview flow").
