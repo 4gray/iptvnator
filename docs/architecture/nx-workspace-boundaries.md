@@ -50,6 +50,33 @@ Omit `pnpm nx migrate --run-migrations` when the first command reports that no
 migrations exist. Major Nx updates always use this manual workflow and the
 resulting PR runs the full CI pipeline.
 
+## Vite Dev-Server Patch
+
+Angular's development builder currently resolves Vite `7.3.5`. That release's
+asset and worker transform prefilters can catastrophically backtrack on a large
+generated chunk containing unrelated `new URL...` expressions while searching
+for a valid `new URL(..., import.meta.url)` construct. The Electron development
+server can then fail a lazy chunk request with `Maximum call stack size
+exceeded`, even though static builds succeed because they do not pass emitted
+chunks through Vite's request-time plugin container.
+
+`patches/vite@7.3.5.patch` backports Vite's upstream precise-matcher fix from
+[vitejs/vite#21800](https://github.com/vitejs/vite/pull/21800). Bounded
+prefilters keep the request-time scan linear while allowing comment-bearing
+asset and worker expressions to reach the precise matcher after Vite strips
+comments. Keep the patch while the supported Angular toolchain resolves Vite
+`7.3.5`; remove it only after the resolved Vite contains the upstream fix. Run
+the regression check after any related manifest or lockfile update:
+
+```bash
+pnpm run deps:vite:test
+```
+
+CI runs the same check. It resolves Vite from `@angular/build`, verifies the
+patched prefilter/matcher wiring and version pin, stress-tests the false-positive
+chunk shape, and preserves ordinary and comment-bearing asset and worker
+`new URL(..., import.meta.url)` matches.
+
 ## Placement Decision
 
 - `apps/` owns runtime applications, development servers, E2E applications,

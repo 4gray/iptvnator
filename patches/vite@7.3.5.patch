@@ -1,0 +1,55 @@
+diff --git a/dist/node/chunks/config.js b/dist/node/chunks/config.js
+index 9a45043275249a25101fd7991ffcfc316478840e..5435b17de9ca65b64a8abacb609b75587226b106 100644
+--- a/dist/node/chunks/config.js
++++ b/dist/node/chunks/config.js
+@@ -27667,7 +27667,8 @@ async function getWorkerType(raw, clean, i$1) {
+ 	if (workerOpts.type && (workerOpts.type === "module" || workerOpts.type === "classic")) return workerOpts.type;
+ 	return "classic";
+ }
+-const workerImportMetaUrlRE = /new\s+(?:Worker|SharedWorker)\s*\(\s*new\s+URL.+?import\.meta\.url/s;
++const workerImportMetaUrlFilterRE = /\bnew\s+(?:Worker|SharedWorker)\b/;
++const workerImportMetaUrlRE = /\bnew\s+(?:Worker|SharedWorker)\s*\(\s*(new\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\))/dg;
+ function workerImportMetaUrlPlugin(config$2) {
+ 	const isBuild = config$2.command === "build";
+ 	let workerResolver;
+@@ -27688,10 +27689,10 @@ function workerImportMetaUrlPlugin(config$2) {
+-			filter: { code: workerImportMetaUrlRE },
++			filter: { code: workerImportMetaUrlFilterRE },
+ 			async handler(code, id) {
+ 				let s;
++				const re = new RegExp(workerImportMetaUrlRE);
+ 				const cleanString = stripLiteral(code);
+-				const workerImportMetaUrlRE$1 = /\bnew\s+(?:Worker|SharedWorker)\s*\(\s*(new\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*\))/dg;
+ 				let match;
+-				while (match = workerImportMetaUrlRE$1.exec(cleanString)) {
++				while (match = re.exec(cleanString)) {
+ 					const [[, endIndex], [expStart, expEnd], [urlStart, urlEnd]] = match.indices;
+ 					const rawUrl = code.slice(urlStart, urlEnd);
+ 					if (rawUrl[0] === "`" && rawUrl.includes("${")) this.error(`\`new URL(url, import.meta.url)\` is not supported in dynamic template string.`, expStart);
+@@ -27733,6 +27734,8 @@ function workerImportMetaUrlPlugin(config$2) {
+ }
+ 
+ //#endregion
++const assetImportMetaUrlFilterRE = /\bnew\s+URL\b/;
++const assetImportMetaUrlRE = /\bnew\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\)/dg;
+ //#region src/node/plugins/assetImportMetaUrl.ts
+ /**
+ * Convert `new URL('./foo.png', import.meta.url)` to its resolved built URL
+@@ -27763,14 +27765,14 @@ function assetImportMetaUrlPlugin(config$2) {
+ 		transform: {
+ 			filter: {
+ 				id: { exclude: [exactRegex(preloadHelperId), exactRegex(CLIENT_ENTRY)] },
+-				code: /new\s+URL.+import\.meta\.url/s
++				code: assetImportMetaUrlFilterRE
+ 			},
+ 			async handler(code, id) {
+ 				let s;
+-				const assetImportMetaUrlRE = /\bnew\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\)/dg;
++				const re = new RegExp(assetImportMetaUrlRE);
+ 				const cleanString = stripLiteral(code);
+ 				let match;
+-				while (match = assetImportMetaUrlRE.exec(cleanString)) {
++				while (match = re.exec(cleanString)) {
+ 					const [[startIndex, endIndex], [urlStart, urlEnd]] = match.indices;
+ 					if (hasViteIgnoreRE.test(code.slice(startIndex, urlStart))) continue;
+ 					const rawUrl = code.slice(urlStart, urlEnd);

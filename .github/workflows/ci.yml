@@ -150,6 +150,9 @@ jobs:
             - name: Validate Nx dependency version policy
               run: pnpm run deps:nx:validate
 
+            - name: Validate Vite dev-server transform filter patch
+              run: pnpm run deps:vite:test
+
             - name: Validate stylesheet Nx inputs
               run: pnpm run styles:inputs:validate
 
