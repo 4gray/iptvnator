@@ -611,6 +611,7 @@ describe('UnifiedLiveTabComponent', () => {
         webPlayer.externalFallbackRequested.emit({
             player: 'mpv',
             playback,
+            trackLaunch: jest.fn(),
             diagnostic: {
                 code: 'network-error',
                 player: 'videojs',

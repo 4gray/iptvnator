@@ -25,7 +25,6 @@ export type ExternalRecoveryStates = Readonly<
 >;
 
 interface ActiveIntent extends ExternalRecoveryIntent {
-    readonly ignoredSessionId: string | null;
     readonly sessionId: string | null;
 }
 
@@ -59,17 +58,13 @@ export class ExternalPlaybackRecovery {
         return true;
     }
 
-    begin(
-        target: ExternalPlayerName,
-        previousSessionId: string | null
-    ): ExternalRecoveryIntent | null {
+    begin(target: ExternalPlayerName): ExternalRecoveryIntent | null {
         if (this.activeIntentState() !== null) {
             return null;
         }
 
         const token = Symbol();
         const intent: ActiveIntent = Object.freeze({
-            ignoredSessionId: previousSessionId,
             sessionId: null,
             target,
             token,
@@ -108,15 +103,7 @@ export class ExternalPlaybackRecovery {
         const active = this.activeIntentState();
         if (active) {
             if (active.sessionId === null) {
-                if (
-                    session.player !== active.target ||
-                    session.id === active.ignoredSessionId
-                ) {
-                    return false;
-                }
-                this.activeIntentState.set(
-                    Object.freeze({ ...active, sessionId: session.id })
-                );
+                return false;
             } else if (session.id !== active.sessionId) {
                 return false;
             }
@@ -128,6 +115,54 @@ export class ExternalPlaybackRecovery {
         return this.target(target).sessionId === session.id
             ? this.applySession(target, session)
             : false;
+    }
+
+    confirm(
+        intent: ExternalRecoveryIntent,
+        session: ExternalPlayerSession
+    ): boolean {
+        if (!this.owns(intent) || session.player !== intent.target) {
+            return false;
+        }
+
+        const active = this.activeIntentState();
+        if (!active) {
+            return false;
+        }
+        this.activeIntentState.set(
+            Object.freeze({ ...active, sessionId: session.id })
+        );
+        return this.applySession(intent.target, session);
+    }
+
+    cancel(intent: ExternalRecoveryIntent): boolean {
+        if (!this.owns(intent)) {
+            return false;
+        }
+
+        const current = this.target(intent.target);
+        if (current.status === 'launching') {
+            this.setTarget(intent.target, {
+                attempts: current.attempts,
+                sessionId: null,
+                status: 'idle',
+            });
+        }
+        this.clearActiveIntent();
+        return true;
+    }
+
+    close(target: ExternalPlayerName, sessionId: string): boolean {
+        const current = this.target(target);
+        if (current.sessionId !== sessionId) {
+            return false;
+        }
+        this.setTarget(target, {
+            attempts: current.attempts,
+            sessionId: null,
+            status: 'idle',
+        });
+        return true;
     }
 
     fail(intent: ExternalRecoveryIntent): boolean {

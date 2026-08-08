@@ -1048,10 +1048,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return;
         }
 
-        this.dataService.sendIpcEvent(
-            request.player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER,
-            payload
+        const launch = Promise.resolve(
+            this.dataService.sendIpcEvent<ExternalPlayerSession>(
+                request.player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER,
+                payload
+            )
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 
     private toLiveEpgPanelSummary(

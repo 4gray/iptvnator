@@ -31,7 +31,7 @@ describe('ExternalPlaybackRecovery', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
 
-        const intent = recovery.begin('mpv', 'old-session');
+        const intent = recovery.begin('mpv');
 
         expect(intent).not.toBeNull();
         expect(recovery.pending()).toBe(true);
@@ -40,14 +40,14 @@ describe('ExternalPlaybackRecovery', () => {
             sessionId: null,
             status: 'launching',
         });
-        expect(recovery.begin('vlc', 'old-session')).toBeNull();
+        expect(recovery.begin('vlc')).toBeNull();
         recovery.destroy();
     });
 
-    it('correlates only the next matching target and then requires its exact id', () => {
+    it('requires the exact owned launch result before accepting session updates', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', 'old-session');
+        const intent = requireIntent(recovery.begin('mpv'));
 
         expect(
             recovery.observe(session({ id: 'old-session', status: 'playing' }))
@@ -59,6 +59,12 @@ describe('ExternalPlaybackRecovery', () => {
         ).toBe(false);
         expect(
             recovery.observe(
+                session({ id: 'mpv-session', player: 'mpv', status: 'opened' })
+            )
+        ).toBe(false);
+        expect(
+            recovery.confirm(
+                intent,
                 session({ id: 'mpv-session', player: 'mpv', status: 'opened' })
             )
         ).toBe(true);
@@ -84,8 +90,11 @@ describe('ExternalPlaybackRecovery', () => {
     ] as const)('maps exact session %s to %s', (sessionStatus, stateStatus) => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
-        recovery.observe(session({ id: 'mpv-session', status: 'opened' }));
+        const intent = requireIntent(recovery.begin('mpv'));
+        recovery.confirm(
+            intent,
+            session({ id: 'mpv-session', status: 'opened' })
+        );
 
         expect(
             recovery.observe(
@@ -99,8 +108,11 @@ describe('ExternalPlaybackRecovery', () => {
     it('returns a closed exact session to idle while retaining attempt history', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
-        recovery.observe(session({ id: 'mpv-session', status: 'opened' }));
+        const intent = requireIntent(recovery.begin('mpv'));
+        recovery.confirm(
+            intent,
+            session({ id: 'mpv-session', status: 'opened' })
+        );
 
         expect(
             recovery.observe(
@@ -122,7 +134,7 @@ describe('ExternalPlaybackRecovery', () => {
     it('times out a missing launch handoff without accepting its later session', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
+        recovery.begin('mpv');
 
         jest.advanceTimersByTime(EXTERNAL_RECOVERY_LAUNCH_TIMEOUT_MS);
 
@@ -137,8 +149,9 @@ describe('ExternalPlaybackRecovery', () => {
     it('keeps an exact launching session correlated after the local timeout', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
-        recovery.observe(
+        const intent = requireIntent(recovery.begin('mpv'));
+        recovery.confirm(
+            intent,
             session({ id: 'slow-mpv', player: 'mpv', status: 'launching' })
         );
 
@@ -161,7 +174,7 @@ describe('ExternalPlaybackRecovery', () => {
     it('invalidates an old intent and timer when the content session changes', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        const intent = recovery.begin('mpv', null);
+        const intent = recovery.begin('mpv');
         expect(intent).not.toBeNull();
 
         recovery.syncSession('content-b');
@@ -183,7 +196,7 @@ describe('ExternalPlaybackRecovery', () => {
     it('clears the launch timer and ownership when destroyed', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
+        recovery.begin('mpv');
 
         recovery.destroy();
         jest.advanceTimersByTime(EXTERNAL_RECOVERY_LAUNCH_TIMEOUT_MS);
@@ -196,11 +209,11 @@ describe('ExternalPlaybackRecovery', () => {
     it('fails only the current intent and counts a later retry', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        const first = requireIntent(recovery.begin('mpv', null));
+        const first = requireIntent(recovery.begin('mpv'));
 
         expect(recovery.fail(first)).toBe(true);
         expect(recovery.fail(first)).toBe(false);
-        const second = requireIntent(recovery.begin('mpv', null));
+        const second = requireIntent(recovery.begin('mpv'));
 
         expect(recovery.target('mpv')).toEqual({
             attempts: 2,
@@ -211,12 +224,60 @@ describe('ExternalPlaybackRecovery', () => {
         recovery.destroy();
     });
 
+    it('rejects a late result from a timed-out attempt while accepting the retry result', () => {
+        const recovery = new ExternalPlaybackRecovery();
+        recovery.syncSession('content-a');
+        const first = requireIntent(recovery.begin('mpv'));
+        jest.advanceTimersByTime(EXTERNAL_RECOVERY_LAUNCH_TIMEOUT_MS);
+        const retry = requireIntent(recovery.begin('mpv'));
+
+        expect(
+            recovery.confirm(
+                first,
+                session({ id: 'late-first', status: 'opened' })
+            )
+        ).toBe(false);
+        expect(
+            recovery.observe(session({ id: 'late-first', status: 'playing' }))
+        ).toBe(false);
+        expect(
+            recovery.confirm(
+                retry,
+                session({ id: 'exact-retry', status: 'opened' })
+            )
+        ).toBe(true);
+        expect(recovery.target('mpv')).toEqual({
+            attempts: 2,
+            sessionId: 'exact-retry',
+            status: 'started',
+        });
+        recovery.destroy();
+    });
+
+    it('cancels an unlaunched current intent without reporting an error', () => {
+        const recovery = new ExternalPlaybackRecovery();
+        recovery.syncSession('content-a');
+        const intent = requireIntent(recovery.begin('vlc'));
+
+        expect(recovery.cancel(intent)).toBe(true);
+        expect(recovery.pending()).toBe(false);
+        expect(recovery.target('vlc')).toEqual({
+            attempts: 1,
+            sessionId: null,
+            status: 'idle',
+        });
+        recovery.destroy();
+    });
+
     it('updates the previous exact session without cancelling a different target intent', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
-        recovery.observe(session({ id: 'mpv-session', status: 'opened' }));
-        const vlcIntent = requireIntent(recovery.begin('vlc', 'mpv-session'));
+        const mpvIntent = requireIntent(recovery.begin('mpv'));
+        recovery.confirm(
+            mpvIntent,
+            session({ id: 'mpv-session', status: 'opened' })
+        );
+        const vlcIntent = requireIntent(recovery.begin('vlc'));
 
         expect(
             recovery.observe(
@@ -233,11 +294,31 @@ describe('ExternalPlaybackRecovery', () => {
         recovery.destroy();
     });
 
+    it('applies a confirmed exact close even when a reactive observer coalesces it', () => {
+        const recovery = new ExternalPlaybackRecovery();
+        recovery.syncSession('content-a');
+        const mpvIntent = requireIntent(recovery.begin('mpv'));
+        recovery.confirm(
+            mpvIntent,
+            session({ id: 'mpv-session', status: 'opened' })
+        );
+
+        expect(recovery.close('mpv', 'mpv-session')).toBe(true);
+        expect(recovery.target('mpv')).toEqual({
+            attempts: 1,
+            sessionId: null,
+            status: 'idle',
+        });
+        expect(recovery.close('mpv', 'other-session')).toBe(false);
+        recovery.destroy();
+    });
+
     it('stores no stream URL, headers, credentials, title, or error text', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');
-        recovery.begin('mpv', null);
-        recovery.observe(
+        const intent = requireIntent(recovery.begin('mpv'));
+        recovery.confirm(
+            intent,
             session({
                 error: 'token=private at /Users/example/player',
                 headers: undefined,

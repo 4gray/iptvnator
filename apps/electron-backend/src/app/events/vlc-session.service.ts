@@ -425,15 +425,11 @@ export async function openVlcPlayer({
                     'Failed to reuse existing VLC, spawning fresh:',
                     err
                 );
-                if (vlcProcess && !vlcProcess.killed) {
-                    try {
-                        vlcProcess.kill();
-                    } catch {
-                        // Ignore cleanup failures.
-                    }
+                await terminateExternalPlayerProcess(reusedProcess);
+                if (vlcProcess === reusedProcess) {
+                    vlcProcess = null;
+                    vlcRcPort = null;
                 }
-                vlcProcess = null;
-                vlcRcPort = null;
                 stopVlcPositionPolling();
             }
         }

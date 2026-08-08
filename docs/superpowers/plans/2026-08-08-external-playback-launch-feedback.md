@@ -4,7 +4,7 @@
 
 **Goal:** Keep MPV/VLC recovery actions visible while reporting exact launch/session state in the diagnostic panel and global dock.
 
-**Architecture:** Add a component-local, credential-free external recovery state machine beside `PlaybackRecoverySession`. It correlates a launch intent to the next matching global `ExternalPlayerSession`, reranks but never removes attempted external targets, and rejects stale session/timer updates. The existing host output still owns source-specific launch payloads; `PORTAL_EXTERNAL_PLAYBACK` supplies session observation and close-before-switch.
+**Architecture:** Add a component-local, credential-free external recovery state machine beside `PlaybackRecoverySession`. The existing host output still owns source-specific launch payloads and binds its returned launch promise to the fieldless current intent; only that exact result supplies the initial session ID. `PORTAL_EXTERNAL_PLAYBACK` then supplies exact-ID status observation and close-before-switch. Attempts rerank but never remove external targets, while stale promises, sessions, timers, and diagnostic owners are rejected.
 
 **Tech Stack:** Angular signals and control flow, Angular Material icons/spinner, Jest, Nx, Playwright Electron E2E, ngx-translate.
 
@@ -24,7 +24,7 @@ Cover the exact public contract:
 ```typescript
 const state = new ExternalPlaybackRecovery();
 state.syncSession('content-a');
-const intent = state.begin('mpv', 'old-session');
+const intent = state.begin('mpv');
 
 expect(intent).not.toBeNull();
 expect(state.pending()).toBe(true);
@@ -33,7 +33,7 @@ expect(state.target('mpv')).toMatchObject({
     attempts: 1,
     sessionId: null,
 });
-expect(state.begin('vlc', 'old-session')).toBeNull();
+expect(state.begin('vlc')).toBeNull();
 
 expect(state.observe(session({ id: 'old-session', player: 'mpv' }))).toBe(
     false
@@ -41,7 +41,12 @@ expect(state.observe(session({ id: 'old-session', player: 'mpv' }))).toBe(
 expect(state.observe(session({ id: 'new-session', player: 'vlc' }))).toBe(
     false
 );
-expect(state.observe(session({ id: 'new-session', player: 'mpv' }))).toBe(true);
+expect(state.observe(session({ id: 'new-session', player: 'mpv' }))).toBe(
+    false
+);
+expect(
+    state.confirm(intent!, session({ id: 'new-session', player: 'mpv' }))
+).toBe(true);
 expect(state.target('mpv').status).toBe('started');
 ```
 
@@ -84,11 +89,14 @@ export class ExternalPlaybackRecovery {
     >;
     readonly pending: Signal<boolean>;
     syncSession(key: string): boolean;
-    begin(
-        target: ExternalPlayerName,
-        previousSessionId: string | null
-    ): ExternalRecoveryIntent | null;
+    begin(target: ExternalPlayerName): ExternalRecoveryIntent | null;
     owns(intent: ExternalRecoveryIntent): boolean;
+    confirm(
+        intent: ExternalRecoveryIntent,
+        session: ExternalPlayerSession
+    ): boolean;
+    cancel(intent: ExternalRecoveryIntent): boolean;
+    close(target: ExternalPlayerName, sessionId: string): boolean;
     observe(session: ExternalPlayerSession | null): boolean;
     fail(intent: ExternalRecoveryIntent): boolean;
     target(target: ExternalPlayerName): ExternalRecoveryTargetState;
@@ -97,8 +105,8 @@ export class ExternalPlaybackRecovery {
 ```
 
 The internal launch timer is 10 seconds, and all ownership tokens are fieldless
-`Symbol()` values. Store only target, attempt count, status, ignored prior ID,
-and the correlated session ID.
+`Symbol()` values. Store only target, attempt count, status, and the exact
+session ID returned through the owned host launch promise.
 
 - [ ] **Step 4: Run GREEN and refactor**
 

@@ -207,11 +207,18 @@ describe('vlc-session.service process lifecycle', () => {
                 title: 'Second',
                 url: 'https://example.com/two.m3u8',
             });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+
+            expect(proc.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
             await waitForSpawnCallCount(2);
             freshProc.emit('spawn');
             const session = await openPromise;
 
-            expect(proc.kill).toHaveBeenCalled();
+            expect(spawnMock).toHaveBeenCalledTimes(2);
             expect(session.status).toBe('opened');
         });
     });

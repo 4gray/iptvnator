@@ -16,6 +16,7 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
     type PlaybackDiagnostic,
+    type PlaybackFallbackRequest,
 } from '@iptvnator/playback/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
@@ -200,7 +201,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
     });
 
     it('retries the active target with a reload while preserving attempts', async () => {
-        const fallbackRequests: unknown[] = [];
+        const fallbackRequests: PlaybackFallbackRequest[] = [];
         component.externalFallbackRequested.subscribe((request) =>
             fallbackRequests.push(request)
         );
@@ -209,9 +210,13 @@ describe('WebPlayerViewComponent recovery integration', () => {
         fixture.detectChanges();
         click('playback-fallback-mpv');
         expect(fallbackRequests).toHaveLength(1);
-        activeExternalSession.set(
-            externalSession({ id: 'mpv-retry-session', status: 'opened' })
-        );
+        const opened = externalSession({
+            id: 'mpv-retry-session',
+            status: 'opened',
+        });
+        activeExternalSession.set(opened);
+        fallbackRequests[0].trackLaunch(Promise.resolve(opened));
+        await Promise.resolve();
         fixture.detectChanges();
         vjs().playbackIssue.emit(networkIssue('videojs'));
         fixture.detectChanges();
@@ -234,24 +239,33 @@ describe('WebPlayerViewComponent recovery integration', () => {
     });
 
     it('keeps desktop browser-access guidance and both actions after both attempts', async () => {
+        const fallbackRequests: PlaybackFallbackRequest[] = [];
+        component.externalFallbackRequested.subscribe((request) =>
+            fallbackRequests.push(request)
+        );
         await render();
         vjs().playbackIssue.emit(browserAccessIssue('videojs'));
         fixture.detectChanges();
 
         click('playback-fallback-mpv');
-        activeExternalSession.set(
-            externalSession({ id: 'mpv-browser-session', status: 'opened' })
-        );
+        const openedMpv = externalSession({
+            id: 'mpv-browser-session',
+            status: 'opened',
+        });
+        activeExternalSession.set(openedMpv);
+        fallbackRequests[0].trackLaunch(Promise.resolve(openedMpv));
+        await Promise.resolve();
         fixture.detectChanges();
         click('playback-fallback-vlc');
         await fixture.whenStable();
-        activeExternalSession.set(
-            externalSession({
-                id: 'vlc-browser-session',
-                player: 'vlc',
-                status: 'opened',
-            })
-        );
+        const openedVlc = externalSession({
+            id: 'vlc-browser-session',
+            player: 'vlc',
+            status: 'opened',
+        });
+        activeExternalSession.set(openedVlc);
+        fallbackRequests[1].trackLaunch(Promise.resolve(openedVlc));
+        await Promise.resolve();
         fixture.detectChanges();
 
         const banner = query('playback-diagnostic-banner');

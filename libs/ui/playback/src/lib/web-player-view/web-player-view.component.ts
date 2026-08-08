@@ -66,9 +66,8 @@ import {
 
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
-    return typeof storedValue === 'boolean'
-        ? storedValue
-        : WEB_PLAYER_SHARED_CONTROLS_ENABLED;
+    const fallback = WEB_PLAYER_SHARED_CONTROLS_ENABLED;
+    return typeof storedValue === 'boolean' ? storedValue : fallback;
 }
 
 @Component({
@@ -383,13 +382,17 @@ export class WebPlayerViewComponent implements OnDestroy {
             this.externalRecovery.request(
                 target,
                 () => this.recoverySession.recordExternalAttempt(target),
-                () => {
-                    if (this.visiblePlaybackDiagnostic() !== diagnostic) return;
+                (trackLaunch) => {
+                    if (this.visiblePlaybackDiagnostic() !== diagnostic) {
+                        return false;
+                    }
                     this.externalFallbackRequested.emit({
                         player: target,
                         playback: this.resolvedPlayback(),
                         diagnostic,
+                        trackLaunch,
                     });
+                    return true;
                 }
             );
             return;
