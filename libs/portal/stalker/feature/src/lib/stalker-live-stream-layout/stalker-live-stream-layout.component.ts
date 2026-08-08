@@ -873,7 +873,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         );
     }
 
-    /** Whether right-click has anything to offer for this row. */
+    /**
+     * Whether right-click has anything to offer for this row. Keys on data
+     * presence rather than runtime capability — but note EPG previews are
+     * currently populated only where `supportsEpg` (Electron), so in the PWA
+     * this stays false until portal EPG previews exist there.
+     */
     hasChannelContextMenu(item: StalkerItvChannel): boolean {
         return (
             this.supportsEpgMapping ||

@@ -512,7 +512,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         return this.epgPrograms.get(channel.xtream_id) ?? null;
     }
 
-    /** Whether right-click has anything to offer for this row. */
+    /**
+     * Whether right-click has anything to offer for this row. Keys on data
+     * presence rather than runtime capability — but note EPG previews are
+     * currently populated only where `supportsEpg` (Electron), so in the PWA
+     * this stays false until portal EPG previews exist there.
+     */
     hasChannelContextMenu(item: XtreamChannelListItem): boolean {
         return this.supportsEpgMapping || this.epgPrograms.has(item.xtream_id);
     }
