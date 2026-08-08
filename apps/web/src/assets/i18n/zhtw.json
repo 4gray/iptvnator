@@ -627,6 +627,8 @@
         "NO_SEARCH_RESULTS": "找不到頻道",
         "NO_CHANNELS_FOUND": "找不到頻道",
         "NO_GROUPS_FOUND": "找不到群組",
+        "CATCHUP_AVAILABLE": "Catchup 可用",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup 可用 — {{days}} 天",
         "TRY_DIFFERENT_SEARCH": "請嘗試其他搜尋詞",
         "DETAILS_DIALOG": {
             "TITLE": "頻道詳細資訊",

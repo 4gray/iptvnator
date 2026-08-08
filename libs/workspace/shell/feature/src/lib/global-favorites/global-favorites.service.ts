@@ -38,6 +38,8 @@ interface XtreamGlobalFavoriteRow {
     readonly position?: number | null;
     readonly poster_url?: string | null;
     readonly title: string;
+    readonly tv_archive?: number | null;
+    readonly tv_archive_duration?: number | null;
     readonly xtream_id: number;
 }
 
@@ -220,6 +222,8 @@ export class GlobalFavoritesService {
             playlistId: item.playlist_id,
             playlistName: item.playlist_name,
             xtreamId: item.xtream_id,
+            tvArchive: item.tv_archive ?? null,
+            tvArchiveDuration: item.tv_archive_duration ?? null,
             tvgId: String(item.xtream_id),
             addedAt: item.added_at ?? new Date(0).toISOString(),
             position: item.position ?? 0,

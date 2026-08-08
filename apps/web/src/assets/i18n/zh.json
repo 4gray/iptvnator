@@ -627,6 +627,8 @@
         "NO_SEARCH_RESULTS": "未找到频道",
         "NO_CHANNELS_FOUND": "未找到频道",
         "NO_GROUPS_FOUND": "未找到分组",
+        "CATCHUP_AVAILABLE": "Catchup 可用",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup 可用 — {{days}} 天",
         "TRY_DIFFERENT_SEARCH": "尝试其他搜索词",
         "DETAILS_DIALOG": {
             "TITLE": "频道详情",

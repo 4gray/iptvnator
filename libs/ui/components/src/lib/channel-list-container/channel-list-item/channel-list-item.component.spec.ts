@@ -98,6 +98,34 @@ describe('ChannelListItemComponent', () => {
         ).toBe(true);
     });
 
+    it('renders the catch-up badge only when catch-up is available', () => {
+        fixture.componentRef.setInput('name', 'Archive Channel');
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="catchup-badge"]'
+            )
+        ).toBeNull();
+
+        fixture.componentRef.setInput('catchupAvailable', true);
+        fixture.componentRef.setInput('catchupDays', 7);
+        fixture.detectChanges();
+
+        const badge = fixture.nativeElement.querySelector(
+            '[data-test-id="catchup-badge"]'
+        );
+        expect(badge).not.toBeNull();
+        expect(badge.textContent).toContain('history');
+
+        // The icon is aria-hidden — the status must also exist as
+        // visually-hidden text for assistive technology.
+        const srText = fixture.nativeElement.querySelector(
+            '.channel-name-row .visually-hidden'
+        );
+        expect(srText?.textContent).toContain('CATCHUP_AVAILABLE');
+    });
+
     it('shows the generic fallback icon when no logo is available', () => {
         fixture.componentRef.setInput('name', 'Channel Without Logo');
         fixture.componentRef.setInput('logo', '');

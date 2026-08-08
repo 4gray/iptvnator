@@ -627,6 +627,8 @@
         "NO_SEARCH_RESULTS": "Keine Sender gefunden",
         "NO_CHANNELS_FOUND": "Keine Sender gefunden",
         "NO_GROUPS_FOUND": "Keine Gruppen gefunden",
+        "CATCHUP_AVAILABLE": "Catchup verfügbar",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup verfügbar — {{days}} Tage",
         "TRY_DIFFERENT_SEARCH": "Versuchen Sie einen anderen Suchbegriff",
         "DETAILS_DIALOG": {
             "TITLE": "Senderdetails",

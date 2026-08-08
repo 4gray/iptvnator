@@ -173,6 +173,70 @@ describe('GridListComponent', () => {
         );
     });
 
+    it('shows the catch-up badge on live cards with a playable archive', () => {
+        fixture.componentRef.setInput('items', [
+            {
+                name: 'Archive Channel',
+                stream_icon: 'channel-logo.png',
+                tv_archive: 1,
+                tv_archive_duration: 7,
+            },
+        ]);
+        fixture.componentRef.setInput('variant', 'logo');
+        fixture.componentRef.setInput('type', 'live');
+
+        fixture.detectChanges();
+
+        const badge = fixture.debugElement.query(
+            By.css('[data-test-id="grid-catchup-badge"]')
+        );
+        expect(badge).not.toBeNull();
+        expect(badge.nativeElement.textContent).toContain('history');
+
+        // The icon is aria-hidden — the status must also exist as
+        // visually-hidden text for assistive technology.
+        const srText = badge.query(By.css('.visually-hidden'));
+        expect(srText.nativeElement.textContent).toContain(
+            'CATCHUP_AVAILABLE'
+        );
+    });
+
+    it('hides the catch-up badge for live cards without a playable archive', () => {
+        fixture.componentRef.setInput('items', [
+            { name: 'Flag Only', tv_archive: 1, tv_archive_duration: 0 },
+            { name: 'No Archive', tv_archive: 0, tv_archive_duration: 7 },
+            { name: 'Legacy Row' },
+        ]);
+        fixture.componentRef.setInput('type', 'live');
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.queryAll(
+                By.css('[data-test-id="grid-catchup-badge"]')
+            )
+        ).toHaveLength(0);
+    });
+
+    it('never shows the catch-up badge on VOD grids', () => {
+        fixture.componentRef.setInput('items', [
+            {
+                title: 'Some Movie',
+                tv_archive: 1,
+                tv_archive_duration: 7,
+            },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="grid-catchup-badge"]')
+            )
+        ).toBeNull();
+    });
+
     it('renders raw titles while prefix stripping is disabled', () => {
         fixture.componentRef.setInput('items', [{ name: 'US | CNN' }]);
         fixture.componentRef.setInput('type', 'live');

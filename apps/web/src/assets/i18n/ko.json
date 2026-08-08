@@ -627,6 +627,8 @@
         "NO_SEARCH_RESULTS": "채널을 찾을 수 없습니다",
         "NO_CHANNELS_FOUND": "채널을 찾을 수 없습니다",
         "NO_GROUPS_FOUND": "그룹을 찾을 수 없습니다",
+        "CATCHUP_AVAILABLE": "Catchup 사용 가능",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup 사용 가능 — {{days}}일",
         "TRY_DIFFERENT_SEARCH": "다른 검색어를 시도해 보세요",
         "DETAILS_DIALOG": {
             "TITLE": "채널 세부정보",

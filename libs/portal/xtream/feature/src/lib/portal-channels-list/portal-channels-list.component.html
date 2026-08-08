@@ -42,6 +42,8 @@
                         : 0
                 "
                 [showEpg]="supportsEpg"
+                [catchupAvailable]="isCatchupAvailable(item)"
+                [catchupDays]="catchupDays(item)"
                 [showFavoriteButton]="true"
                 [showProgramInfoButton]="false"
                 [showDetailsContextMenu]="supportsEpgMapping"
