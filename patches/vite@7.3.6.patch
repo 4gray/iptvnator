@@ -1,5 +1,4 @@
 diff --git a/dist/node/chunks/config.js b/dist/node/chunks/config.js
-index 9a45043275249a25101fd7991ffcfc316478840e..5435b17de9ca65b64a8abacb609b75587226b106 100644
 --- a/dist/node/chunks/config.js
 +++ b/dist/node/chunks/config.js
 @@ -27667,7 +27667,8 @@ async function getWorkerType(raw, clean, i$1) {
