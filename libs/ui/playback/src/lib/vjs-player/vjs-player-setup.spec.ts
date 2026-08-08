@@ -19,7 +19,27 @@ describe('Video.js player setup', () => {
         expect(createVjsPlayerOptions(options, false, false)).toEqual({
             ...options,
             autoplay: true,
+            controls: true,
         });
+    });
+
+    it('keeps Video.js controls enabled on the raw MPEG-TS legacy path', () => {
+        // player.reset() replaces the tech <video>, so the control bar must
+        // come from the constructor option — a template binding on the
+        // original element cannot survive the swap.
+        expect(
+            createVjsPlayerOptions(
+                { sources: [{ src: 'https://example.test/live.ts' }] },
+                true,
+                false
+            )
+        ).toEqual(
+            expect.objectContaining({
+                sources: [],
+                autoplay: false,
+                controls: true,
+            })
+        );
     });
 
     it('removes duplicate Video.js interaction ownership for shared controls', () => {

@@ -78,13 +78,16 @@ describe('VjsPlayerComponent', () => {
             expect.any(Element),
             expect.objectContaining({
                 autoplay: true,
+                controls: true,
                 userActions: { hotkeys: true },
                 spatialNavigation: { enabled: true },
             }),
             expect.any(Function)
         );
+        // Native controls stay off: Video.js owns the control bar, and the
+        // bar has to survive the tech-element swap in player.reset().
         expect(fixture.nativeElement.querySelector('video').controls).toBe(
-            true
+            false
         );
         expect(
             fixture.nativeElement.querySelector('app-player-controls')
