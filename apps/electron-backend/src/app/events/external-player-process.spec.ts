@@ -15,6 +15,26 @@ function createMockChildProcess(): ChildProcess {
 }
 
 describe('external player process teardown', () => {
+    it('accepts close as confirmed termination after a spawn error', async () => {
+        const child = createMockChildProcess();
+        child.on('error', () => undefined);
+        let settled = false;
+        const exit = waitForExternalPlayerProcessExit(child).then(() => {
+            settled = true;
+        });
+
+        child.emit(
+            'error',
+            Object.assign(new Error('spawn failed'), { code: 'ENOENT' })
+        );
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        child.emit('close', -2, null);
+
+        await expect(exit).resolves.toBeUndefined();
+    });
+
     it('does not treat a process error as confirmed exit', async () => {
         const child = createMockChildProcess();
         child.on('error', () => undefined);
