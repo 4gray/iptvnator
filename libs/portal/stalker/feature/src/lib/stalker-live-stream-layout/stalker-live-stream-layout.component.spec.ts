@@ -32,6 +32,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
@@ -1129,6 +1130,64 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(fetchChannelEpg).not.toHaveBeenCalled();
     });
 
+    /**
+     * The reported portal shape: bulk get_epg_info returns only programmes
+     * that start in the future — the currently airing one is missing — while
+     * get_short_epg answers with the current programme.
+     */
+    function mockFutureOnlyBulkEpg(): void {
+        ensureBulkItvEpg.mockImplementation(async () => {
+            const bulkPrograms = {
+                '10001': [buildFutureProgram('10001', 'Future Show')],
+                '10002': [buildFutureProgram('10002', 'Future Beta Show')],
+            };
+            bulkItvEpgByChannel.set(bulkPrograms);
+            bulkItvEpgLoaded.set(true);
+            bulkItvEpgPlaylistId.set('playlist-1');
+            bulkItvEpgPeriodHours.set(168);
+            selectedItvEpgPrograms.set(
+                bulkPrograms[selectedItvId() ?? ''] ?? []
+            );
+        });
+        fetchChannelEpg.mockImplementation(async (channelId: string) => [
+            buildEpgItem(String(channelId), `Now ${channelId}`),
+        ]);
+    }
+
+    it('merges the short-EPG fallback into the panel when bulk EPG has only future programmes', async () => {
+        // The old either/or gate skipped the short-EPG fallback whenever bulk
+        // was non-empty, leaving the panel without a current programme.
+        mockFutureOnlyBulkEpg();
+
+        fixture.detectChanges();
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchChannelEpg).toHaveBeenCalledWith('10001');
+        expect(component.currentProgram()?.title).toBe('Now 10001');
+        expect(
+            component.activeEpgPrograms().map((program) => program.title)
+        ).toEqual(['Now 10001', 'Future Show']);
+    });
+
+    it('fills row previews from the short EPG when bulk EPG misses the current programmes', async () => {
+        mockFutureOnlyBulkEpg();
+
+        await settleEagerEpg();
+        // The throttled per-channel fallback queue drains the two rows
+        // (one request immediately, the next behind a 200 ms delay).
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        fixture.detectChanges();
+
+        expect(component.epgPreviewPrograms.get('10001')?.title).toBe(
+            'Now 10001'
+        );
+        expect(component.epgPreviewPrograms.get('10002')?.title).toBe(
+            'Now 10002'
+        );
+    });
+
     it('does not re-fetch bulk EPG when switching channels once it is loaded', async () => {
         await settleEagerEpg();
         // Bulk EPG has loaded (eagerly, on entry).
@@ -1304,5 +1363,42 @@ function buildProgram(channelId: string, title: string): EpgProgram {
         category: null,
         startTimestamp,
         stopTimestamp,
+    };
+}
+
+/** A programme that starts two hours from now — nothing airing "now". */
+function buildFutureProgram(channelId: string, title: string): EpgProgram {
+    const startTimestamp = Math.floor((Date.now() + 2 * 60 * 60 * 1000) / 1000);
+    const stopTimestamp = startTimestamp + 30 * 60;
+
+    return {
+        start: new Date(startTimestamp * 1000).toISOString(),
+        stop: new Date(stopTimestamp * 1000).toISOString(),
+        channel: channelId,
+        title,
+        desc: null,
+        category: null,
+        startTimestamp,
+        stopTimestamp,
+    };
+}
+
+/** A currently airing short-EPG entry in the store's EpgItem shape. */
+function buildEpgItem(channelId: string, title: string): EpgItem {
+    const startTimestamp = Math.floor((Date.now() - 10 * 60 * 1000) / 1000);
+    const stopTimestamp = startTimestamp + 30 * 60;
+
+    return {
+        id: `${channelId}-${title}`,
+        epg_id: '',
+        title,
+        lang: '',
+        start: new Date(startTimestamp * 1000).toISOString(),
+        end: new Date(stopTimestamp * 1000).toISOString(),
+        stop: new Date(stopTimestamp * 1000).toISOString(),
+        description: `${title} description`,
+        channel_id: channelId,
+        start_timestamp: String(startTimestamp),
+        stop_timestamp: String(stopTimestamp),
     };
 }

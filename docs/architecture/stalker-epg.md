@@ -220,9 +220,14 @@ playlists.
 2. The component ensures playback link resolution as before
 3. The component ensures `ensureBulkItvEpg(168)` has run; the eager row effect
    normally started the same de-duplicated request before playback
-4. `selectedItvEpgPrograms()` feeds `app-epg-timeline`
-5. If the selected channel has no bulk programs, the component falls back to
-   `get_short_epg`
+4. `selectedItvEpgPrograms()` merged with the short-EPG fallback feeds
+   `app-epg-timeline` (`mergeEpgProgramLists`; bulk wins an exact start-time
+   collision)
+5. The component falls back to `get_short_epg` whenever the bulk list cannot
+   answer "what's on now" — because it is empty **or** because it only carries
+   future programmes (some portals' `get_epg_info` omits the currently airing
+   one). The fallback fills the gap; the bulk data keeps providing the days
+   ahead.
 
 The active panel no longer uses local EPG pagination or a "Load more" button.
 When Stalker live TV is playing through an internal player, the active panel is
@@ -234,13 +239,20 @@ stream URL has been resolved; external playback keeps the full EPG-only panel.
 
 Once non-radio ITV channels render, the post-reset component effect calls
 `ensureBulkItvEpg(168)`. It starts eagerly before playback and is de-duplicated
-against the active-channel path. Individual rows never issue per-row requests.
-As soon as the bulk request completes, visible row previews derive locally
-from `bulkItvEpgByChannel`:
+against the active-channel path. As soon as the bulk request completes, visible
+row previews derive locally from `bulkItvEpgByChannel`:
 
 - pick the current program for the channel, if one exists
 - compute progress from the cached program timestamps
-- leave the row in its existing placeholder state when no current program exists
+
+Rows the bulk guide cannot answer fall back to per-channel `get_short_epg`
+through `StalkerEpgPreviewQueue`
+(`stalker-live-stream-layout/stalker-live-epg-preview.ts`), mirroring the
+Xtream `EpgQueueService`: the queue only starts after the bulk request has
+settled (so it never races the answer it is a fallback for), fetches the
+currently rendered channels with bounded concurrency and inter-request
+spacing, caches results — including empty ones — for five minutes, and is
+reset on playlist switch because channel ids are only unique per portal.
 
 ## Cache Lifecycle
 
@@ -268,12 +280,15 @@ therefore falls back to `get_short_epg` when:
 
 - the bulk request fails
 - the bulk response is empty
-- the selected channel has no programs in the cached bulk map
+- the selected channel has no **currently airing** program in the cached bulk
+  map — a bulk list of future-only programmes is treated as incomplete, not as
+  an answer
 
-This keeps the panel usable even on limited portals, while still taking
-advantage of the richer bulk API when it is available. Row previews do not
-fallback to per-channel requests in this mode; they remain empty until bulk EPG
-is available.
+The fallback is merged with the bulk list rather than replacing it, so the
+panel shows "now" from the short EPG and the days ahead from the bulk guide.
+Row previews use the same per-channel fallback through the throttled
+`StalkerEpgPreviewQueue` once the bulk request has settled (see "Channel row
+preview flow").
 
 ## Manual EPG Mapping
 
