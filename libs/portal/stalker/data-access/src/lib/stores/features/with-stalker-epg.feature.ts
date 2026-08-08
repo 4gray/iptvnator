@@ -121,11 +121,16 @@ export function withStalkerEpg() {
                 // whenever it replaces the bulk record.
                 const mappingOverridesById = new Map<string, EpgProgram[]>();
                 const mappingCheckedIds = new Set<string>();
+                // Ownership is a fact of the saved mapping row, independent
+                // of whether the mapped XMLTV guide currently has programs —
+                // an empty mapped guide must still keep the portal EPG out.
+                const mappingOwnedIds = new Set<string>();
                 let mappingPlaylistId: string | null = null;
 
                 const resetMappingOverrides = (): void => {
                     mappingOverridesById.clear();
                     mappingCheckedIds.clear();
+                    mappingOwnedIds.clear();
                     mappingPlaylistId = null;
                 };
 
@@ -365,6 +370,7 @@ export function withStalkerEpg() {
                                 mappingCheckedIds.add(channelId);
                                 continue;
                             }
+                            mappingOwnedIds.add(channelId);
                             try {
                                 const programs =
                                     (await epgBridge.getChannelPrograms(
@@ -404,17 +410,21 @@ export function withStalkerEpg() {
                     },
 
                     /**
-                     * True when the channel's programs in the bulk record
-                     * come from a manual XMLTV mapping. Mapped channels must
-                     * never fall back to the portal's short EPG — the mapping
-                     * exists to replace the portal data, and merging the two
-                     * schedules could surface the portal's programme instead.
+                     * True when the channel has a saved manual XMLTV mapping
+                     * — even one whose mapped guide currently has no
+                     * programs. Mapped channels must never fall back to the
+                     * portal's short EPG: the mapping exists to replace the
+                     * portal data, and merging the two schedules could
+                     * surface the portal's programme instead.
                      */
                     hasItvEpgMappingOverride(
                         channelId: string | number
                     ): boolean {
-                        return mappingOverridesById.has(
-                            normalizeStalkerEntityId(channelId)
+                        const normalizedId =
+                            normalizeStalkerEntityId(channelId);
+                        return (
+                            mappingOwnedIds.has(normalizedId) ||
+                            mappingOverridesById.has(normalizedId)
                         );
                     },
 

@@ -202,6 +202,32 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
         ).toEqual(['Future B']);
     });
 
+    it('stops the preview backlog when the view leaves ITV', async () => {
+        // Let init settle: the playlist effect's first run resets the queue,
+        // discarding whatever the init sync dispatched.
+        await fixture.whenStable();
+        await new Promise<void>((resolve) => setTimeout(resolve, 250));
+        fetchChannelEpg.mockClear();
+
+        // Re-arm the backlog: a bulk-loaded transition re-runs the preview
+        // sync, which enqueues both future-only channels and dispatches the
+        // first one immediately.
+        bulkItvEpgLoaded.set(false);
+        fixture.detectChanges();
+        bulkItvEpgLoaded.set(true);
+        fixture.detectChanges();
+        const callsAtSwitch = fetchChannelEpg.mock.calls.length;
+        expect(callsAtSwitch).toBeGreaterThan(0);
+
+        // Leaving ITV must supersede the rest of the backlog — an abandoned
+        // view must not keep spending portal requests on vanished rows.
+        selectedContentType.set('radio');
+        fixture.detectChanges();
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+
+        expect(fetchChannelEpg.mock.calls.length).toBe(callsAtSwitch);
+    });
+
     it('does not let a late queued fallback overwrite an installed owner', () => {
         const apply = (channelId: string) =>
             (

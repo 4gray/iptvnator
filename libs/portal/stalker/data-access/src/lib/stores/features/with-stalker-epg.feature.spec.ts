@@ -280,6 +280,19 @@ describe('withStalkerEpg', () => {
             expect(store.hasItvEpgMappingOverride('10001')).toBe(true);
             expect(store.hasItvEpgMappingOverride('10002')).toBe(false);
         });
+
+        it('keeps ownership for a mapping whose mapped guide is currently empty', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([]);
+
+            await store.applyMappedItvEpg(['10001']);
+
+            // The mapping row exists, so the channel is owned even though it
+            // contributes no programs — the portal fallback must stay out.
+            expect(store.hasItvEpgMappingOverride('10001')).toBe(true);
+        });
     });
 });
 

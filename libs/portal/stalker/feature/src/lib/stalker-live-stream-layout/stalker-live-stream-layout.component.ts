@@ -495,6 +495,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             if (this.isRadioMode() || !this.supportsEpg) {
                 this.clearEpgPreviewMaps();
+                // Supersede the queue too — an abandoned ITV view must not
+                // keep spending portal requests on rows that are gone.
+                this.epgPreviewQueue.sync([]);
                 this.cdr.markForCheck();
                 return;
             }
@@ -1070,6 +1073,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
         const bulkProgramsByChannel = this.stalkerStore.bulkItvEpgByChannel();
         if (channels.length === 0) {
+            // A legacy-paged category switch clears the list before the new
+            // channels arrive — supersede the backlog so the disappeared
+            // rows stop consuming portal request capacity.
+            this.epgPreviewQueue.sync([]);
             this.cdr.markForCheck();
             return;
         }
