@@ -13,7 +13,12 @@ export function createVjsPlayerOptions(
         ? { ...options, sources: [], autoplay: false }
         : { ...options, autoplay: true };
     if (!sharedControls) {
-        return baseOptions;
+        // Controls must be enabled through the constructor, not a `[controls]`
+        // template binding: `player.reset()` (raw MPEG-TS/live path) replaces
+        // the tech <video> element, and a binding to the original element can
+        // never reach the replacement — Video.js's own control bar lives
+        // outside the tech element and survives the swap.
+        return { ...baseOptions, controls: true };
     }
     return {
         ...baseOptions,
