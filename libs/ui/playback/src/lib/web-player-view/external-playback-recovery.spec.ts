@@ -134,6 +134,30 @@ describe('ExternalPlaybackRecovery', () => {
         recovery.destroy();
     });
 
+    it('keeps an exact launching session correlated after the local timeout', () => {
+        const recovery = new ExternalPlaybackRecovery();
+        recovery.syncSession('content-a');
+        recovery.begin('mpv', null);
+        recovery.observe(
+            session({ id: 'slow-mpv', player: 'mpv', status: 'launching' })
+        );
+
+        jest.advanceTimersByTime(EXTERNAL_RECOVERY_LAUNCH_TIMEOUT_MS);
+
+        expect(recovery.target('mpv')).toEqual({
+            attempts: 1,
+            sessionId: 'slow-mpv',
+            status: 'error',
+        });
+        expect(
+            recovery.observe(
+                session({ id: 'slow-mpv', player: 'mpv', status: 'playing' })
+            )
+        ).toBe(true);
+        expect(recovery.target('mpv').status).toBe('playing');
+        recovery.destroy();
+    });
+
     it('invalidates an old intent and timer when the content session changes', () => {
         const recovery = new ExternalPlaybackRecovery();
         recovery.syncSession('content-a');

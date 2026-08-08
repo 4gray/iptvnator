@@ -661,11 +661,16 @@ target becomes an explicit reopen action and a failed target becomes Try again.
 Only an exact correlated Electron `playing` session update earns the Playing
 label. A single external launch handshake owns the session: duplicate actions
 are ignored, other external actions wait, and an existing live external session
-must close before a different player can start.
+must close before a different player can start. A replacement does not launch
+until teardown of the exact spawned process is confirmed. If the local
+handshake timeout fires after Electron has supplied an exact session ID, the ID
+stays correlated so a later `opened`, `playing`, or `error` update can reconcile
+the action with the global dock.
 
 The global external-playback dock uses the same Electron session status. It
 shows Opening player with progress during launch, Player started for `opened`,
-and Playing only for `playing`. Launch errors remain visible until dismissed;
+and Playing only for `playing`. External player errors remain visible until
+dismissed, whether startup failed or a started player exited unexpectedly;
 the dock deliberately has no retry because it does not own the original headers
 or credentials required to reconstruct a safe launch request.
 
