@@ -139,10 +139,12 @@ export async function enrichSerialSelectionWithTmdb<
 }
 
 /**
- * Lazy per-season episode enrichment, fired when the user opens a season.
+ * Lazy per-season enrichment, fired when the user opens a season.
  * Requires a prior show-level match (`info.tmdb_id` set by
  * enrichSerialSelectionWithTmdb). Merges real episode names, overviews and
- * stills into `episodes[seasonKey]` by episode number.
+ * stills into `episodes[seasonKey]` by episode number, and stores the
+ * TMDB season overview in `tmdb_season_overviews[seasonKey]` — the detail
+ * view's fallback when the provider season overview is empty or URL junk.
  */
 export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     store: EnrichableSelectionStore<TItem>,
@@ -182,11 +184,10 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
         providerSeasonCount: Object.keys(selected?.episodes ?? {}).length,
     });
 
-    const tmdbEpisodes = await enrichment.getSeasonEpisodes(
-        info.tmdb_id,
-        seasonNumber
-    );
-    if (!tmdbEpisodes?.length || !isCurrentSelection()) {
+    const season = await enrichment.getSeason(info.tmdb_id, seasonNumber);
+    const tmdbEpisodes = season?.episodes ?? [];
+    const seasonOverview = season?.overview?.trim() || null;
+    if ((!tmdbEpisodes.length && !seasonOverview) || !isCurrentSelection()) {
         return;
     }
 
@@ -202,15 +203,39 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     }
 
     try {
+        const mergedEpisodes = tmdbEpisodes.length
+            ? mergeEpisodesWithTmdb(currentEpisodes, tmdbEpisodes)
+            : null;
+        // The detail view re-fires enrichment on every selection write, so
+        // a repeat cache-served run must converge: write only what actually
+        // changed, or each write would schedule the next run forever.
+        const episodesChanged =
+            mergedEpisodes !== null &&
+            JSON.stringify(mergedEpisodes) !== JSON.stringify(currentEpisodes);
+        const overviewChanged =
+            seasonOverview !== null &&
+            current.tmdb_season_overviews?.[seasonKey] !== seasonOverview;
+        if (!episodesChanged && !overviewChanged) {
+            return;
+        }
         store.setSelectedItem({
             ...current,
-            episodes: {
-                ...current.episodes,
-                [seasonKey]: mergeEpisodesWithTmdb(
-                    currentEpisodes,
-                    tmdbEpisodes
-                ),
-            },
+            ...(episodesChanged
+                ? {
+                      episodes: {
+                          ...current.episodes,
+                          [seasonKey]: mergedEpisodes,
+                      },
+                  }
+                : {}),
+            ...(overviewChanged
+                ? {
+                      tmdb_season_overviews: {
+                          ...current.tmdb_season_overviews,
+                          [seasonKey]: seasonOverview,
+                      },
+                  }
+                : {}),
         } as unknown as TItem);
     } catch (error) {
         console.warn('[TMDB] season merge failed:', error);

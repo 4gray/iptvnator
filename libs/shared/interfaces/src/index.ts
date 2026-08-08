@@ -35,6 +35,7 @@ export * from './lib/portal-activity-item.interface';
 export * from './lib/portal-debug.interface';
 export * from './lib/playlist-display-label.util';
 export * from './lib/portal-playback.interface';
+export * from './lib/provider-overview.util';
 export * from './lib/random-id.util';
 export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
