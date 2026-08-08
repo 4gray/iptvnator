@@ -102,10 +102,7 @@ function revealCappedExternalSiblings(
             continue;
         }
         if (retained.length >= 3) {
-            const replaceIndex = retained.findLastIndex(
-                (recommendation, index) =>
-                    index > 0 && !isExternalRecommendation(recommendation)
-            );
+            const replaceIndex = findLastReplaceableRecommendation(retained);
             if (replaceIndex < 0) {
                 continue;
             }
@@ -114,6 +111,17 @@ function revealCappedExternalSiblings(
         retained.push(candidate);
     }
     return retained;
+}
+
+function findLastReplaceableRecommendation(
+    recommendations: readonly PlaybackRecommendation[]
+): number {
+    for (let index = recommendations.length - 1; index > 0; index -= 1) {
+        if (!isExternalRecommendation(recommendations[index])) {
+            return index;
+        }
+    }
+    return -1;
 }
 
 function rerankExternalRecommendations(
