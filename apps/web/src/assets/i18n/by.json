@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Выберыце са спісу",
         "VERSION": "Версія праграмы",
         "SAVE_CHANGES": "Захаваць",
+        "UNSAVED_CHANGES": "У вас ёсць незахаваныя змены",
+        "DISCARD_CHANGES": "Адмяніць змены",
         "BACK_TO_HOME": "Назад",
         "NEW_VERSION_AVAILABLE": "Даступная новая версія праграмы",
         "LATEST_VERSION": "Вы выкарыстоўваеце апошнюю версію праграмы",

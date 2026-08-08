@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Válasszon egy lehetőséget",
         "VERSION": "Verzió",
         "SAVE_CHANGES": "Változtatások mentése",
+        "UNSAVED_CHANGES": "Nem mentett módosításaid vannak",
+        "DISCARD_CHANGES": "Elvetés",
         "BACK_TO_HOME": "Vissza",
         "NEW_VERSION_AVAILABLE": "Új verzió érhető el",
         "LATEST_VERSION": "A legújabb verziót használja",

@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '../services/settings-store.service';
@@ -19,14 +18,6 @@ const ERROR_SNACKBAR_CONFIG = expect.objectContaining({
 });
 
 /**
- * Assertions target the MatDialog the component actually calls: spying on the
- * one returned by `TestBed.inject(MatDialog)` does not observe it.
- */
-interface SettingsComponentPrivateTestApi {
-    matDialog: MatDialog;
-}
-
-/**
  * Settings live in the renderer's IndexedDB, and both halves of the round trip
  * can fail while the UI keeps looking healthy: a failed read shows defaults as
  * if they were saved, and a failed write is applied in memory so it survives
@@ -39,8 +30,6 @@ describe('SettingsComponent storage failures', () => {
     let snackBar: MatSnackBarStub;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     const originalElectron = window.electron;
-    const componentMatDialog = (): MatDialog =>
-        (component as unknown as SettingsComponentPrivateTestApi).matDialog;
 
     beforeEach(waitForAsync(() => {
         epgBridge = createEpgBridgeStub();
@@ -77,12 +66,11 @@ describe('SettingsComponent storage failures', () => {
         );
     });
 
-    it('warns and keeps the dialog open when the settings write fails', async () => {
+    it('warns and keeps the form dirty when the settings write fails', async () => {
         settingsStore.updateSettings.mockRejectedValue(
             new Error('storage unavailable')
         );
-        const closeAll = jest.spyOn(componentMatDialog(), 'closeAll');
-        component.isDialog = true;
+        component.settingsForm.markAsDirty();
 
         component.onSubmit();
         await fixture.whenStable();
@@ -92,23 +80,25 @@ describe('SettingsComponent storage failures', () => {
             'CLOSE',
             ERROR_SNACKBAR_CONFIG
         );
-        expect(closeAll).not.toHaveBeenCalled();
+        // The unsaved-changes bar keys off the dirty state, so the failed
+        // write must not mark the form pristine — that is what keeps the
+        // retry path on screen.
+        expect(component.settingsForm.dirty).toBe(true);
     });
 
-    it('closes the dialog only after the settings write succeeded', async () => {
+    it('marks the form pristine only after the settings write succeeded', async () => {
         settingsStore.updateSettings.mockResolvedValue(undefined);
-        const closeAll = jest.spyOn(componentMatDialog(), 'closeAll');
         jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
-        component.isDialog = true;
+        component.settingsForm.markAsDirty();
 
         component.onSubmit();
         // save() resolves a tick after the store write: the callback and
-        // the Electron mirror run first, so the close lands on the next
-        // turn of the microtask queue.
+        // the Electron mirror run first, so the pristine flip lands on the
+        // next turn of the microtask queue.
         await fixture.whenStable();
         await fixture.whenStable();
 
-        expect(closeAll).toHaveBeenCalledTimes(1);
+        expect(component.settingsForm.pristine).toBe(true);
     });
 
     it('warns when a section write fails without leaving an unhandled rejection', async () => {

@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Selecteer een optie",
         "VERSION": "Versie",
         "SAVE_CHANGES": "Wijzigingen opslaan",
+        "UNSAVED_CHANGES": "Je hebt niet-opgeslagen wijzigingen",
+        "DISCARD_CHANGES": "Verwerpen",
         "BACK_TO_HOME": "Terug",
         "NEW_VERSION_AVAILABLE": "Een nieuwe versie is beschikbaar",
         "LATEST_VERSION": "Je gebruikt de nieuwste versie",

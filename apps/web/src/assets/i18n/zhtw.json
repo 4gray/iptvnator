@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "選擇一個選項",
         "VERSION": "版本",
         "SAVE_CHANGES": "儲存變更",
+        "UNSAVED_CHANGES": "您有未儲存的變更",
+        "DISCARD_CHANGES": "捨棄變更",
         "BACK_TO_HOME": "返回主頁",
         "NEW_VERSION_AVAILABLE": "有新版本可用",
         "LATEST_VERSION": "您正在使用最新版本",

@@ -32,7 +32,6 @@ import { EpgViewModeOption } from './settings.models';
 })
 export class SettingsEpgSectionComponent {
     readonly form = input.required<FormGroup>();
-    readonly activeSection = input.required<string>();
     readonly epgUrl = input.required<FormArray>();
     readonly isClearingEpgData = input(false);
     readonly epgViewModeOptions = input.required<EpgViewModeOption[]>();

@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Επιλέξτε μια επιλογή",
         "VERSION": "Έκδοση",
         "SAVE_CHANGES": "Αποθήκευση αλλαγών",
+        "UNSAVED_CHANGES": "Έχετε μη αποθηκευμένες αλλαγές",
+        "DISCARD_CHANGES": "Απόρριψη",
         "BACK_TO_HOME": "Πίσω",
         "NEW_VERSION_AVAILABLE": "Υπάρχει διαθέσιμη μια νέα έκδοση",
         "LATEST_VERSION": "Χρησιμοποιείτε την πιο πρόσφατη έκδοση",

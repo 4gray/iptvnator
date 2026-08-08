@@ -141,10 +141,25 @@ export const routes: Routes = [
             },
             {
                 path: 'settings',
-                loadComponent: () =>
-                    import('./settings/settings.component').then(
-                        (c) => c.SettingsComponent
-                    ),
+                children: [
+                    {
+                        path: '',
+                        pathMatch: 'full',
+                        redirectTo: 'general',
+                    },
+                    {
+                        // One routed component for every section: the same
+                        // instance survives :section param changes (default
+                        // route reuse), so the settings form — and its dirty
+                        // state — persists while the user moves between
+                        // section pages.
+                        path: ':section',
+                        loadComponent: () =>
+                            import('./settings/settings.component').then(
+                                (c) => c.SettingsComponent
+                            ),
+                    },
+                ],
             },
         ],
     },

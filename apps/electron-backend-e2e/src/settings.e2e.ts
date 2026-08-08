@@ -16,6 +16,7 @@ import {
     m3uFixturePath,
     openGlobalRecent,
     openSettings,
+    openSettingsSection,
     openWorkspaceSection,
     resetMockServers,
     restartElectronApp,
@@ -49,6 +50,7 @@ test.describe('Electron Settings', () => {
 
         try {
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'about');
 
             await expect(app.mainWindow.getByTestId('app-update-status')).toBeVisible();
             await expect(app.mainWindow.getByTestId('app-update-check')).toBeVisible();
@@ -75,6 +77,7 @@ test.describe('Electron Settings', () => {
             await installExternalPlayerLaunchCapture(app);
 
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'playback');
             await expect(
                 app.mainWindow.getByTestId(
                     'external-player-double-click-setting'
@@ -117,6 +120,7 @@ test.describe('Electron Settings', () => {
             });
 
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'playback');
             await expect(doubleClickSetting).toBeVisible();
             await doubleClickCheckbox.check();
             await saveSettings(app.mainWindow);
@@ -229,6 +233,7 @@ test.describe('Electron Settings', () => {
             await firstLaunch.mainWindow
                 .locator('[data-test-id="DARK_THEME"]')
                 .click();
+            await openSettingsSection(firstLaunch.mainWindow, 'playback');
             await selectSettingsOption(
                 firstLaunch.mainWindow,
                 'select-video-player',
@@ -250,6 +255,7 @@ test.describe('Electron Settings', () => {
                 )
                 .uncheck();
             await enableRemoteControl(firstLaunch.mainWindow, 8877);
+            await openSettingsSection(firstLaunch.mainWindow, 'epg');
             await firstLaunch.mainWindow
                 .getByRole('button', { name: 'Add EPG source' })
                 .click();
@@ -273,6 +279,7 @@ test.describe('Electron Settings', () => {
             await expect(
                 secondLaunch.mainWindow.locator('[data-test-id="DARK_THEME"]')
             ).toHaveAttribute('aria-checked', 'true');
+            await openSettingsSection(secondLaunch.mainWindow, 'playback');
             await expect(
                 secondLaunch.mainWindow.getByTestId('select-video-player')
             ).toContainText(/HTML5/i);
@@ -289,6 +296,7 @@ test.describe('Electron Settings', () => {
                     'mat-checkbox[formcontrolname="showExternalPlaybackBar"] input[type="checkbox"]'
                 )
             ).not.toBeChecked();
+            await openSettingsSection(secondLaunch.mainWindow, 'remote-control');
             await expect(
                 secondLaunch.mainWindow.locator(
                     'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
@@ -297,6 +305,7 @@ test.describe('Electron Settings', () => {
             await expect(
                 secondLaunch.mainWindow.locator('#remoteControlPort')
             ).toHaveValue('8877');
+            await openSettingsSection(secondLaunch.mainWindow, 'epg');
             await expect(
                 secondLaunch.mainWindow.locator('.epg-source-row input').first()
             ).toHaveValue(epgServer.resourceUrl);
@@ -313,6 +322,7 @@ test.describe('Electron Settings', () => {
 
         try {
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'playback');
             await selectSettingsOption(
                 app.mainWindow,
                 'select-video-player',
@@ -478,6 +488,7 @@ test.describe('Electron Settings', () => {
 
         try {
             await openSettings(firstLaunch.mainWindow);
+            await openSettingsSection(firstLaunch.mainWindow, 'epg');
             const listToggle = firstLaunch.mainWindow.locator(
                 '[data-test-id="epg-view-mode-list"]'
             );
@@ -493,6 +504,7 @@ test.describe('Electron Settings', () => {
 
         try {
             await openSettings(secondLaunch.mainWindow);
+            await openSettingsSection(secondLaunch.mainWindow, 'epg');
             await expect(
                 secondLaunch.mainWindow.locator(
                     '[data-test-id="epg-view-mode-list"]'
@@ -508,6 +520,7 @@ test.describe('Electron Settings', () => {
 
         try {
             await openSettings(firstLaunch.mainWindow);
+            await openSettingsSection(firstLaunch.mainWindow, 'dashboard');
             await firstLaunch.mainWindow
                 .locator(
                     'mat-checkbox[formcontrolname="showDashboard"] input[type="checkbox"]'

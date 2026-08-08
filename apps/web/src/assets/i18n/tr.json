@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Bir seçenek belirleyin",
         "VERSION": "Sürüm",
         "SAVE_CHANGES": "Değişiklikleri kaydet",
+        "UNSAVED_CHANGES": "Kaydedilmemiş değişiklikleriniz var",
+        "DISCARD_CHANGES": "Vazgeç",
         "BACK_TO_HOME": "Ana sayfaya dön",
         "NEW_VERSION_AVAILABLE": "Yeni bir sürüm mevcut",
         "LATEST_VERSION": "En son sürümü kullanıyorsunuz",

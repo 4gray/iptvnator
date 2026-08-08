@@ -514,7 +514,7 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
   `/workspace/xtreams/:id/downloads/:downloadId` and
   `/workspace/stalker/:id/downloads/:downloadId`. Focused download details hide
   the workspace context panel.
-- Settings: `/workspace/settings` (`/settings` redirects there)
+- Settings: `/workspace/settings/:section` — one page per section (`general`, `playback`, `epg`, `dashboard`, `remote-control`, `tmdb`, `backup`, `reset`, `about`); `/workspace/settings` redirects to `general`, unknown or capability-gated sections redirect there too, and `/settings` redirects into the workspace. The shared form lives on the parent `SettingsComponent`, so edits survive section switches; a floating unsaved-changes bar (Save/Discard) replaces the old always-visible footer Save button
 
 **Service Architecture** (Factory Pattern):
 

@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "اختر خيارًا",
         "VERSION": "الإصدار",
         "SAVE_CHANGES": "حفظ التغييرات",
+        "UNSAVED_CHANGES": "لديك تغييرات غير محفوظة",
+        "DISCARD_CHANGES": "تجاهل",
         "BACK_TO_HOME": "العودة للرئيسية",
         "NEW_VERSION_AVAILABLE": "إصدار جديد متاح",
         "LATEST_VERSION": "أنت تستخدم الإصدار الأحدث",

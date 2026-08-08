@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "옵션을 선택하세요",
         "VERSION": "버전",
         "SAVE_CHANGES": "변경 사항 저장",
+        "UNSAVED_CHANGES": "저장되지 않은 변경 사항이 있습니다",
+        "DISCARD_CHANGES": "취소",
         "BACK_TO_HOME": "홈으로",
         "NEW_VERSION_AVAILABLE": "새로운 버전이 있습니다",
         "LATEST_VERSION": "최신 버전을 사용하고 있습니다",

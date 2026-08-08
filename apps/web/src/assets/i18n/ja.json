@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "オプションを選択",
         "VERSION": "バージョン",
         "SAVE_CHANGES": "変更を保存",
+        "UNSAVED_CHANGES": "保存されていない変更があります",
+        "DISCARD_CHANGES": "破棄",
         "BACK_TO_HOME": "戻る",
         "NEW_VERSION_AVAILABLE": "新しいバージョンが利用可能です",
         "LATEST_VERSION": "最新バージョンを使用中です",

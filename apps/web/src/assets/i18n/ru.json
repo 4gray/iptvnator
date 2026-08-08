@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Выберите из списка",
         "VERSION": "Версия приложения",
         "SAVE_CHANGES": "Сохранить",
+        "UNSAVED_CHANGES": "У вас есть несохранённые изменения",
+        "DISCARD_CHANGES": "Отменить изменения",
         "BACK_TO_HOME": "Назад",
         "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
         "LATEST_VERSION": "Вы используете последнюю версию приложения",

@@ -16,7 +16,6 @@ function configureComponent(
     fixture: ComponentFixture<SettingsAboutSectionComponent>,
     status: ElectronBridgeAppUpdateStatus
 ) {
-    fixture.componentRef.setInput('activeSection', 'about');
     fixture.componentRef.setInput('isDesktop', true);
     fixture.componentRef.setInput('version', '0.22.0');
     fixture.componentRef.setInput('updateMessage', '');
@@ -145,7 +144,6 @@ describe('SettingsAboutSectionComponent version display', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsAboutSectionComponent);
-        fixture.componentRef.setInput('activeSection', 'about');
         fixture.componentRef.setInput('version', '0.23.0');
     });
 

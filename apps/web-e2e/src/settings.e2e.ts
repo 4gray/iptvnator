@@ -4,16 +4,25 @@ import { expect, test } from './fixtures';
 
 async function openSettings(page: Page) {
     await page.locator('a[href$="/workspace/settings"]').click();
-    await page.waitForURL(/\/workspace\/settings$/);
+    // The bare settings URL redirects to the default section page.
+    await page.waitForURL(/\/workspace\/settings\/general$/);
     await expect(page.locator('.settings-container')).toBeVisible();
     await expect(page.locator('.settings-back-button')).toBeVisible();
+}
+
+/** Settings render one section page at a time — open it via the rail. */
+async function openSettingsSection(page: Page, sectionId: string) {
+    await page.locator(`[data-test-id="settings-section-${sectionId}"]`).click();
+    await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
 }
 
 async function saveSettings(page: Page) {
     const saveButton = page.locator('[data-test-id="save-settings"]');
 
     await saveButton.click();
-    await expect(saveButton).toBeDisabled();
+    // A successful save marks the form pristine, which removes the whole
+    // unsaved-changes bar together with the save button.
+    await expect(saveButton).toBeHidden();
 }
 
 test.describe('Settings', () => {
@@ -30,6 +39,7 @@ test.describe('Settings', () => {
 
     test('@settings @web Change video player', async ({ page }) => {
         await openSettings(page);
+        await openSettingsSection(page, 'playback');
 
         const playerSelect = page.locator('[data-test-id="select-video-player"]');
 
@@ -42,6 +52,7 @@ test.describe('Settings', () => {
         await saveSettings(page);
         await page.reload();
         await openSettings(page);
+        await openSettingsSection(page, 'playback');
 
         await expect(playerSelect).toContainText(
             /HTML5/i
@@ -52,6 +63,7 @@ test.describe('Settings', () => {
         page,
     }) => {
         await openSettings(page);
+        await openSettingsSection(page, 'playback');
 
         const setting = page.locator(
             '[data-test-id="web-player-shared-controls-setting"]'
@@ -64,6 +76,7 @@ test.describe('Settings', () => {
         await saveSettings(page);
         await page.reload();
         await openSettings(page);
+        await openSettingsSection(page, 'playback');
 
         await expect(checkbox).toBeChecked();
     });
@@ -90,6 +103,60 @@ test.describe('Settings', () => {
 
         await expect(
             themeGroup.getByRole('radio', { name: 'Dark', exact: true })
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('@settings @web Deep links open one section page and unknown sections redirect', async ({
+        page,
+    }) => {
+        await page.goto('/workspace/settings/playback');
+
+        // Only the routed section renders — the playback controls are
+        // there, the general ones are not.
+        await expect(
+            page.locator('[data-test-id="select-video-player"]')
+        ).toBeVisible();
+        await expect(
+            page.locator('[data-test-id="select-language"]')
+        ).toHaveCount(0);
+
+        // A stale or mistyped section URL is rewritten to the default page.
+        await page.goto('/workspace/settings/nonsense');
+        await page.waitForURL(/\/workspace\/settings\/general$/);
+        await expect(
+            page.locator('[data-test-id="select-language"]')
+        ).toBeVisible();
+    });
+
+    test('@settings @web Unsaved bar survives section switches and discard reverts', async ({
+        page,
+    }) => {
+        await openSettings(page);
+
+        const unsavedBar = page.locator(
+            '[data-test-id="settings-unsaved-bar"]'
+        );
+        await expect(unsavedBar).toBeHidden();
+
+        const themeGroup = page.locator(
+            '[data-test-id="select-theme"][role="radiogroup"]'
+        );
+        await themeGroup
+            .getByRole('radio', { name: 'Dark', exact: true })
+            .click();
+        await expect(unsavedBar).toBeVisible();
+
+        // The staged edit belongs to the page, not the section — moving to
+        // another section page must keep the bar (and the pending change).
+        await openSettingsSection(page, 'playback');
+        await expect(unsavedBar).toBeVisible();
+
+        await page.locator('[data-test-id="discard-settings"]').click();
+        await expect(unsavedBar).toBeHidden();
+
+        await openSettingsSection(page, 'general');
+        await expect(
+            themeGroup.getByRole('radio', { name: 'System', exact: true })
         ).toHaveAttribute('aria-checked', 'true');
     });
 

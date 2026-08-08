@@ -296,6 +296,8 @@
         "VIDEO_PLAYER_PLACEHOLDER": "Choisir une option",
         "VERSION": "Version",
         "SAVE_CHANGES": "Enregistrer les modifications",
+        "UNSAVED_CHANGES": "Vous avez des modifications non enregistrées",
+        "DISCARD_CHANGES": "Annuler les modifications",
         "BACK_TO_HOME": "Retourner à l'accueil",
         "NEW_VERSION_AVAILABLE": "Une nouvelle version est disponible",
         "LATEST_VERSION": "Vous utilisez la dernière version",

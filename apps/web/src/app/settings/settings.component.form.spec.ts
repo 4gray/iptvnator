@@ -18,6 +18,7 @@ import {
     DEFAULT_SETTINGS,
     MatSnackBarStub,
     MockSettingsStore,
+    setSettingsSection,
     stubSettingsSideEffects,
 } from './test-stubs/settings-test-harness.stub';
 
@@ -128,6 +129,9 @@ describe('SettingsComponent form', () => {
         });
 
         it('updates the EPG view mode through the epg section output', () => {
+            setSettingsSection('epg');
+            fixture.detectChanges();
+
             const listButton = (
                 fixture.nativeElement as HTMLElement
             ).querySelector(
@@ -146,6 +150,9 @@ describe('SettingsComponent form', () => {
 
     describe('Dashboard controls', () => {
         it('renders dashboard controls with the expected defaults', () => {
+            setSettingsSection('dashboard');
+            fixture.detectChanges();
+
             const nativeElement = fixture.nativeElement as HTMLElement;
 
             expect(
@@ -205,6 +212,61 @@ describe('SettingsComponent form', () => {
             expect(
                 component.settingsForm.get('dashboardRails.hero')?.enabled
             ).toBe(true);
+        });
+    });
+
+    describe('Unsaved-changes bar', () => {
+        const unsavedBar = () =>
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="settings-unsaved-bar"]'
+            );
+
+        it('stays hidden while the form is pristine', () => {
+            expect(unsavedBar()).toBeNull();
+        });
+
+        it('appears once an edit lands and survives a section switch', () => {
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            expect(unsavedBar()).not.toBeNull();
+
+            // The form lives on the page component, not the section pages —
+            // moving to another section must not swallow the pending edit.
+            setSettingsSection('about');
+            fixture.detectChanges();
+
+            expect(unsavedBar()).not.toBeNull();
+            expect(component.settingsForm.dirty).toBe(true);
+        });
+
+        it('hides again after a successful save', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.settingsForm.pristine).toBe(true);
+            expect(unsavedBar()).toBeNull();
+        });
+
+        it('discard reverts to the stored values and hides the bar', () => {
+            const storedTheme = component.settingsForm.value.theme;
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            component.discardChanges();
+            fixture.detectChanges();
+
+            expect(component.settingsForm.value.theme).toBe(storedTheme);
+            expect(component.settingsForm.pristine).toBe(true);
+            expect(unsavedBar()).toBeNull();
         });
     });
 
