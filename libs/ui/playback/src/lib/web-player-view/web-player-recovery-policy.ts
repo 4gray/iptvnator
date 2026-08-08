@@ -9,14 +9,17 @@ import {
 } from '@iptvnator/playback/util';
 import {
     VideoPlayer,
+    type ExternalPlayerName,
     type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackBinding } from './playback-recovery-session';
+import type { ExternalRecoveryStates } from './external-playback-recovery';
 
 export function createWebPlayerRecommendations(options: {
     readonly diagnostic: PlaybackDiagnostic | null;
     readonly binding: PlaybackBinding | null;
     readonly attemptedTargets: ReadonlySet<PlaybackRecommendationTarget>;
+    readonly externalStates: ExternalRecoveryStates;
     readonly managedExternalPlayersAvailable: boolean;
     readonly playbackExternallyTransferable: boolean;
     readonly isLive: boolean;
@@ -26,10 +29,15 @@ export function createWebPlayerRecommendations(options: {
         return [];
     }
     const sourceKind = resolvePlaybackSourceKind(options.diagnostic);
-    return recommendPlaybackRecovery({
+    const attemptedInlineTargets = new Set(
+        [...options.attemptedTargets].filter(
+            (target) => target !== 'mpv' && target !== 'vlc'
+        )
+    );
+    const recommendations = recommendPlaybackRecovery({
         diagnostic: options.diagnostic,
         activeTarget: options.binding.target,
-        attemptedTargets: options.attemptedTargets,
+        attemptedTargets: attemptedInlineTargets,
         targetCapabilities: createPlaybackTargetCapabilities({
             sourceKind,
             managedExternalPlayersAvailable:
@@ -44,6 +52,50 @@ export function createWebPlayerRecommendations(options: {
             externalTransferable: options.playbackExternallyTransferable,
         },
         alternativeSourceCount: options.alternativeSourceCount,
+    });
+    return rerankExternalRecommendations(
+        recommendations,
+        options.externalStates
+    );
+}
+
+function rerankExternalRecommendations(
+    recommendations: readonly PlaybackRecommendation[],
+    states: ExternalRecoveryStates
+): readonly PlaybackRecommendation[] {
+    const external = recommendations
+        .map((recommendation, index) => ({ index, recommendation }))
+        .filter(
+            (
+                item
+            ): item is {
+                readonly index: number;
+                readonly recommendation: Extract<
+                    PlaybackRecommendation,
+                    { readonly action: 'player' }
+                > & { readonly target: ExternalPlayerName };
+            } =>
+                item.recommendation.action === 'player' &&
+                (item.recommendation.target === 'mpv' ||
+                    item.recommendation.target === 'vlc')
+        )
+        .sort((left, right) => {
+            const attemptDifference =
+                states[left.recommendation.target].attempts -
+                states[right.recommendation.target].attempts;
+            return attemptDifference || left.index - right.index;
+        });
+    let externalIndex = 0;
+    return recommendations.map((recommendation, index) => {
+        const ranked =
+            recommendation.action === 'player' &&
+            (recommendation.target === 'mpv' || recommendation.target === 'vlc')
+                ? external[externalIndex++].recommendation
+                : recommendation;
+        return {
+            ...ranked,
+            priority: index === 0 ? 'primary' : 'secondary',
+        };
     });
 }
 

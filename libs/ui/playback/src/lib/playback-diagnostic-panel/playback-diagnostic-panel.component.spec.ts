@@ -16,6 +16,7 @@ import type {
     VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
 import { PlaybackDiagnosticPanelComponent } from './playback-diagnostic-panel.component';
+import type { ExternalRecoveryStates } from '../web-player-view/external-playback-recovery';
 
 const DIAGNOSTIC: PlaybackDiagnostic = {
     code: PlaybackDiagnosticCode.UnsupportedContainer,
@@ -106,6 +107,16 @@ function source(index: number): VodSourceDescriptor {
     };
 }
 
+function externalStates(
+    overrides: Partial<ExternalRecoveryStates> = {}
+): ExternalRecoveryStates {
+    return {
+        mpv: { attempts: 0, sessionId: null, status: 'idle' },
+        vlc: { attempts: 0, sessionId: null, status: 'idle' },
+        ...overrides,
+    };
+}
+
 describe('PlaybackDiagnosticPanelComponent', () => {
     let fixture: ComponentFixture<PlaybackDiagnosticPanelComponent>;
     let component: PlaybackDiagnosticPanelComponent;
@@ -131,6 +142,12 @@ describe('PlaybackDiagnosticPanelComponent', () => {
                 REASON_DIFFERENT_ENGINE_FAMILY:
                     'This player uses a different playback engine that may support the stream format more reliably.',
                 RECOMMENDATIONS_LABEL: 'Recommended recovery actions',
+                ACTION_OPEN_MPV: 'Open in MPV',
+                ACTION_OPEN_VLC: 'Open in VLC',
+                ACTION_OPENING_MPV: 'Opening MPV…',
+                ACTION_REOPEN_MPV: 'Open MPV again',
+                EXTERNAL_OPENING: 'Opening player…',
+                EXTERNAL_STARTED: 'Player started',
             },
             PORTALS: {
                 MULTI_SOURCE: {
@@ -148,6 +165,74 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         fixture.componentRef.setInput('playback', PLAYBACK);
         fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
         fixture.componentRef.setInput('playbackExternallyTransferable', true);
+        fixture.componentRef.setInput('externalStates', externalStates());
+    });
+
+    it('keeps the focused external button mounted through launch and started states', () => {
+        const players: PlaybackRecommendationTarget[] = [];
+        component.playerRequested.subscribe((target) => players.push(target));
+        fixture.componentRef.setInput('recommendations', [
+            recommendation('player', {
+                target: 'mpv',
+                priority: 'primary',
+            }),
+            recommendation('player', { target: 'vlc' }),
+        ]);
+        fixture.detectChanges();
+        const mpv = fixture.nativeElement.querySelector(
+            '[data-test-id="playback-fallback-mpv"]'
+        ) as HTMLButtonElement;
+        mpv.focus();
+
+        fixture.componentRef.setInput(
+            'externalStates',
+            externalStates({
+                mpv: { attempts: 1, sessionId: null, status: 'launching' },
+            })
+        );
+        fixture.componentRef.setInput('pending', true);
+        fixture.detectChanges();
+
+        const launchingMpv = fixture.nativeElement.querySelector(
+            '[data-test-id="playback-fallback-mpv"]'
+        ) as HTMLButtonElement;
+        expect(launchingMpv).toBe(mpv);
+        expect(document.activeElement).toBe(mpv);
+        expect(mpv.disabled).toBe(false);
+        expect(mpv.getAttribute('aria-disabled')).toBe('true');
+        expect(mpv.getAttribute('aria-busy')).toBe('true');
+        expect(mpv.querySelector('mat-spinner')).not.toBeNull();
+        expect(mpv.textContent).toContain('Opening MPV');
+        expect(mpv.textContent).toContain('Opening player');
+        expect(
+            mpv
+                .querySelector('.web-player-diagnostic__player-status')
+                ?.getAttribute('aria-live')
+        ).toBe('polite');
+        mpv.click();
+        expect(players).toEqual([]);
+
+        fixture.componentRef.setInput(
+            'externalStates',
+            externalStates({
+                mpv: {
+                    attempts: 1,
+                    sessionId: 'mpv-session',
+                    status: 'started',
+                },
+            })
+        );
+        fixture.componentRef.setInput('pending', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="playback-fallback-mpv"]'
+            )
+        ).toBe(mpv);
+        expect(mpv.textContent).toContain('Open MPV again');
+        expect(mpv.textContent).toContain('Player started');
+        expect(mpv.getAttribute('aria-busy')).toBeNull();
     });
 
     it('applies the component host style from the actual panel stylesheet', () => {
@@ -503,10 +588,7 @@ describe('PlaybackDiagnosticPanelComponent', () => {
             code: PlaybackDiagnosticCode.DrmOrEncryption,
         });
         fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
-        fixture.componentRef.setInput(
-            'playbackExternallyTransferable',
-            false
-        );
+        fixture.componentRef.setInput('playbackExternallyTransferable', false);
         fixture.componentRef.setInput('recommendations', [
             recommendation('alternative-source', { priority: 'primary' }),
         ]);

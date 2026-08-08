@@ -271,6 +271,7 @@ describe('WorkspaceShellFacade', () => {
                         activeSession: signal(null),
                         visibleSession: signal(null),
                         closeSession: jest.fn(),
+                        dismissActiveSession: jest.fn(),
                     },
                 },
                 {
@@ -1073,6 +1074,15 @@ describe('WorkspaceShellFacade', () => {
         facade.openCommandPalette();
 
         expect(recentCommands.record).toHaveBeenCalledWith('open-settings');
+    });
+
+    it('delegates failed external-session dismissal without closing a player', () => {
+        const externalPlayback = TestBed.inject(PORTAL_EXTERNAL_PLAYBACK);
+
+        facade.dismissActiveExternalSession();
+
+        expect(externalPlayback.dismissActiveSession).toHaveBeenCalledTimes(1);
+        expect(externalPlayback.closeSession).not.toHaveBeenCalled();
     });
 
     it('waits for embedded MPV support preload before opening the palette', async () => {

@@ -1,5 +1,8 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/interfaces';
+import {
+    ExternalPlayerSession,
+    PlayerContentInfo,
+} from '@iptvnator/shared/interfaces';
 
 @Injectable({
     providedIn: 'root',
@@ -10,11 +13,7 @@ export class ExternalPlaybackService {
 
     readonly visibleSession = computed(() => {
         const session = this.activeSession();
-        if (
-            !session ||
-            session.status === 'closed' ||
-            session.status === 'error'
-        ) {
+        if (!session || session.status === 'closed') {
             return null;
         }
 
@@ -60,9 +59,8 @@ export class ExternalPlaybackService {
         this.dismissedSessionId.set(session.id);
 
         try {
-            const updatedSession = await window.electron.closeExternalPlayerSession(
-                session.id
-            );
+            const updatedSession =
+                await window.electron.closeExternalPlayerSession(session.id);
             if (updatedSession) {
                 this.handleSessionUpdate(updatedSession);
                 return;
@@ -106,7 +104,11 @@ export class ExternalPlaybackService {
     private handleSessionUpdate(session: ExternalPlayerSession): void {
         const current = this.activeSession();
 
-        if (!current || current.id === session.id || session.status === 'launching') {
+        if (
+            !current ||
+            current.id === session.id ||
+            session.status === 'launching'
+        ) {
             this.activeSession.set(session);
         }
 
