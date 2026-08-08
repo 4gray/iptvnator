@@ -17,8 +17,8 @@ the stream.
 
 The external-player session already reports `launching`, `opened`, `playing`,
 `error`, and `closed`, but the dock hides `error`, renders `opened` and
-`playing` as the same “Opened” status, and exposes no dismiss action for a
-failed launch.
+`playing` as the same “Opened” status, and exposes no dismiss action for an
+external-player error.
 
 ## Considered Approaches
 
@@ -81,13 +81,13 @@ Within an otherwise unchanged policy result:
 
 Labels describe the action, while adjacent status copy describes the outcome:
 
-| State | Action label | Status |
-| --- | --- | --- |
-| `idle`, never attempted | Open in MPV/VLC | none |
-| `launching` | Opening MPV/VLC… | Opening player… |
-| `started` | Open MPV/VLC again | Player started |
-| `playing` | Open MPV/VLC again | Playing |
-| `error` | Try MPV/VLC again | Could not start player |
+| State                   | Action label       | Status                |
+| ----------------------- | ------------------ | --------------------- |
+| `idle`, never attempted | Open in MPV/VLC    | none                  |
+| `launching`             | Opening MPV/VLC…   | Opening player…       |
+| `started`               | Open MPV/VLC again | Player started        |
+| `playing`               | Open MPV/VLC again | Playing               |
+| `error`                 | Try MPV/VLC again  | External player error |
 
 Buttons remain mounted with stable recommendation keys, preserving layout and
 focus. During a launch handshake, recovery actions expose `aria-busy` and
@@ -116,7 +116,8 @@ without inference:
 - `launching` → “Opening player…” with a spinner;
 - `opened` → “Player started”;
 - `playing` → “Playing”;
-- `error` → the existing launch error or a localized generic failure;
+- `error` → the existing session error or a localized generic external-player
+  failure;
 - `closed` remains hidden by the global service.
 
 The dock uses an `aria-live="polite"` status region and `aria-busy` while

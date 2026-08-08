@@ -14,11 +14,9 @@ export function waitForExternalPlayerProcessExit(
     return new Promise((resolve) => {
         const complete = () => {
             child.off('exit', complete);
-            child.off('error', complete);
             resolve();
         };
         child.once('exit', complete);
-        child.once('error', complete);
     });
 }
 
