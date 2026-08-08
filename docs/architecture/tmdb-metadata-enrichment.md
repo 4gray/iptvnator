@@ -49,7 +49,7 @@ store imports):
 | `tmdb-runtime.service.ts`    | Shared runtime context: opt-in gate, effective API key, language resolution                                                                  |
 | `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups                                     |
 | `tmdb-person.service.ts`     | Cached person details + combined filmography (`person:<id>` rows)                                                                            |
-| `tmdb-season.service.ts`     | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows)                                                                            |
+| `tmdb-season.service.ts`     | Cached lazy per-season payloads — overview + episode list (`id:<id>\|season:<n>` rows)                                                       |
 | `tmdb-trending.service.ts`   | Weekly trending (movie + tv merged by popularity, `trending:week` rows, 1-day TTL)                                                           |
 
 Integration glue per portal:
@@ -215,8 +215,9 @@ project site as Referer for YouTube embed hosts
 Show-level merges store the matched id as `tmdb_id` on the enriched info
 (`XtreamSerieInfo` / `StalkerVodInfo`). When the user opens a season, the
 detail views lazily fetch `/tv/{tmdbId}/season/{n}` via
-`TmdbEnrichmentService.getSeasonEpisodes` (cached per language under
-`id:{tmdbId}|season:{n}`) and overlay it with `mergeEpisodesWithTmdb`:
+`TmdbEnrichmentService.getSeason` (cached per language under
+`id:{tmdbId}|season:{n}`) and overlay its episodes with
+`mergeEpisodesWithTmdb`:
 
 - generic provider titles ("Episode 4", "Серия 4", "S01E04", bare numbers)
   are replaced with real episode names; meaningful provider titles are kept
@@ -224,6 +225,20 @@ detail views lazily fetch `/tv/{tmdbId}/season/{n}` via
   empty provider fields; durations stay provider-owned
 - episodes without a TMDB counterpart (by episode number) pass through
   untouched
+
+Season enrichment re-fires from the serial detail view after every
+selection write, so its own write is convergent: a repeat cache-served run
+that would change nothing (episodes already merged, overview already
+stored) writes nothing, ending the re-fire chain.
+
+The same payload's season `overview` is stored on the Xtream selection as
+`tmdb_season_overviews[seasonKey]`. The serial detail view renders season
+descriptions provider-first (`buildSeasonDescriptions` in
+`libs/portal/xtream/feature/src/lib/serial-details/season-descriptions.util.ts`):
+a `get_series_info` season overview wins when it is real prose, but panels
+routinely fill it with a bare cover-image URL —
+`sanitizeProviderOverview` (`@iptvnator/shared/interfaces`) treats a
+URL-only value as absent, and the stored TMDB overview fills the gap.
 
 The season number `{n}` is the provider's episode season number, with one
 correction (`resolveEnrichmentSeasonNumber` in

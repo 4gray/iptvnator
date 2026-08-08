@@ -26,7 +26,7 @@ function createEnrichment(overrides: Partial<TmdbEnrichmentService> = {}) {
         isEnabled: jest.fn(() => true),
         enrichMovie: jest.fn().mockResolvedValue(null),
         enrichTv: jest.fn().mockResolvedValue(null),
-        getSeasonEpisodes: jest.fn().mockResolvedValue(null),
+        getSeason: jest.fn().mockResolvedValue(null),
         ...overrides,
     } as unknown as TmdbEnrichmentService;
 }
@@ -266,16 +266,14 @@ describe('enrichSerialSeasonWithTmdb', () => {
             })
         );
         const enrichment = createEnrichment({
-            getSeasonEpisodes: jest
-                .fn()
-                .mockResolvedValue([
-                    { episode_number: 1, name: 'The Marshal' },
-                ]),
+            getSeason: jest.fn().mockResolvedValue({
+                episodes: [{ episode_number: 1, name: 'The Marshal' }],
+            }),
         } as Partial<TmdbEnrichmentService>);
 
         await enrichSerialSeasonWithTmdb(store, enrichment, '1');
 
-        expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 2);
+        expect(enrichment.getSeason).toHaveBeenCalledWith(82856, 2);
         const updated = store.setSelectedItem.mock.calls[0][0] as {
             episodes: Record<string, { title: string }[]>;
         };
@@ -289,13 +287,11 @@ describe('enrichSerialSeasonWithTmdb', () => {
                 '2': [{ episode_num: 1, season: 2 }],
             })
         );
-        const enrichment = createEnrichment({
-            getSeasonEpisodes: jest.fn().mockResolvedValue([]),
-        } as Partial<TmdbEnrichmentService>);
+        const enrichment = createEnrichment();
 
         await enrichSerialSeasonWithTmdb(store, enrichment, '1');
 
-        expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 1);
+        expect(enrichment.getSeason).toHaveBeenCalledWith(82856, 1);
     });
 
     it('keeps provider numbering when the title has no marker', async () => {
@@ -304,13 +300,104 @@ describe('enrichSerialSeasonWithTmdb', () => {
                 '1': [{ episode_num: 1, season: 1 }],
             })
         );
+        const enrichment = createEnrichment();
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        expect(enrichment.getSeason).toHaveBeenCalledWith(82856, 1);
+    });
+
+    it('stores the TMDB season overview for the description fallback', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
         const enrichment = createEnrichment({
-            getSeasonEpisodes: jest.fn().mockResolvedValue([]),
+            getSeason: jest.fn().mockResolvedValue({
+                overview: 'The Mandalorian and the Child continue.',
+                episodes: [{ episode_number: 1, name: 'The Marshal' }],
+            }),
         } as Partial<TmdbEnrichmentService>);
 
         await enrichSerialSeasonWithTmdb(store, enrichment, '1');
 
-        expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 1);
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            episodes: Record<string, { title: string }[]>;
+            tmdb_season_overviews: Record<string, string>;
+        };
+        expect(updated.episodes['1'][0].title).toBe('The Marshal');
+        expect(updated.tmdb_season_overviews).toEqual({
+            '1': 'The Mandalorian and the Child continue.',
+        });
+    });
+
+    it('patches only the overview when TMDB returns no episodes', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeason: jest.fn().mockResolvedValue({
+                overview: 'Season overview only.',
+                episodes: [],
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            episodes: Record<string, { title: string }[]>;
+            tmdb_season_overviews: Record<string, string>;
+        };
+        expect(updated.episodes['1'][0].title).toBe('Episode 1');
+        expect(updated.tmdb_season_overviews).toEqual({
+            '1': 'Season overview only.',
+        });
+    });
+
+    it('converges: a repeat cache-served run does not rewrite the selection', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeason: jest.fn().mockResolvedValue({
+                overview: 'Season overview.',
+                episodes: [{ episode_number: 1, name: 'The Marshal' }],
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+        expect(store.setSelectedItem).toHaveBeenCalledTimes(1);
+
+        // The selection effect re-fires after every write; the second run
+        // sees already-merged data and must not write again.
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+        expect(store.setSelectedItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not store a blank TMDB season overview', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeason: jest.fn().mockResolvedValue({
+                overview: '   ',
+                episodes: [{ episode_number: 1, name: 'The Marshal' }],
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            tmdb_season_overviews?: Record<string, string>;
+        };
+        expect(updated.tmdb_season_overviews).toBeUndefined();
     });
 
     it('drops a same-id season result after its playlist becomes stale', async () => {
@@ -321,14 +408,16 @@ describe('enrichSerialSeasonWithTmdb', () => {
             })
         );
         const enrichment = createEnrichment({
-            getSeasonEpisodes: jest.fn().mockImplementation(async () => {
+            getSeason: jest.fn().mockImplementation(async () => {
                 isCurrentPlaylist = false;
                 store.replaceItem(
                     seasonSliceItem('Series from playlist B', {
                         '1': [{ episode_num: 1, season: 1 }],
                     })
                 );
-                return [{ episode_number: 1, name: 'Playlist A episode' }];
+                return {
+                    episodes: [{ episode_number: 1, name: 'Playlist A episode' }],
+                };
             }),
         } as Partial<TmdbEnrichmentService>);
 

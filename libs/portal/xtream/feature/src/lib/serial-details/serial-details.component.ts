@@ -38,6 +38,7 @@ import {
     XtreamSerieEpisode,
     XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
+import { buildSeasonDescriptions } from './season-descriptions.util';
 import { isProviderOnlyDetailState } from '@iptvnator/portal/shared/util';
 import {
     CrossPortalSimilarItem,
@@ -172,16 +173,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     /** Season currently selected in the season container. */
     private readonly selectedSeasonKey = signal<string | null>(null);
 
-    /** Season overviews from get_series_info, keyed by season key. */
-    readonly seasonDescriptions = computed<Record<string, string>>(() => {
-        const descriptions: Record<string, string> = {};
-        for (const season of this.selectedItem()?.seasons ?? []) {
-            if (season?.overview && season.season_number !== undefined) {
-                descriptions[String(season.season_number)] = season.overview;
-            }
-        }
-        return descriptions;
-    });
+    /** Season descriptions (provider text, TMDB fallback, URL junk dropped). */
+    readonly seasonDescriptions = computed<Record<string, string>>(() =>
+        buildSeasonDescriptions(this.selectedItem())
+    );
 
     /** TMDB recommendations matched against the loaded series catalog */
     readonly similarItems = computed<SimilarCatalogItem[]>(() => {

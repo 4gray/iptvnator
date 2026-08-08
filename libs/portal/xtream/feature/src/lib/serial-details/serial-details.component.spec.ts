@@ -419,6 +419,57 @@ describe('SerialDetailsComponent', () => {
         });
     });
 
+    it('filters URL-only season overviews and falls back to TMDB descriptions', async () => {
+        selectedItem.set({
+            series_id: 103,
+            info: {
+                name: 'Series One',
+                plot: 'Series plot',
+                cover: 'cover.jpg',
+                backdrop_path: [],
+                genre: 'Drama',
+                category_id: '3',
+            },
+            seasons: [
+                {
+                    season_number: 1,
+                    overview:
+                        'http://line.example.net:80/images/series/cover_small.jpg',
+                },
+                {
+                    season_number: 2,
+                    overview: 'Provider season 2 text',
+                },
+            ],
+            tmdb_season_overviews: {
+                '1': 'TMDB season 1 overview',
+                '2': 'TMDB season 2 overview',
+            },
+            episodes: {
+                '1': [
+                    { id: '1001', episode_num: 1, title: 'E1', season: 1 },
+                ],
+                '2': [
+                    { id: '2001', episode_num: 1, title: 'E1', season: 2 },
+                ],
+            },
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        )?.componentInstance as StubSeasonContainerComponent;
+
+        // The bare cover URL is junk → TMDB fills season 1; real provider
+        // text keeps priority over TMDB for season 2.
+        expect(seasonContainer.seasonDescriptions()).toEqual({
+            '1': 'TMDB season 1 overview',
+            '2': 'Provider season 2 text',
+        });
+    });
+
     it('keeps every provider episode but disables download presentation in provider-only mode', async () => {
         window.history.replaceState(
             { detailPresentation: 'provider-only' },
