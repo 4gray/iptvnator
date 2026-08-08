@@ -13,6 +13,19 @@
         .type-badge {
             @include grid.type-badge;
         }
+
+        .count-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.4;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.72);
+        }
     }
 
     .card-info {

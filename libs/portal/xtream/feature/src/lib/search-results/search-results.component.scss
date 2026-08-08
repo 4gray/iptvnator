@@ -128,3 +128,10 @@
     color: var(--mat-sys-on-surface-variant);
     font-size: 0.85rem;
 }
+
+/* Expanded variants read as belonging to the collapsed group above them. */
+.variant-member {
+    outline: 1px dashed var(--mat-sys-outline-variant);
+    outline-offset: -1px;
+    border-radius: 8px;
+}

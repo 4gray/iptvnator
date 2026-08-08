@@ -54,6 +54,12 @@ export class ContentCardComponent {
     /** Whether to render the type badge (live/movie/series) on the poster */
     readonly showTypeBadge = input<boolean>(true);
 
+    /**
+     * Number of collapsed variants behind this card. Rendered as a small
+     * "×N" pill when greater than 1 (global-search variant grouping).
+     */
+    readonly countBadge = input<number>(0);
+
     /** Emitted when the card is clicked */
     readonly cardClick = output<void>();
 
