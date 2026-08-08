@@ -18,12 +18,26 @@ export const EPG_PREVIEW_FETCH_SIZE = 3;
 const PREVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
 const PREVIEW_MAX_CONCURRENCY = 2;
 const PREVIEW_DELAY_MS = 200;
+/**
+ * Per-sync backlog cap. The list can render 100+ rows at once, and request
+ * count must track user engagement, not render size: one sync fetches at
+ * most this many channels (top of the list first — where a freshly opened
+ * category is scrolled to), and the host re-syncs on scroll to fill the
+ * next gaps as the user moves through the list.
+ */
+const PREVIEW_MAX_PER_SYNC = 30;
 
 interface StalkerEpgPreviewQueueHost {
     /** Fetch the short EPG for one channel; resolves [] on failure. */
     fetchPrograms: (channelId: string) => Promise<EpgProgram[]>;
     /** Called for each non-empty result so the host can update its previews. */
     onPrograms: (channelId: string, programs: EpgProgram[]) => void;
+}
+
+interface StalkerEpgPreviewQueueOptions {
+    /** Test-only overrides for the throttling constants. */
+    delayMs?: number;
+    maxPerSync?: number;
 }
 
 interface PreviewCacheEntry {
@@ -40,8 +54,16 @@ export class StalkerEpgPreviewQueue {
     /** Bumped by reset() so an in-flight result of the old portal is dropped. */
     private generation = 0;
     private destroyed = false;
+    private readonly delayMs: number;
+    private readonly maxPerSync: number;
 
-    constructor(private readonly host: StalkerEpgPreviewQueueHost) {}
+    constructor(
+        private readonly host: StalkerEpgPreviewQueueHost,
+        options: StalkerEpgPreviewQueueOptions = {}
+    ) {
+        this.delayMs = options.delayMs ?? PREVIEW_DELAY_MS;
+        this.maxPerSync = options.maxPerSync ?? PREVIEW_MAX_PER_SYNC;
+    }
 
     getCachedPrograms(channelId: string): EpgProgram[] | null {
         const entry = this.cache.get(channelId);
@@ -65,7 +87,9 @@ export class StalkerEpgPreviewQueue {
             return;
         }
         this.visibleSet = new Set(channelIds);
-        this.queue = channelIds.filter((id) => this.shouldFetch(id));
+        this.queue = channelIds
+            .filter((id) => this.shouldFetch(id))
+            .slice(0, this.maxPerSync);
         if (!this.processing && this.queue.length > 0) {
             void this.processQueue();
         }
@@ -97,7 +121,7 @@ export class StalkerEpgPreviewQueue {
         try {
             while (this.queue.length > 0 && !this.destroyed) {
                 if (this.inFlight.size >= PREVIEW_MAX_CONCURRENCY) {
-                    await delay(PREVIEW_DELAY_MS);
+                    await delay(this.delayMs);
                     continue;
                 }
 
@@ -113,7 +137,7 @@ export class StalkerEpgPreviewQueue {
                 this.inFlight.add(channelId);
                 void this.fetchOne(channelId);
 
-                await delay(PREVIEW_DELAY_MS);
+                await delay(this.delayMs);
             }
         } finally {
             this.processing = false;

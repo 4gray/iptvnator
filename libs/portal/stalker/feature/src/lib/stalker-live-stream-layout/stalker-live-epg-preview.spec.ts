@@ -133,6 +133,33 @@ describe('StalkerEpgPreviewQueue', () => {
         queue.destroy();
     });
 
+    it('caps each sync at the per-sync backlog limit and refills on the next sync', async () => {
+        const fetchPrograms = jest.fn(async (channelId: string) => [
+            buildProgram(channelId, `Now ${channelId}`, -10),
+        ]);
+        const queue = new StalkerEpgPreviewQueue(
+            { fetchPrograms, onPrograms: jest.fn() },
+            { delayMs: 0, maxPerSync: 2 }
+        );
+
+        // Request count must track user engagement, not render size: only
+        // the first slice is fetched per sync, the rest waits for the next
+        // (scroll-driven) sync.
+        queue.sync(['1', '2', '3', '4']);
+        await flushQueue(50);
+
+        expect(fetchPrograms).toHaveBeenCalledTimes(2);
+        expect(fetchPrograms).not.toHaveBeenCalledWith('3');
+
+        queue.sync(['1', '2', '3', '4']);
+        await flushQueue(50);
+
+        expect(fetchPrograms).toHaveBeenCalledTimes(4);
+        expect(fetchPrograms).toHaveBeenCalledWith('3');
+        expect(fetchPrograms).toHaveBeenCalledWith('4');
+        queue.destroy();
+    });
+
     it('discards in-flight results after a reset', async () => {
         let resolveFetch!: (programs: EpgProgram[]) => void;
         const fetchPrograms = jest.fn(

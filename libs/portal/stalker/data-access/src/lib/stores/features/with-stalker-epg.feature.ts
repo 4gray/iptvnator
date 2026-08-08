@@ -403,6 +403,21 @@ export function withStalkerEpg() {
                         });
                     },
 
+                    /**
+                     * True when the channel's programs in the bulk record
+                     * come from a manual XMLTV mapping. Mapped channels must
+                     * never fall back to the portal's short EPG — the mapping
+                     * exists to replace the portal data, and merging the two
+                     * schedules could surface the portal's programme instead.
+                     */
+                    hasItvEpgMappingOverride(
+                        channelId: string | number
+                    ): boolean {
+                        return mappingOverridesById.has(
+                            normalizeStalkerEntityId(channelId)
+                        );
+                    },
+
                     clearBulkItvEpgCache(): void {
                         resetMappingOverrides();
                         patchState(store, initialEpgState);

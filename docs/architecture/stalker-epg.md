@@ -253,6 +253,13 @@ settled (so it never races the answer it is a fallback for), fetches the
 currently rendered channels with bounded concurrency and inter-request
 spacing, caches results — including empty ones — for five minutes, and is
 reset on playlist switch because channel ids are only unique per portal.
+Each sync's backlog is additionally capped (30 channels, top of the list
+first) and the sidebar's scroll handler re-syncs (throttled) to fill the
+next gaps, so request count tracks how far the user actually scrolls rather
+than how many rows are rendered. Channels with a manual XMLTV mapping are
+excluded from the fallback entirely — their bulk record holds the mapped
+schedule, and the portal short EPG must not stand in for the data the
+mapping deliberately replaces.
 
 ## Cache Lifecycle
 
@@ -289,6 +296,13 @@ panel shows "now" from the short EPG and the days ahead from the bulk guide.
 Row previews use the same per-channel fallback through the throttled
 `StalkerEpgPreviewQueue` once the bulk request has settled (see "Channel row
 preview flow").
+
+Manually mapped channels never take the portal fallback, on either path: the
+component resolves the channel's mapping before falling back
+(`applyMappedItvEpg` for the one id, then
+`hasItvEpgMappingOverride`) and keeps mapped channels on their mapped
+schedule even when it has no currently airing entry — the mapping exists to
+replace the portal EPG, so portal data must not be merged back in.
 
 ## Manual EPG Mapping
 
