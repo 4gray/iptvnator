@@ -362,6 +362,7 @@ export function withStalkerEpg() {
                         }
 
                         let changed = false;
+                        let ownershipChanged = false;
                         for (const [channelId, key] of keyById) {
                             const mappedEpgId = mappings[key]?.trim();
                             if (!mappedEpgId) {
@@ -370,7 +371,16 @@ export function withStalkerEpg() {
                                 mappingCheckedIds.add(channelId);
                                 continue;
                             }
-                            mappingOwnedIds.add(channelId);
+                            if (!mappingOwnedIds.has(channelId)) {
+                                mappingOwnedIds.add(channelId);
+                                // Ownership must reach the preview effect
+                                // even when the mapped guide contributes no
+                                // programs: a concurrently fetched short-EPG
+                                // fallback may already have rendered a portal
+                                // row, and only a state patch reruns the sync
+                                // that removes it.
+                                ownershipChanged = true;
+                            }
                             try {
                                 const programs =
                                     (await epgBridge.getChannelPrograms(
@@ -397,10 +407,13 @@ export function withStalkerEpg() {
                                 // portal EPG stays in place meanwhile.
                             }
                         }
-                        if (!changed || isStale()) {
+                        if ((!changed && !ownershipChanged) || isStale()) {
                             return;
                         }
 
+                        // An ownership-only change patches an identical map
+                        // under a new reference — that is deliberate, it is
+                        // what reruns the preview effect.
                         patchState(store, {
                             bulkItvEpgByChannel: {
                                 ...store.bulkItvEpgByChannel(),

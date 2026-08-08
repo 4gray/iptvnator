@@ -271,7 +271,10 @@ ownership: a row claimed in the meantime by a mapping override or by bulk
 data is never overwritten by the late portal response. Mapping ownership is
 a fact of the saved mapping row, independent of whether the mapped guide
 currently has programs — an empty mapped guide still keeps the portal EPG
-out. The backlog is superseded whenever the rendered list empties (a
+out. Ownership changes are published reactively (`applyMappedItvEpg`
+re-patches the bulk record even when the mapped guide contributed nothing),
+so a fallback row rendered before the mapping lookup finished is removed by
+the rerun sync. The backlog is superseded whenever the rendered list empties (a
 legacy-paged category switch) or the view leaves ITV (radio), so abandoned
 rows stop consuming portal request capacity.
 
