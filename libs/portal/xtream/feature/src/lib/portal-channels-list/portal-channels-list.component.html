@@ -44,7 +44,7 @@
                 [showEpg]="supportsEpg"
                 [showFavoriteButton]="true"
                 [showProgramInfoButton]="false"
-                [showDetailsContextMenu]="supportsEpgMapping"
+                [showDetailsContextMenu]="hasChannelContextMenu(item)"
                 [isFavorite]="favorites.get(favoriteKeyFor(item)) ?? false"
                 (clicked)="playClicked.emit(item)"
                 (activated)="playbackRequested.emit(item)"
@@ -63,10 +63,24 @@
         ></div>
 
         <mat-menu #channelContextMenu="matMenu">
-            <button mat-menu-item (click)="openEpgMapping()">
-                <mat-icon>settings_remote</mat-icon>
-                <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-            </button>
+            @if (contextMenuProgram()) {
+                <button
+                    mat-menu-item
+                    data-test-id="program-details-menu-item"
+                    (click)="openProgramDetails()"
+                >
+                    <mat-icon>event_note</mat-icon>
+                    <span>{{
+                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                    }}</span>
+                </button>
+            }
+            @if (supportsEpgMapping) {
+                <button mat-menu-item (click)="openEpgMapping()">
+                    <mat-icon>settings_remote</mat-icon>
+                    <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
+                </button>
+            }
         </mat-menu>
     } @else {
         <div class="empty-search-state">

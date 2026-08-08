@@ -4,6 +4,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { ChannelDetailsDialogComponent } from '@iptvnator/ui/components';
+import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
@@ -156,6 +157,46 @@ describe('GlobalFavoritesListComponent', () => {
                 width: 'calc(100vw - 32px)',
             })
         );
+    });
+
+    it('opens programme details from the context menu when the row has a current program', async () => {
+        const program = {
+            title: 'Current Show',
+            desc: 'Current description',
+            channel: 'chan-1',
+            start: '2026-04-05 05:30:00',
+            stop: '2026-04-05 06:00:00',
+            category: null,
+        };
+        const row = buildChannel('a', 'Alpha', { tvgId: 'chan-1' });
+        fixture.componentRef.setInput('channels', [row]);
+        fixture.componentRef.setInput(
+            'epgMap',
+            new Map([['chan-1', program as never]])
+        );
+        fixture.detectChanges();
+
+        const enriched = fixture.componentInstance.enrichedChannels()[0];
+        expect(enriched.currentEpgProgram).toBe(program);
+        expect(
+            fixture.componentInstance.hasChannelContextMenu(enriched)
+        ).toBe(true);
+
+        jest.spyOn(
+            fixture.componentInstance.contextMenuTrigger(),
+            'openMenu'
+        ).mockImplementation();
+        fixture.componentInstance.onChannelContextMenu(enriched, {
+            clientX: 24,
+            clientY: 32,
+        } as MouseEvent);
+        await Promise.resolve();
+
+        fixture.componentInstance.openProgramDetails();
+
+        expect(dialog.open).toHaveBeenCalledWith(EpgItemDescriptionComponent, {
+            data: program,
+        });
     });
 
     it('emits recent row removal from the context menu', async () => {

@@ -37,6 +37,7 @@ import {
     ChannelListSkeletonComponent,
     EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
+import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import {
     PortalChannelSortMode,
     sortPortalChannelItems,
@@ -499,6 +500,31 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         queueMicrotask(() => {
             this.contextMenuTrigger().openMenu();
         });
+    }
+
+    /** Current preview programme of the row under the context menu. */
+    contextMenuProgram(): EpgProgram | null {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return null;
+        }
+
+        return this.epgPrograms.get(channel.xtream_id) ?? null;
+    }
+
+    /** Whether right-click has anything to offer for this row. */
+    hasChannelContextMenu(item: XtreamChannelListItem): boolean {
+        return this.supportsEpgMapping || this.epgPrograms.has(item.xtream_id);
+    }
+
+    openProgramDetails(): void {
+        const program = this.contextMenuProgram();
+        if (!program) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        this.dialog.open(EpgItemDescriptionComponent, { data: program });
     }
 
     openEpgMapping(): void {
