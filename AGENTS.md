@@ -291,8 +291,12 @@ Key files:
   evidence or ownership state. MPV/VLC actions remain mounted after an attempt
   and expose credential-free per-target launching/started/playing/error state;
   only an exact Electron `playing` update is labelled Playing. One handshake is
-  allowed at a time, a replacement waits for confirmed teardown of the tracked
-  external process, and stale updates cannot take ownership. If the local
+  allowed at a time. Its fieldless intent is bound to the exact session returned
+  by the source owner's launch promise, so a late timed-out attempt cannot take
+  over a retry; later global updates must match that ID. A replacement waits for
+  confirmed teardown of the tracked external process, applies the old exact
+  close before launch, and cancels an unlaunched handoff if diagnostic ownership
+  changes. If the local
   handshake times out after an exact Electron session is known, that ID remains
   correlated so a later exact update can recover the UI. The global dock mirrors
   those statuses, keeps errors visible until dismissal, and intentionally has no

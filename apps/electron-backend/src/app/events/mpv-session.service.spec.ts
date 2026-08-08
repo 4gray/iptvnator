@@ -205,6 +205,48 @@ describe('external player shutdown on app quit', () => {
         shutdownMpvSession();
     });
 
+    it('waits for the stale reusable MPV process to exit before spawning fresh', async () => {
+        shutdownMpvSession();
+        const staleProc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValueOnce(staleProc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: true,
+        });
+        await openMpvPlayer({
+            title: 'First stream',
+            url: 'https://example.com/one.m3u8',
+        });
+        (createConnection as unknown as jest.Mock).mockImplementation(() => {
+            const socket = Object.assign(new EventEmitter(), {
+                write: jest.fn(),
+                end: jest.fn(),
+                destroy: jest.fn(),
+            });
+            setImmediate(() => socket.emit('error', new Error('stale socket')));
+            return socket;
+        });
+        const freshProc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValueOnce(freshProc);
+
+        const secondLaunch = openMpvPlayer({
+            title: 'Second stream',
+            url: 'https://example.com/two.m3u8',
+        });
+        await new Promise<void>((resolve) => setImmediate(resolve));
+
+        expect(staleProc.kill).toHaveBeenCalledTimes(1);
+        expect(spawn).toHaveBeenCalledTimes(1);
+
+        Object.defineProperty(staleProc, 'exitCode', { value: 0 });
+        staleProc.emit('exit', 0);
+        await waitForSpawnCallCount(2);
+        await secondLaunch;
+
+        expect(spawn).toHaveBeenCalledTimes(2);
+        shutdownMpvSession();
+    });
+
     it('does not track non-reusable MPV processes for shutdown', async () => {
         const proc = createMockChildProcess();
         (spawn as unknown as jest.Mock).mockReturnValue(proc);

@@ -16,6 +16,7 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
     type PlaybackDiagnostic,
+    type PlaybackFallbackRequest,
 } from '@iptvnator/playback/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
@@ -133,7 +134,7 @@ describe('WebPlayerViewComponent external recovery integration', () => {
     afterEach(() => fixture.destroy());
 
     it('keeps both external actions mounted while MPV launches and after it starts', async () => {
-        const requests: unknown[] = [];
+        const requests: PlaybackFallbackRequest[] = [];
         component.externalFallbackRequested.subscribe((request) =>
             requests.push(request)
         );
@@ -155,9 +156,10 @@ describe('WebPlayerViewComponent external recovery integration', () => {
         expect(requiredButton('playback-fallback-mpv')).toBe(mpvButton);
         expect(requiredButton('playback-fallback-vlc')).toBe(vlcButton);
 
-        activeSession.set(
-            externalSession({ id: 'mpv-session', status: 'opened' })
-        );
+        const opened = externalSession({ id: 'mpv-session', status: 'opened' });
+        activeSession.set(opened);
+        requests[0].trackLaunch(Promise.resolve(opened));
+        await Promise.resolve();
         fixture.detectChanges();
 
         expect(component.externalRecoveryPending()).toBe(false);
@@ -174,15 +176,16 @@ describe('WebPlayerViewComponent external recovery integration', () => {
     });
 
     it('closes an active external player before emitting a different target', async () => {
-        const requests: Array<{ player: string }> = [];
+        const requests: PlaybackFallbackRequest[] = [];
         component.externalFallbackRequested.subscribe((request) =>
             requests.push(request)
         );
         await showDiagnostic();
         click('playback-fallback-mpv');
-        activeSession.set(
-            externalSession({ id: 'mpv-session', status: 'opened' })
-        );
+        const opened = externalSession({ id: 'mpv-session', status: 'opened' });
+        activeSession.set(opened);
+        requests[0].trackLaunch(Promise.resolve(opened));
+        await Promise.resolve();
         fixture.detectChanges();
 
         click('playback-fallback-vlc');
@@ -192,6 +195,48 @@ describe('WebPlayerViewComponent external recovery integration', () => {
             expect.objectContaining({ id: 'mpv-session' })
         );
         expect(requests.map(({ player }) => player)).toEqual(['mpv', 'vlc']);
+    });
+
+    it('cancels the pending replacement when the diagnostic clears during close', async () => {
+        const requests: PlaybackFallbackRequest[] = [];
+        component.externalFallbackRequested.subscribe((request) =>
+            requests.push(request)
+        );
+        await showDiagnostic();
+        click('playback-fallback-mpv');
+        const opened = externalSession({ id: 'mpv-session', status: 'opened' });
+        activeSession.set(opened);
+        requests[0].trackLaunch(Promise.resolve(opened));
+        await Promise.resolve();
+        fixture.detectChanges();
+        let releaseClose: (() => void) | undefined;
+        closeSession.mockImplementationOnce(
+            (session) =>
+                new Promise<void>((resolve) => {
+                    releaseClose = () => {
+                        activeSession.set({
+                            ...session,
+                            status: 'closed',
+                            canClose: false,
+                        });
+                        resolve();
+                    };
+                })
+        );
+
+        click('playback-fallback-vlc');
+        vjs().playbackIssue.emit(null);
+        fixture.detectChanges();
+        releaseClose?.();
+        await fixture.whenStable();
+
+        expect(requests.map(({ player }) => player)).toEqual(['mpv']);
+        expect(component.externalRecoveryPending()).toBe(false);
+        expect(component.externalRecoveryState().vlc).toEqual({
+            attempts: 1,
+            sessionId: null,
+            status: 'idle',
+        });
     });
 
     it('reports a local failure instead of launching beside an unclosable session', async () => {
@@ -242,7 +287,7 @@ describe('WebPlayerViewComponent external recovery integration', () => {
     ])(
         'emits one exact $target request for a same-tick double activation',
         async ({ target, testId }) => {
-            const requests: unknown[] = [];
+            const requests: PlaybackFallbackRequest[] = [];
             component.externalFallbackRequested.subscribe((request) =>
                 requests.push(request)
             );
@@ -257,6 +302,7 @@ describe('WebPlayerViewComponent external recovery integration', () => {
                     player: target,
                     playback: component.resolvedPlayback(),
                     diagnostic: issue,
+                    trackLaunch: expect.any(Function),
                 },
             ]);
         }

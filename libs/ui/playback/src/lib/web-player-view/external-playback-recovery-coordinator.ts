@@ -6,6 +6,9 @@ import {
 } from './external-playback-recovery';
 
 export type ExternalRecoveryTarget = 'mpv' | 'vlc';
+export type ExternalPlaybackLaunchTracker = (
+    launch: Promise<ExternalPlayerSession | void>
+) => void;
 
 /**
  * Serializes managed external-player recovery without retaining playback data.
@@ -33,17 +36,17 @@ export class ExternalPlaybackRecoveryCoordinator {
     request(
         target: ExternalRecoveryTarget,
         onBegin: () => void,
-        onReady: () => void
+        onReady: (trackLaunch: ExternalPlaybackLaunchTracker) => boolean
     ): void {
         const activeSession = this.externalPlayback?.activeSession() ?? null;
-        const intent = this.recovery.begin(target, activeSession?.id ?? null);
+        const intent = this.recovery.begin(target);
         if (!intent) {
             return;
         }
 
         onBegin();
         if (!isLiveExternalSession(activeSession)) {
-            onReady();
+            this.runReady(intent, onReady);
             return;
         }
         if (!activeSession.canClose || !this.externalPlayback) {
@@ -61,7 +64,7 @@ export class ExternalPlaybackRecoveryCoordinator {
     private async closeThenRun(
         session: ExternalPlayerSession,
         intent: ExternalRecoveryIntent,
-        onReady: () => void
+        onReady: (trackLaunch: ExternalPlaybackLaunchTracker) => boolean
     ): Promise<void> {
         try {
             await this.externalPlayback?.closeSession(session);
@@ -69,13 +72,37 @@ export class ExternalPlaybackRecoveryCoordinator {
             this.recovery.fail(intent);
             return;
         }
+        this.recovery.close(session.player, session.id);
         const current = this.externalPlayback?.activeSession() ?? null;
         if (isLiveExternalSession(current)) {
             this.recovery.fail(intent);
             return;
         }
-        if (this.recovery.owns(intent)) {
-            onReady();
+        this.runReady(intent, onReady);
+    }
+
+    private runReady(
+        intent: ExternalRecoveryIntent,
+        onReady: (trackLaunch: ExternalPlaybackLaunchTracker) => boolean
+    ): void {
+        if (!this.recovery.owns(intent)) {
+            return;
+        }
+
+        const accepted = onReady((launch) => {
+            void launch.then(
+                (session) => {
+                    if (session) {
+                        this.recovery.confirm(intent, session);
+                    } else {
+                        this.recovery.fail(intent);
+                    }
+                },
+                () => this.recovery.fail(intent)
+            );
+        });
+        if (!accepted) {
+            this.recovery.cancel(intent);
         }
     }
 }

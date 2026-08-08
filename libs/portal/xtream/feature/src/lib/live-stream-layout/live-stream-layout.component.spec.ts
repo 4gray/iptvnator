@@ -625,6 +625,7 @@ describe('LiveStreamLayoutComponent', () => {
         component.handleExternalFallbackRequest({
             player: 'mpv',
             playback,
+            trackLaunch: jest.fn(),
         } as PlaybackFallbackRequest);
 
         const [forwardedPlayback, forwardedPlayer] =

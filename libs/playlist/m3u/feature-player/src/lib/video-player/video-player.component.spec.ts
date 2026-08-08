@@ -582,9 +582,13 @@ describe('VideoPlayerComponent', () => {
                 Origin: 'https://origin.example.com',
             },
         };
+        const launch = Promise.resolve();
+        const trackLaunch = jest.fn();
+        dataServiceMock.sendIpcEvent.mockReturnValueOnce(launch);
         component.handleExternalFallbackRequest({
             player: 'mpv',
             playback,
+            trackLaunch,
             diagnostic: {
                 code: 'unsupported-codec',
                 source: 'hls',
@@ -605,6 +609,7 @@ describe('VideoPlayerComponent', () => {
                 origin: 'https://origin.example.com',
             }
         );
+        expect(trackLaunch).toHaveBeenCalledWith(launch);
     });
 
     it('renders the embedded mpv inline player with the EPG panel', () => {

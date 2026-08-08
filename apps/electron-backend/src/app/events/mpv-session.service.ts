@@ -348,8 +348,11 @@ export async function openMpvPlayer({
                 return externalPlayerSessions.markOpened(session.id) ?? session;
             } catch (err) {
                 console.error('Failed to send command to existing MPV:', err);
-                mpvProcess = null;
-                mpvSocketPath = null;
+                await terminateExternalPlayerProcess(reusedProcess);
+                if (mpvProcess === reusedProcess) {
+                    mpvProcess = null;
+                    mpvSocketPath = null;
+                }
                 stopPositionPolling();
             }
         }

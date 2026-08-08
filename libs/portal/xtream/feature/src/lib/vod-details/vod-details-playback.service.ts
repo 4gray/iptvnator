@@ -324,10 +324,12 @@ export class VodDetailsPlaybackService {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
+        const launch = this.portalPlayer.openExternalPlayback(
             request.playback,
             request.player
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 
     async loadPosition(playlistId: string, vodId: number): Promise<void> {

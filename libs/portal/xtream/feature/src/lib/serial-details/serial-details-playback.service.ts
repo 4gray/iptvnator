@@ -295,12 +295,14 @@ export class SerialDetailsPlaybackService {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        const launch = this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
+        );
+        request.trackLaunch(launch);
         void this.playbackPositionState.recordExternalLaunch(
             request.playback,
-            this.portalPlayer.openExternalPlayback(
-                request.playback,
-                request.player
-            ),
+            launch,
             (playlistId, position) =>
                 this.playbackPositions.savePlaybackPosition(
                     playlistId,

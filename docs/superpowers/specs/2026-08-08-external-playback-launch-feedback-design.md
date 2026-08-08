@@ -28,21 +28,21 @@ This is the smallest change, but the UI would guess when launching finished
 and could disagree with the Electron session. It is rejected because the app
 already has structured launch state.
 
-### 2. Add callbacks to every `PlaybackFallbackRequest` host
+### 2. Use only callbacks on every `PlaybackFallbackRequest` host
 
-Every M3U, Xtream, Stalker, and shared host could return its launch promise to
-the web-player component. This is explicit but spreads recovery bookkeeping
-through many source-owning components and still misses later `playing` and
-`error` session updates.
+Every M3U, Xtream, Stalker, and shared host could make the launch promise the
+only feedback source. This supplies an exact initial session ID, but by itself
+still misses later `playing` and `error` session updates.
 
-### 3. Correlate the recovery attempt with the shared external session
+### 3. Correlate the owned launch result with the shared external session
 
 This is the selected approach. The web-player component keeps source launch
-ownership in its existing host output, but observes the app-wide
-`PORTAL_EXTERNAL_PLAYBACK.activeSession` signal. A local coordinator accepts
-only the next session for the requested target and then only updates for that
-exact session ID. No URL, headers, DRM data, credentials, or raw diagnostic
-payload enters this ownership state.
+ownership in its existing host output. Its credential-free tracker binds the
+host's returned launch promise to the current fieldless intent token, and only
+that exact result may supply the initial session ID. Later status changes come
+from `PORTAL_EXTERNAL_PLAYBACK.activeSession` and must match that ID. This
+prevents a delayed timed-out attempt from taking over a retry. No URL, headers,
+DRM data, credentials, or raw diagnostic payload enters the ownership state.
 
 ## State Model
 
@@ -99,9 +99,11 @@ concise `aria-live="polite"` status text.
 Before a recovery action opens another external player, it closes the currently
 tracked live external session through `PORTAL_EXTERNAL_PLAYBACK`. If the
 session is still live and cannot be closed, the new attempt fails locally
-instead of starting a second process. Only after that close settles does the
-existing host output emit the new fallback request. MPV and VLC are available
-again after the handshake.
+instead of starting a second process. The coordinator applies the exact
+confirmed close synchronously before emitting the replacement, so coalesced
+Angular effects cannot leave stale Playing feedback. If diagnostic ownership
+changes while closing, the unlaunched intent is cancelled without reporting a
+launch error. MPV and VLC are available again after the handshake.
 
 If no matching session arrives within a bounded timeout, the target transitions
 to `error`. The timeout is feedback for a missing handoff, not evidence about
