@@ -102,6 +102,7 @@ class MockWorkspaceShellContextSidebarComponent {
 class MockExternalPlaybackDockComponent {
     readonly session = input<unknown>(null);
     readonly closeClicked = output<void>();
+    readonly dismissClicked = output<void>();
 }
 
 @Component({
@@ -210,6 +211,7 @@ class MockWorkspaceShellFacade {
     openAccountInfo = jest.fn();
     openAccountInfoFor = jest.fn();
     closeActiveExternalSession = jest.fn();
+    dismissActiveExternalSession = jest.fn();
     cancelXtreamImport = jest.fn();
 }
 
@@ -294,6 +296,11 @@ describe('WorkspaceShellComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-external-playback-dock')
         ).not.toBeNull();
+        const externalDock = fixture.debugElement.query(
+            By.directive(MockExternalPlaybackDockComponent)
+        ).componentInstance as MockExternalPlaybackDockComponent;
+        externalDock.dismissClicked.emit();
+        expect(facade.dismissActiveExternalSession).toHaveBeenCalledTimes(1);
     });
 
     it('renders the xtream import overlay child only when the facade flag is true', async () => {

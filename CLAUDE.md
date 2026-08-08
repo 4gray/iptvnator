@@ -824,7 +824,13 @@ app as a real argument, so it is not an option.
   exception. PWA capability suppresses managed MPV/VLC, and ClearKey/KODIPROP
   DRM suppresses external targets because its payload is not transferable. Raw
   engine messages, arbitrary data, and credentials never enter recommendation
-  evidence or ownership state.
+  evidence or ownership state. MPV/VLC actions remain mounted after an attempt
+  and expose credential-free per-target launching/started/playing/error state;
+  only an exact Electron `playing` update is labelled Playing. One handshake is
+  allowed at a time, switching players first closes the tracked live external
+  session, and stale updates cannot take ownership. The global dock mirrors
+  those statuses, keeps errors visible until dismissal, and intentionally has
+  no retry because it does not own the original launch headers or credentials.
 - DASH + ClearKey (M3U module): `.mpd` channels play through a lazily loaded
   Shaka Player source engine inside the HTML5 and ArtPlayer components (no new
   player in settings). ClearKey keys come from `#KODIPROP:inputstream.adaptive.*`
