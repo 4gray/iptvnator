@@ -121,11 +121,16 @@ export function withStalkerEpg() {
                 // whenever it replaces the bulk record.
                 const mappingOverridesById = new Map<string, EpgProgram[]>();
                 const mappingCheckedIds = new Set<string>();
+                // Ownership is a fact of the saved mapping row, independent
+                // of whether the mapped XMLTV guide currently has programs —
+                // an empty mapped guide must still keep the portal EPG out.
+                const mappingOwnedIds = new Set<string>();
                 let mappingPlaylistId: string | null = null;
 
                 const resetMappingOverrides = (): void => {
                     mappingOverridesById.clear();
                     mappingCheckedIds.clear();
+                    mappingOwnedIds.clear();
                     mappingPlaylistId = null;
                 };
 
@@ -357,6 +362,7 @@ export function withStalkerEpg() {
                         }
 
                         let changed = false;
+                        let ownershipChanged = false;
                         for (const [channelId, key] of keyById) {
                             const mappedEpgId = mappings[key]?.trim();
                             if (!mappedEpgId) {
@@ -364,6 +370,16 @@ export function withStalkerEpg() {
                                 // outcome, safe to dedupe.
                                 mappingCheckedIds.add(channelId);
                                 continue;
+                            }
+                            if (!mappingOwnedIds.has(channelId)) {
+                                mappingOwnedIds.add(channelId);
+                                // Ownership must reach the preview effect
+                                // even when the mapped guide contributes no
+                                // programs: a concurrently fetched short-EPG
+                                // fallback may already have rendered a portal
+                                // row, and only a state patch reruns the sync
+                                // that removes it.
+                                ownershipChanged = true;
                             }
                             try {
                                 const programs =
@@ -391,16 +407,38 @@ export function withStalkerEpg() {
                                 // portal EPG stays in place meanwhile.
                             }
                         }
-                        if (!changed || isStale()) {
+                        if ((!changed && !ownershipChanged) || isStale()) {
                             return;
                         }
 
+                        // An ownership-only change patches an identical map
+                        // under a new reference — that is deliberate, it is
+                        // what reruns the preview effect.
                         patchState(store, {
                             bulkItvEpgByChannel: {
                                 ...store.bulkItvEpgByChannel(),
                                 ...mappingOverridesRecord(),
                             },
                         });
+                    },
+
+                    /**
+                     * True when the channel has a saved manual XMLTV mapping
+                     * — even one whose mapped guide currently has no
+                     * programs. Mapped channels must never fall back to the
+                     * portal's short EPG: the mapping exists to replace the
+                     * portal data, and merging the two schedules could
+                     * surface the portal's programme instead.
+                     */
+                    hasItvEpgMappingOverride(
+                        channelId: string | number
+                    ): boolean {
+                        const normalizedId =
+                            normalizeStalkerEntityId(channelId);
+                        return (
+                            mappingOwnedIds.has(normalizedId) ||
+                            mappingOverridesById.has(normalizedId)
+                        );
                     },
 
                     clearBulkItvEpgCache(): void {
