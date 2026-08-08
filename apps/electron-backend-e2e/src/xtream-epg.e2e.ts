@@ -9,6 +9,7 @@ import {
     goToDashboard,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     openWorkspaceSection,
     resetMockServers,
     saveSettings,
@@ -302,6 +303,7 @@ test('@epg @xtream @electron renders the vertical list view when the setting is 
         // Opt into the list view first (from the fresh workspace) so the portal
         // → Live TV → channel flow afterwards mirrors the timeline test exactly.
         await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
         await app.mainWindow
             .locator('[data-test-id="epg-view-mode-list"]')
             .click();

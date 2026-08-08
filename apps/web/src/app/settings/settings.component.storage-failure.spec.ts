@@ -125,18 +125,4 @@ describe('SettingsComponent storage failures', () => {
         expect(component.settingsForm.dirty).toBe(true);
     });
 
-    it('warns when a section write fails without leaving an unhandled rejection', async () => {
-        settingsStore.updateSettings.mockRejectedValue(
-            new Error('storage unavailable')
-        );
-
-        component.form.selectCoverSize('large');
-        await fixture.whenStable();
-
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'SETTINGS.SETTINGS_SAVE_FAILED',
-            'CLOSE',
-            ERROR_SNACKBAR_CONFIG
-        );
-    });
 });

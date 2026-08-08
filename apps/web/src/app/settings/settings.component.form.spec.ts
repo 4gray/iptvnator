@@ -112,7 +112,7 @@ describe('SettingsComponent form', () => {
             expect(component.settingsForm.dirty).toBeTruthy();
         });
 
-        it('updates cover size through the general section output', () => {
+        it('stages cover size without writing to the store until Save', () => {
             const largeCoverButton = (
                 fixture.nativeElement as HTMLElement
             ).querySelector(
@@ -123,12 +123,12 @@ describe('SettingsComponent form', () => {
             fixture.detectChanges();
 
             expect(component.settingsForm.value.coverSize).toBe('large');
-            expect(settingsStore.updateSettings).toHaveBeenCalledWith({
-                coverSize: 'large',
-            });
+            expect(component.settingsForm.dirty).toBe(true);
+            // An eager write here would make Discard unable to revert it
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
         });
 
-        it('updates the EPG view mode through the epg section output', () => {
+        it('stages the EPG view mode without writing to the store until Save', () => {
             setSettingsSection('epg');
             fixture.detectChanges();
 
@@ -142,9 +142,8 @@ describe('SettingsComponent form', () => {
             fixture.detectChanges();
 
             expect(component.settingsForm.value.epgViewMode).toBe('list');
-            expect(settingsStore.updateSettings).toHaveBeenCalledWith({
-                epgViewMode: 'list',
-            });
+            expect(component.settingsForm.dirty).toBe(true);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
         });
     });
 
@@ -253,6 +252,23 @@ describe('SettingsComponent form', () => {
 
             expect(component.settingsForm.pristine).toBe(true);
             expect(unsavedBar()).toBeNull();
+        });
+
+        it('discard reverts a staged cover size (regression: eager persist made it stick)', () => {
+            const largeCoverButton = (
+                fixture.nativeElement as HTMLElement
+            ).querySelector(
+                '[data-test-id="cover-size-large"]'
+            ) as HTMLButtonElement;
+            largeCoverButton.click();
+            fixture.detectChanges();
+            expect(component.settingsForm.value.coverSize).toBe('large');
+
+            component.discardChanges();
+
+            expect(component.settingsForm.value.coverSize).toBe('medium');
+            expect(component.settingsForm.pristine).toBe(true);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
         });
 
         it('discard reverts to the stored values and hides the bar', () => {
