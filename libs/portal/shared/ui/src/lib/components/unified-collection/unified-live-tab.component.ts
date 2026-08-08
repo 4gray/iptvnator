@@ -535,10 +535,12 @@ export class UnifiedLiveTabComponent {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
+        const launch = this.portalPlayer.openExternalPlayback(
             request.playback,
             request.player
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 
     onClose(): void {

@@ -7,6 +7,7 @@ import {
     output,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import {
@@ -19,6 +20,10 @@ import type {
     VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
 import { VodSourceRowComponent } from '@iptvnator/ui/components';
+import type {
+    ExternalRecoveryStates,
+    ExternalRecoveryTargetState,
+} from '../web-player-view/external-playback-recovery';
 import {
     getDiagnosticCodecHint,
     getDiagnosticDescriptionKey,
@@ -29,11 +34,13 @@ import {
 import {
     getRecommendationIcon,
     getRecommendationKey,
-    getRecommendationLabelKey,
+    getExternalRecommendationStatusKey,
+    getRecommendationLabelKey as resolveRecommendationLabelKey,
     getRecommendationParams,
     getRecommendationReasonKey,
     getRecommendationTestId,
     isExternalPlayerRecommendation,
+    isExternalRecommendationLaunching,
     isTemporaryBuiltInRecommendation,
 } from './playback-recommendation-view.util';
 
@@ -48,6 +55,7 @@ const ERROR_SCREEN_ALTERNATIVES = 5;
     imports: [
         ClipboardModule,
         MatIconModule,
+        MatProgressSpinnerModule,
         MatTooltipModule,
         TranslateModule,
         VodSourceRowComponent,
@@ -62,6 +70,7 @@ export class PlaybackDiagnosticPanelComponent {
     readonly supportsManagedExternalPlayers = input.required<boolean>();
     readonly playbackExternallyTransferable = input.required<boolean>();
     readonly alternativeSources = input<readonly VodSourceDescriptor[]>([]);
+    readonly externalStates = input.required<ExternalRecoveryStates>();
     readonly pending = input(false);
 
     readonly retryRequested = output<void>();
@@ -97,11 +106,11 @@ export class PlaybackDiagnosticPanelComponent {
     readonly getRecommendationKey = getRecommendationKey;
     readonly getRecommendationTestId = getRecommendationTestId;
     readonly getRecommendationIcon = getRecommendationIcon;
-    readonly getRecommendationLabelKey = getRecommendationLabelKey;
     readonly getRecommendationParams = getRecommendationParams;
     readonly getRecommendationReasonKey = getRecommendationReasonKey;
     readonly isTemporaryBuiltInRecommendation =
         isTemporaryBuiltInRecommendation;
+    readonly isExternalPlayerRecommendation = isExternalPlayerRecommendation;
 
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
         return getDiagnosticDescriptionKey(
@@ -112,6 +121,9 @@ export class PlaybackDiagnosticPanelComponent {
     }
 
     activate(recommendation: PlaybackRecommendation): void {
+        if (this.pending()) {
+            return;
+        }
         switch (recommendation.action) {
             case 'retry':
                 this.retryRequested.emit();
@@ -122,5 +134,36 @@ export class PlaybackDiagnosticPanelComponent {
             case 'alternative-source':
                 return;
         }
+    }
+
+    getRecommendationLabelKey(recommendation: PlaybackRecommendation): string {
+        return resolveRecommendationLabelKey(
+            recommendation,
+            this.getExternalState(recommendation)
+        );
+    }
+
+    getExternalStatusKey(
+        recommendation: PlaybackRecommendation
+    ): string | null {
+        return getExternalRecommendationStatusKey(
+            recommendation,
+            this.getExternalState(recommendation)
+        );
+    }
+
+    isExternalLaunching(recommendation: PlaybackRecommendation): boolean {
+        return isExternalRecommendationLaunching(
+            recommendation,
+            this.getExternalState(recommendation)
+        );
+    }
+
+    private getExternalState(
+        recommendation: PlaybackRecommendation
+    ): ExternalRecoveryTargetState | undefined {
+        return isExternalPlayerRecommendation(recommendation)
+            ? this.externalStates()[recommendation.target]
+            : undefined;
     }
 }

@@ -52,8 +52,10 @@ const rcWrites: string[] = [];
 
 function createMockChildProcess(): ChildProcess {
     return Object.assign(new EventEmitter(), {
+        exitCode: null,
         killed: false,
         kill: jest.fn(() => true),
+        signalCode: null,
         stderr: null,
         stdout: null,
         unref: jest.fn(),
@@ -163,6 +165,37 @@ describe('vlc-session.service process lifecycle', () => {
             expect(session.status).toBe('opened');
         });
 
+        it('quits a reused VLC process and waits for its exact exit on close', async () => {
+            const proc = createMockChildProcess();
+            await openTrackedVlcInstance(proc);
+            installRcSocketMock('ack');
+            const session = await openVlcPlayer({
+                title: 'Second',
+                url: 'https://example.com/two.m3u8',
+            });
+            rcWrites.length = 0;
+
+            let closeSettled = false;
+            const closePromise = externalPlayerSessions
+                .closeSession(session.id)
+                .then((closed) => {
+                    closeSettled = true;
+                    return closed;
+                });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+
+            expect(rcWrites).toEqual(['quit\n']);
+            expect(closeSettled).toBe(false);
+
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+
+            await expect(closePromise).resolves.toMatchObject({
+                id: session.id,
+                status: 'closed',
+            });
+        });
+
         it('kills the stale instance and spawns fresh when RC reuse fails', async () => {
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);
@@ -174,16 +207,52 @@ describe('vlc-session.service process lifecycle', () => {
                 title: 'Second',
                 url: 'https://example.com/two.m3u8',
             });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+
+            expect(proc.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
             await waitForSpawnCallCount(2);
             freshProc.emit('spawn');
             const session = await openPromise;
 
-            expect(proc.kill).toHaveBeenCalled();
+            expect(spawnMock).toHaveBeenCalledTimes(2);
             expect(session.status).toBe('opened');
         });
     });
 
     describe('process exit handling', () => {
+        it('waits for a detached VLC process to exit before closing its session', async () => {
+            const proc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(proc);
+            const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
+            await waitForSpawnCallCount(1);
+            proc.emit('spawn');
+            const session = await openPromise;
+
+            let closeSettled = false;
+            const closePromise = externalPlayerSessions
+                .closeSession(session.id)
+                .then((closed) => {
+                    closeSettled = true;
+                    return closed;
+                });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+
+            expect(proc.kill).toHaveBeenCalledTimes(1);
+            expect(closeSettled).toBe(false);
+
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+
+            await expect(closePromise).resolves.toMatchObject({
+                id: session.id,
+                status: 'closed',
+            });
+        });
+
         it('marks the session closed on a clean exit', async () => {
             const proc = createMockChildProcess();
             spawnMock.mockReturnValueOnce(proc);
@@ -262,9 +331,7 @@ describe('vlc-session.service process lifecycle', () => {
             });
             const proc = createMockChildProcess();
             const retryProc = createMockChildProcess();
-            spawnMock
-                .mockReturnValueOnce(proc)
-                .mockReturnValueOnce(retryProc);
+            spawnMock.mockReturnValueOnce(proc).mockReturnValueOnce(retryProc);
 
             const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
             await waitForSpawnCallCount(1);

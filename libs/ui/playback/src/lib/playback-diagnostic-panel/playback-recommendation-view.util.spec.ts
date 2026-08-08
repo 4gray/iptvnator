@@ -11,8 +11,11 @@ import {
     getRecommendationParams,
     getRecommendationReasonKey,
     getRecommendationTestId,
+    getExternalRecommendationStatusKey,
+    isExternalRecommendationLaunching,
     isTemporaryBuiltInRecommendation,
 } from './playback-recommendation-view.util';
+import type { ExternalRecoveryTargetState } from '../web-player-view/external-playback-recovery';
 
 function player(
     target: PlaybackRecommendationTarget,
@@ -43,6 +46,73 @@ function alternative(): PlaybackRecommendation {
 }
 
 describe('playback recommendation view mappings', () => {
+    it.each([
+        [
+            'mpv',
+            { attempts: 1, sessionId: null, status: 'launching' },
+            'PLAYBACK_DIAGNOSTICS.ACTION_OPENING_MPV',
+            'PLAYBACK_DIAGNOSTICS.EXTERNAL_OPENING',
+        ],
+        [
+            'vlc',
+            { attempts: 1, sessionId: 'vlc-1', status: 'started' },
+            'PLAYBACK_DIAGNOSTICS.ACTION_REOPEN_VLC',
+            'PLAYBACK_DIAGNOSTICS.EXTERNAL_STARTED',
+        ],
+        [
+            'mpv',
+            { attempts: 1, sessionId: 'mpv-1', status: 'playing' },
+            'PLAYBACK_DIAGNOSTICS.ACTION_REOPEN_MPV',
+            'PLAYBACK_DIAGNOSTICS.EXTERNAL_PLAYING',
+        ],
+        [
+            'vlc',
+            { attempts: 2, sessionId: null, status: 'error' },
+            'PLAYBACK_DIAGNOSTICS.ACTION_RETRY_VLC',
+            'PLAYBACK_DIAGNOSTICS.EXTERNAL_FAILED',
+        ],
+    ] as const)(
+        'maps %s %s state to exact action and status copy',
+        (target, state, actionKey, statusKey) => {
+            const recommendation = player(target);
+
+            expect(
+                getRecommendationLabelKey(
+                    recommendation,
+                    state as ExternalRecoveryTargetState
+                )
+            ).toBe(actionKey);
+            expect(
+                getExternalRecommendationStatusKey(
+                    recommendation,
+                    state as ExternalRecoveryTargetState
+                )
+            ).toBe(statusKey);
+            expect(
+                isExternalRecommendationLaunching(
+                    recommendation,
+                    state as ExternalRecoveryTargetState
+                )
+            ).toBe(state.status === 'launching');
+        }
+    );
+
+    it('keeps an attempted closed target actionable without a stale status', () => {
+        const recommendation = player('mpv');
+        const state: ExternalRecoveryTargetState = {
+            attempts: 1,
+            sessionId: null,
+            status: 'idle',
+        };
+
+        expect(getRecommendationLabelKey(recommendation, state)).toBe(
+            'PLAYBACK_DIAGNOSTICS.ACTION_REOPEN_MPV'
+        );
+        expect(
+            getExternalRecommendationStatusKey(recommendation, state)
+        ).toBeNull();
+    });
+
     it.each([
         ['videojs', 'playback-recommendation-videojs'],
         ['html5', 'playback-recommendation-html5'],

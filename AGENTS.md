@@ -288,7 +288,19 @@ Key files:
   exception. PWA capability suppresses managed MPV/VLC, and ClearKey/KODIPROP
   DRM suppresses external targets because its payload is not transferable. Raw
   engine messages, arbitrary data, and credentials never enter recommendation
-  evidence or ownership state.
+  evidence or ownership state. MPV/VLC actions remain mounted after an attempt
+  and expose credential-free per-target launching/started/playing/error state;
+  only an exact Electron `playing` update is labelled Playing. One handshake is
+  allowed at a time. Its fieldless intent is bound to the exact session returned
+  by the source owner's launch promise, so a late timed-out attempt cannot take
+  over a retry; later global updates must match that ID. A replacement waits for
+  confirmed teardown of the tracked external process, applies the old exact
+  close before launch, and cancels an unlaunched handoff if diagnostic ownership
+  changes. If the local
+  handshake times out after an exact Electron session is known, that ID remains
+  correlated so a later exact update can recover the UI. The global dock mirrors
+  those statuses, keeps errors visible until dismissal, and intentionally has no
+  retry because it does not own the original launch headers or credentials.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared

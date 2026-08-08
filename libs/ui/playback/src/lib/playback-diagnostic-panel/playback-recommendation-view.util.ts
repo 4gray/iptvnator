@@ -3,6 +3,8 @@ import {
     type PlaybackRecommendationReason,
     type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
+import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
+import type { ExternalRecoveryTargetState } from '../web-player-view/external-playback-recovery';
 
 export function getRecommendationKey(
     recommendation: PlaybackRecommendation
@@ -26,7 +28,8 @@ export function getRecommendationTestId(
 }
 
 export function getRecommendationLabelKey(
-    recommendation: PlaybackRecommendation
+    recommendation: PlaybackRecommendation,
+    externalState?: ExternalRecoveryTargetState
 ): string {
     switch (recommendation.action) {
         case 'retry':
@@ -34,8 +37,39 @@ export function getRecommendationLabelKey(
         case 'alternative-source':
             return 'PORTALS.MULTI_SOURCE.TRY_ANOTHER_SOURCE';
         case 'player':
-            return getPlayerLabelKey(recommendation.target);
+            return getPlayerLabelKey(recommendation.target, externalState);
     }
+}
+
+export function getExternalRecommendationStatusKey(
+    recommendation: PlaybackRecommendation,
+    state?: ExternalRecoveryTargetState
+): string | null {
+    if (!isExternalPlayerRecommendation(recommendation) || !state) {
+        return null;
+    }
+    switch (state.status) {
+        case 'launching':
+            return 'PLAYBACK_DIAGNOSTICS.EXTERNAL_OPENING';
+        case 'started':
+            return 'PLAYBACK_DIAGNOSTICS.EXTERNAL_STARTED';
+        case 'playing':
+            return 'PLAYBACK_DIAGNOSTICS.EXTERNAL_PLAYING';
+        case 'error':
+            return 'PLAYBACK_DIAGNOSTICS.EXTERNAL_FAILED';
+        case 'idle':
+            return null;
+    }
+}
+
+export function isExternalRecommendationLaunching(
+    recommendation: PlaybackRecommendation,
+    state?: ExternalRecoveryTargetState
+): boolean {
+    return (
+        isExternalPlayerRecommendation(recommendation) &&
+        state?.status === 'launching'
+    );
 }
 
 export function getRecommendationParams(
@@ -93,7 +127,10 @@ export function isTemporaryBuiltInRecommendation(
 
 export function isExternalPlayerRecommendation(
     recommendation: PlaybackRecommendation
-): boolean {
+): recommendation is Extract<
+    PlaybackRecommendation,
+    { readonly action: 'player' }
+> & { readonly target: ExternalPlayerName } {
     return (
         recommendation.action === 'player' &&
         isExternalTarget(recommendation.target)
@@ -115,17 +152,36 @@ function getPlayerTestId(target: PlaybackRecommendationTarget): string {
     }
 }
 
-function getPlayerLabelKey(target: PlaybackRecommendationTarget): string {
+function getPlayerLabelKey(
+    target: PlaybackRecommendationTarget,
+    state?: ExternalRecoveryTargetState
+): string {
     switch (target) {
         case 'videojs':
         case 'html5':
         case 'artplayer':
             return 'PLAYBACK_DIAGNOSTICS.ACTION_TRY_PLAYER';
         case 'mpv':
-            return 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV';
+            return getExternalPlayerLabelKey('MPV', state);
         case 'vlc':
-            return 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC';
+            return getExternalPlayerLabelKey('VLC', state);
     }
+}
+
+function getExternalPlayerLabelKey(
+    player: 'MPV' | 'VLC',
+    state?: ExternalRecoveryTargetState
+): string {
+    if (state?.status === 'launching') {
+        return `PLAYBACK_DIAGNOSTICS.ACTION_OPENING_${player}`;
+    }
+    if (state?.status === 'error') {
+        return `PLAYBACK_DIAGNOSTICS.ACTION_RETRY_${player}`;
+    }
+    if (state && state.attempts > 0) {
+        return `PLAYBACK_DIAGNOSTICS.ACTION_REOPEN_${player}`;
+    }
+    return `PLAYBACK_DIAGNOSTICS.ACTION_OPEN_${player}`;
 }
 
 function getPlayerName(target: PlaybackRecommendationTarget): string {
@@ -143,6 +199,8 @@ function getPlayerName(target: PlaybackRecommendationTarget): string {
     }
 }
 
-function isExternalTarget(target: PlaybackRecommendationTarget): boolean {
+function isExternalTarget(
+    target: PlaybackRecommendationTarget
+): target is ExternalPlayerName {
     return target === 'mpv' || target === 'vlc';
 }

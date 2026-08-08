@@ -28,6 +28,10 @@ import {
     sendPlayerErrorNotification,
     traceExternalPlayer,
 } from './external-player-runtime';
+import {
+    terminateExternalPlayerProcess,
+    waitForExternalPlayerProcessExit,
+} from './external-player-process';
 
 export interface OpenVlcPlayerRequest {
     url: string;
@@ -362,6 +366,7 @@ export async function openVlcPlayer({
             traceExternalPlayer('reuse existing vlc instance', {
                 rcPort: vlcRcPort,
             });
+            const reusedProcess = vlcProcess;
             try {
                 const enqueueCommands = buildVlcEnqueueCommands({
                     url,
@@ -379,12 +384,12 @@ export async function openVlcPlayer({
                 let lastReusedSnapshot: ExternalPlaybackSnapshot | null = null;
                 externalPlayerSessions.attachCloser(session.id, async () => {
                     try {
-                        await sendVlcRcCommand(reusedRcPort, 'stop');
+                        await sendVlcRcCommand(reusedRcPort, 'quit');
                     } catch {
-                        if (vlcProcess && !vlcProcess.killed) {
-                            vlcProcess.kill();
-                        }
+                        await terminateExternalPlayerProcess(reusedProcess);
+                        return;
                     }
+                    await waitForExternalPlayerProcessExit(reusedProcess);
                 });
 
                 if (contentInfo) {
@@ -420,15 +425,11 @@ export async function openVlcPlayer({
                     'Failed to reuse existing VLC, spawning fresh:',
                     err
                 );
-                if (vlcProcess && !vlcProcess.killed) {
-                    try {
-                        vlcProcess.kill();
-                    } catch {
-                        // Ignore cleanup failures.
-                    }
+                await terminateExternalPlayerProcess(reusedProcess);
+                if (vlcProcess === reusedProcess) {
+                    vlcProcess = null;
+                    vlcRcPort = null;
                 }
-                vlcProcess = null;
-                vlcRcPort = null;
                 stopVlcPositionPolling();
             }
         }
@@ -573,9 +574,7 @@ export async function openVlcPlayer({
 
                 externalPlayerSessions.attachCloser(session.id, async () => {
                     await flushVlcPlaybackPosition();
-                    if (!proc.killed) {
-                        proc.kill();
-                    }
+                    await terminateExternalPlayerProcess(proc);
                 });
 
                 if (!isRetry && rcPort > 0 && contentInfo) {

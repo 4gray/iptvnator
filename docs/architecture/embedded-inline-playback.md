@@ -582,12 +582,13 @@ offer a same-family built-in alternative. Unknown source or engine-family facts
 also suppress built-in recommendations.
 
 The pure policy builds the following order, filters the current, unavailable,
-incompatible, and already attempted targets, and then returns at most three
-actions. It also projects attempted inline target IDs through the validated
+incompatible, and already attempted inline targets, and then returns at most
+three actions. It projects attempted inline target IDs through the validated
 canonical source/target capability matrix and filters every engine family that
 has already been attempted. HTML5 and ArtPlayer therefore cannot be offered as
-separate hls.js recovery attempts. The first surviving action is primary and
-later actions are secondary.
+separate hls.js recovery attempts. External MPV/VLC attempts remain eligible;
+the view reranks them by per-target attempt count instead of removing them. The
+first surviving action is primary and later actions are secondary.
 
 | Sanitized evidence                        | Candidate order                                              |
 | ----------------------------------------- | ------------------------------------------------------------ |
@@ -654,8 +655,30 @@ override and saved player setting. The new engine receives the latest finite
 VOD position as a best-effort resume point; live playback starts at the live
 edge. Retry reloads the active target without clearing attempts. Selecting MPV
 or VLC records the external target before emitting the existing fallback
-request. The system does not infer whether the external process ultimately
-played the stream.
+request. Both external actions remain mounted while their per-target state
+moves through `launching`, `started`, `playing`, or `error`; an attempted idle
+target becomes an explicit reopen action and a failed target becomes Try again.
+Only an exact correlated Electron `playing` session update earns the Playing
+label. A single external launch handshake owns the session: duplicate actions
+are ignored, other external actions wait, and an existing live external session
+must close before a different player can start. The source-owning host binds
+its returned launch promise to the fieldless current intent, so only that exact
+result supplies the initial session ID; a late result from a timed-out attempt
+cannot take over a retry. Later global updates must match the exact ID. A
+replacement does not launch until teardown of the exact spawned process is
+confirmed, and the old target is settled synchronously before the new launch so
+coalesced signal effects cannot preserve stale feedback. If diagnostic
+ownership changes during close, the unlaunched intent is cancelled without a
+false launch error. If the local handshake timeout fires after Electron has
+supplied an exact session ID, the ID stays correlated so a later `opened`,
+`playing`, or `error` update can reconcile the action with the global dock.
+
+The global external-playback dock uses the same Electron session status. It
+shows Opening player with progress during launch, Player started for `opened`,
+and Playing only for `playing`. External player errors remain visible until
+dismissed, whether startup failed or a started player exited unexpectedly;
+the dock deliberately has no retry because it does not own the original headers
+or credentials required to reconstruct a safe launch request.
 
 No recommendation mutates `Settings.player` or another persisted setting.
 Recovery recommendations never auto-switch a player or source and do not
