@@ -264,6 +264,41 @@ describe('withStalkerEpg', () => {
 
             expect(epgBridge.getEpgMappingsBatch).not.toHaveBeenCalled();
         });
+
+        it('reports which channels carry a mapping override', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([MAPPED_PROGRAM]);
+
+            expect(store.hasItvEpgMappingOverride('10001')).toBe(false);
+
+            await store.applyMappedItvEpg(['10001', '10002']);
+
+            // Callers use this to keep mapped channels away from the portal
+            // short-EPG fallback — the mapping replaces the portal schedule.
+            expect(store.hasItvEpgMappingOverride('10001')).toBe(true);
+            expect(store.hasItvEpgMappingOverride('10002')).toBe(false);
+        });
+
+        it('keeps ownership for a mapping whose mapped guide is currently empty', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([]);
+            const bulkBefore = store.bulkItvEpgByChannel();
+
+            await store.applyMappedItvEpg(['10001']);
+
+            // The mapping row exists, so the channel is owned even though it
+            // contributes no programs — the portal fallback must stay out.
+            expect(store.hasItvEpgMappingOverride('10001')).toBe(true);
+            // Ownership is published reactively (same content, new map
+            // reference): a short-EPG fallback that finished before the
+            // mapping lookup may already have rendered a portal row, and the
+            // preview effect only reruns — and removes it — on a state patch.
+            expect(store.bulkItvEpgByChannel()).not.toBe(bulkBefore);
+        });
     });
 });
 
