@@ -17,7 +17,11 @@ import {
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
+import {
+    EpgItemDescriptionComponent,
+    EpgListViewComponent,
+    EpgTimelineComponent,
+} from '@iptvnator/ui/epg';
 import {
     AudioPlayerComponent,
     type PlaybackFallbackRequest,
@@ -457,6 +461,35 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
+    });
+
+    it('offers programme details from the row context menu when a preview program exists', () => {
+        fixture.detectChanges();
+
+        const program = {
+            title: 'Current Show',
+            desc: 'Current description',
+            channel: 'stalker-10',
+            start: '2026-04-05 05:30:00',
+            stop: '2026-04-05 06:00:00',
+            category: null,
+        } as never;
+        component.epgPreviewPrograms.set('10', program);
+
+        const rowWithProgram = { id: '10', name: 'Chan 10' } as never;
+        expect(component.hasChannelContextMenu(rowWithProgram)).toBe(true);
+
+        component.contextMenuChannel.set(rowWithProgram);
+        expect(component.contextMenuProgram()).toBe(program);
+
+        component.openProgramDetails();
+
+        const dialog = TestBed.inject(MatDialog) as unknown as {
+            open: jest.Mock;
+        };
+        expect(dialog.open).toHaveBeenCalledWith(EpgItemDescriptionComponent, {
+            data: program,
+        });
     });
 
     it('renders the controlled epg list and removes the load-more button', () => {

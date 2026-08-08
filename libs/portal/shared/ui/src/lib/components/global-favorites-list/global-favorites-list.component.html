@@ -62,6 +62,18 @@
 ></div>
 
 <mat-menu #channelContextMenu="matMenu">
+    @if (contextMenuChannel()?.currentEpgProgram) {
+        <button
+            mat-menu-item
+            data-test-id="program-details-menu-item"
+            (click)="openProgramDetails()"
+        >
+            <mat-icon>event_note</mat-icon>
+            <span>{{
+                'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+            }}</span>
+        </button>
+    }
     @if (supportsEpgMapping) {
         <button mat-menu-item (click)="openEpgMapping()">
             <mat-icon>settings_remote</mat-icon>

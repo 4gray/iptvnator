@@ -31,6 +31,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
+import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
@@ -178,14 +179,29 @@ export class GlobalFavoritesListComponent {
         });
     }
 
-    hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
+    hasChannelContextMenu(
+        channel: UnifiedFavoriteChannel & {
+            currentEpgProgram?: EpgProgram | null;
+        }
+    ): boolean {
         return (
             Boolean(channel.m3uChannel) ||
             this.mode() === 'recent' ||
+            Boolean(channel.currentEpgProgram) ||
             (this.supportsEpgMapping &&
                 (channel.xtreamId != null ||
                     Boolean(this.stalkerItemId(channel))))
         );
+    }
+
+    openProgramDetails(): void {
+        const program = this.contextMenuChannel()?.currentEpgProgram;
+        if (!program) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        this.dialog.open(EpgItemDescriptionComponent, { data: program });
     }
 
     openEpgMapping(): void {

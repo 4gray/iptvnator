@@ -12,8 +12,10 @@ import {
     FavoritesService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
+import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 
 function buildEpgItem(params: {
@@ -458,5 +460,47 @@ describe('PortalChannelsListComponent', () => {
             'live'
         );
         expect(fixture.componentInstance.favorites.get('live:253')).toBe(true);
+    });
+
+    it('offers programme details from the row context menu when a preview program exists', () => {
+        const component = fixture.componentInstance;
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
+        fixture.detectChanges();
+
+        const program = {
+            title: 'Current Show',
+            desc: 'Current description',
+            channel: 'channel-50',
+            start: '2026-04-05 05:30:00',
+            stop: '2026-04-05 06:00:00',
+            category: null,
+        } as never;
+        component.epgPrograms.set(50, program);
+
+        // Without a program (and without EPG-mapping support in this
+        // harness) the row offers no context menu at all.
+        expect(
+            component.hasChannelContextMenu({ xtream_id: 51 })
+        ).toBe(false);
+        expect(
+            component.hasChannelContextMenu({ xtream_id: 50 })
+        ).toBe(true);
+
+        component.contextMenuChannel.set({
+            title: 'Cartoon Network',
+            xtream_id: 50,
+        });
+        expect(component.contextMenuProgram()).toBe(program);
+
+        const dialog = TestBed.inject(MatDialog);
+        const openSpy = jest
+            .spyOn(dialog, 'open')
+            .mockReturnValue({} as MatDialogRef<unknown>);
+        component.openProgramDetails();
+
+        expect(openSpy).toHaveBeenCalledWith(EpgItemDescriptionComponent, {
+            data: program,
+        });
     });
 });

@@ -44,6 +44,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
+    EpgItemDescriptionComponent,
     EpgListViewComponent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
@@ -857,6 +858,37 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         queueMicrotask(() => {
             this.contextMenuTrigger().openMenu();
         });
+    }
+
+    /** Current preview programme of the row under the context menu. */
+    contextMenuProgram(): EpgProgram | null {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return null;
+        }
+
+        return (
+            this.epgPreviewPrograms.get(normalizeStalkerEntityId(channel.id)) ??
+            null
+        );
+    }
+
+    /** Whether right-click has anything to offer for this row. */
+    hasChannelContextMenu(item: StalkerItvChannel): boolean {
+        return (
+            this.supportsEpgMapping ||
+            this.epgPreviewPrograms.has(normalizeStalkerEntityId(item.id))
+        );
+    }
+
+    openProgramDetails(): void {
+        const program = this.contextMenuProgram();
+        if (!program) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        this.dialog.open(EpgItemDescriptionComponent, { data: program });
     }
 
     async openEpgMapping(): Promise<void> {
