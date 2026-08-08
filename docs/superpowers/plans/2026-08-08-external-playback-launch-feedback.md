@@ -13,6 +13,7 @@
 ### Task 1: External recovery state machine
 
 **Files:**
+
 - Create: `libs/ui/playback/src/lib/web-player-view/external-playback-recovery.ts`
 - Create: `libs/ui/playback/src/lib/web-player-view/external-playback-recovery.spec.ts`
 
@@ -34,8 +35,12 @@ expect(state.target('mpv')).toMatchObject({
 });
 expect(state.begin('vlc', 'old-session')).toBeNull();
 
-expect(state.observe(session({ id: 'old-session', player: 'mpv' }))).toBe(false);
-expect(state.observe(session({ id: 'new-session', player: 'vlc' }))).toBe(false);
+expect(state.observe(session({ id: 'old-session', player: 'mpv' }))).toBe(
+    false
+);
+expect(state.observe(session({ id: 'new-session', player: 'vlc' }))).toBe(
+    false
+);
 expect(state.observe(session({ id: 'new-session', player: 'mpv' }))).toBe(true);
 expect(state.target('mpv').status).toBe('started');
 ```
@@ -60,11 +65,7 @@ Use these exported shapes:
 
 ```typescript
 export type ExternalRecoveryStatus =
-    | 'idle'
-    | 'launching'
-    | 'started'
-    | 'playing'
-    | 'error';
+    'idle' | 'launching' | 'started' | 'playing' | 'error';
 
 export interface ExternalRecoveryTargetState {
     readonly status: ExternalRecoveryStatus;
@@ -78,10 +79,15 @@ export interface ExternalRecoveryIntent {
 }
 
 export class ExternalPlaybackRecovery {
-    readonly states: Signal<Readonly<Record<ExternalPlayerName, ExternalRecoveryTargetState>>>;
+    readonly states: Signal<
+        Readonly<Record<ExternalPlayerName, ExternalRecoveryTargetState>>
+    >;
     readonly pending: Signal<boolean>;
     syncSession(key: string): boolean;
-    begin(target: ExternalPlayerName, previousSessionId: string | null): ExternalRecoveryIntent | null;
+    begin(
+        target: ExternalPlayerName,
+        previousSessionId: string | null
+    ): ExternalRecoveryIntent | null;
     owns(intent: ExternalRecoveryIntent): boolean;
     observe(session: ExternalPlayerSession | null): boolean;
     fail(intent: ExternalRecoveryIntent): boolean;
@@ -108,6 +114,7 @@ git commit -m "feat(playback): track external recovery launches"
 ### Task 2: Preserve and rerank external recommendations
 
 **Files:**
+
 - Modify: `libs/ui/playback/src/lib/web-player-view/web-player-recovery-policy.ts`
 - Modify: `libs/ui/playback/src/lib/web-player-view/web-player-view.component.recovery.spec.ts`
 - Test: `libs/ui/playback/src/lib/web-player-view/web-player-recovery-policy.spec.ts`
@@ -126,8 +133,9 @@ const result = createWebPlayerRecommendations({
     },
 });
 
-expect(result.map((item) => item.action === 'player' ? item.target : item.action))
-    .toEqual(['vlc', 'mpv', 'alternative-source']);
+expect(
+    result.map((item) => (item.action === 'player' ? item.target : item.action))
+).toEqual(['vlc', 'mpv', 'alternative-source']);
 expect(result.map((item) => item.priority)).toEqual([
     'primary',
     'secondary',
@@ -171,6 +179,7 @@ git commit -m "fix(playback): keep external recovery actions available"
 ### Task 3: Wire launch ownership and close-before-switch
 
 **Files:**
+
 - Modify: `libs/ui/playback/src/lib/web-player-view/web-player-view.component.ts`
 - Modify: `libs/ui/playback/src/lib/web-player-view/web-player-view.component.html`
 - Modify: `libs/ui/playback/src/lib/web-player-view/playback-recovery-session.ts`
@@ -188,7 +197,9 @@ mpvButton.click();
 expect(fallbackRequests).toHaveLength(1);
 expect(component.externalRecoveryPending()).toBe(true);
 
-activeSession.set(externalSession({ id: 'mpv-1', player: 'mpv', status: 'opened' }));
+activeSession.set(
+    externalSession({ id: 'mpv-1', player: 'mpv', status: 'opened' })
+);
 fixture.detectChanges();
 expect(component.externalRecoveryState().mpv.status).toBe('started');
 expect(playerActionIds()).toContain('playback-fallback-mpv');
@@ -228,6 +239,7 @@ git commit -m "feat(playback): synchronize external launch feedback"
 ### Task 4: Render accessible per-target feedback
 
 **Files:**
+
 - Modify: `libs/ui/playback/src/lib/playback-diagnostic-panel/playback-diagnostic-panel.component.ts`
 - Modify: `libs/ui/playback/src/lib/playback-diagnostic-panel/playback-diagnostic-panel.component.html`
 - Modify: `libs/ui/playback/src/lib/playback-diagnostic-panel/playback-diagnostic-panel.component.scss`
@@ -240,10 +252,12 @@ git commit -m "feat(playback): synchronize external launch feedback"
 Prove state-aware keys and labels:
 
 ```typescript
-expect(getRecommendationLabelKey(mpvRecommendation, launchingState))
-    .toBe('PLAYBACK_DIAGNOSTICS.ACTION_OPENING_MPV');
-expect(getRecommendationLabelKey(mpvRecommendation, errorState))
-    .toBe('PLAYBACK_DIAGNOSTICS.ACTION_RETRY_MPV');
+expect(getRecommendationLabelKey(mpvRecommendation, launchingState)).toBe(
+    'PLAYBACK_DIAGNOSTICS.ACTION_OPENING_MPV'
+);
+expect(getRecommendationLabelKey(mpvRecommendation, errorState)).toBe(
+    'PLAYBACK_DIAGNOSTICS.ACTION_RETRY_MPV'
+);
 ```
 
 The component test must assert that the same MPV `HTMLButtonElement` remains in
@@ -277,6 +291,7 @@ git commit -m "feat(playback): show external launch action states"
 ### Task 5: Keep dock errors visible and use exact statuses
 
 **Files:**
+
 - Modify: `apps/web/src/app/services/external-playback.service.ts`
 - Modify: `apps/web/src/app/services/external-playback.service.spec.ts`
 - Modify: `libs/ui/components/src/lib/external-playback-dock/external-playback-dock.component.ts`
@@ -326,6 +341,7 @@ git commit -m "fix(playback): keep external launch errors visible"
 ### Task 6: Translation, documentation, and release note
 
 **Files:**
+
 - Modify: `apps/web/src/assets/i18n/*.json`
 - Modify: `docs/architecture/embedded-inline-playback.md`
 - Modify: `AGENTS.md`
@@ -347,7 +363,7 @@ English fallback otherwise:
 "EXTERNAL_OPENING": "Opening player…",
 "EXTERNAL_STARTED": "Player started",
 "EXTERNAL_PLAYING": "Playing",
-"EXTERNAL_FAILED": "Could not start player"
+"EXTERNAL_FAILED": "External player error"
 ```
 
 Add workspace dock keys for opening, started, playing, failed, and dismiss.
@@ -382,6 +398,7 @@ git commit -m "docs(playback): document external launch feedback"
 ### Task 7: Electron regression flow
 
 **Files:**
+
 - Modify: `apps/electron-backend-e2e/src/dash-clearkey.e2e.ts`
 
 - [ ] **Step 1: Change the existing E2E expectation before production code is considered complete**
@@ -418,6 +435,7 @@ git commit -m "test(playback): cover external launch feedback"
 ### Task 8: Full validation, review, and PR
 
 **Files:**
+
 - Review all changed files from `origin/master...HEAD`.
 
 - [ ] **Step 1: Run affected unit, lint, build, and policy validation**
