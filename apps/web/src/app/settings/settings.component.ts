@@ -11,6 +11,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
@@ -18,7 +19,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { Language, StreamFormat } from '@iptvnator/shared/interfaces';
-import { map } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
@@ -43,6 +44,11 @@ import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
 import { SettingsResetSectionComponent } from './settings-reset-section.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
+import {
+    SettingsUnsavedChangesChoice,
+    SettingsUnsavedChangesDialogComponent,
+} from './settings-unsaved-changes-dialog.component';
+import { SettingsLeaveConfirmation } from './settings-unsaved-changes.guard';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -93,7 +99,9 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsSnackbarService,
     ],
 })
-export class SettingsComponent implements OnInit, OnDestroy {
+export class SettingsComponent
+    implements OnInit, OnDestroy, SettingsLeaveConfirmation
+{
     readonly appUpdate = inject(SettingsAppUpdateFacade);
     readonly backup = inject(SettingsBackupFacade);
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
@@ -106,6 +114,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
+    private readonly matDialog = inject(MatDialog);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
@@ -236,7 +245,54 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * the indexed db store
      */
     onSubmit(): void {
-        this.form.save(() => this.applyChangedSettings()).catch(() => {
+        void this.persistSettings();
+    }
+
+    /**
+     * Exit gate for `settingsUnsavedChangesGuard`: silently allows leaving
+     * while the form is pristine, otherwise lets the user save, discard, or
+     * stay. A failed save keeps the user in settings — navigating away on a
+     * write that did not land would silently lose the edits the dialog just
+     * promised to keep.
+     */
+    async confirmLeaveWithUnsavedChanges(): Promise<boolean> {
+        if (this.settingsForm.pristine) {
+            return true;
+        }
+
+        const choice = await firstValueFrom(
+            this.matDialog
+                .open<
+                    SettingsUnsavedChangesDialogComponent,
+                    { canSave: boolean },
+                    SettingsUnsavedChangesChoice
+                >(SettingsUnsavedChangesDialogComponent, {
+                    width: '440px',
+                    data: { canSave: this.settingsForm.valid },
+                })
+                .afterClosed()
+        );
+
+        if (choice === 'save') {
+            return this.persistSettings();
+        }
+
+        if (choice === 'discard') {
+            // Also reverts the live theme preview — leaving must not keep a
+            // theme the store never saved.
+            this.discardChanges();
+            return true;
+        }
+
+        return false;
+    }
+
+    /** @returns whether the write actually landed */
+    private async persistSettings(): Promise<boolean> {
+        try {
+            await this.form.save(() => this.applyChangedSettings());
+            return true;
+        } catch {
             // The store already applied the change in memory, so without
             // this the save looks successful until the next restart. The
             // unsaved-changes bar stays visible so it can be retried.
@@ -248,7 +304,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
             // applying none of it. Once settings live in the main process
             // (issue #1273) this split disappears.
             this.settingsSnackbar.storageFailure('save');
-        });
+            return false;
+        }
     }
 
     /**

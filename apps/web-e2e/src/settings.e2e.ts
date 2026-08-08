@@ -160,6 +160,80 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
+    test('@settings @web Leaving with unsaved edits asks for confirmation', async ({
+        page,
+    }) => {
+        await openSettings(page);
+
+        const themeGroup = page.locator(
+            '[data-test-id="select-theme"][role="radiogroup"]'
+        );
+        await themeGroup
+            .getByRole('radio', { name: 'Dark', exact: true })
+            .click();
+
+        // Trying to leave the settings area surfaces the dialog.
+        await page
+            .getByRole('navigation')
+            .getByRole('link', { name: 'Dashboard', exact: true })
+            .click();
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+
+        // Keep editing: navigation is cancelled, the edit survives.
+        await dialog.locator('[data-test-id="unsaved-dialog-stay"]').click();
+        await expect(dialog).toBeHidden();
+        await expect(page).toHaveURL(/\/workspace\/settings\/general$/);
+        await expect(
+            page.locator('[data-test-id="settings-unsaved-bar"]')
+        ).toBeVisible();
+
+        // Leave without saving: the staged edit is discarded.
+        await page
+            .getByRole('navigation')
+            .getByRole('link', { name: 'Dashboard', exact: true })
+            .click();
+        await page
+            .getByRole('dialog')
+            .locator('[data-test-id="unsaved-dialog-discard"]')
+            .click();
+        await page.waitForURL(/\/workspace\/dashboard$/);
+
+        await openSettings(page);
+        await expect(
+            themeGroup.getByRole('radio', { name: 'System', exact: true })
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('@settings @web Save-and-leave persists the staged edit', async ({
+        page,
+    }) => {
+        await openSettings(page);
+
+        const themeGroup = page.locator(
+            '[data-test-id="select-theme"][role="radiogroup"]'
+        );
+        await themeGroup
+            .getByRole('radio', { name: 'Dark', exact: true })
+            .click();
+
+        await page
+            .getByRole('navigation')
+            .getByRole('link', { name: 'Dashboard', exact: true })
+            .click();
+        await page
+            .getByRole('dialog')
+            .locator('[data-test-id="unsaved-dialog-save"]')
+            .click();
+        await page.waitForURL(/\/workspace\/dashboard$/);
+
+        await page.reload();
+        await openSettings(page);
+        await expect(
+            themeGroup.getByRole('radio', { name: 'Dark', exact: true })
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
     test('@settings @web Change app language', async ({ page }) => {
         await openSettings(page);
         const languageSelect = page.locator('[data-test-id="select-language"]');

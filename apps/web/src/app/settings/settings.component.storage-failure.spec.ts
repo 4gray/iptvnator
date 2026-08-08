@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsComponent } from './settings.component';
@@ -99,6 +101,28 @@ describe('SettingsComponent storage failures', () => {
         await fixture.whenStable();
 
         expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('keeps the user in settings when save-and-leave cannot persist', async () => {
+        settingsStore.updateSettings.mockRejectedValue(
+            new Error('storage unavailable')
+        );
+        component.settingsForm.markAsDirty();
+        (TestBed.inject(MatDialog).open as jest.Mock).mockReturnValue({
+            afterClosed: () => of('save'),
+        });
+
+        // Allowing the navigation here would silently drop the edits the
+        // dialog just promised to save.
+        await expect(component.confirmLeaveWithUnsavedChanges()).resolves.toBe(
+            false
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.SETTINGS_SAVE_FAILED',
+            'CLOSE',
+            ERROR_SNACKBAR_CONFIG
+        );
+        expect(component.settingsForm.dirty).toBe(true);
     });
 
     it('warns when a section write fails without leaving an unhandled rejection', async () => {

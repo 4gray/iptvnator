@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
+import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
@@ -151,6 +153,72 @@ describe('SettingsComponent', () => {
                     'app-settings-general-section'
                 )
             ).not.toBeNull();
+        });
+    });
+
+    describe('Leaving with unsaved changes', () => {
+        const answerDialogWith = (
+            choice: 'save' | 'discard' | undefined
+        ): jest.Mock => {
+            const open = TestBed.inject(MatDialog).open as jest.Mock;
+            open.mockReturnValue({ afterClosed: () => of(choice) });
+            return open;
+        };
+
+        it('lets a pristine form leave without asking', async () => {
+            const open = answerDialogWith(undefined);
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(true);
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it('stays when the dialog is dismissed', async () => {
+            component.settingsForm.markAsDirty();
+            answerDialogWith(undefined);
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(false);
+            expect(component.settingsForm.dirty).toBe(true);
+        });
+
+        it('discard-and-leave reverts the staged edits', async () => {
+            component.settingsForm.get('theme')?.setValue('DARK_THEME');
+            component.settingsForm.markAsDirty();
+            answerDialogWith('discard');
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(true);
+            expect(component.settingsForm.pristine).toBe(true);
+        });
+
+        it('save-and-leave persists before allowing the navigation', async () => {
+            component.settingsForm.markAsDirty();
+            jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
+            answerDialogWith('save');
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(true);
+            expect(component.settingsForm.pristine).toBe(true);
+        });
+
+        it('offers save-and-leave only while the form is valid', async () => {
+            component.settingsForm.markAsDirty();
+            component.settingsForm.setErrors({ invalid: true });
+            const open = answerDialogWith(undefined);
+
+            await component.confirmLeaveWithUnsavedChanges();
+
+            expect(open).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    data: { canSave: false },
+                })
+            );
         });
     });
 
