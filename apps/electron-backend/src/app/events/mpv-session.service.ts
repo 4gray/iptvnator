@@ -29,6 +29,10 @@ import {
     sendPlayerErrorNotification,
     traceExternalPlayer,
 } from './external-player-runtime';
+import {
+    terminateExternalPlayerProcess,
+    waitForExternalPlayerProcessExit,
+} from './external-player-process';
 
 export interface OpenExternalPlayerRequest {
     url: string;
@@ -280,6 +284,7 @@ export async function openMpvPlayer({
             mpvSocketPath
         ) {
             traceExternalPlayer('reuse existing mpv instance');
+            const reusedProcess = mpvProcess;
             try {
                 if (effectiveUserAgent) {
                     await sendMpvCommand('set_property', [
@@ -317,10 +322,10 @@ export async function openMpvPlayer({
                     try {
                         await sendMpvCommand('quit', []);
                     } catch {
-                        if (mpvProcess && !mpvProcess.killed) {
-                            mpvProcess.kill();
-                        }
+                        await terminateExternalPlayerProcess(reusedProcess);
+                        return;
                     }
+                    await waitForExternalPlayerProcessExit(reusedProcess);
                 });
 
                 if (startTime) {
@@ -373,7 +378,9 @@ export async function openMpvPlayer({
         }
 
         if (headerFields.length > 0) {
-            args.push(`--http-header-fields=${joinMpvHeaderFields(headerFields)}`);
+            args.push(
+                `--http-header-fields=${joinMpvHeaderFields(headerFields)}`
+            );
         }
 
         if (title) {
@@ -500,9 +507,7 @@ export async function openMpvPlayer({
             }
 
             externalPlayerSessions.attachCloser(session.id, async () => {
-                if (!proc.killed) {
-                    proc.kill();
-                }
+                await terminateExternalPlayerProcess(proc);
             });
 
             if (useMpvSocketBridge && contentInfo && socketPath) {

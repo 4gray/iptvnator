@@ -569,6 +569,36 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
             /web-player-diagnostic__player-card--primary/
         );
         await expect(dock).toContainText('Player started');
+        const dockThemeStyles = await dock
+            .locator('.external-playback-dock')
+            .evaluate((element) => {
+                const body = element.ownerDocument.body;
+                const wasDark = body.classList.contains('dark-theme');
+                const read = () => {
+                    const style = getComputedStyle(element);
+                    return {
+                        borderColor: style.borderColor,
+                        color: style.color,
+                        onSurface: style
+                            .getPropertyValue('--app-heading-color')
+                            .trim(),
+                        surface: style
+                            .getPropertyValue('--app-widget-bg')
+                            .trim(),
+                    };
+                };
+                body.classList.remove('dark-theme');
+                const light = read();
+                body.classList.add('dark-theme');
+                const dark = read();
+                body.classList.toggle('dark-theme', wasDark);
+                return { dark, light };
+            });
+        expect(dockThemeStyles.light.surface).not.toBe('');
+        expect(dockThemeStyles.dark.surface).not.toBe('');
+        expect(dockThemeStyles.light.onSurface).not.toBe('');
+        expect(dockThemeStyles.dark.onSurface).not.toBe('');
+        expect(dockThemeStyles.light).not.toEqual(dockThemeStyles.dark);
 
         await vlcFallback.click();
         const expectedBothLaunches = [
@@ -588,7 +618,7 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
         await expect(mpvFallback).toBeVisible();
         await expect(vlcFallback).toBeVisible();
         await expect(vlcFallback).toContainText('Try VLC again');
-        await expect(vlcFallback).toContainText('Player launch failed');
+        await expect(vlcFallback).toContainText('External player error');
         await expect(mpvFallback).toHaveClass(
             /web-player-diagnostic__player-card--primary/
         );

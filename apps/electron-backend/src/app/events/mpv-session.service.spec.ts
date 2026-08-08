@@ -49,13 +49,16 @@ import {
     VLC_REUSE_INSTANCE,
     store,
 } from '../services/store.service';
+import { externalPlayerSessions } from './external-player-runtime';
 import { openMpvPlayer, shutdownMpvSession } from './mpv-session.service';
 import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
 
 function createMockChildProcess(): ChildProcess {
     return Object.assign(new EventEmitter(), {
+        exitCode: null,
         killed: false,
         kill: jest.fn(() => true),
+        signalCode: null,
         stderr: null,
         stdout: null,
         unref: jest.fn(),
@@ -220,6 +223,39 @@ describe('external player shutdown on app quit', () => {
         shutdownMpvSession();
 
         expect(proc.kill).not.toHaveBeenCalled();
+    });
+
+    it('waits for a detached MPV process to exit before closing its session', async () => {
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: false,
+        });
+        const session = await openMpvPlayer({
+            title: 'Detached MPV stream',
+            url: 'https://example.com/live.m3u8',
+        });
+
+        let closeSettled = false;
+        const closePromise = externalPlayerSessions
+            .closeSession(session.id)
+            .then((closed) => {
+                closeSettled = true;
+                return closed;
+            });
+        await new Promise<void>((resolve) => setImmediate(resolve));
+
+        expect(proc.kill).toHaveBeenCalledTimes(1);
+        expect(closeSettled).toBe(false);
+
+        Object.defineProperty(proc, 'exitCode', { value: 0 });
+        proc.emit('exit', 0);
+
+        await expect(closePromise).resolves.toMatchObject({
+            id: session.id,
+            status: 'closed',
+        });
     });
 
     it('kills the stored reusable VLC process on shutdown', async () => {

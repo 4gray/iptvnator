@@ -827,10 +827,12 @@ app as a real argument, so it is not an option.
   evidence or ownership state. MPV/VLC actions remain mounted after an attempt
   and expose credential-free per-target launching/started/playing/error state;
   only an exact Electron `playing` update is labelled Playing. One handshake is
-  allowed at a time, switching players first closes the tracked live external
-  session, and stale updates cannot take ownership. The global dock mirrors
-  those statuses, keeps errors visible until dismissal, and intentionally has
-  no retry because it does not own the original launch headers or credentials.
+  allowed at a time, a replacement waits for confirmed teardown of the tracked
+  external process, and stale updates cannot take ownership. If the local
+  handshake times out after an exact Electron session is known, that ID remains
+  correlated so a later exact update can recover the UI. The global dock mirrors
+  those statuses, keeps errors visible until dismissal, and intentionally has no
+  retry because it does not own the original launch headers or credentials.
 - DASH + ClearKey (M3U module): `.mpd` channels play through a lazily loaded
   Shaka Player source engine inside the HTML5 and ArtPlayer components (no new
   player in settings). ClearKey keys come from `#KODIPROP:inputstream.adaptive.*`

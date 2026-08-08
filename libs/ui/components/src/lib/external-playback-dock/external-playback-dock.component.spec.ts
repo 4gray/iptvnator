@@ -21,7 +21,7 @@ class FakeTranslateLoader implements TranslateLoader {
                     EXTERNAL_PLAYBACK_OPENING: 'Opening player…',
                     EXTERNAL_PLAYBACK_STARTED: 'Player started',
                     EXTERNAL_PLAYBACK_PLAYING: 'Playing',
-                    EXTERNAL_PLAYBACK_FAILED: 'Playback failed',
+                    EXTERNAL_PLAYBACK_FAILED: 'External player error',
                 },
             },
         });
@@ -140,7 +140,9 @@ describe('ExternalPlaybackDockComponent', () => {
         const action = fixture.debugElement.query(
             By.css('.external-playback-dock__button')
         );
-        expect(fixture.nativeElement.textContent).toContain('Playback failed');
+        expect(fixture.nativeElement.textContent).toContain(
+            'External player error'
+        );
         expect(action.nativeElement.textContent).toContain('Dismiss');
         expect(action.nativeElement.textContent).not.toContain('Retry');
         expect(action.nativeElement.getAttribute('aria-label')).toBe('Dismiss');

@@ -138,7 +138,7 @@ export class ExternalPlaybackRecovery {
         const current = this.target(intent.target);
         this.setTarget(intent.target, {
             attempts: current.attempts,
-            sessionId: null,
+            sessionId: current.sessionId,
             status: 'error',
         });
         this.clearActiveIntent();
