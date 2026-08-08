@@ -30,16 +30,24 @@ test('pins the Vite version carrying the local transform-filter backport', () =>
     assert.equal(vitePackage.version, '7.3.5');
 });
 
-test('uses precise Vite transform filters instead of backtracking prefilters', () => {
+test('uses bounded Vite prefilters with precise handler matchers', () => {
     assert.ok(
-        /filter: \{\s*id: \{[^}]+\},\s*code: assetImportMetaUrlRE\s*\}/s.test(
+        /filter: \{\s*id: \{[^}]+\},\s*code: assetImportMetaUrlFilterRE\s*\}/s.test(
             viteConfig
         ),
-        'asset import-meta transform must use the precise shared filter'
+        'asset import-meta transform must use the bounded prefilter'
     );
     assert.ok(
-        /filter: \{ code: workerImportMetaUrlRE \}/.test(viteConfig),
-        'worker import-meta transform must use the precise shared filter'
+        /filter: \{ code: workerImportMetaUrlFilterRE \}/.test(viteConfig),
+        'worker import-meta transform must use the bounded prefilter'
+    );
+    assert.ok(
+        /const re = new RegExp\(assetImportMetaUrlRE\)/.test(viteConfig),
+        'asset handler must clone the precise matcher'
+    );
+    assert.ok(
+        /const re = new RegExp\(workerImportMetaUrlRE\)/.test(viteConfig),
+        'worker handler must clone the precise matcher'
     );
     assert.ok(
         !/code: \/new\\s\+URL\.\+import\\\.meta\\\.url\/s/.test(viteConfig),
@@ -48,8 +56,8 @@ test('uses precise Vite transform filters instead of backtracking prefilters', (
 });
 
 test('rejects a large false-positive chunk without regex backtracking', () => {
-    const assetFilter = extractRegExp('assetImportMetaUrlRE');
-    const workerFilter = extractRegExp('workerImportMetaUrlRE');
+    const assetFilter = extractRegExp('assetImportMetaUrlFilterRE');
+    const workerFilter = extractRegExp('workerImportMetaUrlFilterRE');
     const largeCode =
         `new URLSearchParams();\n`.repeat(200) + `var a = 1;\n`.repeat(200_000);
     const start = performance.now();
@@ -63,16 +71,30 @@ test('rejects a large false-positive chunk without regex backtracking', () => {
 });
 
 test('keeps valid asset and worker import-meta URL patterns eligible', () => {
-    const assetFilter = extractRegExp('assetImportMetaUrlRE');
-    const workerFilter = extractRegExp('workerImportMetaUrlRE');
+    const assetFilter = extractRegExp('assetImportMetaUrlFilterRE');
+    const workerFilter = extractRegExp('workerImportMetaUrlFilterRE');
+    const assetMatcher = extractRegExp('assetImportMetaUrlRE');
+    const workerMatcher = extractRegExp('workerImportMetaUrlRE');
+    const assetExpression = `new URL('./asset.png', import.meta.url)`;
+    const workerExpression = `new Worker(new URL('./worker.js', import.meta.url))`;
+
+    assert.equal(assetFilter.test(assetExpression), true);
+    assert.equal(workerFilter.test(workerExpression), true);
+    assert.equal(assetMatcher.test(assetExpression), true);
+    assert.equal(workerMatcher.test(workerExpression), true);
+});
+
+test('keeps comment-bearing import-meta URL patterns eligible', () => {
+    const assetFilter = extractRegExp('assetImportMetaUrlFilterRE');
+    const workerFilter = extractRegExp('workerImportMetaUrlFilterRE');
 
     assert.equal(
-        assetFilter.test(`new URL('./asset.png', import.meta.url)`),
+        assetFilter.test(`new URL(/* keep */ './asset.png', import.meta.url)`),
         true
     );
     assert.equal(
         workerFilter.test(
-            `new Worker(new URL('./worker.js', import.meta.url))`
+            `new Worker(/* keep */ new URL('./worker.js', import.meta.url))`
         ),
         true
     );

@@ -36,7 +36,7 @@ patchedDependencies:
     hash: f4bbde1778360c4c462b255bec47a337c0465d59cdcab14ecb601161f3467002
     path: patches/nx-electron@22.0.0.patch
   vite@7.3.5:
-    hash: 8629229ab80a0812eb9a7c02d1302452448f102ebadc6c844ae598e0fb6d63a4
+    hash: b3a8f88ab420b6504a61ffb0f8e402f112c7fda7f3f3e802d21272da7969882d
     path: patches/vite@7.3.5.patch
 
 importers:
@@ -11905,7 +11905,7 @@ snapshots:
       '@babel/helper-annotate-as-pure': 7.27.3
       '@babel/helper-split-export-declaration': 7.24.7
       '@inquirer/confirm': 5.1.21(@types/node@20.19.9)
-      '@vitejs/plugin-basic-ssl': 2.1.4(vite@7.3.5(patch_hash=8629229ab80a0812eb9a7c02d1302452448f102ebadc6c844ae598e0fb6d63a4)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0))
+      '@vitejs/plugin-basic-ssl': 2.1.4(vite@7.3.5(patch_hash=b3a8f88ab420b6504a61ffb0f8e402f112c7fda7f3f3e802d21272da7969882d)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0))
       beasties: 0.4.1
       browserslist: 4.28.2
       esbuild: 0.28.1
@@ -11926,7 +11926,7 @@ snapshots:
       tslib: 2.8.1
       typescript: 5.9.3
       undici: 7.24.4
-      vite: 7.3.5(patch_hash=8629229ab80a0812eb9a7c02d1302452448f102ebadc6c844ae598e0fb6d63a4)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.5(patch_hash=b3a8f88ab420b6504a61ffb0f8e402f112c7fda7f3f3e802d21272da7969882d)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0)
       watchpack: 2.5.1
     optionalDependencies:
       '@angular/core': 21.2.17(@angular/compiler@21.2.17)(rxjs@7.8.2)(zone.js@0.16.2)
@@ -16580,9 +16580,9 @@ snapshots:
       global: 4.4.0
       is-function: 1.0.2
 
-  '@vitejs/plugin-basic-ssl@2.1.4(vite@7.3.5(patch_hash=8629229ab80a0812eb9a7c02d1302452448f102ebadc6c844ae598e0fb6d63a4)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0))':
+  '@vitejs/plugin-basic-ssl@2.1.4(vite@7.3.5(patch_hash=b3a8f88ab420b6504a61ffb0f8e402f112c7fda7f3f3e802d21272da7969882d)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
-      vite: 7.3.5(patch_hash=8629229ab80a0812eb9a7c02d1302452448f102ebadc6c844ae598e0fb6d63a4)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 7.3.5(patch_hash=b3a8f88ab420b6504a61ffb0f8e402f112c7fda7f3f3e802d21272da7969882d)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0)
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:
@@ -24380,7 +24380,7 @@ snapshots:
       tsx: 4.23.1
       yaml: 2.9.0
 
-  vite@7.3.5(patch_hash=8629229ab80a0812eb9a7c02d1302452448f102ebadc6c844ae598e0fb6d63a4)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0):
+  vite@7.3.5(patch_hash=b3a8f88ab420b6504a61ffb0f8e402f112c7fda7f3f3e802d21272da7969882d)(@types/node@20.19.9)(jiti@1.21.7)(less@4.5.1)(sass-embedded@1.97.1)(sass@1.97.3)(terser@5.44.1)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.7
       fdir: 6.5.0(picomatch@4.0.4)
