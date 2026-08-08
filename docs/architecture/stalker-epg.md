@@ -15,12 +15,15 @@ Stalker now uses two EPG paths with different purposes:
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
   7-day window once per playlist session, caches programs by channel id, and
   renders the selected channel through the shared `app-epg-timeline` component.
-- Channel rows never send per-row EPG requests. The bulk EPG load is triggered
+- Channel rows read the bulk cache first. The bulk EPG load is triggered
   **eagerly when a category's channels first render** (a constructor effect in
   `StalkerLiveStreamLayoutComponent` calls `ensureBulkItvEpg(168)` once ITV
   channels are present) — not only after the first channel is played — so the
   row "now playing" previews and the EPG panel populate immediately. Rows derive
-  their current program and progress bar from the cached bulk map.
+  their current program and progress bar from the cached bulk map; rows the
+  settled bulk guide cannot answer fall back to throttled per-channel
+  `get_short_epg` through `StalkerEpgPreviewQueue` (see "Channel row preview
+  flow").
   - Effect ordering matters: the eager-EPG effect is registered **after** the
     playlist-change effect that calls `clearBulkItvEpgCache()`. On a portal
     switch the cache is cleared first and then refilled; if the order is
@@ -72,7 +75,7 @@ date-navigator UI used in the M3U/Xtream flows.
 
 ## Stalker EPG API
 
-### `get_short_epg` (active-panel fallback)
+### `get_short_epg` (active-panel and row-preview fallback)
 
 **Request**
 
@@ -83,6 +86,7 @@ GET load.php?type=itv&action=get_short_epg&ch_id={channel_id}&size={n}&JsHttpReq
 **Current usage**
 
 - Active panel fallback path: `size=10`
+- Row-preview fallback queue: `size=3` (`EPG_PREVIEW_FETCH_SIZE`)
 
 **Response**
 
@@ -109,8 +113,9 @@ GET load.php?type=itv&action=get_short_epg&ch_id={channel_id}&size={n}&JsHttpReq
 **Notes**
 
 - The response is normalized into shared `EpgItem[]`
-- Only the active-panel fallback uses this path and maps the result into
-  controlled `EpgProgram[]`
+- Two fallback consumers use this path and map the result into controlled
+  `EpgProgram[]`: the active-panel fallback and the throttled row-preview
+  queue (both only when the bulk guide cannot answer "what's on now")
 
 ### `get_epg_info` (bulk row-preview and active-panel source)
 
@@ -159,7 +164,8 @@ GET load.php?type=itv&action=get_epg_info&period={hours}&JsHttpRequest=1-xml
 
 ### Fallback data (`get_short_epg`) → `EpgItem`
 
-The short EPG path now exists only for the active-panel fallback flow.
+The short EPG path serves the two fallback flows: the active panel and the
+throttled row-preview queue.
 
 Key mapped fields:
 
