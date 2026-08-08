@@ -146,9 +146,41 @@ describe('ExternalPlaybackDockComponent', () => {
         expect(action.nativeElement.textContent).toContain('Dismiss');
         expect(action.nativeElement.textContent).not.toContain('Retry');
         expect(action.nativeElement.getAttribute('aria-label')).toBe('Dismiss');
+        expect(action.nativeElement.classList).toContain('mat-mdc-button');
+        expect(action.nativeElement.classList).not.toContain(
+            'mat-mdc-icon-button'
+        );
 
         action.nativeElement.click();
         expect(dismissSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves the only stop affordance when an errored process may still be alive', () => {
+        const closeSpy = jest.fn();
+        const dismissSpy = jest.fn();
+        component.closeClicked.subscribe(closeSpy);
+        component.dismissClicked.subscribe(dismissSpy);
+        fixture.componentRef.setInput('session', {
+            ...session,
+            status: 'error',
+            error: 'Process exit was not confirmed',
+            canClose: true,
+        });
+        fixture.detectChanges();
+
+        const stop = fixture.debugElement.query(
+            By.css('.external-playback-dock__button')
+        );
+        const dismiss = fixture.debugElement.query(
+            By.css('.external-playback-dock__dismiss')
+        );
+
+        expect(stop.nativeElement.textContent).toContain('Close player');
+        expect(dismiss).toBeNull();
+
+        stop.nativeElement.click();
+        expect(closeSpy).toHaveBeenCalledTimes(1);
+        expect(dismissSpy).not.toHaveBeenCalled();
     });
 
     it('disables the artwork button when the session has no playlist target', () => {

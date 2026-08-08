@@ -172,6 +172,10 @@
     white-space: nowrap;
 }
 
+.external-playback-dock__dismiss {
+    flex-shrink: 0;
+}
+
 @media (max-width: 720px) {
     .external-playback-dock {
         grid-template-columns: auto minmax(0, 1fr) auto;

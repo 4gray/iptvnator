@@ -496,8 +496,9 @@ cut. The toast offers Undo, and adds a dub warning when
 audio track as fact. Two guesses, or a guess against a fact, stay silent.
 
 Web engines only (HTML5/hls.js, Video.js, ArtPlayer). Embedded MPV suppresses
-shared diagnostics and owns its own error block; external MPV/VLC are
-fire-and-forget with no error channel back.
+shared diagnostics and owns its own error block. External MPV/VLC use managed
+Electron sessions: recovery actions and the global dock report their exact
+launch state without retaining playback headers or credentials.
 
 ## External players and an alternative source
 
@@ -507,7 +508,43 @@ that session carries the OTHER playlist's ids. `matchedExternalPlayback` would
 disown it: the primary button never became Stop, stopping found no session, and
 another click opened a second player. The page therefore claims a session that
 matches either the route's own stream or the alternative multi-source says is
-active (`VodDetailsPlaybackBindings.activeSource`).
+active (`VodDetailsPlaybackBindings.activeSource`). It also claims the
+credential-free destination identity before awaiting the Electron launch: the
+primary action becomes pending immediately, and a launching or closable-error
+session remains matched before the controller can truthfully mark it active.
+Restart and the provider-source shortcut read the same local pending state, so
+a second activation cannot enter the Electron launch before the first IPC
+response exists; their DOM controls stay mounted and disabled to preserve focus.
+The diagnostic-fallback handler makes that same route-scoped ownership claim
+before invoking MPV/VLC, rather than relying on the later controller commit. It
+also supersedes an older source resolution at that acceptance boundary, so the
+late switch cannot close and replace the newer diagnostic fallback.
+That retained destination is scoped to the initiating playlist/VOD route key,
+so Angular route reuse for a different movie cannot turn its Play action into
+Stop for the previous movie's still-running external session. That new route's
+Play and Resume actions still pass through the shared close-before-replacement
+path, and they recheck their captured route key after teardown, so starting it
+cannot leave the prior detached player running or launch stale content after
+navigation. A diagnostic fallback that resolves after route reuse closes its
+exact returned session instead of adopting it on the new route.
+
+Before an external alternative replaces another external session, teardown of
+the exact old process must be confirmed. If close fails or times out, the
+replacement is cancelled instead of allowing two external players to overlap.
+If the old launch is still opening and has no exact closer yet, a source-row
+replacement is denied before either the multi-source switch token or playback
+generation advances; the only in-flight launch therefore remains owned and is
+not closed as superseded.
+Once that old session is closed, later duplicate Stop/Close delivery is a
+terminal no-op and cannot invoke its saved closer against a newly started MPV
+or VLC process.
+The controller commits the destination row, previous-source pointer, and switch
+notice only after the playback seam accepts that handoff and an external
+Electron launch resolves, so a rejected close or launch leaves the old source
+as the truthful selection. The host's exact switch-owner probe crosses that
+seam too: after teardown but before applying playback, the route rechecks it so
+a newer unresolvable selection cannot leave the older player launched but
+disowned by the controller.
 
 `ownsContent()` answers that question once, for both consumers: the session
 matcher AND the playback-position bridge. They cannot be allowed to disagree —
@@ -609,10 +646,22 @@ honest state, and the same one the rest of this feature takes when it does not
 know.
 
 Switching sources through `startResolvedPlayback` closes the external session
-it LAUNCHED first — tracked separately from the controller's active source,
-which a switch has already moved to the destination by then. It REPLACES what is playing — with MPV or VLC and instance
-reuse off, the backend would otherwise spawn a second detached player, leaving
-both sources running and Stop owning only the newer one.
+it LAUNCHED first — tracked separately so refreshes and overlapping handoffs
+cannot disown it within the same route session. The retained identity is ignored
+after the playlist/VOD route key changes. Only after that exact teardown, the
+host ownership checks on both sides of the launch await, and an `opened` or
+`playing` launch result does the controller commit the destination. A launch
+that loses ownership while IPC is pending is closed by its exact returned
+session; a Stop that wins the race returns `closed` and is never committed. A
+partial reusable-player handoff that leaves a closable error retains its
+destination identity so the next source switch closes that exact process before
+trying again. A stale launch whose exact close fails retains the same
+credential-free identity for another close attempt. Direct route Play/Resume
+supersede an older source resolution before waiting for teardown, but update the
+active-source badge, playback evidence, and controller position only after the
+new start succeeds. With MPV or VLC and instance reuse off, applying playback
+earlier would spawn a second detached player, leaving both sources running and
+Stop owning only the newer one.
 
 ## Short titles and Unicode
 

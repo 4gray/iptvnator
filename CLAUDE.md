@@ -827,16 +827,87 @@ app as a real argument, so it is not an option.
   evidence or ownership state. MPV/VLC actions remain mounted after an attempt
   and expose credential-free per-target launching/started/playing/error state;
   only an exact Electron `playing` update is labelled Playing. One handshake is
-  allowed at a time. Its fieldless intent is bound to the exact session returned
+  allowed at a time. The renderer claims the credential-free content identity
+  before awaiting Electron, so primary Play is disabled and a launching or
+  closable-error alternative remains owned before the controller commits it.
+  Every route action that can start the same external playback, including
+  Restart and the provider-source shortcut, observes that local pre-IPC guard.
+  The Xtream VOD diagnostic-fallback handler records the same route-scoped
+  destination and pending generation before invoking MPV/VLC, so route reuse
+  cannot orphan that process outside the next route's close-before-play path.
+  Its fieldless intent is bound to the exact session returned
   by the source owner's launch promise, so a late timed-out attempt cannot take
   over a retry; later global updates must match that ID. A replacement waits for
   confirmed teardown of the tracked external process, applies the old exact
   close before launch, and cancels an unlaunched handoff if diagnostic ownership
-  changes. If the local
-  handshake times out after an exact Electron session is known, that ID remains
+  changes. Process teardown has bounded graceful and forced confirmation
+  windows, and reusable MPV bounds the IPC command that precedes them; if any
+  stage cannot reach a confirmed exit, the exact session stays live and the
+  replacement fails closed instead of overlapping it. A process-wide teardown
+  gate starts before any potentially slow teardown preparation, including VLC
+  position flush and a reused player's protocol quit, and rejects every
+  MPV/VLC spawn until that exact child reports exit. If bounded
+  teardown fails while a fresh launch is still pending, that launch IPC rejects
+  and the exact session remains a closable error instead of hanging forever.
+  If a pre-content reuse failure has no still-live displaced session to restore,
+  the replacement error keeps its attached closer so Stop can retry the orphaned
+  child teardown. A terminal error without a closer is never restorable.
+  A failed close is single-flight only while its promise is pending: Stop can
+  retry the same exact child after a bounded confirmation failure. Reuse maps
+  the child to its current content session, so a stale older closer becomes a
+  no-op instead of terminating a newer `loadfile`/VLC enqueue handoff.
+  A duplicate close for an already closed session returns its terminal snapshot
+  without re-entering the saved closer, and a late process error cannot revive
+  that terminal session. Reused MPV commands are bound to the socket captured
+  for that exact child, so a later process cannot inherit a stale protocol quit.
+  Stop observed before a pending MPV content command or VLC enqueue command
+  prevents that command from dispatching. A source handoff fails closed while
+  a live session has no closer (`canClose: false`); renderer Dismiss is not
+  teardown confirmation. That denied handoff advances neither the multi-source
+  switch token nor the playback generation, so it cannot cancel the sole launch
+  already in flight.
+  VLC rechecks the gate at each concrete spawn after port allocation or reuse
+  work; if a post-start fallback is blocked there, the opened session becomes
+  an error rather than retaining a false started status. A failed RC-port
+  allocation never claims reuse ownership, so the fallback VLC child retains
+  its exact one-shot closer.
+  Reuse failures before a content command restore the globally displaced
+  renderer session, not the reusable process's prior owner, and only while the
+  exact displaced-session ID is still active; after
+  `loadfile`/VLC `clear` is dispatched,
+  the replacement owns the process and remains a closable error instead of
+  restoring stale content metadata. Stop during an in-flight MPV or VLC reuse
+  command, including during failed-command teardown or the subsequent VLC
+  fallback port-allocation wait, settles that exact close without falling
+  through to a fresh spawn;
+  a stopped VLC spawn error that reports only `close` also settles its original
+  launch IPC with the exact closed session;
+  a fresh fallback retires the old child's exit under its prior session so it
+  cannot close the replacement. Source handoffs recheck ownership after launch
+  and accept only `opened`/`playing`; a stale returned session is closed exactly
+  and a Stop-returned `closed` session is never committed. If that exact stale
+  close fails, its credential-free destination owner is retained for the next
+  close attempt. Retained destination ownership is scoped to the initiating
+  playlist/VOD route key, so route reuse cannot expose Stop for the previous
+  movie's external session. Play/Resume capture that route key before awaiting
+  close and cancel if navigation changes it; a late diagnostic fallback closes
+  its exact returned session instead of adopting it on the new route. They
+  supersede an older source resolution before awaiting the shared
+  close-before-replacement path, and accepting a diagnostic fallback retires
+  the same older resolution before opening MPV/VLC. They publish the route-source
+  badge, caption evidence, and position only after start succeeds.
+  Closable errors still participate in every replacement close and keep Stop as
+  the global dock's only teardown affordance; Dismiss is reserved for terminal
+  errors that have no closer. The shared `isLiveExternalPlayerSession` predicate
+  keeps M3U and series ownership while
+  such an error can still be stopped; consumers must not treat every `error`
+  status as terminal.
+  If the local handshake times out after an exact Electron session is known,
+  that ID remains
   correlated so a later exact update can recover the UI. The global dock mirrors
-  those statuses, keeps errors visible until dismissal, and intentionally has no
-  retry because it does not own the original launch headers or credentials.
+  those statuses, keeps closable errors visible until Stop confirms teardown and
+  terminal errors visible until dismissal, and intentionally has no retry because
+  it does not own the original launch headers or credentials.
 - DASH + ClearKey (M3U module): `.mpd` channels play through a lazily loaded
   Shaka Player source engine inside the HTML5 and ArtPlayer components (no new
   player in settings). ClearKey keys come from `#KODIPROP:inputstream.adaptive.*`

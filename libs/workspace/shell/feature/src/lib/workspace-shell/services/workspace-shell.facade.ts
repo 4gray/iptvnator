@@ -156,9 +156,9 @@ export class WorkspaceShellFacade {
     }
 
     closeActiveExternalSession(): void {
-        void this.externalPlayback.closeSession(
-            this.externalPlayback.activeSession()
-        );
+        void this.externalPlayback
+            .closeSession(this.externalPlayback.activeSession())
+            .catch(() => undefined);
     }
 
     dismissActiveExternalSession(): void {

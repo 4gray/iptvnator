@@ -1085,6 +1085,17 @@ describe('WorkspaceShellFacade', () => {
         expect(externalPlayback.closeSession).not.toHaveBeenCalled();
     });
 
+    it('handles a rejected external-session close', async () => {
+        const externalPlayback = TestBed.inject(PORTAL_EXTERNAL_PLAYBACK);
+        const closeSession = externalPlayback.closeSession as jest.Mock;
+        closeSession.mockRejectedValueOnce(new Error('close failed'));
+
+        facade.closeActiveExternalSession();
+        await Promise.resolve();
+
+        expect(closeSession).toHaveBeenCalledTimes(1);
+    });
+
     it('waits for embedded MPV support preload before opening the palette', async () => {
         const dialog = TestBed.inject(MatDialog) as unknown as {
             open: jest.Mock;

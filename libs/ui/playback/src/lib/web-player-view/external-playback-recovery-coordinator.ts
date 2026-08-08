@@ -113,6 +113,7 @@ function isLiveExternalSession(
     return (
         session?.status === 'launching' ||
         session?.status === 'opened' ||
-        session?.status === 'playing'
+        session?.status === 'playing' ||
+        (session?.status === 'error' && session.canClose)
     );
 }

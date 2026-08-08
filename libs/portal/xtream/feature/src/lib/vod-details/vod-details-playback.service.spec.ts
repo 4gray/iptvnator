@@ -31,6 +31,8 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     const activeSession = signal<unknown>(null);
     const closeSession = jest.fn().mockResolvedValue(undefined);
     const openResolvedPlayback = jest.fn();
+    const openExternalPlayback = jest.fn();
+    const supersedePendingSwitch = jest.fn();
     const activeSource = signal<PlayerContentInfo | null>(null);
     const currentPlaylist = signal({ id: ROUTE_PLAYLIST });
     const routeVodId = signal(ROUTE_VOD_ID);
@@ -63,6 +65,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         return {
             player: 'mpv',
             status: 'playing',
+            canClose: true,
             contentInfo: {
                 playlistId,
                 contentXtreamId,
@@ -78,6 +81,14 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         routeVodId.set(ROUTE_VOD_ID);
         positionListener = undefined;
         addRecentItem.mockClear();
+        closeSession.mockReset().mockResolvedValue(undefined);
+        openResolvedPlayback
+            .mockReset()
+            .mockResolvedValue(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
+        openExternalPlayback
+            .mockReset()
+            .mockResolvedValue(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
+        supersedePendingSwitch.mockClear();
         getPlaybackPosition.mockReset();
         getPlaybackPosition.mockResolvedValue(null);
 
@@ -110,6 +121,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     useValue: {
                         isEmbeddedPlayer: jest.fn().mockReturnValue(false),
                         openResolvedPlayback,
+                        openExternalPlayback,
                     },
                 },
                 {
@@ -131,6 +143,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             vodId: routeVodId,
             vodInfo: signal(null),
             activeSource,
+            supersedePendingSwitch,
         });
     });
 
@@ -174,6 +187,142 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         // No active alternative: the switch was undone, so that session is
         // no longer this page's to stop.
         expect(service.matchedExternalPlayback()).toBeNull();
+    });
+
+    it('disowns its previous external launch when the routed movie changes', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'First movie',
+            contentInfo: launched.contentInfo,
+        });
+        activeSession.set(launched);
+
+        routeVodId.set(ROUTE_VOD_ID + 1);
+
+        expect(service.matchedExternalPlayback()).toBeNull();
+        expect(service.isExternalStopAction()).toBe(false);
+    });
+
+    it('closes the previous route launch before playing the new movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/first.mkv',
+            title: 'First movie',
+            contentInfo: launched.contentInfo,
+        });
+        activeSession.set(launched);
+        routeVodId.set(ROUTE_VOD_ID + 1);
+        closeSession.mockClear();
+        openResolvedPlayback.mockClear();
+
+        service.playVod({
+            movie_data: {
+                stream_id: ROUTE_VOD_ID + 1,
+                name: 'Second movie',
+                container_extension: 'mkv',
+            },
+        } as never);
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+            if (openResolvedPlayback.mock.calls.length > 0) break;
+            await Promise.resolve();
+        }
+
+        expect(closeSession).toHaveBeenCalledWith(launched);
+        expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            openResolvedPlayback.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('closes a diagnostic fallback before playing the next routed movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        const launch = Promise.resolve(launched);
+        const trackLaunch = jest.fn();
+        openExternalPlayback.mockImplementationOnce(() => {
+            activeSession.set(launched);
+            expect(service.isExternalLaunchPending()).toBe(true);
+            expect(service.matchedExternalPlayback()).toBe(launched);
+            return launch;
+        });
+
+        service.handleExternalFallbackRequest({
+            player: 'mpv',
+            playback: {
+                streamUrl: 'https://example.com/first.mkv',
+                title: 'First movie',
+                contentInfo: launched.contentInfo,
+            },
+            diagnostic: {},
+            trackLaunch,
+        } as never);
+        expect(trackLaunch).toHaveBeenCalledWith(launch);
+        await launch;
+        await Promise.resolve();
+
+        routeVodId.set(ROUTE_VOD_ID + 1);
+        closeSession.mockClear();
+        openResolvedPlayback.mockClear();
+        service.playVod({
+            movie_data: {
+                stream_id: ROUTE_VOD_ID + 1,
+                name: 'Second movie',
+                container_extension: 'mkv',
+            },
+        } as never);
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+            if (openResolvedPlayback.mock.calls.length > 0) break;
+            await Promise.resolve();
+        }
+
+        expect(closeSession).toHaveBeenCalledWith(launched);
+        expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            openResolvedPlayback.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('supersedes a pending source switch before starting a diagnostic fallback', () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+
+        service.handleExternalFallbackRequest({
+            player: 'mpv',
+            playback: {
+                streamUrl: 'https://example.com/first.mkv',
+                title: 'First movie',
+                contentInfo: launched.contentInfo,
+            },
+            diagnostic: {},
+            trackLaunch: jest.fn(),
+        } as never);
+
+        expect(supersedePendingSwitch).toHaveBeenCalledTimes(1);
+        expect(supersedePendingSwitch.mock.invocationCallOrder[0]).toBeLessThan(
+            openExternalPlayback.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('closes a diagnostic fallback that resolves after its route changed', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        const pending = deferred<typeof launched>();
+        const trackLaunch = jest.fn();
+        openExternalPlayback.mockReturnValueOnce(pending.promise);
+
+        service.handleExternalFallbackRequest({
+            player: 'mpv',
+            playback: {
+                streamUrl: 'https://example.com/first.mkv',
+                title: 'First movie',
+                contentInfo: launched.contentInfo,
+            },
+            diagnostic: {},
+            trackLaunch,
+        } as never);
+        routeVodId.set(ROUTE_VOD_ID + 1);
+        pending.resolve(launched);
+        await pending.promise;
+        await Promise.resolve();
+
+        expect(trackLaunch).toHaveBeenCalledWith(pending.promise);
+        expect(closeSession).toHaveBeenCalledWith(launched);
     });
 
     it('records a source started through multi-source as recently viewed', async () => {

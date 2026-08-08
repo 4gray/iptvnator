@@ -80,6 +80,7 @@ import {
     persistLiveEpgPanelState,
     persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
+    isLiveExternalPlayerSession,
     restoreLiveEpgPanelState,
     restoreLiveSidebarState,
     WorkspaceHeaderContextService,
@@ -1114,7 +1115,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return null;
         }
 
-        return `${session.id}:${session.status}`;
+        const lifecycle = isLiveExternalPlayerSession(session)
+            ? 'live'
+            : 'terminal';
+        return `${session.id}:${session.status}:${lifecycle}`;
     }
 
     private isExternalPlayer(
@@ -1126,7 +1130,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private isTerminalExternalSession(
         session: ExternalPlayerSession | null | undefined
     ): boolean {
-        return session?.status === 'closed' || session?.status === 'error';
+        return !!session && !isLiveExternalPlayerSession(session);
     }
 
     private registerHeaderShortcut(): void {

@@ -100,16 +100,104 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(component.isExternalStopAction()).toBe(true);
     });
 
-    it('drops the carried position when Restart starts from the beginning', () => {
+    it('wires diagnostic fallback acceptance to source-switch supersession', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const supersede = jest.spyOn(
+            component.multiSource,
+            'supersedePendingSwitch'
+        );
+        const launched = {
+            id: 'diagnostic-session',
+            player: 'mpv' as const,
+            status: 'opened' as const,
+            title: 'Example',
+            streamUrl: 'https://example.com/movie.mkv',
+            startedAt: '2026-08-09T00:00:00.000Z',
+            updatedAt: '2026-08-09T00:00:01.000Z',
+            canClose: true,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod' as const,
+            },
+        };
+        const launch = Promise.resolve(launched);
+        stubs.openExternalPlayback.mockReturnValueOnce(launch);
+
+        component.handleExternalFallbackRequest({
+            player: 'mpv',
+            playback: {
+                streamUrl: launched.streamUrl,
+                title: launched.title,
+                contentInfo: launched.contentInfo,
+            },
+            diagnostic: {},
+            trackLaunch: jest.fn(),
+        } as never);
+
+        expect(supersede).toHaveBeenCalledTimes(1);
+        expect(supersede.mock.invocationCallOrder[0]).toBeLessThan(
+            stubs.openExternalPlayback.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('drops the carried position when Restart starts from the beginning', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        stubs.isEmbeddedPlayer.mockReturnValue(true);
         const component = fixture.componentInstance;
         const reported = jest.spyOn(component.multiSource, 'reportPosition');
 
-        component.playVod({} as XtreamVodDetails);
+        await component.playVod({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mkv',
+            },
+        } as never);
 
         // The controller still holds whatever this page was seeded with, and
         // a failure before the first timeupdate would resolve the next source
         // back at it instead of honouring the restart.
         expect(reported).toHaveBeenCalledWith(0);
+    });
+
+    it('keeps the previous source state when its external close fails', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        activeSession.set({
+            id: 'previous-session',
+            player: 'mpv',
+            status: 'playing',
+            title: 'Previous source',
+            streamUrl: 'https://example.com/previous.mkv',
+            startedAt: '2026-08-08T00:00:00.000Z',
+            updatedAt: '2026-08-08T00:00:00.000Z',
+            canClose: true,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        closeSession.mockRejectedValueOnce(new Error('close ipc failed'));
+        const component = fixture.componentInstance;
+        const markRouteSourceActive = jest.spyOn(
+            component.multiSource,
+            'markRouteSourceActive'
+        );
+        const beginPlayback = jest.spyOn(component.msUi, 'beginPlayback');
+
+        await component.playVod({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mkv',
+            },
+        } as never);
+
+        expect(markRouteSourceActive).not.toHaveBeenCalled();
+        expect(beginPlayback).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
     });
 
     it('stops the external player when the button says Stop', async () => {
@@ -233,6 +321,34 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(playDownload).not.toHaveBeenCalled();
         expect(playPinned).not.toHaveBeenCalled();
         expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+    });
+
+    it('guards Restart and provider actions before external IPC settles', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        stubs.openResolvedPlayback.mockReturnValue(new Promise(() => undefined));
+        const component = fixture.componentInstance;
+        const item = {
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never;
+
+        void component.restartVod(item);
+        for (
+            let attempt = 0;
+            attempt < 20 && stubs.openResolvedPlayback.mock.calls.length === 0;
+            attempt += 1
+        ) {
+            await new Promise<void>((resolve) => setTimeout(resolve));
+        }
+        expect(component.isExternalLaunchPending()).toBe(true);
+        await component.restartVod(item);
+        await component.playFromProviderSource(item);
+
+        expect(component.isExternalLaunchPending()).toBe(true);
+        expect(stubs.openResolvedPlayback).toHaveBeenCalledTimes(1);
     });
 
     it('does not let the provider secondary bypass a pending external launch', async () => {
@@ -492,6 +608,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
     it('replaces an alternative’s timecode when Resume starts the route copy', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
+        stubs.isEmbeddedPlayer.mockReturnValue(true);
         const component = fixture.componentInstance;
         const playback = fixture.debugElement.injector.get(
             VodDetailsPlaybackService
@@ -510,7 +627,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // ROUTE copy has to overwrite it, or a failure before the first
         // timeupdate resolves the next source at a position from another copy.
         component.multiSource.reportPosition(4200);
-        component.resumeVod({
+        await component.resumeVod({
             movie_data: {
                 stream_id: 650020,
                 name: 'Example',
@@ -544,8 +661,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(reported).not.toHaveBeenCalled();
     });
 
-    it('takes the route wrappers when the primary button falls through', () => {
+    it('takes the route wrappers when the primary button falls through', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
+        stubs.isEmbeddedPlayer.mockReturnValue(true);
         const component = fixture.componentInstance;
         withActiveSource('playlist-1', 650020);
         jest.spyOn(component.multiSource, 'playPinnedSource').mockResolvedValue(
@@ -555,7 +673,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
         // Reaching the service directly would skip the bookkeeping a route
         // start needs — the controller would keep an alternative's timecode.
-        void component.onPrimaryAction({
+        await component.onPrimaryAction({
             movie_data: {
                 stream_id: 650020,
                 name: 'Example',
@@ -563,9 +681,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
             },
         } as never);
 
-        return Promise.resolve().then(() => {
-            expect(reported).toHaveBeenCalledWith(0);
-        });
+        expect(reported).toHaveBeenCalledWith(0);
     });
 
     it('offers no resume point for a pinned copy watched through', async () => {

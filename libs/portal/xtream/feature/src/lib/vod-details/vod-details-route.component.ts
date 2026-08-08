@@ -370,6 +370,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             vodId: this.selectedVodId,
             vodInfo: this.selectedVodInfo,
             activeSource: this.msUi.activeAlternativeSource,
+            supersedePendingSwitch: () =>
+                this.multiSource.supersedePendingSwitch(),
         });
 
         effect(() => {
@@ -396,16 +398,21 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.multiSource.bind({
             // Route every switch through the same inline-vs-external fork a
             // normal Play uses, so the two paths cannot drift apart.
-            startPlayback: (playback) => {
-                // A switch mounts a DIFFERENT stream in the same host, so the
-                // evidence that the previous one was playing says nothing
-                // about this one — without clearing it the caption and the
-                // badge would claim the new source while it is still opening.
-                this.msUi.reset();
-                void this.playback.startResolvedPlayback(playback);
+            startPlayback: async (playback, isCurrent) => {
+                const started = await this.playback.startResolvedPlayback(
+                    playback,
+                    isCurrent
+                );
+                if (started) {
+                    // A switch mounts a DIFFERENT stream in the same host, so
+                    // evidence from the previous one says nothing about it.
+                    this.msUi.reset();
+                }
+                return started;
             },
             movie: this.multiSourceMovie,
             playbackLive: this.playbackLive,
+            playbackStartBlocked: this.playback.isExternalLaunchPending,
         });
 
         // Initializes on first render and RE-initializes when the route
@@ -500,14 +507,20 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.xtreamStore.setSelectedItem(null);
     }
 
-    playVod(vodItem: XtreamVodDetails | null): void {
+    async playVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+        this.multiSource.supersedePendingSwitch();
+        const started = await this.playback.playVod(vodItem);
+        if (!started) {
+            return false;
+        }
+
         // Restart means from the beginning. The controller still holds the
         // position this page was seeded with, and a failure before the first
         // timeupdate would otherwise resolve the next source back at it.
         this.multiSource.reportPosition(0);
         this.multiSource.markRouteSourceActive();
         this.msUi.beginPlayback();
-        this.playback.playVod(vodItem);
+        return true;
     }
 
     /**
@@ -518,6 +531,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
      * user to the route's playlist.
      */
     async restartVod(vodItem: XtreamVodDetails | null): Promise<void> {
+        if (this.isExternalLaunchPending()) {
+            return;
+        }
+
         if (this.msUi.primaryIsPinnedCopy()) {
             const outcome = await this.multiSource.playPinnedSource(async () =>
                 Promise.resolve(0)
@@ -527,19 +544,25 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             }
         }
 
-        this.playVod(vodItem);
+        await this.playVod(vodItem);
     }
 
-    resumeVod(vodItem: XtreamVodDetails | null): void {
-        this.multiSource.markRouteSourceActive();
-        this.msUi.beginPlayback();
+    async resumeVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+        this.multiSource.supersedePendingSwitch();
+        const started = await this.playback.resumeVod(vodItem);
+        if (!started) {
+            return false;
+        }
+
         // The controller can still hold an ALTERNATIVE's timecode. A failure
         // before the first timeupdate would otherwise resolve the next source
         // at a position that belongs to a different copy.
         this.multiSource.reportPosition(
             this.playback.routePlaybackPosition()?.positionSeconds ?? 0
         );
-        this.playback.resumeVod(vodItem);
+        this.multiSource.markRouteSourceActive();
+        this.msUi.beginPlayback();
+        return true;
     }
 
     async onPrimaryAction(vodItem: XtreamVodDetails | null): Promise<void> {
@@ -547,7 +570,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // make the control do the opposite of what it says — launching a
         // second player while the first keeps running.
         if (this.playback.isExternalStopAction()) {
-            await this.playback.stopExternalPlayback();
+            try {
+                await this.playback.stopExternalPlayback();
+            } catch {
+                // The dock stays visible when process teardown is unconfirmed.
+            }
             return;
         }
 
@@ -566,7 +593,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     async playFromProviderSource(
         vodItem: XtreamVodDetails | null
     ): Promise<void> {
-        if (this.externalPrimaryButtonState() !== 'idle') {
+        if (
+            this.isExternalLaunchPending() ||
+            this.externalPrimaryButtonState() !== 'idle'
+        ) {
             return;
         }
 
@@ -587,11 +617,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // bookkeeping a route start needs — clearing the playback evidence and
         // replacing whatever timecode an alternative left in the controller.
         if (this.playback.hasPlaybackPosition()) {
-            this.resumeVod(vodItem);
+            await this.resumeVod(vodItem);
             return;
         }
 
-        this.playVod(vodItem);
+        await this.playVod(vodItem);
     }
 
     stopExternalPlayback(): Promise<void> {

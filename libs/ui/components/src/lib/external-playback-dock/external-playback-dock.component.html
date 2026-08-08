@@ -63,19 +63,56 @@
     </div>
 
     <div class="external-playback-dock__actions">
-        @if (showActionButton()) {
+        @if (showCloseAction()) {
             <button
                 type="button"
                 mat-button
                 class="external-playback-dock__button"
-                [attr.aria-label]="actionLabelKey() | translate"
-                (click)="onActionClick()"
+                [attr.aria-label]="
+                    'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_CLOSE' | translate
+                "
+                (click)="onCloseClick()"
             >
-                <mat-icon aria-hidden="true">{{ actionIcon() }}</mat-icon>
+                <mat-icon aria-hidden="true">stop_circle</mat-icon>
                 @if (!compact()) {
-                    <span>{{ actionLabelKey() | translate }}</span>
+                    <span>{{
+                        'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_CLOSE' | translate
+                    }}</span>
                 }
             </button>
+        }
+        @if (showDismissAction()) {
+            @if (compact()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="external-playback-dock__button external-playback-dock__dismiss"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS' | translate
+                    "
+                    (click)="onDismissClick()"
+                >
+                    <mat-icon aria-hidden="true">close</mat-icon>
+                </button>
+            } @else {
+                <button
+                    type="button"
+                    mat-button
+                    class="external-playback-dock__button external-playback-dock__dismiss"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS' | translate
+                    "
+                    (click)="onDismissClick()"
+                >
+                    <mat-icon aria-hidden="true">close</mat-icon>
+                    @if (!compact()) {
+                        <span>{{
+                            'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS'
+                                | translate
+                        }}</span>
+                    }
+                </button>
+            }
         }
     </div>
 </section>

@@ -103,16 +103,19 @@ export class ExternalPlaybackService {
 
     private handleSessionUpdate(session: ExternalPlayerSession): void {
         const current = this.activeSession();
+        const restoresCurrentReplacement =
+            current?.id === session.restoredFromSessionId;
 
         if (
             !current ||
             current.id === session.id ||
-            session.status === 'launching'
+            session.status === 'launching' ||
+            restoresCurrentReplacement
         ) {
             this.activeSession.set(session);
         }
 
-        if (session.status === 'launching') {
+        if (session.status === 'launching' || restoresCurrentReplacement) {
             this.dismissedSessionId.set(null);
         }
     }

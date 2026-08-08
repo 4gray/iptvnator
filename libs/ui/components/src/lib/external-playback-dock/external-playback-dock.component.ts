@@ -104,16 +104,9 @@ export class ExternalPlaybackDockComponent {
     readonly artworkInteractive = computed(
         () => !!this.session().contentInfo?.playlistId
     );
-    readonly showActionButton = computed(
-        () => this.session().status === 'error' || this.session().canClose
-    );
-    readonly actionLabelKey = computed(() =>
-        this.session().status === 'error'
-            ? 'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS'
-            : 'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_CLOSE'
-    );
-    readonly actionIcon = computed(() =>
-        this.session().status === 'error' ? 'close' : 'stop_circle'
+    readonly showCloseAction = computed(() => this.session().canClose);
+    readonly showDismissAction = computed(
+        () => this.session().status === 'error' && !this.session().canClose
     );
 
     constructor() {
@@ -132,11 +125,11 @@ export class ExternalPlaybackDockComponent {
         this.artworkClicked.emit();
     }
 
-    onActionClick(): void {
-        if (this.session().status === 'error') {
-            this.dismissClicked.emit();
-            return;
-        }
+    onCloseClick(): void {
         this.closeClicked.emit();
+    }
+
+    onDismissClick(): void {
+        this.dismissClicked.emit();
     }
 }

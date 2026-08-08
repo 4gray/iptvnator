@@ -151,4 +151,30 @@ describe('ExternalPlaybackService', () => {
         service.dismissActiveSession();
         expect(service.visibleSession()).toBeNull();
     });
+
+    it('adopts an exactly correlated restored session after replacement teardown fails', () => {
+        const previous = createSession({
+            id: 'session-previous',
+            status: 'opened',
+            title: 'Previous stream',
+        });
+        const replacement = createSession({
+            id: 'session-replacement',
+            title: 'Replacement stream',
+        });
+        listener?.(previous);
+        listener?.(replacement);
+
+        listener?.({
+            ...previous,
+            restoredFromSessionId: replacement.id,
+            updatedAt: '2026-03-07T10:00:20.000Z',
+        });
+
+        expect(service.activeSession()).toMatchObject({
+            id: previous.id,
+            status: 'opened',
+        });
+        expect(service.visibleSession()?.id).toBe(previous.id);
+    });
 });

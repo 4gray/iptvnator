@@ -661,24 +661,87 @@ target becomes an explicit reopen action and a failed target becomes Try again.
 Only an exact correlated Electron `playing` session update earns the Playing
 label. A single external launch handshake owns the session: duplicate actions
 are ignored, other external actions wait, and an existing live external session
-must close before a different player can start. The source-owning host binds
+must close before a different player can start. Play, Restart, and secondary
+provider launch actions all observe the same local guard before Electron has
+returned a session. Xtream VOD also records the diagnostic fallback's
+route-scoped destination and pending generation before invoking MPV/VLC, so a
+subsequent route cannot start a second detached player while the first launch
+is being correlated. The source-owning host binds
 its returned launch promise to the fieldless current intent, so only that exact
 result supplies the initial session ID; a late result from a timed-out attempt
 cannot take over a retry. Later global updates must match the exact ID. A
 replacement does not launch until teardown of the exact spawned process is
 confirmed, and the old target is settled synchronously before the new launch so
-coalesced signal effects cannot preserve stale feedback. If diagnostic
-ownership changes during close, the unlaunched intent is cancelled without a
-false launch error. If the local handshake timeout fires after Electron has
-supplied an exact session ID, the ID stays correlated so a later `opened`,
-`playing`, or `error` update can reconcile the action with the global dock.
+coalesced signal effects cannot preserve stale feedback. Teardown waits through
+bounded graceful and forced-exit windows, and reusable MPV also bounds its IPC
+quit command before entering those windows. If any stage cannot confirm exit,
+close rejects and keeps the exact session live so a replacement cannot overlap
+it. A process-wide teardown gate starts before any potentially slow teardown
+preparation, including VLC position flush and a reused player's MPV IPC or VLC
+RC quit command, and rejects both player launches until that exact child
+reports exit; `ChildProcess.killed` is never treated as proof. If
+bounded teardown fails while a fresh launch IPC is pending, the IPC rejects and
+the exact session becomes a closable error instead of remaining in Opening.
+If a pre-content reuse failure has no still-live displaced session to restore,
+the replacement error keeps its attached closer so Stop can retry teardown of
+the orphaned reusable child. A terminal error without a closer is never
+restorable.
+A rejected close promise is cached only while that attempt is pending, so the
+dock's Stop action can retry teardown of the same exact child after an
+unconfirmed bounded attempt. Reusable children are mapped to the current
+content session; a stale older closer becomes a no-op after MPV `loadfile` or
+the VLC enqueue handoff remaps the process. Closing an already terminal session
+is also idempotent: it returns the closed snapshot without invoking the saved
+closer, and a later process error cannot revive it as a visible failure. Reused
+MPV commands use the socket captured for their exact child, so a delayed close
+cannot send `quit` to a replacement process through a newer global socket.
+If Stop is observed before a pending MPV content command or VLC enqueue command
+is dispatched, that command is skipped. A source handoff also fails closed
+while a live session has no closer (`canClose: false`); renderer Dismiss is not
+accepted as process-teardown confirmation. That denial advances neither the
+multi-source switch token nor the playback generation, so it cannot cancel the
+sole launch already in flight.
+VLC rechecks that gate immediately around every concrete spawn after
+asynchronous port allocation or reuse fallback work. If a post-start VLC
+fallback is blocked by the gate, the already-opened session transitions to
+error instead of continuing to claim that the player started. If RC-port
+allocation fails, reuse ownership is never claimed: the spawned VLC child
+keeps its exact one-shot session closer so Stop still confirms its teardown.
+During reusable-player handoff, a failure before the content command restores
+the globally displaced renderer session—not the reusable process's prior
+owner—through an exact `restoredFromSessionId` transition, but only while that
+displaced replacement is still the active session.
+After MPV `loadfile` or VLC `clear` has been dispatched, the attempted session
+owns the possibly changed process and stays a closable error instead of
+restoring stale content metadata. Such an error still participates in every
+replacement close. Stop during an in-flight MPV or VLC reuse command, including
+the teardown wait after a failed command and VLC's subsequent fallback
+port-allocation wait, settles that exact close and cancels the fallback spawn.
+If a partially applied reuse
+command is instead recovered by a fresh spawn, the old child's exit is retired
+under its previous session so it cannot close the replacement session. A
+during-start Stop also settles VLC's launch IPC when a spawn error reports
+`close` without `exit`. The dock keeps Stop as the only global teardown action
+while that exact closer remains live; safe Dismiss is available only after an
+error becomes terminal and has no closer. If diagnostic ownership changes during close, the
+unlaunched intent is cancelled without a false launch error; an exact stale
+launch whose close fails keeps its credential-free owner for the next close
+attempt. Route Play/Resume cancels older source resolution immediately but
+captures the initiating playlist/VOD route before awaiting teardown; navigation
+cancels that start. Accepting a diagnostic fallback cancels the same older
+source resolution before opening MPV/VLC, and a fallback resolving on the new
+route closes its exact returned session. The route commits its source badge and playback
+evidence only after start succeeds. If the local
+handshake timeout fires after Electron has supplied an exact session ID, the ID
+stays correlated so a later `opened`, `playing`, or `error` update can reconcile
+the action with the global dock.
 
 The global external-playback dock uses the same Electron session status. It
 shows Opening player with progress during launch, Player started for `opened`,
-and Playing only for `playing`. External player errors remain visible until
-dismissed, whether startup failed or a started player exited unexpectedly;
-the dock deliberately has no retry because it does not own the original headers
-or credentials required to reconstruct a safe launch request.
+and Playing only for `playing`. An error with a live closer remains visible with
+Stop until teardown is confirmed; an unclosable terminal error remains visible
+until dismissed. The dock deliberately has no retry because it does not own the
+original headers or credentials required to reconstruct a safe launch request.
 
 No recommendation mutates `Settings.player` or another persisted setting.
 Recovery recommendations never auto-switch a player or source and do not
@@ -732,14 +795,18 @@ External MPV/VLC integration is split across focused main-process modules:
 - `apps/electron-backend/src/app/events/external-player-runtime.ts` owns shared
   session tracking, trace logging, renderer notifications, playback-position
   forwarding, and user-facing start errors.
-- `apps/electron-backend/src/app/events/mpv-session.service.ts` owns MPV process,
-  socket, reuse, cleanup, and progress polling lifecycle.
-- `apps/electron-backend/src/app/events/vlc-session.service.ts` owns VLC process,
-  RC interface, reuse, cleanup, command parsing, and progress polling lifecycle.
+- `apps/electron-backend/src/app/events/mpv-session.service.ts` owns fresh MPV
+  launches and progress polling; `mpv-reusable-process.ts` owns the tracked
+  child, captured socket, remapping, retryable close, and reuse handoff.
+- `apps/electron-backend/src/app/events/vlc-session.service.ts` owns fresh VLC
+  launches and progress polling; `vlc-reusable-process.ts` owns the tracked
+  child, RC-port remapping, retryable close, and reuse handoff, while
+  `vlc-rc.ts` owns bounded RC commands, parsing, and playback snapshots.
 
-Keep player-specific process state in the MPV/VLC session modules. Shared spawn,
-request-header, session-registry, and notification helpers belong in the
-`external-player-*` modules so IPC registration stays small and reviewable.
+Keep player-specific reusable-process state in the focused MPV/VLC managers.
+Shared spawn, request-header, session-registry, and notification helpers belong
+in the `external-player-*` modules so IPC registration stays small and
+reviewable.
 
 ## Flatpak External Players
 

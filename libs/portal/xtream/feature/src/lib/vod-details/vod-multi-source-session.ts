@@ -111,7 +111,11 @@ export interface SwitchDeps {
         playback: ResolvedPortalPlayback;
         candidate: VodSourceCandidate;
     } | null>;
-    startPlayback: (playback: ResolvedPortalPlayback) => void;
+    /** True only when the host accepted and applied this exact handoff. */
+    startPlayback: (
+        playback: ResolvedPortalPlayback,
+        isCurrent: () => boolean
+    ) => Promise<boolean>;
     /** False once a newer switch, or another movie, owns the screen. */
     isCurrent: () => boolean;
     setPreviousSource: (sourceId: string | null) => void;
@@ -154,11 +158,21 @@ export async function switchToSource(
         return 'unresolvable';
     }
 
+    // Ownership must be rechecked inside the playback seam after any external
+    // teardown wait but before it applies the new source. A post-launch check
+    // alone can reject a stale handoff only after its player already exists.
+    const started = await deps.startPlayback(resolved.playback, deps.isCurrent);
+    if (!started || !deps.isCurrent()) {
+        // Teardown may fail before the host can apply the replacement, or a
+        // newer start may take ownership while that teardown is in flight.
+        // In either case the old source remains the only truthful selection.
+        return 'superseded';
+    }
+
     controller.updateSource(resolved.candidate);
     deps.setPreviousSource(previous?.id ?? null);
     controller.markPlaying(candidate.id);
     controller.setResumeSeconds(resumeSeconds);
-    deps.startPlayback(resolved.playback);
 
     deps.setNotice(
         buildSwitchNotice(
