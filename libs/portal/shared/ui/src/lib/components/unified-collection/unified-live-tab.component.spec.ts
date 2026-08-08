@@ -1112,6 +1112,17 @@ describe('UnifiedLiveTabComponent', () => {
             fixture.debugElement.query(By.directive(StubEpgTimelineComponent))
                 .componentInstance as StubEpgTimelineComponent;
 
+        it('passes the archive fields through to the sidebar rows', async () => {
+            await selectXtreamArchiveChannel({
+                tvArchive: 1,
+                tvArchiveDuration: 5,
+            });
+
+            const row = component.channelsForList()[0];
+            expect(row.tvArchive).toBe(1);
+            expect(row.tvArchiveDuration).toBe(5);
+        });
+
         it('exposes the provider archive window to the timeline in days', async () => {
             // Regression: tv_archive_duration is days (matching
             // live-stream-layout.controlledArchiveDays), not hours — a
