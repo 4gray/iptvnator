@@ -8,13 +8,6 @@
     padding: 18px 20px calc(36px + var(--settings-safe-bottom));
 }
 
-.settings-container.dialog-mode {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 12px 8px calc(24px + var(--settings-safe-bottom));
-}
-
 .settings-layout {
     display: flex;
     flex-direction: column;
@@ -25,36 +18,6 @@
     padding-bottom: calc(
         var(--settings-action-bar-space) + var(--settings-safe-bottom)
     );
-}
-
-.settings-container.dialog-mode .settings-layout {
-    padding-bottom: 0;
-}
-
-.settings-page-header {
-    padding: 14px 18px 8px;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-}
-
-.settings-page-header__text {
-    max-width: 56ch;
-
-    h1 {
-        margin: 0;
-        font-size: clamp(1.35rem, 2vw, 1.75rem);
-        line-height: 1.08;
-        letter-spacing: -0.03em;
-        font-weight: 700;
-    }
-
-    p {
-        margin: 4px 0 0;
-        color: var(--settings-muted);
-        font-size: 0.86rem;
-        line-height: 1.45;
-    }
 }
 
 .settings-content {
@@ -83,16 +46,6 @@
 
     &:first-of-type {
         margin-top: 0;
-    }
-}
-
-// The active section no longer gets a ring/shadow — the rail's active
-// state on the left already announces "you are here". Title still
-// colours to the accent so users scanning the right pane don't lose the
-// anchor.
-.settings-group--active {
-    .settings-group__header-text h3 {
-        color: var(--app-selection-color);
     }
 }
 
@@ -738,13 +691,11 @@
     );
 }
 
-// Sticky-footer Save bar — full content width so it never overlaps form
-// rows. The previous chip-style bar (border-radius:18px, margin-left:auto)
-// floated in the bottom-right corner and clipped fields underneath; the
-// UX audit called this out as the worst of three available patterns.
-// Now the bar acts as a proper footer: spans the column, separator line
-// on top, sits flush with the bottom edge while still sticking on scroll.
-.action-bar {
+// Unsaved-changes bar — only present while the form is dirty, so unlike the
+// previous always-visible footer Save button it doubles as the "you edited
+// something on another section page" reminder. Sticky rather than fixed so
+// it stays inside the settings column and never covers the shell rail.
+.unsaved-bar {
     position: sticky;
     bottom: calc(
         var(--settings-action-bar-offset) + var(--settings-safe-bottom)
@@ -756,7 +707,7 @@
     box-sizing: border-box;
     z-index: 100;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
@@ -769,17 +720,45 @@
     background: var(--settings-action-bar-bg);
     backdrop-filter: blur(12px);
     box-shadow: var(--settings-action-bar-shadow);
+    animation: unsaved-bar-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
 }
 
-.settings-container.dialog-mode .action-bar {
-    position: static;
-    margin-top: 12px;
-    margin-bottom: 2px;
-    box-shadow: none;
-    border-radius: 16px;
-    padding: 12px;
-    border-top: 1px solid var(--settings-action-bar-border);
-    justify-content: space-between;
+@keyframes unsaved-bar-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.unsaved-bar__message {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--settings-muted);
+    font-size: 0.88rem;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.unsaved-bar__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-wrap: wrap;
 }
 
 .settings-save-button.mat-mdc-button-base {
@@ -882,13 +861,15 @@
         flex-wrap: wrap;
     }
 
-    .action-bar {
-        position: static;
-        flex-direction: column-reverse;
+    .unsaved-bar {
+        flex-direction: column;
         align-items: stretch;
         border-radius: 16px;
-        box-shadow: none;
-        width: 100%;
+    }
+
+    .unsaved-bar__actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
         margin-left: 0;
 
         button {

@@ -1,10 +1,8 @@
 import {
     Component,
-    effect,
     inject,
     input,
     signal,
-    untracked,
     ViewEncapsulation,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -84,7 +82,6 @@ export class SettingsTmdbSectionComponent {
     private readonly tmdbCache = inject(TmdbCacheService);
 
     readonly form = input.required<FormGroup>();
-    readonly activeSection = input.required<string>();
 
     readonly keyTestState = signal<TmdbKeyTestState>('idle');
     readonly cacheStats = signal<TmdbCacheStats | null>(null);
@@ -92,21 +89,13 @@ export class SettingsTmdbSectionComponent {
     readonly isClearing = signal(false);
 
     constructor() {
-        // Sizing the cache is a full table scan, so it waits until the
-        // user is actually looking at this section.
-        effect(() => {
-            if (this.activeSection() !== 'tmdb') {
-                return;
-            }
-            untracked(() => {
-                // A failed read leaves both signals in their "unknown"
-                // state, so reopening the section retries rather than
-                // showing the error until the page is rebuilt.
-                if (this.cacheStats() === null) {
-                    void this.refreshCacheStats();
-                }
-            });
-        });
+        // Sizing the cache is a full table scan, but this component only
+        // exists while its section page is open, so loading on construction
+        // preserves the old "wait until the user is actually looking"
+        // behaviour. A failed read leaves the signals in their "unknown"
+        // state and reopening the section recreates the component, which
+        // retries naturally.
+        void this.refreshCacheStats();
     }
 
     get enteredApiKey(): string {

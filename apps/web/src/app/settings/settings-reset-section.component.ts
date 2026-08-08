@@ -18,7 +18,6 @@ import { SettingsPlaylistDeleteSummary } from './settings.models';
     styles: [':host { display: contents; }'],
 })
 export class SettingsResetSectionComponent {
-    readonly activeSection = input.required<string>();
     readonly isRemovingAllPlaylists = input(false);
     readonly canRemoveAllPlaylists = input(false);
     readonly playlistDeleteSummary =

@@ -27,12 +27,22 @@ describe('SettingsTmdbSectionComponent', () => {
     const clearButton = () =>
         queryByTestId('tmdb-clear-cache') as HTMLButtonElement;
 
-    /** The stats effect only fires once the TMDB section is the active one */
-    const activate = async (section = 'tmdb') => {
-        fixture.componentRef.setInput('activeSection', section);
-        fixture.detectChanges();
+    /** Constructor kicks off the stats read; let it settle and render. */
+    const settle = async () => {
         await fixture.whenStable();
         fixture.detectChanges();
+    };
+
+    /**
+     * The section component only exists while its settings page is open, so
+     * "reopening the section" means recreating the component.
+     */
+    const reopenSection = async () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(SettingsTmdbSectionComponent);
+        fixture.componentRef.setInput('form', createForm());
+        fixture.detectChanges();
+        await settle();
     };
 
     beforeEach(async () => {
@@ -73,21 +83,18 @@ describe('SettingsTmdbSectionComponent', () => {
 
         fixture = TestBed.createComponent(SettingsTmdbSectionComponent);
         fixture.componentRef.setInput('form', createForm());
-        fixture.componentRef.setInput('activeSection', 'general');
         fixture.detectChanges();
     });
 
-    it('defers the full-table scan until the section is opened', async () => {
-        expect(getStats).not.toHaveBeenCalled();
-
-        await activate();
+    it('sizes the cache as soon as the section page opens', async () => {
+        await settle();
 
         expect(getStats).toHaveBeenCalledTimes(1);
         expect(queryByTestId('tmdb-cache-size')?.textContent).toContain('42');
     });
 
     it('clears the cache and re-reads the size', async () => {
-        await activate();
+        await settle();
         getStats.mockResolvedValue({ entries: 0, bytes: 0 });
 
         clearButton().click();
@@ -101,7 +108,7 @@ describe('SettingsTmdbSectionComponent', () => {
     });
 
     it('surfaces a failed clear instead of claiming an empty cache', async () => {
-        await activate();
+        await settle();
         clear.mockResolvedValue(null);
 
         clearButton().click();
@@ -116,9 +123,9 @@ describe('SettingsTmdbSectionComponent', () => {
     });
 
     it('surfaces a failed size read the same way', async () => {
+        getStats.mockReset();
         getStats.mockResolvedValue(null);
-
-        await activate();
+        await reopenSection();
 
         expect(queryByTestId('tmdb-cache-size')?.textContent).toContain(
             CACHE_ERROR_LABEL
@@ -126,17 +133,18 @@ describe('SettingsTmdbSectionComponent', () => {
     });
 
     it('retries the size read next time the section is opened', async () => {
+        getStats.mockReset();
         getStats.mockResolvedValueOnce(null);
-        await activate();
+        getStats.mockResolvedValue({ entries: 42, bytes: 2048 });
+        await reopenSection();
         expect(queryByTestId('tmdb-cache-size')?.textContent).toContain(
             CACHE_ERROR_LABEL
         );
 
-        await activate('general');
-        await activate();
+        // Otherwise a single transient failure sticks until the destructive
+        // Clear button shifts it — reopening the page must retry instead
+        await reopenSection();
 
-        // Otherwise a single transient failure sticks for the life of the
-        // page, and only the destructive Clear button can shift it
         expect(getStats).toHaveBeenCalledTimes(2);
         expect(queryByTestId('tmdb-cache-size')?.textContent).toContain('42');
     });

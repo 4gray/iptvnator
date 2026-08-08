@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
+import { settingsUnsavedChangesGuard } from './settings/settings-unsaved-changes.guard';
 
 const settingsReadyResolver = () => inject(SettingsStore).loadSettings();
 
@@ -141,10 +142,27 @@ export const routes: Routes = [
             },
             {
                 path: 'settings',
-                loadComponent: () =>
-                    import('./settings/settings.component').then(
-                        (c) => c.SettingsComponent
-                    ),
+                children: [
+                    {
+                        path: '',
+                        pathMatch: 'full',
+                        redirectTo: 'general',
+                    },
+                    {
+                        // One routed component for every section: the same
+                        // instance survives :section param changes (default
+                        // route reuse), so the settings form — and its dirty
+                        // state — persists while the user moves between
+                        // section pages. The guard only intercepts leaving
+                        // the settings area with unsaved edits.
+                        path: ':section',
+                        canDeactivate: [settingsUnsavedChangesGuard],
+                        loadComponent: () =>
+                            import('./settings/settings.component').then(
+                                (c) => c.SettingsComponent
+                            ),
+                    },
+                ],
             },
         ],
     },

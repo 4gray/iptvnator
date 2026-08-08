@@ -37,6 +37,7 @@ import {
     EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
+    EpgTimelineEmptyReason,
     getTodayEpgDateKey,
     MultiEpgContainerComponent,
     shiftEpgDateKey,
@@ -51,6 +52,7 @@ import {
     selectActive,
     selectActiveEpgProgram,
     selectActivePlaybackUrl,
+    selectActivePlaylist,
     selectChannels,
     selectChannelsLoading,
     selectCurrentEpgProgram,
@@ -358,6 +360,34 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             ? 'EPG.ARCHIVE_PLAYBACK'
             : 'EPG.CURRENT_PROGRAM'
     );
+    private readonly activePlaylistForEpg =
+        this.store.selectSignal(selectActivePlaylist);
+    /**
+     * Without a single configured XMLTV source the whole playlist has no EPG,
+     * so the panel's empty state should point at the EPG settings page
+     * instead of implying that just this channel is unmapped. Only claims
+     * "needs setup" when nothing contradicts it: no programmes for the
+     * channel (uploaded XMLTV files produce programmes without any URL), no
+     * global source in settings (legacy values may be a plain string), and no
+     * playlist-scoped `url-tvg` source either.
+     */
+    readonly liveEpgEmptyReason = computed<EpgTimelineEmptyReason>(() => {
+        if (this.epgPrograms().length > 0) {
+            return 'none';
+        }
+
+        const globalSources = this.settingsStore.epgUrl?.() ?? [];
+        const hasGlobalSources = Array.isArray(globalSources)
+            ? globalSources.some((url) => Boolean(url?.trim?.()))
+            : Boolean(globalSources);
+        const hasPlaylistSources = (
+            this.activePlaylistForEpg()?.epgUrls ?? []
+        ).some((url) => Boolean(url?.trim?.()));
+
+        return hasGlobalSources || hasPlaylistSources
+            ? 'none'
+            : 'm3u-needs-setup';
+    });
     readonly showReturnToLive = computed(
         () => this.activeEpgProgramOrNull() !== null
     );
@@ -703,6 +733,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     returnToLivePlayback(): void {
         this.store.dispatch(EpgActions.returnToLivePlayback());
+    }
+
+    /** Deep link from the EPG panel's "needs setup" empty state */
+    openEpgSettings(): void {
+        void this.router.navigate(['/workspace/settings', 'epg']);
     }
 
     onTimelineProgramActivated(event: EpgProgramActivationEvent): void {
