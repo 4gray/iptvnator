@@ -5,6 +5,7 @@ import {
     resolvePlaybackSourceKind,
     type PlaybackDiagnostic,
     type PlaybackRecommendation,
+    type PlaybackRecommendationContext,
     type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
 import {
@@ -34,7 +35,7 @@ export function createWebPlayerRecommendations(options: {
             (target) => target !== 'mpv' && target !== 'vlc'
         )
     );
-    const recommendations = recommendPlaybackRecovery({
+    const context: PlaybackRecommendationContext = {
         diagnostic: options.diagnostic,
         activeTarget: options.binding.target,
         attemptedTargets: attemptedInlineTargets,
@@ -52,11 +53,67 @@ export function createWebPlayerRecommendations(options: {
             externalTransferable: options.playbackExternallyTransferable,
         },
         alternativeSourceCount: options.alternativeSourceCount,
-    });
+    };
+    const recommendations = revealCappedExternalSiblings(
+        recommendPlaybackRecovery(context),
+        context,
+        options.externalStates
+    );
     return rerankExternalRecommendations(
         recommendations,
         options.externalStates
     );
+}
+
+function revealCappedExternalSiblings(
+    recommendations: readonly PlaybackRecommendation[],
+    context: PlaybackRecommendationContext,
+    states: ExternalRecoveryStates
+): readonly PlaybackRecommendation[] {
+    const externalTargets: readonly ExternalPlayerName[] = ['mpv', 'vlc'];
+    if (!externalTargets.some((target) => states[target].attempts > 0)) {
+        return recommendations;
+    }
+    const retained = [...recommendations];
+    for (const target of externalTargets) {
+        if (
+            retained.some(
+                (recommendation) =>
+                    isExternalRecommendation(recommendation) &&
+                    recommendation.target === target
+            )
+        ) {
+            continue;
+        }
+        const siblingTarget: ExternalPlayerName =
+            target === 'mpv' ? 'vlc' : 'mpv';
+        const candidate = recommendPlaybackRecovery({
+            ...context,
+            attemptedTargets: new Set([
+                ...context.attemptedTargets,
+                siblingTarget,
+            ]),
+        }).find(
+            (recommendation) =>
+                isExternalRecommendation(recommendation) &&
+                recommendation.target === target
+        );
+        if (!candidate) {
+            continue;
+        }
+        if (retained.length >= 3) {
+            const replaceIndex = retained.findLastIndex(
+                (recommendation, index) =>
+                    index > 0 && !isExternalRecommendation(recommendation)
+            );
+            if (replaceIndex < 0) {
+                continue;
+            }
+            retained.splice(replaceIndex, 1);
+        }
+        retained.push(candidate);
+    }
+    return retained;
 }
 
 function rerankExternalRecommendations(
@@ -97,6 +154,17 @@ function rerankExternalRecommendations(
             priority: index === 0 ? 'primary' : 'secondary',
         };
     });
+}
+
+function isExternalRecommendation(
+    recommendation: PlaybackRecommendation
+): recommendation is Extract<PlaybackRecommendation, { readonly action: 'player' }> & {
+    readonly target: ExternalPlayerName;
+} {
+    return (
+        recommendation.action === 'player' &&
+        (recommendation.target === 'mpv' || recommendation.target === 'vlc')
+    );
 }
 
 export function isPlaybackExternallyTransferable(

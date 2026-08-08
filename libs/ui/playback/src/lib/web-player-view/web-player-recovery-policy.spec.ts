@@ -94,6 +94,52 @@ describe('createWebPlayerRecommendations external outcomes', () => {
         expect(targets(result)).not.toContain(InlinePlaybackPlayer.Html5);
     });
 
+    it('keeps a failed external target and reveals its capped sibling', () => {
+        const result = recommendations({
+            diagnostic: {
+                ...DIAGNOSTIC,
+                code: PlaybackDiagnosticCode.DrmOrEncryption,
+                source: PlaybackDiagnosticSource.Hls,
+                container: 'm3u8',
+                mimeType: 'application/vnd.apple.mpegurl',
+            },
+            attemptedTargets: new Set(['mpv']),
+            externalStates: externalStates({
+                mpv: { attempts: 1, sessionId: null, status: 'error' },
+            }),
+        });
+
+        expect(targets(result)).toEqual([
+            InlinePlaybackPlayer.Html5,
+            'vlc',
+            'mpv',
+        ]);
+        expect(result).toHaveLength(3);
+    });
+
+    it('retains a previously attempted target that the initial cap omitted', () => {
+        const result = recommendations({
+            diagnostic: {
+                ...DIAGNOSTIC,
+                code: PlaybackDiagnosticCode.DrmOrEncryption,
+                source: PlaybackDiagnosticSource.Hls,
+                container: 'm3u8',
+                mimeType: 'application/vnd.apple.mpegurl',
+            },
+            attemptedTargets: new Set(['vlc']),
+            externalStates: externalStates({
+                vlc: { attempts: 1, sessionId: null, status: 'error' },
+            }),
+        });
+
+        expect(targets(result)).toEqual([
+            InlinePlaybackPlayer.Html5,
+            'mpv',
+            'vlc',
+        ]);
+        expect(result).toHaveLength(3);
+    });
+
     it('preserves policy order for equal attempt counts and stays capped at three', () => {
         const result = recommendations({
             attemptedTargets: new Set(['mpv', 'vlc']),
