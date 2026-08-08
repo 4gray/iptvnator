@@ -27,7 +27,7 @@ import {
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
     Playlist,
-    PlaylistMeta,
+    PlaylistMetaUpdate,
     PlaylistRecentlyViewedItem,
     PlaylistUpdateState,
     StalkerPortalItem,
@@ -627,7 +627,7 @@ export class PlaylistsService {
         );
     }
 
-    updatePlaylistMeta(updatedPlaylist: PlaylistMeta) {
+    updatePlaylistMeta(updatedPlaylist: PlaylistMetaUpdate) {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
             const playlist = await firstValueFrom(
                 this.getPlaylistById(updatedPlaylist._id)
@@ -728,6 +728,24 @@ export class PlaylistsService {
                 ...(updatedPlaylist.stalkerSignature2 !== undefined
                     ? {
                           stalkerSignature2: updatedPlaylist.stalkerSignature2,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerSessionPatch !== undefined
+                    ? {
+                          stalkerToken:
+                              updatedPlaylist.stalkerSessionPatch?.stalkerToken,
+                          stalkerSessionIdentity:
+                              updatedPlaylist.stalkerSessionPatch
+                                  ?.stalkerSessionIdentity,
+                          stalkerWatchdogTimeout:
+                              updatedPlaylist.stalkerSessionPatch
+                                  ?.stalkerWatchdogTimeout,
+                          stalkerTimeslot:
+                              updatedPlaylist.stalkerSessionPatch
+                                  ?.stalkerTimeslot,
+                          stalkerAccountInfo:
+                              updatedPlaylist.stalkerSessionPatch
+                                  ?.stalkerAccountInfo,
                       }
                     : {}),
             };

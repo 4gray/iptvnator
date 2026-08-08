@@ -4,6 +4,7 @@ import {
     EpgProgram,
     Playlist,
     PlaylistMeta,
+    PlaylistMetaUpdate,
 } from '@iptvnator/shared/interfaces';
 
 export const PlaylistActions = createActionGroup({
@@ -14,7 +15,7 @@ export const PlaylistActions = createActionGroup({
         'Add Playlist': props<{ playlist: Playlist }>(),
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),
         'Remove Playlist': props<{ playlistId: string }>(),
-        'Update Playlist Meta': props<{ playlist: PlaylistMeta }>(),
+        'Update Playlist Meta': props<{ playlist: PlaylistMetaUpdate }>(),
         'Update Playlist': props<{
             /**
              * Instrumentation-only; stripped before the DB invoke.

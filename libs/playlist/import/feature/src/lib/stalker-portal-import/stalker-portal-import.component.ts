@@ -92,7 +92,7 @@ interface StalkerSettledIdentity {
 })
 export class StalkerPortalImportComponent {
     readonly addClicked = output<void>();
-    readonly URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+    readonly URL_REGEX = /^https?:\/\/[^ "\s]+$/i;
 
     readonly form = new FormGroup({
         _id: new FormControl(createRandomId()),
@@ -136,8 +136,10 @@ export class StalkerPortalImportComponent {
      */
     get showsForeignOuiHint(): boolean {
         const value = this.form.controls.macAddress.value;
-        return Boolean(normalizeStalkerMacAddress(value)) &&
-            !hasInfomirMacOui(value);
+        return (
+            Boolean(normalizeStalkerMacAddress(value)) &&
+            !hasInfomirMacOui(value)
+        );
     }
 
     /**
@@ -161,7 +163,7 @@ export class StalkerPortalImportComponent {
             !this.derivesDeviceIds() &&
             Boolean(
                 this.form.controls.deviceId1.value ||
-                    this.form.controls.deviceId2.value
+                this.form.controls.deviceId2.value
             )
         );
     }
@@ -403,8 +405,7 @@ export class StalkerPortalImportComponent {
                     stalkerAccountInfo = {
                         login: discovery.accountInfo.login,
                         expireDate: discovery.accountInfo.expire_date,
-                        tariffPlanName:
-                            discovery.accountInfo.tariff_plan_name,
+                        tariffPlanName: discovery.accountInfo.tariff_plan_name,
                         status: discovery.accountInfo.status,
                     };
                 }

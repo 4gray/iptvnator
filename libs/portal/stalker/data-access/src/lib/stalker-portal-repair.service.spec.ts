@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -36,6 +36,7 @@ describe('StalkerPortalRepairService', () => {
     let persistError: Error | null;
     let setCachedToken: jest.Mock;
     let adoptDiscoveredSession: jest.Mock;
+    let adoptDiscoveredSimplePortal: jest.Mock;
     let clearCachedToken: jest.Mock;
     let refreshActiveWatchdogPlaylist: jest.Mock;
 
@@ -63,6 +64,7 @@ describe('StalkerPortalRepairService', () => {
         });
         setCachedToken = jest.fn();
         adoptDiscoveredSession = jest.fn();
+        adoptDiscoveredSimplePortal = jest.fn();
         clearCachedToken = jest.fn();
         refreshActiveWatchdogPlaylist = jest.fn();
 
@@ -84,6 +86,7 @@ describe('StalkerPortalRepairService', () => {
                     useValue: {
                         setCachedToken,
                         adoptDiscoveredSession,
+                        adoptDiscoveredSimplePortal,
                         clearCachedToken,
                         refreshActiveWatchdogPlaylist,
                     },
@@ -97,7 +100,10 @@ describe('StalkerPortalRepairService', () => {
     describe('shouldAttemptRepair', () => {
         it('triggers on the middleware plain-text auth bodies', () => {
             expect(
-                service.shouldAttemptRepair(MISCLASSIFIED, 'Authorization failed.')
+                service.shouldAttemptRepair(
+                    MISCLASSIFIED,
+                    'Authorization failed.'
+                )
             ).toBe(true);
             expect(
                 service.shouldAttemptRepair(
@@ -175,9 +181,9 @@ describe('StalkerPortalRepairService', () => {
                     status: 500,
                 })
             ).toBe(false);
-            expect(
-                service.shouldAttemptRepair(MISCLASSIFIED, { js: [] })
-            ).toBe(false);
+            expect(service.shouldAttemptRepair(MISCLASSIFIED, { js: [] })).toBe(
+                false
+            );
         });
 
         it('never triggers for playlists without portal coordinates', () => {
@@ -484,6 +490,63 @@ describe('StalkerPortalRepairService', () => {
             );
         });
 
+        it('retires a remembered endpoint override before explicit Edit installs its result', async () => {
+            const wrongEndpoint = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://ministra.example/portal.php',
+            } as PlaylistMeta;
+            persistedRow = wrongEndpoint as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://ministra.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'TOKEN2',
+            });
+            await service.repairPortal(wrongEndpoint);
+            expect(service.applyOverride(wrongEndpoint).portalUrl).toBe(
+                'http://ministra.example/server/load.php'
+            );
+
+            service.retireForPlaylistEdit(wrongEndpoint._id);
+
+            expect(service.applyOverride(wrongEndpoint)).toBe(wrongEndpoint);
+            expect(clearCachedToken).toHaveBeenLastCalledWith('portal-1');
+        });
+
+        it('discards a repair verified before explicit Edit but completed after it', async () => {
+            const wrongEndpoint = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://ministra.example/portal.php',
+            } as PlaylistMeta;
+            persistedRow = wrongEndpoint as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://ministra.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'REPAIR_TOKEN',
+            });
+            const writeCompletion = new Subject<Playlist | null>();
+            transformPlaylistMeta.mockImplementation((_id, transform) => {
+                writtenRow = transform(persistedRow) as Playlist | null;
+                return writeCompletion;
+            });
+
+            const repair = service.repairPortal(wrongEndpoint);
+            while (transformPlaylistMeta.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            // The transform has verified A and computed B, but its async
+            // persistence has not completed. Explicit Edit C must fence all
+            // repair-side runtime/session effects that follow that await.
+            service.retireForPlaylistEdit(wrongEndpoint._id);
+            writeCompletion.next(writtenRow);
+
+            await expect(repair).resolves.toBeNull();
+            expect(service.applyOverride(wrongEndpoint)).toBe(wrongEndpoint);
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
+            expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
+        });
+
         it('discards an in-flight repair when the row was edited during the probe', async () => {
             // The probe can run for tens of seconds; a user who saves a new
             // portal URL meanwhile must win over the repair of the old one.
@@ -724,9 +787,9 @@ describe('StalkerPortalRepairService', () => {
             const repaired = await service.repairPortal(MISCLASSIFIED);
 
             expect(repaired?.isFullStalkerPortal).toBe(true);
-            expect(service.applyOverride(MISCLASSIFIED).isFullStalkerPortal).toBe(
-                true
-            );
+            expect(
+                service.applyOverride(MISCLASSIFIED).isFullStalkerPortal
+            ).toBe(true);
         });
 
         it('clears a stale cached token when a portal turns out token-free', async () => {
@@ -745,7 +808,13 @@ describe('StalkerPortalRepairService', () => {
             const repaired = await service.repairPortal(wronglyFull);
 
             expect(repaired?.isFullStalkerPortal).toBe(false);
-            expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
+            expect(adoptDiscoveredSimplePortal).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: 'portal-1',
+                    portalUrl: 'http://panel.example/portal.php',
+                    isFullStalkerPortal: false,
+                })
+            );
         });
     });
 });

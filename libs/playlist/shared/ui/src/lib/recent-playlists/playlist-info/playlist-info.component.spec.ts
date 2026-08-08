@@ -14,6 +14,10 @@ import {
 } from '@iptvnator/services';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistInfoComponent } from './playlist-info.component';
+import {
+    STALKER_PLAYLIST_CONNECTION_EDITOR,
+    STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
+} from './stalker-playlist-connection-editor.token';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
@@ -47,6 +51,9 @@ describe('PlaylistInfoComponent', () => {
     };
     let dialogRef: {
         close: jest.Mock;
+    };
+    let stalkerConnectionEditor: {
+        resolveConnection: jest.Mock;
     };
     const originalElectron = window.electron;
 
@@ -97,6 +104,15 @@ describe('PlaylistInfoComponent', () => {
         };
         dialogRef = {
             close: jest.fn(),
+        };
+        stalkerConnectionEditor = {
+            applyResolvedConnection: jest.fn().mockResolvedValue(undefined),
+            resolveConnection: jest.fn(
+                async (updatedPlaylist: PlaylistMeta) => ({
+                    status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                    playlist: updatedPlaylist,
+                })
+            ),
         };
 
         await TestBed.configureTestingModule({
@@ -154,6 +170,10 @@ describe('PlaylistInfoComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
+                },
+                {
+                    provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
+                    useValue: stalkerConnectionEditor,
                 },
             ],
         }).compileComponents();
@@ -621,9 +641,9 @@ describe('PlaylistInfoComponent', () => {
             // Pressing Enter inside the field submits without the field losing
             // focus, so `onMacAddressBlur` never runs.
             createStalkerComponent();
-            component.playlistDetails.get('macAddress')?.setValue(
-                '00-1a-79-ab-cd-ef'
-            );
+            component.playlistDetails
+                .get('macAddress')
+                ?.setValue('00-1a-79-ab-cd-ef');
 
             await component.saveChanges(
                 component.playlistDetails.value as PlaylistMeta
@@ -636,6 +656,178 @@ describe('PlaylistInfoComponent', () => {
                     }) as PlaylistMeta,
                 })
             );
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        it('saves metadata without discovery when connection fields are unchanged', async () => {
+            createStalkerComponent({
+                username: 'subscriber',
+                password: 'secret',
+                stalkerSerialNumber: 'SERIAL',
+            });
+            component.playlistDetails.get('title')?.setValue('Renamed');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).not.toHaveBeenCalled();
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).not.toHaveBeenCalled();
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        title: 'Renamed',
+                        portalUrl: 'https://portal.example.com/c',
+                        macAddress: '00:1a:79:aa:bb:cc',
+                        username: 'subscriber',
+                        password: 'secret',
+                        stalkerSerialNumber: 'SERIAL',
+                    }) as PlaylistMeta,
+                })
+            );
+        });
+
+        it.each([
+            ['portalUrl', 'https://new.example.com'],
+            ['macAddress', '00:1A:79:AB:CD:EF'],
+            ['username', 'new-user'],
+            ['password', 'new-password'],
+            ['stalkerSerialNumber', 'NEW-SERIAL'],
+            ['stalkerDeviceId1', 'NEW-DEVICE-1'],
+            ['stalkerDeviceId2', 'NEW-DEVICE-2'],
+            ['stalkerSignature1', 'NEW-SIGNATURE-1'],
+            ['stalkerSignature2', 'NEW-SIGNATURE-2'],
+        ])('runs discovery when %s changes', async (field, value) => {
+            createStalkerComponent({
+                username: 'subscriber',
+                password: 'secret',
+                stalkerSerialNumber: 'SERIAL',
+                stalkerDeviceId1: 'DEVICE-1',
+                stalkerDeviceId2: 'DEVICE-2',
+                stalkerSignature1: 'SIGNATURE-1',
+                stalkerSignature2: 'SIGNATURE-2',
+            });
+            component.playlistDetails.get(field)?.setValue(value);
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        it('dispatches the resolved endpoint, mode and session patch together', async () => {
+            createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                    stalkerWatchdogTimeout: 90,
+                    stalkerTimeslot: 4,
+                },
+            };
+            stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://portal.example.com/c');
+            component.playlistDetails.get('username')?.setValue('subscriber');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: resolvedPlaylist,
+                })
+            );
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).toHaveBeenCalledWith(resolvedPlaylist);
+            expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        });
+
+        it.each([
+            STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
+            STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
+        ])('keeps the dialog open and saves nothing on %s', async (status) => {
+            createStalkerComponent();
+            stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                status,
+                message: `error:${status}`,
+            });
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(store.dispatch).not.toHaveBeenCalled();
+            expect(dialogRef.close).not.toHaveBeenCalled();
+            expect(snackBar.open).toHaveBeenCalledWith(
+                `error:${status}`,
+                'CLOSE',
+                { duration: 8000 }
+            );
+            expect(component.isSaving()).toBe(false);
+        });
+
+        it('ignores a second Save while discovery is pending', async () => {
+            createStalkerComponent();
+            let resolveDiscovery:
+                | ((value: { status: 'unreachable'; message: string }) => void)
+                | undefined;
+            stalkerConnectionEditor.resolveConnection.mockReturnValue(
+                new Promise((resolve) => {
+                    resolveDiscovery = resolve;
+                })
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+            const value =
+                component.playlistDetails.getRawValue() as PlaylistMeta;
+
+            const firstSave = component.saveChanges(value);
+            const secondSave = component.saveChanges(value);
+
+            expect(component.isSaving()).toBe(true);
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledTimes(1);
+            resolveDiscovery?.({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
+                message: 'offline',
+            });
+            await Promise.all([firstSave, secondSave]);
+            expect(store.dispatch).not.toHaveBeenCalled();
+        });
+
+        it('accepts a bare HTTP host but rejects an address without a protocol', () => {
+            createStalkerComponent();
+            const control = component.playlistDetails.get('portalUrl');
+
+            control?.setValue('portal.example.com');
+            expect(control?.valid).toBe(false);
+
+            control?.setValue('https://portal.example.com');
+            expect(control?.valid).toBe(true);
         });
 
         it('persists a grandfathered MAC untouched on submit', async () => {

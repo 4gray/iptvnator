@@ -41,8 +41,6 @@ interface StalkerPortalModeOverride {
     isFullStalkerPortal: boolean;
 }
 
-
-
 /**
  * Lazy repair for playlists whose persisted portal endpoint or mode is
  * wrong. The flag used to be a URL-shape guess frozen at import, so a
@@ -99,6 +97,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         string,
         Promise<PlaylistMeta | null>
     >();
+    /** Explicit Edit invalidates every repair that started before it. */
+    private readonly editGenerations = new Map<string, number>();
 
     constructor() {
         // The watchdog resolves its playlist from the persisted row; while a
@@ -134,7 +134,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         }
 
         if (
-            stalkerIdentityFingerprint(playlist) !== override.identityFingerprint
+            stalkerIdentityFingerprint(playlist) !==
+            override.identityFingerprint
         ) {
             // The MAC or Stalker identity was edited after the repair. The
             // override AND the token the repair authenticated for the
@@ -169,6 +170,19 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         // repair session state is retired.
         this.dropOverride(playlist._id);
         return playlist;
+    }
+
+    /**
+     * Retires a lazy-repair override before an explicit Edit result is
+     * installed. Discovery has just proved that exact endpoint and mode, so
+     * an override remembered for the pre-edit connection must not rewrite it.
+     */
+    retireForPlaylistEdit(playlistId: string): void {
+        this.editGenerations.set(
+            playlistId,
+            (this.editGenerations.get(playlistId) ?? 0) + 1
+        );
+        this.dropOverride(playlistId);
     }
 
     /**
@@ -258,8 +272,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         const fingerprint = this.repairSourceFingerprint(playlist);
         const history = this.probeHistory.get(playlistId) ?? new Map();
         const record = history.get(fingerprint) as
-            | StalkerProbeRecord
-            | undefined;
+            StalkerProbeRecord | undefined;
         if (record === 'discarded') {
             // The probe for this configuration was discarded because the
             // row had moved on mid-probe. If the row has since been
@@ -301,7 +314,10 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         // produced override or the 'discarded' marker.
         history.set(fingerprint, 'no-change');
         this.probeHistory.set(playlistId, history);
-        const run = this.runRepair(playlist);
+        const run = this.runRepair(
+            playlist,
+            this.editGenerations.get(playlistId) ?? 0
+        );
         this.pendingRepairs.set(playlistId, run);
         try {
             return await run;
@@ -336,7 +352,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     }
 
     private async runRepair(
-        playlist: PlaylistMeta
+        playlist: PlaylistMeta,
+        editGeneration: number
     ): Promise<PlaylistMeta | null> {
         const outcome = await this.discovery.discover(
             playlist.portalUrl ?? '',
@@ -362,6 +379,10 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return null;
         }
 
+        if (this.editGenerationChanged(playlist._id, editGeneration)) {
+            return this.discardSupersededRepair(playlist);
+        }
+
         const storedMode = isFullStalkerPortalPlaylist(playlist);
         if (
             outcome.portalUrl === playlist.portalUrl &&
@@ -385,7 +406,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
                 this.injector
                     .get(PlaylistsService)
                     .transformPlaylistMeta(playlist._id, (row) => {
-                        if (!this.rowMatchesSource(row, playlist, storedMode)) {
+                        if (
+                            this.editGenerationChanged(
+                                playlist._id,
+                                editGeneration
+                            ) ||
+                            !this.rowMatchesSource(row, playlist, storedMode)
+                        ) {
                             return null;
                         }
                         verifiedAgainstRow = true;
@@ -400,23 +427,14 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             // A failed WRITE after successful verification keeps the
             // session-only override below; a failed READ means the premise
             // could not be verified and the repair is discarded.
-            this.logger.warn(
-                'Persisting repaired portal mode failed',
-                error
-            );
+            this.logger.warn('Persisting repaired portal mode failed', error);
         }
 
-        if (!verifiedAgainstRow) {
-            this.logger.info(
-                'Portal configuration changed while probing; discarding repair'
-            );
-            // Marked explicitly: a later failure of this configuration may
-            // probe again once the row is RESTORED to it — unlike a probe
-            // whose outcome genuinely applied ('no-change'/override).
-            this.probeHistory
-                .get(playlist._id)
-                ?.set(this.repairSourceFingerprint(playlist), 'discarded');
-            return null;
+        if (
+            !verifiedAgainstRow ||
+            this.editGenerationChanged(playlist._id, editGeneration)
+        ) {
+            return this.discardSupersededRepair(playlist);
         }
 
         const override: StalkerPortalModeOverride = {
@@ -450,7 +468,9 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
                 }
             );
         } else if (!outcome.isFullStalkerPortal) {
-            this.stalkerSession.clearCachedToken(playlist._id);
+            this.stalkerSession.adoptDiscoveredSimplePortal(
+                toStalkerSessionPlaylist(this.applyOverride(playlist))
+            );
         }
 
         // If this playlist currently owns the watchdog, re-sync it with the
@@ -466,6 +486,26 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         );
 
         return this.applyOverride(playlist);
+    }
+
+    private editGenerationChanged(
+        playlistId: string,
+        expected: number
+    ): boolean {
+        return (this.editGenerations.get(playlistId) ?? 0) !== expected;
+    }
+
+    private discardSupersededRepair(
+        playlist: PlaylistMeta
+    ): PlaylistMeta | null {
+        this.logger.info(
+            'Portal configuration changed while probing; discarding repair'
+        );
+        // A later failure may probe again if this source is restored.
+        this.probeHistory
+            .get(playlist._id)
+            ?.set(this.repairSourceFingerprint(playlist), 'discarded');
+        return null;
     }
 
     /**
@@ -516,5 +556,4 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             (row.password ?? '') === (playlist.password ?? '')
         );
     }
-
 }

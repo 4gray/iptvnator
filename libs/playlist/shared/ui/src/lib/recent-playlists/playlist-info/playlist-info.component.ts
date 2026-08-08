@@ -1,6 +1,6 @@
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { DatePipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import {
     FormControl,
     ReactiveFormsModule,
@@ -38,11 +38,21 @@ import {
     normalizeXtreamServerUrl,
     Playlist,
     PlaylistMeta,
+    PlaylistMetaUpdate,
 } from '@iptvnator/shared/interfaces';
 import {
     normalizeEpgUrls,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
+import {
+    hasStalkerConnectionChanged,
+    preserveStalkerConnection,
+    STALKER_PORTAL_URL_PATTERN,
+} from './stalker-playlist-edit.utils';
+import {
+    STALKER_PLAYLIST_CONNECTION_EDITOR,
+    STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
+} from './stalker-playlist-connection-editor.token';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
@@ -58,6 +68,13 @@ const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
         `
             .spacer {
                 flex: 1 1 auto;
+            }
+
+            .playlist-info-fields {
+                min-width: 0;
+                margin: 0;
+                padding: 0;
+                border: 0;
             }
 
             mat-dialog-content {
@@ -167,10 +184,14 @@ export class PlaylistInfoComponent {
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly stalkerConnectionEditor = inject(
+        STALKER_PLAYLIST_CONNECTION_EDITOR
+    );
     private dialogRef = inject(MatDialogRef<PlaylistInfoComponent>, {
         optional: true,
     });
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
+    readonly isSaving = signal(false);
 
     get isDesktop(): boolean {
         return this.runtime.supportsDesktopFileSave;
@@ -224,7 +245,7 @@ export class PlaylistInfoComponent {
 
         return Boolean(
             normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId1) ??
-                normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId2)
+            normalizeStalkerIdentityValue(this.playlist.stalkerDeviceId2)
         );
     }
 
@@ -316,7 +337,15 @@ export class PlaylistInfoComponent {
                 // title/URL/EPG edits too.
                 createStalkerMacAddressValidator(this.playlist.macAddress)
             ),
-            portalUrl: new FormControl(this.playlist.portalUrl),
+            portalUrl: new FormControl(
+                this.playlist.portalUrl,
+                this.playlist.portalUrl
+                    ? [
+                          Validators.required,
+                          Validators.pattern(STALKER_PORTAL_URL_PATTERN),
+                      ]
+                    : []
+            ),
             stalkerSerialNumber: new FormControl(
                 this.playlist.stalkerSerialNumber
             ),
@@ -331,10 +360,48 @@ export class PlaylistInfoComponent {
     }
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
+        if (this.isSaving() || this.playlistDetails.invalid) {
+            return;
+        }
+
+        this.isSaving.set(true);
         try {
-            const normalizedPlaylist = this.normalizeStalkerPlaylistMeta(
-                this.normalizeXtreamPlaylistMeta(playlist)
-            );
+            let resolvedStalkerConnection = false;
+            let normalizedPlaylist: PlaylistMetaUpdate =
+                this.normalizeStalkerPlaylistMeta(
+                    this.normalizeXtreamPlaylistMeta(playlist)
+                );
+            if (this.playlist.portalUrl) {
+                if (
+                    hasStalkerConnectionChanged(
+                        this.playlist,
+                        normalizedPlaylist
+                    )
+                ) {
+                    const result =
+                        await this.stalkerConnectionEditor.resolveConnection(
+                            normalizedPlaylist
+                        );
+                    if (
+                        result.status !==
+                        STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED
+                    ) {
+                        this.snackBar.open(
+                            result.message,
+                            this.translate.instant('CLOSE'),
+                            { duration: 8000 }
+                        );
+                        return;
+                    }
+                    normalizedPlaylist = result.playlist;
+                    resolvedStalkerConnection = true;
+                } else {
+                    normalizedPlaylist = preserveStalkerConnection(
+                        this.playlist,
+                        normalizedPlaylist
+                    );
+                }
+            }
             const isXtream =
                 this.playlist &&
                 this.playlist.username &&
@@ -351,6 +418,11 @@ export class PlaylistInfoComponent {
                     playlist: normalizedPlaylist,
                 })
             );
+            if (resolvedStalkerConnection) {
+                await this.stalkerConnectionEditor.applyResolvedConnection(
+                    normalizedPlaylist
+                );
+            }
 
             this.snackBar.open(
                 this.translate.instant(
@@ -369,6 +441,8 @@ export class PlaylistInfoComponent {
                     duration: 3000,
                 }
             );
+        } finally {
+            this.isSaving.set(false);
         }
     }
 

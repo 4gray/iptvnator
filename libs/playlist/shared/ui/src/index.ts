@@ -1,6 +1,7 @@
 export * from './lib/add-playlist-menu/playlist-type';
 export * from './lib/playlist-switcher/playlist-switcher.component';
 export * from './lib/recent-playlists/playlist-info/playlist-info.component';
+export * from './lib/recent-playlists/playlist-info/stalker-playlist-connection-editor.token';
 export * from './lib/recent-playlists/recent-playlists.component';
 export * from './lib/recent-playlists/empty-state/empty-state.component';
 export * from './lib/playlist-refresh-action.service';

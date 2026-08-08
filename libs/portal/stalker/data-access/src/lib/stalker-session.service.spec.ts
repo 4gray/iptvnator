@@ -243,6 +243,31 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         expect(service.getCachedToken('portal-1')).not.toBe('EXPIRED');
     });
 
+    it('preserves HTTP status evidence when the authenticated retry also fails', async () => {
+        const forbidden = {
+            message: 'HTTP Error 403: Forbidden',
+            status: 403,
+        };
+        service.setCachedToken('portal-1', 'EXPIRED', playlistA);
+        sendIpcEvent
+            .mockRejectedValueOnce(forbidden)
+            .mockResolvedValueOnce({
+                js: { token: 'FRESH', random: 'r' },
+            })
+            .mockResolvedValueOnce({ js: {} })
+            .mockRejectedValueOnce(forbidden);
+
+        await expect(
+            service.makeAuthenticatedRequest(playlistA, {
+                action: 'get_genres',
+            })
+        ).rejects.toBe(forbidden);
+
+        // StalkerPortalRepairService consumes this exact transport evidence
+        // to decide that endpoint discovery is justified.
+        expect(forbidden.status).toBe(403);
+    });
+
     it.each(['Access denied.', 'Unauthorized request.'])(
         'retires the token for the %j plain-text failure too',
         async (body) => {
@@ -934,8 +959,7 @@ describe('StalkerSessionService identity payloads', () => {
         expect(playlistsService.updateStalkerSession).toHaveBeenCalledWith(
             'playlist-17',
             expect.objectContaining({
-                stalkerWatchdogTimeout:
-                    STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
+                stalkerWatchdogTimeout: STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
                 stalkerTimeslot: 0,
             })
         );
@@ -1032,7 +1056,8 @@ describe('StalkerSessionService identity payloads', () => {
         expect(
             stalkerSessionFingerprint({
                 ...portal,
-                portalUrl: 'https://panel.example.com/tenant-a/server/load.php/',
+                portalUrl:
+                    'https://panel.example.com/tenant-a/server/load.php/',
             } as Playlist)
         ).toBe(stalkerSessionFingerprint(portal));
     });

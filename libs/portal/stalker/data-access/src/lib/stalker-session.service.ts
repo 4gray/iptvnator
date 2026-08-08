@@ -1,11 +1,9 @@
 import { Injectable, Injector, inject } from '@angular/core';
 import {
-    extractStalkerAuthFailureBody,
     isFullStalkerPortalPlaylist,
     isFullStalkerPortalUrl,
     Playlist,
     PlaylistMeta,
-    STALKER_REQUEST,
 } from '@iptvnator/shared/interfaces';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -24,8 +22,8 @@ import {
     type StalkerPortalCredentials,
     type StalkerProfileResponse,
 } from './stalker-auth.api';
-import { isStalkerAuthorizationFailure } from './stalker-response-classification';
-import { StalkerPortalError } from './stalker-portal-error';
+import { StalkerAuthenticatedRequestClient } from './stalker-authenticated-request-client';
+import { StalkerEditedSessionCoordinator } from './stalker-edited-session-coordinator';
 import {
     stalkerSessionFingerprint,
     StalkerSessionStore,
@@ -72,7 +70,10 @@ export class StalkerSessionService {
     // when a session is resolved from (or written back to) the stored row.
     private readonly injector = inject(Injector);
     private readonly logger = createLogger('StalkerSession');
-    private readonly authApi = new StalkerAuthApi(this.dataService, this.logger);
+    private readonly authApi = new StalkerAuthApi(
+        this.dataService,
+        this.logger
+    );
     private readonly sessionStore = new StalkerSessionStore(
         () => this.injector.get(PlaylistsService),
         this.logger
@@ -88,6 +89,16 @@ export class StalkerSessionService {
     // Session state for this run, identity-tagged so an edited playlist can
     // inherit neither a cached token nor an in-flight authentication.
     private readonly tokens = new StalkerTokenCache();
+    private readonly editedSessions = new StalkerEditedSessionCoordinator(
+        this.tokens,
+        this.watchdog,
+        () => this.injector.get(PlaylistsService)
+    );
+    private readonly requestClient = new StalkerAuthenticatedRequestClient(
+        this.dataService,
+        this.tokens,
+        (playlist) => this.ensureToken(playlist)
+    );
 
     /**
      * Checks if a URL looks like a full stalker portal URL (requires
@@ -191,6 +202,8 @@ export class StalkerSessionService {
             timeslotSeconds?: number;
         }
     ): void {
+        const fingerprint =
+            this.editedSessions.markAuthoritative(identitySource);
         this.setCachedToken(playlistId, session.token, identitySource);
         this.applySessionOutcome(
             playlistId,
@@ -206,8 +219,27 @@ export class StalkerSessionService {
                 watchdogTimeoutSeconds: identitySource.stalkerWatchdogTimeout,
                 timeslotSeconds: identitySource.stalkerTimeslot,
             },
-            stalkerSessionFingerprint(identitySource)
+            fingerprint
         );
+    }
+
+    /** Retires a full-portal session after discovery proves a simple portal. */
+    adoptDiscoveredSimplePortal(identitySource: Playlist): void {
+        this.editedSessions.markAuthoritative(identitySource);
+        this.clearCachedToken(identitySource._id);
+    }
+
+    /**
+     * Installs the session produced by explicit Edit discovery.
+     *
+     * The new fingerprint becomes authoritative synchronously, before an old
+     * authentication is awaited. That old request consequently fails its
+     * post-auth guard and cannot overwrite the resolved token (or restore a
+     * token after a full→simple edit). The final write is queued after it so
+     * the resolved session remains the last persisted session mutation.
+     */
+    replaceSessionAfterEdit(playlist: Playlist): Promise<void> {
+        return this.editedSessions.replace(playlist);
     }
 
     /**
@@ -300,6 +332,8 @@ export class StalkerSessionService {
     async ensureToken(
         playlist: Playlist
     ): Promise<{ token: string | null; serialNumber?: string }> {
+        const fingerprint = await this.editedSessions.guard(playlist);
+
         // If not a full stalker portal, no token needed
         if (!isFullStalkerPortalPlaylist(playlist)) {
             return { token: null };
@@ -309,8 +343,6 @@ export class StalkerSessionService {
         // One key for both caches: endpoint + identity + credentials. An
         // identity-only in-run key would hand the cached bearer token to a
         // freshly edited endpoint before the persisted check ever ran.
-        const fingerprint = stalkerSessionFingerprint(playlist);
-
         // Only the session negotiated for THIS identity may be reused.
         const cachedToken = this.tokens.takeFor(playlist._id, fingerprint);
         if (cachedToken) {
@@ -376,6 +408,7 @@ export class StalkerSessionService {
                             stored.watchdogTimeoutSeconds !== undefined,
                     }
                 );
+                this.editedSessions.assertCurrent(playlist._id, fingerprint);
                 this.setCachedToken(playlist._id, result.token, playlist);
                 this.applySessionOutcome(
                     playlist._id,
@@ -426,7 +459,7 @@ export class StalkerSessionService {
         // One key for both caches: endpoint + identity + credentials. An
         // identity-only in-run key would hand the cached bearer token to a
         // freshly edited endpoint before the persisted check ever ran.
-        const fingerprint = stalkerSessionFingerprint(playlist);
+        const fingerprint = await this.editedSessions.guard(playlist);
 
         // Claim the per-playlist slot. Re-check after every await: one
         // settled promise releases every waiter at once, so a single
@@ -441,6 +474,7 @@ export class StalkerSessionService {
             // performs its own handshake either way.
             await inFlight.promise.catch(() => undefined);
         }
+        this.editedSessions.assertCurrent(playlist._id, fingerprint);
 
         // Publish the slot before the first await so no other waiter can
         // observe it as free while this handshake is starting.
@@ -481,6 +515,7 @@ export class StalkerSessionService {
                     },
                 }
             );
+            this.editedSessions.assertCurrent(playlist._id, fingerprint);
             this.setCachedToken(playlist._id, result.token, playlist);
             // This path always ran a real get_profile, so the decoded cadence
             // is authoritative; the previous values are only the write-back
@@ -536,68 +571,10 @@ export class StalkerSessionService {
         params: Record<string, string | number>,
         retryOnAuthFailure = true
     ): Promise<T> {
-        // Get token (will wait if auth is in progress)
-        const { token, serialNumber } = await this.ensureToken(playlist);
-
-        try {
-            const response = await this.dataService.sendIpcEvent<T>(
-                STALKER_REQUEST,
-                {
-                    url: playlist.portalUrl,
-                    macAddress: playlist.macAddress,
-                    params,
-                    token,
-                    ...(serialNumber ? { serialNumber } : {}),
-                }
-            );
-
-            // Check for authorization failure in response
-            if (isStalkerAuthorizationFailure(response)) {
-                // Retire the failed token even when not retrying (e.g.
-                // watchdog pings): leaving it cached would hand a dead
-                // session to the next caller.
-                this.tokens.retireFailed(playlist._id, token);
-                if (
-                    retryOnAuthFailure &&
-                    isFullStalkerPortalPlaylist(playlist)
-                ) {
-                    // Retry once with fresh authentication
-                    return this.makeAuthenticatedRequest<T>(
-                        playlist,
-                        params,
-                        false
-                    );
-                }
-
-                const failureBody =
-                    extractStalkerAuthFailureBody(response) ?? undefined;
-                throw new StalkerPortalError(
-                    'auth-failed',
-                    failureBody,
-                    failureBody
-                );
-            }
-
-            return response;
-        } catch (error) {
-            // Check if error indicates auth failure
-            if (isStalkerAuthorizationFailure(error)) {
-                // Same rule as above: a failed session is retired even on
-                // the no-retry path.
-                this.tokens.retireFailed(playlist._id, token);
-                if (
-                    retryOnAuthFailure &&
-                    isFullStalkerPortalPlaylist(playlist)
-                ) {
-                    // Retry with a fresh handshake
-                    return this.makeAuthenticatedRequest<T>(
-                        playlist,
-                        params,
-                        false
-                    );
-                }
-            }
-            throw error;
-        }
+        return this.requestClient.request<T>(
+            playlist,
+            params,
+            retryOnAuthFailure
+        );
     }
 }

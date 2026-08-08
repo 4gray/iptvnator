@@ -42,8 +42,7 @@ describe('PlaylistsService', () => {
             runtime: {
                 get supportsSqlite() {
                     const electron = testWindow.electron as
-                        | Record<string, unknown>
-                        | undefined;
+                        Record<string, unknown> | undefined;
                     return (
                         !!electron &&
                         typeof electron['dbGetAppPlaylists'] === 'function' &&
@@ -585,6 +584,121 @@ describe('PlaylistsService', () => {
                 hiddenGroupTitles: ['Movies', 'Sports'],
             })
         );
+    });
+
+    describe('Stalker session patches in playlist meta updates', () => {
+        function createStalkerPlaylist(): Playlist {
+            return {
+                _id: 'stalker-session-patch',
+                title: 'Stalker Portal',
+                count: 0,
+                importDate: '2026-08-08T00:00:00.000Z',
+                lastUsage: '2026-08-08T00:00:00.000Z',
+                autoRefresh: false,
+                stalkerToken: 'OLD_TOKEN',
+                stalkerSessionIdentity: 'old-fingerprint',
+                stalkerWatchdogTimeout: 120,
+                stalkerTimeslot: 15,
+                stalkerAccountInfo: {
+                    login: 'old-login',
+                    expireDate: 1800000000,
+                },
+            };
+        }
+
+        it('preserves the current session when the transient patch is absent', async () => {
+            const existingPlaylist = createStalkerPlaylist();
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(existingPlaylist)),
+                update: jest.fn((_storeName: string, playlist: Playlist) =>
+                    of(playlist)
+                ),
+            };
+            testWindow.electron = undefined;
+            const service = createService(dbService);
+
+            await firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: existingPlaylist._id,
+                    title: 'Renamed Portal',
+                } as PlaylistMeta)
+            );
+
+            expect(dbService.update.mock.calls[0][1]).toEqual(
+                expect.objectContaining({
+                    stalkerToken: 'OLD_TOKEN',
+                    stalkerSessionIdentity: 'old-fingerprint',
+                    stalkerWatchdogTimeout: 120,
+                    stalkerTimeslot: 15,
+                    stalkerAccountInfo: existingPlaylist.stalkerAccountInfo,
+                })
+            );
+        });
+
+        it('clears every stored session field when the transient patch is null', async () => {
+            const existingPlaylist = createStalkerPlaylist();
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(existingPlaylist)),
+                update: jest.fn((_storeName: string, playlist: Playlist) =>
+                    of(playlist)
+                ),
+            };
+            testWindow.electron = undefined;
+            const service = createService(dbService);
+
+            await firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: existingPlaylist._id,
+                    stalkerSessionPatch: null,
+                } as never)
+            );
+
+            const written = dbService.update.mock.calls[0][1];
+            expect(written.stalkerToken).toBeUndefined();
+            expect(written.stalkerSessionIdentity).toBeUndefined();
+            expect(written.stalkerWatchdogTimeout).toBeUndefined();
+            expect(written.stalkerTimeslot).toBeUndefined();
+            expect(written.stalkerAccountInfo).toBeUndefined();
+            expect(written).not.toHaveProperty('stalkerSessionPatch');
+        });
+
+        it('fully replaces session metadata without persisting the transient patch', async () => {
+            const existingPlaylist = createStalkerPlaylist();
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(existingPlaylist)),
+                update: jest.fn((_storeName: string, playlist: Playlist) =>
+                    of(playlist)
+                ),
+            };
+            testWindow.electron = undefined;
+            const service = createService(dbService);
+
+            await firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: existingPlaylist._id,
+                    stalkerSessionPatch: {
+                        stalkerToken: 'NEW_TOKEN',
+                        stalkerSessionIdentity: 'new-fingerprint',
+                        stalkerWatchdogTimeout: 90,
+                    },
+                } as never)
+            );
+
+            const written = dbService.update.mock.calls[0][1];
+            expect(written).toEqual(
+                expect.objectContaining({
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                    stalkerWatchdogTimeout: 90,
+                })
+            );
+            expect(written.stalkerTimeslot).toBeUndefined();
+            expect(written.stalkerAccountInfo).toBeUndefined();
+            expect(written).not.toHaveProperty('stalkerSessionPatch');
+        });
     });
 
     it('updates many browser playlists with refresh metadata', async () => {
@@ -1662,7 +1776,10 @@ describe('PlaylistsService', () => {
                         'portal-meta-write',
                         (current) =>
                             current.title === 'Edited Title'
-                                ? { ...current, portalUrl: 'http://x/portal.php' }
+                                ? {
+                                      ...current,
+                                      portalUrl: 'http://x/portal.php',
+                                  }
                                 : null
                     )
                 ),

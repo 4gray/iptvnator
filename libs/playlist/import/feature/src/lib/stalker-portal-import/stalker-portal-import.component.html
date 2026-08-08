@@ -15,10 +15,10 @@
             id="portalUrl"
             formControlName="portalUrl"
         />
-        <mat-hint>{{
+        <mat-hint>{{ 'HOME.STALKER_PORTAL.URL_HINT' | translate }}</mat-hint>
+        <mat-error>{{
             'HOME.STALKER_PORTAL.URL_VALIDATION_ERROR' | translate
-        }}</mat-hint>
-        <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
+        }}</mat-error>
     </mat-form-field>
     <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label for="macAddress">{{
