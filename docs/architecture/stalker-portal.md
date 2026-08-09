@@ -226,14 +226,18 @@ Delete/restore or replacement under the same ID therefore aborts instead of
 receiving a portal/session write. A row identified by its persisted `portalUrl`
 stays on the Stalker save path even if legacy Xtream fields remain, so an
 unrelated Xtream write cannot strand the Edit reservation. Before discovery
-starts, PWA Edit acquires an origin-wide Web Lock keyed by playlist ID and,
-while holding it, verifies that the persisted row still has the source
-connection shown when Edit began. Another tab therefore fails before discovery
-instead of allowing two identity-bearing profile requests; a stale dialog also
-fails before it can touch the remote session. PWA fails closed when Web Locks
-are unavailable, while Electron relies on its single-instance local owner. The
-reservation blocks every new authentication (including a URL edit with the same
-normalized fingerprint) and repair, and drains any work already in flight.
+starts, PWA Edit acquires a shared playlist-authority barrier plus an exclusive
+origin-wide Web Lock keyed by playlist ID and, while holding both, verifies that
+the persisted row still has the source connection shown when Edit began.
+Add/delete, backup restore, and bulk replacement paths take the same row lock;
+Delete All takes the barrier exclusively. The checked authority therefore
+cannot be replaced between that preflight and the identity-bearing discovery
+request. Another tab fails before overlapping discovery, while a replacement
+waits for the existing Edit owner; a stale dialog also fails before it can touch
+the remote session. PWA fails closed when Web Locks are unavailable, while
+Electron relies on its single-instance local owner. The reservation blocks every
+new authentication (including a URL edit with the same normalized fingerprint)
+and repair, and drains any work already in flight.
 Ownership is rechecked after every asynchronous drain or authority rebase.
 Ordinary failure releases that reservation with the previous runtime untouched;
 if a bounded discovery result still has an abandoned authentication on the

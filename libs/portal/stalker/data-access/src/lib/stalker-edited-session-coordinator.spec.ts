@@ -234,9 +234,16 @@ describe('Stalker edited-session coordination', () => {
         const request = jest.fn(
             async (
                 name: string,
-                _options: LockOptions,
+                options: LockOptions,
                 callback: (lock: Lock | null) => Promise<void>
             ) => {
+                if (name === 'iptvnator:playlist-authority') {
+                    await callback({
+                        name,
+                        mode: 'shared',
+                    } as Lock);
+                    return;
+                }
                 if (held) {
                     await callback(null);
                     return;
@@ -245,7 +252,7 @@ describe('Stalker edited-session coordination', () => {
                 try {
                     await callback({
                         name,
-                        mode: 'exclusive',
+                        mode: options.mode ?? 'exclusive',
                     } as Lock);
                 } finally {
                     held = false;
@@ -275,7 +282,12 @@ describe('Stalker edited-session coordination', () => {
             /already in progress/i
         );
         expect(request).toHaveBeenCalledWith(
-            `iptvnator:stalker-edit:${oldPlaylist._id}`,
+            'iptvnator:playlist-authority',
+            { mode: 'shared' },
+            expect.any(Function)
+        );
+        expect(request).toHaveBeenCalledWith(
+            `iptvnator:playlist-authority:${oldPlaylist._id}`,
             { ifAvailable: true, mode: 'exclusive' },
             expect.any(Function)
         );

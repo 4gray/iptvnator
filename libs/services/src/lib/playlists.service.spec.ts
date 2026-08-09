@@ -9,9 +9,14 @@ const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
 describe('PlaylistsService', () => {
     const testWindow = window as unknown as { electron?: unknown };
     const originalElectron = testWindow.electron;
+    const originalLockManager = globalThis.navigator?.locks;
 
     afterEach(() => {
         testWindow.electron = originalElectron;
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: originalLockManager,
+        });
         localStorage.removeItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG);
         jest.useRealTimers();
         jest.restoreAllMocks();
@@ -305,6 +310,56 @@ describe('PlaylistsService', () => {
             DbStores.Playlists,
             playlist
         );
+    });
+
+    it('coordinates browser row replacements with the cross-context edit reservation', async () => {
+        const request = jest.fn(
+            async <T>(
+                name: string,
+                options: LockOptions,
+                callback: (lock: Lock | null) => Promise<T>
+            ) =>
+                callback({
+                    name,
+                    mode: options.mode ?? 'exclusive',
+                } as Lock)
+        );
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: { request },
+        });
+        const playlist = {
+            _id: 'playlist-replacement-lock',
+            title: 'Replacement',
+            count: 0,
+            importDate: '2026-04-01T00:00:00.000Z',
+            lastUsage: '2026-04-01T00:00:00.000Z',
+            autoRefresh: false,
+        } as Playlist;
+        const dbService = {
+            add: jest.fn(() => of('generated-key')),
+            delete: jest.fn(() => of(undefined)),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await firstValueFrom(service.addPlaylist(playlist));
+        await firstValueFrom(service.deletePlaylist(playlist._id));
+
+        expect(
+            request.mock.calls.map(([name, options]) => [name, options])
+        ).toEqual([
+            ['iptvnator:playlist-authority', { mode: 'shared' }],
+            [
+                `iptvnator:playlist-authority:${playlist._id}`,
+                { mode: 'exclusive' },
+            ],
+            ['iptvnator:playlist-authority', { mode: 'shared' }],
+            [
+                `iptvnator:playlist-authority:${playlist._id}`,
+                { mode: 'exclusive' },
+            ],
+        ]);
     });
 
     it('migrates legacy Stalker portal flags in SQLite before returning playlists', async () => {
@@ -1193,6 +1248,37 @@ describe('PlaylistsService', () => {
             firstValueFrom(service.removeAll())
         ).resolves.toBeUndefined();
         expect(dbService.clear).toHaveBeenCalledWith(DbStores.Playlists);
+    });
+
+    it('takes the exclusive cross-context authority barrier before clearing playlists', async () => {
+        const request = jest.fn(
+            async <T>(
+                name: string,
+                options: LockOptions,
+                callback: (lock: Lock | null) => Promise<T>
+            ) =>
+                callback({
+                    name,
+                    mode: options.mode ?? 'exclusive',
+                } as Lock)
+        );
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: { request },
+        });
+        const dbService = {
+            clear: jest.fn(() => of('cleared')),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await firstValueFrom(service.removeAll());
+
+        expect(request).toHaveBeenCalledWith(
+            'iptvnator:playlist-authority',
+            { mode: 'exclusive' },
+            expect.any(Function)
+        );
     });
 
     it('adds many browser playlists through bulkAdd', async () => {

@@ -34,6 +34,10 @@ import {
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
+import {
+    runWithPlaylistAuthorityMutation,
+    runWithPlaylistAuthorityReset,
+} from './playlist-cross-context-lock';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -504,13 +508,18 @@ export class PlaylistsService {
     }
 
     addPlaylist(playlist: Playlist) {
-        if (this.isElectronStorageAvailable) {
-            return this.upsertSqlitePlaylist(playlist);
-        }
+        return this.serializePlaylistWrite(playlist._id, () =>
+            runWithPlaylistAuthorityMutation([playlist._id], async () => {
+                if (this.isElectronStorageAvailable) {
+                    return firstValueFrom(this.upsertSqlitePlaylist(playlist));
+                }
 
-        return this.dbService
-            .add(DbStores.Playlists, playlist)
-            .pipe(map(() => playlist));
+                await firstValueFrom(
+                    this.dbService.add(DbStores.Playlists, playlist)
+                );
+                return playlist;
+            })
+        );
     }
 
     getPlaylist(id: string) {
@@ -527,20 +536,21 @@ export class PlaylistsService {
         // row back and resurrect the playlist.
         const delete$: Observable<unknown> = this.serializePlaylistWrite(
             playlistId,
-            async () => {
-                if (this.isElectronStorageAvailable) {
-                    await this.ensureElectronPlaylistMigrations();
-                    const electron = this.electronApi;
-                    if (electron) {
-                        await electron.dbDeletePlaylist(playlistId);
+            () =>
+                runWithPlaylistAuthorityMutation([playlistId], async () => {
+                    if (this.isElectronStorageAvailable) {
+                        await this.ensureElectronPlaylistMigrations();
+                        const electron = this.electronApi;
+                        if (electron) {
+                            await electron.dbDeletePlaylist(playlistId);
+                        }
+                        return undefined;
                     }
-                    return undefined;
-                }
 
-                return firstValueFrom(
-                    this.dbService.delete(DbStores.Playlists, playlistId)
-                );
-            }
+                    return firstValueFrom(
+                        this.dbService.delete(DbStores.Playlists, playlistId)
+                    );
+                })
         );
 
         return delete$.pipe(
@@ -1193,13 +1203,24 @@ export class PlaylistsService {
     addManyPlaylists(
         playlists: Playlist[]
     ): Observable<AddManyPlaylistsResult> {
-        if (this.isElectronStorageAvailable) {
-            return this.upsertManySqlitePlaylists(playlists);
-        }
+        return defer(() =>
+            runWithPlaylistAuthorityMutation(
+                playlists.map((playlist) => playlist._id),
+                async () => {
+                    if (this.isElectronStorageAvailable) {
+                        return firstValueFrom(
+                            this.upsertManySqlitePlaylists(playlists)
+                        );
+                    }
 
-        return this.dbService.bulkAdd(
-            DbStores.Playlists,
-            playlists as unknown as Playlist[]
+                    return firstValueFrom(
+                        this.dbService.bulkAdd(
+                            DbStores.Playlists,
+                            playlists as unknown as Playlist[]
+                        )
+                    );
+                }
+            )
         );
     }
 
@@ -1256,19 +1277,21 @@ export class PlaylistsService {
     }
 
     removeAll(): Observable<void> {
-        if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
-                if (electron) {
-                    await electron.dbDeleteAllPlaylists();
+        return defer(() =>
+            runWithPlaylistAuthorityReset(async () => {
+                if (this.isElectronStorageAvailable) {
+                    await this.ensureElectronPlaylistMigrations();
+                    const electron = this.electronApi;
+                    if (electron) {
+                        await electron.dbDeleteAllPlaylists();
+                    }
+                    return undefined;
                 }
-                return undefined;
-            }).pipe(map(() => undefined));
-        }
 
-        return this.dbService
-            .clear(DbStores.Playlists)
-            .pipe(map(() => undefined));
+                await firstValueFrom(this.dbService.clear(DbStores.Playlists));
+                return undefined;
+            })
+        );
     }
 
     private normalizePortalRecentIdentity(value: unknown): string {
