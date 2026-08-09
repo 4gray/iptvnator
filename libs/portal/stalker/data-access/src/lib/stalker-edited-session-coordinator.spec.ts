@@ -22,13 +22,15 @@ describe('Stalker edited-session coordination', () => {
     ) => void = () => undefined;
     let service: StalkerSessionService;
     let getPlaylistById: jest.Mock;
-    let updatePlaylistMeta: jest.Mock;
+    let updatePlaylistMetaIfCurrent: jest.Mock;
     let transformPlaylistMeta: jest.Mock;
     let updateStalkerSession: jest.Mock;
 
     beforeEach(() => {
         getPlaylistById = jest.fn(() => of(oldPlaylist));
-        updatePlaylistMeta = jest.fn(() => of(oldPlaylist));
+        updatePlaylistMetaIfCurrent = jest.fn((_playlist, isCurrent) =>
+            of(isCurrent(oldPlaylist) ? oldPlaylist : null)
+        );
         transformPlaylistMeta = jest.fn((_id, transform) =>
             of(transform(oldPlaylist))
         );
@@ -45,7 +47,7 @@ describe('Stalker edited-session coordination', () => {
                     provide: PlaylistsService,
                     useValue: {
                         getPlaylistById,
-                        updatePlaylistMeta,
+                        updatePlaylistMetaIfCurrent,
                         transformPlaylistMeta,
                         updateStalkerSession,
                     },
@@ -73,20 +75,25 @@ describe('Stalker edited-session coordination', () => {
             stalkerWatchdogTimeout: 90,
             stalkerTimeslot: 5,
         };
-        const replacement = service.replaceSessionAfterEdit(editedPlaylist);
+        const fencePromise = service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
 
         resolveOldAuthentication({ token: 'OLD_TOKEN' });
 
         await expect(oldAuthentication).rejects.toThrow(/stale/i);
-        await replacement;
+        const fence = await fencePromise;
+        await service.replaceSessionAfterEdit(editedPlaylist, fence);
         expect(service.getCachedToken(oldPlaylist._id)).toBe('NEW_TOKEN');
-        expect(updatePlaylistMeta).toHaveBeenLastCalledWith(
+        expect(updatePlaylistMetaIfCurrent).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 portalUrl: 'https://new.example.com/server/load.php',
                 stalkerSessionPatch: expect.objectContaining({
                     stalkerToken: 'NEW_TOKEN',
                 }),
-            })
+            }),
+            expect.any(Function)
         );
         expect(updateStalkerSession).not.toHaveBeenCalled();
     });
@@ -211,18 +218,23 @@ describe('Stalker edited-session coordination', () => {
             stalkerWatchdogTimeout: undefined,
             stalkerTimeslot: undefined,
         };
-        const replacement = service.replaceSessionAfterEdit(editedPlaylist);
+        const fencePromise = service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
 
         resolveOldAuthentication({ token: 'OLD_TOKEN' });
 
         await expect(oldAuthentication).rejects.toThrow(/stale/i);
-        await replacement;
+        const fence = await fencePromise;
+        await service.replaceSessionAfterEdit(editedPlaylist, fence);
         expect(service.getCachedToken(oldPlaylist._id)).toBeNull();
-        expect(updatePlaylistMeta).toHaveBeenLastCalledWith(
+        expect(updatePlaylistMetaIfCurrent).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 _id: oldPlaylist._id,
                 stalkerSessionPatch: null,
-            })
+            }),
+            expect.any(Function)
         );
     });
 
@@ -233,13 +245,17 @@ describe('Stalker edited-session coordination', () => {
             stalkerToken: undefined,
             stalkerSessionIdentity: undefined,
         } as Playlist;
-        updatePlaylistMeta.mockReturnValueOnce(of(simplePlaylist));
+        updatePlaylistMetaIfCurrent.mockReturnValueOnce(of(simplePlaylist));
         getPlaylistById.mockReturnValueOnce(of(simplePlaylist));
         authenticate.mockReset().mockResolvedValue({
             token: 'STALE_FULL_TOKEN',
         });
 
-        await service.replaceSessionAfterEdit(simplePlaylist);
+        const fence = await service.beginEditDiscovery(
+            simplePlaylist,
+            oldPlaylist
+        );
+        await service.replaceSessionAfterEdit(simplePlaylist, fence);
 
         await expect(service.ensureToken(oldPlaylist)).rejects.toThrow(
             /stale/i
@@ -256,7 +272,9 @@ describe('Stalker edited-session coordination', () => {
             ...oldPlaylist,
             stalkerToken: 'NEW_FULL_TOKEN',
         } as Playlist;
-        updatePlaylistMeta.mockReturnValueOnce(of(resolvedFullPlaylist));
+        updatePlaylistMetaIfCurrent.mockReturnValueOnce(
+            of(resolvedFullPlaylist)
+        );
         getPlaylistById.mockReturnValueOnce(of(resolvedFullPlaylist));
 
         const fence = await service.beginEditDiscovery(simplePlaylist);
@@ -287,8 +305,12 @@ describe('Stalker edited-session coordination', () => {
             portalUrl: 'https://new.example.com/server/load.php',
             stalkerToken: 'NEW_TOKEN',
         } as Playlist;
-        updatePlaylistMeta.mockReturnValueOnce(of(editedPlaylist));
-        await service.replaceSessionAfterEdit(editedPlaylist);
+        updatePlaylistMetaIfCurrent.mockReturnValueOnce(of(editedPlaylist));
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
+        await service.replaceSessionAfterEdit(editedPlaylist, fence);
         resolveOldResponse({ js: { data: ['STALE_CATEGORY'] } });
 
         await expect(oldRequest).rejects.toThrow(/stale/i);
@@ -305,9 +327,13 @@ describe('Stalker edited-session coordination', () => {
             stalkerTimeslot: 5,
         };
 
-        await service.replaceSessionAfterEdit(editedPlaylist);
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
+        await service.replaceSessionAfterEdit(editedPlaylist, fence);
 
-        expect(updatePlaylistMeta).toHaveBeenCalledWith(
+        expect(updatePlaylistMetaIfCurrent).toHaveBeenCalledWith(
             expect.objectContaining({
                 portalUrl: 'https://new.example.com/server/load.php',
                 username: 'subscriber',
@@ -318,7 +344,8 @@ describe('Stalker edited-session coordination', () => {
                     stalkerTimeslot: 5,
                     stalkerAccountInfo: undefined,
                 },
-            })
+            }),
+            expect.any(Function)
         );
         expect(updateStalkerSession).not.toHaveBeenCalled();
     });
@@ -352,7 +379,7 @@ describe('Stalker edited-session coordination', () => {
             { preserveCurrentMetadata: true }
         );
 
-        expect(updatePlaylistMeta).not.toHaveBeenCalled();
+        expect(updatePlaylistMetaIfCurrent).not.toHaveBeenCalled();
         expect(transformPlaylistMeta).toHaveBeenCalledWith(
             oldPlaylist._id,
             expect.any(Function)
@@ -396,12 +423,40 @@ describe('Stalker edited-session coordination', () => {
         ).rejects.toThrow(/could not be persisted/i);
 
         expect(service.getCachedToken(oldPlaylist._id)).toBeNull();
-        expect(updatePlaylistMeta).not.toHaveBeenCalled();
+        expect(updatePlaylistMetaIfCurrent).not.toHaveBeenCalled();
+    });
+
+    it('rejects an ordinary resolved write after another connection replaces the playlist ID', async () => {
+        const replacementPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://restored.example.com/portal.php',
+            macAddress: '00:1A:79:11:22:33',
+        } as Playlist;
+        updatePlaylistMetaIfCurrent.mockImplementationOnce(
+            (_playlist, isCurrent) =>
+                of(isCurrent(replacementPlaylist) ? replacementPlaylist : null)
+        );
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            stalkerToken: 'NEW_TOKEN',
+        } as Playlist;
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
+
+        await expect(
+            service.replaceSessionAfterEdit(editedPlaylist, fence)
+        ).rejects.toThrow(/could not be persisted/i);
+
+        expect(service.getCachedToken(oldPlaylist._id)).toBeNull();
+        expect(transformPlaylistMeta).not.toHaveBeenCalled();
     });
 
     it('does not adopt a resolved full session when its atomic write fails', async () => {
         service.adoptDiscoveredSimplePortal(oldPlaylist);
-        updatePlaylistMeta.mockReturnValueOnce(
+        updatePlaylistMetaIfCurrent.mockReturnValueOnce(
             throwError(() => new Error('write failed'))
         );
         const editedPlaylist = {
@@ -410,9 +465,13 @@ describe('Stalker edited-session coordination', () => {
             stalkerToken: 'NEW_TOKEN',
             stalkerSessionIdentity: 'new-fingerprint',
         };
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
 
         await expect(
-            service.replaceSessionAfterEdit(editedPlaylist)
+            service.replaceSessionAfterEdit(editedPlaylist, fence)
         ).rejects.toThrow('write failed');
 
         expect(service.getCachedToken(oldPlaylist._id)).toBeNull();
@@ -432,7 +491,11 @@ describe('Stalker edited-session coordination', () => {
             portalUrl: 'https://new.example.com/server/load.php',
             stalkerToken: 'NEW_TOKEN',
         };
-        await service.replaceSessionAfterEdit(editedPlaylist);
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
+        await service.replaceSessionAfterEdit(editedPlaylist, fence);
 
         // Simulate delete + backup restore of the original row and ID.
         service.setCachedToken(oldPlaylist._id, 'RESTORED_TOKEN', oldPlaylist);
@@ -449,7 +512,11 @@ describe('Stalker edited-session coordination', () => {
             portalUrl: 'https://new.example.com/server/load.php',
             stalkerToken: 'NEW_TOKEN',
         };
-        await service.replaceSessionAfterEdit(editedPlaylist);
+        const committedFence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
+        await service.replaceSessionAfterEdit(editedPlaylist, committedFence);
 
         const persistedRow = new Subject<Playlist>();
         getPlaylistById.mockReturnValueOnce(persistedRow);

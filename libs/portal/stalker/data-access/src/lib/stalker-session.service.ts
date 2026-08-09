@@ -289,7 +289,7 @@ export class StalkerSessionService {
      */
     replaceSessionAfterEdit(
         playlist: Playlist,
-        fence?: StalkerEditFence,
+        fence: StalkerEditFence,
         options: { preserveCurrentMetadata?: boolean } = {}
     ): Promise<Playlist> {
         return this.editedSessions.replace(playlist, fence, options);

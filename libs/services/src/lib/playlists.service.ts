@@ -628,10 +628,35 @@ export class PlaylistsService {
     }
 
     updatePlaylistMeta(updatedPlaylist: PlaylistMetaUpdate) {
+        return this.updatePlaylistMetaInQueue(updatedPlaylist);
+    }
+
+    /** Applies a meta update only while the queued current row still matches. */
+    updatePlaylistMetaIfCurrent(
+        updatedPlaylist: PlaylistMetaUpdate,
+        isCurrent: (playlist: Playlist) => boolean
+    ) {
+        return this.updatePlaylistMetaInQueue(updatedPlaylist, isCurrent);
+    }
+
+    private updatePlaylistMetaInQueue(
+        updatedPlaylist: PlaylistMetaUpdate
+    ): Observable<Playlist>;
+    private updatePlaylistMetaInQueue(
+        updatedPlaylist: PlaylistMetaUpdate,
+        isCurrent: (playlist: Playlist) => boolean
+    ): Observable<Playlist | null>;
+    private updatePlaylistMetaInQueue(
+        updatedPlaylist: PlaylistMetaUpdate,
+        isCurrent?: (playlist: Playlist) => boolean
+    ): Observable<Playlist | null> {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
             const playlist = await firstValueFrom(
                 this.getPlaylistById(updatedPlaylist._id)
             );
+            if (isCurrent && !isCurrent(playlist)) {
+                return null;
+            }
             const epgSourceState = resolvePlaylistEpgSourceState({
                 detectedEpgUrls:
                     updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,

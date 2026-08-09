@@ -131,7 +131,7 @@ export class StalkerEditedSessionCoordinator {
 
     replace(
         playlist: Playlist,
-        fence?: StalkerEditFence,
+        fence: StalkerEditFence,
         options: { preserveCurrentMetadata?: boolean } = {}
     ): Promise<Playlist> {
         const playlistId = playlist._id;
@@ -140,20 +140,15 @@ export class StalkerEditedSessionCoordinator {
             playlist,
             sessionFingerprint
         );
-        const owner = fence?.owner ?? Symbol('stalker-edit');
+        const owner = fence.owner;
         const pending = this.pendingEdits.get(playlistId);
-        if (
-            fence &&
-            (fence.playlistId !== playlistId ||
-                this.pendingEdits.get(playlistId)?.owner !== fence.owner)
-        ) {
+        if (fence.playlistId !== playlistId || pending?.owner !== fence.owner) {
             return Promise.reject(
                 new Error('Stale Stalker playlist configuration')
             );
         }
         const sourceConfigurationFingerprint =
-            pending?.sourceConfigurationFingerprint ??
-            stalkerConfigurationFingerprint(playlist);
+            pending.sourceConfigurationFingerprint;
         // Keep the same owner while discovery replaces its input-shaped
         // fingerprint with the resolved endpoint/mode fingerprint.
         this.pendingEdits.set(playlistId, {
@@ -240,10 +235,15 @@ export class StalkerEditedSessionCoordinator {
                             )
                           : null
                   )
-                : playlists.updatePlaylistMeta({
-                      ...playlist,
-                      stalkerSessionPatch: sessionPatch,
-                  } as PlaylistMetaUpdate)
+                : playlists.updatePlaylistMetaIfCurrent(
+                      {
+                          ...playlist,
+                          stalkerSessionPatch: sessionPatch,
+                      } as PlaylistMetaUpdate,
+                      (current) =>
+                          stalkerConfigurationFingerprint(current) ===
+                          sourceConfigurationFingerprint
+                  )
         );
         if (!persistedPlaylist) {
             throw new Error('Resolved Stalker playlist could not be persisted');

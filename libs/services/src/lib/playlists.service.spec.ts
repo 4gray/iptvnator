@@ -586,6 +586,39 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('aborts a guarded metadata update when the queued row no longer matches', async () => {
+        const replacementPlaylist = {
+            _id: 'stalker-replaced',
+            title: 'Restored Portal',
+            portalUrl: 'https://restored.example.com/portal.php',
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(replacementPlaylist)),
+            update: jest.fn((_storeName: string, playlist: Playlist) =>
+                of(playlist)
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await expect(
+            firstValueFrom(
+                service.updatePlaylistMetaIfCurrent(
+                    {
+                        _id: replacementPlaylist._id,
+                        portalUrl: 'https://late.example.com/server/load.php',
+                    } as PlaylistMeta,
+                    (current) =>
+                        current.portalUrl ===
+                        'https://original.example.com/portal.php'
+                )
+            )
+        ).resolves.toBeNull();
+
+        expect(dbService.update).not.toHaveBeenCalled();
+    });
+
     describe('Stalker session patches in playlist meta updates', () => {
         function createStalkerPlaylist(): Playlist {
             return {
@@ -1737,7 +1770,7 @@ describe('PlaylistsService', () => {
         });
 
         it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {
-            const { store, electron } = createStatefulElectronStore(
+            const { electron } = createStatefulElectronStore(
                 createBasePlaylist('portal-meta-abort')
             );
             testWindow.electron = electron;
