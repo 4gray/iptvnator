@@ -7,9 +7,9 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
+import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
-import { SettingsUnloadGuardService } from './settings-unload-guard.service';
 
 const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 60;
 const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
@@ -25,7 +25,7 @@ export class SettingsAppUpdateFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsService = inject(SettingsService);
     private readonly translate = inject(TranslateService);
-    private readonly unloadGuard = inject(SettingsUnloadGuardService);
+    private readonly installService = inject(AppUpdateInstallService);
 
     /** Latest updater status, polled once and then pushed by the backend */
     readonly status = signal<ElectronBridgeAppUpdateStatus | null>(null);
@@ -37,8 +37,6 @@ export class SettingsAppUpdateFacade {
     readonly updateMessage = signal('');
 
     private unsubscribeStatus: (() => void) | null = null;
-    /** True after an install reply promised a quit that has not happened. */
-    private installQuitPending = false;
 
     /** Subscribes to status pushes and kicks off the initial status load */
     init(): void {
@@ -68,47 +66,18 @@ export class SettingsAppUpdateFacade {
     }
 
     async installAppUpdate(): Promise<void> {
-        if (!this.runtime.isElectron || !window.electron?.installAppUpdate) {
+        if (!this.runtime.isElectron) {
             return;
         }
 
-        // Installing quits the app; the unsaved-settings unload guard must
-        // not fight a quit the user just asked for — its `beforeunload`
-        // would cancel the updater's window close at the DOM layer and
-        // strand the install. A 'downloaded' reply means quitAndInstall ran
-        // and the app is going down; anything else — including a rejected
-        // IPC — means no quit happened, so the protection comes back.
-        // electron-updater can also report the failure as a later 'error'
-        // status push instead (bindStatusEvents handles that).
-        this.unloadGuard.suspendForAppQuit();
-        // Armed before the IPC round trip: the error push can beat the
-        // invoke reply, and the status listener must already see the
-        // pending quit to resume the guard. The 'downloaded' reply
-        // deliberately does not re-arm it — if the push won the race,
-        // re-arming would re-suspend a protection the failure just
-        // restored.
-        this.installQuitPending = true;
+        // Installing quits the app; AppUpdateInstallService owns the whole
+        // choreography of standing the unsaved-settings unload guard down
+        // for that quit and restoring it when the quit provably fails.
+        const status = await this.installService.installAppUpdate();
 
-        try {
-            const status = await window.electron.installAppUpdate();
+        if (status) {
             this.status.set(status);
-
-            if (
-                status?.status !==
-                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
-            ) {
-                this.abortInstallQuit();
-            }
-        } catch (error) {
-            this.abortInstallQuit();
-            throw error;
         }
-    }
-
-    /** The promised quit is not happening: restore the unload protection. */
-    private abortInstallQuit(): void {
-        this.installQuitPending = false;
-        this.unloadGuard.resumeAfterAbortedAppQuit();
     }
 
     openManualAppUpdate(): void {
@@ -206,17 +175,6 @@ export class SettingsAppUpdateFacade {
         this.unsubscribeStatus = window.electron.onAppUpdateStatusChange(
             (status) => {
                 this.status.set(status);
-
-                // Any post-install status other than the quitting install's
-                // own proves the app is still running — the promised quit is
-                // not coming, so the unload protection returns.
-                if (
-                    this.installQuitPending &&
-                    status.status !==
-                        ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
-                ) {
-                    this.abortInstallQuit();
-                }
             }
         );
     }

@@ -1,4 +1,5 @@
 import { inject, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsForm } from './settings-form.utils';
 
 export interface SettingsUnloadGuardHost {
@@ -39,8 +40,10 @@ export interface SettingsUnloadGuardHost {
 @Injectable()
 export class SettingsUnloadGuardService implements OnDestroy {
     private readonly zone = inject(NgZone);
+    private readonly installService = inject(AppUpdateInstallService);
     private host: SettingsUnloadGuardHost | null = null;
     private unsubscribeCloseRequests: (() => void) | null = null;
+    private unregisterFromInstallService: (() => void) | null = null;
     private confirmationPending = false;
     /**
      * Intent of the confirmation currently on screen. A close request
@@ -67,6 +70,16 @@ export class SettingsUnloadGuardService implements OnDestroy {
             window.electron?.onWindowCloseRequested?.(() => {
                 this.zone.run(() => void this.handleCloseRequest('close'));
             }) ?? null;
+
+        // Whatever surface installs an app update — the settings About
+        // section or the app-wide notification panel — must be able to
+        // stand this guard down before the updater closes the window.
+        this.unregisterFromInstallService =
+            this.installService.registerUnloadGuard({
+                resumeAfterAbortedAppQuit: () =>
+                    this.resumeAfterAbortedAppQuit(),
+                suspendForAppQuit: () => this.suspendForAppQuit(),
+            });
 
         // Armed before the user can possibly stage an edit; a close with a
         // pristine form auto-confirms through the dialog-less path, so the
@@ -110,6 +123,8 @@ export class SettingsUnloadGuardService implements OnDestroy {
         window.removeEventListener('beforeunload', this.beforeUnloadHandler);
         this.unsubscribeCloseRequests?.();
         this.unsubscribeCloseRequests = null;
+        this.unregisterFromInstallService?.();
+        this.unregisterFromInstallService = null;
         this.suspended = false;
         this.syncCloseGuard(false);
         this.host = null;

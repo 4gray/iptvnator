@@ -14,6 +14,7 @@ import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
+import { AppUpdateInstallService } from './services/app-update-install.service';
 import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-release-notes-dialog.component';
 
 @Component({
@@ -176,6 +177,7 @@ import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-rele
 })
 export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
     private readonly dialog = inject(MatDialog);
+    private readonly installService = inject(AppUpdateInstallService);
     private unsubscribeStatus: (() => void) | null = null;
 
     readonly appUpdateStatuses = ELECTRON_BRIDGE_APP_UPDATE_STATUSES;
@@ -268,11 +270,15 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
     }
 
     async installUpdate(): Promise<void> {
-        if (!window.electron?.installAppUpdate) {
-            return;
-        }
+        // Never window.electron.installAppUpdate() directly: the install
+        // quits the app, and AppUpdateInstallService stands the settings
+        // unload guard down first — this panel is global, so the settings
+        // form can be dirty right now.
+        const status = await this.installService.installAppUpdate();
 
-        this.status.set(await window.electron.installAppUpdate());
+        if (status) {
+            this.status.set(status);
+        }
     }
 
     dismiss(): void {

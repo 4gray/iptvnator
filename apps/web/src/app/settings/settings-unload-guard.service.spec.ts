@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { FormBuilder } from '@angular/forms';
+import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsForm } from './settings-form.utils';
 import {
     SettingsUnloadGuardHost,
@@ -49,6 +50,11 @@ describe('SettingsUnloadGuardService', () => {
             setWindowCloseGuard: jest.fn().mockResolvedValue(undefined),
             confirmWindowClose: jest.fn().mockResolvedValue(undefined),
             cancelWindowClose: jest.fn().mockResolvedValue(undefined),
+            installAppUpdate: jest.fn().mockResolvedValue({
+                currentVersion: '0.23.0',
+                status: 'idle',
+                supportedSelfUpdate: true,
+            }),
             onWindowCloseRequested: jest.fn((callback: () => void) => {
                 closeRequestCallback = callback;
                 return unsubscribeCloseRequests;
@@ -164,6 +170,38 @@ describe('SettingsUnloadGuardService', () => {
             );
             const event = dispatchBeforeUnload();
             expect(event.defaultPrevented).toBe(true);
+        });
+
+        it('stands down for any install entry point via the install service', async () => {
+            // The global update panel installs through the same root
+            // service; while settings is mounted, that must reach this
+            // guard. An Idle reply (nothing installable) suspends and
+            // restores in one round trip.
+            const installService = TestBed.inject(AppUpdateInstallService);
+            activateInElectron();
+            form.markAsDirty();
+
+            await installService.installAppUpdate();
+
+            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
+                true
+            );
+            const event = dispatchBeforeUnload();
+            expect(event.defaultPrevented).toBe(true);
+        });
+
+        it('unregisters from the install service on destroy', async () => {
+            const installService = TestBed.inject(AppUpdateInstallService);
+            activateInElectron();
+            service.ngOnDestroy();
+            const callsAfterDestroy =
+                electronStub.setWindowCloseGuard.mock.calls.length;
+
+            await installService.installAppUpdate();
+
+            expect(electronStub.setWindowCloseGuard.mock.calls.length).toBe(
+                callsAfterDestroy
+            );
         });
     });
 
