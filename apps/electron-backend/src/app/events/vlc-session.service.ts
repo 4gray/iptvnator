@@ -192,6 +192,7 @@ export async function openVlcPlayer({
             effectiveOrigin,
             effectiveReferer,
             effectiveUserAgent,
+            headerFields,
         } = resolveEffectiveExternalPlaybackRequest({
             url,
             userAgent,
@@ -262,14 +263,12 @@ export async function openVlcPlayer({
             args.push(`:http-referrer=${effectiveOrigin}`);
         }
 
-        if (Object.keys(mergedHeaders).length > 0) {
-            Object.entries(mergedHeaders).forEach(([name, value]) => {
-                if (!name || value === undefined || value === null) return;
-                const trimmedValue = String(value).trim();
-                if (!trimmedValue) return;
-                args.push(`:http-header=${name}: ${trimmedValue}`);
-            });
-        }
+        // Same field list MPV sends via --http-header-fields: a real
+        // `Origin: ...` header (deduplicated against the merged headers)
+        // plus every non-empty custom header.
+        headerFields.forEach((field) => {
+            args.push(`:http-header=${field}`);
+        });
 
         if (startTime) {
             args.push(`--start-time=${startTime}`);

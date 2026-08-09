@@ -969,7 +969,12 @@ wins, the playlist-level value (import dialog / playlist settings) is the
 fallback, and blank values count as absent. Every M3U external launch path
 goes through it: the auto-launch and catch-up effects in `m3u-state`, the
 manual MPV/VLC fallback in `VideoPlayerComponent`, and the embedded MPV
-payload (`embeddedPlayback`).
+payload (`embeddedPlayback`). In the main process both players emit the same
+header field list (`buildHttpHeaderFields`): a real `Origin: ...` header
+(deduplicated against the custom headers map) plus every non-empty custom
+header — MPV via `--http-header-fields`, VLC via per-input `:http-header=`
+options in both the fresh-spawn and RC-enqueue paths. VLC additionally keeps
+its legacy origin-as-Referer fallback when no Referer is set.
 
 ### DASH + ClearKey Playback
 
