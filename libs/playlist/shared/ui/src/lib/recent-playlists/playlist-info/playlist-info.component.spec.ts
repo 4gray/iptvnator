@@ -58,7 +58,6 @@ describe('PlaylistInfoComponent', () => {
     let dialogBeforeClosed: Subject<void>;
     let stalkerConnectionEditor: {
         applyResolvedConnection: jest.Mock;
-        discardResolvedConnection: jest.Mock;
         resolveConnection: jest.Mock;
     };
     const originalElectron = window.electron;
@@ -117,7 +116,6 @@ describe('PlaylistInfoComponent', () => {
         };
         stalkerConnectionEditor = {
             applyResolvedConnection: jest.fn().mockResolvedValue(undefined),
-            discardResolvedConnection: jest.fn(),
             resolveConnection: jest.fn(
                 async (updatedPlaylist: PlaylistMeta) => ({
                     status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
@@ -832,7 +830,7 @@ describe('PlaylistInfoComponent', () => {
             expect(dialogRef.close).toHaveBeenCalledTimes(1);
         });
 
-        it('discards a resolved edit when the dialog closes before discovery finishes', async () => {
+        it('persists a resolved edit when the component is destroyed during discovery', async () => {
             await createStalkerComponent();
             const resolvedPlaylist = {
                 ...component.playlistDetails.getRawValue(),
@@ -870,15 +868,19 @@ describe('PlaylistInfoComponent', () => {
             await saving;
 
             expect(
-                stalkerConnectionEditor.discardResolvedConnection
-            ).toHaveBeenCalledWith('playlist-1');
-            expect(
                 stalkerConnectionEditor.applyResolvedConnection
-            ).not.toHaveBeenCalled();
-            expect(store.dispatch).not.toHaveBeenCalled();
+            ).toHaveBeenCalledWith(resolvedPlaylist);
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: resolvedPlaylist,
+                    persist: false,
+                })
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(dialogRef.close).not.toHaveBeenCalled();
         });
 
-        it('discards a resolved edit while the dialog close animation is pending', async () => {
+        it('persists a resolved edit while the dialog close animation is pending', async () => {
             await createStalkerComponent();
             const resolvedPlaylist = {
                 ...component.playlistDetails.getRawValue(),
@@ -916,12 +918,16 @@ describe('PlaylistInfoComponent', () => {
             await saving;
 
             expect(
-                stalkerConnectionEditor.discardResolvedConnection
-            ).toHaveBeenCalledWith('playlist-1');
-            expect(
                 stalkerConnectionEditor.applyResolvedConnection
-            ).not.toHaveBeenCalled();
-            expect(store.dispatch).not.toHaveBeenCalled();
+            ).toHaveBeenCalledWith(resolvedPlaylist);
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: resolvedPlaylist,
+                    persist: false,
+                })
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(dialogRef.close).not.toHaveBeenCalled();
         });
 
         it('does not update UI state or report success when resolved persistence fails', async () => {

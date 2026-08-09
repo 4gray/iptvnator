@@ -77,13 +77,6 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         }
     }
 
-    discardResolvedConnection(playlistId: string): void {
-        const fence = this.editFences.get(playlistId);
-        if (fence) {
-            this.releaseEditFence(playlistId, fence);
-        }
-    }
-
     async resolveConnection(
         playlist: PlaylistMeta
     ): Promise<StalkerPlaylistConnectionResult> {

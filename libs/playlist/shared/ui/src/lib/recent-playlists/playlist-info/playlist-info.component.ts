@@ -423,12 +423,6 @@ export class PlaylistInfoComponent {
                         );
                         return;
                     }
-                    if (this.dialogClosing || this.destroyRef.destroyed) {
-                        this.stalkerConnectionEditor.discardResolvedConnection(
-                            result.playlist._id
-                        );
-                        return;
-                    }
                     normalizedPlaylist = result.playlist;
                     resolvedStalkerConnection = true;
                 } else {
@@ -463,6 +457,16 @@ export class PlaylistInfoComponent {
                     ...(resolvedStalkerConnection ? { persist: false } : {}),
                 })
             );
+
+            // Save already authorized this connection change, and a full
+            // portal's completed get_profile may have pinned the submitted
+            // serial/device identity remotely. Navigation cannot recall that
+            // request, so the resolved identity/session is persisted above
+            // even when the dialog disappears. Only view-side completion is
+            // suppressed after destruction/close animation begins.
+            if (this.dialogClosing || this.destroyRef.destroyed) {
+                return;
+            }
 
             this.snackBar.open(
                 this.translate.instant(

@@ -40,8 +40,6 @@ export interface StalkerPlaylistConnectionEditor {
     ): Promise<StalkerPlaylistConnectionResult>;
     /** Atomically persists a resolved edit, then synchronizes in-run state. */
     applyResolvedConnection(playlist: PlaylistMetaUpdate): Promise<void>;
-    /** Releases a resolved edit that the dialog closed without applying. */
-    discardResolvedConnection(playlistId: string): void;
 }
 
 export const STALKER_PLAYLIST_CONNECTION_EDITOR =
