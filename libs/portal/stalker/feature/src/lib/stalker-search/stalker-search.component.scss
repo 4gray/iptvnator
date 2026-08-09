@@ -18,3 +18,12 @@
     @include grid.content-grid;
     padding-bottom: 1rem;
 }
+
+.search-append-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 18px 0 6px;
+    color: var(--mat-sys-error, inherit);
+}

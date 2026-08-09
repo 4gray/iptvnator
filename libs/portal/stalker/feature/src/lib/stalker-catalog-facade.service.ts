@@ -239,6 +239,10 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 
     private scrollIdentity(): string {
         return [
+            // The playlist belongs to the identity: the route provider (and
+            // this map with it) survives a same-config portal switch, and a
+            // portal A offset must never restore onto portal B's catalog.
+            this.stalkerStore.currentPlaylist()?._id ?? '',
             this.stalkerStore.selectedContentType(),
             String(this.stalkerStore.selectedCategoryId() ?? ''),
             this.stalkerStore.searchPhrase(),

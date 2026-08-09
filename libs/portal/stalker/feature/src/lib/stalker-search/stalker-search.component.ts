@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
@@ -100,6 +101,7 @@ function dedupeSearchResults(items: StalkerVodSource[]): StalkerVodSource[] {
     imports: [
         ContentCardComponent,
         FormsModule,
+        MatButtonModule,
         MatCheckboxModule,
         SearchLayoutComponent,
         StalkerInlineDetailComponent,

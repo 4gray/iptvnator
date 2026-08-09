@@ -289,4 +289,21 @@ describe('StalkerCatalogFacadeService', () => {
         // One-shot: consumed positions do not restore twice.
         expect(service.consumeSavedScrollPosition()).toBeNull();
     });
+
+    it('never restores a saved offset onto another portal', () => {
+        // The route provider (and this facade) survives a same-config portal
+        // switch — the identity must include the playlist.
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        const currentPlaylist = stalkerStoreMock['currentPlaylist'] as ReturnType<
+            typeof signal<{ _id: string } | undefined>
+        >;
+
+        service.saveScrollPosition(420);
+
+        currentPlaylist.set({ _id: 'portal-b' });
+        expect(service.consumeSavedScrollPosition()).toBeNull();
+
+        currentPlaylist.set(playlist as { _id: string });
+        expect(service.consumeSavedScrollPosition()).toBe(420);
+    });
 });
