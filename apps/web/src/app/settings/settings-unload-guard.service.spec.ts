@@ -112,31 +112,19 @@ describe('SettingsUnloadGuardService', () => {
     });
 
     describe('close guard mirroring (Electron)', () => {
-        it('arms the main-process guard when the form becomes dirty', () => {
+        it('arms the main-process guard for the whole settings mount', () => {
+            // Mount-long, not per dirty transition: arming on the first
+            // edit would race the very close it protects against, since
+            // the IPC is asynchronous. A pristine close auto-confirms.
             activateInElectron();
-            expect(electronStub.setWindowCloseGuard).not.toHaveBeenCalled();
-
-            form.markAsDirty();
 
             expect(electronStub.setWindowCloseGuard).toHaveBeenCalledWith(
                 true
             );
         });
 
-        it('disarms the guard when the form returns to pristine', () => {
+        it('disarms the guard on destroy and unsubscribes the push', () => {
             activateInElectron();
-            form.markAsDirty();
-
-            form.markAsPristine();
-
-            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
-                false
-            );
-        });
-
-        it('disarms an armed guard on destroy and unsubscribes the push', () => {
-            activateInElectron();
-            form.markAsDirty();
 
             service.ngOnDestroy();
 
@@ -144,14 +132,6 @@ describe('SettingsUnloadGuardService', () => {
                 false
             );
             expect(unsubscribeCloseRequests).toHaveBeenCalled();
-        });
-
-        it('leaves the bridge untouched while the form stays pristine', () => {
-            activateInElectron();
-
-            service.ngOnDestroy();
-
-            expect(electronStub.setWindowCloseGuard).not.toHaveBeenCalled();
         });
     });
 
@@ -170,19 +150,6 @@ describe('SettingsUnloadGuardService', () => {
             // updater's window close passes without turning into a reload.
             const event = dispatchBeforeUnload();
             expect(event.defaultPrevented).toBe(false);
-        });
-
-        it('keeps the mirror down when the form changes while suspended', () => {
-            activateInElectron();
-            form.markAsDirty();
-            service.suspendForAppQuit();
-
-            form.markAsPristine();
-            form.markAsDirty();
-
-            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
-                false
-            );
         });
 
         it('restores the protection when the quit did not happen', () => {

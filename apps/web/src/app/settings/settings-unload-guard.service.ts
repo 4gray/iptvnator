@@ -1,6 +1,4 @@
 import { inject, Injectable, NgZone, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { distinctUntilChanged, map, startWith } from 'rxjs/operators';
 import { SettingsForm } from './settings-form.utils';
 
 export interface SettingsUnloadGuardHost {
@@ -18,15 +16,19 @@ export interface SettingsUnloadGuardHost {
  * Protects unsaved settings edits on the exits the router never sees:
  * closing the window, quitting the app, and reloading the page.
  *
- * Three cooperating layers, all armed only while the form is dirty:
+ * Three cooperating layers:
  *
- * - A `beforeunload` handler. In a browser (PWA) it triggers the native
- *   leave-page prompt — custom UI is not possible there. In Electron it
- *   silently cancels the unload (reloads only — see below) and follows up
- *   with the app's own save/discard/stay dialog.
- * - In Electron, the dirty state is mirrored to the main process
- *   (`setWindowCloseGuard`), which intercepts window close / app quit
- *   *before* `beforeunload` fires and pushes the decision back here.
+ * - A `beforeunload` handler that engages while the form is dirty. In a
+ *   browser (PWA) it triggers the native leave-page prompt — custom UI is
+ *   not possible there. In Electron it silently cancels the unload (reloads
+ *   only — see below) and follows up with the app's own save/discard/stay
+ *   dialog.
+ * - In Electron, a main-process close guard (`setWindowCloseGuard`) armed
+ *   for the WHOLE settings mount, not per dirty transition — arming on the
+ *   first edit would race the very close it protects against, since the
+ *   IPC is asynchronous. It intercepts window close / app quit *before*
+ *   `beforeunload` fires and pushes the decision back here; a pristine
+ *   form auto-confirms without showing anything.
  * - `confirmWindowClose` completes an intercepted close once the user
  *   saved or discarded; staying — or a save that failed — never confirms,
  *   so the window stays open with the edits intact.
@@ -38,7 +40,6 @@ export interface SettingsUnloadGuardHost {
 export class SettingsUnloadGuardService implements OnDestroy {
     private readonly zone = inject(NgZone);
     private host: SettingsUnloadGuardHost | null = null;
-    private dirtySubscription: Subscription | null = null;
     private unsubscribeCloseRequests: (() => void) | null = null;
     private confirmationPending = false;
     /**
@@ -60,23 +61,17 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.dispose();
         this.host = host;
 
-        // `events` fires on every pristine transition (and more); mapping to
-        // the current dirty flag with distinctUntilChanged keeps the mirror
-        // exact without depending on which control emitted.
-        this.dirtySubscription = host.form.events
-            .pipe(
-                map(() => host.form.dirty),
-                startWith(host.form.dirty),
-                distinctUntilChanged()
-            )
-            .subscribe((dirty) => this.syncCloseGuard(dirty));
-
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
 
         this.unsubscribeCloseRequests =
             window.electron?.onWindowCloseRequested?.(() => {
                 this.zone.run(() => void this.handleCloseRequest('close'));
             }) ?? null;
+
+        // Armed before the user can possibly stage an edit; a close with a
+        // pristine form auto-confirms through the dialog-less path, so the
+        // only visible effect of mount-long arming is race-free protection.
+        this.syncCloseGuard(true);
     }
 
     ngOnDestroy(): void {
@@ -97,7 +92,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
 
         this.suspended = true;
         window.removeEventListener('beforeunload', this.beforeUnloadHandler);
-        this.syncCloseGuard(this.host.form.dirty);
+        this.syncCloseGuard(true);
     }
 
     /** Restores the protection when the requested quit did not happen. */
@@ -108,13 +103,11 @@ export class SettingsUnloadGuardService implements OnDestroy {
 
         this.suspended = false;
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
-        this.syncCloseGuard(this.host.form.dirty);
+        this.syncCloseGuard(true);
     }
 
     private dispose(): void {
         window.removeEventListener('beforeunload', this.beforeUnloadHandler);
-        this.dirtySubscription?.unsubscribe();
-        this.dirtySubscription = null;
         this.unsubscribeCloseRequests?.();
         this.unsubscribeCloseRequests = null;
         this.suspended = false;
