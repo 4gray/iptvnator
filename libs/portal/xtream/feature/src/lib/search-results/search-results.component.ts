@@ -215,6 +215,22 @@ export class SearchResultsComponent implements AfterViewInit {
             : this.visibleInPortalResults().length
     );
 
+    /**
+     * Result-set identity for the layout's near-end latch and auto-fill
+     * budget. Type filters and the hidden-categories toggle replace the
+     * result set without changing the term, so they are part of the identity.
+     */
+    readonly searchResetIdentity = computed(() => {
+        const filters = this.filters();
+        return [
+            this.searchTerm(),
+            String(filters.live),
+            String(filters.movie),
+            String(filters.series),
+            String(this.excludeHidden()),
+        ].join('|');
+    });
+
     onResultsNearEnd(): void {
         if (this.isGlobalSearch) {
             void this.loadMoreGlobalResults();

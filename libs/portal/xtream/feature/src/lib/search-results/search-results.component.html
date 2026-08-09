@@ -11,6 +11,7 @@
     [nearEndHasMore]="hasMoreSearchResults()"
     [nearEndAppending]="isAppendingSearchResults()"
     [nearEndRenderedCount]="renderedSearchResultsCount()"
+    [nearEndResetKey]="searchResetIdentity()"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
     (backClick)="goBack()"

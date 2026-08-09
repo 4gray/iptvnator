@@ -114,6 +114,25 @@ describe('SearchLayoutComponent', () => {
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
 
+    it('resets the near-end latch when the reset identity changes without a new term', () => {
+        // Regression: a filter-only search transition replaces the result set
+        // while the term stays the same; the latch must not survive it.
+        const nearEndSpy = jest.fn();
+        fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+        const resultsContainer = renderResultsContainer();
+
+        setScrollMetrics(resultsContainer, 700);
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        expect(nearEndSpy).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('nearEndResetKey', 'matrix|movie-only');
+        fixture.detectChanges();
+
+        // Still inside the threshold — a stale latch would swallow this.
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        expect(nearEndSpy).toHaveBeenCalledTimes(2);
+    });
+
     it('does not emit nearEnd when the consumer reports no more results', () => {
         const nearEndSpy = jest.fn();
         fixture.componentInstance.nearEnd.subscribe(nearEndSpy);

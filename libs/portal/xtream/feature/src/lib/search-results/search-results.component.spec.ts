@@ -505,4 +505,29 @@ describe('SearchResultsComponent in-portal result window', () => {
         expect(component.visibleInPortalResults()).toHaveLength(60);
         expect(component.hasMoreSearchResults()).toBe(true);
     });
+
+    it('changes the reset identity on filter-only transitions', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const component = TestBed.runInInjectionContext(
+            () => new SearchResultsComponent(null, undefined)
+        );
+
+        const initialIdentity = component.searchResetIdentity();
+
+        // Same term, different type filters — the result set is replaced, so
+        // the identity feeding the layout's near-end latch must change.
+        store.searchFilters.set({ live: false, movie: true, series: true });
+        expect(component.searchResetIdentity()).not.toBe(initialIdentity);
+
+        const filteredIdentity = component.searchResetIdentity();
+        try {
+            component.toggleExcludeHidden(true);
+            expect(component.searchResetIdentity()).not.toBe(
+                filteredIdentity
+            );
+        } finally {
+            // toggleExcludeHidden persists; do not leak into other tests.
+            localStorage.removeItem('xtream-search-exclude-hidden');
+        }
+    });
 });

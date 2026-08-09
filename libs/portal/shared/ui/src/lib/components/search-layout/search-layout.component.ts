@@ -83,6 +83,15 @@ export class SearchLayoutComponent {
      */
     readonly nearEndRenderedCount = input<number | null>(null);
 
+    /**
+     * Identity of the current result set for the infinite scroll's latch and
+     * auto-fill budget. Must change whenever the result set is replaced —
+     * including filter-only transitions where the term stays the same, or the
+     * stale latch can swallow the first jump back into the threshold.
+     * Defaults to the search term for consumers without extra filters.
+     */
+    readonly nearEndResetKey = input<string | null>(null);
+
     /** Initial state description translation key */
     readonly initialDescriptionKey = input<string>(
         'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION'
