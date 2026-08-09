@@ -98,6 +98,48 @@ describe('ChannelListItemComponent', () => {
         ).toBe(true);
     });
 
+    it('stacks the favorite button above the reserved programme-info slot', () => {
+        const program: EpgProgram = {
+            start: '2026-04-05 05:30:00',
+            stop: '2026-04-05 06:00:00',
+            channel: 'channel-1',
+            title: 'Current Show',
+            desc: 'Current description',
+            category: null,
+        };
+        fixture.componentRef.setInput('name', 'Ordered Channel');
+        fixture.componentRef.setInput('showFavoriteButton', true);
+        fixture.componentRef.setInput('epgProgram', program);
+        fixture.detectChanges();
+
+        const buttons = Array.from(
+            fixture.nativeElement.querySelectorAll('.action-buttons button'),
+            (element: Element) => element.className
+        );
+        expect(buttons).toHaveLength(2);
+        expect(buttons[0]).toContain('favorite-button');
+        expect(buttons[1]).toContain('program-info-button');
+        expect(buttons[1]).not.toContain('slot-empty');
+    });
+
+    it('keeps an inert info slot while the row has no programme', () => {
+        fixture.componentRef.setInput('name', 'No EPG Yet');
+        fixture.componentRef.setInput('showFavoriteButton', true);
+        fixture.detectChanges();
+
+        // The slot must exist (reserving the geometry) but be inert, so the
+        // star above it never shifts when EPG data arrives later.
+        const slot = fixture.nativeElement.querySelector(
+            '.program-info-button'
+        );
+        expect(slot).not.toBeNull();
+        expect(slot.classList.contains('slot-empty')).toBe(true);
+        expect(slot.disabled).toBe(true);
+
+        slot.click();
+        expect(dialog.open).not.toHaveBeenCalled();
+    });
+
     it('renders the catch-up badge only when catch-up is available', () => {
         fixture.componentRef.setInput('name', 'Archive Channel');
         fixture.detectChanges();

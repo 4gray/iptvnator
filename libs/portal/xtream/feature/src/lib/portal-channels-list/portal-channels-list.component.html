@@ -45,7 +45,7 @@
                 [catchupAvailable]="isCatchupAvailable(item)"
                 [catchupDays]="catchupDays(item)"
                 [showFavoriteButton]="true"
-                [showProgramInfoButton]="false"
+                [showProgramInfoButton]="true"
                 [showDetailsContextMenu]="supportsEpgMapping"
                 [isFavorite]="favorites.get(favoriteKeyFor(item)) ?? false"
                 (clicked)="playClicked.emit(item)"

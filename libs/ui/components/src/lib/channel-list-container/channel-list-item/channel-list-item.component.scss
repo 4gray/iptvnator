@@ -236,13 +236,20 @@
 .action-buttons {
     flex-shrink: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 2px;
+    justify-content: center;
+    gap: 0;
     margin-inline-start: auto;
 
+    .channel-list-item.compact & {
+        flex-direction: row;
+        gap: 2px;
+    }
+
     button {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         /* border-radius: 10px; */
         color: inherit;
         opacity: 0.76;
@@ -259,9 +266,10 @@
     }
 
     mat-icon {
-        width: 20px;
-        height: 20px;
-        font-size: 20px;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
     }
 }
 
@@ -353,4 +361,11 @@
 .favorite-button,
 .program-info-button {
     padding: 0;
+}
+
+/* Reserved slot: keeps the column geometry stable while the row has no
+   programme yet (or none at all), so the star never jumps. */
+.program-info-button.slot-empty {
+    visibility: hidden;
+    pointer-events: none;
 }

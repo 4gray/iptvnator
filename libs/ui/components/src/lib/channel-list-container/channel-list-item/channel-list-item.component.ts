@@ -97,6 +97,17 @@ export class ChannelListItemComponent {
         });
     }
 
+    /** Guarded click for the reserved (possibly still empty) info slot. */
+    onProgramInfoClick(event: MouseEvent): void {
+        const program = this.epgProgram();
+        if (!program) {
+            event.stopPropagation();
+            return;
+        }
+
+        this.showProgramDescription(program, event);
+    }
+
     onFavoriteClick(event: MouseEvent): void {
         event.stopPropagation();
         this.favoriteToggled.emit(event);
