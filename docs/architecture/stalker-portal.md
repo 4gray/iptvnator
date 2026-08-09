@@ -196,7 +196,9 @@ discovery, since every candidate shares the host.
 
 The playlist-info Edit dialog compares URL, MAC, username/password, serial,
 device IDs and signatures as one connection identity. A metadata-only edit
-does not run discovery and preserves the stored connection byte-for-byte.
+does not run discovery; its queued write omits every connection/mode field so
+the current stored connection stays byte-for-byte, including when the dialog
+was hydrated before an older discovery result committed.
 Before enabling a Stalker form, the dialog loads the complete persisted
 playlist row by ID. Electron's startup metadata projection omits payload-only
 identity fields, so editing that summary directly could otherwise display and
@@ -231,7 +233,9 @@ complete merged playlist row before NgRx receives its state-only update and
 before the app adapter replaces the active `StalkerStore` snapshot and
 session/watchdog state, so persistence failure cannot expose a partial runtime
 edit and metadata absent from the form (such as playback `Referer`/`Origin`)
-survives the replacement.
+survives the replacement. The state-only update reattaches the transient
+session patch from discovery, because the persisted flat row deliberately does
+not contain that field; this lets NgRx replace or clear its session projection.
 Runtime configuration authority combines the session fingerprint with the
 observed full/simple mode. Both authenticated calls and direct simple-mode
 requests cross that guard before dispatch and again after transport, so a

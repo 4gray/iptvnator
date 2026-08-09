@@ -46,7 +46,7 @@ import {
 } from '@iptvnator/shared/m3u-utils';
 import {
     hasStalkerConnectionChanged,
-    preserveStalkerConnection,
+    omitStalkerConnection,
     STALKER_PORTAL_URL_PATTERN,
 } from './stalker-playlist-edit.utils';
 import {
@@ -397,6 +397,8 @@ export class PlaylistInfoComponent {
             }
 
             let resolvedStalkerConnection = false;
+            let resolvedStalkerSessionPatch:
+                PlaylistMetaUpdate['stalkerSessionPatch'] | undefined;
             let preserveCurrentMetadata = false;
             let normalizedPlaylist: PlaylistMetaUpdate =
                 this.normalizeStalkerPlaylistMeta(
@@ -425,14 +427,14 @@ export class PlaylistInfoComponent {
                         return;
                     }
                     normalizedPlaylist = result.playlist;
+                    resolvedStalkerSessionPatch =
+                        result.playlist.stalkerSessionPatch;
                     resolvedStalkerConnection = true;
                     preserveCurrentMetadata =
                         this.dialogClosing || this.destroyRef.destroyed;
                 } else {
-                    normalizedPlaylist = preserveStalkerConnection(
-                        this.playlist,
-                        normalizedPlaylist
-                    );
+                    normalizedPlaylist =
+                        omitStalkerConnection(normalizedPlaylist);
                 }
             }
             const isXtream =
@@ -454,6 +456,10 @@ export class PlaylistInfoComponent {
                     : await this.stalkerConnectionEditor.applyResolvedConnection(
                           normalizedPlaylist
                       );
+                normalizedPlaylist = {
+                    ...normalizedPlaylist,
+                    stalkerSessionPatch: resolvedStalkerSessionPatch,
+                };
             }
 
             // Resolved Stalker edits cross an awaited, atomic persistence
@@ -570,7 +576,12 @@ export class PlaylistInfoComponent {
     }
 
     private normalizeXtreamPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
-        if (!playlist.serverUrl || !playlist.username || !playlist.password) {
+        if (
+            this.playlist.portalUrl ||
+            !playlist.serverUrl ||
+            !playlist.username ||
+            !playlist.password
+        ) {
             return playlist;
         }
 

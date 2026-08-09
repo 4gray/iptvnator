@@ -32,23 +32,14 @@ export function hasStalkerConnectionChanged(
     );
 }
 
-/** Keeps an unchanged connection byte-identical during metadata-only edits. */
-export function preserveStalkerConnection(
-    current: Playlist,
-    update: PlaylistMeta
-): PlaylistMeta {
-    return {
-        ...update,
-        portalUrl: current.portalUrl,
-        macAddress: current.macAddress,
-        username: current.username,
-        password: current.password,
-        stalkerSerialNumber: current.stalkerSerialNumber,
-        stalkerDeviceId1: current.stalkerDeviceId1,
-        stalkerDeviceId2: current.stalkerDeviceId2,
-        stalkerSignature1: current.stalkerSignature1,
-        stalkerSignature2: current.stalkerSignature2,
-    };
+/** Lets the queued persistence boundary preserve its current connection. */
+export function omitStalkerConnection(update: PlaylistMeta): PlaylistMeta {
+    const metadata = { ...update };
+    for (const field of STALKER_CONNECTION_FIELDS) {
+        delete metadata[field];
+    }
+    delete metadata.isFullStalkerPortal;
+    return metadata;
 }
 
 function comparableConnectionValue(

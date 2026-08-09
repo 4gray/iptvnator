@@ -753,14 +753,25 @@ describe('PlaylistInfoComponent', () => {
                 PlaylistActions.updatePlaylistMeta({
                     playlist: expect.objectContaining({
                         title: 'Renamed',
-                        portalUrl: 'https://portal.example.com/c',
-                        macAddress: '00:1a:79:aa:bb:cc',
-                        username: 'subscriber',
-                        password: 'secret',
-                        stalkerSerialNumber: 'SERIAL',
                     }) as PlaylistMeta,
                 })
             );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('portalUrl');
+            expect(dispatchedPlaylist).not.toHaveProperty(
+                'isFullStalkerPortal'
+            );
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
+            expect(dispatchedPlaylist).not.toHaveProperty('username');
+            expect(dispatchedPlaylist).not.toHaveProperty('password');
+            expect(dispatchedPlaylist).not.toHaveProperty(
+                'stalkerSerialNumber'
+            );
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerDeviceId1');
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerDeviceId2');
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerSignature1');
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerSignature2');
         });
 
         it.each([
@@ -807,10 +818,17 @@ describe('PlaylistInfoComponent', () => {
                     stalkerTimeslot: 4,
                 },
             };
+            const {
+                stalkerSessionPatch,
+                ...persistedPlaylistWithoutSessionPatch
+            } = resolvedPlaylist;
             stalkerConnectionEditor.resolveConnection.mockResolvedValue({
                 status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
                 playlist: resolvedPlaylist,
             });
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                persistedPlaylistWithoutSessionPatch
+            );
             component.playlistDetails
                 .get('portalUrl')
                 ?.setValue('https://portal.example.com/c');
@@ -822,7 +840,10 @@ describe('PlaylistInfoComponent', () => {
 
             expect(store.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
-                    playlist: resolvedPlaylist,
+                    playlist: {
+                        ...persistedPlaylistWithoutSessionPatch,
+                        stalkerSessionPatch,
+                    },
                     persist: false,
                 })
             );
@@ -830,6 +851,44 @@ describe('PlaylistInfoComponent', () => {
                 stalkerConnectionEditor.applyResolvedConnection
             ).toHaveBeenCalledWith(resolvedPlaylist);
             expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        });
+
+        it('retains a simple-portal session clear in the state-only update', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: false,
+                stalkerSessionPatch: null,
+            };
+            const persistedPlaylist = {
+                ...resolvedPlaylist,
+                stalkerSessionPatch: undefined,
+            };
+            stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                persistedPlaylist
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://portal.example.com/server/load.php');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        ...persistedPlaylist,
+                        stalkerSessionPatch: null,
+                    },
+                    persist: false,
+                })
+            );
         });
 
         it('does not route a Stalker edit through stale Xtream metadata', async () => {
@@ -853,6 +912,27 @@ describe('PlaylistInfoComponent', () => {
             expect(
                 stalkerConnectionEditor.applyResolvedConnection
             ).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not normalize Stalker credentials through stale Xtream metadata', async () => {
+            await createStalkerComponent({
+                serverUrl: 'https://old-xtream.example.com',
+                username: ' subscriber ',
+                password: ' secret ',
+            });
+            component.playlistDetails.get('title')?.setValue('Renamed');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).not.toHaveBeenCalled();
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('username');
+            expect(dispatchedPlaylist).not.toHaveProperty('password');
         });
 
         it('persists a resolved edit when the component is destroyed during discovery', async () => {
@@ -1098,13 +1178,9 @@ describe('PlaylistInfoComponent', () => {
                 component.playlistDetails.value as PlaylistMeta
             );
 
-            expect(store.dispatch).toHaveBeenCalledWith(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: expect.objectContaining({
-                        macAddress: 'legacy-device-42',
-                    }) as PlaylistMeta,
-                })
-            );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
         });
 
         it('leaves a non-canonical MAC alone when focus passes through it', async () => {
@@ -1127,13 +1203,9 @@ describe('PlaylistInfoComponent', () => {
                 component.playlistDetails.value as PlaylistMeta
             );
 
-            expect(store.dispatch).toHaveBeenCalledWith(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: expect.objectContaining({
-                        macAddress: '00-1a-79-aa-bb-cc',
-                    }) as PlaylistMeta,
-                })
-            );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
         });
 
         it('leaves an untouched non-canonical MAC alone on an unrelated save', async () => {
@@ -1153,11 +1225,13 @@ describe('PlaylistInfoComponent', () => {
             expect(store.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: expect.objectContaining({
-                        macAddress: '00-1a-79-aa-bb-cc',
                         title: 'Renamed',
                     }) as PlaylistMeta,
                 })
             );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
         });
 
         it('does not claim a simple portal has pinned its device IDs', async () => {
