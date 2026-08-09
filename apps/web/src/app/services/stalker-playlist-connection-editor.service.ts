@@ -14,6 +14,7 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
     type StalkerPlaylistConnectionEditor,
     type StalkerPlaylistConnectionResult,
+    type StalkerResolvedConnectionApplyOptions,
 } from '@iptvnator/playlist/shared/ui';
 import {
     normalizeStalkerPortalIdentity,
@@ -45,7 +46,10 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
     private readonly translate = inject(TranslateService);
     private readonly editFences = new Map<string, StalkerEditFence>();
 
-    async applyResolvedConnection(playlist: PlaylistMetaUpdate): Promise<void> {
+    async applyResolvedConnection(
+        playlist: PlaylistMetaUpdate,
+        options: StalkerResolvedConnectionApplyOptions = {}
+    ): Promise<PlaylistMetaUpdate> {
         // Edit discovery is newer and more authoritative than a lazy repair
         // remembered for the previous connection. Applying that override to
         // the resolved row could turn a credential-only A→A edit back into
@@ -55,11 +59,16 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
             this.editFences.get(runtimePlaylist._id) ??
             (await this.beginEditFence(runtimePlaylist));
         try {
-            const persistedPlaylist =
-                await this.stalkerSession.replaceSessionAfterEdit(
-                    runtimePlaylist,
-                    fence
-                );
+            const persistedPlaylist = options.preserveCurrentMetadata
+                ? await this.stalkerSession.replaceSessionAfterEdit(
+                      runtimePlaylist,
+                      fence,
+                      options
+                  )
+                : await this.stalkerSession.replaceSessionAfterEdit(
+                      runtimePlaylist,
+                      fence
+                  );
             this.portalRepair.commitPlaylistEdit(runtimePlaylist._id);
             this.editFences.delete(runtimePlaylist._id);
 
@@ -71,6 +80,7 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
                 // other metadata absent from the form survive replacement.
                 await this.stalkerStore.setCurrentPlaylist(persistedPlaylist);
             }
+            return persistedPlaylist;
         } catch (error) {
             this.releaseEditFence(runtimePlaylist._id, fence);
             throw error;

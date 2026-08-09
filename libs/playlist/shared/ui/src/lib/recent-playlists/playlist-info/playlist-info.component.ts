@@ -397,6 +397,7 @@ export class PlaylistInfoComponent {
             }
 
             let resolvedStalkerConnection = false;
+            let preserveCurrentMetadata = false;
             let normalizedPlaylist: PlaylistMetaUpdate =
                 this.normalizeStalkerPlaylistMeta(
                     this.normalizeXtreamPlaylistMeta(submittedPlaylist)
@@ -425,6 +426,8 @@ export class PlaylistInfoComponent {
                     }
                     normalizedPlaylist = result.playlist;
                     resolvedStalkerConnection = true;
+                    preserveCurrentMetadata =
+                        this.dialogClosing || this.destroyRef.destroyed;
                 } else {
                     normalizedPlaylist = preserveStalkerConnection(
                         this.playlist,
@@ -443,9 +446,14 @@ export class PlaylistInfoComponent {
             }
 
             if (resolvedStalkerConnection) {
-                await this.stalkerConnectionEditor.applyResolvedConnection(
-                    normalizedPlaylist
-                );
+                normalizedPlaylist = preserveCurrentMetadata
+                    ? await this.stalkerConnectionEditor.applyResolvedConnection(
+                          normalizedPlaylist,
+                          { preserveCurrentMetadata: true }
+                      )
+                    : await this.stalkerConnectionEditor.applyResolvedConnection(
+                          normalizedPlaylist
+                      );
             }
 
             // Resolved Stalker edits cross an awaited, atomic persistence

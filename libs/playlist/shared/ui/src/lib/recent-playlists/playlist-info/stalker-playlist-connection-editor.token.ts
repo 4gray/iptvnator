@@ -34,12 +34,20 @@ interface StalkerPlaylistConnectionResultMap {
 export type StalkerPlaylistConnectionResult =
     StalkerPlaylistConnectionResultMap[keyof StalkerPlaylistConnectionResultMap];
 
+export interface StalkerResolvedConnectionApplyOptions {
+    /** Merge only connection/session fields into the current persisted row. */
+    preserveCurrentMetadata?: boolean;
+}
+
 export interface StalkerPlaylistConnectionEditor {
     resolveConnection(
         playlist: PlaylistMeta
     ): Promise<StalkerPlaylistConnectionResult>;
     /** Atomically persists a resolved edit, then synchronizes in-run state. */
-    applyResolvedConnection(playlist: PlaylistMetaUpdate): Promise<void>;
+    applyResolvedConnection(
+        playlist: PlaylistMetaUpdate,
+        options?: StalkerResolvedConnectionApplyOptions
+    ): Promise<PlaylistMetaUpdate>;
 }
 
 export const STALKER_PLAYLIST_CONNECTION_EDITOR =

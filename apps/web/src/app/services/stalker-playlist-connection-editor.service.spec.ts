@@ -358,6 +358,39 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
         );
     });
 
+    it('returns an atomic connection-only merge for a post-navigation save', async () => {
+        const resolvedPlaylist = {
+            ...draft,
+            title: 'Stale form title',
+            portalUrl: 'https://new.example.com/server/load.php',
+            isFullStalkerPortal: true,
+            stalkerSessionPatch: {
+                stalkerToken: 'NEW_TOKEN',
+                stalkerSessionIdentity: 'new-fingerprint',
+            },
+        };
+        const persistedPlaylist = {
+            ...resolvedPlaylist,
+            title: 'Newer title',
+            epgUrls: ['https://new.example.com/epg.xml'],
+        };
+        stalkerSession.replaceSessionAfterEdit.mockResolvedValueOnce(
+            persistedPlaylist
+        );
+
+        await expect(
+            service.applyResolvedConnection(resolvedPlaylist, {
+                preserveCurrentMetadata: true,
+            })
+        ).resolves.toEqual(persistedPlaylist);
+
+        expect(stalkerSession.replaceSessionAfterEdit).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'Stale form title' }),
+            expect.objectContaining({ playlistId: draft._id }),
+            { preserveCurrentMetadata: true }
+        );
+    });
+
     it('clears the session and stops full-portal runtime behavior after a resolved simple edit', async () => {
         activePlaylist = {
             ...draft,

@@ -23,11 +23,15 @@ describe('Stalker edited-session coordination', () => {
     let service: StalkerSessionService;
     let getPlaylistById: jest.Mock;
     let updatePlaylistMeta: jest.Mock;
+    let transformPlaylistMeta: jest.Mock;
     let updateStalkerSession: jest.Mock;
 
     beforeEach(() => {
         getPlaylistById = jest.fn(() => of(oldPlaylist));
         updatePlaylistMeta = jest.fn(() => of(oldPlaylist));
+        transformPlaylistMeta = jest.fn((_id, transform) =>
+            of(transform(oldPlaylist))
+        );
         updateStalkerSession = jest.fn(() => of(oldPlaylist));
         sendIpcEvent = jest.fn();
         TestBed.configureTestingModule({
@@ -42,6 +46,7 @@ describe('Stalker edited-session coordination', () => {
                     useValue: {
                         getPlaylistById,
                         updatePlaylistMeta,
+                        transformPlaylistMeta,
                         updateStalkerSession,
                     },
                 },
@@ -316,6 +321,50 @@ describe('Stalker edited-session coordination', () => {
             })
         );
         expect(updateStalkerSession).not.toHaveBeenCalled();
+    });
+
+    it('atomically merges only connection fields into a newer row after navigation', async () => {
+        const currentPlaylist = {
+            ...oldPlaylist,
+            title: 'Newer title',
+            epgUrls: ['https://new.example.com/epg.xml'],
+        } as Playlist;
+        transformPlaylistMeta.mockImplementationOnce((_id, transform) =>
+            of(transform(currentPlaylist))
+        );
+        const editedPlaylist = {
+            ...oldPlaylist,
+            title: 'Stale form title',
+            portalUrl: 'https://new.example.com/server/load.php',
+            username: 'subscriber',
+            stalkerToken: 'NEW_TOKEN',
+            stalkerWatchdogTimeout: 90,
+            stalkerTimeslot: 5,
+        } as Playlist;
+        const fence = await service.beginEditDiscovery(editedPlaylist);
+
+        const persisted = await service.replaceSessionAfterEdit(
+            editedPlaylist,
+            fence,
+            { preserveCurrentMetadata: true }
+        );
+
+        expect(updatePlaylistMeta).not.toHaveBeenCalled();
+        expect(transformPlaylistMeta).toHaveBeenCalledWith(
+            oldPlaylist._id,
+            expect.any(Function)
+        );
+        expect(persisted).toEqual(
+            expect.objectContaining({
+                title: 'Newer title',
+                epgUrls: ['https://new.example.com/epg.xml'],
+                portalUrl: 'https://new.example.com/server/load.php',
+                username: 'subscriber',
+                stalkerToken: 'NEW_TOKEN',
+                stalkerWatchdogTimeout: 90,
+                stalkerTimeslot: 5,
+            })
+        );
     });
 
     it('does not adopt a resolved full session when its atomic write fails', async () => {

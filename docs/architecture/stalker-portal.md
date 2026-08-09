@@ -208,8 +208,11 @@ validation window. If navigation or another owner starts closing/destroys the
 dialog while discovery is in flight, a successful result still crosses the
 atomic persistence boundary: the submitted `get_profile` may already have
 pinned the new serial/device identity remotely and cannot be recalled. The
-state-only update also completes, while dialog close and success UI are
-suppressed after destruction. Before discovery starts, Edit reserves the playlist ID; an
+late commit uses `transformPlaylistMeta()` inside the per-playlist write queue
+to merge only the resolved connection/session fields into the current row, so
+a newer title, EPG, or other metadata edit wins. The returned merged row feeds
+the state-only update, while dialog close and success UI are suppressed after
+destruction. Before discovery starts, Edit reserves the playlist ID; an
 overlapping Edit cannot replace that owner. The reservation blocks every new
 authentication (including a URL edit with the same normalized fingerprint) and
 repair, and drains any work already in flight. Ownership is rechecked after

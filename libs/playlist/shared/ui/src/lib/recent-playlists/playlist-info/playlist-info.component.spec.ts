@@ -115,7 +115,9 @@ describe('PlaylistInfoComponent', () => {
             disableClose: false,
         };
         stalkerConnectionEditor = {
-            applyResolvedConnection: jest.fn().mockResolvedValue(undefined),
+            applyResolvedConnection: jest.fn(
+                async (playlist: PlaylistMeta) => playlist
+            ),
             resolveConnection: jest.fn(
                 async (updatedPlaylist: PlaylistMeta) => ({
                     status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
@@ -841,6 +843,14 @@ describe('PlaylistInfoComponent', () => {
                     stalkerSessionIdentity: 'new-fingerprint',
                 },
             };
+            const currentPlaylist = {
+                ...resolvedPlaylist,
+                title: 'Newer title',
+                epgUrls: ['https://new.example.com/epg.xml'],
+            };
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                currentPlaylist
+            );
             let finishDiscovery:
                 | ((value: {
                       status: 'resolved';
@@ -869,10 +879,12 @@ describe('PlaylistInfoComponent', () => {
 
             expect(
                 stalkerConnectionEditor.applyResolvedConnection
-            ).toHaveBeenCalledWith(resolvedPlaylist);
+            ).toHaveBeenCalledWith(resolvedPlaylist, {
+                preserveCurrentMetadata: true,
+            });
             expect(store.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
-                    playlist: resolvedPlaylist,
+                    playlist: currentPlaylist,
                     persist: false,
                 })
             );
@@ -891,6 +903,14 @@ describe('PlaylistInfoComponent', () => {
                     stalkerSessionIdentity: 'new-fingerprint',
                 },
             };
+            const currentPlaylist = {
+                ...resolvedPlaylist,
+                title: 'Newer title',
+                epgUrls: ['https://new.example.com/epg.xml'],
+            };
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                currentPlaylist
+            );
             let finishDiscovery:
                 | ((value: {
                       status: 'resolved';
@@ -919,10 +939,12 @@ describe('PlaylistInfoComponent', () => {
 
             expect(
                 stalkerConnectionEditor.applyResolvedConnection
-            ).toHaveBeenCalledWith(resolvedPlaylist);
+            ).toHaveBeenCalledWith(resolvedPlaylist, {
+                preserveCurrentMetadata: true,
+            });
             expect(store.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
-                    playlist: resolvedPlaylist,
+                    playlist: currentPlaylist,
                     persist: false,
                 })
             );

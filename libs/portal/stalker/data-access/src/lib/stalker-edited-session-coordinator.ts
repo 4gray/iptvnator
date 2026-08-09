@@ -77,8 +77,7 @@ export class StalkerEditedSessionCoordinator {
         if (stalkerSessionFingerprint(playlist) !== sessionFingerprint) {
             throw new Error('Stale Stalker playlist configuration');
         }
-        const authoritative =
-            this.authoritativeConfigurations.get(playlistId);
+        const authoritative = this.authoritativeConfigurations.get(playlistId);
         if (
             authoritative &&
             authoritative !==
@@ -121,7 +120,11 @@ export class StalkerEditedSessionCoordinator {
         }
     }
 
-    replace(playlist: Playlist, fence?: StalkerEditFence): Promise<Playlist> {
+    replace(
+        playlist: Playlist,
+        fence?: StalkerEditFence,
+        options: { preserveCurrentMetadata?: boolean } = {}
+    ): Promise<Playlist> {
         const playlistId = playlist._id;
         const sessionFingerprint = stalkerSessionFingerprint(playlist);
         const configurationFingerprint = stalkerConfigurationFingerprint(
@@ -152,7 +155,8 @@ export class StalkerEditedSessionCoordinator {
                     playlist,
                     sessionFingerprint,
                     configurationFingerprint,
-                    owner
+                    owner,
+                    options
                 )
             );
         this.replacements.set(playlistId, replacement);
@@ -173,7 +177,8 @@ export class StalkerEditedSessionCoordinator {
         playlist: Playlist,
         sessionFingerprint: string,
         configurationFingerprint: string,
-        owner: symbol
+        owner: symbol,
+        options: { preserveCurrentMetadata?: boolean }
     ): Promise<Playlist> {
         const playlistId = playlist._id;
         this.assertFenceCurrent(
@@ -208,10 +213,18 @@ export class StalkerEditedSessionCoordinator {
         }
 
         const persistedPlaylist = await firstValueFrom(
-            playlists.updatePlaylistMeta({
-                ...playlist,
-                stalkerSessionPatch: sessionPatch,
-            } as PlaylistMetaUpdate)
+            options.preserveCurrentMetadata
+                ? playlists.transformPlaylistMeta(playlistId, (current) =>
+                      mergeResolvedStalkerConnection(
+                          current,
+                          playlist,
+                          sessionPatch
+                      )
+                  )
+                : playlists.updatePlaylistMeta({
+                      ...playlist,
+                      stalkerSessionPatch: sessionPatch,
+                  } as PlaylistMetaUpdate)
         );
         if (!persistedPlaylist) {
             throw new Error('Resolved Stalker playlist could not be persisted');
@@ -290,6 +303,32 @@ export class StalkerEditedSessionCoordinator {
         }
         throw new Error('Stale Stalker playlist configuration');
     }
+}
+
+/** Applies remote connection authority without replaying stale form metadata. */
+function mergeResolvedStalkerConnection(
+    current: Playlist,
+    resolved: Playlist,
+    sessionPatch: PlaylistMetaUpdate['stalkerSessionPatch']
+): Playlist {
+    return {
+        ...current,
+        portalUrl: resolved.portalUrl,
+        isFullStalkerPortal: resolved.isFullStalkerPortal,
+        macAddress: resolved.macAddress,
+        username: resolved.username,
+        password: resolved.password,
+        stalkerSerialNumber: resolved.stalkerSerialNumber,
+        stalkerDeviceId1: resolved.stalkerDeviceId1,
+        stalkerDeviceId2: resolved.stalkerDeviceId2,
+        stalkerSignature1: resolved.stalkerSignature1,
+        stalkerSignature2: resolved.stalkerSignature2,
+        stalkerToken: sessionPatch?.stalkerToken,
+        stalkerSessionIdentity: sessionPatch?.stalkerSessionIdentity,
+        stalkerWatchdogTimeout: sessionPatch?.stalkerWatchdogTimeout,
+        stalkerTimeslot: sessionPatch?.stalkerTimeslot,
+        stalkerAccountInfo: sessionPatch?.stalkerAccountInfo,
+    };
 }
 
 /** In-run Edit authority also owns the observed full/simple routing mode. */
