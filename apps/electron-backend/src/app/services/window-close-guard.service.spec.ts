@@ -18,6 +18,7 @@ jest.mock('electron', () => ({
 
 import { ipcMain } from 'electron';
 import {
+    WINDOW_CANCEL_CLOSE,
     WINDOW_CLOSE_REQUESTED,
     WINDOW_CONFIRM_CLOSE,
     WINDOW_SET_CLOSE_GUARD,
@@ -174,12 +175,13 @@ describe('WindowCloseGuard', () => {
         expect(win.close).not.toHaveBeenCalled();
     });
 
-    it('forgets an aborted quit before the next close attempt', () => {
+    it('forgets a cancelled quit before the next close attempt', () => {
         const { app, guard, win } = createArmedGuard();
 
-        // Quit intercepted, user stays: the quit is aborted.
+        // Quit intercepted, user stays: the renderer cancels the request.
         app.fireBeforeQuit();
         win.fireClose();
+        guard.cancelClose();
 
         // A later plain window close must not resurrect the quit.
         win.fireClose();
@@ -187,6 +189,45 @@ describe('WindowCloseGuard', () => {
 
         expect(win.close).toHaveBeenCalledTimes(1);
         expect(app.quit).not.toHaveBeenCalled();
+    });
+
+    it('keeps a pending quit when close is clicked again before the user decides', () => {
+        const { app, guard, win } = createArmedGuard();
+
+        // Cmd+Q intercepted; the dialog is open. An impatient second click
+        // on the window's close button must not downgrade the quit — saving
+        // would then close only the window and leave the app running.
+        app.fireBeforeQuit();
+        win.fireClose();
+        win.fireClose();
+
+        guard.confirmClose();
+
+        expect(app.quit).toHaveBeenCalledTimes(1);
+        expect(win.close).not.toHaveBeenCalled();
+    });
+
+    it('escalates a pending close to a quit when the user quits mid-decision', () => {
+        const { app, guard, win } = createArmedGuard();
+
+        win.fireClose();
+        app.fireBeforeQuit();
+        win.fireClose();
+
+        guard.confirmClose();
+
+        expect(app.quit).toHaveBeenCalledTimes(1);
+        expect(win.close).not.toHaveBeenCalled();
+    });
+
+    it('lets exactly one close through after allowNextClose', () => {
+        const { guard, win } = createArmedGuard();
+
+        guard.allowNextClose();
+
+        expect(win.fireClose()).toBe(false);
+        // The bypass is consumed: the guard is back for the next attempt.
+        expect(win.fireClose()).toBe(true);
     });
 
     it('confirms as a plain close when nothing was intercepted', () => {
@@ -204,6 +245,22 @@ describe('WindowCloseGuard', () => {
         win.fireWebContentsEvent('did-navigate');
 
         expect(win.fireClose()).toBe(false);
+    });
+
+    it('drops an unanswered quit intent when the renderer navigates away', () => {
+        const { app, guard, win } = createArmedGuard();
+
+        app.fireBeforeQuit();
+        win.fireClose();
+        win.fireWebContentsEvent('did-navigate');
+
+        // A fresh interception cycle must not inherit the stale quit.
+        guard.setGuardActive(true);
+        win.fireClose();
+        guard.confirmClose();
+
+        expect(win.close).toHaveBeenCalledTimes(1);
+        expect(app.quit).not.toHaveBeenCalled();
     });
 
     it('disarms when the render process is gone', () => {
@@ -284,6 +341,8 @@ describe('bootstrapWindowCloseGuard', () => {
 
         getIpcHandler(WINDOW_SET_CLOSE_GUARD)({}, true);
         expect(win.fireClose()).toBe(true);
+
+        getIpcHandler(WINDOW_CANCEL_CLOSE)({});
 
         getIpcHandler(WINDOW_CONFIRM_CLOSE)({});
         expect(win.close).toHaveBeenCalledTimes(1);

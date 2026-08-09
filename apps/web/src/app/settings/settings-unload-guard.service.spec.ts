@@ -23,6 +23,7 @@ describe('SettingsUnloadGuardService', () => {
     let electronStub: {
         setWindowCloseGuard: jest.Mock;
         confirmWindowClose: jest.Mock;
+        cancelWindowClose: jest.Mock;
         onWindowCloseRequested: jest.Mock;
     };
 
@@ -47,6 +48,7 @@ describe('SettingsUnloadGuardService', () => {
         electronStub = {
             setWindowCloseGuard: jest.fn().mockResolvedValue(undefined),
             confirmWindowClose: jest.fn().mockResolvedValue(undefined),
+            cancelWindowClose: jest.fn().mockResolvedValue(undefined),
             onWindowCloseRequested: jest.fn((callback: () => void) => {
                 closeRequestCallback = callback;
                 return unsubscribeCloseRequests;
@@ -174,6 +176,10 @@ describe('SettingsUnloadGuardService', () => {
             await flushAsyncWork();
 
             expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
+            // Staying abandons the request in the main process too, so the
+            // remembered close-vs-quit intent cannot leak into a later
+            // attempt.
+            expect(electronStub.cancelWindowClose).toHaveBeenCalledTimes(1);
         });
 
         it('ignores repeated close requests while a dialog is open', async () => {
@@ -228,6 +234,9 @@ describe('SettingsUnloadGuardService', () => {
             await flushAsyncWork();
 
             expect(reloadPage).not.toHaveBeenCalled();
+            // A reload was never remembered by the main process, so there
+            // is nothing to cancel there.
+            expect(electronStub.cancelWindowClose).not.toHaveBeenCalled();
         });
     });
 });

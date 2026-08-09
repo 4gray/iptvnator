@@ -581,6 +581,25 @@ export async function closeElectronApp(
             closePromise.catch(() => undefined),
             electronAppKillWaitMs
         );
+
+        // SIGTERM asks Electron for a graceful quit, which the app can
+        // legitimately refuse — the unsaved-settings close guard cancels the
+        // quit while it waits for an answer. A process that survives here
+        // would outlive the test, hold its data dir, and time out the worker
+        // teardown, so escalate to SIGKILL.
+        if (
+            childProcess.exitCode === null &&
+            childProcess.signalCode === null
+        ) {
+            console.warn(
+                'Electron app survived SIGTERM; escalating to SIGKILL'
+            );
+            childProcess.kill('SIGKILL');
+            await waitForPromiseWithTimeout(
+                closePromise.catch(() => undefined),
+                electronAppKillWaitMs
+            );
+        }
     } catch (error) {
         console.warn('Failed to close Electron app cleanly:', error);
     }

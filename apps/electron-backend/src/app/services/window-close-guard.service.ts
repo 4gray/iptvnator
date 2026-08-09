@@ -16,6 +16,7 @@
 
 import { app, ipcMain } from 'electron';
 import {
+    WINDOW_CANCEL_CLOSE,
     WINDOW_CLOSE_REQUESTED,
     WINDOW_CONFIRM_CLOSE,
     WINDOW_SET_CLOSE_GUARD,
@@ -86,17 +87,31 @@ export class WindowCloseGuard {
         // A full navigation (reload included) discards the renderer state the
         // guard was protecting; a gone renderer can no longer answer the
         // close request. Either way an armed guard would make the window
-        // unclosable.
+        // unclosable, and a pending intent from an unanswered request would
+        // leak into the next interception cycle.
         win.webContents.on('did-navigate', () => {
             this.guardActive = false;
+            this.pendingIntent = null;
         });
         win.webContents.on('render-process-gone', () => {
             this.guardActive = false;
+            this.pendingIntent = null;
         });
     }
 
     setGuardActive(active: boolean): void {
         this.guardActive = active;
+    }
+
+    /**
+     * Lets exactly one close through even while the guard is armed. Used for
+     * the self-updater's `quitAndInstall()`: on macOS it closes the windows
+     * *before* `before-quit` fires, so an intercepted close would downgrade
+     * the install into a plain window close and abandon the update. The user
+     * explicitly asked to install, so that close must win.
+     */
+    allowNextClose(): void {
+        this.bypassClose = true;
     }
 
     /**
@@ -121,6 +136,15 @@ export class WindowCloseGuard {
         }
     }
 
+    /**
+     * Renderer verdict: the user stays. Clears the pending intent so a later
+     * close attempt starts fresh — without this, choosing Stay on a quit and
+     * clicking the window's close button minutes later would quit the app.
+     */
+    cancelClose(): void {
+        this.pendingIntent = null;
+    }
+
     private handleClose(
         event: { preventDefault(): void },
         win: CloseGuardWindow
@@ -131,7 +155,12 @@ export class WindowCloseGuard {
         const wasQuit = this.quitInProgress;
         this.quitInProgress = false;
 
-        if (!this.guardActive || this.bypassClose) {
+        if (this.bypassClose) {
+            this.bypassClose = false;
+            return;
+        }
+
+        if (!this.guardActive) {
             return;
         }
 
@@ -140,7 +169,15 @@ export class WindowCloseGuard {
         }
 
         event.preventDefault();
-        this.pendingIntent = wasQuit ? 'quit' : 'close';
+        // A quit is never downgraded while a decision is pending: the
+        // renderer drops repeated requests while its dialog is open, so a
+        // second close click must not overwrite an intercepted Cmd+Q —
+        // saving would then close only the window and leave the app running.
+        if (wasQuit) {
+            this.pendingIntent = 'quit';
+        } else {
+            this.pendingIntent = this.pendingIntent ?? 'close';
+        }
         win.webContents.send(WINDOW_CLOSE_REQUESTED);
     }
 }
@@ -169,6 +206,9 @@ export function bootstrapWindowCloseGuard(
     });
     ipcMain.handle(WINDOW_CONFIRM_CLOSE, () => {
         guard.confirmClose();
+    });
+    ipcMain.handle(WINDOW_CANCEL_CLOSE, () => {
+        guard.cancelClose();
     });
 
     return guard;

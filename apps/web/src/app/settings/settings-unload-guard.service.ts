@@ -119,6 +119,12 @@ export class SettingsUnloadGuardService implements OnDestroy {
 
         try {
             if (!(await host.confirmClose())) {
+                if (intent === 'close') {
+                    // Staying must clear the intent the main process
+                    // remembered, or a later close attempt would replay a
+                    // stale quit.
+                    void window.electron?.cancelWindowClose?.();
+                }
                 return;
             }
 

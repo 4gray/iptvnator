@@ -110,6 +110,13 @@ export interface AppUpdateServiceOptions {
     platform?: NodeJS.Platform;
     processEnv?: NodeJS.ProcessEnv;
     releaseFetcher?: ReleaseFetcher;
+    /**
+     * Runs right before `quitAndInstall()`. Lets the unsaved-settings close
+     * guard stand down for the updater-driven window close, which on macOS
+     * happens before `before-quit` and would otherwise be intercepted as a
+     * plain close — abandoning the requested install.
+     */
+    prepareQuit?: () => void;
 }
 
 function isSelfUpdateSupported(
@@ -401,6 +408,7 @@ export class AppUpdateService {
             this.status.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         ) {
+            this.options.prepareQuit?.();
             this.updater.quitAndInstall();
         }
 

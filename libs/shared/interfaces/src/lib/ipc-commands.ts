@@ -118,4 +118,5 @@ export const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
 // main process and handed to the renderer for a save/discard/stay decision
 export const WINDOW_SET_CLOSE_GUARD = 'WINDOW:SET_CLOSE_GUARD';
 export const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
+export const WINDOW_CANCEL_CLOSE = 'WINDOW:CANCEL_CLOSE';
 export const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';

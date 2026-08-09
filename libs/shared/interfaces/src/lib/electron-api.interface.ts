@@ -629,6 +629,11 @@ export interface ElectronBridgeApi {
      * original intent (window close or app quit) with the guard bypassed.
      */
     confirmWindowClose: () => Promise<void>;
+    /**
+     * Abandons a close the guard intercepted (the user stays), so the
+     * remembered close-vs-quit intent cannot leak into a later attempt.
+     */
+    cancelWindowClose: () => Promise<void>;
     onWindowCloseRequested: (callback: () => void) => () => void;
     fetchPlaylistByUrl: (
         url: string,

@@ -82,6 +82,7 @@ const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
 const WINDOW_SET_CLOSE_GUARD = 'WINDOW:SET_CLOSE_GUARD';
 const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
+const WINDOW_CANCEL_CLOSE = 'WINDOW:CANCEL_CLOSE';
 const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';
 
 const dbSaveContentProgressListeners = new Set<
@@ -424,6 +425,7 @@ const electronApi: ElectronBridgeApi = {
     setWindowCloseGuard: (active: boolean) =>
         ipcRenderer.invoke(WINDOW_SET_CLOSE_GUARD, active),
     confirmWindowClose: () => ipcRenderer.invoke(WINDOW_CONFIRM_CLOSE),
+    cancelWindowClose: () => ipcRenderer.invoke(WINDOW_CANCEL_CLOSE),
     onWindowCloseRequested: (callback: () => void) => {
         const handler = () => callback();
         ipcRenderer.on(WINDOW_CLOSE_REQUESTED, handler);

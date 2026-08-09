@@ -82,6 +82,7 @@ function createService(
         isPackaged?: boolean;
         platform?: NodeJS.Platform;
         env?: NodeJS.ProcessEnv;
+        prepareQuit?: () => void;
     } = {}
 ) {
     const updater = new FakeUpdater();
@@ -93,6 +94,7 @@ function createService(
         },
         getMainWindow: () => win,
         platform: overrides.platform ?? 'darwin',
+        prepareQuit: overrides.prepareQuit,
         processEnv: overrides.env ?? {},
         releaseFetcher: overrides.fetcher,
         updater,
@@ -448,5 +450,34 @@ describe('AppUpdateService', () => {
             ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         );
         expect(updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it('stands the close guard down before quitAndInstall', () => {
+        // quitAndInstall closes the windows before 'before-quit' (macOS), so
+        // an armed unsaved-settings guard would intercept that close and
+        // strand the requested install. prepareQuit must run first.
+        const calls: string[] = [];
+        const { service, updater } = createService({
+            prepareQuit: () => calls.push('prepareQuit'),
+        });
+        updater.quitAndInstall.mockImplementation(() => {
+            calls.push('quitAndInstall');
+        });
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        service.handleUpdateDownloaded({ version: '0.23.0' });
+
+        service.installUpdate();
+
+        expect(calls).toEqual(['prepareQuit', 'quitAndInstall']);
+    });
+
+    it('does not stand the close guard down when nothing is installable', () => {
+        const prepareQuit = jest.fn();
+        const { service, updater } = createService({ prepareQuit });
+
+        service.installUpdate();
+
+        expect(prepareQuit).not.toHaveBeenCalled();
+        expect(updater.quitAndInstall).not.toHaveBeenCalled();
     });
 });

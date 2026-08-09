@@ -244,6 +244,7 @@ export function createElectronStub(): typeof window.electron {
         onWindowCloseRequested: jest.fn(() => jest.fn()),
         setWindowCloseGuard: jest.fn().mockResolvedValue(undefined),
         confirmWindowClose: jest.fn().mockResolvedValue(undefined),
+        cancelWindowClose: jest.fn().mockResolvedValue(undefined),
         openInMpv: jest.fn(),
         openInVlc: jest.fn(),
         platform: 'linux',
