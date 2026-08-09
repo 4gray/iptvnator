@@ -365,6 +365,9 @@ export class PlaylistInfoComponent {
         }
 
         this.isSaving.set(true);
+        if (this.dialogRef) {
+            this.dialogRef.disableClose = true;
+        }
         try {
             let resolvedStalkerConnection = false;
             let normalizedPlaylist: PlaylistMetaUpdate =
@@ -446,6 +449,9 @@ export class PlaylistInfoComponent {
                 }
             );
         } finally {
+            if (this.dialogRef) {
+                this.dialogRef.disableClose = false;
+            }
             this.isSaving.set(false);
         }
     }

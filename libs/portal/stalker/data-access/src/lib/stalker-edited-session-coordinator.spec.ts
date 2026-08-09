@@ -129,6 +129,24 @@ describe('Stalker edited-session coordination', () => {
         service.cancelEditDiscovery(fence);
     });
 
+    it('rejects an overlapping edit without retiring the first owner', async () => {
+        const firstFence = await service.beginEditDiscovery(oldPlaylist);
+
+        await expect(
+            service.beginEditDiscovery({
+                ...oldPlaylist,
+                username: 'second-edit',
+            })
+        ).rejects.toThrow(/already in progress/i);
+
+        await expect(
+            service.replaceSessionAfterEdit(
+                { ...oldPlaylist, stalkerToken: 'FIRST_EDIT_TOKEN' },
+                firstFence
+            )
+        ).resolves.toEqual(oldPlaylist);
+    });
+
     it('prevents late pre-edit auth from restoring a cleared simple session', async () => {
         const oldAuthentication = service.ensureToken(oldPlaylist);
         while (authenticate.mock.calls.length === 0) {

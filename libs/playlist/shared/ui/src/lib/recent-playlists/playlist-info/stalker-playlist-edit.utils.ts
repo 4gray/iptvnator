@@ -5,7 +5,7 @@ import {
     type PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 
-export const STALKER_PORTAL_URL_PATTERN = /^\s*https?:\/\/[^ "\s]+\s*$/;
+export const STALKER_PORTAL_URL_PATTERN = /^\s*https?:\/\/[^ "\s]+\s*$/i;
 
 const STALKER_CONNECTION_FIELDS = [
     'portalUrl',

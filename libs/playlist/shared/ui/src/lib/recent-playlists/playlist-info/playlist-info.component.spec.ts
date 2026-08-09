@@ -51,6 +51,7 @@ describe('PlaylistInfoComponent', () => {
     };
     let dialogRef: {
         close: jest.Mock;
+        disableClose: boolean;
     };
     let stalkerConnectionEditor: {
         resolveConnection: jest.Mock;
@@ -104,6 +105,7 @@ describe('PlaylistInfoComponent', () => {
         };
         dialogRef = {
             close: jest.fn(),
+            disableClose: false,
         };
         stalkerConnectionEditor = {
             applyResolvedConnection: jest.fn().mockResolvedValue(undefined),
@@ -852,6 +854,7 @@ describe('PlaylistInfoComponent', () => {
             const secondSave = component.saveChanges(value);
 
             expect(component.isSaving()).toBe(true);
+            expect(dialogRef.disableClose).toBe(true);
             expect(
                 stalkerConnectionEditor.resolveConnection
             ).toHaveBeenCalledTimes(1);
@@ -861,6 +864,7 @@ describe('PlaylistInfoComponent', () => {
             });
             await Promise.all([firstSave, secondSave]);
             expect(store.dispatch).not.toHaveBeenCalled();
+            expect(dialogRef.disableClose).toBe(false);
         });
 
         it('accepts a bare HTTP host but rejects an address without a protocol', () => {
@@ -871,6 +875,9 @@ describe('PlaylistInfoComponent', () => {
             expect(control?.valid).toBe(false);
 
             control?.setValue('https://portal.example.com');
+            expect(control?.valid).toBe(true);
+
+            control?.setValue('HTTP://portal.example.com/c');
             expect(control?.valid).toBe(true);
         });
 

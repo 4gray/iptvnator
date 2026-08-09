@@ -69,6 +69,9 @@ export class StalkerEditedSessionCoordinator {
 
     async beginEdit(playlist: Playlist): Promise<StalkerEditFence> {
         const playlistId = playlist._id;
+        if (this.pendingEdits.has(playlistId)) {
+            throw new Error('Stalker playlist edit already in progress');
+        }
         const fingerprint = stalkerSessionFingerprint(playlist);
         const fence = { playlistId, owner: Symbol('stalker-edit') };
         this.pendingEdits.set(playlistId, {
