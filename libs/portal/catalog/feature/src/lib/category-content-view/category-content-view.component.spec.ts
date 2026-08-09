@@ -11,6 +11,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EMPTY, ReplaySubject, of } from 'rxjs';
+import { InfiniteScrollDirective } from '@iptvnator/portal/shared/ui';
 import {
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
@@ -25,16 +26,13 @@ import { CategoryContentViewComponent } from './category-content-view.component'
 })
 class MockGridListComponent {
     readonly isLoading = input<boolean>();
+    readonly isAppending = input<boolean>();
+    readonly appendError = input<boolean>();
     readonly items = input<unknown[]>();
-    readonly pageIndex = input<number>();
-    readonly totalPages = input<number>();
-    readonly limit = input<number>();
-    readonly pageSizeOptions = input<number[]>();
-    readonly showPaginator = input(true);
     readonly searchTerm = input<string>('');
     readonly type = input<string>('');
     readonly itemClicked = output<unknown>();
-    readonly pageChange = output<unknown>();
+    readonly retryLoadMore = output<void>();
 }
 
 @Component({
@@ -67,8 +65,12 @@ describe('CategoryContentViewComponent', () => {
     const contentSortMode = signal<PortalCatalogSortMode | null>(null);
     const minRating = signal<number | null>(null);
     const selectedItem = signal<Record<string, unknown> | null>(null);
+    const hasMore = signal(false);
+    const isAppending = signal(false);
+    const appendError = signal(false);
     const catalog = {
         provider: 'xtream' as 'xtream' | 'stalker',
+        supportsInfiniteScroll: false as boolean,
         pageSizeOptions: [10, 25, 50],
         contentType: signal('vod'),
         limit: signal(25),
@@ -79,6 +81,9 @@ describe('CategoryContentViewComponent', () => {
         categoryItemCount,
         selectedItem,
         totalPages: signal(0),
+        hasMore,
+        isAppending,
+        appendError,
         contentSortMode,
         supportsRatingSort: true,
         minRating,
@@ -89,6 +94,10 @@ describe('CategoryContentViewComponent', () => {
         clearSelectedItem: jest.fn(),
         setPage: jest.fn(),
         setLimit: jest.fn(),
+        loadMore: jest.fn(),
+        retryAppend: jest.fn(),
+        saveScrollPosition: jest.fn(),
+        consumeSavedScrollPosition: jest.fn().mockReturnValue(null),
         setContentSortMode: jest.fn(),
         setMinRating: jest.fn(),
         selectItem: jest.fn().mockReturnValue(null),
@@ -99,16 +108,25 @@ describe('CategoryContentViewComponent', () => {
     beforeEach(async () => {
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
+        catalog.supportsInfiniteScroll = false;
         selectedItem.set(null);
         isPaginatedContentLoading.set(true);
         categoryItemCount.set(0);
         contentSortMode.set(null);
         catalog.supportsRatingSort = true;
         minRating.set(null);
+        hasMore.set(false);
+        isAppending.set(false);
+        appendError.set(false);
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
         catalog.setPage.mockClear();
         catalog.setLimit.mockClear();
+        catalog.loadMore.mockClear();
+        catalog.retryAppend.mockClear();
+        catalog.saveScrollPosition.mockClear();
+        catalog.consumeSavedScrollPosition.mockClear();
+        catalog.consumeSavedScrollPosition.mockReturnValue(null);
         catalog.setContentSortMode.mockClear();
         catalog.setMinRating.mockClear();
         catalog.selectItem.mockClear();
@@ -177,6 +195,7 @@ describe('CategoryContentViewComponent', () => {
                 set: {
                     imports: [
                         NgComponentOutlet,
+                        InfiniteScrollDirective,
                         MockGridListComponent,
                         MockPlaylistErrorViewComponent,
                         MatIcon,
@@ -553,5 +572,133 @@ describe('CategoryContentViewComponent', () => {
         detail = fixture.debugElement.query(By.directive(MockDetailComponent))
             .componentInstance as MockDetailComponent;
         expect(detail.providerOnly()).toBe(false);
+    });
+
+    describe('infinite scroll mode', () => {
+        let rafCallbacks: FrameRequestCallback[];
+
+        beforeEach(() => {
+            rafCallbacks = [];
+            jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+                (callback: FrameRequestCallback) => {
+                    rafCallbacks.push(callback);
+                    return rafCallbacks.length;
+                }
+            );
+            jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(
+                () => undefined
+            );
+        });
+
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        function createInfiniteFixture(): ComponentFixture<CategoryContentViewComponent> {
+            // The outer paged fixture shares ApplicationRef: an app-wide tick
+            // would run its ngOnInit and let it consume the same query params.
+            fixture.destroy();
+            catalog.supportsInfiniteScroll = true;
+            isPaginatedContentLoading.set(false);
+            return TestBed.createComponent(CategoryContentViewComponent);
+        }
+
+        function flushAnimationFrames(): void {
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+        }
+
+        it('renders no paginator and delegates loadMore to the facade', () => {
+            const infiniteFixture = createInfiniteFixture();
+            categoryItemCount.set(12);
+            catalog.paginatedContent.set([{ xtream_id: 1, title: 'A' }]);
+
+            infiniteFixture.detectChanges();
+
+            expect(
+                infiniteFixture.nativeElement.querySelector('mat-paginator')
+            ).toBeNull();
+
+            infiniteFixture.componentInstance.onLoadMore();
+            expect(catalog.loadMore).toHaveBeenCalledTimes(1);
+        });
+
+        it('strips a stale page query param instead of paging', () => {
+            const infiniteFixture = createInfiniteFixture();
+            queryParamMap$.next(convertToParamMap({ page: '3' }));
+
+            infiniteFixture.detectChanges();
+
+            expect(catalog.setPage).not.toHaveBeenCalled();
+            expect(router.navigate).toHaveBeenCalledWith(
+                [],
+                expect.objectContaining({
+                    queryParams: { page: null },
+                    replaceUrl: true,
+                })
+            );
+        });
+
+        it('saves the grid scroll position before opening a detail', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            Object.defineProperty(grid, 'scrollTop', {
+                configurable: true,
+                value: 333,
+            });
+
+            infiniteFixture.componentInstance.onItemClick({ xtream_id: 42 });
+
+            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
+        });
+
+        it('consumes a saved scroll position once the list is rendered', () => {
+            catalog.consumeSavedScrollPosition.mockReturnValue(500);
+            const infiniteFixture = createInfiniteFixture();
+
+            infiniteFixture.detectChanges();
+
+            expect(catalog.consumeSavedScrollPosition).toHaveBeenCalledTimes(
+                1
+            );
+
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            const scrollTo = jest.fn();
+            Object.defineProperty(grid, 'scrollTo', {
+                configurable: true,
+                value: scrollTo,
+            });
+
+            flushAnimationFrames();
+
+            expect(scrollTo).toHaveBeenCalledWith({ top: 500 });
+        });
+
+        it('scrolls the grid to the top when the reset key changes', () => {
+            const infiniteFixture = createInfiniteFixture();
+            contentSortMode.set('date-desc');
+            infiniteFixture.detectChanges();
+
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            const scrollTo = jest.fn();
+            Object.defineProperty(grid, 'scrollTo', {
+                configurable: true,
+                value: scrollTo,
+            });
+
+            contentSortMode.set('name-asc');
+            infiniteFixture.detectChanges();
+
+            expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+        });
     });
 });

@@ -1084,6 +1084,11 @@
             "ALL_LANGUAGES": "Minden nyelv",
             "SAME_AS_ABOVE": "ugyanaz, mint fent",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "További elemek betöltése…",
+            "LOAD_MORE_FAILED": "Nem sikerült több elemet betölteni",
+            "RETRY": "Újra"
         }
     },
     "INFORMATION": "Információk",

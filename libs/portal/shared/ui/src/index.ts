@@ -1,4 +1,5 @@
 export * from './lib/components/category-view/category-view.component';
+export * from './lib/directives/infinite-scroll.directive';
 export * from './lib/components/content-card/content-card.component';
 export * from './lib/components/content-rail-shell/content-rail-shell.component';
 export * from './lib/components/favorites-layout/favorites-layout.component';

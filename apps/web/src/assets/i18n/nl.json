@@ -1084,6 +1084,11 @@
             "ALL_LANGUAGES": "Alle talen",
             "SAME_AS_ABOVE": "zelfde als hierboven",
             "SHOWING_OF_TOTAL": "{{visible}} van {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "Meer laden…",
+            "LOAD_MORE_FAILED": "Kan geen extra items laden",
+            "RETRY": "Opnieuw proberen"
         }
     },
     "INFORMATION": "Informatie",

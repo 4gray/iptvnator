@@ -1084,6 +1084,11 @@
             "ALL_LANGUAGES": "すべての言語",
             "SAME_AS_ABOVE": "上と同じ",
             "SHOWING_OF_TOTAL": "{{total}}件中{{visible}}件"
+        },
+        "GRID": {
+            "LOADING_MORE": "さらに読み込み中…",
+            "LOAD_MORE_FAILED": "追加の項目を読み込めませんでした",
+            "RETRY": "再試行"
         }
     },
     "INFORMATION": "情報",

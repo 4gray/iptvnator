@@ -1084,6 +1084,11 @@
             "ALL_LANGUAGES": "كل اللغات",
             "SAME_AS_ABOVE": "بحال اللي الفوق",
             "SHOWING_OF_TOTAL": "{{visible}} من {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "جارٍ تحميل المزيد…",
+            "LOAD_MORE_FAILED": "تعذر تحميل المزيد من العناصر",
+            "RETRY": "عاود المحاولة"
         }
     },
     "INFORMATION": "معلومات",

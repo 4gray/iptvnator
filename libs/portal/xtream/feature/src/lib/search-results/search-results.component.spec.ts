@@ -368,6 +368,10 @@ describe('SearchResultsComponent initialQuery contract', () => {
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         store.searchResults.set([createSearchItem()]);
         component.hasMoreGlobalResults.set(true);
+        // Appends only continue the last executed search.
+        (
+            component as unknown as { lastGlobalSearchTerm: string }
+        ).lastGlobalSearchTerm = 'matrix';
 
         const appendPromise = component.searchGlobal(
             'matrix',
@@ -418,6 +422,10 @@ describe('SearchResultsComponent initialQuery contract', () => {
             }
         ).globalSearchResults = signal([]);
         component.hasMoreGlobalResults.set(true);
+        // Appends only continue the last executed search.
+        (
+            component as unknown as { lastGlobalSearchTerm: string }
+        ).lastGlobalSearchTerm = 'matrix';
 
         await component.searchGlobal('matrix', ['movie'], false, true);
 
@@ -432,5 +440,143 @@ describe('SearchResultsComponent initialQuery contract', () => {
             }
         );
         expect(store.searchResults()).toHaveLength(2);
+    });
+
+    it('refuses to append pages while an edited query is still debouncing', async () => {
+        // Regression: the auto-fill can request more results right after the
+        // reset identity changes, i.e. inside the 300ms search debounce. An
+        // append with the edited term would fetch a page of the NEW query at
+        // the OLD offset and interleave it into the old query's results.
+        const firstPage = Array.from({ length: 101 }, (_, index) =>
+            createSearchItem({
+                id: index + 1,
+                title: `Result ${index + 1}`,
+                xtream_id: index + 1,
+            })
+        );
+        const databaseService = TestBed.inject(DatabaseService) as {
+            globalSearchContent: jest.Mock;
+        };
+        databaseService.globalSearchContent.mockResolvedValueOnce(firstPage);
+
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: true,
+                    },
+                    undefined
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        await component.searchGlobal('matrix', ['movie'], false);
+        expect(component.hasMoreGlobalResults()).toBe(true);
+        databaseService.globalSearchContent.mockClear();
+
+        // The user edits the query; the fresh offset-zero search has not run
+        // yet (debounce pending), so appending must be refused entirely.
+        store.searchTerm.set('matrix reloaded');
+        await component.loadMoreGlobalResults();
+
+        expect(databaseService.globalSearchContent).not.toHaveBeenCalled();
+        expect(component.isLoadingMoreGlobalResults()).toBe(false);
+    });
+});
+
+describe('SearchResultsComponent in-portal result window', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: XtreamStore,
+                    useClass: MockXtreamStore,
+                },
+                {
+                    provide: Router,
+                    useValue: { navigate: jest.fn() },
+                },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: {
+                            data: { layout: 'workspace' },
+                            queryParamMap: convertToParamMap({ q: '' }),
+                        },
+                        queryParamMap: of(convertToParamMap({ q: '' })),
+                    },
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: {
+                        globalSearchContent: jest.fn().mockResolvedValue([]),
+                    },
+                },
+            ],
+        });
+    });
+
+    it('windows the full result set, reveals further chunks, and resets on a new result set', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const component = TestBed.runInInjectionContext(
+            () => new SearchResultsComponent(null, undefined)
+        );
+        const items = Array.from({ length: 130 }, (_, index) =>
+            createSearchItem({
+                id: index + 1,
+                xtream_id: index + 1,
+                title: `Item ${index + 1}`,
+            })
+        );
+        store.searchResults.set(items);
+
+        expect(component.isGlobalSearch).toBe(false);
+        expect(component.visibleInPortalResults()).toHaveLength(60);
+        expect(component.renderedSearchResultsCount()).toBe(60);
+        expect(component.hasMoreSearchResults()).toBe(true);
+
+        component.onResultsNearEnd();
+        expect(component.visibleInPortalResults()).toHaveLength(120);
+        // The layout re-measures on the RENDERED count — it must follow the
+        // window, not the constant 130-item total.
+        expect(component.renderedSearchResultsCount()).toBe(120);
+
+        component.onResultsNearEnd();
+        expect(component.visibleInPortalResults()).toHaveLength(130);
+        expect(component.hasMoreSearchResults()).toBe(false);
+
+        // Growing past the total is a no-op.
+        component.onResultsNearEnd();
+        expect(component.visibleInPortalResults()).toHaveLength(130);
+
+        // A replaced result set resets the window to the first chunk.
+        store.searchResults.set(items.slice(0, 90));
+        expect(component.visibleInPortalResults()).toHaveLength(60);
+        expect(component.hasMoreSearchResults()).toBe(true);
+    });
+
+    it('changes the reset identity on filter-only transitions', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const component = TestBed.runInInjectionContext(
+            () => new SearchResultsComponent(null, undefined)
+        );
+
+        const initialIdentity = component.searchResetIdentity();
+
+        // Same term, different type filters — the result set is replaced, so
+        // the identity feeding the layout's near-end latch must change.
+        store.searchFilters.set({ live: false, movie: true, series: true });
+        expect(component.searchResetIdentity()).not.toBe(initialIdentity);
+
+        const filteredIdentity = component.searchResetIdentity();
+        try {
+            component.toggleExcludeHidden(true);
+            expect(component.searchResetIdentity()).not.toBe(
+                filteredIdentity
+            );
+        } finally {
+            // toggleExcludeHidden persists; do not leak into other tests.
+            localStorage.removeItem('xtream-search-exclude-hidden');
+        }
     });
 });
