@@ -230,6 +230,55 @@ describe('SettingsAppUpdateFacade', () => {
         );
     });
 
+    it('survives an error push that beats the install reply', async () => {
+        // IPC ordering between the invoke reply and status pushes is not
+        // guaranteed: the failure can arrive first, and the stale
+        // 'downloaded' reply must not re-suspend the protection the
+        // failure already restored.
+        const unloadGuard = TestBed.inject(SettingsUnloadGuardService);
+        let resolveInstall: (
+            status: ElectronBridgeAppUpdateStatus
+        ) => void = () => undefined;
+        (window.electron.installAppUpdate as jest.Mock).mockImplementation(
+            () =>
+                new Promise<ElectronBridgeAppUpdateStatus>((resolve) => {
+                    resolveInstall = resolve;
+                })
+        );
+        facade.init();
+        const pushStatus = (
+            window.electron.onAppUpdateStatusChange as jest.Mock
+        ).mock.calls[0][0] as (
+            status: ElectronBridgeAppUpdateStatus
+        ) => void;
+
+        const install = facade.installAppUpdate();
+
+        pushStatus({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+        expect(unloadGuard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(
+            1
+        );
+
+        resolveInstall({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        });
+        await install;
+
+        expect(unloadGuard.suspendForAppQuit).toHaveBeenCalledTimes(1);
+        // A later push must find nothing left to resume.
+        pushStatus({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+        expect(unloadGuard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(
+            1
+        );
+    });
+
     it('opens the manual release URL from unsupported update status', () => {
         const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
         facade.status.set({

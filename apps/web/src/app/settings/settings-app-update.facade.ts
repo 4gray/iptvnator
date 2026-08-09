@@ -78,28 +78,37 @@ export class SettingsAppUpdateFacade {
         // strand the install. A 'downloaded' reply means quitAndInstall ran
         // and the app is going down; anything else — including a rejected
         // IPC — means no quit happened, so the protection comes back.
+        // electron-updater can also report the failure as a later 'error'
+        // status push instead (bindStatusEvents handles that).
         this.unloadGuard.suspendForAppQuit();
+        // Armed before the IPC round trip: the error push can beat the
+        // invoke reply, and the status listener must already see the
+        // pending quit to resume the guard. The 'downloaded' reply
+        // deliberately does not re-arm it — if the push won the race,
+        // re-arming would re-suspend a protection the failure just
+        // restored.
+        this.installQuitPending = true;
 
         try {
             const status = await window.electron.installAppUpdate();
             this.status.set(status);
 
             if (
-                status?.status ===
+                status?.status !==
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
             ) {
-                // quitAndInstall ran, but electron-updater reports its
-                // failures as a later 'error' status push rather than here —
-                // the status stream (bindStatusEvents) resumes the guard if
-                // that happens instead of a quit.
-                this.installQuitPending = true;
-            } else {
-                this.unloadGuard.resumeAfterAbortedAppQuit();
+                this.abortInstallQuit();
             }
         } catch (error) {
-            this.unloadGuard.resumeAfterAbortedAppQuit();
+            this.abortInstallQuit();
             throw error;
         }
+    }
+
+    /** The promised quit is not happening: restore the unload protection. */
+    private abortInstallQuit(): void {
+        this.installQuitPending = false;
+        this.unloadGuard.resumeAfterAbortedAppQuit();
     }
 
     openManualAppUpdate(): void {
@@ -206,8 +215,7 @@ export class SettingsAppUpdateFacade {
                     status.status !==
                         ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
                 ) {
-                    this.installQuitPending = false;
-                    this.unloadGuard.resumeAfterAbortedAppQuit();
+                    this.abortInstallQuit();
                 }
             }
         );
