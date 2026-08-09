@@ -586,17 +586,22 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it('aborts a guarded metadata update when the queued row no longer matches', async () => {
+    it('aborts a guarded metadata update in one readwrite transaction when the row no longer matches', async () => {
         const replacementPlaylist = {
             _id: 'stalker-replaced',
             title: 'Restored Portal',
             portalUrl: 'https://restored.example.com/portal.php',
         } as Playlist;
+        const cursorUpdate = jest.fn();
         const dbService = {
             getAll: jest.fn(() => of([])),
-            getByID: jest.fn(() => of(replacementPlaylist)),
-            update: jest.fn((_storeName: string, playlist: Playlist) =>
-                of(playlist)
+            getByID: jest.fn(),
+            update: jest.fn(),
+            openCursor: jest.fn(() =>
+                of({
+                    value: replacementPlaylist,
+                    update: cursorUpdate,
+                })
             ),
         };
         testWindow.electron = undefined;
@@ -616,6 +621,96 @@ describe('PlaylistsService', () => {
             )
         ).resolves.toBeNull();
 
+        expect(dbService.openCursor).toHaveBeenCalledWith({
+            storeName: DbStores.Playlists,
+            query: replacementPlaylist._id,
+            mode: 'readwrite',
+        });
+        expect(cursorUpdate).not.toHaveBeenCalled();
+        expect(dbService.getByID).not.toHaveBeenCalled();
+        expect(dbService.update).not.toHaveBeenCalled();
+    });
+
+    it('merges and commits a matching guarded browser update through its cursor', async () => {
+        const currentPlaylist = {
+            _id: 'stalker-guarded-write',
+            title: 'Original Portal',
+            portalUrl: 'https://original.example.com/portal.php',
+            macAddress: '00:1A:79:00:00:01',
+        } as Playlist;
+        const cursorUpdate = jest.fn();
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            openCursor: jest.fn(() =>
+                of({
+                    value: currentPlaylist,
+                    update: cursorUpdate,
+                })
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        const result = await firstValueFrom(
+            service.updatePlaylistMetaIfCurrent(
+                {
+                    _id: currentPlaylist._id,
+                    portalUrl: 'https://resolved.example.com/server/load.php',
+                    stalkerSessionPatch: null,
+                } as never,
+                (current) => current.portalUrl === currentPlaylist.portalUrl
+            )
+        );
+
+        expect(cursorUpdate).toHaveBeenCalledWith(result);
+        expect(result).toEqual(
+            expect.objectContaining({
+                title: currentPlaylist.title,
+                portalUrl: 'https://resolved.example.com/server/load.php',
+                macAddress: currentPlaylist.macAddress,
+                stalkerToken: undefined,
+            })
+        );
+    });
+
+    it('commits a browser conditional transform through the same readwrite cursor', async () => {
+        const currentPlaylist = {
+            _id: 'stalker-cursor-write',
+            title: 'Original Portal',
+            portalUrl: 'https://original.example.com/portal.php',
+        } as Playlist;
+        const cursorUpdate = jest.fn();
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(),
+            update: jest.fn(),
+            openCursor: jest.fn(() =>
+                of({
+                    value: currentPlaylist,
+                    update: cursorUpdate,
+                })
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        const result = await firstValueFrom(
+            service.transformPlaylistMeta(currentPlaylist._id, (current) => ({
+                ...current,
+                portalUrl: 'https://resolved.example.com/server/load.php',
+            }))
+        );
+
+        expect(dbService.openCursor).toHaveBeenCalledWith({
+            storeName: DbStores.Playlists,
+            query: currentPlaylist._id,
+            mode: 'readwrite',
+        });
+        expect(cursorUpdate).toHaveBeenCalledWith(result);
+        expect(result?.portalUrl).toBe(
+            'https://resolved.example.com/server/load.php'
+        );
+        expect(dbService.getByID).not.toHaveBeenCalled();
         expect(dbService.update).not.toHaveBeenCalled();
     });
 

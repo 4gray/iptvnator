@@ -7,7 +7,7 @@ import {
     createPlaylistObject,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { DBMode, NgxIndexedDBService } from 'ngx-indexed-db';
 import {
     combineLatest,
     defer,
@@ -441,6 +441,36 @@ export class PlaylistsService {
         );
     }
 
+    private transformIndexedDbPlaylistMeta(
+        playlistId: string,
+        transform: (current: Playlist) => Playlist | null
+    ): Promise<Playlist | null> {
+        return new Promise((resolve, reject) => {
+            let nextPlaylist: Playlist | null = null;
+            this.dbService
+                .openCursor<Playlist>({
+                    storeName: DbStores.Playlists,
+                    query: playlistId,
+                    mode: DBMode.readwrite,
+                })
+                .subscribe({
+                    next: (cursor) => {
+                        try {
+                            nextPlaylist = transform(cursor.value);
+                            if (nextPlaylist !== null) {
+                                cursor.update(nextPlaylist);
+                            }
+                        } catch (error) {
+                            cursor.request.transaction?.abort();
+                            reject(error);
+                        }
+                    },
+                    error: reject,
+                    complete: () => resolve(nextPlaylist),
+                });
+        });
+    }
+
     getAllPlaylists() {
         if (this.isElectronStorageAvailable) {
             return this.runOnSqlite(async () => {
@@ -631,7 +661,7 @@ export class PlaylistsService {
         return this.updatePlaylistMetaInQueue(updatedPlaylist);
     }
 
-    /** Applies a meta update only while the queued current row still matches. */
+    /** Applies a meta update only while the storage-current row still matches. */
     updatePlaylistMetaIfCurrent(
         updatedPlaylist: PlaylistMetaUpdate,
         isCurrent: (playlist: Playlist) => boolean
@@ -651,132 +681,147 @@ export class PlaylistsService {
         isCurrent?: (playlist: Playlist) => boolean
     ): Observable<Playlist | null> {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
+            if (isCurrent && !this.isElectronStorageAvailable) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                return this.transformIndexedDbPlaylistMeta(
+                    updatedPlaylist._id,
+                    (current) =>
+                        isCurrent(current)
+                            ? this.mergePlaylistMeta(current, updatedPlaylist)
+                            : null
+                );
+            }
+
             const playlist = await firstValueFrom(
                 this.getPlaylistById(updatedPlaylist._id)
             );
             if (isCurrent && !isCurrent(playlist)) {
                 return null;
             }
-            const epgSourceState = resolvePlaylistEpgSourceState({
-                detectedEpgUrls:
-                    updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,
-                enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,
-                manualEpgUrls:
-                    updatedPlaylist.manualEpgUrls ?? playlist.manualEpgUrls,
-                disabledEpgUrls:
-                    updatedPlaylist.disabledEpgUrls ?? playlist.disabledEpgUrls,
-            });
-            const nextPlaylist: Playlist = {
-                ...playlist,
-                ...(updatedPlaylist.title != null
-                    ? { title: updatedPlaylist.title }
-                    : {}),
-                ...(updatedPlaylist.autoRefresh != null
-                    ? { autoRefresh: updatedPlaylist.autoRefresh }
-                    : {}),
-                ...(updatedPlaylist.userAgent != null
-                    ? { userAgent: updatedPlaylist.userAgent }
-                    : {}),
-                ...(updatedPlaylist.referrer !== undefined
-                    ? { referrer: updatedPlaylist.referrer }
-                    : {}),
-                ...(updatedPlaylist.origin !== undefined
-                    ? { origin: updatedPlaylist.origin }
-                    : {}),
-                ...(updatedPlaylist.serverUrl != null
-                    ? { serverUrl: updatedPlaylist.serverUrl }
-                    : {}),
-                ...(updatedPlaylist.portalUrl != null
-                    ? { portalUrl: updatedPlaylist.portalUrl }
-                    : {}),
-                ...(updatedPlaylist.isFullStalkerPortal !== undefined
-                    ? {
-                          isFullStalkerPortal:
-                              updatedPlaylist.isFullStalkerPortal,
-                      }
-                    : {}),
-                ...(updatedPlaylist.macAddress != null
-                    ? { macAddress: updatedPlaylist.macAddress }
-                    : {}),
-                ...(updatedPlaylist.username != null
-                    ? { username: updatedPlaylist.username }
-                    : {}),
-                ...(updatedPlaylist.password != null
-                    ? { password: updatedPlaylist.password }
-                    : {}),
-                ...(updatedPlaylist.favorites != null
-                    ? { favorites: updatedPlaylist.favorites }
-                    : {}),
-                ...(updatedPlaylist.recentlyViewed != null
-                    ? { recentlyViewed: updatedPlaylist.recentlyViewed }
-                    : {}),
-                ...(updatedPlaylist.hiddenGroupTitles != null
-                    ? {
-                          hiddenGroupTitles: updatedPlaylist.hiddenGroupTitles,
-                      }
-                    : {}),
-                ...(updatedPlaylist.detectedEpgUrls !== undefined
-                    ? { detectedEpgUrls: epgSourceState.detectedEpgUrls }
-                    : {}),
-                ...(updatedPlaylist.manualEpgUrls !== undefined
-                    ? { manualEpgUrls: epgSourceState.manualEpgUrls }
-                    : {}),
-                ...(updatedPlaylist.disabledEpgUrls !== undefined
-                    ? { disabledEpgUrls: epgSourceState.disabledEpgUrls }
-                    : {}),
-                ...(updatedPlaylist.epgUrls !== undefined ||
-                updatedPlaylist.detectedEpgUrls !== undefined ||
-                updatedPlaylist.manualEpgUrls !== undefined ||
-                updatedPlaylist.disabledEpgUrls !== undefined
-                    ? { epgUrls: epgSourceState.epgUrls }
-                    : {}),
-                ...(updatedPlaylist.updateDate !== undefined
-                    ? { updateDate: updatedPlaylist.updateDate }
-                    : {}),
-                ...(updatedPlaylist.stalkerSerialNumber !== undefined
-                    ? {
-                          stalkerSerialNumber:
-                              updatedPlaylist.stalkerSerialNumber,
-                      }
-                    : {}),
-                ...(updatedPlaylist.stalkerDeviceId1 !== undefined
-                    ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
-                    : {}),
-                ...(updatedPlaylist.stalkerDeviceId2 !== undefined
-                    ? { stalkerDeviceId2: updatedPlaylist.stalkerDeviceId2 }
-                    : {}),
-                ...(updatedPlaylist.stalkerSignature1 !== undefined
-                    ? {
-                          stalkerSignature1: updatedPlaylist.stalkerSignature1,
-                      }
-                    : {}),
-                ...(updatedPlaylist.stalkerSignature2 !== undefined
-                    ? {
-                          stalkerSignature2: updatedPlaylist.stalkerSignature2,
-                      }
-                    : {}),
-                ...(updatedPlaylist.stalkerSessionPatch !== undefined
-                    ? {
-                          stalkerToken:
-                              updatedPlaylist.stalkerSessionPatch?.stalkerToken,
-                          stalkerSessionIdentity:
-                              updatedPlaylist.stalkerSessionPatch
-                                  ?.stalkerSessionIdentity,
-                          stalkerWatchdogTimeout:
-                              updatedPlaylist.stalkerSessionPatch
-                                  ?.stalkerWatchdogTimeout,
-                          stalkerTimeslot:
-                              updatedPlaylist.stalkerSessionPatch
-                                  ?.stalkerTimeslot,
-                          stalkerAccountInfo:
-                              updatedPlaylist.stalkerSessionPatch
-                                  ?.stalkerAccountInfo,
-                      }
-                    : {}),
-            };
-
-            return this.persistPlaylistMutation(nextPlaylist);
+            return this.persistPlaylistMutation(
+                this.mergePlaylistMeta(playlist, updatedPlaylist)
+            );
         });
+    }
+
+    private mergePlaylistMeta(
+        playlist: Playlist,
+        updatedPlaylist: PlaylistMetaUpdate
+    ): Playlist {
+        const epgSourceState = resolvePlaylistEpgSourceState({
+            detectedEpgUrls:
+                updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,
+            enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,
+            manualEpgUrls:
+                updatedPlaylist.manualEpgUrls ?? playlist.manualEpgUrls,
+            disabledEpgUrls:
+                updatedPlaylist.disabledEpgUrls ?? playlist.disabledEpgUrls,
+        });
+        return {
+            ...playlist,
+            ...(updatedPlaylist.title != null
+                ? { title: updatedPlaylist.title }
+                : {}),
+            ...(updatedPlaylist.autoRefresh != null
+                ? { autoRefresh: updatedPlaylist.autoRefresh }
+                : {}),
+            ...(updatedPlaylist.userAgent != null
+                ? { userAgent: updatedPlaylist.userAgent }
+                : {}),
+            ...(updatedPlaylist.referrer !== undefined
+                ? { referrer: updatedPlaylist.referrer }
+                : {}),
+            ...(updatedPlaylist.origin !== undefined
+                ? { origin: updatedPlaylist.origin }
+                : {}),
+            ...(updatedPlaylist.serverUrl != null
+                ? { serverUrl: updatedPlaylist.serverUrl }
+                : {}),
+            ...(updatedPlaylist.portalUrl != null
+                ? { portalUrl: updatedPlaylist.portalUrl }
+                : {}),
+            ...(updatedPlaylist.isFullStalkerPortal !== undefined
+                ? {
+                      isFullStalkerPortal: updatedPlaylist.isFullStalkerPortal,
+                  }
+                : {}),
+            ...(updatedPlaylist.macAddress != null
+                ? { macAddress: updatedPlaylist.macAddress }
+                : {}),
+            ...(updatedPlaylist.username != null
+                ? { username: updatedPlaylist.username }
+                : {}),
+            ...(updatedPlaylist.password != null
+                ? { password: updatedPlaylist.password }
+                : {}),
+            ...(updatedPlaylist.favorites != null
+                ? { favorites: updatedPlaylist.favorites }
+                : {}),
+            ...(updatedPlaylist.recentlyViewed != null
+                ? { recentlyViewed: updatedPlaylist.recentlyViewed }
+                : {}),
+            ...(updatedPlaylist.hiddenGroupTitles != null
+                ? {
+                      hiddenGroupTitles: updatedPlaylist.hiddenGroupTitles,
+                  }
+                : {}),
+            ...(updatedPlaylist.detectedEpgUrls !== undefined
+                ? { detectedEpgUrls: epgSourceState.detectedEpgUrls }
+                : {}),
+            ...(updatedPlaylist.manualEpgUrls !== undefined
+                ? { manualEpgUrls: epgSourceState.manualEpgUrls }
+                : {}),
+            ...(updatedPlaylist.disabledEpgUrls !== undefined
+                ? { disabledEpgUrls: epgSourceState.disabledEpgUrls }
+                : {}),
+            ...(updatedPlaylist.epgUrls !== undefined ||
+            updatedPlaylist.detectedEpgUrls !== undefined ||
+            updatedPlaylist.manualEpgUrls !== undefined ||
+            updatedPlaylist.disabledEpgUrls !== undefined
+                ? { epgUrls: epgSourceState.epgUrls }
+                : {}),
+            ...(updatedPlaylist.updateDate !== undefined
+                ? { updateDate: updatedPlaylist.updateDate }
+                : {}),
+            ...(updatedPlaylist.stalkerSerialNumber !== undefined
+                ? {
+                      stalkerSerialNumber: updatedPlaylist.stalkerSerialNumber,
+                  }
+                : {}),
+            ...(updatedPlaylist.stalkerDeviceId1 !== undefined
+                ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
+                : {}),
+            ...(updatedPlaylist.stalkerDeviceId2 !== undefined
+                ? { stalkerDeviceId2: updatedPlaylist.stalkerDeviceId2 }
+                : {}),
+            ...(updatedPlaylist.stalkerSignature1 !== undefined
+                ? {
+                      stalkerSignature1: updatedPlaylist.stalkerSignature1,
+                  }
+                : {}),
+            ...(updatedPlaylist.stalkerSignature2 !== undefined
+                ? {
+                      stalkerSignature2: updatedPlaylist.stalkerSignature2,
+                  }
+                : {}),
+            ...(updatedPlaylist.stalkerSessionPatch !== undefined
+                ? {
+                      stalkerToken:
+                          updatedPlaylist.stalkerSessionPatch?.stalkerToken,
+                      stalkerSessionIdentity:
+                          updatedPlaylist.stalkerSessionPatch
+                              ?.stalkerSessionIdentity,
+                      stalkerWatchdogTimeout:
+                          updatedPlaylist.stalkerSessionPatch
+                              ?.stalkerWatchdogTimeout,
+                      stalkerTimeslot:
+                          updatedPlaylist.stalkerSessionPatch?.stalkerTimeslot,
+                      stalkerAccountInfo:
+                          updatedPlaylist.stalkerSessionPatch
+                              ?.stalkerAccountInfo,
+                  }
+                : {}),
+        };
     }
 
     /**
@@ -867,13 +912,11 @@ export class PlaylistsService {
     }
 
     /**
-     * Applies an atomic, conditional meta mutation: the transform runs on
-     * the freshly read row INSIDE the per-playlist write queue and may
-     * return null to abort without writing. Callers use this when the
-     * decision to write depends on the row's CURRENT state — e.g. the lazy
-     * Stalker portal repair verifying the row still carries the
-     * configuration it probed; a plain read-check-then-update pair would
-     * race a user edit already queued but not yet committed.
+     * Applies an atomic, conditional meta mutation. Electron uses the
+     * per-playlist write queue; IndexedDB additionally performs the read,
+     * predicate, and cursor update in one readwrite transaction so another
+     * browser context cannot interleave a replacement. The transform may
+     * return null to abort without writing.
      */
     transformPlaylistMeta(
         playlistId: string,
@@ -884,6 +927,14 @@ export class PlaylistsService {
         }
 
         return this.serializePlaylistWrite(playlistId, async () => {
+            if (!this.isElectronStorageAvailable) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                return this.transformIndexedDbPlaylistMeta(
+                    playlistId,
+                    transform
+                );
+            }
+
             const playlist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );

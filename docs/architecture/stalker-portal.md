@@ -215,12 +215,15 @@ to merge only the resolved connection/session fields into the current row, so
 a newer title, EPG, or other metadata edit wins. The returned merged row feeds
 the state-only update, while dialog close and success UI are suppressed after
 destruction. Both the ordinary resolved metadata update and this late transform
-require the queued current row to retain the source connection authority
-captured when Edit began; delete/restore or replacement under the same ID
-therefore aborts instead of receiving a portal/session write. A row identified
-by its persisted `portalUrl` stays on the Stalker save path even if legacy
-Xtream fields remain, so an unrelated Xtream write
-cannot strand the Edit reservation. Before discovery starts, Edit reserves the
+require the storage-current row to retain the source connection authority
+captured when Edit began. Electron performs the check inside its per-playlist
+write queue; PWA performs the read, predicate, and cursor update in one
+IndexedDB readwrite transaction so another tab cannot interleave a replacement.
+Delete/restore or replacement under the same ID therefore aborts instead of
+receiving a portal/session write. A row identified by its persisted `portalUrl`
+stays on the Stalker save path even if legacy Xtream fields remain, so an
+unrelated Xtream write cannot strand the Edit reservation. Before discovery
+starts, Edit reserves the
 playlist ID; an
 overlapping Edit cannot replace that owner. The reservation blocks every new
 authentication (including a URL edit with the same normalized fingerprint) and
