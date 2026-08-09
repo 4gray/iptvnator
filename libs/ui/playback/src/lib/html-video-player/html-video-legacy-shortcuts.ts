@@ -1,4 +1,4 @@
-import { LegacyPlayerShortcuts } from '../player-controls';
+import { LegacyMuteMemory, LegacyPlayerShortcuts } from '../player-controls';
 import {
     applyVideoCurrentTime,
     applyVideoVolume,
@@ -21,6 +21,7 @@ export function attachHtmlVideoLegacyShortcuts(
     options: HtmlVideoLegacyShortcutOptions
 ): LegacyPlayerShortcuts {
     const shortcuts = new LegacyPlayerShortcuts();
+    const muteMemory = new LegacyMuteMemory();
     shortcuts.attach({
         isAvailable: options.isAvailable,
         hostElement: options.hostElement,
@@ -55,7 +56,12 @@ export function attachHtmlVideoLegacyShortcuts(
         },
         toggleMute: () => {
             const video = options.video();
-            video.muted = !video.muted;
+            if (video.muted) {
+                applyVideoVolume(video, muteMemory.unmuteVolume(video.volume));
+            } else {
+                muteMemory.rememberIfAudible(video.volume);
+                video.muted = true;
+            }
         },
     });
     return shortcuts;

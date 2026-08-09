@@ -1,4 +1,4 @@
-import { LegacyPlayerShortcuts } from '../player-controls';
+import { LegacyMuteMemory, LegacyPlayerShortcuts } from '../player-controls';
 import type { VideoJsPlayer } from './vjs-player.types';
 
 export interface VjsLegacyShortcutOptions {
@@ -17,6 +17,7 @@ export function attachVjsLegacyShortcuts(
     options: VjsLegacyShortcutOptions
 ): LegacyPlayerShortcuts {
     const shortcuts = new LegacyPlayerShortcuts();
+    const muteMemory = new LegacyMuteMemory();
     shortcuts.attach({
         isAvailable: options.isAvailable,
         hostElement: options.hostElement,
@@ -74,7 +75,16 @@ export function attachVjsLegacyShortcuts(
         },
         toggleMute: () => {
             const player = options.player();
-            player?.muted(!player.muted());
+            if (!player) {
+                return;
+            }
+            if (player.muted()) {
+                player.volume(muteMemory.unmuteVolume(player.volume() ?? 0));
+                player.muted(false);
+            } else {
+                muteMemory.rememberIfAudible(player.volume() ?? 0);
+                player.muted(true);
+            }
         },
     });
     return shortcuts;

@@ -1,5 +1,5 @@
 import type Artplayer from 'artplayer';
-import { LegacyPlayerShortcuts } from '../player-controls';
+import { LegacyMuteMemory, LegacyPlayerShortcuts } from '../player-controls';
 
 export interface ArtPlayerLegacyShortcutOptions {
     player: () => Artplayer | null;
@@ -21,6 +21,7 @@ export function attachArtPlayerLegacyShortcuts(
     options: ArtPlayerLegacyShortcutOptions
 ): LegacyPlayerShortcuts {
     const shortcuts = new LegacyPlayerShortcuts();
+    const muteMemory = new LegacyMuteMemory();
     shortcuts.attach({
         isAvailable: options.isAvailable,
         hostElement: options.hostElement,
@@ -71,8 +72,15 @@ export function attachArtPlayerLegacyShortcuts(
         },
         toggleMute: () => {
             const player = options.player();
-            if (player) {
-                player.muted = !player.muted;
+            if (!player) {
+                return;
+            }
+            if (player.muted) {
+                player.volume = muteMemory.unmuteVolume(player.volume);
+                player.muted = false;
+            } else {
+                muteMemory.rememberIfAudible(player.volume);
+                player.muted = true;
             }
         },
     });

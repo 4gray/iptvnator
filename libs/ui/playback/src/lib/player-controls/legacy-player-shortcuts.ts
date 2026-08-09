@@ -59,3 +59,26 @@ export class LegacyPlayerShortcuts {
         this.shortcuts.detach();
     }
 }
+
+/**
+ * Mute memory for the legacy engine adapters, mirroring the shared controls'
+ * `ControlsVolume`: muting remembers the audible volume, and unmuting while
+ * the volume sits at zero restores it (same 0.5 fallback), so M can never
+ * leave the player silently "unmuted".
+ */
+export class LegacyMuteMemory {
+    private lastAudibleVolume: number | null = null;
+
+    rememberIfAudible(volume: number): void {
+        if (Number.isFinite(volume) && volume > 0) {
+            this.lastAudibleVolume = volume;
+        }
+    }
+
+    unmuteVolume(currentVolume: number): number {
+        if (Number.isFinite(currentVolume) && currentVolume > 0) {
+            return currentVolume;
+        }
+        return this.lastAudibleVolume ?? 0.5;
+    }
+}

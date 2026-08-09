@@ -85,8 +85,34 @@ describe('attachHtmlVideoLegacyShortcuts', () => {
     it('toggles mute with M', () => {
         dispatchKey('m');
         expect(video.muted).toBe(true);
+        expect(video.volume).toBe(0.5);
         dispatchKey('m');
         expect(video.muted).toBe(false);
+        expect(video.volume).toBe(0.5);
+    });
+
+    it('restores an audible volume when unmuting from zero', () => {
+        video.volume = 0.03;
+        dispatchKey('ArrowDown');
+        expect(video.volume).toBe(0);
+        expect(video.muted).toBe(true);
+
+        dispatchKey('m');
+        expect(video.muted).toBe(false);
+        expect(video.volume).toBe(0.5);
+    });
+
+    it('restores the remembered volume when unmuting after mute zeroed out', () => {
+        video.volume = 0.7;
+        dispatchKey('m');
+        expect(video.muted).toBe(true);
+
+        dispatchKey('ArrowDown');
+        expect(video.volume).toBe(0);
+
+        dispatchKey('m');
+        expect(video.muted).toBe(false);
+        expect(video.volume).toBe(0.7);
     });
 
     it('fullscreens the video element itself with F', () => {
