@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from './stalker-session.service';
+import { stalkerSessionFingerprint } from './stalker-session-store';
 
 describe('Stalker edited-session coordination', () => {
     const oldPlaylist = {
@@ -19,10 +20,12 @@ describe('Stalker edited-session coordination', () => {
         value: Awaited<ReturnType<StalkerSessionService['authenticate']>>
     ) => void = () => undefined;
     let service: StalkerSessionService;
+    let getPlaylistById: jest.Mock;
     let updatePlaylistMeta: jest.Mock;
     let updateStalkerSession: jest.Mock;
 
     beforeEach(() => {
+        getPlaylistById = jest.fn(() => of(oldPlaylist));
         updatePlaylistMeta = jest.fn(() => of(oldPlaylist));
         updateStalkerSession = jest.fn(() => of(oldPlaylist));
         TestBed.configureTestingModule({
@@ -35,7 +38,7 @@ describe('Stalker edited-session coordination', () => {
                 {
                     provide: PlaylistsService,
                     useValue: {
-                        getPlaylistById: jest.fn(() => of(oldPlaylist)),
+                        getPlaylistById,
                         updatePlaylistMeta,
                         updateStalkerSession,
                     },
@@ -105,6 +108,24 @@ describe('Stalker edited-session coordination', () => {
 
         await expect(oldAuthentication).rejects.toThrow(/stale/i);
         const fence = await fencePromise;
+        service.cancelEditDiscovery(fence);
+    });
+
+    it('blocks new authentication while a same-fingerprint edit owns the playlist', async () => {
+        const textOnlyEdit = {
+            ...oldPlaylist,
+            portalUrl: `${oldPlaylist.portalUrl}/`,
+        };
+        expect(stalkerSessionFingerprint(textOnlyEdit)).toBe(
+            stalkerSessionFingerprint(oldPlaylist)
+        );
+        const fence = await service.beginEditDiscovery(textOnlyEdit);
+
+        await expect(service.ensureToken(oldPlaylist)).rejects.toThrow(
+            /stale/i
+        );
+        expect(authenticate).not.toHaveBeenCalled();
+
         service.cancelEditDiscovery(fence);
     });
 
@@ -208,5 +229,33 @@ describe('Stalker edited-session coordination', () => {
             token: 'RESTORED_TOKEN',
             serialNumber: undefined,
         });
+    });
+
+    it('rechecks edit ownership after an asynchronous authority rebase', async () => {
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            stalkerToken: 'NEW_TOKEN',
+        };
+        await service.replaceSessionAfterEdit(editedPlaylist);
+
+        const persistedRow = new Subject<Playlist>();
+        getPlaylistById.mockReturnValueOnce(persistedRow);
+        const restoredRequest = service.ensureToken(oldPlaylist);
+        while (getPlaylistById.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+
+        const fence = await service.beginEditDiscovery({
+            ...oldPlaylist,
+            username: 'new-user',
+        });
+        persistedRow.next(oldPlaylist);
+        persistedRow.complete();
+
+        await expect(restoredRequest).rejects.toThrow(/stale/i);
+        expect(authenticate).not.toHaveBeenCalled();
+
+        service.cancelEditDiscovery(fence);
     });
 });

@@ -40,14 +40,15 @@ export class StalkerEditedSessionCoordinator {
 
     async guard(playlist: Playlist): Promise<string> {
         const fingerprint = stalkerSessionFingerprint(playlist);
-        const pending = this.pendingEdits.get(playlist._id);
-        if (pending && pending.fingerprint !== fingerprint) {
-            throw new Error('Stale Stalker playlist configuration');
-        }
+        this.assertNoPendingEdit(playlist._id);
         const authoritative = this.authoritativeFingerprints.get(playlist._id);
-        if (!pending && authoritative && authoritative !== fingerprint) {
+        if (authoritative && authoritative !== fingerprint) {
             await this.rebaseFromPersistedRow(playlist, fingerprint);
         }
+        // The persisted-row lookup yields. An Edit that acquired the ID while
+        // it was in flight must still fence this request, even if the lookup
+        // proved that the caller owned the row before Edit began.
+        this.assertCurrent(playlist._id, fingerprint);
         const replacement = this.replacements.get(playlist._id);
         if (replacement) {
             await replacement;
@@ -57,9 +58,10 @@ export class StalkerEditedSessionCoordinator {
     }
 
     assertCurrent(playlistId: string, fingerprint: string): void {
-        const authoritative =
-            this.pendingEdits.get(playlistId)?.fingerprint ??
-            this.authoritativeFingerprints.get(playlistId);
+        // A reservation blocks every new authentication, including a
+        // text-only URL edit whose normalized session fingerprint is equal.
+        this.assertNoPendingEdit(playlistId);
+        const authoritative = this.authoritativeFingerprints.get(playlistId);
         if (authoritative && authoritative !== fingerprint) {
             throw new Error('Stale Stalker playlist configuration');
         }
@@ -197,6 +199,12 @@ export class StalkerEditedSessionCoordinator {
             pending.owner !== fence.owner ||
             pending.fingerprint !== fingerprint
         ) {
+            throw new Error('Stale Stalker playlist configuration');
+        }
+    }
+
+    private assertNoPendingEdit(playlistId: string): void {
+        if (this.pendingEdits.has(playlistId)) {
             throw new Error('Stale Stalker playlist configuration');
         }
     }

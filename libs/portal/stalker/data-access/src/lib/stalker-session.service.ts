@@ -391,6 +391,11 @@ export class StalkerSessionService {
         const portalUrl = playlist.portalUrl;
         const macAddress = playlist.macAddress;
 
+        // guard() may have yielded for a persisted-row authority rebase. An
+        // Edit can reserve the playlist before this continuation claims the
+        // token slot, so close that final pre-handshake window as well.
+        this.editedSessions.assertCurrent(playlist._id, fingerprint);
+
         // Create the authentication promise and store it to prevent concurrent auth attempts
         // Use async/await wrapper to properly clean up on both success and failure
         const authPromise = (async () => {

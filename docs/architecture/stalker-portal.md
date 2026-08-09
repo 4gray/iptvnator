@@ -200,8 +200,10 @@ does not run discovery and preserves the stored connection byte-for-byte.
 Changing any connection field disables the form while the same discovery
 service validates the draft. Auth rejection or an unreachable portal leaves
 the dialog open and writes nothing. Before discovery starts, Edit reserves the
-playlist, fences new authentication/repair work and drains any work already in
-flight; failure releases that reservation with the previous runtime untouched.
+playlist ID, blocks every new authentication (including a URL edit with the same
+normalized fingerprint) and repair, and drains any work already in flight.
+Ownership is rechecked after every asynchronous drain or authority rebase;
+failure releases that reservation with the previous runtime untouched.
 Success atomically replaces the endpoint, mode and normalized identity together
 with session metadata: simple mode
 clears token/fingerprint/watchdog/account state, while full mode replaces it
