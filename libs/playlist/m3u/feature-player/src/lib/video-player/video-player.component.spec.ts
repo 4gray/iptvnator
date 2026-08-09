@@ -685,6 +685,16 @@ describe('VideoPlayerComponent', () => {
             })
         );
 
+        // The DASH-forced inline player is not audible either while the
+        // managed clear-DASH fallback session is live.
+        syncStoreState({
+            ...sampleChannel,
+            url: 'http://localhost/live.mpd',
+        } as Channel);
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ supportsVolume: false })
+        );
+
         externalSession.set(null);
         fixture.detectChanges();
 

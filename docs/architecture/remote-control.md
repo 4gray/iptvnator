@@ -169,7 +169,7 @@ Implemented behavior:
     - `isLiveView: true`
     - channel name/number
     - EPG now fields
-    - `supportsVolume` reflects the EFFECTIVE playback: `true` for built-in inline playback (radio audio, the DASH-forced web player, HTML5/Video.js/ArtPlayer), `false` while MPV/VLC or Embedded MPV owns the audio — including a diagnostic-recovery "Open in MPV/VLC" launch while a web player remains configured (`isRemoteVolumeSupported` also checks the live external session, and an effect republishes the capability when the session starts or ends). The remote UI disables its volume buttons on `false`
+    - `supportsVolume` reflects the EFFECTIVE playback: `true` for built-in inline playback (radio audio, the DASH-forced web player, HTML5/Video.js/ArtPlayer), `false` while MPV/VLC or Embedded MPV owns the audio. `isRemoteVolumeSupported` checks in order: radio first (its inline audio element is always mounted, so it stays controllable even past a lingering external session), then a live external session (covers both a diagnostic-recovery "Open in MPV/VLC" launch while a web player remains configured AND the managed clear-DASH fallback after Shaka's browser-support preflight fails — the session check must precede the DASH shortcut), then the DASH-forced inline player, then the configured player setting. An effect republishes the capability when the session starts or ends. The remote UI disables its volume buttons on `false`
     - `volume`, `muted`
 - Cleans listeners/subscriptions and publishes the reset snapshot in `ngOnDestroy`.
 

@@ -1122,15 +1122,25 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         if (!channel) {
             return false;
         }
-        if (channel.radio === 'true' || this.activeChannelIsDash()) {
+        // Radio's audio element is always mounted inline, so it stays
+        // audible and controllable even if an older external session
+        // lingers.
+        if (channel.radio === 'true') {
             return true;
         }
 
-        // A diagnostic-recovery "Open in MPV/VLC" launch owns the audio even
-        // while a web player remains configured — the setting alone cannot
-        // answer who is audible.
+        // A live external session owns the audio regardless of how it
+        // started: a diagnostic-recovery "Open in MPV/VLC" launch while a
+        // web player remains configured, or the managed clear-DASH fallback
+        // after Shaka's browser-support preflight fails — the DASH-forced
+        // inline player is not audible then, so this check must precede the
+        // DASH shortcut.
         if (isLiveExternalPlayerSession(this.externalPlayback.activeSession())) {
             return false;
+        }
+
+        if (this.activeChannelIsDash()) {
+            return true;
         }
 
         const player = this.playerSettings.player;
