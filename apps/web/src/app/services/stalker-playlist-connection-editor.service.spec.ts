@@ -209,6 +209,37 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
         });
     });
 
+    it('keeps an abandoned authentication fenced until it settles', async () => {
+        let settleAuthentication: () => void = () => undefined;
+        const abandonedAuthenticationSettled = new Promise<void>((resolve) => {
+            settleAuthentication = resolve;
+        });
+        discovery.discover.mockResolvedValue({
+            status: 'auth-rejected',
+            portalUrl: 'https://portal.example.com/server/load.php',
+            abandonedInFlight: true,
+            abandonedAuthenticationSettled,
+        });
+
+        await expect(service.resolveConnection(draft)).resolves.toMatchObject({
+            status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
+        });
+
+        expect(stalkerSession.cancelEditDiscovery).not.toHaveBeenCalled();
+        expect(portalRepair.releasePlaylistEdit).not.toHaveBeenCalled();
+
+        settleAuthentication();
+        await abandonedAuthenticationSettled;
+        await Promise.resolve();
+
+        expect(stalkerSession.cancelEditDiscovery).toHaveBeenCalledWith(
+            expect.objectContaining({ playlistId: draft._id })
+        );
+        expect(portalRepair.releasePlaylistEdit).toHaveBeenCalledWith(
+            draft._id
+        );
+    });
+
     it('returns a dedicated error when no endpoint can be reached', async () => {
         discovery.discover.mockResolvedValue({ status: 'unreachable' });
 

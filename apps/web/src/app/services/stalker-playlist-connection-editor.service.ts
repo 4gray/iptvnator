@@ -136,7 +136,15 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         }
 
         if (outcome.status === 'auth-rejected') {
-            this.releaseEditFence(playlist._id, fence);
+            if (outcome.abandonedInFlight) {
+                this.releaseEditFenceAfterAuthenticationSettles(
+                    playlist._id,
+                    fence,
+                    outcome.abandonedAuthenticationSettled
+                );
+            } else {
+                this.releaseEditFence(playlist._id, fence);
+            }
             return {
                 status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
                 message: this.buildAuthErrorMessage(outcome.error),
@@ -228,6 +236,28 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         }
         this.stalkerSession.cancelEditDiscovery(fence);
         this.portalRepair.releasePlaylistEdit(playlistId);
+    }
+
+    private releaseEditFenceAfterAuthenticationSettles(
+        playlistId: string,
+        fence: StalkerEditFence,
+        authenticationSettled: Promise<void> | undefined
+    ): void {
+        // Fail closed if a producer ever reports an abandoned request without
+        // its lifetime. Releasing here would let a fresh session authenticate
+        // while the old get_profile can still land and invalidate its token.
+        if (!authenticationSettled) {
+            return;
+        }
+
+        void authenticationSettled.then(() => {
+            // The dialog may have been closed or a later owner may already
+            // have retired this exact reservation. Never release a different
+            // edit's counted repair fence from this late continuation.
+            if (this.editFences.get(playlistId) === fence) {
+                this.releaseEditFence(playlistId, fence);
+            }
+        });
     }
 
     private buildAuthErrorMessage(error: unknown): string {

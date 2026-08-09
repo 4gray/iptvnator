@@ -3,8 +3,8 @@ type: feature
 area: stalker
 ---
 
-Stalker setup now accepts a host or `/c` address, discovers the working API
-endpoint and authentication mode, and rechecks connection details edited
-later. Canceled or failed edits leave the saved playlist and active session
-unchanged. Completed edits reject requests still holding the previous portal
-configuration and discard their late responses.
+Stalker setup now accepts hosts or `/c`, discovers the working API endpoint and
+authentication mode, and rechecks edited connection details. Canceled or failed
+edits leave saved and active sessions unchanged. Completed edits reject old
+configuration requests and late responses. Timed-out authentication stays
+fenced until its transport settles.

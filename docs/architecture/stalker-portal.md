@@ -211,8 +211,10 @@ discovery starts, Edit reserves the playlist ID; an
 overlapping Edit cannot replace that owner. The reservation blocks every new
 authentication (including a URL edit with the same normalized fingerprint) and
 repair, and drains any work already in flight. Ownership is rechecked after
-every asynchronous drain or authority rebase; failure releases that reservation
-with the previous runtime untouched.
+every asynchronous drain or authority rebase. Ordinary failure releases that
+reservation with the previous runtime untouched; if a bounded discovery result
+still has an abandoned authentication on the wire, Edit keeps both reservations
+until the transport operation actually settles.
 Success atomically replaces the endpoint, mode and normalized identity together
 with session metadata: simple mode
 clears token/fingerprint/watchdog/account state, while full mode replaces it
@@ -753,11 +755,15 @@ plus the 15 s drain is one no transport can recall — the PWA `fetch()` takes n
 signal at all, and the Electron main process runs its HTTP request to
 completion. Advancing anyway would stake the next candidate's freshly issued
 session on that request never landing. So the rejection carries
-`abandonedInFlight` and the candidate loop returns instead of probing on,
+`abandonedInFlight` plus a settlement promise and the candidate loop returns
+instead of probing on,
 preferring an honest "could not confirm this portal" the user can retry over a
 session that looks established and dies later. It costs nothing in the normal
 case: an aborted attempt settles as soon as its in-flight request errors out,
-so the drain returns at once and the loop continues.
+so the drain returns at once and the loop continues. Edit may return that
+bounded error to the dialog, but its session and repair fences remain installed
+until the settlement promise resolves; catalog, watchdog, repair and retry
+authentication therefore cannot race the abandoned `get_profile`.
 
 The budget itself covers the longest real flow: a status-2 portal costs four
 sequential requests (handshake, profile, `do_auth`, profile retry) and the
