@@ -49,6 +49,7 @@ import {
     SettingsUnsavedChangesDialogComponent,
 } from './settings-unsaved-changes-dialog.component';
 import { SettingsLeaveConfirmation } from './settings-unsaved-changes.guard';
+import { SettingsUnloadGuardService } from './settings-unload-guard.service';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -97,6 +98,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsPlaylistResetFacade,
         SettingsRemoteControlFacade,
         SettingsSnackbarService,
+        SettingsUnloadGuardService,
     ],
 })
 export class SettingsComponent
@@ -112,6 +114,7 @@ export class SettingsComponent
 
     private readonly settingsCtx = inject(SettingsContextService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
+    private readonly unloadGuard = inject(SettingsUnloadGuardService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
     private readonly matDialog = inject(MatDialog);
@@ -214,6 +217,13 @@ export class SettingsComponent
      * storage (indexed db)
      */
     async ngOnInit(): Promise<void> {
+        // The router guard only covers in-app navigation; this protects the
+        // same edits against window close, app quit, and page reload.
+        this.unloadGuard.activate({
+            form: this.settingsForm,
+            confirmClose: () => this.confirmLeaveWithUnsavedChanges(),
+        });
+
         // Wait for settings to load before setting the form
         await this.form.loadSettings();
         this.form.hydrateFromStore();

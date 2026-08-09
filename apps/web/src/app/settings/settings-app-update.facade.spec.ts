@@ -70,15 +70,17 @@ describe('SettingsAppUpdateFacade', () => {
         facade.init();
         await flush();
 
-        const statusHandler = (
+        // The last subscriber is the facade's own — AppUpdateInstallService
+        // (injected by the facade) also subscribes at construction time.
+        const statusCalls = (
             window.electron.onAppUpdateStatusChange as jest.Mock
-        ).mock.calls[0][0] as (status: ElectronBridgeAppUpdateStatus) => void;
+        ).mock.calls;
+        const statusHandler = statusCalls[statusCalls.length - 1][0] as (
+            status: ElectronBridgeAppUpdateStatus
+        ) => void;
         statusHandler(pushedStatus);
 
         expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
-        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(
-            1
-        );
         expect(facade.status()).toEqual(pushedStatus);
     });
 

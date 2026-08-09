@@ -110,6 +110,19 @@ export interface AppUpdateServiceOptions {
     platform?: NodeJS.Platform;
     processEnv?: NodeJS.ProcessEnv;
     releaseFetcher?: ReleaseFetcher;
+    /**
+     * Runs right before `quitAndInstall()`. Lets the unsaved-settings close
+     * guard stand down for the updater-driven window close, which on macOS
+     * happens before `before-quit` and would otherwise be intercepted as a
+     * plain close — abandoning the requested install.
+     */
+    prepareQuit?: () => void;
+    /**
+     * Undoes {@link prepareQuit} when `quitAndInstall()` failed synchronously
+     * and no quit is coming — the prepared one-shot close bypass must not
+     * leak into the next genuine close.
+     */
+    cancelPreparedQuit?: () => void;
 }
 
 function isSelfUpdateSupported(
@@ -240,6 +253,8 @@ export class AppUpdateService {
     private checkForUpdatesPromise: Promise<ElectronBridgeAppUpdateStatus> | null =
         null;
     private status: ElectronBridgeAppUpdateStatus;
+    /** True between prepareQuit() and the quit — or the error that voids it. */
+    private quitPreparationPending = false;
 
     constructor(private readonly options: AppUpdateServiceOptions) {
         this.currentVersion = resolveCurrentVersion(
@@ -401,7 +416,19 @@ export class AppUpdateService {
             this.status.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         ) {
-            this.updater.quitAndInstall();
+            // Consumed by handleError: electron-updater's BaseUpdater
+            // catches its own synchronous install failures and emits
+            // 'error' instead of throwing, and MacUpdater can return here
+            // and fail asynchronously — the revocation must ride the error
+            // path, not a try/catch around this call.
+            this.quitPreparationPending = true;
+            this.options.prepareQuit?.();
+
+            try {
+                this.updater.quitAndInstall();
+            } catch (error) {
+                this.handleError(error);
+            }
         }
 
         return this.getStatus();
@@ -448,6 +475,14 @@ export class AppUpdateService {
     }
 
     handleError(error: unknown): void {
+        // An error after a prepared quit means no quit is coming: take back
+        // the one-shot close-guard bypass, whether the failure was thrown
+        // synchronously or emitted later as an updater 'error' event.
+        if (this.quitPreparationPending) {
+            this.quitPreparationPending = false;
+            this.options.cancelPreparedQuit?.();
+        }
+
         this.setStatus({
             error: normalizeError(error),
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
