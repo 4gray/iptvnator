@@ -1,4 +1,5 @@
 import { createConnection } from 'net';
+import { buildHttpHeaderFields } from './external-player-playback-request';
 import { ExternalPlaybackSnapshot } from './external-player-runtime';
 
 export function buildVlcEnqueueCommands(options: {
@@ -20,11 +21,10 @@ export function buildVlcEnqueueCommands(options: {
     } else if (options.origin) {
         inputOptions.push(`:http-referrer=${options.origin}`);
     }
-    Object.entries(options.headers ?? {}).forEach(([name, value]) => {
-        if (!name || value === undefined || value === null) return;
-        const trimmedValue = String(value).trim();
-        if (!trimmedValue) return;
-        inputOptions.push(`:http-header=${name}: ${trimmedValue}`);
+    // Same field list MPV sends: a real `Origin: ...` header (unless the
+    // headers map already carries one) plus every non-empty custom header.
+    buildHttpHeaderFields(options.origin, options.headers).forEach((field) => {
+        inputOptions.push(`:http-header=${field}`);
     });
     if (options.title) {
         inputOptions.push(`:meta-title=${options.title}`);

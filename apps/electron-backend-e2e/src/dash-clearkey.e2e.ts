@@ -13,7 +13,12 @@ import {
     launchElectronApp,
     LaunchedElectronApp,
     openAddPlaylistDialog,
+    openSourceEditor,
+    openSources,
+    saveSourceDialog,
+    sourceRowByTitle,
     test,
+    updateSourceDialog,
     waitForM3uCatalog,
     workspaceRoot,
 } from './electron-test-fixtures';
@@ -479,14 +484,17 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
             /web-player-diagnostic__player-card--primary/
         );
 
+        // Blank channel-level #EXTVLCOPT values resolve to `undefined` (not
+        // empty strings) since the playlist-level header fallback landed —
+        // absent means absent on the IPC boundary.
         const expectedLaunches = [
             {
                 args: [
                     `${fixtureServer.origin}/unsupported.mkv`,
                     'Unsupported MKV',
                     '',
-                    '',
-                    '',
+                    undefined,
+                    undefined,
                     undefined,
                     undefined,
                     undefined,
@@ -628,6 +636,61 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
         ).toBeVisible();
         await dock.getByRole('button', { name: 'Dismiss' }).click();
         await expect(dock).toBeHidden();
+
+        // Playlist-level custom headers must cross the IPC boundary when the
+        // channel itself carries no #EXTVLCOPT values (#1221): set a
+        // User-Agent on the source, relaunch the MPV fallback, and expect the
+        // captured launch to carry it.
+        await openSources(app.mainWindow);
+        const sourceDialog = await openSourceEditor(
+            app.mainWindow,
+            'Imported as text'
+        );
+        await updateSourceDialog(sourceDialog, {
+            userAgent: 'Playlist Agent E2E/1.0',
+        });
+        await saveSourceDialog(app.mainWindow, sourceDialog);
+        await sourceRowByTitle(app.mainWindow, 'Imported as text')
+            .first()
+            .click();
+        await waitForM3uCatalog(app.mainWindow);
+
+        await channelItemByTitle(app.mainWindow, 'Unsupported MKV')
+            .first()
+            .click();
+        await expect(banner).toContainText(
+            /container is likely unsupported by the browser player/i,
+            { timeout: 15_000 }
+        );
+        await expect(mpvFallback).toBeVisible();
+        await mpvFallback.click();
+        const expectedPlaylistHeaderLaunch = {
+            args: [
+                `${fixtureServer.origin}/unsupported.mkv`,
+                'Unsupported MKV',
+                '',
+                'Playlist Agent E2E/1.0',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+            ],
+            player: 'mpv',
+        } satisfies CapturedExternalPlayerLaunch;
+        await expect
+            .poll(() => getPlaybackRecommendationCapture(app), {
+                timeout: 10_000,
+            })
+            .toEqual({
+                closed: ['e2e-recommended-mpv-1'],
+                completed: 3,
+                launches: [
+                    ...expectedBothLaunches,
+                    expectedPlaylistHeaderLaunch,
+                ],
+                released: true,
+            });
     } finally {
         await releasePlaybackRecommendationCapture(app).catch(() => undefined);
         await closeElectronApp(app);
