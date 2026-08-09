@@ -83,6 +83,7 @@ function createService(
         platform?: NodeJS.Platform;
         env?: NodeJS.ProcessEnv;
         prepareQuit?: () => void;
+        cancelPreparedQuit?: () => void;
     } = {}
 ) {
     const updater = new FakeUpdater();
@@ -93,6 +94,7 @@ function createService(
             isPackaged: overrides.isPackaged ?? true,
         },
         getMainWindow: () => win,
+        cancelPreparedQuit: overrides.cancelPreparedQuit,
         platform: overrides.platform ?? 'darwin',
         prepareQuit: overrides.prepareQuit,
         processEnv: overrides.env ?? {},
@@ -479,5 +481,29 @@ describe('AppUpdateService', () => {
 
         expect(prepareQuit).not.toHaveBeenCalled();
         expect(updater.quitAndInstall).not.toHaveBeenCalled();
+    });
+
+    it('takes the close-guard bypass back when quitAndInstall fails', () => {
+        // A synchronous updater failure means no quit is coming: the
+        // prepared one-shot bypass must not leak into the next genuine
+        // close, and the renderer must see a non-Downloaded status so it
+        // restores its own unload guard.
+        const cancelPreparedQuit = jest.fn();
+        const prepareQuit = jest.fn();
+        const { service, updater } = createService({
+            cancelPreparedQuit,
+            prepareQuit,
+        });
+        updater.quitAndInstall.mockImplementation(() => {
+            throw new Error('spawn failed');
+        });
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        service.handleUpdateDownloaded({ version: '0.23.0' });
+
+        const status = service.installUpdate();
+
+        expect(prepareQuit).toHaveBeenCalledTimes(1);
+        expect(cancelPreparedQuit).toHaveBeenCalledTimes(1);
+        expect(status.status).toBe(ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error);
     });
 });

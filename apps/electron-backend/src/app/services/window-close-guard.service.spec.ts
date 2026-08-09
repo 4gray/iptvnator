@@ -230,6 +230,17 @@ describe('WindowCloseGuard', () => {
         expect(win.fireClose()).toBe(true);
     });
 
+    it('revokes an unused close bypass when the prepared quit never starts', () => {
+        const { guard, win } = createArmedGuard();
+
+        guard.allowNextClose();
+        guard.revokeAllowedClose();
+
+        // The stale bypass must not let the next genuine close skip the
+        // guard.
+        expect(win.fireClose()).toBe(true);
+    });
+
     it('confirms as a plain close when nothing was intercepted', () => {
         const { app, guard, win } = createArmedGuard();
 

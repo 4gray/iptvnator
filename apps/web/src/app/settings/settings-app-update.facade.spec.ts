@@ -181,6 +181,20 @@ describe('SettingsAppUpdateFacade', () => {
         );
     });
 
+    it('restores the unload guard when the install IPC rejects', async () => {
+        const unloadGuard = TestBed.inject(SettingsUnloadGuardService);
+        const failure = new Error('ipc failed');
+        (window.electron.installAppUpdate as jest.Mock).mockRejectedValue(
+            failure
+        );
+
+        await expect(facade.installAppUpdate()).rejects.toThrow(failure);
+
+        expect(unloadGuard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(
+            1
+        );
+    });
+
     it('opens the manual release URL from unsupported update status', () => {
         const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
         facade.status.set({

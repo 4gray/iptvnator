@@ -115,6 +115,15 @@ export class WindowCloseGuard {
     }
 
     /**
+     * Revokes an unused {@link allowNextClose} when the quit it prepared
+     * never started (`quitAndInstall()` failed synchronously). Left armed,
+     * the stale bypass would let the next genuine close skip the guard.
+     */
+    revokeAllowedClose(): void {
+        this.bypassClose = false;
+    }
+
+    /**
      * Renderer verdict: safe to leave (settings saved or discarded). Replays
      * the intercepted intent with the guard bypassed for exactly one close.
      */

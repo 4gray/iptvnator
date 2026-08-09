@@ -147,6 +147,7 @@ export default class Main {
             // (macOS), so without this an armed close guard would intercept
             // the install's window close and strand the update.
             prepareQuit: () => windowCloseGuard.allowNextClose(),
+            cancelPreparedQuit: () => windowCloseGuard.revokeAllowedClose(),
         });
         AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
 

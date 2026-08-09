@@ -74,17 +74,23 @@ export class SettingsAppUpdateFacade {
         // not fight a quit the user just asked for — its `beforeunload`
         // would cancel the updater's window close at the DOM layer and
         // strand the install. A 'downloaded' reply means quitAndInstall ran
-        // and the app is going down; anything else means no quit happened,
-        // so the protection comes back.
+        // and the app is going down; anything else — including a rejected
+        // IPC — means no quit happened, so the protection comes back.
         this.unloadGuard.suspendForAppQuit();
 
-        const status = await window.electron.installAppUpdate();
-        this.status.set(status);
+        try {
+            const status = await window.electron.installAppUpdate();
+            this.status.set(status);
 
-        if (
-            status?.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
-        ) {
+            if (
+                status?.status !==
+                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+            ) {
+                this.unloadGuard.resumeAfterAbortedAppQuit();
+            }
+        } catch (error) {
             this.unloadGuard.resumeAfterAbortedAppQuit();
+            throw error;
         }
     }
 

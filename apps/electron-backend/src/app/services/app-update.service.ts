@@ -117,6 +117,12 @@ export interface AppUpdateServiceOptions {
      * plain close — abandoning the requested install.
      */
     prepareQuit?: () => void;
+    /**
+     * Undoes {@link prepareQuit} when `quitAndInstall()` failed synchronously
+     * and no quit is coming — the prepared one-shot close bypass must not
+     * leak into the next genuine close.
+     */
+    cancelPreparedQuit?: () => void;
 }
 
 function isSelfUpdateSupported(
@@ -409,7 +415,16 @@ export class AppUpdateService {
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         ) {
             this.options.prepareQuit?.();
-            this.updater.quitAndInstall();
+
+            try {
+                this.updater.quitAndInstall();
+            } catch (error) {
+                // No quit is coming: take back the close-guard bypass and
+                // report the failure as a status the renderer can read —
+                // non-Downloaded also tells it to restore its own guard.
+                this.options.cancelPreparedQuit?.();
+                this.handleError(error);
+            }
         }
 
         return this.getStatus();
