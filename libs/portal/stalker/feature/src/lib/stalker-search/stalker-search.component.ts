@@ -8,6 +8,7 @@ import {
     resource,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -126,6 +127,13 @@ export class StalkerSearchComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerSearch');
+    private readonly searchLayout = viewChild(SearchLayoutComponent);
+    /**
+     * The results offset captured when an inline detail opens: the layout
+     * destroys the results container while the detail is shown and recreates
+     * it at zero, so closing the detail must restore the spot explicitly.
+     */
+    private savedResultsScrollTop = 0;
     private currentPlaybackOwnerKey = '';
 
     readonly filters = signal<Record<StalkerSearchContentType, boolean>>({
@@ -474,6 +482,8 @@ export class StalkerSearchComponent {
     }
 
     selectItem(item: StalkerVodSource) {
+        this.savedResultsScrollTop =
+            this.searchLayout()?.getResultsScrollTop() ?? 0;
         const filterType = this.selectedFilterType();
         const hasEmbeddedSeries = (item.series?.length ?? 0) > 0;
         const needsSeriesFetch =
@@ -572,6 +582,18 @@ export class StalkerSearchComponent {
         this.isSelectedVodFavorite.set(false);
         this.selectedVodPosition.set(null);
         this.closeInlinePlayer();
+
+        const scrollTop = this.savedResultsScrollTop;
+        this.savedResultsScrollTop = 0;
+        if (scrollTop > 0) {
+            // Two frames: one for change detection to recreate the results
+            // container, one to apply the offset to it.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this.searchLayout()?.restoreResultsScrollTop(scrollTop);
+                });
+            });
+        }
     }
 
     handleInlineTimeUpdate(event: {

@@ -449,6 +449,48 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchAppendError()).toBe(false);
     });
 
+    it('restores the results scroll after an inline detail round trip', () => {
+        // Regression: the layout destroys the results container while an
+        // inline detail is open and recreates it at offset zero.
+        const rafCallbacks: FrameRequestCallback[] = [];
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            (callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }
+        );
+        try {
+            const layout = {
+                getResultsScrollTop: jest.fn(() => 860),
+                restoreResultsScrollTop: jest.fn(),
+            };
+            Object.defineProperty(component, 'searchLayout', {
+                configurable: true,
+                value: () => layout,
+            });
+
+            component.selectItem({ id: '42', name: 'Deep result' });
+            expect(layout.getResultsScrollTop).toHaveBeenCalledTimes(1);
+
+            component.onVodBack();
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+            expect(layout.restoreResultsScrollTop).toHaveBeenCalledWith(860);
+
+            // The captured offset is one-shot.
+            component.onVodBack();
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+            expect(layout.restoreResultsScrollTop).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.restoreAllMocks();
+        }
+    });
+
     it('resets paging when the active playlist changes on a reused route', () => {
         // Regression: /stalker/A/search -> /stalker/B/search reuses the
         // component; a surviving page number would append portal B's later
