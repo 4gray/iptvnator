@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from './stalker-session.service';
@@ -70,10 +70,15 @@ describe('Stalker edited-session coordination', () => {
         await expect(oldAuthentication).rejects.toThrow(/stale/i);
         await replacement;
         expect(service.getCachedToken(oldPlaylist._id)).toBe('NEW_TOKEN');
-        expect(updateStalkerSession).toHaveBeenLastCalledWith(
-            oldPlaylist._id,
-            expect.objectContaining({ stalkerToken: 'NEW_TOKEN' })
+        expect(updatePlaylistMeta).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                portalUrl: 'https://new.example.com/server/load.php',
+                stalkerSessionPatch: expect.objectContaining({
+                    stalkerToken: 'NEW_TOKEN',
+                }),
+            })
         );
+        expect(updateStalkerSession).not.toHaveBeenCalled();
     });
 
     it('prevents late pre-edit auth from restoring a cleared simple session', async () => {
@@ -103,5 +108,61 @@ describe('Stalker edited-session coordination', () => {
                 stalkerSessionPatch: null,
             })
         );
+    });
+
+    it('persists a resolved full connection and session in one metadata write', async () => {
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            username: 'subscriber',
+            stalkerToken: 'NEW_TOKEN',
+            stalkerSessionIdentity: 'new-fingerprint',
+            stalkerWatchdogTimeout: 90,
+            stalkerTimeslot: 5,
+        };
+
+        await service.replaceSessionAfterEdit(editedPlaylist);
+
+        expect(updatePlaylistMeta).toHaveBeenCalledWith(
+            expect.objectContaining({
+                portalUrl: 'https://new.example.com/server/load.php',
+                username: 'subscriber',
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: expect.any(String),
+                    stalkerWatchdogTimeout: 90,
+                    stalkerTimeslot: 5,
+                    stalkerAccountInfo: undefined,
+                },
+            })
+        );
+        expect(updateStalkerSession).not.toHaveBeenCalled();
+    });
+
+    it('does not adopt a resolved full session when its atomic write fails', async () => {
+        service.adoptDiscoveredSimplePortal(oldPlaylist);
+        updatePlaylistMeta.mockReturnValueOnce(
+            throwError(() => new Error('write failed'))
+        );
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            stalkerToken: 'NEW_TOKEN',
+            stalkerSessionIdentity: 'new-fingerprint',
+        };
+
+        await expect(
+            service.replaceSessionAfterEdit(editedPlaylist)
+        ).rejects.toThrow('write failed');
+
+        expect(service.getCachedToken(oldPlaylist._id)).toBeNull();
+
+        // A failed edit must release its pending authority as well: the
+        // still-persisted connection remains usable without an app restart.
+        service.setCachedToken(oldPlaylist._id, 'OLD_TOKEN', oldPlaylist);
+        await expect(service.ensureToken(oldPlaylist)).resolves.toEqual({
+            token: 'OLD_TOKEN',
+            serialNumber: undefined,
+        });
     });
 });

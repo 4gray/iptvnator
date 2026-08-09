@@ -654,6 +654,7 @@ describe('PlaylistInfoComponent', () => {
                     playlist: expect.objectContaining({
                         macAddress: '00:1A:79:AB:CD:EF',
                     }) as PlaylistMeta,
+                    persist: false,
                 })
             );
             expect(
@@ -753,12 +754,55 @@ describe('PlaylistInfoComponent', () => {
             expect(store.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: resolvedPlaylist,
+                    persist: false,
                 })
             );
             expect(
                 stalkerConnectionEditor.applyResolvedConnection
             ).toHaveBeenCalledWith(resolvedPlaylist);
             expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not update UI state or report success when resolved persistence fails', async () => {
+            const consoleError = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+            try {
+                createStalkerComponent();
+                const resolvedPlaylist = {
+                    ...component.playlistDetails.getRawValue(),
+                    portalUrl: 'https://portal.example.com/server/load.php',
+                    isFullStalkerPortal: true,
+                    stalkerSessionPatch: {
+                        stalkerToken: 'NEW_TOKEN',
+                        stalkerSessionIdentity: 'new-fingerprint',
+                    },
+                };
+                stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                    status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                    playlist: resolvedPlaylist,
+                });
+                stalkerConnectionEditor.applyResolvedConnection.mockRejectedValue(
+                    new Error('write failed')
+                );
+                component.playlistDetails
+                    .get('username')
+                    ?.setValue('subscriber');
+
+                await component.saveChanges(
+                    component.playlistDetails.getRawValue() as PlaylistMeta
+                );
+
+                expect(store.dispatch).not.toHaveBeenCalled();
+                expect(dialogRef.close).not.toHaveBeenCalled();
+                expect(snackBar.open).toHaveBeenCalledWith(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
+                    'CLOSE',
+                    { duration: 3000 }
+                );
+            } finally {
+                consoleError.mockRestore();
+            }
         });
 
         it.each([

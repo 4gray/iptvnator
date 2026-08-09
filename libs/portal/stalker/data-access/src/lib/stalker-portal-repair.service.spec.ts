@@ -490,7 +490,7 @@ describe('StalkerPortalRepairService', () => {
             );
         });
 
-        it('retires a remembered endpoint override before explicit Edit installs its result', async () => {
+        it('fences an edit without changing runtime state until persistence commits', async () => {
             const wrongEndpoint = {
                 ...MISCLASSIFIED,
                 portalUrl: 'http://ministra.example/portal.php',
@@ -503,14 +503,19 @@ describe('StalkerPortalRepairService', () => {
                 token: 'TOKEN2',
             });
             await service.repairPortal(wrongEndpoint);
+            clearCachedToken.mockClear();
+
+            service.fenceForPlaylistEdit(wrongEndpoint._id);
+
             expect(service.applyOverride(wrongEndpoint).portalUrl).toBe(
                 'http://ministra.example/server/load.php'
             );
+            expect(clearCachedToken).not.toHaveBeenCalled();
 
-            service.retireForPlaylistEdit(wrongEndpoint._id);
+            service.commitPlaylistEdit(wrongEndpoint._id);
 
             expect(service.applyOverride(wrongEndpoint)).toBe(wrongEndpoint);
-            expect(clearCachedToken).toHaveBeenLastCalledWith('portal-1');
+            expect(clearCachedToken).not.toHaveBeenCalled();
         });
 
         it('discards a repair verified before explicit Edit but completed after it', async () => {
@@ -538,7 +543,7 @@ describe('StalkerPortalRepairService', () => {
             // The transform has verified A and computed B, but its async
             // persistence has not completed. Explicit Edit C must fence all
             // repair-side runtime/session effects that follow that await.
-            service.retireForPlaylistEdit(wrongEndpoint._id);
+            service.fenceForPlaylistEdit(wrongEndpoint._id);
             writeCompletion.next(writtenRow);
 
             await expect(repair).resolves.toBeNull();

@@ -46,20 +46,17 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         // the resolved row could turn a credential-only A→A edit back into
         // the repair's old A→B result.
         const runtimePlaylist = this.toRuntimePlaylist(playlist);
-        this.portalRepair.retireForPlaylistEdit(runtimePlaylist._id);
-        const sessionReplacement =
-            this.stalkerSession.replaceSessionAfterEdit(runtimePlaylist);
+        this.portalRepair.fenceForPlaylistEdit(runtimePlaylist._id);
+        const persistedPlaylist =
+            await this.stalkerSession.replaceSessionAfterEdit(runtimePlaylist);
+        this.portalRepair.commitPlaylistEdit(runtimePlaylist._id);
 
-        let activePlaylistUpdate = Promise.resolve();
         if (this.stalkerStore.currentPlaylist()?._id === runtimePlaylist._id) {
-            // `setCurrentPlaylist` patches the signal-store snapshot before
-            // its optional SQLite sync awaits, and re-points/stops the active
-            // watchdog synchronously. The next catalog/playback request can
-            // therefore no longer use the pre-edit endpoint or identity.
-            activePlaylistUpdate =
-                this.stalkerStore.setCurrentPlaylist(runtimePlaylist);
+            // The persistence result is the complete row merged by
+            // PlaylistsService, so backup-restored playback headers and other
+            // metadata absent from the form survive the active replacement.
+            await this.stalkerStore.setCurrentPlaylist(persistedPlaylist);
         }
-        await Promise.all([sessionReplacement, activePlaylistUpdate]);
     }
 
     async resolveConnection(

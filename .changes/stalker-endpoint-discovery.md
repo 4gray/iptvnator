@@ -4,7 +4,8 @@ area: stalker
 issues: [850, 686, 755]
 ---
 
-Stalker setup now accepts a host or `/c` address, finds the working API
-endpoint and authentication mode, and rechecks changed connection details in
-Edit. Misclassified portals from earlier versions still repair themselves on
-first compatible failure without losing favorites or history.
+Stalker portals are no longer classified by their URL shape: importing probes
+the real API endpoint (`portal.php` vs `server/load.php`) and checks whether
+the portal actually requires authentication. Canonical Ministra URLs finally
+load content, `…/c` addresses resolve correctly, and misclassified existing
+portals repair themselves on first failure — keeping favorites and history.

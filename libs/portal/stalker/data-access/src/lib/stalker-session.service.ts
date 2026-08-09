@@ -232,13 +232,13 @@ export class StalkerSessionService {
     /**
      * Installs the session produced by explicit Edit discovery.
      *
-     * The new fingerprint becomes authoritative synchronously, before an old
-     * authentication is awaited. That old request consequently fails its
-     * post-auth guard and cannot overwrite the resolved token (or restore a
-     * token after a full→simple edit). The final write is queued after it so
-     * the resolved session remains the last persisted session mutation.
+     * The new fingerprint fences old authentication synchronously, but only
+     * becomes authoritative after the atomic write succeeds. That old request
+     * consequently cannot overwrite the resolved token (or restore one after
+     * a full→simple edit), while a failed write releases the fence and keeps
+     * the previous runtime session usable.
      */
-    replaceSessionAfterEdit(playlist: Playlist): Promise<void> {
+    replaceSessionAfterEdit(playlist: Playlist): Promise<Playlist> {
         return this.editedSessions.replace(playlist);
     }
 

@@ -173,16 +173,25 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     }
 
     /**
-     * Retires a lazy-repair override before an explicit Edit result is
-     * installed. Discovery has just proved that exact endpoint and mode, so
-     * an override remembered for the pre-edit connection must not rewrite it.
+     * Invalidates every repair that started before an explicit Edit, without
+     * changing the working override or token yet. Persistence may still fail;
+     * in that case the previous runtime connection must remain untouched.
      */
-    retireForPlaylistEdit(playlistId: string): void {
+    fenceForPlaylistEdit(playlistId: string): void {
         this.editGenerations.set(
             playlistId,
             (this.editGenerations.get(playlistId) ?? 0) + 1
         );
-        this.dropOverride(playlistId);
+    }
+
+    /**
+     * Removes the pre-edit override after the resolved row and session have
+     * been committed. The session coordinator has already replaced or
+     * cleared the cached token, so clearing it here would discard the newly
+     * authoritative session.
+     */
+    commitPlaylistEdit(playlistId: string): void {
+        this.overrides.delete(playlistId);
     }
 
     /**

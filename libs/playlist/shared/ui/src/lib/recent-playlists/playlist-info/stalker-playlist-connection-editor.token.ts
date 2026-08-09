@@ -38,7 +38,7 @@ export interface StalkerPlaylistConnectionEditor {
     resolveConnection(
         playlist: PlaylistMeta
     ): Promise<StalkerPlaylistConnectionResult>;
-    /** Synchronizes in-run Stalker state after the resolved update dispatches. */
+    /** Atomically persists a resolved edit, then synchronizes in-run state. */
     applyResolvedConnection(playlist: PlaylistMetaUpdate): Promise<void>;
 }
 

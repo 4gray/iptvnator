@@ -202,9 +202,12 @@ service validates the draft. Auth rejection or an unreachable portal leaves
 the dialog open and writes nothing. Success atomically replaces the endpoint,
 mode and normalized identity together with session metadata: simple mode
 clears token/fingerprint/watchdog/account state, while full mode replaces it
-with the confirmed authorization result. The app adapter also replaces the
-active `StalkerStore` snapshot and session/watchdog state immediately, so the
-next request in the same route cannot use the pre-edit connection.
+with the confirmed authorization result. That awaited write returns the
+complete merged playlist row before NgRx receives its state-only update and
+before the app adapter replaces the active `StalkerStore` snapshot and
+session/watchdog state, so persistence failure cannot expose a partial runtime
+edit and metadata absent from the form (such as playback `Referer`/`Origin`)
+survives the replacement.
 `PlaylistMetaUpdate` carries the persisted part as a transient
 `stalkerSessionPatch` (`undefined` preserves, `null` clears, an object fully
 replaces); `PlaylistsService` projects it onto the existing flat playlist

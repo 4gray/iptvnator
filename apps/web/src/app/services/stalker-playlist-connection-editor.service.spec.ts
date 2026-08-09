@@ -18,10 +18,13 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
     };
     const portalRepair = {
         applyOverride: jest.fn((playlist: PlaylistMeta) => playlist),
-        retireForPlaylistEdit: jest.fn(),
+        fenceForPlaylistEdit: jest.fn(),
+        commitPlaylistEdit: jest.fn(),
     };
     const stalkerSession = {
-        replaceSessionAfterEdit: jest.fn().mockResolvedValue(undefined),
+        replaceSessionAfterEdit: jest.fn(
+            async (playlist: PlaylistMeta) => playlist
+        ),
     };
     let activePlaylist: PlaylistMeta | undefined;
     const stalkerStore = {
@@ -212,9 +215,10 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
 
         await service.applyResolvedConnection(resolvedPlaylist);
 
-        expect(portalRepair.retireForPlaylistEdit).toHaveBeenCalledWith(
+        expect(portalRepair.fenceForPlaylistEdit).toHaveBeenCalledWith(
             draft._id
         );
+        expect(portalRepair.commitPlaylistEdit).toHaveBeenCalledWith(draft._id);
         expect(stalkerSession.replaceSessionAfterEdit).toHaveBeenCalledWith(
             expect.objectContaining({
                 portalUrl: 'https://new.example.com/server/load.php',
@@ -236,6 +240,42 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
         );
     });
 
+    it('replaces the active runtime playlist with the complete persisted row', async () => {
+        activePlaylist = {
+            ...draft,
+            portalUrl: 'https://old.example.com/portal.php',
+            isFullStalkerPortal: false,
+            referrer: 'https://portal.example.com/c/',
+            origin: 'https://portal.example.com',
+        };
+        const resolvedPlaylist = {
+            ...draft,
+            portalUrl: 'https://new.example.com/server/load.php',
+            isFullStalkerPortal: true,
+            stalkerSessionPatch: {
+                stalkerToken: 'NEW_TOKEN',
+                stalkerSessionIdentity: 'new-fingerprint',
+            },
+        };
+        stalkerSession.replaceSessionAfterEdit.mockImplementationOnce(
+            async (playlistWithSession: PlaylistMeta) => ({
+                ...playlistWithSession,
+                referrer: 'https://portal.example.com/c/',
+                origin: 'https://portal.example.com',
+            })
+        );
+
+        await service.applyResolvedConnection(resolvedPlaylist);
+
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                portalUrl: 'https://new.example.com/server/load.php',
+                referrer: 'https://portal.example.com/c/',
+                origin: 'https://portal.example.com',
+            })
+        );
+    });
+
     it('clears the session and stops full-portal runtime behavior after a resolved simple edit', async () => {
         activePlaylist = {
             ...draft,
@@ -251,9 +291,10 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
 
         await service.applyResolvedConnection(resolvedPlaylist);
 
-        expect(portalRepair.retireForPlaylistEdit).toHaveBeenCalledWith(
+        expect(portalRepair.fenceForPlaylistEdit).toHaveBeenCalledWith(
             draft._id
         );
+        expect(portalRepair.commitPlaylistEdit).toHaveBeenCalledWith(draft._id);
         expect(stalkerSession.replaceSessionAfterEdit).toHaveBeenCalledWith(
             expect.objectContaining({
                 portalUrl: 'https://new.example.com/portal.php',
@@ -272,29 +313,29 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
         );
     });
 
-    it('repoints the active snapshot before an old authentication finishes draining', async () => {
+    it('repoints the active snapshot only after old authentication finishes draining', async () => {
         activePlaylist = {
             ...draft,
             portalUrl: 'https://old.example.com/server/load.php',
             isFullStalkerPortal: true,
         };
-        let finishReplacement: () => void = () => undefined;
-        stalkerSession.replaceSessionAfterEdit.mockReturnValueOnce(
-            new Promise<void>((resolve) => {
-                finishReplacement = resolve;
-            })
-        );
         const resolvedPlaylist = {
             ...draft,
             portalUrl: 'https://new.example.com/portal.php',
             isFullStalkerPortal: false,
             stalkerSessionPatch: null,
         };
+        let finishReplacement: () => void = () => undefined;
+        stalkerSession.replaceSessionAfterEdit.mockReturnValueOnce(
+            new Promise<PlaylistMeta>((resolve) => {
+                finishReplacement = () => resolve(resolvedPlaylist);
+            })
+        );
 
         const applying = service.applyResolvedConnection(resolvedPlaylist);
 
         expect(activePlaylist?.portalUrl).toBe(
-            'https://new.example.com/portal.php'
+            'https://old.example.com/server/load.php'
         );
         let settled = false;
         void applying.then(() => (settled = true));
@@ -303,6 +344,39 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
 
         finishReplacement();
         await applying;
+        expect(activePlaylist?.portalUrl).toBe(
+            'https://new.example.com/portal.php'
+        );
+    });
+
+    it('keeps repair and active runtime state unchanged when persistence fails', async () => {
+        activePlaylist = {
+            ...draft,
+            portalUrl: 'https://old.example.com/server/load.php',
+            isFullStalkerPortal: true,
+        };
+        const resolvedPlaylist = {
+            ...draft,
+            portalUrl: 'https://new.example.com/portal.php',
+            isFullStalkerPortal: false,
+            stalkerSessionPatch: null,
+        };
+        stalkerSession.replaceSessionAfterEdit.mockRejectedValueOnce(
+            new Error('write failed')
+        );
+
+        await expect(
+            service.applyResolvedConnection(resolvedPlaylist)
+        ).rejects.toThrow('write failed');
+
+        expect(portalRepair.fenceForPlaylistEdit).toHaveBeenCalledWith(
+            draft._id
+        );
+        expect(portalRepair.commitPlaylistEdit).not.toHaveBeenCalled();
+        expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalled();
+        expect(activePlaylist?.portalUrl).toBe(
+            'https://old.example.com/server/load.php'
+        );
     });
 
     it.each([true, false])(
@@ -336,7 +410,10 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
             await service.applyResolvedConnection(resolvedPlaylist);
 
             expect(portalRepair.applyOverride).not.toHaveBeenCalled();
-            expect(portalRepair.retireForPlaylistEdit).toHaveBeenCalledWith(
+            expect(portalRepair.fenceForPlaylistEdit).toHaveBeenCalledWith(
+                draft._id
+            );
+            expect(portalRepair.commitPlaylistEdit).toHaveBeenCalledWith(
                 draft._id
             );
             expect(stalkerSession.replaceSessionAfterEdit).toHaveBeenCalledWith(

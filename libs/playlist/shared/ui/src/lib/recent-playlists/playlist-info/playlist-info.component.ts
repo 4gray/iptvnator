@@ -412,17 +412,21 @@ export class PlaylistInfoComponent {
                 await this.updateXtreamPlaylist(normalizedPlaylist);
             }
 
-            // Dispatch store action to update UI
-            this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: normalizedPlaylist,
-                })
-            );
             if (resolvedStalkerConnection) {
                 await this.stalkerConnectionEditor.applyResolvedConnection(
                     normalizedPlaylist
                 );
             }
+
+            // Resolved Stalker edits cross an awaited, atomic persistence
+            // boundary above. Their action updates NgRx only; every other
+            // metadata edit keeps the effect-owned persistence path.
+            this.store.dispatch(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: normalizedPlaylist,
+                    ...(resolvedStalkerConnection ? { persist: false } : {}),
+                })
+            );
 
             this.snackBar.open(
                 this.translate.instant(

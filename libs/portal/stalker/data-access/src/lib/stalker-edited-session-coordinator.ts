@@ -12,7 +12,8 @@ import type { StalkerWatchdogController } from './stalker-watchdog.controller';
 /** Serializes authoritative Edit results against pre-edit authentication. */
 export class StalkerEditedSessionCoordinator {
     private readonly authoritativeFingerprints = new Map<string, string>();
-    private readonly replacements = new Map<string, Promise<void>>();
+    private readonly pendingFingerprints = new Map<string, string>();
+    private readonly replacements = new Map<string, Promise<Playlist>>();
 
     constructor(
         private readonly tokens: StalkerTokenCache,
@@ -38,15 +39,22 @@ export class StalkerEditedSessionCoordinator {
     }
 
     assertCurrent(playlistId: string, fingerprint: string): void {
-        const authoritative = this.authoritativeFingerprints.get(playlistId);
+        const authoritative =
+            this.pendingFingerprints.get(playlistId) ??
+            this.authoritativeFingerprints.get(playlistId);
         if (authoritative && authoritative !== fingerprint) {
             throw new Error('Stale Stalker playlist configuration');
         }
     }
 
-    replace(playlist: Playlist): Promise<void> {
+    replace(playlist: Playlist): Promise<Playlist> {
         const playlistId = playlist._id;
-        const fingerprint = this.markAuthoritative(playlist);
+        const fingerprint = stalkerSessionFingerprint(playlist);
+        // Fence the old connection immediately, but do not make the edit
+        // authoritative until its single persistence write succeeds. A
+        // failed write therefore releases this fence and leaves the prior
+        // runtime session usable.
+        this.pendingFingerprints.set(playlistId, fingerprint);
         const previous = this.replacements.get(playlistId) ?? Promise.resolve();
         const replacement = previous
             .catch(() => undefined)
@@ -57,6 +65,9 @@ export class StalkerEditedSessionCoordinator {
                 if (this.replacements.get(playlistId) === replacement) {
                     this.replacements.delete(playlistId);
                 }
+                if (this.pendingFingerprints.get(playlistId) === fingerprint) {
+                    this.pendingFingerprints.delete(playlistId);
+                }
             })
             .catch(() => undefined);
         return replacement;
@@ -65,7 +76,7 @@ export class StalkerEditedSessionCoordinator {
     private async commit(
         playlist: Playlist,
         fingerprint: string
-    ): Promise<void> {
+    ): Promise<Playlist> {
         const playlistId = playlist._id;
         this.assertCurrent(playlistId, fingerprint);
         await this.tokens
@@ -74,35 +85,49 @@ export class StalkerEditedSessionCoordinator {
         this.assertCurrent(playlistId, fingerprint);
 
         const playlists = this.resolvePlaylistsService();
-        if (!isFullStalkerPortalPlaylist(playlist)) {
+        const isFullPortal = isFullStalkerPortalPlaylist(playlist);
+        let sessionPatch: PlaylistMetaUpdate['stalkerSessionPatch'] = null;
+        if (isFullPortal) {
+            const token = playlist.stalkerToken;
+            if (!token) {
+                throw new Error(
+                    'Resolved full Stalker portal is missing a session token'
+                );
+            }
+            sessionPatch = {
+                stalkerToken: token,
+                stalkerSessionIdentity: fingerprint,
+                stalkerWatchdogTimeout: playlist.stalkerWatchdogTimeout,
+                stalkerTimeslot: playlist.stalkerTimeslot,
+                stalkerAccountInfo: playlist.stalkerAccountInfo,
+            };
+        }
+
+        const persistedPlaylist = await firstValueFrom(
+            playlists.updatePlaylistMeta({
+                ...playlist,
+                stalkerSessionPatch: sessionPatch,
+            } as PlaylistMetaUpdate)
+        );
+        if (!persistedPlaylist) {
+            throw new Error('Resolved Stalker playlist could not be persisted');
+        }
+        this.assertCurrent(playlistId, fingerprint);
+        this.authoritativeFingerprints.set(playlistId, fingerprint);
+        if (this.pendingFingerprints.get(playlistId) === fingerprint) {
+            this.pendingFingerprints.delete(playlistId);
+        }
+
+        if (!sessionPatch) {
             this.tokens.clear(playlistId);
-            await firstValueFrom(
-                playlists.updatePlaylistMeta({
-                    ...playlist,
-                    stalkerSessionPatch: null,
-                } as PlaylistMetaUpdate)
-            );
-            return;
+            return persistedPlaylist;
         }
 
-        if (!playlist.stalkerToken) {
-            throw new Error(
-                'Resolved full Stalker portal is missing a session token'
-            );
-        }
-
-        this.tokens.set(playlistId, playlist.stalkerToken, fingerprint);
+        this.tokens.set(playlistId, sessionPatch.stalkerToken, fingerprint);
         this.watchdog.applyProfileTiming(playlistId, {
             watchdogTimeoutSeconds: playlist.stalkerWatchdogTimeout,
             timeslotSeconds: playlist.stalkerTimeslot,
         });
-        await firstValueFrom(
-            playlists.updateStalkerSession(playlistId, {
-                stalkerToken: playlist.stalkerToken,
-                stalkerSessionIdentity: fingerprint,
-                stalkerWatchdogTimeout: playlist.stalkerWatchdogTimeout,
-                stalkerTimeslot: playlist.stalkerTimeslot,
-            })
-        );
+        return persistedPlaylist;
     }
 }
