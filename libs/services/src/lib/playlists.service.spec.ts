@@ -1,4 +1,4 @@
-import { firstValueFrom, of } from 'rxjs';
+import { EMPTY, firstValueFrom, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
@@ -26,10 +26,11 @@ describe('PlaylistsService', () => {
             dbService: {
                 clear: jest.fn(() => of(undefined)),
                 delete: jest.fn(() => of(undefined)),
-                // IndexedDB operations always run the Stalker metadata migration first,
-                // and that migration reads all playlists before the requested operation.
+                // IndexedDB operations run the Stalker metadata migration first;
+                // the default cursor represents an empty playlist store.
                 getAll: jest.fn(() => of([])),
                 getByID: jest.fn(() => of(undefined)),
+                openCursor: jest.fn(() => EMPTY),
                 update: jest.fn(() => of(undefined)),
                 ...overrides,
             },
@@ -395,7 +396,7 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it('migrates legacy Stalker portal flags in IndexedDB before returning full playlists', async () => {
+    it('migrates legacy Stalker portal flags in one IndexedDB cursor transaction', async () => {
         let storedPlaylists: Playlist[] = [
             {
                 _id: 'stalker-2',
@@ -408,14 +409,19 @@ describe('PlaylistsService', () => {
                 portalUrl: 'http://example.com/portal/c/',
             } as Playlist,
         ];
+        const cursorUpdate = jest.fn((playlist: Playlist) => {
+            storedPlaylists = [playlist];
+        });
+        const cursorContinue = jest.fn();
         const dbService = {
             getAll: jest.fn(() => of(storedPlaylists)),
-            update: jest.fn((_storeName: string, playlist: Playlist) => {
-                storedPlaylists = storedPlaylists.map((current) =>
-                    current._id === playlist._id ? playlist : current
-                );
-                return of(playlist);
-            }),
+            openCursor: jest.fn(() =>
+                of({
+                    value: storedPlaylists[0],
+                    update: cursorUpdate,
+                    continue: cursorContinue,
+                })
+            ),
         };
         testWindow.electron = undefined;
 
@@ -428,13 +434,18 @@ describe('PlaylistsService', () => {
             }),
         ]);
 
-        expect(dbService.update).toHaveBeenCalledWith(
-            DbStores.Playlists,
+        expect(dbService.openCursor).toHaveBeenCalledWith({
+            storeName: DbStores.Playlists,
+            mode: 'readwrite',
+        });
+        expect(cursorUpdate).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: 'stalker-2',
                 isFullStalkerPortal: false,
             })
         );
+        expect(cursorContinue).toHaveBeenCalledTimes(1);
+        expect(dbService.getAll).toHaveBeenCalledTimes(1);
         expect(
             localStorage.getItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)
         ).toBe('1');

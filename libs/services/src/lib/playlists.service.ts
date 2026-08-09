@@ -346,21 +346,32 @@ export class PlaylistsService {
                 return;
             }
 
-            const storedPlaylists = await firstValueFrom(
-                this.dbService.getAll<Playlist>(DbStores.Playlists)
-            );
-            const updates =
-                this.collectStalkerMetadataMigrationUpdates(storedPlaylists);
-
-            if (updates.length > 0) {
-                await firstValueFrom(
-                    combineLatest(
-                        updates.map((playlist) =>
-                            this.dbService.update(DbStores.Playlists, playlist)
-                        )
-                    )
-                );
-            }
+            await new Promise<void>((resolve, reject) => {
+                this.dbService
+                    .openCursor<Playlist>({
+                        storeName: DbStores.Playlists,
+                        mode: DBMode.readwrite,
+                    })
+                    .subscribe({
+                        next: (cursor) => {
+                            try {
+                                const migratedPlaylist =
+                                    this.withExplicitLegacyStalkerPortalFlag(
+                                        cursor.value
+                                    );
+                                if (migratedPlaylist !== cursor.value) {
+                                    cursor.update(migratedPlaylist);
+                                }
+                                cursor.continue();
+                            } catch (error) {
+                                cursor.request.transaction?.abort();
+                                reject(error);
+                            }
+                        },
+                        error: reject,
+                        complete: resolve,
+                    });
+            });
 
             this.writeIndexedDbMigrationFlag(
                 STALKER_PLAYLIST_METADATA_MIGRATION_FLAG

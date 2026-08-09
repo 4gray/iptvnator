@@ -219,6 +219,9 @@ require the storage-current row to retain the source connection authority
 captured when Edit began. Electron performs the check inside its per-playlist
 write queue; PWA performs the read, predicate, and cursor update in one
 IndexedDB readwrite transaction so another tab cannot interleave a replacement.
+The one-time legacy mode-flag migration likewise scans and updates rows through
+one readwrite cursor transaction; it never replays a snapshot collected before
+another tab's delete/restore or replacement.
 Delete/restore or replacement under the same ID therefore aborts instead of
 receiving a portal/session write. A row identified by its persisted `portalUrl`
 stays on the Stalker save path even if legacy Xtream fields remain, so an
