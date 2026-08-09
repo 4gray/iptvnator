@@ -12,6 +12,7 @@ import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
+import { SettingsUnloadGuardService } from './settings-unload-guard.service';
 import {
     createElectronStub,
     DEFAULT_APP_UPDATE_STATUS,
@@ -46,6 +47,10 @@ describe('SettingsAppUpdateFacade', () => {
                 { provide: DataService, useClass: ElectronServiceStub },
                 MockProvider(MatDialog, { open: jest.fn() }),
                 { provide: SettingsService, useClass: MockSettingsService },
+                MockProvider(SettingsUnloadGuardService, {
+                    resumeAfterAbortedAppQuit: jest.fn(),
+                    suspendForAppQuit: jest.fn(),
+                }),
             ],
             imports: [TranslateModule.forRoot()],
         });
@@ -147,6 +152,33 @@ describe('SettingsAppUpdateFacade', () => {
         expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
         expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
         expect(window.electron.installAppUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the unload guard down while a real install quits the app', async () => {
+        // The updater closes the window while the settings form may still be
+        // dirty; an armed beforeunload would cancel that close at the DOM
+        // layer and strand the install.
+        const unloadGuard = TestBed.inject(SettingsUnloadGuardService);
+        (window.electron.installAppUpdate as jest.Mock).mockResolvedValue({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        });
+
+        await facade.installAppUpdate();
+
+        expect(unloadGuard.suspendForAppQuit).toHaveBeenCalledTimes(1);
+        expect(unloadGuard.resumeAfterAbortedAppQuit).not.toHaveBeenCalled();
+    });
+
+    it('restores the unload guard when the install did not quit', async () => {
+        const unloadGuard = TestBed.inject(SettingsUnloadGuardService);
+        // The default stub reply stays Idle: nothing installable, no quit.
+        await facade.installAppUpdate();
+
+        expect(unloadGuard.suspendForAppQuit).toHaveBeenCalledTimes(1);
+        expect(unloadGuard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(
+            1
+        );
     });
 
     it('opens the manual release URL from unsupported update status', () => {

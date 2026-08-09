@@ -43,6 +43,8 @@ export class SettingsUnloadGuardService implements OnDestroy {
     private confirmationPending = false;
     /** Last guard state mirrored to the main process. */
     private guardArmed = false;
+    /** True while an updater-driven app quit must pass unchallenged. */
+    private suspended = false;
 
     /** Indirection because `window.location.reload` cannot be stubbed. */
     reloadPage: () => void = () => window.location.reload();
@@ -74,12 +76,41 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.dispose();
     }
 
+    /**
+     * Stands every protection layer down for an app quit the user explicitly
+     * requested from inside settings — installing a downloaded update. The
+     * updater closes the window while the form may still be dirty; a
+     * `beforeunload` cancellation at the DOM layer would strand the install
+     * (and even morph it into a reload), so the quit must pass unchallenged.
+     */
+    suspendForAppQuit(): void {
+        if (!this.host || this.suspended) {
+            return;
+        }
+
+        this.suspended = true;
+        window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+        this.syncCloseGuard(this.host.form.dirty);
+    }
+
+    /** Restores the protection when the requested quit did not happen. */
+    resumeAfterAbortedAppQuit(): void {
+        if (!this.host || !this.suspended) {
+            return;
+        }
+
+        this.suspended = false;
+        window.addEventListener('beforeunload', this.beforeUnloadHandler);
+        this.syncCloseGuard(this.host.form.dirty);
+    }
+
     private dispose(): void {
         window.removeEventListener('beforeunload', this.beforeUnloadHandler);
         this.dirtySubscription?.unsubscribe();
         this.dirtySubscription = null;
         this.unsubscribeCloseRequests?.();
         this.unsubscribeCloseRequests = null;
+        this.suspended = false;
         this.syncCloseGuard(false);
         this.host = null;
     }
@@ -98,8 +129,10 @@ export class SettingsUnloadGuardService implements OnDestroy {
 
         if (window.electron) {
             // Electron cancelled the unload without any prompt. Window close
-            // never lands here (the main process intercepts it first), so
-            // this can only be a reload — ask, then re-trigger it.
+            // never lands here while the guard is armed (the main process
+            // intercepts it first), and an updater-driven quit suspends this
+            // handler entirely — so this can only be a reload: ask, then
+            // re-trigger it.
             setTimeout(() => {
                 this.zone.run(() => void this.handleCloseRequest('reload'));
             });
@@ -139,11 +172,13 @@ export class SettingsUnloadGuardService implements OnDestroy {
     }
 
     private syncCloseGuard(active: boolean): void {
-        if (this.guardArmed === active) {
+        const effective = active && !this.suspended;
+
+        if (this.guardArmed === effective) {
             return;
         }
 
-        this.guardArmed = active;
-        void window.electron?.setWindowCloseGuard?.(active);
+        this.guardArmed = effective;
+        void window.electron?.setWindowCloseGuard?.(effective);
     }
 }

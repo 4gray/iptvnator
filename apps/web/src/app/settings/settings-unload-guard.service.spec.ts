@@ -155,6 +155,51 @@ describe('SettingsUnloadGuardService', () => {
         });
     });
 
+    describe('updater-driven app quit (Electron)', () => {
+        it('suspends both protection layers for the quit', () => {
+            activateInElectron();
+            form.markAsDirty();
+
+            service.suspendForAppQuit();
+
+            // The main-process mirror is disarmed...
+            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
+                false
+            );
+            // ...and the DOM layer no longer cancels the unload, so the
+            // updater's window close passes without turning into a reload.
+            const event = dispatchBeforeUnload();
+            expect(event.defaultPrevented).toBe(false);
+        });
+
+        it('keeps the mirror down when the form changes while suspended', () => {
+            activateInElectron();
+            form.markAsDirty();
+            service.suspendForAppQuit();
+
+            form.markAsPristine();
+            form.markAsDirty();
+
+            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
+                false
+            );
+        });
+
+        it('restores the protection when the quit did not happen', () => {
+            activateInElectron();
+            form.markAsDirty();
+            service.suspendForAppQuit();
+
+            service.resumeAfterAbortedAppQuit();
+
+            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
+                true
+            );
+            const event = dispatchBeforeUnload();
+            expect(event.defaultPrevented).toBe(true);
+        });
+    });
+
     describe('intercepted window close (Electron)', () => {
         it('confirms the close once the user saves or discards', async () => {
             activateInElectron();

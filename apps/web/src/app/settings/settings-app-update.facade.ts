@@ -9,6 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
+import { SettingsUnloadGuardService } from './settings-unload-guard.service';
 
 const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 60;
 const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
@@ -24,6 +25,7 @@ export class SettingsAppUpdateFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsService = inject(SettingsService);
     private readonly translate = inject(TranslateService);
+    private readonly unloadGuard = inject(SettingsUnloadGuardService);
 
     /** Latest updater status, polled once and then pushed by the backend */
     readonly status = signal<ElectronBridgeAppUpdateStatus | null>(null);
@@ -68,7 +70,22 @@ export class SettingsAppUpdateFacade {
             return;
         }
 
-        this.status.set(await window.electron.installAppUpdate());
+        // Installing quits the app; the unsaved-settings unload guard must
+        // not fight a quit the user just asked for — its `beforeunload`
+        // would cancel the updater's window close at the DOM layer and
+        // strand the install. A 'downloaded' reply means quitAndInstall ran
+        // and the app is going down; anything else means no quit happened,
+        // so the protection comes back.
+        this.unloadGuard.suspendForAppQuit();
+
+        const status = await window.electron.installAppUpdate();
+        this.status.set(status);
+
+        if (
+            status?.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+        ) {
+            this.unloadGuard.resumeAfterAbortedAppQuit();
+        }
     }
 
     openManualAppUpdate(): void {
