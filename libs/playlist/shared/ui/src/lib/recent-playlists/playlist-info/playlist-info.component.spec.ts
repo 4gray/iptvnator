@@ -591,9 +591,9 @@ describe('PlaylistInfoComponent', () => {
     });
 
     describe('Stalker identity fields', () => {
-        function createStalkerComponent(
+        async function createStalkerComponent(
             overrides: Partial<Playlist> = {}
-        ): void {
+        ): Promise<void> {
             const stalkerPlaylist = {
                 ...playlist,
                 url: undefined,
@@ -609,6 +609,8 @@ describe('PlaylistInfoComponent', () => {
                 useValue: stalkerPlaylist,
             });
             createComponent();
+            fixture.detectChanges();
+            await fixture.whenStable();
             fixture.detectChanges();
         }
 
@@ -664,8 +666,8 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('canonicalizes an edited MAC on blur', () => {
-            createStalkerComponent();
+        it('canonicalizes an edited MAC on blur', async () => {
+            await createStalkerComponent();
             const control = component.playlistDetails.get('macAddress');
             control?.setValue('00-1a-79-ab-cd-ef');
 
@@ -676,10 +678,10 @@ describe('PlaylistInfoComponent', () => {
             expect(control?.dirty).toBe(true);
         });
 
-        it('leaves a stored MAC untouched until it is edited', () => {
+        it('leaves a stored MAC untouched until it is edited', async () => {
             // Loading the dialog must not move the session fingerprint: the
             // stored lowercase MAC is what the portal already accepted.
-            createStalkerComponent();
+            await createStalkerComponent();
 
             expect(component.playlistDetails.get('macAddress')?.value).toBe(
                 '00:1a:79:aa:bb:cc'
@@ -687,8 +689,8 @@ describe('PlaylistInfoComponent', () => {
             expect(component.playlistDetails.pristine).toBe(true);
         });
 
-        it('refuses to save a malformed MAC', () => {
-            createStalkerComponent();
+        it('refuses to save a malformed MAC', async () => {
+            await createStalkerComponent();
             const control = component.playlistDetails.get('macAddress');
 
             control?.setValue('00:1A:79:AA:BB');
@@ -700,7 +702,7 @@ describe('PlaylistInfoComponent', () => {
         it('canonicalizes the MAC on submit when no blur fired', async () => {
             // Pressing Enter inside the field submits without the field losing
             // focus, so `onMacAddressBlur` never runs.
-            createStalkerComponent();
+            await createStalkerComponent();
             component.playlistDetails
                 .get('macAddress')
                 ?.setValue('00-1a-79-ab-cd-ef');
@@ -723,7 +725,7 @@ describe('PlaylistInfoComponent', () => {
         });
 
         it('saves metadata without discovery when connection fields are unchanged', async () => {
-            createStalkerComponent({
+            await createStalkerComponent({
                 username: 'subscriber',
                 password: 'secret',
                 stalkerSerialNumber: 'SERIAL',
@@ -765,7 +767,7 @@ describe('PlaylistInfoComponent', () => {
             ['stalkerSignature1', 'NEW-SIGNATURE-1'],
             ['stalkerSignature2', 'NEW-SIGNATURE-2'],
         ])('runs discovery when %s changes', async (field, value) => {
-            createStalkerComponent({
+            await createStalkerComponent({
                 username: 'subscriber',
                 password: 'secret',
                 stalkerSerialNumber: 'SERIAL',
@@ -786,7 +788,7 @@ describe('PlaylistInfoComponent', () => {
         });
 
         it('dispatches the resolved endpoint, mode and session patch together', async () => {
-            createStalkerComponent();
+            await createStalkerComponent();
             const resolvedPlaylist = {
                 ...component.playlistDetails.getRawValue(),
                 portalUrl: 'https://portal.example.com/server/load.php',
@@ -828,7 +830,7 @@ describe('PlaylistInfoComponent', () => {
                 .spyOn(console, 'error')
                 .mockImplementation(() => undefined);
             try {
-                createStalkerComponent();
+                await createStalkerComponent();
                 const resolvedPlaylist = {
                     ...component.playlistDetails.getRawValue(),
                     portalUrl: 'https://portal.example.com/server/load.php',
@@ -869,7 +871,7 @@ describe('PlaylistInfoComponent', () => {
             STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
             STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
         ])('keeps the dialog open and saves nothing on %s', async (status) => {
-            createStalkerComponent();
+            await createStalkerComponent();
             stalkerConnectionEditor.resolveConnection.mockResolvedValue({
                 status,
                 message: `error:${status}`,
@@ -893,8 +895,7 @@ describe('PlaylistInfoComponent', () => {
         });
 
         it('ignores a second Save while discovery is pending', async () => {
-            createStalkerComponent();
-            await fixture.whenStable();
+            await createStalkerComponent();
             let resolveDiscovery:
                 | ((value: { status: 'unreachable'; message: string }) => void)
                 | undefined;
@@ -926,8 +927,8 @@ describe('PlaylistInfoComponent', () => {
             expect(dialogRef.disableClose).toBe(false);
         });
 
-        it('accepts a bare HTTP host but rejects an address without a protocol', () => {
-            createStalkerComponent();
+        it('accepts a bare HTTP host but rejects an address without a protocol', async () => {
+            await createStalkerComponent();
             const control = component.playlistDetails.get('portalUrl');
 
             control?.setValue('portal.example.com');
@@ -941,7 +942,7 @@ describe('PlaylistInfoComponent', () => {
         });
 
         it('persists a grandfathered MAC untouched on submit', async () => {
-            createStalkerComponent({ macAddress: 'legacy-device-42' });
+            await createStalkerComponent({ macAddress: 'legacy-device-42' });
 
             await component.saveChanges(
                 component.playlistDetails.value as PlaylistMeta
@@ -961,7 +962,9 @@ describe('PlaylistInfoComponent', () => {
             // there would mark the form dirty AND make the value differ from
             // the stored one, which is what the submit guard reads — so a
             // later title-only save would carry the rewritten identity.
-            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            await createStalkerComponent({
+                macAddress: '00-1a-79-aa-bb-cc',
+            });
             const control = component.playlistDetails.get('macAddress');
 
             component.onMacAddressBlur();
@@ -988,7 +991,9 @@ describe('PlaylistInfoComponent', () => {
             // what a permissive portal registered, and changing them moves
             // the session fingerprint and re-authenticates under a spelling
             // the portal never saw.
-            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            await createStalkerComponent({
+                macAddress: '00-1a-79-aa-bb-cc',
+            });
             component.playlistDetails.get('title')?.setValue('Renamed');
 
             await component.saveChanges(
@@ -1005,11 +1010,11 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('does not claim a simple portal has pinned its device IDs', () => {
+        it('does not claim a simple portal has pinned its device IDs', async () => {
             // device_id travels only on get_profile/do_auth, which a
             // panel-style portal never runs — so nothing was pinned and the
             // lockout warning would be false.
-            createStalkerComponent({
+            await createStalkerComponent({
                 isFullStalkerPortal: false,
                 stalkerDeviceId1: 'ABCDEF',
             });
@@ -1020,23 +1025,25 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('keeps a MAC outside the Infomir range saveable', () => {
+        it('keeps a MAC outside the Infomir range saveable', async () => {
             // Most reseller panels do not run the stock OUI filter, so this is
             // a working configuration — the import hint explains the risk, the
             // form must not block it.
-            createStalkerComponent({ macAddress: 'AA:BB:CC:DD:EE:01' });
+            await createStalkerComponent({
+                macAddress: 'AA:BB:CC:DD:EE:01',
+            });
 
             expect(component.playlistDetails.get('macAddress')?.valid).toBe(
                 true
             );
         });
 
-        it('grandfathers a stored MAC it would now reject', () => {
+        it('grandfathers a stored MAC it would now reject', async () => {
             // Before this validation existed the field accepted anything, and
             // on a panel that ignores the MAC such a playlist works. Blocking
             // Save would also strand the title, URL and EPG edits in the same
             // dialog.
-            createStalkerComponent({ macAddress: 'legacy-device-42' });
+            await createStalkerComponent({ macAddress: 'legacy-device-42' });
 
             expect(component.playlistDetails.get('macAddress')?.valid).toBe(
                 true
@@ -1044,8 +1051,8 @@ describe('PlaylistInfoComponent', () => {
             expect(component.playlistDetails.valid).toBe(true);
         });
 
-        it('still refuses a newly typed malformed MAC on a grandfathered playlist', () => {
-            createStalkerComponent({ macAddress: 'legacy-device-42' });
+        it('still refuses a newly typed malformed MAC on a grandfathered playlist', async () => {
+            await createStalkerComponent({ macAddress: 'legacy-device-42' });
             const control = component.playlistDetails.get('macAddress');
 
             control?.setValue('legacy-device-43');
@@ -1053,8 +1060,8 @@ describe('PlaylistInfoComponent', () => {
             expect(control?.valid).toBe(false);
         });
 
-        it('does not warn about a pinning that has not happened', () => {
-            createStalkerComponent();
+        it('does not warn about a pinning that has not happened', async () => {
+            await createStalkerComponent();
 
             expect(component.hasStoredStalkerDeviceIds).toBe(false);
             expect(fixture.nativeElement.textContent).not.toContain(
@@ -1062,14 +1069,14 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('treats a blank stored device ID as never sent', () => {
-            createStalkerComponent({ stalkerDeviceId2: '   ' });
+        it('treats a blank stored device ID as never sent', async () => {
+            await createStalkerComponent({ stalkerDeviceId2: '   ' });
 
             expect(component.hasStoredStalkerDeviceIds).toBe(false);
         });
 
-        it('warns once a device ID has been pinned', () => {
-            createStalkerComponent({ stalkerDeviceId1: 'ABCDEF' });
+        it('warns once a device ID has been pinned', async () => {
+            await createStalkerComponent({ stalkerDeviceId1: 'ABCDEF' });
 
             expect(component.hasStoredStalkerDeviceIds).toBe(true);
             expect(fixture.nativeElement.textContent).toContain(
@@ -1077,8 +1084,8 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('warns when only the second device ID is pinned', () => {
-            createStalkerComponent({ stalkerDeviceId2: 'FEDCBA' });
+        it('warns when only the second device ID is pinned', async () => {
+            await createStalkerComponent({ stalkerDeviceId2: 'FEDCBA' });
 
             expect(component.hasStoredStalkerDeviceIds).toBe(true);
         });
