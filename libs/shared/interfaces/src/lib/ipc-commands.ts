@@ -113,3 +113,9 @@ export const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
 export const WINDOW_CLOSE = 'WINDOW:CLOSE';
 export const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 export const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
+
+// Close guard: while active, closing/quitting the app is intercepted in the
+// main process and handed to the renderer for a save/discard/stay decision
+export const WINDOW_SET_CLOSE_GUARD = 'WINDOW:SET_CLOSE_GUARD';
+export const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
+export const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';

@@ -80,6 +80,9 @@ const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
 const WINDOW_CLOSE = 'WINDOW:CLOSE';
 const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
+const WINDOW_SET_CLOSE_GUARD = 'WINDOW:SET_CLOSE_GUARD';
+const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
+const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';
 
 const dbSaveContentProgressListeners = new Set<
     (
@@ -417,6 +420,14 @@ const electronApi: ElectronBridgeApi = {
         ) => callback(state);
         ipcRenderer.on(WINDOW_STATE_CHANGED, handler);
         return () => ipcRenderer.off(WINDOW_STATE_CHANGED, handler);
+    },
+    setWindowCloseGuard: (active: boolean) =>
+        ipcRenderer.invoke(WINDOW_SET_CLOSE_GUARD, active),
+    confirmWindowClose: () => ipcRenderer.invoke(WINDOW_CONFIRM_CLOSE),
+    onWindowCloseRequested: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on(WINDOW_CLOSE_REQUESTED, handler);
+        return () => ipcRenderer.off(WINDOW_CLOSE_REQUESTED, handler);
     },
     fetchPlaylistByUrl: (
         url: string,

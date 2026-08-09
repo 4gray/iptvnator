@@ -30,6 +30,7 @@ import { registerStaticHeaderShims } from './app/services/request-header-overrid
 import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
+import { bootstrapWindowCloseGuard } from './app/services/window-close-guard.service';
 import { registerStreamProbeHandlers } from './app/events/stream-probe';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
@@ -145,6 +146,9 @@ export default class Main {
         registerStaticHeaderShims();
         ElectronEvents.bootstrapElectronEvents();
         WindowEvents.bootstrapWindowEvents();
+        bootstrapWindowCloseGuard((listener) =>
+            App.onMainWindowCreated(listener)
+        );
         EmbeddedMpvEvents.bootstrapEmbeddedMpvEvents();
         PlaylistEvents.bootstrapPlaylistEvents();
         PlaylistOpenEvents.bootstrapPlaylistOpenEvents();

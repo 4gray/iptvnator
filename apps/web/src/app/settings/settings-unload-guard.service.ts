@@ -1,0 +1,143 @@
+import { inject, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { distinctUntilChanged, map, startWith } from 'rxjs/operators';
+import { SettingsForm } from './settings-form.utils';
+
+export interface SettingsUnloadGuardHost {
+    /** The shared settings form whose dirty state arms every protection. */
+    form: SettingsForm;
+    /**
+     * The same save/discard/stay flow the router guard runs. Resolves true
+     * when leaving is safe — saved or discarded; a failed save resolves
+     * false and must cancel the close.
+     */
+    confirmClose: () => Promise<boolean>;
+}
+
+/**
+ * Protects unsaved settings edits on the exits the router never sees:
+ * closing the window, quitting the app, and reloading the page.
+ *
+ * Three cooperating layers, all armed only while the form is dirty:
+ *
+ * - A `beforeunload` handler. In a browser (PWA) it triggers the native
+ *   leave-page prompt — custom UI is not possible there. In Electron it
+ *   silently cancels the unload (reloads only — see below) and follows up
+ *   with the app's own save/discard/stay dialog.
+ * - In Electron, the dirty state is mirrored to the main process
+ *   (`setWindowCloseGuard`), which intercepts window close / app quit
+ *   *before* `beforeunload` fires and pushes the decision back here.
+ * - `confirmWindowClose` completes an intercepted close once the user
+ *   saved or discarded; staying — or a save that failed — never confirms,
+ *   so the window stays open with the edits intact.
+ *
+ * Provided by `SettingsComponent`, so its `ngOnDestroy` runs when the user
+ * leaves the settings area and every hook is released.
+ */
+@Injectable()
+export class SettingsUnloadGuardService implements OnDestroy {
+    private readonly zone = inject(NgZone);
+    private host: SettingsUnloadGuardHost | null = null;
+    private dirtySubscription: Subscription | null = null;
+    private unsubscribeCloseRequests: (() => void) | null = null;
+    private confirmationPending = false;
+    /** Last guard state mirrored to the main process. */
+    private guardArmed = false;
+
+    /** Indirection because `window.location.reload` cannot be stubbed. */
+    reloadPage: () => void = () => window.location.reload();
+
+    activate(host: SettingsUnloadGuardHost): void {
+        this.dispose();
+        this.host = host;
+
+        // `events` fires on every pristine transition (and more); mapping to
+        // the current dirty flag with distinctUntilChanged keeps the mirror
+        // exact without depending on which control emitted.
+        this.dirtySubscription = host.form.events
+            .pipe(
+                map(() => host.form.dirty),
+                startWith(host.form.dirty),
+                distinctUntilChanged()
+            )
+            .subscribe((dirty) => this.syncCloseGuard(dirty));
+
+        window.addEventListener('beforeunload', this.beforeUnloadHandler);
+
+        this.unsubscribeCloseRequests =
+            window.electron?.onWindowCloseRequested?.(() => {
+                this.zone.run(() => void this.handleCloseRequest('close'));
+            }) ?? null;
+    }
+
+    ngOnDestroy(): void {
+        this.dispose();
+    }
+
+    private dispose(): void {
+        window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+        this.dirtySubscription?.unsubscribe();
+        this.dirtySubscription = null;
+        this.unsubscribeCloseRequests?.();
+        this.unsubscribeCloseRequests = null;
+        this.syncCloseGuard(false);
+        this.host = null;
+    }
+
+    private readonly beforeUnloadHandler = (
+        event: BeforeUnloadEvent
+    ): void => {
+        if (!this.host?.form.dirty) {
+            return;
+        }
+
+        event.preventDefault();
+        // Chromium's legacy trigger for the native prompt; harmless in
+        // Electron, where cancellation comes from preventDefault().
+        event.returnValue = '';
+
+        if (window.electron) {
+            // Electron cancelled the unload without any prompt. Window close
+            // never lands here (the main process intercepts it first), so
+            // this can only be a reload — ask, then re-trigger it.
+            setTimeout(() => {
+                this.zone.run(() => void this.handleCloseRequest('reload'));
+            });
+        }
+    };
+
+    private async handleCloseRequest(
+        intent: 'close' | 'reload'
+    ): Promise<void> {
+        const host = this.host;
+
+        if (!host || this.confirmationPending) {
+            return;
+        }
+
+        this.confirmationPending = true;
+
+        try {
+            if (!(await host.confirmClose())) {
+                return;
+            }
+
+            if (intent === 'close') {
+                await window.electron?.confirmWindowClose?.();
+            } else {
+                this.reloadPage();
+            }
+        } finally {
+            this.confirmationPending = false;
+        }
+    }
+
+    private syncCloseGuard(active: boolean): void {
+        if (this.guardArmed === active) {
+            return;
+        }
+
+        this.guardArmed = active;
+        void window.electron?.setWindowCloseGuard?.(active);
+    }
+}
