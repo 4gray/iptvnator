@@ -37,6 +37,8 @@ export class SettingsAppUpdateFacade {
     readonly updateMessage = signal('');
 
     private unsubscribeStatus: (() => void) | null = null;
+    /** True after an install reply promised a quit that has not happened. */
+    private installQuitPending = false;
 
     /** Subscribes to status pushes and kicks off the initial status load */
     init(): void {
@@ -83,9 +85,15 @@ export class SettingsAppUpdateFacade {
             this.status.set(status);
 
             if (
-                status?.status !==
+                status?.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
             ) {
+                // quitAndInstall ran, but electron-updater reports its
+                // failures as a later 'error' status push rather than here —
+                // the status stream (bindStatusEvents) resumes the guard if
+                // that happens instead of a quit.
+                this.installQuitPending = true;
+            } else {
                 this.unloadGuard.resumeAfterAbortedAppQuit();
             }
         } catch (error) {
@@ -189,6 +197,18 @@ export class SettingsAppUpdateFacade {
         this.unsubscribeStatus = window.electron.onAppUpdateStatusChange(
             (status) => {
                 this.status.set(status);
+
+                // Any post-install status other than the quitting install's
+                // own proves the app is still running — the promised quit is
+                // not coming, so the unload protection returns.
+                if (
+                    this.installQuitPending &&
+                    status.status !==
+                        ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+                ) {
+                    this.installQuitPending = false;
+                    this.unloadGuard.resumeAfterAbortedAppQuit();
+                }
             }
         );
     }

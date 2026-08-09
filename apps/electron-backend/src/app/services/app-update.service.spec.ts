@@ -506,4 +506,32 @@ describe('AppUpdateService', () => {
         expect(cancelPreparedQuit).toHaveBeenCalledTimes(1);
         expect(status.status).toBe(ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error);
     });
+
+    it('takes the bypass back when the updater emits the failure as an error event', () => {
+        // electron-updater's BaseUpdater catches synchronous install
+        // failures internally and emits 'error' instead of throwing, and
+        // MacUpdater can fail after quitAndInstall already returned — the
+        // revocation must ride the error path.
+        const cancelPreparedQuit = jest.fn();
+        const { service } = createService({ cancelPreparedQuit });
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        service.handleUpdateDownloaded({ version: '0.23.0' });
+
+        service.installUpdate();
+        expect(cancelPreparedQuit).not.toHaveBeenCalled();
+
+        // What attachUpdaterEvents forwards from the updater 'error' event.
+        service.handleError(new Error('ShipIt failed'));
+
+        expect(cancelPreparedQuit).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not revoke a bypass for errors unrelated to an install', () => {
+        const cancelPreparedQuit = jest.fn();
+        const { service } = createService({ cancelPreparedQuit });
+
+        service.handleError(new Error('check failed'));
+
+        expect(cancelPreparedQuit).not.toHaveBeenCalled();
+    });
 });

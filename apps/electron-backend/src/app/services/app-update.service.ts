@@ -253,6 +253,8 @@ export class AppUpdateService {
     private checkForUpdatesPromise: Promise<ElectronBridgeAppUpdateStatus> | null =
         null;
     private status: ElectronBridgeAppUpdateStatus;
+    /** True between prepareQuit() and the quit — or the error that voids it. */
+    private quitPreparationPending = false;
 
     constructor(private readonly options: AppUpdateServiceOptions) {
         this.currentVersion = resolveCurrentVersion(
@@ -414,15 +416,17 @@ export class AppUpdateService {
             this.status.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         ) {
+            // Consumed by handleError: electron-updater's BaseUpdater
+            // catches its own synchronous install failures and emits
+            // 'error' instead of throwing, and MacUpdater can return here
+            // and fail asynchronously — the revocation must ride the error
+            // path, not a try/catch around this call.
+            this.quitPreparationPending = true;
             this.options.prepareQuit?.();
 
             try {
                 this.updater.quitAndInstall();
             } catch (error) {
-                // No quit is coming: take back the close-guard bypass and
-                // report the failure as a status the renderer can read —
-                // non-Downloaded also tells it to restore its own guard.
-                this.options.cancelPreparedQuit?.();
                 this.handleError(error);
             }
         }
@@ -471,6 +475,14 @@ export class AppUpdateService {
     }
 
     handleError(error: unknown): void {
+        // An error after a prepared quit means no quit is coming: take back
+        // the one-shot close-guard bypass, whether the failure was thrown
+        // synchronously or emitted later as an updater 'error' event.
+        if (this.quitPreparationPending) {
+            this.quitPreparationPending = false;
+            this.options.cancelPreparedQuit?.();
+        }
+
         this.setStatus({
             error: normalizeError(error),
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,

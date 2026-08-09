@@ -227,6 +227,56 @@ describe('SettingsUnloadGuardService', () => {
             expect(electronStub.cancelWindowClose).toHaveBeenCalledTimes(1);
         });
 
+        it('escalates an open reload confirmation into the requested close', async () => {
+            let resolveConfirm: ((value: boolean) => void) | null = null;
+            host.confirmClose.mockImplementation(
+                () =>
+                    new Promise<boolean>((resolve) => {
+                        resolveConfirm = resolve;
+                    })
+            );
+            const reloadPage = jest.fn();
+            activateInElectron();
+            service.reloadPage = reloadPage;
+            form.markAsDirty();
+
+            // Reload confirmation opens first...
+            dispatchBeforeUnload();
+            await flushAsyncWork();
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+
+            // ...then the user closes the window while it is on screen.
+            closeRequestCallback?.();
+            resolveConfirm?.(true);
+            await flushAsyncWork();
+
+            // Save/Discard completes the close — not the stale reload.
+            expect(electronStub.confirmWindowClose).toHaveBeenCalledTimes(1);
+            expect(reloadPage).not.toHaveBeenCalled();
+        });
+
+        it('cancels the escalated close when the user stays', async () => {
+            let resolveConfirm: ((value: boolean) => void) | null = null;
+            host.confirmClose.mockImplementation(
+                () =>
+                    new Promise<boolean>((resolve) => {
+                        resolveConfirm = resolve;
+                    })
+            );
+            activateInElectron();
+            form.markAsDirty();
+
+            dispatchBeforeUnload();
+            await flushAsyncWork();
+            closeRequestCallback?.();
+            resolveConfirm?.(false);
+            await flushAsyncWork();
+
+            // The main process remembered a close; staying must clear it.
+            expect(electronStub.cancelWindowClose).toHaveBeenCalledTimes(1);
+            expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
+        });
+
         it('ignores repeated close requests while a dialog is open', async () => {
             let resolveConfirm: ((value: boolean) => void) | null = null;
             host.confirmClose.mockImplementation(

@@ -195,6 +195,41 @@ describe('SettingsAppUpdateFacade', () => {
         );
     });
 
+    it('restores the unload guard when an error push follows a quitting install', async () => {
+        // electron-updater reports install failures as a later 'error'
+        // status event, not as a rejection of the install IPC — the app is
+        // then still running with the protection suspended.
+        const unloadGuard = TestBed.inject(SettingsUnloadGuardService);
+        (window.electron.installAppUpdate as jest.Mock).mockResolvedValue({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        });
+        facade.init();
+        const pushStatus = (
+            window.electron.onAppUpdateStatusChange as jest.Mock
+        ).mock.calls[0][0] as (
+            status: ElectronBridgeAppUpdateStatus
+        ) => void;
+
+        await facade.installAppUpdate();
+        expect(unloadGuard.resumeAfterAbortedAppQuit).not.toHaveBeenCalled();
+
+        pushStatus({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+
+        expect(unloadGuard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(
+            1
+        );
+
+        // The resume is one-shot: later unrelated pushes change nothing.
+        pushStatus(DEFAULT_APP_UPDATE_STATUS);
+        expect(unloadGuard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(
+            1
+        );
+    });
+
     it('opens the manual release URL from unsupported update status', () => {
         const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
         facade.status.set({

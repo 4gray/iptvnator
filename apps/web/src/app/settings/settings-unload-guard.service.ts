@@ -41,6 +41,13 @@ export class SettingsUnloadGuardService implements OnDestroy {
     private dirtySubscription: Subscription | null = null;
     private unsubscribeCloseRequests: (() => void) | null = null;
     private confirmationPending = false;
+    /**
+     * Intent of the confirmation currently on screen. A close request
+     * arriving while a reload confirmation is open escalates this to
+     * 'close' — the dialog is the same, only the continuation differs, and
+     * the user's most recent ask must be the one that completes.
+     */
+    private activeIntent: 'close' | 'reload' | null = null;
     /** Last guard state mirrored to the main process. */
     private guardArmed = false;
     /** True while an updater-driven app quit must pass unchallenged. */
@@ -144,15 +151,31 @@ export class SettingsUnloadGuardService implements OnDestroy {
     ): Promise<void> {
         const host = this.host;
 
-        if (!host || this.confirmationPending) {
+        if (!host) {
+            return;
+        }
+
+        if (this.confirmationPending) {
+            // A close outranks a reload, never the other way around: the
+            // open dialog stays, but Save/Discard must complete the close
+            // the user just asked for, not the earlier reload.
+            if (intent === 'close') {
+                this.activeIntent = 'close';
+            }
             return;
         }
 
         this.confirmationPending = true;
+        this.activeIntent = intent;
 
         try {
-            if (!(await host.confirmClose())) {
-                if (intent === 'close') {
+            const proceed = await host.confirmClose();
+            // Re-read after the dialog: a cross-intent request may have
+            // escalated it while the user was deciding.
+            const finalIntent = this.activeIntent ?? intent;
+
+            if (!proceed) {
+                if (finalIntent === 'close') {
                     // Staying must clear the intent the main process
                     // remembered, or a later close attempt would replay a
                     // stale quit.
@@ -161,13 +184,14 @@ export class SettingsUnloadGuardService implements OnDestroy {
                 return;
             }
 
-            if (intent === 'close') {
+            if (finalIntent === 'close') {
                 await window.electron?.confirmWindowClose?.();
             } else {
                 this.reloadPage();
             }
         } finally {
             this.confirmationPending = false;
+            this.activeIntent = null;
         }
     }
 
