@@ -6,7 +6,6 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -70,17 +69,12 @@ describe('CategoryContentViewComponent', () => {
     const appendError = signal(false);
     const catalog = {
         provider: 'xtream' as 'xtream' | 'stalker',
-        supportsInfiniteScroll: false as boolean,
-        pageSizeOptions: [10, 25, 50],
         contentType: signal('vod'),
-        limit: signal(25),
-        pageIndex: signal(0),
         selectedCategory: signal({ id: 1 }),
         paginatedContent: signal<unknown[]>([]),
         selectedCategoryTitle: signal('Movies'),
         categoryItemCount,
         selectedItem,
-        totalPages: signal(0),
         hasMore,
         isAppending,
         appendError,
@@ -92,8 +86,6 @@ describe('CategoryContentViewComponent', () => {
         initialize: jest.fn(),
         setSearchQuery: jest.fn(),
         clearSelectedItem: jest.fn(),
-        setPage: jest.fn(),
-        setLimit: jest.fn(),
         loadMore: jest.fn(),
         retryAppend: jest.fn(),
         saveScrollPosition: jest.fn(),
@@ -108,7 +100,6 @@ describe('CategoryContentViewComponent', () => {
     beforeEach(async () => {
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
-        catalog.supportsInfiniteScroll = false;
         selectedItem.set(null);
         isPaginatedContentLoading.set(true);
         categoryItemCount.set(0);
@@ -120,8 +111,6 @@ describe('CategoryContentViewComponent', () => {
         appendError.set(false);
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
-        catalog.setPage.mockClear();
-        catalog.setLimit.mockClear();
         catalog.loadMore.mockClear();
         catalog.retryAppend.mockClear();
         catalog.saveScrollPosition.mockClear();
@@ -201,7 +190,6 @@ describe('CategoryContentViewComponent', () => {
                         MatIcon,
                         MatButtonModule,
                         MatMenuModule,
-                        MatPaginatorModule,
                         MatTooltip,
                         TranslatePipe,
                     ],
@@ -342,155 +330,6 @@ describe('CategoryContentViewComponent', () => {
         ).toContain('9.0+');
     });
 
-    it('restores the zero-based catalog page from the one-based page query param', () => {
-        fixture.detectChanges();
-        catalog.setPage.mockClear();
-
-        queryParamMap$.next(
-            convertToParamMap({
-                page: '3',
-            })
-        );
-
-        expect(catalog.setPage).toHaveBeenCalledWith(2);
-    });
-
-    it('preserves the initial search and page query params on direct route loads', () => {
-        queryParamMap$.next(
-            convertToParamMap({
-                q: 'matrix',
-                page: '3',
-            })
-        );
-
-        fixture.detectChanges();
-
-        expect(catalog.setSearchQuery).toHaveBeenCalledWith('matrix');
-        expect(catalog.setPage).toHaveBeenCalledWith(2);
-        expect(router.navigate).not.toHaveBeenCalled();
-    });
-
-    it('resets to the first page and removes stale page query params when search changes', () => {
-        fixture.detectChanges();
-        catalog.setPage.mockClear();
-
-        queryParamMap$.next(
-            convertToParamMap({
-                q: 'matrix',
-                page: '3',
-            })
-        );
-
-        expect(catalog.setSearchQuery).toHaveBeenCalledWith('matrix');
-        expect(catalog.setPage).toHaveBeenCalledWith(0);
-        expect(router.navigate).toHaveBeenCalledWith([], {
-            relativeTo: expect.any(Object),
-            queryParams: {
-                page: null,
-            },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-        });
-    });
-
-    it('restores page changes while the search query is unchanged', () => {
-        queryParamMap$.next(
-            convertToParamMap({
-                q: 'matrix',
-            })
-        );
-        fixture.detectChanges();
-        catalog.setPage.mockClear();
-
-        queryParamMap$.next(
-            convertToParamMap({
-                q: 'matrix',
-                page: '3',
-            })
-        );
-
-        expect(catalog.setPage).toHaveBeenCalledWith(2);
-        expect(router.navigate).not.toHaveBeenCalled();
-    });
-
-    it('falls back to the first catalog page when the page query param is absent or invalid', () => {
-        fixture.detectChanges();
-        catalog.setPage.mockClear();
-
-        queryParamMap$.next(convertToParamMap({}));
-        queryParamMap$.next(
-            convertToParamMap({
-                page: 'not-a-page',
-            })
-        );
-
-        expect(catalog.setPage).toHaveBeenNthCalledWith(1, 0);
-        expect(catalog.setPage).toHaveBeenNthCalledWith(2, 0);
-    });
-
-    it('writes one-based page query params when the paginator changes', () => {
-        fixture.detectChanges();
-
-        fixture.componentInstance.onPageChange({
-            length: 100,
-            pageIndex: 1,
-            pageSize: 25,
-            previousPageIndex: 0,
-        });
-
-        expect(catalog.setPage).toHaveBeenCalledWith(1);
-        expect(catalog.setLimit).toHaveBeenCalledWith(25);
-        expect(router.navigate).toHaveBeenCalledWith([], {
-            relativeTo: expect.any(Object),
-            queryParams: {
-                page: 2,
-            },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-        });
-    });
-
-    it('removes the page query param when returning to the first page', () => {
-        fixture.detectChanges();
-
-        fixture.componentInstance.onPageChange({
-            length: 100,
-            pageIndex: 0,
-            pageSize: 25,
-            previousPageIndex: 1,
-        });
-
-        expect(router.navigate).toHaveBeenCalledWith([], {
-            relativeTo: expect.any(Object),
-            queryParams: {
-                page: null,
-            },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-        });
-    });
-
-    it('scrolls the grid list host to the top when the paginator changes', () => {
-        fixture.detectChanges();
-        const gridList = fixture.nativeElement.querySelector(
-            'app-grid-list'
-        ) as HTMLElement;
-        const scrollTo = jest.fn();
-        Object.defineProperty(gridList, 'scrollTo', {
-            configurable: true,
-            value: scrollTo,
-        });
-
-        fixture.componentInstance.onPageChange({
-            length: 100,
-            pageIndex: 1,
-            pageSize: 25,
-            previousPageIndex: 0,
-        });
-
-        expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
-    });
-
     it('preserves query params when navigating from an item to Xtream details', () => {
         catalog.selectItem.mockReturnValue(['42']);
         fixture.detectChanges();
@@ -595,10 +434,9 @@ describe('CategoryContentViewComponent', () => {
         });
 
         function createInfiniteFixture(): ComponentFixture<CategoryContentViewComponent> {
-            // The outer paged fixture shares ApplicationRef: an app-wide tick
-            // would run its ngOnInit and let it consume the same query params.
+            // The outer fixture shares ApplicationRef: an app-wide tick would
+            // run its ngOnInit and let it consume the same query params.
             fixture.destroy();
-            catalog.supportsInfiniteScroll = true;
             isPaginatedContentLoading.set(false);
             return TestBed.createComponent(CategoryContentViewComponent);
         }
@@ -631,7 +469,6 @@ describe('CategoryContentViewComponent', () => {
 
             infiniteFixture.detectChanges();
 
-            expect(catalog.setPage).not.toHaveBeenCalled();
             expect(router.navigate).toHaveBeenCalledWith(
                 [],
                 expect.objectContaining({

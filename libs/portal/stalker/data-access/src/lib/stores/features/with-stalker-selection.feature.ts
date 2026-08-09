@@ -86,6 +86,10 @@ export function withStalkerSelection() {
 
                 patchState(store, { page });
             },
+            /** Advances to the next portal page (infinite-scroll append). */
+            nextPage() {
+                patchState(store, { page: store.page() + 1 });
+            },
             setSearchPhrase(phrase: string) {
                 if (store.searchPhrase() === phrase) {
                     return;

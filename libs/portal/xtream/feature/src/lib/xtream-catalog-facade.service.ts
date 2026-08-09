@@ -33,7 +33,6 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     private loadedPositionsPlaylistId: string | null = null;
 
     readonly provider = 'xtream' as const;
-    readonly supportsInfiniteScroll = true;
     readonly contentType = this.xtreamStore.selectedContentType;
     readonly selectedCategory = this.xtreamStore.getSelectedCategory;
     readonly paginatedContent = this.xtreamStore.getPaginatedContent;

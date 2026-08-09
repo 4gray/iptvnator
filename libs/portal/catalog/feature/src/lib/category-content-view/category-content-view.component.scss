@@ -21,8 +21,8 @@
 .category-content-header {
     @include panel.standard-panel-header($sticky: true);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto auto;
-    grid-template-areas: 'meta refinements refine paginator';
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+    grid-template-areas: 'meta refinements refine';
     align-items: center;
     justify-content: stretch;
     gap: 8px 12px;
@@ -165,27 +165,11 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
-// ─── Paginator — flush right, no ghost background ────────────────────────────
-mat-paginator {
-    grid-area: paginator;
-    justify-self: end;
-    max-width: 100%;
-    background: transparent !important;
-    flex-shrink: 0;
-    // Shrink paginator text to fit header height comfortably
-    --mat-paginator-container-size: 40px;
-    --mat-paginator-enabled-icon-color: var(
-        --app-body-color,
-        var(--mat-sys-on-surface-variant)
-    );
-    --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
-}
-
 @container category-content (max-width: 920px) {
     .category-content-header {
         grid-template-columns: minmax(0, 1fr) auto auto;
         grid-template-areas:
-            'meta paginator paginator'
+            'meta meta meta'
             'refinements refinements refine';
         padding: 8px 16px;
         min-height: unset;
@@ -212,8 +196,7 @@ mat-paginator {
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
             'meta meta'
-            'refinements refine'
-            'paginator paginator';
+            'refinements refine';
     }
 
     .category-meta {
@@ -232,16 +215,6 @@ mat-paginator {
         justify-self: end;
     }
 
-    mat-paginator {
-        justify-self: start;
-
-        // The page-size select wraps onto a line of its own here, costing a
-        // row of an already short screen for a control nobody reaches for
-        // while browsing on a phone. The range and the arrows stay.
-        ::ng-deep .mat-mdc-paginator-page-size {
-            display: none;
-        }
-    }
 }
 
 // ─── Grid scroll area ─────────────────────────────────────────────────────────

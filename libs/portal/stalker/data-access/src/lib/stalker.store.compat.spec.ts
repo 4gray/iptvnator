@@ -101,7 +101,10 @@ describe('StalkerStore API compatibility smoke', () => {
 
     it('exposes compatibility computed selectors', () => {
         const expectedComputed = [
-            'getTotalPages',
+            // getTotalPages was removed with catalog pagination — the grid
+            // appends portal pages and pages have no UI representation left.
+            'hasMoreContent',
+            'hasContentAppendError',
             'getPaginatedContent',
             'isPaginatedContentLoading',
             'isPaginatedContentFailed',

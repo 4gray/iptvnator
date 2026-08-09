@@ -3,7 +3,6 @@ import {
     addStalkerPortal,
     addXtreamPortal,
     clickCategoryByNameExact,
-    clickFirstGridListCard,
     closeElectronApp,
     defaultXtreamPassword,
     defaultXtreamUsername,
@@ -289,7 +288,7 @@ test.describe('Electron Catalog Sorting', () => {
         }
     });
 
-    test('resets Stalker VOD and series grid scroll when changing pages', async ({
+    test('appends Stalker VOD and series portal pages on scroll and restores the spot after a detail round trip', async ({
         dataDir,
         request,
     }) => {
@@ -311,9 +310,12 @@ test.describe('Electron Catalog Sorting', () => {
                 vodFixture.categoryName
             );
             await expectCatalogGridReady(app.mainWindow);
+            await expectNoCatalogPaginator(app.mainWindow);
             const vodSearchTitle = await firstVisibleGridTitle(app.mainWindow);
-            await expectCatalogScrollResetAfterNextPage(app.mainWindow, {
-                expectContentChange: false,
+
+            await expectStalkerCatalogAppendsOnScroll(app.mainWindow, {
+                categoryId: vodFixture.categoryId,
+                type: 'vod',
             });
             await expectStalkerCatalogSearchResetsToFirstPage(app.mainWindow, {
                 categoryId: vodFixture.categoryId,
@@ -321,10 +323,7 @@ test.describe('Electron Catalog Sorting', () => {
                 type: 'vod',
             });
             await clearCatalogSearch(app.mainWindow);
-            await expectCatalogScrollResetAfterNextPage(app.mainWindow, {
-                expectContentChange: false,
-            });
-            await expectStalkerDetailBackPreservesCatalogPage(app.mainWindow);
+            await expectDetailRoundTripRestoresScroll(app.mainWindow);
 
             await openWorkspaceSection(app.mainWindow, 'Series');
             await clickCategoryByVisibleName(
@@ -332,20 +331,12 @@ test.describe('Electron Catalog Sorting', () => {
                 seriesFixture.categoryName
             );
             await expectCatalogGridReady(app.mainWindow);
-            const seriesSearchTitle = await firstVisibleGridTitle(app.mainWindow);
-            await expectCatalogScrollResetAfterNextPage(app.mainWindow, {
-                expectContentChange: false,
-            });
-            await expectStalkerCatalogSearchResetsToFirstPage(app.mainWindow, {
+            await expectNoCatalogPaginator(app.mainWindow);
+            await expectStalkerCatalogAppendsOnScroll(app.mainWindow, {
                 categoryId: seriesFixture.categoryId,
-                title: seriesSearchTitle,
                 type: 'series',
             });
-            await clearCatalogSearch(app.mainWindow);
-            await expectCatalogScrollResetAfterNextPage(app.mainWindow, {
-                expectContentChange: false,
-            });
-            await expectStalkerDetailBackPreservesCatalogPage(app.mainWindow);
+            await expectDetailRoundTripRestoresScroll(app.mainWindow);
         } finally {
             await closeElectronApp(app);
         }
@@ -420,36 +411,6 @@ async function expectCatalogGridReady(page: Page): Promise<void> {
     });
 }
 
-async function expectCatalogScrollResetAfterNextPage(
-    page: Page,
-    options: { expectContentChange?: boolean } = {}
-): Promise<string[]> {
-    const grid = catalogGrid(page);
-
-    await expect(grid).toBeVisible({ timeout: 20000 });
-    await ensureCatalogCanGoNext(page);
-    const rangeBefore = await catalogRangeText(page);
-    const titlesBefore = await visibleGridTitles(page);
-    await grid.evaluate((element: HTMLElement) => {
-        element.scrollTo({ top: element.scrollHeight });
-    });
-    await expect.poll(() => getCatalogGridScrollTop(page)).toBeGreaterThan(0);
-
-    await page
-        .locator('.category-content-header')
-        .getByRole('button', { name: 'Next page' })
-        .click();
-    await expectCatalogPageQuery(page, '2');
-    await expect.poll(() => catalogRangeText(page)).not.toBe(rangeBefore);
-    if (options.expectContentChange !== false) {
-        await expect
-            .poll(() => visibleGridTitles(page))
-            .not.toEqual(titlesBefore);
-    }
-    await expect.poll(() => getCatalogGridScrollTop(page)).toBeLessThan(2);
-    return visibleGridTitles(page);
-}
-
 async function expectCatalogSearchResetsToFirstPage(
     page: Page,
     title: string
@@ -498,7 +459,7 @@ async function expectCatalogGrowsOnScroll(page: Page): Promise<number> {
  */
 async function expectDetailRoundTripRestoresScroll(
     page: Page,
-    detailPathname: RegExp
+    detailPathname?: RegExp
 ): Promise<void> {
     const grownCount = await expectCatalogGrowsOnScroll(page);
     await expect.poll(() => getCatalogGridScrollTop(page)).toBeGreaterThan(100);
@@ -506,7 +467,11 @@ async function expectDetailRoundTripRestoresScroll(
     // The last card is already in view at the bottom — clicking it does not
     // make Playwright scroll the grid back to the top first.
     await page.locator('.category-content-layout mat-card').last().click();
-    await expectPathname(page, detailPathname);
+    if (detailPathname) {
+        // Xtream details are routed; Stalker details render inline on the
+        // same URL, so callers without a pathname skip the assertion.
+        await expectPathname(page, detailPathname);
+    }
     await goBackFromDetail(page);
 
     await expectCatalogGridReady(page);
@@ -517,6 +482,52 @@ async function expectDetailRoundTripRestoresScroll(
     await expect
         .poll(() => getCatalogGridScrollTop(page), { timeout: 20000 })
         .toBeGreaterThan(100);
+}
+
+/**
+ * Proves the Stalker grid accumulates portal pages: either the measured
+ * auto-fill already fetched past page one, or scrolling to the bottom does.
+ * Portal pages hold 14 items, so any larger count means appends happened.
+ */
+async function expectStalkerCatalogAppendsOnScroll(
+    page: Page,
+    options: { categoryId: string; type: 'series' | 'vod' }
+): Promise<void> {
+    const grid = catalogGrid(page);
+    await expect(grid).toBeVisible({ timeout: 20000 });
+
+    const totalText = await page
+        .locator('.category-content-header .category-subtitle')
+        .first()
+        .textContent();
+    const totalItems = Number(/\d+/.exec(totalText ?? '')?.[0] ?? 0);
+    const countBefore = await catalogCardCount(page);
+    if (countBefore < totalItems) {
+        await grid.evaluate((element: HTMLElement) => {
+            element.scrollTo({ top: element.scrollHeight });
+        });
+        await expect
+            .poll(() => catalogCardCount(page), { timeout: 20000 })
+            .toBeGreaterThan(countBefore);
+    }
+
+    await waitForPortalDebugEvent(page, {
+        provider: 'stalker',
+        operation: 'get_ordered_list',
+        predicate: (event) => {
+            const requestPayload = event.request as {
+                params?: Record<string, string | number>;
+            };
+
+            return (
+                requestPayload.params?.['type'] === options.type &&
+                String(requestPayload.params?.['category']) ===
+                    options.categoryId &&
+                Number(requestPayload.params?.['p'] ?? 0) >= 2
+            );
+        },
+    });
+    expect(await catalogCardCount(page)).toBeGreaterThan(14);
 }
 
 async function expectStalkerCatalogSearchResetsToFirstPage(
@@ -547,19 +558,6 @@ async function clearCatalogSearch(page: Page): Promise<void> {
     await fillWorkspaceSearch(page, '');
     await expectCatalogSearchQuery(page, null);
     await expectCatalogPageQuery(page, null);
-}
-
-async function expectStalkerDetailBackPreservesCatalogPage(
-    page: Page
-): Promise<void> {
-    const titlesOnPage = await visibleGridTitles(page);
-
-    await clickFirstGridListCard(page);
-    await goBackFromDetail(page);
-
-    await expectCatalogPageQuery(page, '2');
-    await expectCatalogGridReady(page);
-    await expect.poll(() => visibleGridTitles(page)).toEqual(titlesOnPage);
 }
 
 async function expectCatalogPageQuery(
@@ -634,31 +632,6 @@ function catalogGridCardByTitle(page: Page, title: string) {
             hasText: new RegExp(`^\\s*${escapeRegex(title)}\\s*$`),
         }),
     });
-}
-
-async function ensureCatalogCanGoNext(page: Page): Promise<void> {
-    const header = page.locator('.category-content-header');
-    const nextButton = header.getByRole('button', { name: 'Next page' });
-
-    await expect(nextButton).toBeVisible({ timeout: 20000 });
-
-    if (await nextButton.isDisabled()) {
-        await header.getByRole('button', { name: 'Previous page' }).click();
-        await expect
-            .poll(() => new URL(page.url()).searchParams.get('page'))
-            .toBe(null);
-    }
-
-    await expect(nextButton).toBeEnabled({ timeout: 20000 });
-}
-
-async function catalogRangeText(page: Page): Promise<string> {
-    return (
-        (await page
-            .locator('.category-content-header .mat-mdc-paginator-range-label')
-            .first()
-            .textContent()) ?? ''
-    ).trim();
 }
 
 async function getCatalogGridScrollTop(page: Page): Promise<number> {

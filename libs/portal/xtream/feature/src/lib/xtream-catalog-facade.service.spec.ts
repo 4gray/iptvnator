@@ -134,7 +134,6 @@ describe('XtreamCatalogFacadeService', () => {
     });
 
     it('exposes store-driven windowed content, hasMore, and category counts', () => {
-        expect(service.supportsInfiniteScroll).toBe(true);
         expect(service.paginatedContent()).toEqual([
             { xtream_id: 1, title: 'A' },
         ]);

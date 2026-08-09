@@ -576,9 +576,12 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
     await expect(allItemsGrid.locator('mat-card').first()).toBeVisible({
         timeout: 20_000,
     });
-    await expect(
-        allItemsGrid.locator('.mat-mdc-paginator-range-label')
-    ).toContainText('of 320');
+    // The grid is an infinite-scroll window over the cached full list — no
+    // paginator; the subtitle reports the complete channel count.
+    await expect(allItemsGrid.locator('mat-paginator')).toHaveCount(0);
+    await expect(allItemsGrid.locator('.category-subtitle')).toContainText(
+        '320'
+    );
     await expect(categories.nth(0).locator('.item-count')).toHaveText('320', {
         timeout: 10_000,
     });

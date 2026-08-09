@@ -1,14 +1,18 @@
 <app-search-layout
     [searchTerm]="searchTerm()"
     [resultsCount]="resultsCount"
-    [isLoading]="searchResultsResource.isLoading()"
+    [isLoading]="isInitialSearchLoading()"
     [showResultsCount]="true"
     [showSearchInput]="!isWorkspaceLayout"
     [showBackButton]="isWorkspaceLayout"
     [showDetails]="showingDetails"
-    [nearEndHasMore]="false"
+    [nearEndHasMore]="searchHasMore()"
+    [nearEndAppending]="isAppendingSearchResults()"
+    [nearEndRenderedCount]="resultsCount"
+    [nearEndResetKey]="searchTerm() + '|' + selectedFilterType()"
     (searchTermChange)="updateSearchTerm($event)"
     (backClick)="goBack()"
+    (nearEnd)="loadMoreSearchResults()"
 >
     @if (showingDetails) {
         <app-stalker-inline-detail
@@ -50,7 +54,7 @@
     <!-- Results -->
     <ng-container results>
         <div class="results-grid">
-            @for (item of searchResultsResource.value(); track item.id) {
+            @for (item of searchResults(); track item.id) {
                 <app-content-card
                     [title]="item.o_name || item.name || ''"
                     [posterUrl]="item.screenshot_uri"

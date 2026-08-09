@@ -4,6 +4,7 @@ import {
     computed,
     effect,
     inject,
+    linkedSignal,
     resource,
     signal,
     untracked,
@@ -71,9 +72,27 @@ type StalkerSearchContentType = 'vod' | 'series';
 interface StalkerSearchResponse {
     js?: {
         data?: StalkerVodSource[];
+        total_items?: number;
     };
     message?: string;
     status?: number;
+}
+
+/** Portals can shift items between pages mid-append — drop duplicate ids. */
+function dedupeSearchResults(items: StalkerVodSource[]): StalkerVodSource[] {
+    const seenIds = new Set<string>();
+    return items.filter((item) => {
+        const id =
+            item.id === undefined || item.id === null ? null : String(item.id);
+        if (id === null) {
+            return true;
+        }
+        if (seenIds.has(id)) {
+            return false;
+        }
+        seenIds.add(id);
+        return true;
+    });
 }
 
 @Component({
@@ -176,14 +195,30 @@ export class StalkerSearchComponent {
         () => this.favoritesRefresh.refreshVersion()
     );
 
+    /** Portal page for the current term+filter; resets on either changing. */
+    readonly searchPage = linkedSignal({
+        source: () => ({
+            term: this.searchTerm(),
+            type: this.selectedFilterType(),
+        }),
+        computation: () => 1,
+    });
+    /** Pages accumulated into one continuous, deduplicated result list. */
+    private readonly accumulatedSearchResults = signal<StalkerVodSource[]>([]);
+    readonly searchResults = this.accumulatedSearchResults.asReadonly();
+    readonly searchHasMore = signal(false);
+
     readonly searchResultsResource = resource({
         params: () => ({
             contentType: this.selectedFilterType(),
             search: this.searchTerm(),
+            page: this.searchPage(),
             action: StalkerPortalActions.GetOrderedList,
         }),
         loader: async ({ params }) => {
             if (params.search.length < 3) {
+                this.accumulatedSearchResults.set([]);
+                this.searchHasMore.set(false);
                 return [];
             }
             const playlist = this.currentPlaylist();
@@ -197,12 +232,15 @@ export class StalkerSearchComponent {
             // Mirror the catalog request shape: many Ministra portals
             // return an empty list for get_ordered_list without the
             // category/genre/sortby params the STB client always sends.
+            // `max_page_items` is a HINT — plenty of portals ignore it and
+            // return their own page size, which is why paging cannot rely
+            // on it (progress and `total_items` decide hasMore instead).
             const requestParams: Record<string, string | number> = {
                 action: StalkerContentTypes[contentType].getContentAction,
                 type: contentType,
                 sortby: 'added',
                 search: params.search,
-                p: 1,
+                p: params.page,
                 max_page_items: 100,
                 category: '*',
                 ...(contentType === 'vod' ? { genre: '0' } : {}),
@@ -220,12 +258,55 @@ export class StalkerSearchComponent {
                 playlist,
                 requestParams
             );
-            const items = response.js?.data || [];
-            return items.map((item: StalkerVodSource) =>
-                this.processItemUrls(item, portalUrl)
+            const items = (response.js?.data || []).map(
+                (item: StalkerVodSource) =>
+                    this.processItemUrls(item, portalUrl)
             );
+
+            // A stale response (term/filter/page moved on while this page
+            // was in flight) must not clobber the accumulated list.
+            const isCurrent =
+                params.search === this.searchTerm() &&
+                params.contentType === this.selectedFilterType() &&
+                params.page === this.searchPage();
+            if (!isCurrent) {
+                return items;
+            }
+
+            const previous =
+                params.page === 1 ? [] : this.accumulatedSearchResults();
+            const merged =
+                params.page === 1
+                    ? items
+                    : dedupeSearchResults([...previous, ...items]);
+            const totalItems = response.js?.total_items;
+            // Without a usable total, keep paging only while pages make
+            // progress — a portal repeating the same page dedupes to no
+            // growth and terminates the loop.
+            this.searchHasMore.set(
+                typeof totalItems === 'number' && totalItems >= 0
+                    ? merged.length < totalItems
+                    : items.length > 0 && merged.length > previous.length
+            );
+            this.accumulatedSearchResults.set(merged);
+            return merged;
         },
     });
+
+    readonly isInitialSearchLoading = computed(
+        () => this.searchResultsResource.isLoading() && this.searchPage() === 1
+    );
+    readonly isAppendingSearchResults = computed(
+        () => this.searchResultsResource.isLoading() && this.searchPage() > 1
+    );
+
+    loadMoreSearchResults(): void {
+        if (this.searchResultsResource.isLoading() || !this.searchHasMore()) {
+            return;
+        }
+
+        this.searchPage.update((page) => page + 1);
+    }
 
     readonly isSelectedVodFavorite = signal<boolean>(false);
 
@@ -287,7 +368,7 @@ export class StalkerSearchComponent {
 
     /** Get results count for layout */
     get resultsCount(): number {
-        return this.searchResultsResource.value()?.length ?? 0;
+        return this.searchResults().length;
     }
 
     updateSearchTerm(term: string) {
