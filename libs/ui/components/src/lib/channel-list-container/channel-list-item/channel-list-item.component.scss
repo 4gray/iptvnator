@@ -271,6 +271,15 @@
         font-size: 18px;
         line-height: 18px;
     }
+
+    /* Material keeps a 48px touch target on icon buttons; stacked 28px
+       buttons would overlap by 20px and the later sibling would steal
+       clicks from the lower third of the button above. Constrain the
+       target to the button bounds. */
+    button ::ng-deep .mat-mdc-button-touch-target {
+        width: 100%;
+        height: 100%;
+    }
 }
 
 .channel-list-item.active {
