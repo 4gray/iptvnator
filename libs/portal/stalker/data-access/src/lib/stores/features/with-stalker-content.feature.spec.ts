@@ -399,6 +399,54 @@ describe('withStalkerContent failure states', () => {
         expect(store.hasMoreContent()).toBe(false);
     });
 
+    it('stops paging when an append adds no unique items despite total_items', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+
+                return Promise.resolve({
+                    js: {
+                        // Page 2 repeats page 1's rows — after a mid-list
+                        // portal mutation the unique list can stay shorter
+                        // than the claimed total forever.
+                        data: [
+                            {
+                                id: 'movie-1',
+                                name: 'Movie one',
+                                category_id: '5',
+                            },
+                            {
+                                id: 'movie-2',
+                                name: 'Movie two',
+                                category_id: '5',
+                            },
+                        ],
+                        total_items: page === 1 ? 4 : 4,
+                    },
+                });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+        ]);
+        store.setSelectedCategory('5');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+        expect(store.hasMoreContent()).toBe(true);
+
+        store.setPage(1);
+        await waitForCondition(() => !store.hasMoreContent());
+
+        // The duplicate page made no progress: the total clamps to reality
+        // instead of leaving hasMoreContent true past the end forever.
+        expect(store.getPaginatedContent()).toHaveLength(2);
+        expect(store.totalCount()).toBe(2);
+    });
+
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
         let failPageTwo = true;
         dataService.sendIpcEvent.mockImplementation(

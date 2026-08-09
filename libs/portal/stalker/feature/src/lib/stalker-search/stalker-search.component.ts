@@ -319,13 +319,17 @@ export class StalkerSearchComponent {
         const previous = page === 1 ? [] : this.accumulatedSearchResults();
         const merged =
             page === 1 ? items : dedupeSearchResults([...previous, ...items]);
-        // Without a usable total, keep paging only while pages make
-        // progress — a portal repeating the same page dedupes to no
-        // growth and terminates the loop.
+        // Paging continues only while pages make progress — with OR without
+        // a reported total. Dedup after mid-list portal mutations can leave
+        // the unique list permanently shorter than total_items, and a
+        // repeated page dedupes to no growth; either way a no-progress
+        // append is the practical end of the results.
+        const madeProgress = page === 1 || merged.length > previous.length;
         this.searchHasMore.set(
-            typeof totalItems === 'number' && totalItems >= 0
-                ? merged.length < totalItems
-                : items.length > 0 && merged.length > previous.length
+            madeProgress &&
+                (typeof totalItems === 'number' && totalItems >= 0
+                    ? merged.length < totalItems
+                    : items.length > 0)
         );
         this.searchAppendError.set(false);
         this.accumulatedSearchResults.set(merged);

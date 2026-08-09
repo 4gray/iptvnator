@@ -385,6 +385,17 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchHasMore()).toBe(false);
     });
 
+    it('stops paging when a total-backed append makes no progress', () => {
+        component.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The portal repeats page 1 under a larger claimed total — dedupe
+        // yields no growth, which must still end the paging loop.
+        component.applySearchPageSuccess(2, searchItems('page1', 3), 10);
+        expect(component.searchResults()).toHaveLength(3);
+        expect(component.searchHasMore()).toBe(false);
+    });
+
     it('stops paging without a total once pages stop making progress', () => {
         component.applySearchPageSuccess(1, searchItems('page1', 3), undefined);
         expect(component.searchHasMore()).toBe(true);

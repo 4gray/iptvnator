@@ -616,17 +616,32 @@ export function withStalkerContent() {
                                     // VOD/series pages accumulate into one
                                     // continuous list for the infinite-scroll
                                     // grid; page 1 replaces it.
+                                    const previousContent =
+                                        store.paginatedContent();
                                     const nextContent =
                                         params.pageIndex === 1
                                             ? newItems
                                             : dedupeContentById([
-                                                  ...store.paginatedContent(),
+                                                  ...previousContent,
                                                   ...newItems,
                                               ]);
+                                    // An append that adds no unique items is
+                                    // the practical end of the list even when
+                                    // the portal's total_items claims more
+                                    // (dedup after mid-list mutations can
+                                    // leave the unique list short forever) —
+                                    // clamp the total so hasMoreContent turns
+                                    // false instead of requesting past the
+                                    // end on every scroll crossing.
+                                    const appendStalled =
+                                        params.pageIndex > 1 &&
+                                        nextContent.length <=
+                                            previousContent.length;
 
                                     patchState(store, {
-                                        totalCount:
-                                            response.js.total_items ?? 0,
+                                        totalCount: appendStalled
+                                            ? nextContent.length
+                                            : (response.js.total_items ?? 0),
                                         paginatedContent: nextContent,
                                         contentError: null,
                                         appendError: null,
