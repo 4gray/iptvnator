@@ -484,7 +484,13 @@ describe('withStalkerContent failure states', () => {
         await waitForCondition(() => store.getPaginatedContent().length === 1);
 
         store.setPage(1);
-        await waitForCondition(() => store.hasContentAppendError());
+        // The grid renders the retry action only after the failed resource
+        // has settled; while loading it renders the append spinner instead.
+        await waitForCondition(
+            () =>
+                store.hasContentAppendError() &&
+                !store.isPaginatedContentLoading()
+        );
 
         // The failed append left page 1 on screen, not the empty state.
         expect(
