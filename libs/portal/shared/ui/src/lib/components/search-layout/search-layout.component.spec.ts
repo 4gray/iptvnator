@@ -113,4 +113,51 @@ describe('SearchLayoutComponent', () => {
         resultsContainer.dispatchEvent(new Event('scroll'));
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
+
+    it('does not emit nearEnd when the consumer reports no more results', () => {
+        const nearEndSpy = jest.fn();
+        fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+        fixture.componentRef.setInput('nearEndHasMore', false);
+        const resultsContainer = renderResultsContainer();
+
+        setScrollMetrics(resultsContainer, 500);
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        setScrollMetrics(resultsContainer, 700);
+        resultsContainer.dispatchEvent(new Event('scroll'));
+
+        expect(nearEndSpy).not.toHaveBeenCalled();
+    });
+
+    it('auto-fills via nearEnd when the rendered results do not overflow', () => {
+        // Regression: a result window larger than the viewport-visible chunk
+        // must not stall when the rendered cards never create a scrollbar —
+        // the overflow check has to reveal further chunks without any scroll.
+        const rafCallbacks: FrameRequestCallback[] = [];
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            (callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }
+        );
+        jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(
+            () => undefined
+        );
+
+        try {
+            const nearEndSpy = jest.fn();
+            fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+            renderResultsContainer();
+
+            // JSDOM default geometry (all zeros) models a non-overflowing
+            // container; flushing the scheduled overflow check must emit.
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+
+            expect(nearEndSpy).toHaveBeenCalled();
+        } finally {
+            jest.restoreAllMocks();
+        }
+    });
 });

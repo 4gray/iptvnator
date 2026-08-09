@@ -116,14 +116,23 @@ export class InfiniteScrollDirective {
     }
 
     private runFillCheck(): void {
-        if (!this.canLoad() || this.autoFillLoads >= MAX_AUTO_FILL_LOADS) {
+        // Refresh the edge latch from the measured state: appended content can
+        // move the bottom out of the threshold without any scroll event, and a
+        // stale latch would swallow the next genuine crossing (End key,
+        // scrollbar drag straight to the bottom).
+        const isNearEnd = this.isNearEnd();
+        this.isWithinNearEndThreshold = isNearEnd;
+
+        if (
+            !isNearEnd ||
+            !this.canLoad() ||
+            this.autoFillLoads >= MAX_AUTO_FILL_LOADS
+        ) {
             return;
         }
 
-        if (this.isNearEnd()) {
-            this.autoFillLoads += 1;
-            this.infiniteLoadMore.emit();
-        }
+        this.autoFillLoads += 1;
+        this.infiniteLoadMore.emit();
     }
 
     private isNearEnd(): boolean {

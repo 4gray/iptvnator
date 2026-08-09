@@ -8,6 +8,8 @@
     [showSearchInput]="showInlineSearchInput"
     [minSearchLength]="minSearchLength"
     [initialDescriptionKey]="initialDescriptionKey"
+    [nearEndHasMore]="hasMoreSearchResults()"
+    [nearEndAppending]="isAppendingSearchResults()"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
     (backClick)="goBack()"

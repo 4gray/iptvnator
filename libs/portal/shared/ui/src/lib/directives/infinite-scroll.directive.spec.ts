@@ -166,6 +166,27 @@ describe('InfiniteScrollDirective', () => {
         expect(host.loads).toBe(11);
     });
 
+    it('clears a stale near-end latch when appended content moves the bottom away', () => {
+        // Empty container: the auto-fill fires and latches "within threshold".
+        setScrollMetrics(0, 0, 0);
+        flushScheduledChecks();
+        expect(host.loads).toBe(1);
+
+        // The append grows the content well past the threshold; the fill
+        // check must refresh the latch from the measured state.
+        setScrollMetrics(0, 2000, 400);
+        host.itemCount.set(50);
+        fixture.detectChanges();
+        flushScheduledChecks();
+        expect(host.loads).toBe(1);
+
+        // Jumping straight to the bottom (End key / scrollbar drag) is a
+        // genuine crossing again — a stale latch would swallow it.
+        setScrollMetrics(1600, 2000, 400);
+        scrollHost.dispatchEvent(new Event('scroll'));
+        expect(host.loads).toBe(2);
+    });
+
     it('does not auto-fill while an append is in flight', () => {
         setScrollMetrics(0, 0, 0);
         host.appending.set(true);

@@ -434,3 +434,71 @@ describe('SearchResultsComponent initialQuery contract', () => {
         expect(store.searchResults()).toHaveLength(2);
     });
 });
+
+describe('SearchResultsComponent in-portal result window', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: XtreamStore,
+                    useClass: MockXtreamStore,
+                },
+                {
+                    provide: Router,
+                    useValue: { navigate: jest.fn() },
+                },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: {
+                            data: { layout: 'workspace' },
+                            queryParamMap: convertToParamMap({ q: '' }),
+                        },
+                        queryParamMap: of(convertToParamMap({ q: '' })),
+                    },
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: {
+                        globalSearchContent: jest.fn().mockResolvedValue([]),
+                    },
+                },
+            ],
+        });
+    });
+
+    it('windows the full result set, reveals further chunks, and resets on a new result set', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const component = TestBed.runInInjectionContext(
+            () => new SearchResultsComponent(null, undefined)
+        );
+        const items = Array.from({ length: 130 }, (_, index) =>
+            createSearchItem({
+                id: index + 1,
+                xtream_id: index + 1,
+                title: `Item ${index + 1}`,
+            })
+        );
+        store.searchResults.set(items);
+
+        expect(component.isGlobalSearch).toBe(false);
+        expect(component.visibleInPortalResults()).toHaveLength(60);
+        expect(component.hasMoreSearchResults()).toBe(true);
+
+        component.onResultsNearEnd();
+        expect(component.visibleInPortalResults()).toHaveLength(120);
+
+        component.onResultsNearEnd();
+        expect(component.visibleInPortalResults()).toHaveLength(130);
+        expect(component.hasMoreSearchResults()).toBe(false);
+
+        // Growing past the total is a no-op.
+        component.onResultsNearEnd();
+        expect(component.visibleInPortalResults()).toHaveLength(130);
+
+        // A replaced result set resets the window to the first chunk.
+        store.searchResults.set(items.slice(0, 90));
+        expect(component.visibleInPortalResults()).toHaveLength(60);
+        expect(component.hasMoreSearchResults()).toBe(true);
+    });
+});

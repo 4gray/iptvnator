@@ -189,6 +189,21 @@ export class SearchResultsComponent implements AfterViewInit {
         this.xtreamStore.searchResults().slice(0, this.inPortalVisibleCount())
     );
 
+    /**
+     * Feeds the search layout's infinite scroll so its auto-fill can reveal
+     * further chunks even when the rendered ones do not overflow the viewport.
+     */
+    readonly hasMoreSearchResults = computed(() =>
+        this.isGlobalSearch
+            ? this.hasMoreGlobalResults()
+            : this.xtreamStore.searchResults().length >
+              this.inPortalVisibleCount()
+    );
+
+    readonly isAppendingSearchResults = computed(
+        () => this.isGlobalSearch && this.isLoadingMoreGlobalResults()
+    );
+
     onResultsNearEnd(): void {
         if (this.isGlobalSearch) {
             void this.loadMoreGlobalResults();
