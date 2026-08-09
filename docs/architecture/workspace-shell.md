@@ -51,7 +51,8 @@ Current workspace routes:
 7. `/workspace/global-recent`
 8. `/workspace/search`
 9. `/workspace/downloads`
-10. `/workspace/settings`
+10. `/workspace/settings/:section` (`/workspace/settings` redirects to
+    `general`; the settings context panel links each section page)
 11. `/workspace/xtreams/:id/...`
 12. `/workspace/stalker/:id/...`
 
@@ -130,7 +131,7 @@ The shell decides which secondary panel to show from the current route:
     1. `WorkspaceContextPanelComponent`
 3. Stalker category sections (`itv`, `radio`, `vod`, `series`)
     1. `WorkspaceContextPanelComponent`
-4. `/workspace/settings`
+4. `/workspace/settings/:section`
     1. `WorkspaceSettingsContextPanelComponent`
 5. Downloads sections
     1. `WorkspaceCollectionContextPanelComponent`

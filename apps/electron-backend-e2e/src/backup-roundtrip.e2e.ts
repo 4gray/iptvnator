@@ -8,6 +8,7 @@ import {
     expect,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     openSources,
     openWorkspaceSection,
     resetMockServers,
@@ -69,6 +70,7 @@ test.describe('Electron playlist backup round-trip', () => {
             }, exportPath);
 
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'backup');
             const backupSection = app.mainWindow.locator('#backup');
             await backupSection
                 .getByRole('button', { name: 'Export', exact: true })
@@ -113,6 +115,7 @@ test.describe('Electron playlist backup round-trip', () => {
             // Import the exported file back through the settings flow; the
             // renderer opens a browser file chooser for it.
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'backup');
             const fileChooserPromise =
                 app.mainWindow.waitForEvent('filechooser');
             await backupSection

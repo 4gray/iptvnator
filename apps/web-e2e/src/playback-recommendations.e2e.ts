@@ -64,10 +64,16 @@ async function servePlaybackFixtures(page: Page): Promise<void> {
 
 async function openSettings(page: Page): Promise<void> {
     await page.getByRole('link', { name: 'Open settings' }).click();
-    await page.waitForURL(/\/workspace\/settings$/);
+    // The bare settings URL redirects to the default section page; the
+    // player select lives on the playback section page.
+    await page.waitForURL(/\/workspace\/settings\/general$/);
     await expect(
         page.getByRole('button', { name: 'Back', exact: true })
     ).toBeVisible();
+    await page
+        .locator('[data-test-id="settings-section-playback"]')
+        .click();
+    await page.waitForURL(/\/workspace\/settings\/playback$/);
 }
 
 async function selectAndSaveHtml5(page: Page): Promise<void> {
@@ -79,7 +85,8 @@ async function selectAndSaveHtml5(page: Page): Promise<void> {
 
     const saveButton = page.getByRole('button', { name: 'Save changes' });
     await saveButton.click();
-    await expect(saveButton).toBeDisabled();
+    // A successful save removes the unsaved-changes bar with its button.
+    await expect(saveButton).toBeHidden();
 }
 
 async function importFatalHlsPlaylist(page: Page): Promise<void> {
@@ -131,7 +138,7 @@ test('@web @m3u @playback temporarily switches to the recommended player', async
 
     await openSettings(page);
     await page.reload();
-    await expect(page).toHaveURL(/\/workspace\/settings$/);
+    await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
     const persistedPlayerSelect = page.locator(
         '[data-test-id="select-video-player"]'
     );

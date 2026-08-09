@@ -45,7 +45,6 @@ export class SettingsPlaybackSectionComponent {
     ].join('\n');
 
     readonly form = input.required<FormGroup>();
-    readonly activeSection = input.required<string>();
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);

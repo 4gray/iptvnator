@@ -17,7 +17,6 @@ import { TranslateModule } from '@ngx-translate/core';
     styles: [':host { display: contents; }'],
 })
 export class SettingsBackupSectionComponent {
-    readonly activeSection = input.required<string>();
     readonly isPwa = input(false);
     readonly isRemovingAllPlaylists = input(false);
     readonly isExportingData = input(false);

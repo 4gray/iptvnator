@@ -26,7 +26,6 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { DataService } from '@iptvnator/services';
@@ -36,10 +35,6 @@ import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
 import { PlayerService } from './services/player.service';
-import {
-    AppPortalNavigationActionsService,
-    providePortalNavigationActions,
-} from './services/portal-navigation-actions.service';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
@@ -149,11 +144,6 @@ export const appConfig: ApplicationConfig = {
             useExisting: ExternalPlaybackService,
         },
         ...providePortalPlaybackPositions(),
-        ...providePortalNavigationActions(),
-        {
-            provide: PLAYLIST_PLAYER_ACTIONS,
-            useExisting: AppPortalNavigationActionsService,
-        },
         {
             provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
             useExisting: AppStalkerPlaylistConnectionEditorService,

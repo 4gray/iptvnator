@@ -99,15 +99,18 @@ export class SettingsFormFacade {
         this.settingsService.changeTheme(theme);
     }
 
+    /**
+     * Staged like every other control — the write happens on Save. These two
+     * used to persist eagerly, which made Discard a lie: `hydrateFromStore()`
+     * would faithfully reload the just-persisted edit and the unsaved bar
+     * disappeared without anything being reverted.
+     */
     selectCoverSize(coverSize: CoverSize): void {
         if (this.form.value.coverSize === coverSize) {
             return;
         }
 
         this.patchAndMarkDirty({ coverSize }, 'coverSize');
-        this.settingsStore.updateSettings({ coverSize }).catch(() => {
-            this.settingsSnackbar.storageFailure('save');
-        });
     }
 
     selectEpgViewMode(epgViewMode: EpgViewMode): void {
@@ -116,9 +119,6 @@ export class SettingsFormFacade {
         }
 
         this.patchAndMarkDirty({ epgViewMode }, 'epgViewMode');
-        this.settingsStore.updateSettings({ epgViewMode }).catch(() => {
-            this.settingsSnackbar.storageFailure('save');
-        });
     }
 
     setRecordingFolder(recordingFolder: string): void {

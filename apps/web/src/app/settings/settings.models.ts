@@ -13,11 +13,6 @@ export interface SettingsSection {
     visible: boolean;
 }
 
-export interface ObservedSettingsSection {
-    id: string;
-    element: HTMLElement;
-}
-
 export interface ThemeOption {
     value: Theme;
     icon: string;

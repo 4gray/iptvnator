@@ -51,7 +51,6 @@ describe('SettingsPlaybackSectionComponent', () => {
 
         fixture = TestBed.createComponent(SettingsPlaybackSectionComponent);
         fixture.componentRef.setInput('form', createForm());
-        fixture.componentRef.setInput('activeSection', 'playback');
         fixture.componentRef.setInput('players', [
             {
                 id: VideoPlayer.VideoJs,
