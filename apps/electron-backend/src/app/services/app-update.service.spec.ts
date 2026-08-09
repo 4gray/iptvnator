@@ -82,6 +82,8 @@ function createService(
         isPackaged?: boolean;
         platform?: NodeJS.Platform;
         env?: NodeJS.ProcessEnv;
+        prepareQuit?: () => void;
+        cancelPreparedQuit?: () => void;
     } = {}
 ) {
     const updater = new FakeUpdater();
@@ -92,7 +94,9 @@ function createService(
             isPackaged: overrides.isPackaged ?? true,
         },
         getMainWindow: () => win,
+        cancelPreparedQuit: overrides.cancelPreparedQuit,
         platform: overrides.platform ?? 'darwin',
+        prepareQuit: overrides.prepareQuit,
         processEnv: overrides.env ?? {},
         releaseFetcher: overrides.fetcher,
         updater,
@@ -448,5 +452,86 @@ describe('AppUpdateService', () => {
             ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         );
         expect(updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it('stands the close guard down before quitAndInstall', () => {
+        // quitAndInstall closes the windows before 'before-quit' (macOS), so
+        // an armed unsaved-settings guard would intercept that close and
+        // strand the requested install. prepareQuit must run first.
+        const calls: string[] = [];
+        const { service, updater } = createService({
+            prepareQuit: () => calls.push('prepareQuit'),
+        });
+        updater.quitAndInstall.mockImplementation(() => {
+            calls.push('quitAndInstall');
+        });
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        service.handleUpdateDownloaded({ version: '0.23.0' });
+
+        service.installUpdate();
+
+        expect(calls).toEqual(['prepareQuit', 'quitAndInstall']);
+    });
+
+    it('does not stand the close guard down when nothing is installable', () => {
+        const prepareQuit = jest.fn();
+        const { service, updater } = createService({ prepareQuit });
+
+        service.installUpdate();
+
+        expect(prepareQuit).not.toHaveBeenCalled();
+        expect(updater.quitAndInstall).not.toHaveBeenCalled();
+    });
+
+    it('takes the close-guard bypass back when quitAndInstall fails', () => {
+        // A synchronous updater failure means no quit is coming: the
+        // prepared one-shot bypass must not leak into the next genuine
+        // close, and the renderer must see a non-Downloaded status so it
+        // restores its own unload guard.
+        const cancelPreparedQuit = jest.fn();
+        const prepareQuit = jest.fn();
+        const { service, updater } = createService({
+            cancelPreparedQuit,
+            prepareQuit,
+        });
+        updater.quitAndInstall.mockImplementation(() => {
+            throw new Error('spawn failed');
+        });
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        service.handleUpdateDownloaded({ version: '0.23.0' });
+
+        const status = service.installUpdate();
+
+        expect(prepareQuit).toHaveBeenCalledTimes(1);
+        expect(cancelPreparedQuit).toHaveBeenCalledTimes(1);
+        expect(status.status).toBe(ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error);
+    });
+
+    it('takes the bypass back when the updater emits the failure as an error event', () => {
+        // electron-updater's BaseUpdater catches synchronous install
+        // failures internally and emits 'error' instead of throwing, and
+        // MacUpdater can fail after quitAndInstall already returned — the
+        // revocation must ride the error path.
+        const cancelPreparedQuit = jest.fn();
+        const { service } = createService({ cancelPreparedQuit });
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        service.handleUpdateDownloaded({ version: '0.23.0' });
+
+        service.installUpdate();
+        expect(cancelPreparedQuit).not.toHaveBeenCalled();
+
+        // What attachUpdaterEvents forwards from the updater 'error' event.
+        service.handleError(new Error('ShipIt failed'));
+
+        expect(cancelPreparedQuit).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not revoke a bypass for errors unrelated to an install', () => {
+        const cancelPreparedQuit = jest.fn();
+        const { service } = createService({ cancelPreparedQuit });
+
+        service.handleError(new Error('check failed'));
+
+        expect(cancelPreparedQuit).not.toHaveBeenCalled();
     });
 });

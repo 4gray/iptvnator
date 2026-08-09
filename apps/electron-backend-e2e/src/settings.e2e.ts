@@ -481,6 +481,69 @@ test.describe('Electron Settings', () => {
         }
     });
 
+    test('@settings @electron intercepts window close while settings edits are unsaved', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await selectSettingsOption(app.mainWindow, 'select-language', 'de');
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toBeVisible();
+            // Round-trip on the same renderer->main IPC pipe: once this
+            // resolves, the earlier close-guard arming has been processed.
+            await app.mainWindow.evaluate(() =>
+                window.electron.getWindowState()
+            );
+
+            const requestWindowClose = () =>
+                app.electronApp.evaluate(({ BrowserWindow }) => {
+                    BrowserWindow.getAllWindows()[0]?.close();
+                });
+
+            await requestWindowClose();
+
+            // The close is intercepted: the window stays open and the same
+            // save/discard/stay dialog the router guard shows takes over.
+            await expect(
+                app.mainWindow.getByTestId('unsaved-dialog-stay')
+            ).toBeVisible();
+            expect(app.electronApp.windows()).toHaveLength(1);
+
+            await app.mainWindow.getByTestId('unsaved-dialog-stay').click();
+            await expect(
+                app.mainWindow.getByTestId('unsaved-dialog-stay')
+            ).toHaveCount(0);
+            expect(app.electronApp.windows()).toHaveLength(1);
+
+            // Second attempt, this time saving: the close then completes.
+            await requestWindowClose();
+            await expect(
+                app.mainWindow.getByTestId('unsaved-dialog-save')
+            ).toBeVisible();
+            await app.mainWindow
+                .getByTestId('unsaved-dialog-save')
+                .click({ noWaitAfter: true });
+            await expect.poll(() => app.electronApp.windows().length).toBe(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+
+        // The save the dialog promised actually landed before the close.
+        const relaunch = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(relaunch.mainWindow);
+            await expect(
+                relaunch.mainWindow.getByTestId('select-language')
+            ).toContainText('Deutsch');
+        } finally {
+            await closeElectronApp(relaunch);
+        }
+    });
+
     test('@settings @persistence @electron persists the EPG view mode across app restart', async ({
         dataDir,
     }) => {

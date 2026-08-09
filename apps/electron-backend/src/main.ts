@@ -30,6 +30,7 @@ import { registerStaticHeaderShims } from './app/services/request-header-overrid
 import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
+import { bootstrapWindowCloseGuard } from './app/services/window-close-guard.service';
 import { registerStreamProbeHandlers } from './app/events/stream-probe';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
@@ -134,11 +135,19 @@ export default class Main {
             trace('startup', 'bootstrap-events:start');
         }
 
+        const windowCloseGuard = bootstrapWindowCloseGuard((listener) =>
+            App.onMainWindowCreated(listener)
+        );
         const appUpdateService = new AppUpdateService({
             app,
             appVersion: environment.version,
             getMainWindow: () => App.mainWindow,
             updater: () => autoUpdater,
+            // quitAndInstall() closes the windows before 'before-quit' fires
+            // (macOS), so without this an armed close guard would intercept
+            // the install's window close and strand the update.
+            prepareQuit: () => windowCloseGuard.allowNextClose(),
+            cancelPreparedQuit: () => windowCloseGuard.revokeAllowedClose(),
         });
         AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
 
@@ -260,7 +269,13 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
         await Main.bootstrapAppEvents();
     });
 
-    app.on('before-quit', () => {
+    // 'will-quit', not 'before-quit': the unsaved-settings close guard can
+    // cancel a quit mid-flight by preventing the window close, and
+    // 'before-quit' has already fired by then — tearing sessions and the DB
+    // worker down there would leave a cancelled quit with the app open but
+    // playback and database work destroyed. 'will-quit' only fires once
+    // every window close was allowed through.
+    app.on('will-quit', () => {
         shutdownEmbeddedMpv();
         shutdownMpvSession();
         shutdownVlcSession();

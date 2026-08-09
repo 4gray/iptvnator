@@ -110,6 +110,11 @@ test.describe('Electron EPG', () => {
             await expect(app.mainWindow.locator('.epg-source-row')).toHaveCount(
                 0
             );
+            // Adding and removing the source row leaves the settings form
+            // dirty; save so the unsaved-changes close guard has nothing to
+            // ask about when the app closes below — an unanswered dialog
+            // would block the close and leak the Electron process.
+            await saveSettings(app.mainWindow);
 
             await app.mainWindow
                 .getByRole('button', { name: 'Clear EPG data' })

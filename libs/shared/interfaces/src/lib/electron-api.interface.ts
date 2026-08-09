@@ -618,6 +618,27 @@ export interface ElectronBridgeApi {
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
     ) => () => void;
+    /**
+     * While active, the main process intercepts window close / app quit and
+     * pushes a close request to the renderer instead of closing. Used by the
+     * settings page while its form holds unsaved edits.
+     */
+    setWindowCloseGuard: (active: boolean) => Promise<void>;
+    /**
+     * Completes a close the guard intercepted: the main process re-runs the
+     * original intent (window close or app quit) with the guard bypassed.
+     */
+    confirmWindowClose: () => Promise<void>;
+    /**
+     * Abandons a close the guard intercepted (the user stays), so the
+     * remembered close-vs-quit intent cannot leak into a later attempt.
+     * Carries the id of the request being abandoned: a cancellation that
+     * arrives after a NEWER interception must not wipe that newer intent.
+     */
+    cancelWindowClose: (requestId?: number) => Promise<void>;
+    onWindowCloseRequested: (
+        callback: (requestId: number) => void
+    ) => () => void;
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
