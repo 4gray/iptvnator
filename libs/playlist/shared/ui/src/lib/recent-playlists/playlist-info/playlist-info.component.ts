@@ -436,7 +436,7 @@ export class PlaylistInfoComponent {
                 }
             }
             const isXtream =
-                this.playlist &&
+                !this.playlist.portalUrl &&
                 this.playlist.username &&
                 this.playlist.password &&
                 this.playlist.serverUrl;

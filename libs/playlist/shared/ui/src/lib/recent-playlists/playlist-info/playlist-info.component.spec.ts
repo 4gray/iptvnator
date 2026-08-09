@@ -832,6 +832,29 @@ describe('PlaylistInfoComponent', () => {
             expect(dialogRef.close).toHaveBeenCalledTimes(1);
         });
 
+        it('does not route a Stalker edit through stale Xtream metadata', async () => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            await createStalkerComponent({
+                serverUrl: 'https://old-xtream.example.com',
+                username: 'subscriber',
+                password: 'secret',
+            });
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                databaseService.updateXtreamPlaylistDetails
+            ).not.toHaveBeenCalled();
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).toHaveBeenCalledTimes(1);
+        });
+
         it('persists a resolved edit when the component is destroyed during discovery', async () => {
             await createStalkerComponent();
             const resolvedPlaylist = {
