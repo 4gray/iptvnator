@@ -190,11 +190,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             playlistId,
             (this.editGenerations.get(playlistId) ?? 0) + 1
         );
+        this.repairAuthority.block(playlistId);
         return this.repairAuthority.wait(playlistId).then(() => undefined);
     }
 
     /** Releases the repair fence when discovery or persistence fails. */
     releasePlaylistEdit(playlistId: string): void {
+        this.repairAuthority.unblock(playlistId);
         const remaining = (this.editFenceCounts.get(playlistId) ?? 1) - 1;
         if (remaining > 0) {
             this.editFenceCounts.set(playlistId, remaining);

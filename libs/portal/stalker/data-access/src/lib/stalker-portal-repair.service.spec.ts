@@ -726,6 +726,41 @@ describe('StalkerPortalRepairService', () => {
             await fence;
         });
 
+        it('blocks an already-queued same-tab repair from reserving after Edit starts', async () => {
+            let finishDiscovery: (outcome: {
+                status: 'resolved';
+                portalUrl: string;
+                isFullStalkerPortal: boolean;
+            }) => void = () => undefined;
+            discover.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishDiscovery = resolve;
+                })
+            );
+            const request = globalThis.navigator?.locks?.request as jest.Mock;
+
+            const firstRepair = service.repairPortal(MISCLASSIFIED);
+            while (discover.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            const queuedRepair = service.repairPortal(MISCLASSIFIED);
+            const editDrain = service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+
+            finishDiscovery({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+
+            await expect(firstRepair).resolves.toBeNull();
+            await expect(queuedRepair).resolves.toBeNull();
+            await editDrain;
+            expect(discover).toHaveBeenCalledTimes(1);
+            expect(request).toHaveBeenCalledTimes(2);
+
+            service.releasePlaylistEdit(MISCLASSIFIED._id);
+        });
+
         it('does not probe a stale source after explicit Edit has committed', async () => {
             const edited = {
                 ...MISCLASSIFIED,

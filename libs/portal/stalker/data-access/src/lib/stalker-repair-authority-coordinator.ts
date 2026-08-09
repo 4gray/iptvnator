@@ -4,11 +4,28 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 /** Shares one repair locally and reserves its source across PWA tabs. */
 export class StalkerRepairAuthorityCoordinator {
     private readonly pending = new Map<string, Promise<PlaylistMeta | null>>();
+    private readonly blockers = new Map<string, number>();
+
+    block(playlistId: string): void {
+        this.blockers.set(playlistId, (this.blockers.get(playlistId) ?? 0) + 1);
+    }
+
+    unblock(playlistId: string): void {
+        const remaining = (this.blockers.get(playlistId) ?? 1) - 1;
+        if (remaining > 0) {
+            this.blockers.set(playlistId, remaining);
+        } else {
+            this.blockers.delete(playlistId);
+        }
+    }
 
     async run(
         playlistId: string,
         operation: () => Promise<PlaylistMeta | null>
     ): Promise<PlaylistMeta | null> {
+        if (this.blockers.has(playlistId)) {
+            return null;
+        }
         const pending = this.pending.get(playlistId);
         if (pending) {
             await pending;

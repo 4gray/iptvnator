@@ -243,7 +243,9 @@ blocks every new authentication (including a URL edit with the same normalized
 fingerprint) and repair, and drains any work already in flight.
 When Save follows a lazy repair in the same tab, Edit publishes its local
 authentication owner first, drains that repair through the actual Web Lock
-request completion, and only then requests the row reservation itself.
+request completion, and only then requests the row reservation itself. Repair
+callers already queued behind that owner observe the Edit block and return
+without trying to reserve the row again.
 Ownership is rechecked after every asynchronous drain or authority rebase.
 Ordinary failure releases that reservation with the previous runtime untouched;
 if a bounded discovery result still has an abandoned authentication on the
