@@ -99,6 +99,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     >();
     /** Explicit Edit invalidates every repair that started before it. */
     private readonly editGenerations = new Map<string, number>();
+    private readonly editFenceCounts = new Map<string, number>();
 
     constructor() {
         // The watchdog resolves its playlist from the persisted row; while a
@@ -177,11 +178,29 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      * changing the working override or token yet. Persistence may still fail;
      * in that case the previous runtime connection must remain untouched.
      */
-    fenceForPlaylistEdit(playlistId: string): void {
+    fenceForPlaylistEdit(playlistId: string): Promise<void> {
+        this.editFenceCounts.set(
+            playlistId,
+            (this.editFenceCounts.get(playlistId) ?? 0) + 1
+        );
         this.editGenerations.set(
             playlistId,
             (this.editGenerations.get(playlistId) ?? 0) + 1
         );
+        return (
+            this.pendingRepairs.get(playlistId)?.catch(() => null) ??
+            Promise.resolve()
+        ).then(() => undefined);
+    }
+
+    /** Releases the repair fence when discovery or persistence fails. */
+    releasePlaylistEdit(playlistId: string): void {
+        const remaining = (this.editFenceCounts.get(playlistId) ?? 1) - 1;
+        if (remaining > 0) {
+            this.editFenceCounts.set(playlistId, remaining);
+        } else {
+            this.editFenceCounts.delete(playlistId);
+        }
     }
 
     /**
@@ -192,6 +211,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      */
     commitPlaylistEdit(playlistId: string): void {
         this.overrides.delete(playlistId);
+        this.releasePlaylistEdit(playlistId);
     }
 
     /**
@@ -267,6 +287,9 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      */
     async repairPortal(playlist: PlaylistMeta): Promise<PlaylistMeta | null> {
         const playlistId = playlist._id;
+        if ((this.editFenceCounts.get(playlistId) ?? 0) > 0) {
+            return null;
+        }
 
         const pending = this.pendingRepairs.get(playlistId);
         if (pending) {

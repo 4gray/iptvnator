@@ -199,8 +199,11 @@ device IDs and signatures as one connection identity. A metadata-only edit
 does not run discovery and preserves the stored connection byte-for-byte.
 Changing any connection field disables the form while the same discovery
 service validates the draft. Auth rejection or an unreachable portal leaves
-the dialog open and writes nothing. Success atomically replaces the endpoint,
-mode and normalized identity together with session metadata: simple mode
+the dialog open and writes nothing. Before discovery starts, Edit reserves the
+playlist, fences new authentication/repair work and drains any work already in
+flight; failure releases that reservation with the previous runtime untouched.
+Success atomically replaces the endpoint, mode and normalized identity together
+with session metadata: simple mode
 clears token/fingerprint/watchdog/account state, while full mode replaces it
 with the confirmed authorization result. That awaited write returns the
 complete merged playlist row before NgRx receives its state-only update and
@@ -208,6 +211,10 @@ before the app adapter replaces the active `StalkerStore` snapshot and
 session/watchdog state, so persistence failure cannot expose a partial runtime
 edit and metadata absent from the form (such as playback `Referer`/`Origin`)
 survives the replacement.
+Runtime session authority normally rejects stale playlist objects, but a
+different fingerprint may rebase only after the current persisted row proves
+that it owns the same playlist ID; this keeps delete/restore and backup merge
+flows usable without letting an in-flight stale request overrule Edit.
 `PlaylistMetaUpdate` carries the persisted part as a transient
 `stalkerSessionPatch` (`undefined` preserves, `null` clears, an object fully
 replaces); `PlaylistsService` projects it onto the existing flat playlist

@@ -81,6 +81,33 @@ describe('Stalker edited-session coordination', () => {
         expect(updateStalkerSession).not.toHaveBeenCalled();
     });
 
+    it('fences and drains pre-edit authentication before discovery may start', async () => {
+        const oldAuthentication = service.ensureToken(oldPlaylist);
+        while (authenticate.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+        };
+
+        let fenceSettled = false;
+        const fencePromise = service
+            .beginEditDiscovery(editedPlaylist)
+            .then((fence) => {
+                fenceSettled = true;
+                return fence;
+            });
+        await Promise.resolve();
+        expect(fenceSettled).toBe(false);
+
+        resolveOldAuthentication({ token: 'OLD_TOKEN' });
+
+        await expect(oldAuthentication).rejects.toThrow(/stale/i);
+        const fence = await fencePromise;
+        service.cancelEditDiscovery(fence);
+    });
+
     it('prevents late pre-edit auth from restoring a cleared simple session', async () => {
         const oldAuthentication = service.ensureToken(oldPlaylist);
         while (authenticate.mock.calls.length === 0) {
@@ -162,6 +189,23 @@ describe('Stalker edited-session coordination', () => {
         service.setCachedToken(oldPlaylist._id, 'OLD_TOKEN', oldPlaylist);
         await expect(service.ensureToken(oldPlaylist)).resolves.toEqual({
             token: 'OLD_TOKEN',
+            serialNumber: undefined,
+        });
+    });
+
+    it('rebases stale authority when a restored persisted row owns the playlist id', async () => {
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            stalkerToken: 'NEW_TOKEN',
+        };
+        await service.replaceSessionAfterEdit(editedPlaylist);
+
+        // Simulate delete + backup restore of the original row and ID.
+        service.setCachedToken(oldPlaylist._id, 'RESTORED_TOKEN', oldPlaylist);
+
+        await expect(service.ensureToken(oldPlaylist)).resolves.toEqual({
+            token: 'RESTORED_TOKEN',
             serialNumber: undefined,
         });
     });

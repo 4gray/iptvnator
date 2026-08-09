@@ -18,10 +18,16 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
     };
     const portalRepair = {
         applyOverride: jest.fn((playlist: PlaylistMeta) => playlist),
-        fenceForPlaylistEdit: jest.fn(),
+        fenceForPlaylistEdit: jest.fn(() => Promise.resolve()),
+        releasePlaylistEdit: jest.fn(),
         commitPlaylistEdit: jest.fn(),
     };
     const stalkerSession = {
+        beginEditDiscovery: jest.fn(async (playlist: PlaylistMeta) => ({
+            playlistId: playlist._id,
+            owner: Symbol('edit-fence'),
+        })),
+        cancelEditDiscovery: jest.fn(),
         replaceSessionAfterEdit: jest.fn(
             async (playlist: PlaylistMeta) => playlist
         ),
@@ -193,6 +199,50 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
             status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
             message: 'HOME.STALKER_PORTAL.EDIT_UNREACHABLE',
         });
+        expect(stalkerSession.cancelEditDiscovery).toHaveBeenCalled();
+        expect(portalRepair.releasePlaylistEdit).toHaveBeenCalledWith(
+            draft._id
+        );
+    });
+
+    it('does not start discovery until old authentication and repair work drain', async () => {
+        let finishSessionFence: (fence: {
+            playlistId: string;
+            owner: symbol;
+        }) => void = () => undefined;
+        let finishRepairFence: () => void = () => undefined;
+        stalkerSession.beginEditDiscovery.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishSessionFence = resolve;
+            })
+        );
+        portalRepair.fenceForPlaylistEdit.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishRepairFence = resolve;
+            })
+        );
+        discovery.discover.mockResolvedValue({
+            status: 'resolved',
+            portalUrl: 'https://portal.example.com/portal.php',
+            isFullStalkerPortal: false,
+        });
+
+        const resolving = service.resolveConnection(draft);
+        await Promise.resolve();
+
+        expect(discovery.discover).not.toHaveBeenCalled();
+
+        finishSessionFence({
+            playlistId: draft._id,
+            owner: Symbol('edit-fence'),
+        });
+        await Promise.resolve();
+        expect(discovery.discover).not.toHaveBeenCalled();
+
+        finishRepairFence();
+        await resolving;
+
+        expect(discovery.discover).toHaveBeenCalledTimes(1);
     });
 
     it('replaces the active runtime playlist and session after a resolved full-portal edit', async () => {
@@ -227,7 +277,8 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
                 stalkerSessionIdentity: 'new-fingerprint',
                 stalkerWatchdogTimeout: 90,
                 stalkerTimeslot: 5,
-            })
+            }),
+            expect.objectContaining({ playlistId: draft._id })
         );
         expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -301,7 +352,8 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
                 isFullStalkerPortal: false,
                 stalkerToken: undefined,
                 stalkerSessionIdentity: undefined,
-            })
+            }),
+            expect.objectContaining({ playlistId: draft._id })
         );
         expect(activePlaylist).toEqual(
             expect.objectContaining({
@@ -373,6 +425,9 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
             draft._id
         );
         expect(portalRepair.commitPlaylistEdit).not.toHaveBeenCalled();
+        expect(portalRepair.releasePlaylistEdit).toHaveBeenCalledWith(
+            draft._id
+        );
         expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalled();
         expect(activePlaylist?.portalUrl).toBe(
             'https://old.example.com/server/load.php'
@@ -421,7 +476,8 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
                     portalUrl: 'https://portal.example.com/server/load.php',
                     username: 'new-user',
                     stalkerToken: 'NEW_TOKEN',
-                })
+                }),
+                expect.objectContaining({ playlistId: draft._id })
             );
             expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledTimes(
                 isActive ? 1 : 0

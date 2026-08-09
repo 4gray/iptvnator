@@ -518,6 +518,19 @@ describe('StalkerPortalRepairService', () => {
             expect(clearCachedToken).not.toHaveBeenCalled();
         });
 
+        it('does not start another repair while explicit Edit discovery owns the playlist', async () => {
+            const fence = service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            discover.mockClear();
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toBeNull();
+            expect(discover).not.toHaveBeenCalled();
+
+            service.releasePlaylistEdit(MISCLASSIFIED._id);
+            await fence;
+        });
+
         it('discards a repair verified before explicit Edit but completed after it', async () => {
             const wrongEndpoint = {
                 ...MISCLASSIFIED,

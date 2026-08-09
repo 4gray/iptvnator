@@ -24,6 +24,7 @@ import {
 } from './stalker-auth.api';
 import { StalkerAuthenticatedRequestClient } from './stalker-authenticated-request-client';
 import { StalkerEditedSessionCoordinator } from './stalker-edited-session-coordinator';
+import type { StalkerEditFence } from './stalker-edited-session-coordinator';
 import {
     stalkerSessionFingerprint,
     StalkerSessionStore,
@@ -38,6 +39,7 @@ export {
     stalkerIdentityFingerprint,
 };
 export type { StalkerPortalIdentity };
+export type { StalkerEditFence };
 export type {
     StalkerAuthenticateOptions,
     StalkerAuthenticationResult,
@@ -230,16 +232,28 @@ export class StalkerSessionService {
     }
 
     /**
-     * Installs the session produced by explicit Edit discovery.
-     *
-     * The new fingerprint fences old authentication synchronously, but only
-     * becomes authoritative after the atomic write succeeds. That old request
-     * consequently cannot overwrite the resolved token (or restore one after
-     * a full→simple edit), while a failed write releases the fence and keeps
-     * the previous runtime session usable.
+     * Reserves the playlist for Edit and drains authentication that began
+     * before discovery. The opaque fence keeps new authentication out until
+     * the result is either cancelled or atomically persisted.
      */
-    replaceSessionAfterEdit(playlist: Playlist): Promise<Playlist> {
-        return this.editedSessions.replace(playlist);
+    beginEditDiscovery(playlist: Playlist): Promise<StalkerEditFence> {
+        return this.editedSessions.beginEdit(playlist);
+    }
+
+    /** Releases a discovery reservation whose result will not be saved. */
+    cancelEditDiscovery(fence: StalkerEditFence): void {
+        this.editedSessions.cancelEdit(fence);
+    }
+
+    /**
+     * Installs the session produced by explicit Edit discovery. The new
+     * fingerprint becomes authoritative only after the atomic row write.
+     */
+    replaceSessionAfterEdit(
+        playlist: Playlist,
+        fence?: StalkerEditFence
+    ): Promise<Playlist> {
+        return this.editedSessions.replace(playlist, fence);
     }
 
     /**
