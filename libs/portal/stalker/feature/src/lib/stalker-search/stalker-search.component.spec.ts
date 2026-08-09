@@ -491,6 +491,21 @@ describe('StalkerSearchComponent result paging', () => {
         }
     });
 
+    it('empties the accumulator and paging flags for unsearchable portals', () => {
+        // The loader calls this on every no-portal early return (deleted or
+        // malformed playlist on a reused route, short term) so the previous
+        // portal's cards cannot keep rendering under the new context.
+        component.applySearchPageSuccess(1, searchItems('portalA', 3), 6);
+        component.applySearchPageFailure(2);
+        expect(component.searchResults()).toHaveLength(3);
+
+        component.resetSearchAccumulator();
+
+        expect(component.searchResults()).toHaveLength(0);
+        expect(component.searchHasMore()).toBe(false);
+        expect(component.searchAppendError()).toBe(false);
+    });
+
     it('resets paging when the active playlist changes on a reused route', () => {
         // Regression: /stalker/A/search -> /stalker/B/search reuses the
         // component; a surviving page number would append portal B's later

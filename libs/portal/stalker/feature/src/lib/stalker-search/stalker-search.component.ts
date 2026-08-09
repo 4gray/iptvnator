@@ -240,14 +240,19 @@ export class StalkerSearchComponent {
         }),
         loader: async ({ params }) => {
             if (params.search.length < 3) {
-                this.accumulatedSearchResults.set([]);
-                this.searchHasMore.set(false);
+                this.resetSearchAccumulator();
                 return [];
             }
             const playlist = this.currentPlaylist();
-            if (!playlist) return [];
+            if (!playlist) {
+                // A reused route can land on a deleted/unresolved portal —
+                // the previous portal's cards must not keep rendering.
+                this.resetSearchAccumulator();
+                return [];
+            }
             const { portalUrl, macAddress } = playlist;
             if (!portalUrl || !macAddress) {
+                this.resetSearchAccumulator();
                 return [];
             }
             const contentType = params.contentType;
@@ -319,6 +324,16 @@ export class StalkerSearchComponent {
             }
         },
     });
+
+    /**
+     * Empties the accumulator and every paging flag — used whenever there is
+     * no searchable portal (short term, missing playlist, malformed row).
+     */
+    resetSearchAccumulator(): void {
+        this.accumulatedSearchResults.set([]);
+        this.searchHasMore.set(false);
+        this.searchAppendError.set(false);
+    }
 
     /** Merges a successful portal page into the accumulated result list. */
     applySearchPageSuccess(
