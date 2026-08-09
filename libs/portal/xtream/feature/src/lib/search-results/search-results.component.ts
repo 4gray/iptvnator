@@ -397,7 +397,12 @@ export class SearchResultsComponent implements AfterViewInit {
             append &&
             (!this.hasMoreGlobalResults() ||
                 this.isLoadingMoreGlobalResults() ||
-                this.xtreamStore.isSearching())
+                this.xtreamStore.isSearching() ||
+                // An append continues the LAST EXECUTED search. While an
+                // edited query is still debouncing, the visible results
+                // belong to the old term — fetching a new-term page at the
+                // old offset would interleave two different queries.
+                trimmedTerm !== this.lastGlobalSearchTerm)
         ) {
             return;
         }

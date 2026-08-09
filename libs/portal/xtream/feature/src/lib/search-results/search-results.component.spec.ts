@@ -368,6 +368,10 @@ describe('SearchResultsComponent initialQuery contract', () => {
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         store.searchResults.set([createSearchItem()]);
         component.hasMoreGlobalResults.set(true);
+        // Appends only continue the last executed search.
+        (
+            component as unknown as { lastGlobalSearchTerm: string }
+        ).lastGlobalSearchTerm = 'matrix';
 
         const appendPromise = component.searchGlobal(
             'matrix',
@@ -418,6 +422,10 @@ describe('SearchResultsComponent initialQuery contract', () => {
             }
         ).globalSearchResults = signal([]);
         component.hasMoreGlobalResults.set(true);
+        // Appends only continue the last executed search.
+        (
+            component as unknown as { lastGlobalSearchTerm: string }
+        ).lastGlobalSearchTerm = 'matrix';
 
         await component.searchGlobal('matrix', ['movie'], false, true);
 
@@ -432,6 +440,47 @@ describe('SearchResultsComponent initialQuery contract', () => {
             }
         );
         expect(store.searchResults()).toHaveLength(2);
+    });
+
+    it('refuses to append pages while an edited query is still debouncing', async () => {
+        // Regression: the auto-fill can request more results right after the
+        // reset identity changes, i.e. inside the 300ms search debounce. An
+        // append with the edited term would fetch a page of the NEW query at
+        // the OLD offset and interleave it into the old query's results.
+        const firstPage = Array.from({ length: 101 }, (_, index) =>
+            createSearchItem({
+                id: index + 1,
+                title: `Result ${index + 1}`,
+                xtream_id: index + 1,
+            })
+        );
+        const databaseService = TestBed.inject(DatabaseService) as {
+            globalSearchContent: jest.Mock;
+        };
+        databaseService.globalSearchContent.mockResolvedValueOnce(firstPage);
+
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: true,
+                    },
+                    undefined
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        await component.searchGlobal('matrix', ['movie'], false);
+        expect(component.hasMoreGlobalResults()).toBe(true);
+        databaseService.globalSearchContent.mockClear();
+
+        // The user edits the query; the fresh offset-zero search has not run
+        // yet (debounce pending), so appending must be refused entirely.
+        store.searchTerm.set('matrix reloaded');
+        await component.loadMoreGlobalResults();
+
+        expect(databaseService.globalSearchContent).not.toHaveBeenCalled();
+        expect(component.isLoadingMoreGlobalResults()).toBe(false);
     });
 });
 
