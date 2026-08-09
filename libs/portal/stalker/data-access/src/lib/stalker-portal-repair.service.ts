@@ -22,6 +22,7 @@ import {
     type StalkerPortalModeOverride,
     type StalkerProbeRecord,
 } from './stalker-portal-repair-state';
+import { StalkerRepairAuthorityCoordinator } from './stalker-repair-authority-coordinator';
 import { StalkerSessionService } from './stalker-session.service';
 import {
     type StalkerPortalRepairApi,
@@ -80,10 +81,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         string,
         Map<string, StalkerProbeRecord>
     >();
-    private readonly pendingRepairs = new Map<
-        string,
-        Promise<PlaylistMeta | null>
-    >();
+    private readonly repairAuthority = new StalkerRepairAuthorityCoordinator();
     /** Explicit Edit invalidates every repair that started before it. */
     private readonly editGenerations = new Map<string, number>();
     private readonly editFenceCounts = new Map<string, number>();
@@ -192,10 +190,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             playlistId,
             (this.editGenerations.get(playlistId) ?? 0) + 1
         );
-        return (
-            this.pendingRepairs.get(playlistId)?.catch(() => null) ??
-            Promise.resolve()
-        ).then(() => undefined);
+        return this.repairAuthority.wait(playlistId).then(() => undefined);
     }
 
     /** Releases the repair fence when discovery or persistence fails. */
@@ -295,17 +290,17 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         if ((this.editFenceCounts.get(playlistId) ?? 0) > 0) {
             return null;
         }
-        const editGeneration = this.editGenerations.get(playlistId) ?? 0;
 
-        const pending = this.pendingRepairs.get(playlistId);
-        if (pending) {
-            // Wait the in-flight probe out, then RE-ENTER: the caller may
-            // carry a different (edited) configuration whose fingerprint
-            // was never attempted — it must get its own probe instead of
-            // inheriting whatever the old repair concluded.
-            await pending;
-            return this.repairPortal(playlist);
-        }
+        return this.repairAuthority.run(playlistId, () =>
+            this.repairPortalWithAuthority(playlist)
+        );
+    }
+
+    private async repairPortalWithAuthority(
+        playlist: PlaylistMeta
+    ): Promise<PlaylistMeta | null> {
+        const playlistId = playlist._id;
+        const editGeneration = this.editGenerations.get(playlistId) ?? 0;
 
         const fingerprint = stalkerRepairSourceFingerprint(playlist);
         const history = this.probeHistory.get(playlistId) ?? new Map();
@@ -366,11 +361,9 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         const run = authenticationFence.drained.then(() =>
             this.runRepair(playlist, editGeneration)
         );
-        this.pendingRepairs.set(playlistId, run);
         try {
             return await run;
         } finally {
-            this.pendingRepairs.delete(playlistId);
             this.stalkerSession.completePortalRepairDiscovery(
                 authenticationFence
             );
@@ -379,7 +372,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
     /** Lets request routing choose its effective row after repair settles. */
     async waitForPendingRepair(playlistId: string): Promise<void> {
-        await this.pendingRepairs.get(playlistId)?.catch(() => null);
+        await this.repairAuthority.wait(playlistId);
     }
 
     private reapplyIfChanged(playlist: PlaylistMeta): PlaylistMeta | null {

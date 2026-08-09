@@ -235,9 +235,12 @@ cannot be replaced between that preflight and the identity-bearing discovery
 request. Another tab fails before overlapping discovery, while a replacement
 waits for the existing Edit owner; a stale dialog also fails before it can touch
 the remote session. PWA fails closed when Web Locks are unavailable, while
-Electron relies on its single-instance local owner. The reservation blocks every
-new authentication (including a URL edit with the same normalized fingerprint)
-and repair, and drains any work already in flight.
+Electron relies on its single-instance local owner. Lazy repair tries the same
+barrier and row reservation before its persisted-source preflight; contention
+or unavailable PWA locking declines repair without discovery, while an acquired
+reservation stays held through its conditional row transform. The reservation
+blocks every new authentication (including a URL edit with the same normalized
+fingerprint) and repair, and drains any work already in flight.
 Ownership is rechecked after every asynchronous drain or authority rebase.
 Ordinary failure releases that reservation with the previous runtime untouched;
 if a bounded discovery result still has an abandoned authentication on the

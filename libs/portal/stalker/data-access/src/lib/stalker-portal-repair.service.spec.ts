@@ -31,6 +31,7 @@ async function flushMicrotasks(): Promise<void> {
 }
 
 describe('StalkerPortalRepairService', () => {
+    const originalLockManager = globalThis.navigator?.locks;
     let service: StalkerPortalRepairService;
     let discover: jest.Mock;
     let transformPlaylistMeta: jest.Mock;
@@ -50,6 +51,22 @@ describe('StalkerPortalRepairService', () => {
     let completePortalRepairDiscovery: jest.Mock;
 
     beforeEach(() => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: {
+                request: jest.fn(
+                    async <T>(
+                        name: string,
+                        options: LockOptions,
+                        callback: (lock: Lock | null) => Promise<T>
+                    ) =>
+                        callback({
+                            name,
+                            mode: options.mode ?? 'exclusive',
+                        } as Lock)
+                ),
+            },
+        });
         discover = jest.fn();
         persistedRow = MISCLASSIFIED as Playlist;
         writtenRow = null;
@@ -113,6 +130,13 @@ describe('StalkerPortalRepairService', () => {
         });
 
         service = TestBed.inject(StalkerPortalRepairService);
+    });
+
+    afterEach(() => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: originalLockManager,
+        });
     });
 
     describe('shouldAttemptRepair', () => {
@@ -215,6 +239,104 @@ describe('StalkerPortalRepairService', () => {
     });
 
     describe('repairPortal', () => {
+        it('does not preflight or discover while another tab owns the playlist authority', async () => {
+            const request = jest.fn(
+                async <T>(
+                    name: string,
+                    options: LockOptions,
+                    callback: (lock: Lock | null) => Promise<T>
+                ) => {
+                    if (name === 'iptvnator:playlist-authority') {
+                        return callback({
+                            name,
+                            mode: options.mode ?? 'shared',
+                        } as Lock);
+                    }
+                    return callback(null);
+                }
+            );
+            Object.defineProperty(globalThis.navigator, 'locks', {
+                configurable: true,
+                value: { request },
+            });
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toBeNull();
+
+            expect(getPlaylistById).not.toHaveBeenCalled();
+            expect(beginPortalRepairDiscovery).not.toHaveBeenCalled();
+            expect(discover).not.toHaveBeenCalled();
+        });
+
+        it('holds playlist authority from persisted preflight through the conditional commit', async () => {
+            let rowAuthorityHeld = false;
+            const request = jest.fn(
+                async <T>(
+                    name: string,
+                    options: LockOptions,
+                    callback: (lock: Lock | null) => Promise<T>
+                ) => {
+                    if (name === 'iptvnator:playlist-authority') {
+                        return callback({ name, mode: 'shared' } as Lock);
+                    }
+                    rowAuthorityHeld = true;
+                    try {
+                        return await callback({
+                            name,
+                            mode: options.mode ?? 'exclusive',
+                        } as Lock);
+                    } finally {
+                        rowAuthorityHeld = false;
+                    }
+                }
+            );
+            Object.defineProperty(globalThis.navigator, 'locks', {
+                configurable: true,
+                value: { request },
+            });
+            getPlaylistById.mockImplementation(() => {
+                expect(rowAuthorityHeld).toBe(true);
+                return of(persistedRow);
+            });
+            discover.mockImplementation(async () => {
+                expect(rowAuthorityHeld).toBe(true);
+                return {
+                    status: 'resolved',
+                    portalUrl: MISCLASSIFIED.portalUrl,
+                    isFullStalkerPortal: true,
+                    token: 'LOCKED_REPAIR_TOKEN',
+                };
+            });
+            transformPlaylistMeta.mockImplementation((_id, transform) => {
+                expect(rowAuthorityHeld).toBe(true);
+                const next = transform(persistedRow) as Playlist;
+                writtenRow = next;
+                return of(next);
+            });
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toMatchObject({ isFullStalkerPortal: true });
+
+            expect(rowAuthorityHeld).toBe(false);
+            expect(request).toHaveBeenCalledWith(
+                'iptvnator:playlist-authority',
+                { mode: 'shared' },
+                expect.any(Function)
+            );
+            expect(request).toHaveBeenCalledWith(
+                `iptvnator:playlist-authority:${MISCLASSIFIED._id}`,
+                { ifAvailable: true, mode: 'exclusive' },
+                expect.any(Function)
+            );
+        });
+
         it('persists a proven different mode and returns the patched playlist', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',
@@ -959,14 +1081,18 @@ describe('StalkerPortalRepairService', () => {
             completePortalRepairDiscovery.mockClear();
 
             const repair = service.repairPortal(MISCLASSIFIED);
+            while (getPlaylistById.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
             expect(getPlaylistById).toHaveBeenCalledTimes(1);
-            // No pending repair exists yet on this history path, so Edit's
-            // drain resolves immediately while the row read is still live.
-            await service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            // Edit installs its generation fence immediately, then drains
+            // the published repair owner while the row read is still live.
+            const editDrain = service.fenceForPlaylistEdit(MISCLASSIFIED._id);
             historyRead.next(MISCLASSIFIED as Playlist);
             historyRead.complete();
 
             await expect(repair).resolves.toBeNull();
+            await editDrain;
             expect(beginPortalRepairDiscovery).not.toHaveBeenCalled();
             expect(discover).not.toHaveBeenCalled();
 

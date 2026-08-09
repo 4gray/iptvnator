@@ -1,5 +1,10 @@
 const PLAYLIST_AUTHORITY_BARRIER = 'iptvnator:playlist-authority';
 
+export type PlaylistAuthorityReservation =
+    | { readonly status: 'acquired'; readonly release: () => void }
+    | { readonly status: 'busy' }
+    | { readonly status: 'unavailable' };
+
 function getLockManager(): LockManager | undefined {
     return globalThis.navigator?.locks;
 }
@@ -60,19 +65,19 @@ export async function runWithPlaylistAuthorityReset<T>(
     );
 }
 
-/** Holds one origin-wide edit reservation until persistence or cancellation. */
-export async function acquirePlaylistAuthorityEditReservation(
+/** Tries to hold one origin-wide row reservation until its owner releases it. */
+export async function reservePlaylistAuthority(
     playlistId: string
-): Promise<() => void> {
+): Promise<PlaylistAuthorityReservation> {
     const locks = getLockManager();
     if (!locks) {
         const isElectronRenderer =
             typeof window !== 'undefined' &&
             Boolean((window as Window & { electron?: unknown }).electron);
         if (typeof window === 'undefined' || isElectronRenderer) {
-            return () => undefined;
+            return { status: 'acquired', release: () => undefined };
         }
-        throw new Error('Cross-context playlist edit locking is unavailable');
+        return { status: 'unavailable' };
     }
 
     let releaseHeldLock: () => void = () => undefined;
@@ -101,14 +106,31 @@ export async function acquirePlaylistAuthorityEditReservation(
     });
 
     if (!(await acquired)) {
-        throw new Error('Stalker playlist edit already in progress');
+        return { status: 'busy' };
     }
 
     let released = false;
-    return () => {
-        if (!released) {
-            released = true;
-            releaseHeldLock();
-        }
+    return {
+        status: 'acquired',
+        release: () => {
+            if (!released) {
+                released = true;
+                releaseHeldLock();
+            }
+        },
     };
+}
+
+/** Holds one origin-wide Edit reservation until persistence or cancellation. */
+export async function acquirePlaylistAuthorityEditReservation(
+    playlistId: string
+): Promise<() => void> {
+    const reservation = await reservePlaylistAuthority(playlistId);
+    if (reservation.status === 'acquired') {
+        return reservation.release;
+    }
+    if (reservation.status === 'unavailable') {
+        throw new Error('Cross-context playlist edit locking is unavailable');
+    }
+    throw new Error('Stalker playlist edit already in progress');
 }
