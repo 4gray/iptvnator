@@ -341,7 +341,10 @@ describe('Stalker edited-session coordination', () => {
             stalkerWatchdogTimeout: 90,
             stalkerTimeslot: 5,
         } as Playlist;
-        const fence = await service.beginEditDiscovery(editedPlaylist);
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
 
         const persisted = await service.replaceSessionAfterEdit(
             editedPlaylist,
@@ -365,6 +368,35 @@ describe('Stalker edited-session coordination', () => {
                 stalkerTimeslot: 5,
             })
         );
+    });
+
+    it('rejects a late merge after another connection replaces the playlist ID', async () => {
+        const replacementPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://restored.example.com/portal.php',
+            macAddress: '00:1A:79:11:22:33',
+        } as Playlist;
+        transformPlaylistMeta.mockImplementationOnce((_id, transform) =>
+            of(transform(replacementPlaylist))
+        );
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            stalkerToken: 'NEW_TOKEN',
+        } as Playlist;
+        const fence = await service.beginEditDiscovery(
+            editedPlaylist,
+            oldPlaylist
+        );
+
+        await expect(
+            service.replaceSessionAfterEdit(editedPlaylist, fence, {
+                preserveCurrentMetadata: true,
+            })
+        ).rejects.toThrow(/could not be persisted/i);
+
+        expect(service.getCachedToken(oldPlaylist._id)).toBeNull();
+        expect(updatePlaylistMeta).not.toHaveBeenCalled();
     });
 
     it('does not adopt a resolved full session when its atomic write fails', async () => {

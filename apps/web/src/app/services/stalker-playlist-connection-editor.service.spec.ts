@@ -87,13 +87,28 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
     });
 
     it('resolves a simple portal and clears the previous full session', async () => {
+        const sourcePlaylist = {
+            ...draft,
+            portalUrl: 'https://old.example.com/server/load.php',
+        };
         discovery.discover.mockResolvedValue({
             status: 'resolved',
             portalUrl: 'https://portal.example.com/portal.php',
             isFullStalkerPortal: false,
         });
 
-        const result = await service.resolveConnection(draft);
+        const result = await service.resolveConnection(draft, sourcePlaylist);
+
+        expect(stalkerSession.beginEditDiscovery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                portalUrl: draft.portalUrl,
+                stalkerSerialNumber: 'SERIAL',
+            }),
+            expect.objectContaining({
+                portalUrl: sourcePlaylist.portalUrl,
+                stalkerSerialNumber: sourcePlaylist.stalkerSerialNumber,
+            })
+        );
 
         expect(discovery.discover).toHaveBeenCalledWith(
             draft.portalUrl,

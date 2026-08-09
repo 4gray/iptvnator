@@ -413,7 +413,8 @@ export class PlaylistInfoComponent {
                 ) {
                     const result =
                         await this.stalkerConnectionEditor.resolveConnection(
-                            normalizedPlaylist
+                            normalizedPlaylist,
+                            this.playlist
                         );
                     if (
                         result.status !==

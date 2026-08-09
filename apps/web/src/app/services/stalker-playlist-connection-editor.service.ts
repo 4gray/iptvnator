@@ -88,7 +88,8 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
     }
 
     async resolveConnection(
-        playlist: PlaylistMeta
+        playlist: PlaylistMeta,
+        sourcePlaylist: PlaylistMeta = playlist
     ): Promise<StalkerPlaylistConnectionResult> {
         const identity = normalizeStalkerPortalIdentity({
             serialNumber: playlist.stalkerSerialNumber,
@@ -106,7 +107,8 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
             stalkerSignature2: identity.signature2 ?? '',
         };
         const fence = await this.beginEditFence(
-            this.toRuntimePlaylist(normalizedPlaylist)
+            this.toRuntimePlaylist(normalizedPlaylist),
+            this.toRuntimePlaylist(sourcePlaylist)
         );
         let outcome: Awaited<
             ReturnType<StalkerPortalDiscoveryService['discover']>
@@ -207,7 +209,8 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
     }
 
     private async beginEditFence(
-        playlist: Playlist
+        playlist: Playlist,
+        sourcePlaylist: Playlist = playlist
     ): Promise<StalkerEditFence> {
         // Both fences are installed synchronously before either drain is
         // awaited. No new authentication or lazy repair can start while the
@@ -217,7 +220,10 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         );
         let fence: StalkerEditFence | undefined;
         try {
-            fence = await this.stalkerSession.beginEditDiscovery(playlist);
+            fence = await this.stalkerSession.beginEditDiscovery(
+                playlist,
+                sourcePlaylist
+            );
             await repairDrain;
             this.editFences.set(playlist._id, fence);
             return fence;

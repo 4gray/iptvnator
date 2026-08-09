@@ -669,6 +669,10 @@ describe('PlaylistInfoComponent', () => {
                     stalkerDeviceId2: 'STORED-DEVICE-2',
                     stalkerSignature1: 'STORED-SIGNATURE-1',
                     stalkerSignature2: 'STORED-SIGNATURE-2',
+                }),
+                expect.objectContaining({
+                    portalUrl: 'https://portal.example.com/c',
+                    stalkerSerialNumber: 'STORED-SERIAL',
                 })
             );
         });

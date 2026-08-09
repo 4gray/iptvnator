@@ -214,7 +214,10 @@ late commit uses `transformPlaylistMeta()` inside the per-playlist write queue
 to merge only the resolved connection/session fields into the current row, so
 a newer title, EPG, or other metadata edit wins. The returned merged row feeds
 the state-only update, while dialog close and success UI are suppressed after
-destruction. A row identified by its persisted `portalUrl` stays on the Stalker
+destruction. The transform also requires the current row to retain the source
+connection authority captured when Edit began; delete/restore or replacement
+under the same ID therefore aborts instead of receiving a late portal/session
+merge. A row identified by its persisted `portalUrl` stays on the Stalker
 save path even if legacy Xtream fields remain, so an unrelated Xtream write
 cannot strand the Edit reservation. Before discovery starts, Edit reserves the
 playlist ID; an

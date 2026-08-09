@@ -253,8 +253,11 @@ export class StalkerSessionService {
      * before discovery. The opaque fence keeps new authentication out until
      * the result is either cancelled or atomically persisted.
      */
-    beginEditDiscovery(playlist: Playlist): Promise<StalkerEditFence> {
-        return this.editedSessions.beginEdit(playlist);
+    beginEditDiscovery(
+        playlist: Playlist,
+        sourcePlaylist: Playlist = playlist
+    ): Promise<StalkerEditFence> {
+        return this.editedSessions.beginEdit(playlist, sourcePlaylist);
     }
 
     /**
