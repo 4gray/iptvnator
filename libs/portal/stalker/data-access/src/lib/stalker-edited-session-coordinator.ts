@@ -5,6 +5,7 @@ import {
     type PlaylistMetaUpdate,
 } from '@iptvnator/shared/interfaces';
 import type { PlaylistsService } from '@iptvnator/services';
+import { acquireCrossContextEditReservation } from './stalker-edit-cross-context-reservation';
 import { stalkerSessionFingerprint } from './stalker-session-store';
 import type { StalkerTokenCache } from './stalker-token-cache';
 import type { StalkerWatchdogController } from './stalker-watchdog.controller';
@@ -19,6 +20,7 @@ interface PendingEdit {
     readonly owner: symbol;
     readonly configurationFingerprint: string;
     readonly sourceConfigurationFingerprint: string;
+    readonly releaseCrossContextReservation: () => void;
 }
 
 /** Serializes authoritative Edit results against pre-edit authentication. */
@@ -107,9 +109,29 @@ export class StalkerEditedSessionCoordinator {
             configurationFingerprint,
             sourceConfigurationFingerprint:
                 stalkerConfigurationFingerprint(sourcePlaylist),
+            releaseCrossContextReservation: () => undefined,
         });
 
         try {
+            const releaseCrossContextReservation =
+                await acquireCrossContextEditReservation(playlistId);
+            const pending = this.pendingEdits.get(playlistId);
+            if (
+                pending?.owner !== fence.owner ||
+                pending.configurationFingerprint !== configurationFingerprint
+            ) {
+                releaseCrossContextReservation();
+                throw new Error('Stale Stalker playlist configuration');
+            }
+            this.pendingEdits.set(playlistId, {
+                owner: fence.owner,
+                configurationFingerprint,
+                sourceConfigurationFingerprint:
+                    stalkerConfigurationFingerprint(sourcePlaylist),
+                releaseCrossContextReservation,
+            });
+            await this.assertPersistedSourceCurrent(sourcePlaylist);
+            this.assertFenceCurrent(fence, configurationFingerprint);
             await this.replacements.get(playlistId)?.catch(() => undefined);
             this.assertFenceCurrent(fence, configurationFingerprint);
             await this.tokens
@@ -124,8 +146,10 @@ export class StalkerEditedSessionCoordinator {
     }
 
     cancelEdit(fence: StalkerEditFence): void {
-        if (this.pendingEdits.get(fence.playlistId)?.owner === fence.owner) {
+        const pending = this.pendingEdits.get(fence.playlistId);
+        if (pending?.owner === fence.owner) {
             this.pendingEdits.delete(fence.playlistId);
+            pending.releaseCrossContextReservation();
         }
     }
 
@@ -155,6 +179,8 @@ export class StalkerEditedSessionCoordinator {
             owner,
             configurationFingerprint,
             sourceConfigurationFingerprint,
+            releaseCrossContextReservation:
+                pending.releaseCrossContextReservation,
         });
         const previous = this.replacements.get(playlistId) ?? Promise.resolve();
         const replacement = previous
@@ -175,8 +201,10 @@ export class StalkerEditedSessionCoordinator {
                 if (this.replacements.get(playlistId) === replacement) {
                     this.replacements.delete(playlistId);
                 }
-                if (this.pendingEdits.get(playlistId)?.owner === owner) {
+                const currentPending = this.pendingEdits.get(playlistId);
+                if (currentPending?.owner === owner) {
                     this.pendingEdits.delete(playlistId);
+                    currentPending.releaseCrossContextReservation();
                 }
             })
             .catch(() => undefined);
@@ -256,10 +284,6 @@ export class StalkerEditedSessionCoordinator {
             playlistId,
             configurationFingerprint
         );
-        if (this.pendingEdits.get(playlistId)?.owner === owner) {
-            this.pendingEdits.delete(playlistId);
-        }
-
         if (!sessionPatch) {
             this.tokens.clear(playlistId);
             return persistedPlaylist;
@@ -295,6 +319,28 @@ export class StalkerEditedSessionCoordinator {
         if (this.pendingEdits.has(playlistId)) {
             throw new Error('Stale Stalker playlist configuration');
         }
+    }
+
+    private async assertPersistedSourceCurrent(
+        sourcePlaylist: Playlist
+    ): Promise<void> {
+        try {
+            const persisted = await firstValueFrom(
+                this.resolvePlaylistsService().getPlaylistById(
+                    sourcePlaylist._id
+                )
+            );
+            if (
+                persisted &&
+                stalkerConfigurationFingerprint(persisted) ===
+                    stalkerConfigurationFingerprint(sourcePlaylist)
+            ) {
+                return;
+            }
+        } catch {
+            // Preserve the stable stale-configuration error below.
+        }
+        throw new Error('Stale Stalker playlist configuration');
     }
 
     private async rebaseFromPersistedRow(

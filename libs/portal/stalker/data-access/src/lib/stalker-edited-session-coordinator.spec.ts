@@ -2,10 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import type { Playlist } from '@iptvnator/shared/interfaces';
+import { StalkerEditedSessionCoordinator } from './stalker-edited-session-coordinator';
 import { StalkerSessionService } from './stalker-session.service';
 import { stalkerSessionFingerprint } from './stalker-session-store';
 
 describe('Stalker edited-session coordination', () => {
+    const originalLockManager = globalThis.navigator?.locks;
     const oldPlaylist = {
         _id: 'portal-edit',
         title: 'Portal',
@@ -27,6 +29,22 @@ describe('Stalker edited-session coordination', () => {
     let updateStalkerSession: jest.Mock;
 
     beforeEach(() => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: {
+                request: jest.fn(
+                    async (
+                        name: string,
+                        _options: LockOptions,
+                        callback: (lock: Lock | null) => Promise<void>
+                    ) =>
+                        callback({
+                            name,
+                            mode: 'exclusive',
+                        } as Lock)
+                ),
+            },
+        });
         getPlaylistById = jest.fn(() => of(oldPlaylist));
         updatePlaylistMetaIfCurrent = jest.fn((_playlist, isCurrent) =>
             of(isCurrent(oldPlaylist) ? oldPlaylist : null)
@@ -60,6 +78,13 @@ describe('Stalker edited-session coordination', () => {
                 resolveOldAuthentication = resolve;
             })
         );
+    });
+
+    afterEach(() => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: originalLockManager,
+        });
     });
 
     it('prevents late pre-edit auth from replacing a resolved full session', async () => {
@@ -110,7 +135,7 @@ describe('Stalker edited-session coordination', () => {
 
         let fenceSettled = false;
         const fencePromise = service
-            .beginEditDiscovery(editedPlaylist)
+            .beginEditDiscovery(editedPlaylist, oldPlaylist)
             .then((fence) => {
                 fenceSettled = true;
                 return fence;
@@ -204,6 +229,90 @@ describe('Stalker edited-session coordination', () => {
         ).resolves.toEqual(oldPlaylist);
     });
 
+    it('reserves a playlist across PWA tabs before discovery starts', async () => {
+        let held = false;
+        const request = jest.fn(
+            async (
+                name: string,
+                _options: LockOptions,
+                callback: (lock: Lock | null) => Promise<void>
+            ) => {
+                if (held) {
+                    await callback(null);
+                    return;
+                }
+                held = true;
+                try {
+                    await callback({
+                        name,
+                        mode: 'exclusive',
+                    } as Lock);
+                } finally {
+                    held = false;
+                }
+            }
+        );
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: { request },
+        });
+        let persistedPlaylist = oldPlaylist;
+        const createCoordinator = () =>
+            new StalkerEditedSessionCoordinator(
+                { getPending: jest.fn(() => undefined) } as never,
+                {} as never,
+                () =>
+                    ({
+                        getPlaylistById: jest.fn(() => of(persistedPlaylist)),
+                    }) as unknown as PlaylistsService
+            );
+        const firstTab = createCoordinator();
+        const secondTab = createCoordinator();
+
+        const firstFence = await firstTab.beginEdit(oldPlaylist);
+
+        await expect(secondTab.beginEdit(oldPlaylist)).rejects.toThrow(
+            /already in progress/i
+        );
+        expect(request).toHaveBeenCalledWith(
+            `iptvnator:stalker-edit:${oldPlaylist._id}`,
+            { ifAvailable: true, mode: 'exclusive' },
+            expect.any(Function)
+        );
+
+        firstTab.cancelEdit(firstFence);
+        for (let i = 0; i < 5 && held; i += 1) {
+            await Promise.resolve();
+        }
+
+        persistedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://first-tab.example.com/portal.php',
+        };
+        await expect(
+            secondTab.beginEdit(oldPlaylist, oldPlaylist)
+        ).rejects.toThrow(/stale/i);
+        for (let i = 0; i < 5 && held; i += 1) {
+            await Promise.resolve();
+        }
+
+        persistedPlaylist = oldPlaylist;
+        const secondFence = await secondTab.beginEdit(oldPlaylist);
+        secondTab.cancelEdit(secondFence);
+    });
+
+    it('fails closed before PWA discovery when cross-context locks are unavailable', async () => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: undefined,
+        });
+
+        await expect(service.beginEditDiscovery(oldPlaylist)).rejects.toThrow(
+            /cross-context playlist edit locking is unavailable/i
+        );
+        expect(authenticate).not.toHaveBeenCalled();
+    });
+
     it('prevents late pre-edit auth from restoring a cleared simple session', async () => {
         const oldAuthentication = service.ensureToken(oldPlaylist);
         while (authenticate.mock.calls.length === 0) {
@@ -246,7 +355,6 @@ describe('Stalker edited-session coordination', () => {
             stalkerSessionIdentity: undefined,
         } as Playlist;
         updatePlaylistMetaIfCurrent.mockReturnValueOnce(of(simplePlaylist));
-        getPlaylistById.mockReturnValueOnce(of(simplePlaylist));
         authenticate.mockReset().mockResolvedValue({
             token: 'STALE_FULL_TOKEN',
         });
@@ -256,6 +364,7 @@ describe('Stalker edited-session coordination', () => {
             oldPlaylist
         );
         await service.replaceSessionAfterEdit(simplePlaylist, fence);
+        getPlaylistById.mockReturnValueOnce(of(simplePlaylist));
 
         await expect(service.ensureToken(oldPlaylist)).rejects.toThrow(
             /stale/i
@@ -275,9 +384,14 @@ describe('Stalker edited-session coordination', () => {
         updatePlaylistMetaIfCurrent.mockReturnValueOnce(
             of(resolvedFullPlaylist)
         );
-        getPlaylistById.mockReturnValueOnce(of(resolvedFullPlaylist));
+        getPlaylistById
+            .mockReturnValueOnce(of(simplePlaylist))
+            .mockReturnValueOnce(of(resolvedFullPlaylist));
 
-        const fence = await service.beginEditDiscovery(simplePlaylist);
+        const fence = await service.beginEditDiscovery(
+            resolvedFullPlaylist,
+            simplePlaylist
+        );
         await service.replaceSessionAfterEdit(resolvedFullPlaylist, fence);
 
         await expect(service.ensureToken(simplePlaylist)).rejects.toThrow(
@@ -525,10 +639,13 @@ describe('Stalker edited-session coordination', () => {
             await Promise.resolve();
         }
 
-        const fence = await service.beginEditDiscovery({
-            ...oldPlaylist,
-            username: 'new-user',
-        });
+        const fence = await service.beginEditDiscovery(
+            {
+                ...oldPlaylist,
+                username: 'new-user',
+            },
+            oldPlaylist
+        );
         persistedRow.next(oldPlaylist);
         persistedRow.complete();
 
