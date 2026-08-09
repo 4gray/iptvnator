@@ -13,6 +13,8 @@ export interface ResourceState<T> {
     value(): T;
     isLoading(): boolean;
     error(): unknown;
+    /** Re-runs the loader with the current params (append retry). */
+    reload(): boolean;
 }
 
 export interface StalkerPortalStoreContract {

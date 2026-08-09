@@ -418,10 +418,6 @@ shrink into what is left.
 Prefer removing a control over shrinking everything around it:
 
 - Keyboard-only affordances — the `⌘K` badge, the shortcuts button.
-- The `mat-paginator` page-size select, which is the widest part of the
-  control and the least useful one on a phone. The range and arrows stay.
-  (Only Stalker catalog routes still render a paginator — Xtream catalogs use
-  infinite scroll and have none.)
 - Counts and subtitles that a neighbouring control already states.
 
 Never drop the only way back to a hidden surface. A collapse toggle that is

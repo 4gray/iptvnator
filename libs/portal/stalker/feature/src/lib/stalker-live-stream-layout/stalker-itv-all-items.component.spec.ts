@@ -30,53 +30,51 @@ describe('StalkerItvAllItemsComponent', () => {
         component = fixture.componentInstance;
     });
 
-    it('renders the first client-side page of channels with a paginator', () => {
-        fixture.componentRef.setInput('channels', buildChannels(60));
+    it('renders the first window of channels with no paginator', () => {
+        fixture.componentRef.setInput('channels', buildChannels(120));
         fixture.detectChanges();
 
-        expect(component.pagedGridItems()).toHaveLength(25);
+        expect(component.visibleGridItems()).toHaveLength(50);
         expect(fixture.nativeElement.querySelectorAll('mat-card')).toHaveLength(
-            25
+            50
         );
-        expect(fixture.nativeElement.querySelector('mat-paginator')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
+        expect(component.hasMoreItems()).toBe(true);
         expect(
             fixture.nativeElement
                 .querySelector('.category-subtitle')
                 ?.textContent?.trim()
-        ).toContain('60');
+        ).toContain('120');
     });
 
-    it('slices the next page on paginator change without touching the source', () => {
-        fixture.componentRef.setInput('channels', buildChannels(60));
+    it('grows the render window with loadMore until everything is visible', () => {
+        fixture.componentRef.setInput('channels', buildChannels(120));
         fixture.detectChanges();
 
-        component.onPageChange({
-            pageIndex: 2,
-            pageSize: 25,
-            length: 60,
-        } as never);
-        fixture.detectChanges();
+        component.loadMore();
+        expect(component.visibleGridItems()).toHaveLength(100);
 
-        // Third page holds the remaining 10 channels.
-        expect(component.pagedGridItems()).toHaveLength(10);
-        expect(component.pagedGridItems()[0]['id']).toBe('ch-50');
+        component.loadMore();
+        expect(component.visibleGridItems()).toHaveLength(120);
+        expect(component.hasMoreItems()).toBe(false);
+
+        // Covered — a further loadMore is a no-op.
+        component.loadMore();
+        expect(component.renderLimit()).toBe(150);
     });
 
-    it('filters by the search term across ALL channels and resets to page one', () => {
-        fixture.componentRef.setInput('channels', buildChannels(60));
+    it('filters by the search term across ALL channels and resets the window', () => {
+        fixture.componentRef.setInput('channels', buildChannels(120));
         fixture.detectChanges();
-        component.onPageChange({
-            pageIndex: 1,
-            pageSize: 25,
-            length: 60,
-        } as never);
+        component.loadMore();
+        expect(component.renderLimit()).toBe(100);
 
         fixture.componentRef.setInput('searchTerm', 'needle');
         fixture.detectChanges();
 
-        expect(component.pageIndex()).toBe(0);
+        expect(component.renderLimit()).toBe(50);
         expect(
-            component.pagedGridItems().map((item) => item['name'])
+            component.visibleGridItems().map((item) => item['name'])
         ).toEqual(['Needle TV']);
     });
 
@@ -84,7 +82,7 @@ describe('StalkerItvAllItemsComponent', () => {
         fixture.componentRef.setInput('channels', buildChannels(1));
         fixture.detectChanges();
 
-        const [item] = component.pagedGridItems();
+        const [item] = component.visibleGridItems();
         expect(item['stream_icon']).toBe('logo-0.png');
         expect('is_series' in item).toBe(false);
     });

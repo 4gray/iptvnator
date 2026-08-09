@@ -303,7 +303,17 @@ Stalker store is now feature-composed:
 Important store responsibilities:
 
 - Selected content/category/item state
-- Category and paginated content resources
+- Category and content resources. VOD/series content is an infinite-scroll
+  append: portal pages (server-side size, typically 14) accumulate into one
+  deduplicated `paginatedContent` list; page 1 replaces it, `hasMoreContent`
+  derives from the accumulated length versus `total_items` (so a portal that
+  ignores requested page sizes still terminates), and a failed page > 1 sets
+  `appendError` while keeping the accumulated pages on screen —
+  `retryContentPage()` re-runs the same page via the resource's `reload()`.
+  The facade splits the resource's loading flag by page: page 0 is the grid
+  skeleton, later pages are the tail spinner, and `loadMore()` refuses to
+  advance past an unresolved append error (a skipped page would leave a
+  silent hole in the list).
 - ITV channel list + pagination (full-list session cache when the portal
   supports it, legacy 14-per-page lazy loading otherwise)
 - Radio category/station list + pagination
@@ -1260,13 +1270,14 @@ list:
   from an effect in `StalkerLiveStreamLayoutComponent` — not from the first
   category click), so the count badges and the all-channels view are available
   right away. Before a category is selected, the main area shows
-  `StalkerItvAllItemsComponent` — a paginated card grid of every channel in
-  the portal (client-side pagination only; it must never touch the store's
-  legacy `page` state, which would re-fire portal requests). Clicking a card
-  runs the same `playChannel` flow as the sidebar. Portals without a usable
-  full list keep the "select a category" placeholder.
-- Scope: ITV only. VOD/series keep server-side search; radio keeps legacy
-  paging (station lists are small).
+  `StalkerItvAllItemsComponent` — an infinite-scroll card grid of every
+  channel in the portal (a purely client-side render window over the cached
+  list; it must never touch the store's legacy `page` state, which would
+  re-fire portal requests). Clicking a card runs the same `playChannel` flow
+  as the sidebar. Portals without a usable full list keep the "select a
+  category" placeholder.
+- Scope: ITV only. VOD/series append server pages on scroll and page their
+  search portal-side; radio keeps legacy paging (station lists are small).
 - The stalker-mock-server implements `get_all_channels` and provides the
   `legacy-pagination` scenario MAC (`00:1A:79:00:00:06`) to exercise the
   crawl fallback.

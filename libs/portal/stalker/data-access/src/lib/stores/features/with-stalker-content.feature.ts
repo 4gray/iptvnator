@@ -48,6 +48,12 @@ export interface StalkerContentState {
     paginatedContent: StalkerContentItem[];
     categoryError: unknown;
     contentError: unknown;
+    /**
+     * A failed append (portal page > 1). Kept separate from `contentError`
+     * so already-accumulated pages stay on screen and the grid tail can
+     * offer a retry instead of collapsing to the empty state.
+     */
+    appendError: unknown;
 }
 
 const initialContentState: StalkerContentState = {
@@ -62,6 +68,7 @@ const initialContentState: StalkerContentState = {
     paginatedContent: [],
     categoryError: null,
     contentError: null,
+    appendError: null,
 };
 
 interface StalkerCategoryResponseItem {
@@ -171,6 +178,7 @@ function buildEmptyContentPatch(
         totalCount: 0,
         paginatedContent: [],
         contentError: error,
+        appendError: null,
     };
 
     if (contentType === 'itv' || contentType === 'radio') {
@@ -183,6 +191,28 @@ function buildEmptyContentPatch(
     }
 
     return patch;
+}
+
+/**
+ * Portals can shift items between pages while the list is being appended —
+ * a duplicate id would render the same card twice and break `track` hints.
+ */
+function dedupeContentById(
+    items: StalkerContentItem[]
+): StalkerContentItem[] {
+    const seenIds = new Set<string>();
+    return items.filter((item) => {
+        const id =
+            item.id === undefined || item.id === null ? null : String(item.id);
+        if (id === null) {
+            return true;
+        }
+        if (seenIds.has(id)) {
+            return false;
+        }
+        seenIds.add(id);
+        return true;
+    });
 }
 
 export function withStalkerContent() {
@@ -498,9 +528,15 @@ export function withStalkerContent() {
                             }
 
                             try {
+                                // Only a fresh list (page 1) blanks the grid
+                                // for the skeleton; appends keep the already
+                                // accumulated pages on screen.
                                 patchState(store, {
-                                    paginatedContent: [],
+                                    ...(params.pageIndex === 1
+                                        ? { paginatedContent: [] }
+                                        : {}),
                                     contentError: null,
+                                    appendError: null,
                                 });
 
                                 const response =
@@ -522,6 +558,14 @@ export function withStalkerContent() {
                                         'Invalid response structure',
                                         response
                                     );
+                                    if (params.pageIndex > 1) {
+                                        // A broken append must not collapse
+                                        // the pages already on screen.
+                                        patchState(store, {
+                                            appendError: invalidResponseError,
+                                        });
+                                        return store.paginatedContent();
+                                    }
                                     patchState(store, {
                                         ...buildEmptyContentPatch(
                                             params.contentType,
@@ -569,13 +613,41 @@ export function withStalkerContent() {
                                             (response.js.total_items ?? 0),
                                     });
                                 } else {
+                                    // VOD/series pages accumulate into one
+                                    // continuous list for the infinite-scroll
+                                    // grid; page 1 replaces it.
+                                    const previousContent =
+                                        store.paginatedContent();
+                                    const nextContent =
+                                        params.pageIndex === 1
+                                            ? newItems
+                                            : dedupeContentById([
+                                                  ...previousContent,
+                                                  ...newItems,
+                                              ]);
+                                    // An append that adds no unique items is
+                                    // the practical end of the list even when
+                                    // the portal's total_items claims more
+                                    // (dedup after mid-list mutations can
+                                    // leave the unique list short forever) —
+                                    // clamp the total so hasMoreContent turns
+                                    // false instead of requesting past the
+                                    // end on every scroll crossing.
+                                    const appendStalled =
+                                        params.pageIndex > 1 &&
+                                        nextContent.length <=
+                                            previousContent.length;
+
                                     patchState(store, {
-                                        totalCount:
-                                            response.js.total_items ?? 0,
-                                        paginatedContent: newItems,
+                                        totalCount: appendStalled
+                                            ? nextContent.length
+                                            : (response.js.total_items ?? 0),
+                                        paginatedContent: nextContent,
                                         contentError: null,
+                                        appendError: null,
                                         hasMoreChannels: false,
                                     });
+                                    return nextContent;
                                 }
 
                                 return newItems;
@@ -589,6 +661,12 @@ export function withStalkerContent() {
                                     category: params.category,
                                     error,
                                 });
+                                if (params.pageIndex > 1) {
+                                    // Keep the accumulated pages; the grid
+                                    // tail offers a retry for this page.
+                                    patchState(store, { appendError: error });
+                                    return store.paginatedContent();
+                                }
                                 patchState(
                                     store,
                                     buildEmptyContentPatch(
@@ -694,8 +772,17 @@ export function withStalkerContent() {
                     return (itvCategoryItemCounts().get(genreId) ?? 0) > 0;
                 }),
                 itvCategoryItemCounts,
-                getTotalPages: computed(() =>
-                    Math.ceil(store.totalCount() / storeContext.limit())
+                /**
+                 * Whether the portal reports more items than the grid has
+                 * accumulated. Derived from `total_items` versus the actual
+                 * list length, so it stays correct even when the portal
+                 * ignores requested page sizes.
+                 */
+                hasMoreContent: computed(
+                    () => store.paginatedContent().length < store.totalCount()
+                ),
+                hasContentAppendError: computed(
+                    () => store.appendError() !== null
                 ),
                 getSelectedCategory: computed(() => {
                     const categoryId = storeContext.selectedCategoryId();
@@ -772,6 +859,14 @@ export function withStalkerContent() {
              */
             preloadItvChannels(): void {
                 void itvCache.ensureLoaded(storeContext.currentPlaylist());
+            },
+            /**
+             * Re-runs the content loader with unchanged params — the retry
+             * for a failed append page.
+             */
+            retryContentPage(): void {
+                patchState(store, { appendError: null });
+                storeContext.getContentResource.reload();
             },
             async refreshItvChannels(): Promise<void> {
                 await itvCache.refresh(storeContext.currentPlaylist());

@@ -355,6 +355,153 @@ describe('withStalkerContent failure states', () => {
         expect(store.hasMoreChannels()).toBe(false);
     });
 
+    it('appends later VOD pages into one continuous deduplicated list', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+
+                return Promise.resolve({
+                    js: {
+                        data: [
+                            {
+                                id: `movie-${page}`,
+                                name: `Movie page ${page}`,
+                                category_id: '5',
+                            },
+                            // The portal shifts this row between pages —
+                            // the append must deduplicate it.
+                            {
+                                id: 'movie-shared',
+                                name: 'Shared Movie',
+                                category_id: '5',
+                            },
+                        ],
+                        total_items: 3,
+                    },
+                });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+        ]);
+        store.setSelectedCategory('5');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+        expect(store.hasMoreContent()).toBe(true);
+
+        store.setPage(1);
+        await waitForCondition(() => store.getPaginatedContent().length === 3);
+
+        expect(
+            store.getPaginatedContent().map((item) => item.name)
+        ).toEqual(['Movie page 1', 'Shared Movie', 'Movie page 2']);
+        expect(store.hasMoreContent()).toBe(false);
+    });
+
+    it('stops paging when an append adds no unique items despite total_items', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+
+                return Promise.resolve({
+                    js: {
+                        // Page 2 repeats page 1's rows — after a mid-list
+                        // portal mutation the unique list can stay shorter
+                        // than the claimed total forever.
+                        data: [
+                            {
+                                id: 'movie-1',
+                                name: 'Movie one',
+                                category_id: '5',
+                            },
+                            {
+                                id: 'movie-2',
+                                name: 'Movie two',
+                                category_id: '5',
+                            },
+                        ],
+                        total_items: page === 1 ? 4 : 4,
+                    },
+                });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+        ]);
+        store.setSelectedCategory('5');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+        expect(store.hasMoreContent()).toBe(true);
+
+        store.setPage(1);
+        await waitForCondition(() => !store.hasMoreContent());
+
+        // The duplicate page made no progress: the total clamps to reality
+        // instead of leaving hasMoreContent true past the end forever.
+        expect(store.getPaginatedContent()).toHaveLength(2);
+        expect(store.totalCount()).toBe(2);
+    });
+
+    it('keeps accumulated pages when an append fails and retries the same page', async () => {
+        let failPageTwo = true;
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                if (page === 2 && failPageTwo) {
+                    return Promise.reject(new Error('portal hiccup'));
+                }
+
+                return Promise.resolve({
+                    js: {
+                        data: [
+                            {
+                                id: `movie-${page}`,
+                                name: `Movie page ${page}`,
+                                category_id: '5',
+                            },
+                        ],
+                        total_items: 2,
+                    },
+                });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+        ]);
+        store.setSelectedCategory('5');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.getPaginatedContent().length === 1);
+
+        store.setPage(1);
+        await waitForCondition(() => store.hasContentAppendError());
+
+        // The failed append left page 1 on screen, not the empty state.
+        expect(
+            store.getPaginatedContent().map((item) => item.name)
+        ).toEqual(['Movie page 1']);
+        expect(store.contentError()).toBeNull();
+
+        failPageTwo = false;
+        store.retryContentPage();
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+
+        expect(store.hasContentAppendError()).toBe(false);
+        expect(
+            store.getPaginatedContent().map((item) => item.name)
+        ).toEqual(['Movie page 1', 'Movie page 2']);
+    });
+
     it('falls back to a synthetic all-radio category when radio categories are unavailable', async () => {
         dataService.sendIpcEvent.mockRejectedValue(
             new Error('radio categories unsupported')

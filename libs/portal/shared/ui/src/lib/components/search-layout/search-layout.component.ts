@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     input,
     output,
     viewChild,
@@ -29,6 +30,8 @@ import { SearchFormComponent } from '../search-form/search-form.component';
 })
 export class SearchLayoutComponent {
     private readonly searchFormComponent = viewChild(SearchFormComponent);
+    private readonly resultsContainer =
+        viewChild<ElementRef<HTMLElement>>('resultsContainer');
 
     /** Page title translation key */
     readonly title = input<string>('PORTALS.SIDEBAR.SEARCH');
@@ -116,6 +119,19 @@ export class SearchLayoutComponent {
     /** Focus the search input */
     focusSearchInput(): void {
         this.searchFormComponent()?.focusSearchInput();
+    }
+
+    /**
+     * Scroll handoff for hosts whose inline detail replaces the results
+     * (`showDetails`): the container is destroyed with the detail open and
+     * recreated at offset zero, so the host saves and restores the spot.
+     */
+    getResultsScrollTop(): number {
+        return this.resultsContainer()?.nativeElement.scrollTop ?? 0;
+    }
+
+    restoreResultsScrollTop(scrollTop: number): void {
+        this.resultsContainer()?.nativeElement.scrollTo?.({ top: scrollTop });
     }
 
     onSearchTermChange(term: string): void {
