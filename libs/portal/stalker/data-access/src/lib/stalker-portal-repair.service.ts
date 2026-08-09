@@ -187,8 +187,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         playlist: PlaylistMeta,
         override: StalkerPortalModeOverride
     ): void {
+        const editGeneration = this.editGenerations.get(playlist._id) ?? 0;
         void this.rowCurrentlyMatches(playlist).then((matches) => {
-            if (matches && this.overrides.get(playlist._id) === override) {
+            if (
+                matches &&
+                !this.editGenerationChanged(playlist._id, editGeneration) &&
+                this.overrides.get(playlist._id) === override
+            ) {
                 this.dropOverride(playlist._id);
             }
         });

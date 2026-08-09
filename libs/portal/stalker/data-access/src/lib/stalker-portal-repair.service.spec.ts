@@ -34,6 +34,7 @@ describe('StalkerPortalRepairService', () => {
     let service: StalkerPortalRepairService;
     let discover: jest.Mock;
     let transformPlaylistMeta: jest.Mock;
+    let getPlaylistById: jest.Mock;
     /** What the persisted row looks like when the repair re-verifies it. */
     let persistedRow: Playlist | undefined;
     /** The row the atomic transform actually wrote, if any. */
@@ -70,6 +71,7 @@ describe('StalkerPortalRepairService', () => {
             writtenRow = next;
             return of(next);
         });
+        getPlaylistById = jest.fn(() => of(persistedRow));
         setCachedToken = jest.fn();
         adoptDiscoveredSession = jest.fn();
         adoptDiscoveredSimplePortal = jest.fn();
@@ -92,7 +94,7 @@ describe('StalkerPortalRepairService', () => {
                     provide: PlaylistsService,
                     useValue: {
                         transformPlaylistMeta,
-                        getPlaylistById: jest.fn(() => of(persistedRow)),
+                        getPlaylistById,
                     },
                 },
                 {
@@ -864,6 +866,45 @@ describe('StalkerPortalRepairService', () => {
             expect(service.applyOverride(current)).toMatchObject({
                 isFullStalkerPortal: true,
             });
+        });
+
+        it('does not retire a token after an overlapping explicit edit takes ownership', async () => {
+            const original = {
+                ...MISCLASSIFIED,
+                username: 'repair-user',
+                password: 'repair-password',
+            } as PlaylistMeta;
+            persistedRow = original as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: original.portalUrl,
+                isFullStalkerPortal: true,
+                token: 'REPAIR_TOKEN',
+            });
+            await service.repairPortal(original);
+            clearCachedToken.mockClear();
+
+            const edited = {
+                ...original,
+                username: 'edited-user',
+                password: 'edited-password',
+            } as PlaylistMeta;
+            const rowRead = new Subject<Playlist | undefined>();
+            getPlaylistById.mockReturnValueOnce(rowRead);
+
+            // The mismatched snapshot begins a persisted-row confirmation.
+            expect(service.applyOverride(edited)).toBe(edited);
+            // Explicit Edit takes ownership before that older read returns;
+            // its newly negotiated token must not be cleared by the read.
+            await service.fenceForPlaylistEdit(original._id);
+            setCachedToken(original._id, 'EDIT_TOKEN', edited);
+            rowRead.next(edited as Playlist);
+            rowRead.complete();
+            await flushMicrotasks();
+
+            expect(clearCachedToken).not.toHaveBeenCalled();
+            service.commitPlaylistEdit(original._id);
+            expect(service.applyOverride(original)).toBe(original);
         });
 
         it('re-probes a DISCARDED configuration once the row is restored to it', async () => {

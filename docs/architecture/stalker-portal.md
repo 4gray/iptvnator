@@ -273,8 +273,9 @@ in-session override inside `executeStalkerRequest()` (stale store snapshots
 keep working). The override is bound to that source's endpoint, mode, device
 identity, and credentials; an Edit or backup restore under the same playlist
 ID retires it when any connection field differs, but only after the persisted
-row confirms ownership — a delayed stale request cannot globally remove the
-current override or token. The repair is persisted
+row confirms ownership and only if no explicit Edit took ownership during
+that read — a delayed stale request cannot globally remove the current
+override or a token negotiated by the overlapping Edit. The repair is persisted
 through `PlaylistsService.transformPlaylistMeta`
 — the verification and the patch run in ONE slot of the per-playlist write
 queue, so a user edit that is queued but not yet committed wins over the
