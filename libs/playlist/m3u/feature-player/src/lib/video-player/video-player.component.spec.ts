@@ -378,6 +378,21 @@ describe('VideoPlayerComponent', () => {
                         get isElectron() {
                             return Boolean(window.electron);
                         },
+                        // Mirrors the real capability check: every
+                        // remote-control bridge method must be present.
+                        get supportsRemoteControl() {
+                            const bridge = window.electron as
+                                | Record<string, unknown>
+                                | undefined;
+                            return [
+                                'updateRemoteControlStatus',
+                                'onChannelChange',
+                                'onRemoteControlCommand',
+                            ].every(
+                                (method) =>
+                                    typeof bridge?.[method] === 'function'
+                            );
+                        },
                     },
                 },
                 {
@@ -563,6 +578,66 @@ describe('VideoPlayerComponent', () => {
         fixture.detectChanges();
 
         expect(updateRemoteControlStatus).not.toHaveBeenCalled();
+    });
+
+    it('reports no remote volume support and ignores volume commands on external players', () => {
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+        player.set(VideoPlayer.MPV);
+        fixture.detectChanges();
+        syncStoreState(sampleChannel);
+
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                portal: 'm3u',
+                isLiveView: true,
+                supportsVolume: false,
+            })
+        );
+
+        localStorage.removeItem('volume');
+        (
+            component as unknown as {
+                handleRemoteControlCommand(command: {
+                    type: 'volume-down';
+                }): void;
+            }
+        ).handleRemoteControlCommand({ type: 'volume-down' });
+
+        // The command must not touch the stored web-player volume either.
+        expect(localStorage.getItem('volume')).toBeNull();
+    });
+
+    it('reports remote volume support for built-in inline playback', () => {
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        syncStoreState(sampleChannel);
+
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                supportsVolume: true,
+                volume: 1,
+                muted: false,
+            })
+        );
+    });
+
+    it('publishes a remote status reset when the player view is destroyed', () => {
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+        fixture.detectChanges();
+        syncStoreState(sampleChannel);
+        updateRemoteControlStatus.mockClear();
+
+        fixture.destroy();
+
+        expect(updateRemoteControlStatus).toHaveBeenCalledWith({
+            portal: 'unknown',
+            isLiveView: false,
+            supportsVolume: false,
+        });
     });
 
     it('opens MPV fallback with the active channel headers preserved', () => {

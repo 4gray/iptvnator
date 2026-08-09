@@ -88,8 +88,23 @@ export class RemoteControlEvents {
         ipcMain.on(
             'REMOTE_CONTROL_STATUS_UPDATE',
             (_event, status: Partial<RemoteControlStatus>) => {
+                // A non-live update is a snapshot, not a patch: merging it
+                // into the previous live state would keep stale now-playing
+                // fields (channel name, EPG, volume) on the remote forever
+                // after the player view is left or switched to VOD.
+                const base =
+                    status.isLiveView === false
+                        ? {
+                              portal:
+                                  status.portal ??
+                                  this.remoteControlStatus.portal,
+                              isLiveView: false as const,
+                              supportsVolume: false,
+                          }
+                        : this.remoteControlStatus;
+
                 this.remoteControlStatus = {
-                    ...this.remoteControlStatus,
+                    ...base,
                     ...status,
                     updatedAt: new Date().toISOString(),
                 };

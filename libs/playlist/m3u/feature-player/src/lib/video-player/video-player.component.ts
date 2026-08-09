@@ -635,7 +635,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 epgTitle: currentEpgProgram?.title,
                 epgStart: currentEpgProgram?.start,
                 epgEnd: currentEpgProgram?.stop,
-                supportsVolume: true,
+                supportsVolume: this.isRemoteVolumeSupported(activeChannel),
                 volume: this.volume(),
                 muted: this.volume() === 0,
             });
@@ -690,6 +690,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.statusSubscription?.unsubscribe();
+        // Leaving the player would otherwise keep the last channel advertised
+        // as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.({
+            portal: 'unknown',
+            isLiveView: false,
+            supportsVolume: false,
+        });
     }
 
     onSidebarWidthChange(width: number): void {
@@ -1013,6 +1020,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             | 'volume-toggle-mute';
         number?: number;
     }): void {
+        if (
+            command.type !== 'channel-select-number' &&
+            !this.isRemoteVolumeSupported(this.activeChannel())
+        ) {
+            // The active playback runs in MPV/VLC or Embedded MPV — adjusting
+            // the stored web-player volume would silently do nothing audible.
+            return;
+        }
+
         if (command.type === 'channel-select-number' && command.number) {
             this.switchToChannelByNumber(command.number);
             return;
@@ -1045,7 +1061,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             remoteControl.updateRemoteControlStatus({
                 portal: 'm3u',
                 isLiveView: true,
-                supportsVolume: true,
+                supportsVolume: this.isRemoteVolumeSupported(
+                    this.activeChannel()
+                ),
                 volume: this.volume(),
                 muted: this.volume() === 0,
             });
@@ -1054,6 +1072,30 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     onInlineVolumeChange(volume: number): void {
         this.setVolume(volume);
+    }
+
+    /**
+     * Remote volume commands act on the built-in inline players only:
+     * radio's audio element, the DASH-forced web player, and the HTML5/
+     * Video.js/ArtPlayer engines. External MPV/VLC and Embedded MPV own
+     * their audio, so advertising volume support there would enable remote
+     * buttons that do nothing audible.
+     */
+    private isRemoteVolumeSupported(
+        channel: Channel | null | undefined
+    ): boolean {
+        if (!channel) {
+            return false;
+        }
+        if (channel.radio === 'true' || this.activeChannelIsDash()) {
+            return true;
+        }
+
+        const player = this.playerSettings.player;
+        return (
+            !this.isExternalPlayer(player) &&
+            player !== VideoPlayer.EmbeddedMpv
+        );
     }
 
     private get remoteControlBridge(): Window['electron'] | undefined {

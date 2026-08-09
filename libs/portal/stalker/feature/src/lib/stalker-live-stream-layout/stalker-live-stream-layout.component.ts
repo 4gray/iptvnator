@@ -570,7 +570,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const selectedType = this.stalkerStore.selectedContentType();
             const channels = this.filteredChannels();
 
-            if (selectedType !== 'itv' || !selectedItem?.id) {
+            // Radio shares this layout and its remote channel handlers, so
+            // it must publish live status too — otherwise the remote shows
+            // "waiting for playback" while its commands keep working.
+            if (
+                (selectedType !== 'itv' && selectedType !== 'radio') ||
+                !selectedItem?.id
+            ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'stalker',
                     isLiveView: false,
@@ -579,8 +585,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 return;
             }
 
+            // String-normalized comparison: radio ids ("radio-1") and other
+            // non-numeric portal ids would turn into NaN under Number().
+            const selectedId = normalizeStalkerEntityId(selectedItem.id);
             const currentIndex = channels.findIndex(
-                (item) => Number(item.id) === Number(selectedItem.id)
+                (item) => normalizeStalkerEntityId(item.id) === selectedId
             );
             const currentProgram = this.currentProgram();
 
@@ -622,6 +631,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     ngOnDestroy() {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
+        // Leaving the live view would otherwise keep the last channel
+        // advertised as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.({
+            portal: 'unknown',
+            isLiveView: false,
+            supportsVolume: false,
+        });
         this.removeScrollListener();
         if (this.epgPreviewRefreshTimer !== null) {
             clearTimeout(this.epgPreviewRefreshTimer);

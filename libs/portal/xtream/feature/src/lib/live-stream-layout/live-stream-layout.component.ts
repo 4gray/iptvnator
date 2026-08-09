@@ -520,6 +520,13 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         this.playbackRequestId += 1;
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
+        // Leaving the live view would otherwise keep the last channel
+        // advertised as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.({
+            portal: 'unknown',
+            isLiveView: false,
+            supportsVolume: false,
+        });
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {

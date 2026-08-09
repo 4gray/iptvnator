@@ -78,6 +78,13 @@ Status ingestion from renderer:
 
 - Listens on `REMOTE_CONTROL_STATUS_UPDATE`
 - Maintains in-memory `RemoteControlStatus` object returned by `/status`
+- Live updates (`isLiveView: true` or unspecified) MERGE into the previous
+  status, so partial pushes (e.g. the M3U volume-only update) keep the
+  channel fields. A non-live update (`isLiveView: false`) is treated as a
+  SNAPSHOT: stale now-playing fields (channel name/number, EPG, volume) are
+  dropped rather than merged, keeping the remote from advertising a channel
+  that stopped playing. The snapshot keeps the last known `portal` unless the
+  update names one.
 
 ### Settings integration
 
@@ -109,6 +116,11 @@ is treated as unsupported unless it exposes all remote-control methods:
 `onRemoteControlCommand`. This keeps PWA/self-hosted builds and partial test
 bridges from accidentally activating desktop-only remote-control behavior.
 
+Every integration publishes a reset snapshot
+(`{ portal: 'unknown', isLiveView: false, supportsVolume: false }`) in its
+`ngOnDestroy`/destroy hook, so leaving a live surface always clears the
+remote UI instead of freezing the last channel on it.
+
 ## Shared helpers
 
 - File: `libs/portal/shared/util/src/lib/remote-channel-navigation.ts`
@@ -118,7 +130,16 @@ Functions:
 - `getAdjacentChannelItem(...)`: wraps around on boundaries for up/down
 - `getChannelItemByNumber(...)`: 1-based number to list item mapping
 
-Used by M3U, Xtream, and Stalker live integrations.
+Used by the M3U, Xtream, and Stalker live integrations and the unified live
+tab (collections).
+
+- File: `libs/portal/shared/util/src/lib/favorites-channel-sort.ts`
+
+`deriveVisibleFavoriteChannels(...)` computes the search-filtered,
+mode-conditionally sorted list a collection surface renders. The global
+favorites list and the unified live tab's remote navigation both call it, so
+the remote's channel order and numbering can never diverge from the rendered
+rows.
 
 ## M3U integration
 
@@ -137,14 +158,15 @@ Implemented behavior:
     - toggle mute with last non-zero volume restore
     - persists to `localStorage`
     - propagates to built-in inline players: Video.js, HTML5, ArtPlayer, and radio `AudioPlayerComponent`
-    - does not control external MPV/VLC sessions or the experimental Embedded MPV player
+    - does not control external MPV/VLC sessions or the experimental Embedded MPV player; while one of those is the effective player, volume commands are a deliberate no-op (`isRemoteVolumeSupported`) instead of silently mutating the stored web-player volume
 - Publishes status snapshots via `updateRemoteControlStatus(...)`:
     - `portal: 'm3u'`
     - `isLiveView: true`
     - channel name/number
     - EPG now fields
-    - `supportsVolume: true`, `volume`, `muted`
-- Cleans listeners/subscriptions in `ngOnDestroy`.
+    - `supportsVolume` reflects the EFFECTIVE playback: `true` for built-in inline playback (radio audio, the DASH-forced web player, HTML5/Video.js/ArtPlayer), `false` while MPV/VLC or Embedded MPV owns the audio — the remote UI disables its volume buttons on `false`
+    - `volume`, `muted`
+- Cleans listeners/subscriptions and publishes the reset snapshot in `ngOnDestroy`.
 
 ## Xtream integration (live view)
 
@@ -167,7 +189,7 @@ Implemented behavior:
     - `isLiveView` only when selected content type is `live` and item is selected
     - channel name/number + current EPG item
     - `supportsVolume: false`
-- Cleans listeners in `ngOnDestroy`.
+- Cleans listeners and publishes the reset snapshot in `ngOnDestroy`.
 
 ## Stalker integration (ITV live view)
 
@@ -187,10 +209,52 @@ Implemented behavior:
     - Calls `playChannel(channel, true)` so remote actions explicitly start playback
 - Publishes status via effect:
     - `portal: 'stalker'`
-    - `isLiveView` only for selected content type `itv` with active item
+    - `isLiveView` for selected content type `itv` OR `radio` with an active
+      item — the radio route reuses this layout and its remote handlers, so
+      it reports live status too (channel numbering follows the radio list;
+      EPG fields stay empty). The index comparison uses
+      `normalizeStalkerEntityId`, because radio ids (`radio-1`) are not
+      numeric.
     - channel name/number + current EPG item
     - `supportsVolume: false`
-- Cleans listeners in `ngOnDestroy`.
+- Cleans listeners and publishes the reset snapshot in `ngOnDestroy`.
+
+## Unified live tab integration (favorites / recent / global collections)
+
+- Files:
+    - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab-remote-control.ts`
+      (`setupUnifiedLiveTabRemoteControl`, called from the tab's constructor)
+    - `libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.ts`
+
+One integration covers every collection surface that plays live TV inline
+without routing to a portal live layout:
+
+- M3U favorites/recent (`/workspace/playlists/:id/favorites|recent`)
+- Xtream favorites/recent (`/workspace/xtreams/:id/favorites|recent`)
+- Stalker favorites/recent (`/workspace/stalker/:id/favorites|recent`)
+- Global favorites/recent (`/workspace/global-favorites`, `/workspace/global-recent`)
+- Dashboard live clicks, which land on those collection routes with an
+  auto-open item
+
+Implemented behavior:
+
+- Channel up/down and number select navigate `visibleChannels()` — the
+  search-filtered, mode-conditionally sorted list derived by the same
+  `deriveVisibleFavoriteChannels` helper the rendered sidebar uses
+- Remote actions play via the same path as an explicit double-click
+  (`activateItem(item, false, true)`), so external MPV/VLC starts
+  immediately
+- Publishes status via effect:
+    - `portal` is the ACTIVE item's `sourceType` (`m3u` / `xtream` /
+      `stalker`) — a mixed global collection reports whichever source is
+      playing
+    - `isLiveView: true` once a selection has resolved playback
+    - channel name, visible-list channel number, and the current EPG summary
+      (timeshift-aware)
+    - `supportsVolume: false` (the collections player does not expose a
+      remote-controllable volume yet)
+- Publishes the reset snapshot when nothing is playing and on destroy;
+  unsubscribes both command listeners on destroy.
 
 ## Remote Web App
 
@@ -234,19 +298,27 @@ Implemented UI behavior:
 
 ## Feature Matrix (Current)
 
-| Capability                 | M3U                                  | Xtream Live | Stalker ITV |
-| -------------------------- | ------------------------------------ | ----------- | ----------- |
-| Channel up/down            | Yes                                  | Yes         | Yes         |
-| Number select              | Yes                                  | Yes         | Yes         |
-| Status publish             | Yes                                  | Yes         | Yes         |
-| Volume command handling    | Yes, for built-in inline M3U players | No          | No          |
-| `supportsVolume` in status | true                                 | false       | false       |
+| Capability                 | M3U player                            | Xtream Live | Stalker ITV/Radio | Collections (favorites/recent/global) |
+| -------------------------- | ------------------------------------- | ----------- | ----------------- | ------------------------------------- |
+| Channel up/down            | Yes                                   | Yes         | Yes               | Yes                                   |
+| Number select              | Yes                                   | Yes         | Yes               | Yes                                   |
+| Status publish             | Yes                                   | Yes         | Yes               | Yes                                   |
+| Status reset on leave      | Yes                                   | Yes         | Yes               | Yes                                   |
+| Volume command handling    | Yes, for built-in inline playback     | No          | No                | No                                    |
+| `supportsVolume` in status | true only for built-in inline players | false       | false             | false                                 |
+
+Navigation scope differs by surface: the M3U player navigates the FULL
+playlist (its sidebar always renders the full list), Xtream/Stalker navigate
+the currently filtered category list, and the collections tab navigates the
+search-filtered, sorted collection exactly as rendered.
 
 ## Known limitations
 
-- Volume commands are currently no-op in Xtream and Stalker integrations.
+- Volume commands are currently no-op in Xtream, Stalker, and collection
+  integrations; in the M3U player they are no-op while MPV/VLC or Embedded
+  MPV owns the audio.
 - Remote status uses polling from web UI (2s), not push/WebSocket.
-- Number-based selection is list-position based (1-based index in active list scope), not global EPG number mapping.
+- Number-based selection is list-position based (1-based index in active list scope), not global EPG number mapping (`tvg-chno` is not consulted).
 - Remote API currently has no auth/TLS; intended for trusted local networks.
 
 ## Operational notes
