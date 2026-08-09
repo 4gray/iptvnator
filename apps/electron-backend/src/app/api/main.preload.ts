@@ -425,9 +425,13 @@ const electronApi: ElectronBridgeApi = {
     setWindowCloseGuard: (active: boolean) =>
         ipcRenderer.invoke(WINDOW_SET_CLOSE_GUARD, active),
     confirmWindowClose: () => ipcRenderer.invoke(WINDOW_CONFIRM_CLOSE),
-    cancelWindowClose: () => ipcRenderer.invoke(WINDOW_CANCEL_CLOSE),
-    onWindowCloseRequested: (callback: () => void) => {
-        const handler = () => callback();
+    cancelWindowClose: (requestId?: number) =>
+        ipcRenderer.invoke(WINDOW_CANCEL_CLOSE, requestId),
+    onWindowCloseRequested: (callback: (requestId: number) => void) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            requestId: number
+        ) => callback(requestId);
         ipcRenderer.on(WINDOW_CLOSE_REQUESTED, handler);
         return () => ipcRenderer.off(WINDOW_CLOSE_REQUESTED, handler);
     },

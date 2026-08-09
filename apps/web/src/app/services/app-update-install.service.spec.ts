@@ -129,6 +129,27 @@ describe('AppUpdateInstallService', () => {
         expect(guard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores benign pushes while the install quit is pending', async () => {
+        // A 'checking' push (update check clicked while the quit winds up)
+        // proves nothing about the quit; resuming the beforeunload handler
+        // on it would cancel the updater's window close and strand the
+        // install.
+        electronStub.installAppUpdate.mockResolvedValue({
+            ...BASE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        });
+        const service = createService();
+        service.registerUnloadGuard(guard);
+        await service.installAppUpdate();
+
+        pushStatus({
+            ...BASE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
+        });
+
+        expect(guard.resumeAfterAbortedAppQuit).not.toHaveBeenCalled();
+    });
+
     it('survives an error push that beats the install reply', async () => {
         // IPC ordering between the invoke reply and status pushes is not
         // guaranteed; a stale 'downloaded' reply must not re-suspend the

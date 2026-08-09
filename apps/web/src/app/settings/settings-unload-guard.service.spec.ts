@@ -19,7 +19,7 @@ describe('SettingsUnloadGuardService', () => {
     let host: SettingsUnloadGuardHost & { confirmClose: jest.Mock };
     const originalElectron = window.electron;
 
-    let closeRequestCallback: (() => void) | null;
+    let closeRequestCallback: ((requestId: number) => void) | null;
     let unsubscribeCloseRequests: jest.Mock;
     let electronStub: {
         setWindowCloseGuard: jest.Mock;
@@ -55,10 +55,12 @@ describe('SettingsUnloadGuardService', () => {
                 status: 'idle',
                 supportedSelfUpdate: true,
             }),
-            onWindowCloseRequested: jest.fn((callback: () => void) => {
-                closeRequestCallback = callback;
-                return unsubscribeCloseRequests;
-            }),
+            onWindowCloseRequested: jest.fn(
+                (callback: (requestId: number) => void) => {
+                    closeRequestCallback = callback;
+                    return unsubscribeCloseRequests;
+                }
+            ),
         };
     });
 
@@ -210,7 +212,7 @@ describe('SettingsUnloadGuardService', () => {
             activateInElectron();
             form.markAsDirty();
 
-            closeRequestCallback?.();
+            closeRequestCallback?.(1);
             await flushAsyncWork();
 
             expect(host.confirmClose).toHaveBeenCalledTimes(1);
@@ -222,7 +224,7 @@ describe('SettingsUnloadGuardService', () => {
             activateInElectron();
             form.markAsDirty();
 
-            closeRequestCallback?.();
+            closeRequestCallback?.(1);
             await flushAsyncWork();
 
             expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
@@ -251,7 +253,7 @@ describe('SettingsUnloadGuardService', () => {
             expect(host.confirmClose).toHaveBeenCalledTimes(1);
 
             // ...then the user closes the window while it is on screen.
-            closeRequestCallback?.();
+            closeRequestCallback?.(1);
             resolveConfirm?.(true);
             await flushAsyncWork();
 
@@ -273,7 +275,7 @@ describe('SettingsUnloadGuardService', () => {
 
             dispatchBeforeUnload();
             await flushAsyncWork();
-            closeRequestCallback?.();
+            closeRequestCallback?.(1);
             resolveConfirm?.(false);
             await flushAsyncWork();
 
@@ -300,18 +302,21 @@ describe('SettingsUnloadGuardService', () => {
             activateInElectron();
             form.markAsDirty();
 
-            closeRequestCallback?.();
+            closeRequestCallback?.(1);
             await flushAsyncWork();
             expect(host.confirmClose).toHaveBeenCalledTimes(1);
 
             // Second close while the cancel acknowledgment is pending.
-            closeRequestCallback?.();
+            closeRequestCallback?.(2);
             await flushAsyncWork();
             expect(host.confirmClose).toHaveBeenCalledTimes(1);
 
             resolveCancel?.();
             await flushAsyncWork();
 
+            // The cancellation cited the request its dialog answered, so a
+            // newer interception's intent survives it in the main process.
+            expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(1);
             expect(host.confirmClose).toHaveBeenCalledTimes(2);
             expect(electronStub.confirmWindowClose).toHaveBeenCalledTimes(1);
         });
@@ -327,8 +332,8 @@ describe('SettingsUnloadGuardService', () => {
             activateInElectron();
             form.markAsDirty();
 
-            closeRequestCallback?.();
-            closeRequestCallback?.();
+            closeRequestCallback?.(1);
+            closeRequestCallback?.(1);
             await flushAsyncWork();
 
             expect(host.confirmClose).toHaveBeenCalledTimes(1);

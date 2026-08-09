@@ -37,7 +37,7 @@ export interface CloseGuardWindow {
     on(event: string, listener: (...args: unknown[]) => void): unknown;
     webContents: {
         isDestroyed(): boolean;
-        send(channel: string): void;
+        send(channel: string, requestId?: number): void;
         on(event: string, listener: (...args: unknown[]) => void): unknown;
     };
 }
@@ -47,6 +47,8 @@ export class WindowCloseGuard {
     private bypassClose = false;
     private quitInProgress = false;
     private pendingIntent: CloseIntent | null = null;
+    /** Increments per interception; cancellations must cite the current one. */
+    private requestSeq = 0;
     private window: CloseGuardWindow | null = null;
 
     constructor(private readonly electronApp: CloseGuardApp) {}
@@ -160,8 +162,17 @@ export class WindowCloseGuard {
      * Renderer verdict: the user stays. Clears the pending intent so a later
      * close attempt starts fresh — without this, choosing Stay on a quit and
      * clicking the window's close button minutes later would quit the app.
+     *
+     * A cancellation citing an older request than the current interception
+     * is stale and ignored: a quit intercepted while the cancel was in
+     * flight must keep its intent, or Save on the follow-up dialog would
+     * downgrade the user's quit to a plain window close.
      */
-    cancelClose(): void {
+    cancelClose(requestId?: number): void {
+        if (requestId !== undefined && requestId !== this.requestSeq) {
+            return;
+        }
+
         this.pendingIntent = null;
     }
 
@@ -198,7 +209,8 @@ export class WindowCloseGuard {
         } else {
             this.pendingIntent = this.pendingIntent ?? 'close';
         }
-        win.webContents.send(WINDOW_CLOSE_REQUESTED);
+        this.requestSeq += 1;
+        win.webContents.send(WINDOW_CLOSE_REQUESTED, this.requestSeq);
     }
 }
 
@@ -227,8 +239,10 @@ export function bootstrapWindowCloseGuard(
     ipcMain.handle(WINDOW_CONFIRM_CLOSE, () => {
         guard.confirmClose();
     });
-    ipcMain.handle(WINDOW_CANCEL_CLOSE, () => {
-        guard.cancelClose();
+    ipcMain.handle(WINDOW_CANCEL_CLOSE, (_event, requestId?: number) => {
+        guard.cancelClose(
+            typeof requestId === 'number' ? requestId : undefined
+        );
     });
 
     return guard;

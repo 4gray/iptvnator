@@ -632,9 +632,13 @@ export interface ElectronBridgeApi {
     /**
      * Abandons a close the guard intercepted (the user stays), so the
      * remembered close-vs-quit intent cannot leak into a later attempt.
+     * Carries the id of the request being abandoned: a cancellation that
+     * arrives after a NEWER interception must not wipe that newer intent.
      */
-    cancelWindowClose: () => Promise<void>;
-    onWindowCloseRequested: (callback: () => void) => () => void;
+    cancelWindowClose: (requestId?: number) => Promise<void>;
+    onWindowCloseRequested: (
+        callback: (requestId: number) => void
+    ) => () => void;
     fetchPlaylistByUrl: (
         url: string,
         title?: string,

@@ -56,6 +56,11 @@ export class SettingsUnloadGuardService implements OnDestroy {
     private cancelling = false;
     /** A close requested during that window, re-asked once the cancel lands. */
     private queuedCloseRequest = false;
+    /**
+     * Id of the latest intercepted request, cited in cancellations so a
+     * cancel arriving after a newer interception cannot wipe its intent.
+     */
+    private latestCloseRequestId: number | undefined;
     /** Last guard state mirrored to the main process. */
     private guardArmed = false;
     /** True while an updater-driven app quit must pass unchallenged. */
@@ -71,7 +76,8 @@ export class SettingsUnloadGuardService implements OnDestroy {
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
 
         this.unsubscribeCloseRequests =
-            window.electron?.onWindowCloseRequested?.(() => {
+            window.electron?.onWindowCloseRequested?.((requestId) => {
+                this.latestCloseRequestId = requestId;
                 this.zone.run(() => void this.handleCloseRequest('close'));
             }) ?? null;
 
@@ -208,7 +214,9 @@ export class SettingsUnloadGuardService implements OnDestroy {
                     this.cancelling = true;
 
                     try {
-                        await window.electron?.cancelWindowClose?.();
+                        await window.electron?.cancelWindowClose?.(
+                            this.latestCloseRequestId
+                        );
                     } finally {
                         this.cancelling = false;
                     }

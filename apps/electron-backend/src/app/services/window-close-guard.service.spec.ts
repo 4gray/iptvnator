@@ -145,7 +145,8 @@ describe('WindowCloseGuard', () => {
 
         expect(win.fireClose()).toBe(true);
         expect(win.webContents.send).toHaveBeenCalledWith(
-            WINDOW_CLOSE_REQUESTED
+            WINDOW_CLOSE_REQUESTED,
+            1
         );
         expect(win.close).not.toHaveBeenCalled();
     });
@@ -185,6 +186,37 @@ describe('WindowCloseGuard', () => {
 
         // A later plain window close must not resurrect the quit.
         win.fireClose();
+        guard.confirmClose();
+
+        expect(win.close).toHaveBeenCalledTimes(1);
+        expect(app.quit).not.toHaveBeenCalled();
+    });
+
+    it('ignores a cancellation citing an older interception', () => {
+        // Stay's cancel raced a fresh Cmd+Q: the late cancellation must not
+        // wipe the newer quit intent, or Save on the follow-up dialog would
+        // downgrade the quit to a plain window close.
+        const { app, guard, win } = createArmedGuard();
+
+        win.fireClose(); // request 1
+        app.fireBeforeQuit();
+        win.fireClose(); // request 2, quit
+        guard.cancelClose(1);
+
+        guard.confirmClose();
+
+        expect(app.quit).toHaveBeenCalledTimes(1);
+        expect(win.close).not.toHaveBeenCalled();
+    });
+
+    it('honors a cancellation citing the current interception', () => {
+        const { app, guard, win } = createArmedGuard();
+
+        app.fireBeforeQuit();
+        win.fireClose(); // request 1, quit
+        guard.cancelClose(1);
+
+        win.fireClose(); // request 2
         guard.confirmClose();
 
         expect(win.close).toHaveBeenCalledTimes(1);

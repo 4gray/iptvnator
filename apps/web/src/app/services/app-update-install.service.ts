@@ -34,12 +34,16 @@ export class AppUpdateInstallService {
 
     constructor() {
         // App-lifetime subscription on purpose: the failure push can arrive
-        // after the UI that requested the install is gone.
+        // after the UI that requested the install is gone. Only an Error
+        // push aborts — that is how electron-updater reports an install
+        // failure. Benign pushes (e.g. a 'checking' from an update-check
+        // clicked while the quit is still winding up) prove nothing about
+        // the quit and must not resurrect the beforeunload handler mid-
+        // install.
         window.electron?.onAppUpdateStatusChange?.((status) => {
             if (
                 this.installQuitPending &&
-                status.status !==
-                    ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+                status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error
             ) {
                 this.abortInstallQuit();
             }
