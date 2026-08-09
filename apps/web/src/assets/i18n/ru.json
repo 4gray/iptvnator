@@ -635,6 +635,8 @@
         "NO_SEARCH_RESULTS": "Каналы не найдены",
         "NO_CHANNELS_FOUND": "Каналы не найдены",
         "NO_GROUPS_FOUND": "Группы не найдены",
+        "CATCHUP_AVAILABLE": "Catchup доступен",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup доступен — {{days}} дн.",
         "TRY_DIFFERENT_SEARCH": "Попробуйте другой поисковый запрос",
         "DETAILS_DIALOG": {
             "TITLE": "Сведения о канале",

@@ -635,6 +635,8 @@
         "NO_SEARCH_RESULTS": "Nem található csatorna",
         "NO_CHANNELS_FOUND": "Nem található csatorna",
         "NO_GROUPS_FOUND": "Nem található csoport",
+        "CATCHUP_AVAILABLE": "Visszanézés elérhető",
+        "CATCHUP_AVAILABLE_DAYS": "Visszanézés elérhető — {{days}} nap",
         "TRY_DIFFERENT_SEARCH": "Próbálkozzon másik keresési kifejezéssel",
         "DETAILS_DIALOG": {
             "TITLE": "Csatorna részletei",

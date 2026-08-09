@@ -635,6 +635,8 @@
         "NO_SEARCH_RESULTS": "Kanal bulunamadı",
         "NO_CHANNELS_FOUND": "Kanal bulunamadı",
         "NO_GROUPS_FOUND": "Grup bulunamadı",
+        "CATCHUP_AVAILABLE": "Catchup mevcut",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup mevcut — {{days}} gün",
         "TRY_DIFFERENT_SEARCH": "Farklı bir arama terimi deneyin",
         "DETAILS_DIALOG": {
             "TITLE": "Kanal ayrıntıları",

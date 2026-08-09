@@ -635,6 +635,8 @@
         "NO_SEARCH_RESULTS": "Geen kanalen gevonden",
         "NO_CHANNELS_FOUND": "Geen kanalen gevonden",
         "NO_GROUPS_FOUND": "Geen groepen gevonden",
+        "CATCHUP_AVAILABLE": "Catchup beschikbaar",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup beschikbaar — {{days}} dagen",
         "TRY_DIFFERENT_SEARCH": "Probeer een andere zoekterm",
         "DETAILS_DIALOG": {
             "TITLE": "Kanaaldetails",

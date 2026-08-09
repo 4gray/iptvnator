@@ -13,6 +13,10 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import {
+    getXtreamCatchupDays,
+    isXtreamCatchupAvailable,
+} from '@iptvnator/portal/shared/util';
 import { SettingsStore } from '@iptvnator/services';
 import {
     ProgressCapsuleComponent,
@@ -38,6 +42,8 @@ interface GridListItem {
     progress?: number;
     isWatched?: boolean;
     hasSeriesProgress?: boolean;
+    tv_archive?: number | string | null;
+    tv_archive_duration?: number | string | null;
     [key: string]: unknown;
 }
 
@@ -135,6 +141,24 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                             }
                             @if (i.progress && i.progress > 0) {
                                 <app-progress-capsule [progress]="i.progress" />
+                            }
+                            @if (showCatchupBadge(i)) {
+                                <div
+                                    class="catchup-badge"
+                                    data-test-id="grid-catchup-badge"
+                                    [matTooltip]="
+                                        catchupLabelKey(i)
+                                            | translate: { days: catchupDays(i) }
+                                    "
+                                >
+                                    <mat-icon>history</mat-icon>
+                                    <!-- mat-icon is aria-hidden; expose the
+                                         status as text for AT users -->
+                                    <span class="visually-hidden">{{
+                                        catchupLabelKey(i)
+                                            | translate: { days: catchupDays(i) }
+                                    }}</span>
+                                </div>
                             }
                             @if (i.isWatched) {
                                 <app-watched-badge
@@ -250,6 +274,16 @@ export class GridListComponent {
     private readonly isLiveGrid = computed(() =>
         ['live', 'itv', 'radio'].includes(this.type())
     );
+    protected readonly catchupDays = getXtreamCatchupDays;
+    /** Catch-up badge is live-grid only; VOD/series rows never carry it. */
+    protected showCatchupBadge(item: GridListItem): boolean {
+        return this.isLiveGrid() && isXtreamCatchupAvailable(item);
+    }
+    protected catchupLabelKey(item: GridListItem): string {
+        return getXtreamCatchupDays(item) > 0
+            ? 'CHANNELS.CATCHUP_AVAILABLE_DAYS'
+            : 'CHANNELS.CATCHUP_AVAILABLE';
+    }
     protected readonly channelTitle = (item: GridListItem): string => {
         const raw = item.title ?? item.o_name ?? item.name ?? '';
         const stripped = applyChannelNameStrip(

@@ -635,6 +635,8 @@
         "NO_SEARCH_RESULTS": "No se encontraron canales",
         "NO_CHANNELS_FOUND": "No se encontraron canales",
         "NO_GROUPS_FOUND": "No se encontraron grupos",
+        "CATCHUP_AVAILABLE": "Catchup disponible",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup disponible — {{days}} días",
         "TRY_DIFFERENT_SEARCH": "Prueba con otro término de búsqueda",
         "DETAILS_DIALOG": {
             "TITLE": "Detalles del canal",

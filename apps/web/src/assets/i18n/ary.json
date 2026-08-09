@@ -635,6 +635,8 @@
         "NO_SEARCH_RESULTS": "ما تلقاتش حتى قناة",
         "NO_CHANNELS_FOUND": "ما تلقاتش حتى قناة",
         "NO_GROUPS_FOUND": "ما تلقاتش حتى مجموعة",
+        "CATCHUP_AVAILABLE": "Catchup متوفر",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup متوفر — {{days}} يوم",
         "TRY_DIFFERENT_SEARCH": "جرب كلمة بحث أخرى",
         "DETAILS_DIALOG": {
             "TITLE": "تفاصيل القناة",

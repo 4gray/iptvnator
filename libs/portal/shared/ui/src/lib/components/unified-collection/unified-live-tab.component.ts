@@ -285,6 +285,8 @@ export class UnifiedLiveTabComponent {
             m3uChannel: item.m3uChannel,
             radio: item.radio,
             xtreamId: item.xtreamId,
+            tvArchive: item.tvArchive ?? null,
+            tvArchiveDuration: item.tvArchiveDuration ?? null,
             tvgId: item.tvgId,
             stalkerCmd: item.stalkerCmd,
             stalkerPortalUrl: item.stalkerPortalUrl,

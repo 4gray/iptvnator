@@ -40,6 +40,12 @@ export interface UnifiedFavoriteChannel {
     /** Xtream numeric stream ID (Xtream channels only) */
     xtreamId?: number;
 
+    /** Provider catch-up flag (Xtream live channels only; 1 = archive) */
+    tvArchive?: number | null;
+
+    /** Provider catch-up window in days (Xtream live channels only) */
+    tvArchiveDuration?: number | null;
+
     /**
      * TVG id for M3U EPG lookup.
      * For Xtream channels, also used for short-EPG lookup.

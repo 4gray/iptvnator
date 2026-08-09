@@ -38,6 +38,8 @@ import {
     EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
+    getXtreamCatchupDays,
+    isXtreamCatchupAvailable,
     PortalChannelSortMode,
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
@@ -57,6 +59,8 @@ export interface XtreamChannelListItem {
     readonly type?: 'live' | 'movie' | 'series' | 'vod';
     readonly xtream_id: number;
     readonly epg_channel_id?: string | null;
+    readonly tv_archive?: number | null;
+    readonly tv_archive_duration?: number | string | null;
 }
 
 interface XtreamCategoryLike {
@@ -192,6 +196,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     trackBy(_index: number, item: XtreamChannelListItem | XtreamItem) {
         return item.xtream_id;
     }
+
+    protected readonly isCatchupAvailable = isXtreamCatchupAvailable;
+    protected readonly catchupDays = getXtreamCatchupDays;
 
     ngOnInit(): void {
         const { categoryId } = this.route.snapshot.params;

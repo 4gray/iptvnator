@@ -123,6 +123,13 @@
     gap: 3px;
 }
 
+.channel-name-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .channel-name {
     min-width: 0;
     overflow: hidden;
@@ -132,6 +139,27 @@
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.2;
+}
+
+.catchup-badge {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    font-size: 15px;
+    line-height: 15px;
+    opacity: 0.62;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .epg-title {
@@ -208,13 +236,20 @@
 .action-buttons {
     flex-shrink: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 2px;
+    justify-content: center;
+    gap: 0;
     margin-inline-start: auto;
 
+    .channel-list-item.compact & {
+        flex-direction: row;
+        gap: 2px;
+    }
+
     button {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         /* border-radius: 10px; */
         color: inherit;
         opacity: 0.76;
@@ -231,9 +266,19 @@
     }
 
     mat-icon {
-        width: 20px;
-        height: 20px;
-        font-size: 20px;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+    }
+
+    /* Material keeps a 48px touch target on icon buttons; stacked 28px
+       buttons would overlap by 20px and the later sibling would steal
+       clicks from the lower third of the button above. Constrain the
+       target to the button bounds. */
+    button ::ng-deep .mat-mdc-button-touch-target {
+        width: 100%;
+        height: 100%;
     }
 }
 
@@ -325,4 +370,11 @@
 .favorite-button,
 .program-info-button {
     padding: 0;
+}
+
+/* Reserved slot: keeps the column geometry stable while the row has no
+   programme yet (or none at all), so the star never jumps. */
+.program-info-button.slot-empty {
+    visibility: hidden;
+    pointer-events: none;
 }

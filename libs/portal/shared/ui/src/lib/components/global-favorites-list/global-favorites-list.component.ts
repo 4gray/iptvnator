@@ -35,6 +35,8 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
+    getXtreamCatchupDays,
+    isXtreamCatchupAvailable,
     sortFavoriteChannelItems,
     UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
@@ -143,6 +145,21 @@ export class GlobalFavoritesListComponent {
             };
         });
     });
+
+    /** Catch-up fields arrive camelCase on unified rows — adapt for the
+     *  shared snake_case helper. Only Xtream rows carry them. */
+    protected catchupAvailable(channel: UnifiedFavoriteChannel): boolean {
+        return isXtreamCatchupAvailable({
+            tv_archive: channel.tvArchive,
+            tv_archive_duration: channel.tvArchiveDuration,
+        });
+    }
+
+    protected catchupDays(channel: UnifiedFavoriteChannel): number {
+        return getXtreamCatchupDays({
+            tv_archive_duration: channel.tvArchiveDuration,
+        });
+    }
 
     onChannelClick(channel: UnifiedFavoriteChannel): void {
         this.channelSelected.emit(channel);
