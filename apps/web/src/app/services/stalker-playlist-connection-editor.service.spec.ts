@@ -126,6 +126,23 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
         });
     });
 
+    it('releases a successful discovery fence when the resolved edit is discarded', async () => {
+        discovery.discover.mockResolvedValue({
+            status: 'resolved',
+            portalUrl: 'https://portal.example.com/portal.php',
+            isFullStalkerPortal: false,
+        });
+
+        await service.resolveConnection(draft);
+        service.discardResolvedConnection(draft._id);
+        expect(stalkerSession.cancelEditDiscovery).toHaveBeenCalledWith(
+            expect.objectContaining({ playlistId: draft._id })
+        );
+        expect(portalRepair.releasePlaylistEdit).toHaveBeenCalledWith(
+            draft._id
+        );
+    });
+
     it('replaces a full-portal session with the confirmed authorization result', async () => {
         discovery.discover.mockResolvedValue({
             status: 'resolved',

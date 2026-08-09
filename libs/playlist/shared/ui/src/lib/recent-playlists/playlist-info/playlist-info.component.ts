@@ -1,6 +1,6 @@
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { DatePipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import {
     FormControl,
     ReactiveFormsModule,
@@ -184,6 +184,7 @@ export class PlaylistInfoComponent {
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly stalkerConnectionEditor = inject(
         STALKER_PLAYLIST_CONNECTION_EDITOR
     );
@@ -194,6 +195,7 @@ export class PlaylistInfoComponent {
     readonly isSaving = signal(false);
     readonly isHydratingStalkerPlaylist = signal(false);
     readonly stalkerPlaylistHydrationFailed = signal(false);
+    private dialogClosing = false;
     private readonly stalkerPlaylistHydration: Promise<void>;
 
     get isDesktop(): boolean {
@@ -296,6 +298,9 @@ export class PlaylistInfoComponent {
     playlistDetails!: UntypedFormGroup;
 
     constructor() {
+        this.dialogRef?.beforeClosed().subscribe(() => {
+            this.dialogClosing = true;
+        });
         this.playlist = this.playlistData;
         this.createForm();
         if (this.playlist.portalUrl) {
@@ -415,6 +420,12 @@ export class PlaylistInfoComponent {
                             result.message,
                             this.translate.instant('CLOSE'),
                             { duration: 8000 }
+                        );
+                        return;
+                    }
+                    if (this.dialogClosing || this.destroyRef.destroyed) {
+                        this.stalkerConnectionEditor.discardResolvedConnection(
+                            result.playlist._id
                         );
                         return;
                     }

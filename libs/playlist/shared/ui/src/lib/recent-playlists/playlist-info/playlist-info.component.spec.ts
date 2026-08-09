@@ -51,10 +51,14 @@ describe('PlaylistInfoComponent', () => {
         dispatch: jest.Mock;
     };
     let dialogRef: {
+        beforeClosed: jest.Mock;
         close: jest.Mock;
         disableClose: boolean;
     };
+    let dialogBeforeClosed: Subject<void>;
     let stalkerConnectionEditor: {
+        applyResolvedConnection: jest.Mock;
+        discardResolvedConnection: jest.Mock;
         resolveConnection: jest.Mock;
     };
     const originalElectron = window.electron;
@@ -105,12 +109,15 @@ describe('PlaylistInfoComponent', () => {
         store = {
             dispatch: jest.fn(),
         };
+        dialogBeforeClosed = new Subject<void>();
         dialogRef = {
+            beforeClosed: jest.fn(() => dialogBeforeClosed),
             close: jest.fn(),
             disableClose: false,
         };
         stalkerConnectionEditor = {
             applyResolvedConnection: jest.fn().mockResolvedValue(undefined),
+            discardResolvedConnection: jest.fn(),
             resolveConnection: jest.fn(
                 async (updatedPlaylist: PlaylistMeta) => ({
                     status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
@@ -823,6 +830,98 @@ describe('PlaylistInfoComponent', () => {
                 stalkerConnectionEditor.applyResolvedConnection
             ).toHaveBeenCalledWith(resolvedPlaylist);
             expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        });
+
+        it('discards a resolved edit when the dialog closes before discovery finishes', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                },
+            };
+            let finishDiscovery:
+                | ((value: {
+                      status: 'resolved';
+                      playlist: typeof resolvedPlaylist;
+                  }) => void)
+                | undefined;
+            stalkerConnectionEditor.resolveConnection.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishDiscovery = resolve;
+                })
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+            const saving = component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+            await Promise.resolve();
+
+            fixture.destroy();
+            finishDiscovery?.({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            await saving;
+
+            expect(
+                stalkerConnectionEditor.discardResolvedConnection
+            ).toHaveBeenCalledWith('playlist-1');
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).not.toHaveBeenCalled();
+            expect(store.dispatch).not.toHaveBeenCalled();
+        });
+
+        it('discards a resolved edit while the dialog close animation is pending', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                },
+            };
+            let finishDiscovery:
+                | ((value: {
+                      status: 'resolved';
+                      playlist: typeof resolvedPlaylist;
+                  }) => void)
+                | undefined;
+            stalkerConnectionEditor.resolveConnection.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishDiscovery = resolve;
+                })
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+            const saving = component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+            await Promise.resolve();
+
+            dialogBeforeClosed.next();
+            finishDiscovery?.({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            await saving;
+
+            expect(
+                stalkerConnectionEditor.discardResolvedConnection
+            ).toHaveBeenCalledWith('playlist-1');
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).not.toHaveBeenCalled();
+            expect(store.dispatch).not.toHaveBeenCalled();
         });
 
         it('does not update UI state or report success when resolved persistence fails', async () => {

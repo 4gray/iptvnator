@@ -204,7 +204,10 @@ then persist empty serial, device ID, signature, or mode values.
 Changing any connection field disables the form while the same discovery
 service validates the draft. Auth rejection or an unreachable portal leaves
 the dialog open and writes nothing. Escape/backdrop closure is disabled for the
-validation window. Before discovery starts, Edit reserves the playlist ID; an
+validation window. If navigation or another owner starts closing/destroys the
+dialog while discovery is in flight, the successful result is discarded before
+persistence and both the session and repair reservations are released. Before
+discovery starts, Edit reserves the playlist ID; an
 overlapping Edit cannot replace that owner. The reservation blocks every new
 authentication (including a URL edit with the same normalized fingerprint) and
 repair, and drains any work already in flight. Ownership is rechecked after
@@ -231,9 +234,10 @@ schema or backup-version migration is required.
 
 The shared playlist UI exposes only
 `STALKER_PLAYLIST_CONNECTION_EDITOR` and its
-`resolved | auth-rejected | unreachable` result contract. The web composition
-layer implements the token with Stalker data-access; the UI library must not
-import Stalker discovery directly.
+`resolved | auth-rejected | unreachable` result contract, plus the narrow
+`discardResolvedConnection()` cleanup hook for a closing dialog. The web
+composition layer implements the token with Stalker data-access; the UI library
+must not import Stalker discovery directly.
 
 **Lazy repair (existing playlists).** The flag is frozen in the DB, so
 records persisted by the old guess stay broken without repair — but a large
