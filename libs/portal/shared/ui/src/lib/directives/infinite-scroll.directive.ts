@@ -16,11 +16,14 @@ import {
 const NEAR_END_THRESHOLD_PX = 240;
 
 /**
- * Upper bound on loads the directive fires on its own (without a user scroll)
- * per `infiniteResetKey`. Guards against a provider whose reported totals never
- * converge — after the cap, loading continues only from real scroll events.
+ * How many consecutive self-initiated loads may complete WITHOUT growing the
+ * container before the auto-fill stops. Progress (a growing `scrollHeight`)
+ * always resets the count, so a huge viewport keeps filling until it actually
+ * overflows — a fixed load budget would strand the remaining items with no
+ * scrollbar to reach them. Only a degenerate source that reports more items
+ * but renders nothing trips this guard.
  */
-const MAX_AUTO_FILL_LOADS = 10;
+const MAX_AUTO_FILL_STALLS = 3;
 
 /**
  * Infinite scroll for a scrollable list container.
@@ -55,14 +58,16 @@ export class InfiniteScrollDirective {
     readonly infiniteLoadMore = output<void>();
 
     private isWithinNearEndThreshold = false;
-    private autoFillLoads = 0;
+    private autoFillStalls = 0;
+    private lastAutoFillScrollHeight: number | null = null;
     private pendingCheckFrame: number | null = null;
 
     constructor() {
         effect(() => {
             this.infiniteResetKey();
             untracked(() => {
-                this.autoFillLoads = 0;
+                this.autoFillStalls = 0;
+                this.lastAutoFillScrollHeight = null;
                 this.isWithinNearEndThreshold = false;
                 this.scheduleFillCheck();
             });
@@ -123,15 +128,28 @@ export class InfiniteScrollDirective {
         const isNearEnd = this.isNearEnd();
         this.isWithinNearEndThreshold = isNearEnd;
 
-        if (
-            !isNearEnd ||
-            !this.canLoad() ||
-            this.autoFillLoads >= MAX_AUTO_FILL_LOADS
-        ) {
+        if (!isNearEnd || !this.canLoad()) {
             return;
         }
 
-        this.autoFillLoads += 1;
+        // Terminate on lack of progress, not on a load count: keep requesting
+        // while loads grow the container (until it overflows and real scroll
+        // events take over), stop once they demonstrably stop growing it.
+        const { scrollHeight } = this.host.nativeElement;
+        if (
+            this.lastAutoFillScrollHeight !== null &&
+            scrollHeight <= this.lastAutoFillScrollHeight
+        ) {
+            this.autoFillStalls += 1;
+        } else {
+            this.autoFillStalls = 0;
+        }
+
+        if (this.autoFillStalls >= MAX_AUTO_FILL_STALLS) {
+            return;
+        }
+
+        this.lastAutoFillScrollHeight = scrollHeight;
         this.infiniteLoadMore.emit();
     }
 

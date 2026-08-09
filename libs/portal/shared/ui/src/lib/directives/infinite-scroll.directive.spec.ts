@@ -133,23 +133,50 @@ describe('InfiniteScrollDirective', () => {
         expect(host.loads).toBe(1);
     });
 
-    it('re-checks the fill after an append settles and stops at the cap', () => {
+    it('keeps auto-filling while loads grow the container, until it overflows', () => {
+        // A huge viewport: many chunks fit before a scrollbar appears. The
+        // auto-fill must not stop at an arbitrary load budget — only overflow
+        // (or lack of progress) may end it, or the tail stays unreachable.
+        let contentHeight = 0;
+        setScrollMetrics(0, contentHeight, 5000);
+        flushScheduledChecks();
+        expect(host.loads).toBe(1);
+
+        for (let round = 0; round < 14; round++) {
+            contentHeight += 300;
+            setScrollMetrics(0, contentHeight, 5000);
+            host.itemCount.update((count) => count + 14);
+            fixture.detectChanges();
+            flushScheduledChecks();
+        }
+        expect(host.loads).toBe(15);
+
+        // The container finally overflows past the threshold — no more
+        // self-initiated loads; scrolling takes over from here.
+        setScrollMetrics(0, 6000, 5000);
+        host.itemCount.update((count) => count + 14);
+        fixture.detectChanges();
+        flushScheduledChecks();
+        expect(host.loads).toBe(15);
+    });
+
+    it('stops auto-filling after consecutive loads without container growth', () => {
         setScrollMetrics(0, 0, 0);
         flushScheduledChecks();
         expect(host.loads).toBe(1);
 
-        // Each "append" changes the item count while the container still does
-        // not overflow — the directive keeps requesting up to the cap of 10.
+        // Each "append" changes the item count but never grows the container
+        // — a degenerate source; the stall guard ends the loop.
         for (let round = 0; round < 20; round++) {
             host.itemCount.update((count) => count + 14);
             fixture.detectChanges();
             flushScheduledChecks();
         }
 
-        expect(host.loads).toBe(10);
+        expect(host.loads).toBe(3);
     });
 
-    it('resets the auto-fill budget when the reset key changes', () => {
+    it('resets the stall guard when the reset key changes', () => {
         setScrollMetrics(0, 0, 0);
         flushScheduledChecks();
         for (let round = 0; round < 20; round++) {
@@ -157,13 +184,13 @@ describe('InfiniteScrollDirective', () => {
             fixture.detectChanges();
             flushScheduledChecks();
         }
-        expect(host.loads).toBe(10);
+        expect(host.loads).toBe(3);
 
         host.resetKey.set('b');
         fixture.detectChanges();
         flushScheduledChecks();
 
-        expect(host.loads).toBe(11);
+        expect(host.loads).toBe(4);
     });
 
     it('clears a stale near-end latch when appended content moves the bottom away', () => {

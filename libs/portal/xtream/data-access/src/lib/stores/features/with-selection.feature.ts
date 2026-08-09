@@ -37,10 +37,10 @@ export const CATALOG_INITIAL_WINDOW = 50;
 export const CATALOG_WINDOW_CHUNK = 50;
 
 /**
- * Grid scroll position captured when a detail view opens, so returning to the
- * same list restores both the render window and the scroll offset. The
- * selection coordinates guard the restore: any of them changing makes the
- * saved offset meaningless.
+ * Grid scroll position captured when a list view goes away (detail opened,
+ * tab switched), so returning to the same list restores both the render
+ * window and the scroll offset. The selection coordinates identify the
+ * snapshot: only an exact match may restore it.
  */
 export interface CatalogScrollState {
     contentType: ContentType;
@@ -53,6 +53,14 @@ export interface CatalogScrollState {
 }
 
 /**
+ * Snapshots are kept per selection identity (one slot would let a tab detour
+ * — VOD → Series → VOD — overwrite the first tab's spot with the second's on
+ * destroy). Bounded so a long browsing session cannot accumulate one entry
+ * per category visited.
+ */
+const MAX_SAVED_CATALOG_SCROLLS = 8;
+
+/**
  * Selection state for managing UI selection and the infinite-scroll window
  */
 export interface SelectionState {
@@ -60,7 +68,7 @@ export interface SelectionState {
     selectedCategoryId: number | null;
     selectedItem: XtreamSelectionItem | null;
     visibleCount: number;
-    savedCatalogScroll: CatalogScrollState | null;
+    savedCatalogScrolls: CatalogScrollState[];
     contentSortMode: XtreamCategorySortMode;
     categorySearchTerm: string;
     minRating: number | null;
@@ -76,13 +84,23 @@ const initialSelectionState: SelectionState = {
     selectedCategoryId: null,
     selectedItem: null,
     visibleCount: CATALOG_INITIAL_WINDOW,
-    savedCatalogScroll: null,
+    savedCatalogScrolls: [],
     contentSortMode: 'date-desc',
     categorySearchTerm: '',
     minRating: null,
     isLoadingDetails: false,
     detailsError: null,
 };
+
+const matchesCurrentSelection = (
+    snapshot: CatalogScrollState,
+    current: Omit<CatalogScrollState, 'visibleCount' | 'scrollTop'>
+): boolean =>
+    snapshot.contentType === current.contentType &&
+    snapshot.categoryId === current.categoryId &&
+    snapshot.searchTerm === current.searchTerm &&
+    snapshot.sortMode === current.sortMode &&
+    snapshot.minRating === current.minRating;
 
 interface XtreamSelectionCategory {
     readonly [key: string]: unknown;
@@ -609,44 +627,64 @@ export function withSelection() {
 
             /**
              * Capture the grid scroll offset together with the selection
-             * coordinates it belongs to (single slot — a later save wins).
+             * coordinates it belongs to. One snapshot per selection identity:
+             * re-saving the same list replaces its entry, saving another list
+             * (a tab detour's destroy hook) leaves it intact, and the oldest
+             * entry falls out past the bound.
              */
             saveCatalogScrollState(scrollTop: number): void {
+                const snapshot: CatalogScrollState = {
+                    contentType: store.selectedContentType(),
+                    categoryId: store.selectedCategoryId(),
+                    searchTerm: store.categorySearchTerm(),
+                    sortMode: store.contentSortMode(),
+                    minRating: store.minRating(),
+                    visibleCount: store.visibleCount(),
+                    scrollTop,
+                };
+
                 patchState(store, {
-                    savedCatalogScroll: {
-                        contentType: store.selectedContentType(),
-                        categoryId: store.selectedCategoryId(),
-                        searchTerm: store.categorySearchTerm(),
-                        sortMode: store.contentSortMode(),
-                        minRating: store.minRating(),
-                        visibleCount: store.visibleCount(),
-                        scrollTop,
-                    },
+                    savedCatalogScrolls: [
+                        ...store
+                            .savedCatalogScrolls()
+                            .filter(
+                                (saved) =>
+                                    !matchesCurrentSelection(saved, snapshot)
+                            ),
+                        snapshot,
+                    ].slice(-MAX_SAVED_CATALOG_SCROLLS),
                 });
             },
 
             /**
-             * If the saved scroll state matches the current selection, restore
-             * its render window, clear the slot, and return the scroll offset
-             * to re-apply. Returns null (and keeps the slot) otherwise, so a
-             * detour through another category does not destroy the saved spot.
+             * If a snapshot exists for the current selection, restore its
+             * render window, remove it, and return the scroll offset to
+             * re-apply. Returns null (leaving other snapshots intact)
+             * otherwise, so a detour through another list never destroys a
+             * saved spot.
              */
             consumeCatalogScrollState(): number | null {
-                const saved = store.savedCatalogScroll();
-                if (
-                    !saved ||
-                    saved.contentType !== store.selectedContentType() ||
-                    saved.categoryId !== store.selectedCategoryId() ||
-                    saved.searchTerm !== store.categorySearchTerm() ||
-                    saved.sortMode !== store.contentSortMode() ||
-                    saved.minRating !== store.minRating()
-                ) {
+                const current = {
+                    contentType: store.selectedContentType(),
+                    categoryId: store.selectedCategoryId(),
+                    searchTerm: store.categorySearchTerm(),
+                    sortMode: store.contentSortMode(),
+                    minRating: store.minRating(),
+                };
+                const saved = store
+                    .savedCatalogScrolls()
+                    .find((snapshot) =>
+                        matchesCurrentSelection(snapshot, current)
+                    );
+                if (!saved) {
                     return null;
                 }
 
                 patchState(store, {
                     visibleCount: saved.visibleCount,
-                    savedCatalogScroll: null,
+                    savedCatalogScrolls: store
+                        .savedCatalogScrolls()
+                        .filter((snapshot) => snapshot !== saved),
                 });
                 return saved.scrollTop;
             },

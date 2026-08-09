@@ -226,6 +226,30 @@ describe('withSelection', () => {
         expect(store.visibleCount()).toBe(CATALOG_INITIAL_WINDOW);
     });
 
+    it('keeps per-selection snapshots so a tab detour cannot overwrite them', () => {
+        // Regression: VOD (scrolled) → Series → back to VOD. The series view
+        // saves its own spot on destroy; with a single slot that save used to
+        // replace the VOD snapshot and the round trip lost the position.
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(90);
+        store.loadMoreContent();
+        store.saveCatalogScrollState(1234);
+
+        store.setSelectedContentType('series');
+        store.saveCatalogScrollState(0);
+
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(90);
+        expect(store.consumeCatalogScrollState()).toBe(1234);
+        expect(store.visibleCount()).toBe(
+            CATALOG_INITIAL_WINDOW + CATALOG_WINDOW_CHUNK
+        );
+
+        // The series snapshot survived too, under its own identity.
+        store.setSelectedContentType('series');
+        expect(store.consumeCatalogScrollState()).toBe(0);
+    });
+
     it('restores a saved scroll state only for the matching selection', () => {
         store.setSelectedContentType('vod');
         store.setSelectedCategory(90);
