@@ -282,8 +282,11 @@ queue, so a user edit that is queued but not yet committed wins over the
 repair instead of being overwritten; the transform patches the freshly read
 row (`portalUrl` + `isFullStalkerPortal` only, so user state can never be
 clobbered) and returns null to abort. Explicit Edit also advances an in-run
-generation before replacing the session, so a repair that already verified
-its row but finishes later cannot install its older override or token.
+generation before replacing the session. Repair captures it before any
+history-path row read and rechecks it together with the active Edit fence
+before reserving discovery, so restoring a discarded configuration cannot
+start a probe alongside Edit; a repair that already verified its row but
+finishes later likewise cannot install its older override or token.
 Deletion runs through the same queue,
 so a repair can never resurrect a playlist deleted mid-probe. Portals
 that work are never probed, let alone rewritten. E2E coverage:

@@ -938,6 +938,47 @@ describe('StalkerPortalRepairService', () => {
             expect(repaired).toMatchObject({ isFullStalkerPortal: true });
         });
 
+        it('does not start discovery when Edit takes ownership during a DISCARDED history read', async () => {
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/portal.php',
+            } as Playlist;
+            await service.repairPortal(MISCLASSIFIED);
+            expect(discover).not.toHaveBeenCalled();
+
+            persistedRow = MISCLASSIFIED as Playlist;
+            const historyRead = new Subject<Playlist | undefined>();
+            getPlaylistById.mockClear();
+            getPlaylistById.mockReturnValueOnce(historyRead);
+            beginPortalRepairDiscovery.mockClear();
+            completePortalRepairDiscovery.mockClear();
+
+            const repair = service.repairPortal(MISCLASSIFIED);
+            expect(getPlaylistById).toHaveBeenCalledTimes(1);
+            // No pending repair exists yet on this history path, so Edit's
+            // drain resolves immediately while the row read is still live.
+            await service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            historyRead.next(MISCLASSIFIED as Playlist);
+            historyRead.complete();
+
+            await expect(repair).resolves.toBeNull();
+            expect(beginPortalRepairDiscovery).not.toHaveBeenCalled();
+            expect(discover).not.toHaveBeenCalled();
+
+            // A failed/cancelled Edit releases the fence without consuming
+            // the discarded history record; the restored source can retry.
+            service.releasePlaylistEdit(MISCLASSIFIED._id);
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toMatchObject({ isFullStalkerPortal: true });
+            expect(discover).toHaveBeenCalledTimes(1);
+        });
+
         it('re-arms the EDITED configuration after a mid-probe edit discarded a repair', async () => {
             const edited = {
                 ...MISCLASSIFIED,

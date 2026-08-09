@@ -17,38 +17,16 @@ import {
     stalkerIdentityFingerprint,
 } from './stalker-identity.utils';
 import {
-    StalkerSessionService,
-    type StalkerPortalRepairDiscoveryFence,
-} from './stalker-session.service';
+    stalkerCredentialsFingerprint,
+    stalkerRepairSourceFingerprint,
+    type StalkerPortalModeOverride,
+    type StalkerProbeRecord,
+} from './stalker-portal-repair-state';
+import { StalkerSessionService } from './stalker-session.service';
 import {
     type StalkerPortalRepairApi,
     toStalkerSessionPlaylist,
 } from './stores/utils/stalker-request.utils';
-
-/**
- * What a probe of one source configuration concluded this session:
- * an override to (re)install, 'no-change' (probed; the stored configuration
- * is what probing proves, or nothing answered), or 'discarded' (the row
- * moved on mid-probe, so the outcome never applied to any persisted state).
- */
-type StalkerProbeRecord = StalkerPortalModeOverride | 'no-change' | 'discarded';
-
-interface StalkerPortalModeOverride {
-    /** The failing configuration this repair replaced. */
-    sourcePortalUrl?: string;
-    sourceIsFullStalkerPortal: boolean;
-    /** MAC + Stalker identity the repair probe authenticated as. */
-    identityFingerprint: string;
-    /** Login/password the repair outcome was negotiated with. */
-    credentialsFingerprint: string;
-    /** The proven-working configuration. */
-    portalUrl: string;
-    isFullStalkerPortal: boolean;
-}
-
-function stalkerCredentialsFingerprint(playlist: PlaylistMeta): string {
-    return JSON.stringify([playlist.username ?? '', playlist.password ?? '']);
-}
 
 /**
  * Lazy repair for playlists whose persisted portal endpoint or mode is
@@ -317,6 +295,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         if ((this.editFenceCounts.get(playlistId) ?? 0) > 0) {
             return null;
         }
+        const editGeneration = this.editGenerations.get(playlistId) ?? 0;
 
         const pending = this.pendingRepairs.get(playlistId);
         if (pending) {
@@ -328,7 +307,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return this.repairPortal(playlist);
         }
 
-        const fingerprint = this.repairSourceFingerprint(playlist);
+        const fingerprint = stalkerRepairSourceFingerprint(playlist);
         const history = this.probeHistory.get(playlistId) ?? new Map();
         const record = history.get(fingerprint) as
             StalkerProbeRecord | undefined;
@@ -338,45 +317,54 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             // RESTORED to it, the outcome was never recorded — probe again.
             // A stale snapshot (row still elsewhere) stays declined, gated
             // by one cheap row read instead of a discovery run.
-            if (!(await this.rowCurrentlyMatches(playlist))) {
+            const rowMatches = await this.rowCurrentlyMatches(playlist);
+            if (this.editBlocksRepair(playlistId, editGeneration)) {
+                return null;
+            }
+            if (!rowMatches) {
                 return this.reapplyIfChanged(playlist);
             }
             history.delete(fingerprint);
         } else if (record !== undefined) {
-            if (
-                record !== 'no-change' &&
-                !this.overrides.has(playlistId) &&
+            if (record !== 'no-change' && !this.overrides.has(playlistId)) {
                 // Reinstall ONLY when the persisted row actually carries
                 // this configuration again. A stale request for A while the
                 // row now holds an unrelated C must not resurrect A's
                 // override — that would retry against B and repoint the
                 // watchdog away from C.
-                (await this.rowCurrentlyMatches(playlist))
-            ) {
-                // The user restored a configuration whose override was
-                // dropped by an intermediate edit: reinstall the remembered
-                // outcome — probing again is unnecessary, and doing nothing
-                // would leave the restored configuration broken until
-                // restart.
-                this.overrides.set(playlistId, record);
-                // Same synchronization as a fresh repair: if the
-                // intermediate configuration stopped the active watchdog,
-                // the restored full-portal session needs its keepalive back.
-                this.stalkerSession.refreshActiveWatchdogPlaylist(
-                    toStalkerSessionPlaylist(this.applyOverride(playlist))
-                );
+                const rowMatches = await this.rowCurrentlyMatches(playlist);
+                if (this.editBlocksRepair(playlistId, editGeneration)) {
+                    return null;
+                }
+                if (rowMatches) {
+                    // The user restored a configuration whose override was
+                    // dropped by an intermediate edit: reinstall the
+                    // remembered outcome — probing again is unnecessary, and
+                    // doing nothing would leave it broken until restart.
+                    this.overrides.set(playlistId, record);
+                    // Same synchronization as a fresh repair: if the
+                    // intermediate configuration stopped the active watchdog,
+                    // the restored full-portal session needs keepalive back.
+                    this.stalkerSession.refreshActiveWatchdogPlaylist(
+                        toStalkerSessionPlaylist(this.applyOverride(playlist))
+                    );
+                }
             }
             return this.reapplyIfChanged(playlist);
+        }
+
+        if (this.editBlocksRepair(playlistId, editGeneration)) {
+            return null;
         }
 
         // Reserved BEFORE the probe; the run overwrites it with the
         // produced override or the 'discarded' marker.
         history.set(fingerprint, 'no-change');
         this.probeHistory.set(playlistId, history);
-        const authenticationFence: StalkerPortalRepairDiscoveryFence =
+        const authenticationFence =
             this.stalkerSession.beginPortalRepairDiscovery(playlistId);
         const run = authenticationFence.drained.then(() =>
-            this.runRepair(playlist, this.editGenerations.get(playlistId) ?? 0)
+            this.runRepair(playlist, editGeneration)
         );
         this.pendingRepairs.set(playlistId, run);
         try {
@@ -392,26 +380,6 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     /** Lets request routing choose its effective row after repair settles. */
     async waitForPendingRepair(playlistId: string): Promise<void> {
         await this.pendingRepairs.get(playlistId)?.catch(() => null);
-    }
-
-    /**
-     * Everything a probe's outcome depends on: endpoint, mode, MAC and the
-     * full Stalker identity — the same field set `rowStillMatchesSource`
-     * verifies before committing.
-     */
-    private repairSourceFingerprint(playlist: PlaylistMeta): string {
-        // JSON-encoded for the same reason as the identity fingerprint:
-        // unrestricted values must not alias across field boundaries.
-        return JSON.stringify([
-            playlist.portalUrl ?? '',
-            isFullStalkerPortalPlaylist(playlist),
-            stalkerIdentityFingerprint(playlist),
-            // Credentials are part of the discovery outcome now: a probe that
-            // failed on a wrong login must be retried once the login is
-            // corrected, instead of staying declined until the app restarts.
-            playlist.username ?? '',
-            playlist.password ?? '',
-        ]);
     }
 
     private reapplyIfChanged(playlist: PlaylistMeta): PlaylistMeta | null {
@@ -539,7 +507,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         this.overrides.set(playlist._id, override);
         this.probeHistory
             .get(playlist._id)
-            ?.set(this.repairSourceFingerprint(playlist), override);
+            ?.set(stalkerRepairSourceFingerprint(playlist), override);
 
         if (outcome.isFullStalkerPortal && outcome.token) {
             // The classification handshake already authenticated; adopt the
@@ -587,6 +555,16 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         return (this.editGenerations.get(playlistId) ?? 0) !== expected;
     }
 
+    private editBlocksRepair(
+        playlistId: string,
+        expectedGeneration: number
+    ): boolean {
+        return (
+            this.editFenceCounts.has(playlistId) ||
+            this.editGenerationChanged(playlistId, expectedGeneration)
+        );
+    }
+
     private discardSupersededRepair(
         playlist: PlaylistMeta
     ): PlaylistMeta | null {
@@ -596,7 +574,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         // A later failure may probe again if this source is restored.
         this.probeHistory
             .get(playlist._id)
-            ?.set(this.repairSourceFingerprint(playlist), 'discarded');
+            ?.set(stalkerRepairSourceFingerprint(playlist), 'discarded');
         return null;
     }
 
@@ -617,8 +595,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             );
             return (
                 !!row &&
-                this.repairSourceFingerprint(row) ===
-                    this.repairSourceFingerprint(playlist)
+                stalkerRepairSourceFingerprint(row) ===
+                    stalkerRepairSourceFingerprint(playlist)
             );
         } catch {
             return false;
