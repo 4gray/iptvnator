@@ -483,10 +483,14 @@ describe('SearchResultsComponent in-portal result window', () => {
 
         expect(component.isGlobalSearch).toBe(false);
         expect(component.visibleInPortalResults()).toHaveLength(60);
+        expect(component.renderedSearchResultsCount()).toBe(60);
         expect(component.hasMoreSearchResults()).toBe(true);
 
         component.onResultsNearEnd();
         expect(component.visibleInPortalResults()).toHaveLength(120);
+        // The layout re-measures on the RENDERED count — it must follow the
+        // window, not the constant 130-item total.
+        expect(component.renderedSearchResultsCount()).toBe(120);
 
         component.onResultsNearEnd();
         expect(component.visibleInPortalResults()).toHaveLength(130);

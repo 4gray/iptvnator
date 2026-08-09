@@ -128,6 +128,50 @@ describe('SearchLayoutComponent', () => {
         expect(nearEndSpy).not.toHaveBeenCalled();
     });
 
+    it('re-measures when the rendered window grows while the total stays constant', () => {
+        // Regression (bots, round 2): binding the constant result-set total to
+        // the directive left no tracked input changing after the consumer
+        // revealed a chunk, so the auto-fill stopped after one expansion.
+        const rafCallbacks: FrameRequestCallback[] = [];
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            (callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }
+        );
+        jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(
+            () => undefined
+        );
+
+        try {
+            const nearEndSpy = jest.fn();
+            fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+            fixture.componentRef.setInput('searchTerm', 'matrix');
+            fixture.componentRef.setInput('resultsCount', 130);
+            fixture.componentRef.setInput('nearEndRenderedCount', 60);
+            fixture.detectChanges();
+
+            const flush = () => {
+                while (rafCallbacks.length) {
+                    const callback = rafCallbacks.shift();
+                    callback?.(0);
+                }
+            };
+
+            flush();
+            expect(nearEndSpy).toHaveBeenCalledTimes(1);
+
+            // The consumer reveals the next chunk; the total does not change,
+            // but the rendered count must schedule another overflow check.
+            fixture.componentRef.setInput('nearEndRenderedCount', 120);
+            fixture.detectChanges();
+            flush();
+            expect(nearEndSpy).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.restoreAllMocks();
+        }
+    });
+
     it('auto-fills via nearEnd when the rendered results do not overflow', () => {
         // Regression: a result window larger than the viewport-visible chunk
         // must not stall when the rendered cards never create a scrollbar —

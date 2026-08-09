@@ -10,6 +10,7 @@
     [initialDescriptionKey]="initialDescriptionKey"
     [nearEndHasMore]="hasMoreSearchResults()"
     [nearEndAppending]="isAppendingSearchResults()"
+    [nearEndRenderedCount]="renderedSearchResultsCount()"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
     (backClick)="goBack()"

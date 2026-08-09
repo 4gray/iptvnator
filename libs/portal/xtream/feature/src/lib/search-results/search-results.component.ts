@@ -204,6 +204,17 @@ export class SearchResultsComponent implements AfterViewInit {
         () => this.isGlobalSearch && this.isLoadingMoreGlobalResults()
     );
 
+    /**
+     * RENDERED result count for the layout's overflow re-measure: the
+     * windowed slice for in-portal mode (grows chunk by chunk), the full
+     * loaded set for global mode (server pages append into it).
+     */
+    readonly renderedSearchResultsCount = computed(() =>
+        this.isGlobalSearch
+            ? this.xtreamStore.searchResults().length
+            : this.visibleInPortalResults().length
+    );
+
     onResultsNearEnd(): void {
         if (this.isGlobalSearch) {
             void this.loadMoreGlobalResults();

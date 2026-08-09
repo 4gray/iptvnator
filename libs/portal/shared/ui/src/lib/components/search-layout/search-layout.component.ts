@@ -73,6 +73,16 @@ export class SearchLayoutComponent {
     /** True while the consumer is appending; suppresses further triggers. */
     readonly nearEndAppending = input<boolean>(false);
 
+    /**
+     * Number of currently RENDERED results — the infinite scroll re-measures
+     * overflow when this changes, so it must grow with the revealed window.
+     * `resultsCount` cannot serve here: it is the total result-set size and
+     * stays constant while a consumer reveals chunks of it, which would stop
+     * the auto-fill after the first chunk. Defaults to `resultsCount` for
+     * consumers that always render everything they report.
+     */
+    readonly nearEndRenderedCount = input<number | null>(null);
+
     /** Initial state description translation key */
     readonly initialDescriptionKey = input<string>(
         'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION'

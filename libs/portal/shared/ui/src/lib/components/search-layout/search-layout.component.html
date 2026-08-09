@@ -64,7 +64,7 @@
                 appInfiniteScroll
                 [infiniteHasMore]="nearEndHasMore()"
                 [infiniteAppending]="nearEndAppending()"
-                [infiniteItemCount]="resultsCount()"
+                [infiniteItemCount]="nearEndRenderedCount() ?? resultsCount()"
                 [infiniteResetKey]="searchTerm()"
                 (infiniteLoadMore)="nearEnd.emit()"
             >
