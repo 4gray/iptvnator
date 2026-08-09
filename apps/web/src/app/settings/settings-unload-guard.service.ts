@@ -52,6 +52,10 @@ export class SettingsUnloadGuardService implements OnDestroy {
      * the user's most recent ask must be the one that completes.
      */
     private activeIntent: 'close' | 'reload' | null = null;
+    /** True while a Stay's cancelWindowClose acknowledgment is in flight. */
+    private cancelling = false;
+    /** A close requested during that window, re-asked once the cancel lands. */
+    private queuedCloseRequest = false;
     /** Last guard state mirrored to the main process. */
     private guardArmed = false;
     /** True while an updater-driven app quit must pass unchallenged. */
@@ -126,6 +130,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.unregisterFromInstallService?.();
         this.unregisterFromInstallService = null;
         this.suspended = false;
+        this.queuedCloseRequest = false;
         this.syncCloseGuard(false);
         this.host = null;
     }
@@ -164,17 +169,28 @@ export class SettingsUnloadGuardService implements OnDestroy {
         }
 
         if (this.confirmationPending) {
-            // A close outranks a reload, never the other way around: the
-            // open dialog stays, but Save/Discard must complete the close
-            // the user just asked for, not the earlier reload.
             if (intent === 'close') {
-                this.activeIntent = 'close';
+                if (this.cancelling) {
+                    // The dialog already resolved and Stay's cancellation is
+                    // still in flight. This is a fresh user action — queue
+                    // it and re-ask once the cancel has landed, so the new
+                    // dialog can never answer against the stale intent the
+                    // cancel is about to clear.
+                    this.queuedCloseRequest = true;
+                } else {
+                    // A close outranks a reload, never the other way
+                    // around: the open dialog stays, but Save/Discard must
+                    // complete the close the user just asked for, not the
+                    // earlier reload.
+                    this.activeIntent = 'close';
+                }
             }
             return;
         }
 
         this.confirmationPending = true;
         this.activeIntent = intent;
+        let reAskClose = false;
 
         try {
             const proceed = await host.confirmClose();
@@ -186,13 +202,21 @@ export class SettingsUnloadGuardService implements OnDestroy {
                 if (finalIntent === 'close') {
                     // Staying must clear the intent the main process
                     // remembered, or a later close attempt would replay a
-                    // stale quit.
-                    void window.electron?.cancelWindowClose?.();
-                }
-                return;
-            }
+                    // stale quit — and the clearing must be AWAITED, or a
+                    // close racing this cancellation could still consume
+                    // the stale intent.
+                    this.cancelling = true;
 
-            if (finalIntent === 'close') {
+                    try {
+                        await window.electron?.cancelWindowClose?.();
+                    } finally {
+                        this.cancelling = false;
+                    }
+
+                    reAskClose = this.queuedCloseRequest;
+                    this.queuedCloseRequest = false;
+                }
+            } else if (finalIntent === 'close') {
                 await window.electron?.confirmWindowClose?.();
             } else {
                 this.reloadPage();
@@ -200,6 +224,10 @@ export class SettingsUnloadGuardService implements OnDestroy {
         } finally {
             this.confirmationPending = false;
             this.activeIntent = null;
+        }
+
+        if (reAskClose) {
+            void this.handleCloseRequest('close');
         }
     }
 

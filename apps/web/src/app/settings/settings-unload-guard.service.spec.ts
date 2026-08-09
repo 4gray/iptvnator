@@ -282,6 +282,40 @@ describe('SettingsUnloadGuardService', () => {
             expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
         });
 
+        it('re-asks a close that raced the Stay cancellation', async () => {
+            // Stay's cancelWindowClose is awaited; a close arriving while
+            // that acknowledgment is in flight must be re-asked afterwards
+            // — never answered against the stale intent the cancel clears,
+            // and never silently swallowed.
+            let resolveCancel: (() => void) | null = null;
+            electronStub.cancelWindowClose.mockImplementation(
+                () =>
+                    new Promise<void>((resolve) => {
+                        resolveCancel = resolve;
+                    })
+            );
+            host.confirmClose
+                .mockResolvedValueOnce(false)
+                .mockResolvedValueOnce(true);
+            activateInElectron();
+            form.markAsDirty();
+
+            closeRequestCallback?.();
+            await flushAsyncWork();
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+
+            // Second close while the cancel acknowledgment is pending.
+            closeRequestCallback?.();
+            await flushAsyncWork();
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+
+            resolveCancel?.();
+            await flushAsyncWork();
+
+            expect(host.confirmClose).toHaveBeenCalledTimes(2);
+            expect(electronStub.confirmWindowClose).toHaveBeenCalledTimes(1);
+        });
+
         it('ignores repeated close requests while a dialog is open', async () => {
             let resolveConfirm: ((value: boolean) => void) | null = null;
             host.confirmClose.mockImplementation(
