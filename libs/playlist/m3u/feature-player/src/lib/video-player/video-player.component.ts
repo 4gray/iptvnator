@@ -12,6 +12,7 @@ import {
     effect,
     inject,
     signal,
+    untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -81,6 +82,7 @@ import {
     persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
     isLiveExternalPlayerSession,
+    REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
     restoreLiveSidebarState,
     WorkspaceHeaderContextService,
@@ -578,6 +580,31 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
             this.store.dispatch(ChannelActions.resetActiveChannel());
         });
+
+        // An external session starting or ending flips who owns the audio
+        // without any store emission (e.g. a diagnostic-recovery MPV launch
+        // while a web player is configured) — republish the volume
+        // capability so the remote's buttons stay honest. Everything except
+        // the session signal is read untracked: channel changes and volume
+        // changes already publish through their own paths.
+        effect(() => {
+            this.externalPlayback.activeSession();
+            untracked(() => {
+                const remoteControl = this.remoteControlBridge;
+                const activeChannel = this.activeChannel();
+                if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
+                    return;
+                }
+
+                remoteControl.updateRemoteControlStatus({
+                    portal: 'm3u',
+                    isLiveView: true,
+                    supportsVolume: this.isRemoteVolumeSupported(activeChannel),
+                    volume: this.volume(),
+                    muted: this.volume() === 0,
+                });
+            });
+        });
     }
 
     /**
@@ -617,7 +644,17 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             this.store.select(selectCurrentEpgProgram).pipe(startWith(null)),
         ]).subscribe(([channels, activeChannel, epgProgram]) => {
             const remoteControl = this.remoteControlBridge;
-            if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
+            if (!remoteControl?.updateRemoteControlStatus) {
+                return;
+            }
+
+            // The active channel can be reset in place (e.g. the user quits
+            // an external MPV/VLC session) — without a reset the remote
+            // would keep advertising the last channel as live.
+            if (!activeChannel) {
+                remoteControl.updateRemoteControlStatus(
+                    REMOTE_CONTROL_RESET_STATUS
+                );
                 return;
             }
 
@@ -692,11 +729,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.statusSubscription?.unsubscribe();
         // Leaving the player would otherwise keep the last channel advertised
         // as live on the remote forever.
-        this.remoteControlBridge?.updateRemoteControlStatus?.({
-            portal: 'unknown',
-            isLiveView: false,
-            supportsVolume: false,
-        });
+        this.remoteControlBridge?.updateRemoteControlStatus?.(
+            REMOTE_CONTROL_RESET_STATUS
+        );
     }
 
     onSidebarWidthChange(width: number): void {
@@ -1089,6 +1124,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
         if (channel.radio === 'true' || this.activeChannelIsDash()) {
             return true;
+        }
+
+        // A diagnostic-recovery "Open in MPV/VLC" launch owns the audio even
+        // while a web player remains configured — the setting alone cannot
+        // answer who is audible.
+        if (isLiveExternalPlayerSession(this.externalPlayback.activeSession())) {
+            return false;
         }
 
         const player = this.playerSettings.player;

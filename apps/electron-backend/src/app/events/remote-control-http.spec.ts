@@ -280,7 +280,7 @@ describe('RemoteControlEvents HTTP endpoints', () => {
         });
     });
 
-    it('keeps the last known portal when a non-live snapshot omits it', async () => {
+    it('keeps only the portal on a non-live snapshot, dropping stray fields', async () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2026-07-25T10:00:00.000Z'));
         bootstrapRemoteControl();
@@ -290,7 +290,12 @@ describe('RemoteControlEvents HTTP endpoints', () => {
             {},
             { portal: 'stalker', isLiveView: true, channelName: 'ITV One' }
         );
-        updateStatus({}, { isLiveView: false });
+        // Stray now-playing fields on a non-live update must be dropped too:
+        // the reset is authoritative, not a merge base.
+        updateStatus(
+            {},
+            { isLiveView: false, channelName: 'Stray', supportsVolume: true }
+        );
 
         const result = await invokeHttpHandler(REMOTE_CONTROL_PATHS.STATUS, {
             method: 'GET',

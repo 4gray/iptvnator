@@ -106,6 +106,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
         selectedContentType.set('itv');
         selectedItem.set(itvChannels()[0]);
         selectedItvId.set('10001');
+        stalkerStore.selectedItvEpgPrograms.set([]);
 
         await TestBed.configureTestingModule({
             imports: [StalkerLiveStreamLayoutComponent, NoopAnimationsModule],
@@ -195,7 +196,9 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
         window.electron = originalElectron;
     });
 
-    it('publishes live status for the selected ITV channel', () => {
+    it('publishes live status with EPG for the selected ITV channel', () => {
+        stalkerStore.selectedItvEpgPrograms.set([nowProgram('Evening News')]);
+
         fixture.detectChanges();
 
         expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
@@ -204,15 +207,20 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                 isLiveView: true,
                 channelName: 'Alpha TV',
                 channelNumber: 1,
+                epgTitle: 'Evening News',
                 supportsVolume: false,
             })
         );
     });
 
-    it('publishes live status in radio mode with radio-list numbering', () => {
+    it('publishes radio live status without leaking ITV EPG from the bulk cache', () => {
         selectedContentType.set('radio');
         selectedItem.set(radioChannels()[1]);
         selectedItvId.set('radio-2');
+        // The ITV-keyed bulk cache survives itv→radio navigation, and small
+        // integer ids collide across the two lists — radio status must not
+        // read it.
+        stalkerStore.selectedItvEpgPrograms.set([nowProgram('TV Show')]);
 
         fixture.detectChanges();
 
@@ -222,6 +230,9 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                 isLiveView: true,
                 channelName: 'News Radio',
                 channelNumber: 2,
+                epgTitle: undefined,
+                epgStart: undefined,
+                epgEnd: undefined,
                 supportsVolume: false,
             })
         );
@@ -252,3 +263,15 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
         });
     });
 });
+
+function nowProgram(title: string): EpgProgram {
+    const now = Date.now();
+    return {
+        start: new Date(now - 10 * 60 * 1000).toISOString(),
+        stop: new Date(now + 10 * 60 * 1000).toISOString(),
+        channel: '10001',
+        title,
+        desc: null,
+        category: null,
+    };
+}

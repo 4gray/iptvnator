@@ -80,11 +80,11 @@ Status ingestion from renderer:
 - Maintains in-memory `RemoteControlStatus` object returned by `/status`
 - Live updates (`isLiveView: true` or unspecified) MERGE into the previous
   status, so partial pushes (e.g. the M3U volume-only update) keep the
-  channel fields. A non-live update (`isLiveView: false`) is treated as a
-  SNAPSHOT: stale now-playing fields (channel name/number, EPG, volume) are
-  dropped rather than merged, keeping the remote from advertising a channel
-  that stopped playing. The snapshot keeps the last known `portal` unless the
-  update names one.
+  channel fields. A non-live update (`isLiveView: false`) is an
+  AUTHORITATIVE RESET: only `portal` survives (the update's value, else the
+  last known one), `supportsVolume` is forced to `false`, and every other
+  now-playing field is dropped — even if a caller accidentally includes one.
+  This keeps the remote from advertising a channel that stopped playing.
 
 ### Settings integration
 
@@ -116,10 +116,15 @@ is treated as unsupported unless it exposes all remote-control methods:
 `onRemoteControlCommand`. This keeps PWA/self-hosted builds and partial test
 bridges from accidentally activating desktop-only remote-control behavior.
 
-Every integration publishes a reset snapshot
-(`{ portal: 'unknown', isLiveView: false, supportsVolume: false }`) in its
+Every integration publishes the shared reset snapshot
+(`REMOTE_CONTROL_RESET_STATUS` in
+`libs/portal/shared/util/src/lib/remote-channel-navigation.ts`:
+`{ portal: 'unknown', isLiveView: false, supportsVolume: false }`) in its
 `ngOnDestroy`/destroy hook, so leaving a live surface always clears the
-remote UI instead of freezing the last channel on it.
+remote UI instead of freezing the last channel on it. The M3U player also
+publishes it when the active channel is cleared IN PLACE (e.g. quitting an
+external MPV/VLC session dispatches `resetActiveChannel` while the route
+stays mounted).
 
 ## Shared helpers
 
@@ -164,7 +169,7 @@ Implemented behavior:
     - `isLiveView: true`
     - channel name/number
     - EPG now fields
-    - `supportsVolume` reflects the EFFECTIVE playback: `true` for built-in inline playback (radio audio, the DASH-forced web player, HTML5/Video.js/ArtPlayer), `false` while MPV/VLC or Embedded MPV owns the audio — the remote UI disables its volume buttons on `false`
+    - `supportsVolume` reflects the EFFECTIVE playback: `true` for built-in inline playback (radio audio, the DASH-forced web player, HTML5/Video.js/ArtPlayer), `false` while MPV/VLC or Embedded MPV owns the audio — including a diagnostic-recovery "Open in MPV/VLC" launch while a web player remains configured (`isRemoteVolumeSupported` also checks the live external session, and an effect republishes the capability when the session starts or ends). The remote UI disables its volume buttons on `false`
     - `volume`, `muted`
 - Cleans listeners/subscriptions and publishes the reset snapshot in `ngOnDestroy`.
 
@@ -211,10 +216,13 @@ Implemented behavior:
     - `portal: 'stalker'`
     - `isLiveView` for selected content type `itv` OR `radio` with an active
       item — the radio route reuses this layout and its remote handlers, so
-      it reports live status too (channel numbering follows the radio list;
-      EPG fields stay empty). The index comparison uses
-      `normalizeStalkerEntityId`, because radio ids (`radio-1`) are not
-      numeric.
+      it reports live status too (channel numbering follows the radio list).
+      EPG fields are published for `itv` ONLY: `selectedItvEpgPrograms` is
+      fed by the ITV-keyed bulk cache, which survives itv→radio navigation,
+      and Ministra assigns small integer ids to itv and radio independently
+      — a radio id routinely collides with an unrelated TV channel. The
+      index comparison uses `normalizeStalkerEntityId`, because radio ids
+      (`radio-1`) are not numeric.
     - channel name/number + current EPG item
     - `supportsVolume: false`
 - Cleans listeners and publishes the reset snapshot in `ngOnDestroy`.

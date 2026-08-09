@@ -1,6 +1,7 @@
 import { DestroyRef, Signal, effect, inject } from '@angular/core';
 import {
     CollectionSourceType,
+    REMOTE_CONTROL_RESET_STATUS,
     UnifiedFavoriteChannel,
     getAdjacentChannelItem,
     getChannelItemByNumber,
@@ -20,17 +21,17 @@ export interface UnifiedLiveRemoteControlHost {
     activeUid: Signal<string | null>;
     activeSourceType: Signal<CollectionSourceType | null>;
     activeChannelName: Signal<string | null>;
-    /** True once a selection has resolved playback (inline or external). */
+    /**
+     * True once a selection has resolved its playback detail. This is
+     * selection-based, matching the routed live layouts: with an external
+     * player in double-click-to-play mode, a single click selects without
+     * starting playback yet — the status still reports the selection so the
+     * remote can navigate from it.
+     */
     isPlaybackActive: Signal<boolean>;
     epgSummary: Signal<LiveEpgPanelSummary | null>;
     playChannel: (channel: UnifiedFavoriteChannel) => void;
 }
-
-const REMOTE_CONTROL_RESET_STATUS = {
-    portal: 'unknown',
-    isLiveView: false,
-    supportsVolume: false,
-} as const;
 
 /**
  * Must run in an injection context (the hosting component's constructor).

@@ -640,6 +640,59 @@ describe('VideoPlayerComponent', () => {
         });
     });
 
+    it('publishes a remote status reset when the active channel clears in place', () => {
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+        fixture.detectChanges();
+        syncStoreState(sampleChannel);
+        updateRemoteControlStatus.mockClear();
+
+        // E.g. quitting an external player dispatches resetActiveChannel
+        // while the route stays mounted.
+        syncStoreState(null);
+
+        expect(updateRemoteControlStatus).toHaveBeenCalledWith({
+            portal: 'unknown',
+            isLiveView: false,
+            supportsVolume: false,
+        });
+    });
+
+    it('drops remote volume support while a live external session owns the audio', () => {
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+        player.set(VideoPlayer.Html5Player);
+        fixture.detectChanges();
+        syncStoreState(sampleChannel);
+        updateRemoteControlStatus.mockClear();
+
+        // Diagnostic-recovery launch: web player configured, MPV audible.
+        externalSession.set({
+            id: 'external-1',
+            player: 'mpv',
+            status: 'playing',
+            title: sampleChannel.name,
+            streamUrl: sampleChannel.url,
+            startedAt: '2026-08-08T00:00:00.000Z',
+            updatedAt: '2026-08-08T00:00:00.000Z',
+        });
+        fixture.detectChanges();
+
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                isLiveView: true,
+                supportsVolume: false,
+            })
+        );
+
+        externalSession.set(null);
+        fixture.detectChanges();
+
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ supportsVolume: true })
+        );
+    });
+
     it('opens MPV fallback with the active channel headers preserved', () => {
         syncStoreState({
             ...sampleChannel,

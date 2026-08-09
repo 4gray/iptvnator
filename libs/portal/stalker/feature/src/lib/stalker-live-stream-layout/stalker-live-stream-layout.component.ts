@@ -66,6 +66,7 @@ import {
     isTypingInInput,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
+    REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
@@ -591,7 +592,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const currentIndex = channels.findIndex(
                 (item) => normalizeStalkerEntityId(item.id) === selectedId
             );
-            const currentProgram = this.currentProgram();
+            // ITV only: selectedItvEpgPrograms is fed by the ITV-keyed bulk
+            // EPG cache, which survives itv→radio navigation. Ministra
+            // assigns small integer ids to itv and radio independently, so a
+            // radio station's id routinely collides with an unrelated TV
+            // channel's programmes.
+            const currentProgram =
+                selectedType === 'itv' ? this.currentProgram() : null;
 
             remoteControl.updateRemoteControlStatus({
                 portal: 'stalker',
@@ -633,11 +640,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.unsubscribeRemoteCommand?.();
         // Leaving the live view would otherwise keep the last channel
         // advertised as live on the remote forever.
-        this.remoteControlBridge?.updateRemoteControlStatus?.({
-            portal: 'unknown',
-            isLiveView: false,
-            supportsVolume: false,
-        });
+        this.remoteControlBridge?.updateRemoteControlStatus?.(
+            REMOTE_CONTROL_RESET_STATUS
+        );
         this.removeScrollListener();
         if (this.epgPreviewRefreshTimer !== null) {
             clearTimeout(this.epgPreviewRefreshTimer);

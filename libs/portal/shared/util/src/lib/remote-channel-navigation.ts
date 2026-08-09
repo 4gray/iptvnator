@@ -1,4 +1,21 @@
+import { ElectronBridgeRemoteControlStatus } from '@iptvnator/shared/interfaces';
+
 export type RemoteChannelDirection = 'up' | 'down';
+
+/**
+ * The status snapshot every live surface publishes when it stops owning
+ * playback (destroy, or nothing selected). The main process treats a
+ * non-live update as authoritative, so this exact shape clears stale
+ * now-playing data on the remote. One shared constant — the docs specify
+ * this shape as "the reset snapshot", and hand-copied literals would fork
+ * that contract silently.
+ */
+export const REMOTE_CONTROL_RESET_STATUS: ElectronBridgeRemoteControlStatus =
+    Object.freeze({
+        portal: 'unknown',
+        isLiveView: false,
+        supportsVolume: false,
+    });
 
 /**
  * Returns the adjacent item in the list for remote channel navigation.
