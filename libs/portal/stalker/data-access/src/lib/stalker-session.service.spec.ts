@@ -1044,6 +1044,41 @@ describe('StalkerSessionService identity payloads', () => {
         );
     });
 
+    it('refuses a persisted token after URL Basic-auth credentials change', async () => {
+        const original = {
+            _id: 'playlist-basic-auth-change',
+            portalUrl:
+                'https://old-user:secret@panel.example.com/server/load.php',
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...original,
+                stalkerToken: 'OLD-BASIC-AUTH-TOKEN',
+                stalkerSessionIdentity: stalkerSessionFingerprint(original),
+                stalkerWatchdogTimeout: 60,
+            } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'FRESH', reusedStoredToken: false });
+        const editedUrl =
+            'https://new-user:secret@panel.example.com/server/load.php';
+
+        await service.ensureToken({
+            ...original,
+            portalUrl: editedUrl,
+        } as Playlist);
+
+        expect(authenticate).toHaveBeenCalledWith(
+            editedUrl,
+            macAddress,
+            {},
+            expect.objectContaining({ storedToken: undefined })
+        );
+    });
+
     it('keeps the session for the same endpoint spelled with a trailing slash', async () => {
         // Normalisation must not turn a cosmetic difference into a forced
         // re-authentication.
@@ -1060,6 +1095,24 @@ describe('StalkerSessionService identity payloads', () => {
                     'https://panel.example.com/tenant-a/server/load.php/',
             } as Playlist)
         ).toBe(stalkerSessionFingerprint(portal));
+    });
+
+    it('keeps the legacy fingerprint shape for endpoints without URL userinfo', () => {
+        const portal = {
+            _id: 'playlist-fingerprint-compatibility',
+            portalUrl: 'https://panel.example.com/server/load.php',
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        expect(stalkerSessionFingerprint(portal)).toBe(
+            JSON.stringify([
+                'https://panel.example.com/server/load.php',
+                JSON.stringify([macAddress, '', '', '', '', '']),
+                '',
+                '',
+            ])
+        );
     });
 
     it('refuses a persisted token when the playlist was repointed at another host', async () => {

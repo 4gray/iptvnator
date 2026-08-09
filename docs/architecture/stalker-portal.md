@@ -617,16 +617,20 @@ The handshake's `not_valid` flag is propagated into the follow-up
 `get_profile` as `not_valid_token`.
 
 Reuse is gated on a session fingerprint (`stalkerSessionFingerprint`) covering
-the **portal endpoint (origin AND path), the device identity and the account
-credentials**, stored
+the **portal endpoint (origin, path, and URL Basic-auth userinfo), the device
+identity and the account credentials**, stored
 next to the token as `Playlist.stalkerSessionIdentity` and used for the
 in-run cache as well, so an edit applies without a restart. All three halves
 are load-bearing: `ensureToken()` re-presents tokens in a handshake, so an
 endpoint edit would otherwise disclose the previous portal's bearer token to
 another portal — and origin alone is not enough, since discovery deliberately
 preserves tenant base paths, so `/tenant-a/…` and `/tenant-b/…` on one host
-are different portals; an identity edit must not inherit the old session; and for a
-status-2 portal the login decides which account the token represents. A token
+are different portals. The URL parser omits `user:pass@` from `origin`, so that
+userinfo is fingerprinted separately; changing a reverse proxy's Basic-auth
+identity must not reuse a bearer token negotiated through the previous one.
+Endpoints without userinfo retain their previous fingerprint across upgrades.
+An identity edit must not inherit the old session; and for a status-2 portal
+the login decides which account the token represents. A token
 with no recorded fingerprint (written before this existed) counts as
 unverified and is never re-presented — such a row owes a full profile anyway,
 and the write-back then records the fingerprint.
