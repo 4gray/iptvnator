@@ -272,7 +272,9 @@ failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
 keep working). The override is bound to that source's endpoint, mode, device
 identity, and credentials; an Edit or backup restore under the same playlist
-ID retires it when any connection field differs. The repair is persisted
+ID retires it when any connection field differs, but only after the persisted
+row confirms ownership — a delayed stale request cannot globally remove the
+current override or token. The repair is persisted
 through `PlaylistsService.transformPlaylistMeta`
 — the verification and the patch run in ONE slot of the per-playlist write
 queue, so a user edit that is queued but not yet committed wins over the

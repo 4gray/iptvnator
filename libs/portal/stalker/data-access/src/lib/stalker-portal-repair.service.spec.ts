@@ -24,6 +24,12 @@ const MISCLASSIFIED = {
     isFullStalkerPortal: false,
 } as PlaylistMeta;
 
+async function flushMicrotasks(): Promise<void> {
+    for (let i = 0; i < 4; i += 1) {
+        await Promise.resolve();
+    }
+}
+
 describe('StalkerPortalRepairService', () => {
     let service: StalkerPortalRepairService;
     let discover: jest.Mock;
@@ -518,7 +524,9 @@ describe('StalkerPortalRepairService', () => {
                 ...MISCLASSIFIED,
                 portalUrl: 'http://other.example/portal.php',
             } as PlaylistMeta;
+            persistedRow = edited as Playlist;
             expect(service.applyOverride(edited)).toBe(edited);
+            await flushMicrotasks();
 
             // …and the once-per-session latch re-arms so the EDITED
             // configuration may probe if it fails too.
@@ -527,7 +535,6 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://other.example/server/load.php',
                 isFullStalkerPortal: true,
             });
-            persistedRow = edited as Playlist;
             const repairedAgain = await service.repairPortal(edited);
             expect(discover).toHaveBeenCalledTimes(2);
             expect(repairedAgain?.portalUrl).toBe(
@@ -693,11 +700,13 @@ describe('StalkerPortalRepairService', () => {
                 stalkerSerialNumber: 'a',
                 stalkerDeviceId1: 'b',
             } as PlaylistMeta;
+            persistedRow = shiftedIdentity as Playlist;
 
             // A DIFFERENT identity must invalidate, not inherit.
             expect(service.applyOverride(shiftedIdentity)).toBe(
                 shiftedIdentity
             );
+            await flushMicrotasks();
             expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
         });
 
@@ -718,10 +727,13 @@ describe('StalkerPortalRepairService', () => {
                 macAddress: '00:1A:79:00:44:44',
             } as PlaylistMeta;
             // The edit drops the active override…
+            persistedRow = editedIdentity as Playlist;
             expect(service.applyOverride(editedIdentity)).toBe(editedIdentity);
+            await flushMicrotasks();
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
 
             // …and the restored configuration reinstalls it on failure.
+            persistedRow = MISCLASSIFIED as Playlist;
             refreshActiveWatchdogPlaylist.mockClear();
             const restored = await service.repairPortal(MISCLASSIFIED);
             expect(discover).toHaveBeenCalledTimes(1);
@@ -752,8 +764,9 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://c.example/portal.php',
             } as PlaylistMeta;
             // The edit drops the active override…
-            expect(service.applyOverride(otherConfig)).toBe(otherConfig);
             persistedRow = otherConfig as Playlist;
+            expect(service.applyOverride(otherConfig)).toBe(otherConfig);
+            await flushMicrotasks();
             refreshActiveWatchdogPlaylist.mockClear();
 
             // …and a stale A request does not bring it back.
@@ -781,12 +794,13 @@ describe('StalkerPortalRepairService', () => {
                 macAddress: '00:1A:79:00:88:88',
             } as PlaylistMeta;
 
+            persistedRow = editedIdentity as Playlist;
             expect(service.applyOverride(editedIdentity)).toBe(editedIdentity);
+            await flushMicrotasks();
             expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
             // The latch is re-armed for the edited identity.
             discover.mockClear();
             discover.mockResolvedValue({ status: 'unreachable' });
-            persistedRow = editedIdentity as Playlist;
             await service.repairPortal(editedIdentity);
             expect(discover).toHaveBeenCalledTimes(1);
         });
@@ -814,11 +828,42 @@ describe('StalkerPortalRepairService', () => {
             persistedRow = restored as Playlist;
 
             expect(service.applyOverride(restored)).toBe(restored);
+            await flushMicrotasks();
             expect(clearCachedToken).toHaveBeenCalledWith(original._id);
 
             discover.mockResolvedValue({ status: 'unreachable' });
             await service.repairPortal(restored);
             expect(discover).toHaveBeenCalledTimes(2);
+        });
+
+        it('keeps a valid override when only a delayed snapshot has stale credentials', async () => {
+            const current = {
+                ...MISCLASSIFIED,
+                username: 'current-user',
+                password: 'current-password',
+            } as PlaylistMeta;
+            persistedRow = current as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: current.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(current);
+            persistedRow = writtenRow as Playlist;
+            clearCachedToken.mockClear();
+
+            const delayed = {
+                ...current,
+                username: 'stale-user',
+                password: 'stale-password',
+            } as PlaylistMeta;
+            expect(service.applyOverride(delayed)).toBe(delayed);
+            await flushMicrotasks();
+
+            expect(clearCachedToken).not.toHaveBeenCalled();
+            expect(service.applyOverride(current)).toMatchObject({
+                isFullStalkerPortal: true,
+            });
         });
 
         it('re-probes a DISCARDED configuration once the row is restored to it', async () => {

@@ -149,11 +149,10 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             stalkerCredentialsFingerprint(playlist) !==
                 override.credentialsFingerprint
         ) {
-            // The MAC, Stalker identity, or login was replaced after repair.
-            // The override AND its cached token belong to the previous
-            // account and must not be applied to a restored row sharing only
-            // the playlist ID, endpoint, and device identity.
-            this.dropOverride(playlist._id);
+            // Do not let one delayed request globally retire current state.
+            // The snapshot itself stays untouched; persistence confirms in
+            // the background whether it really owns this playlist ID.
+            this.retireOverrideIfPersisted(playlist, override);
             return playlist;
         }
 
@@ -177,11 +176,22 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             };
         }
 
-        // The portal URL or mode was edited to something else entirely —
-        // same story: the edited configuration is used verbatim and the
-        // repair session state is retired.
-        this.dropOverride(playlist._id);
+        // Another endpoint/mode may likewise be a delayed request rather
+        // than the current row. Use it verbatim, but mutate shared repair
+        // state only after persistence confirms it.
+        this.retireOverrideIfPersisted(playlist, override);
         return playlist;
+    }
+
+    private retireOverrideIfPersisted(
+        playlist: PlaylistMeta,
+        override: StalkerPortalModeOverride
+    ): void {
+        void this.rowCurrentlyMatches(playlist).then((matches) => {
+            if (matches && this.overrides.get(playlist._id) === override) {
+                this.dropOverride(playlist._id);
+            }
+        });
     }
 
     /**
