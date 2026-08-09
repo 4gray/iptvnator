@@ -791,6 +791,36 @@ describe('StalkerPortalRepairService', () => {
             expect(discover).toHaveBeenCalledTimes(1);
         });
 
+        it('drops a repaired override when a restored row has new credentials', async () => {
+            const original = {
+                ...MISCLASSIFIED,
+                username: 'user-1',
+                password: 'password-1',
+            } as PlaylistMeta;
+            persistedRow = original as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: original.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(original);
+            clearCachedToken.mockClear();
+
+            const restored = {
+                ...original,
+                username: 'user-2',
+                password: 'password-2',
+            } as PlaylistMeta;
+            persistedRow = restored as Playlist;
+
+            expect(service.applyOverride(restored)).toBe(restored);
+            expect(clearCachedToken).toHaveBeenCalledWith(original._id);
+
+            discover.mockResolvedValue({ status: 'unreachable' });
+            await service.repairPortal(restored);
+            expect(discover).toHaveBeenCalledTimes(2);
+        });
+
         it('re-probes a DISCARDED configuration once the row is restored to it', async () => {
             // A's probe was discarded by the persisted-row preflight because
             // the row had moved to B; after the user restores the row to A,

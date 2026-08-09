@@ -256,7 +256,7 @@ plain-text auth bodies AND their JSON envelopes (`js.error`/`js.msg`),
 HTTP 404 (endpoint absent), HTTP 401/403 (endpoint behind an HTTP auth
 gate), and terminal handshake/profile errors — never timeouts or other
 network failures), at most once per SOURCE CONFIGURATION (endpoint + mode + MAC +
-identity fingerprint) per playlist per session — an edited configuration
+identity fingerprint + credentials) per playlist per session — an edited configuration
 may probe when it fails, while every already-probed one stays latched for
 the session. Before an unrecorded probe makes any portal request, it verifies
 that the persisted row still carries the failing source; a request that failed
@@ -270,7 +270,10 @@ transport settles. Repair persists only a
 configuration discovery has proven to answer, and only when it differs from the
 failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
-keep working) and persisted through `PlaylistsService.transformPlaylistMeta`
+keep working). The override is bound to that source's endpoint, mode, device
+identity, and credentials; an Edit or backup restore under the same playlist
+ID retires it when any connection field differs. The repair is persisted
+through `PlaylistsService.transformPlaylistMeta`
 — the verification and the patch run in ONE slot of the per-playlist write
 queue, so a user edit that is queued but not yet committed wins over the
 repair instead of being overwritten; the transform patches the freshly read

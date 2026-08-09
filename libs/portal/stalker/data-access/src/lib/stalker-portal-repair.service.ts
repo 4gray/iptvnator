@@ -39,9 +39,15 @@ interface StalkerPortalModeOverride {
     sourceIsFullStalkerPortal: boolean;
     /** MAC + Stalker identity the repair probe authenticated as. */
     identityFingerprint: string;
+    /** Login/password the repair outcome was negotiated with. */
+    credentialsFingerprint: string;
     /** The proven-working configuration. */
     portalUrl: string;
     isFullStalkerPortal: boolean;
+}
+
+function stalkerCredentialsFingerprint(playlist: PlaylistMeta): string {
+    return JSON.stringify([playlist.username ?? '', playlist.password ?? '']);
 }
 
 /**
@@ -139,12 +145,14 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
         if (
             stalkerIdentityFingerprint(playlist) !==
-            override.identityFingerprint
+                override.identityFingerprint ||
+            stalkerCredentialsFingerprint(playlist) !==
+                override.credentialsFingerprint
         ) {
-            // The MAC or Stalker identity was edited after the repair. The
-            // override AND the token the repair authenticated for the
-            // PREVIOUS identity must go — otherwise requests and watchdog
-            // pings would pair the edited identity with a foreign session.
+            // The MAC, Stalker identity, or login was replaced after repair.
+            // The override AND its cached token belong to the previous
+            // account and must not be applied to a restored row sharing only
+            // the playlist ID, endpoint, and device identity.
             this.dropOverride(playlist._id);
             return playlist;
         }
@@ -508,6 +516,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             sourcePortalUrl: playlist.portalUrl,
             sourceIsFullStalkerPortal: storedMode,
             identityFingerprint: stalkerIdentityFingerprint(playlist),
+            credentialsFingerprint: stalkerCredentialsFingerprint(playlist),
             portalUrl: outcome.portalUrl,
             isFullStalkerPortal: outcome.isFullStalkerPortal,
         };
