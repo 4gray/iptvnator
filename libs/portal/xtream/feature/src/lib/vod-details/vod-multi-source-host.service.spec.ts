@@ -9,10 +9,7 @@ import {
     StreamProbeService,
     VodSourcePinService,
 } from '@iptvnator/services';
-import type {
-    VodSourceCandidate,
-    VodSourceField,
-} from '@iptvnator/shared/interfaces';
+import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import type { VodMultiSourceMovie } from './vod-multi-source-identity';
 
@@ -43,6 +40,7 @@ describe('VodMultiSourceHostService', () => {
     // Whatever is on screen; the pin path distinguishes it from selection.
 
     const playbackLive = signal(false);
+    const playbackStartBlocked = signal(false);
     const vodAutoFailover = signal(false);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
@@ -89,7 +87,9 @@ describe('VodMultiSourceHostService', () => {
 
     beforeEach(() => {
         jest.resetAllMocks();
+        startPlayback.mockResolvedValue(true);
         movie.set(null);
+        playbackStartBlocked.set(false);
         vodAutoFailover.set(false);
         discovery.isAvailable = true;
         discovery.discover.mockResolvedValue({
@@ -115,7 +115,12 @@ describe('VodMultiSourceHostService', () => {
 
         service = TestBed.inject(VodMultiSourceHostService);
         TestBed.runInInjectionContext(() =>
-            service.bind({ startPlayback, movie, playbackLive })
+            service.bind({
+                startPlayback,
+                movie,
+                playbackLive,
+                playbackStartBlocked,
+            })
         );
     });
 
@@ -164,8 +169,55 @@ describe('VodMultiSourceHostService', () => {
         );
         expect(startPlayback).toHaveBeenCalledTimes(1);
         expect(startPlayback).toHaveBeenCalledWith(
-            expect.objectContaining({ startTime: 2538 })
+            expect.objectContaining({ startTime: 2538 }),
+            expect.any(Function)
         );
+    });
+
+    it('keeps the current source when playback rejects the handoff', async () => {
+        await loadMovie([ALT_TWO]);
+        startPlayback.mockResolvedValueOnce(false);
+
+        await expect(service.play(ALT_TWO.id)).resolves.toBe(false);
+
+        expect(rowFor(CURRENT_A_ID)?.isActive).toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(false);
+        expect(service.lastSwitch()).toBeNull();
+        expect(service.previousSourceId()).toBeNull();
+    });
+
+    it('does not launch a resolved source after a newer unresolvable pick', async () => {
+        await loadMovie([ALT_TWO, ALT_THREE]);
+        const teardown = createDeferred<void>();
+        const launched: string[] = [];
+        startPlayback.mockImplementationOnce(
+            async (
+                playback: { streamUrl: string },
+                isCurrent?: () => boolean
+            ) => {
+                await teardown.promise;
+                if (isCurrent && !isCurrent()) {
+                    return false;
+                }
+                launched.push(playback.streamUrl);
+                return true;
+            }
+        );
+
+        const first = service.play(ALT_TWO.id);
+        while (startPlayback.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+
+        resolver.resolve.mockResolvedValueOnce(null);
+        await expect(service.play(ALT_THREE.id)).resolves.toBe(false);
+
+        teardown.resolve();
+        await expect(first).resolves.toBe(false);
+
+        expect(launched).toEqual([]);
+        expect(rowFor(CURRENT_A_ID)?.isActive).toBe(true);
+        expect(service.lastSwitch()).toBeNull();
     });
 
     it('never puts a credential-bearing playlist name in the notice', async () => {

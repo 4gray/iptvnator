@@ -15,6 +15,7 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
     const {
         discovery,
         movie,
+        playbackStartBlocked,
         pins,
         probes,
         resolver,
@@ -135,8 +136,37 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(startPlayback).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 streamUrl: expect.stringContaining(String(ALT_THREE.contentId)),
-            })
+            }),
+            expect.any(Function)
         );
+    });
+
+    it('does not supersede a pending external launch with a blocked source pick', async () => {
+        await loadMovie([ALT_TWO, ALT_THREE]);
+
+        const firstLaunch = createDeferred<boolean>();
+        startPlayback
+            .mockImplementationOnce((_playback, isCurrent) => {
+                playbackStartBlocked.set(true);
+                return firstLaunch.promise.then((opened) => {
+                    playbackStartBlocked.set(false);
+                    return opened && isCurrent();
+                });
+            })
+            .mockResolvedValueOnce(false);
+
+        const first = service.play(ALT_TWO.id);
+        while (startPlayback.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+
+        await expect(service.play(ALT_THREE.id)).resolves.toBe(false);
+        expect(startPlayback).toHaveBeenCalledTimes(1);
+
+        firstLaunch.resolve(true);
+        await expect(first).resolves.toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
+        expect(rowFor(ALT_THREE.id)?.isActive).toBe(false);
     });
 
     it('drops a switch whose movie was navigated away from', async () => {

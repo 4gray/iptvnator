@@ -153,9 +153,11 @@ export class StalkerVodPlaybackController {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.config.portalPlayer.openExternalPlayback(
+        const launch = this.config.portalPlayer.openExternalPlayback(
             request.playback,
             request.player
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 }

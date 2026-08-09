@@ -112,7 +112,7 @@ describe('VodDetailsRouteComponent — source caption', () => {
         expect(component.activeSourceCaption()).toBeNull();
     });
 
-    it('waits for the next stream to start after Play is pressed again', () => {
+    it('waits for the next stream to start after Play is pressed again', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;
         const playback = fixture.debugElement.injector.get(
@@ -131,8 +131,12 @@ describe('VodDetailsRouteComponent — source caption', () => {
 
         // Restart keeps the same host mounted, so without clearing the latch
         // the caption would carry the previous stream's claim into the new one.
-        component.playVod({
-            movie_data: { stream_id: 650020, name: 'Example' },
+        await component.playVod({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mkv',
+            },
         } as never);
         expect(playback.inlinePlayback()).not.toBeNull();
         expect(component.activeSourceCaption()).toBeNull();
@@ -159,10 +163,12 @@ describe('VodDetailsRouteComponent — source caption', () => {
         // The exact callback `switchToSource` invokes once it has resolved a
         // new source. Standing up the resolver here would test the host, not
         // the route's half of the seam.
-        (
+        await (
             component.multiSource as unknown as {
                 bindings: {
-                    startPlayback: (playback: ResolvedPortalPlayback) => void;
+                    startPlayback: (
+                        playback: ResolvedPortalPlayback
+                    ) => Promise<boolean>;
                 };
             }
         ).bindings.startPlayback({
@@ -170,9 +176,6 @@ describe('VodDetailsRouteComponent — source caption', () => {
             title: 'Example',
             startTime: 3,
         });
-        // Replacing a running external player is a round-trip, so the handoff
-        // yields once before the new playback is mounted.
-        await Promise.resolve();
 
         expect(playback.inlinePlayback()?.streamUrl).toBe(
             'http://example.com/alt.mkv'

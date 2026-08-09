@@ -39,6 +39,7 @@ describe('VodMultiSourceHostService — pin persistence', () => {
     // Whatever is on screen; the pin path distinguishes it from selection.
 
     const playbackLive = signal(false);
+    const playbackStartBlocked = signal(false);
     const vodAutoFailover = signal(false);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
@@ -63,7 +64,9 @@ describe('VodMultiSourceHostService — pin persistence', () => {
 
     beforeEach(() => {
         jest.resetAllMocks();
+        startPlayback.mockResolvedValue(true);
         movie.set(null);
+        playbackStartBlocked.set(false);
         vodAutoFailover.set(false);
         discovery.isAvailable = true;
         discovery.discover.mockResolvedValue({
@@ -89,7 +92,12 @@ describe('VodMultiSourceHostService — pin persistence', () => {
 
         service = TestBed.inject(VodMultiSourceHostService);
         TestBed.runInInjectionContext(() =>
-            service.bind({ startPlayback, movie, playbackLive })
+            service.bind({
+                startPlayback,
+                movie,
+                playbackLive,
+                playbackStartBlocked,
+            })
         );
     });
 

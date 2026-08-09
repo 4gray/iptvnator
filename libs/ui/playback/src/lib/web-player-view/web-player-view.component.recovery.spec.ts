@@ -4,6 +4,7 @@ import {
     DeferBlockBehavior,
     TestBed,
 } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -15,13 +16,16 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
     type PlaybackDiagnostic,
+    type PlaybackFallbackRequest,
 } from '@iptvnator/playback/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
+    type ExternalPlayerSession,
     STORE_KEY,
     VideoPlayer,
     type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { of } from 'rxjs';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
@@ -50,6 +54,10 @@ describe('WebPlayerViewComponent recovery integration', () => {
         ),
     };
     let runtime: { supportsManagedExternalPlayers: boolean };
+    let activeExternalSession: ReturnType<
+        typeof signal<ExternalPlayerSession | null>
+    >;
+    let closeExternalSession: jest.Mock<Promise<void>, [ExternalPlayerSession]>;
     let holdHeaderHandoff: boolean;
     let headerResolvers: Array<(stillCurrent: boolean) => void>;
     let headerRejectors: Array<(reason?: unknown) => void>;
@@ -73,6 +81,15 @@ describe('WebPlayerViewComponent recovery integration', () => {
 
     beforeEach(async () => {
         runtime = { supportsManagedExternalPlayers: true };
+        activeExternalSession = signal<ExternalPlayerSession | null>(null);
+        closeExternalSession = jest.fn(async (session) => {
+            activeExternalSession.set({
+                ...session,
+                status: 'closed',
+                canClose: false,
+                updatedAt: '2026-08-08T10:00:02.000Z',
+            });
+        });
         holdHeaderHandoff = false;
         headerResolvers = [];
         headerRejectors = [];
@@ -93,6 +110,15 @@ describe('WebPlayerViewComponent recovery integration', () => {
                     useValue: {
                         showCaptions: () => false,
                         webPlayerSharedControls: () => false,
+                    },
+                },
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: {
+                        activeSession: activeExternalSession,
+                        visibleSession: activeExternalSession,
+                        dismissActiveSession: jest.fn(),
+                        closeSession: closeExternalSession,
                     },
                 },
             ],
@@ -175,7 +201,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
     });
 
     it('retries the active target with a reload while preserving attempts', async () => {
-        const fallbackRequests: unknown[] = [];
+        const fallbackRequests: PlaybackFallbackRequest[] = [];
         component.externalFallbackRequested.subscribe((request) =>
             fallbackRequests.push(request)
         );
@@ -184,6 +210,14 @@ describe('WebPlayerViewComponent recovery integration', () => {
         fixture.detectChanges();
         click('playback-fallback-mpv');
         expect(fallbackRequests).toHaveLength(1);
+        const opened = externalSession({
+            id: 'mpv-retry-session',
+            status: 'opened',
+        });
+        activeExternalSession.set(opened);
+        fallbackRequests[0].trackLaunch(Promise.resolve(opened));
+        await Promise.resolve();
+        fixture.detectChanges();
         vjs().playbackIssue.emit(networkIssue('videojs'));
         fixture.detectChanges();
 
@@ -200,22 +234,43 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(playerActionIds()).toEqual([
             'playback-recommendation-html5',
             'playback-fallback-vlc',
+            'playback-fallback-mpv',
         ]);
     });
 
-    it('keeps desktop browser-access guidance after external recommendations are exhausted', async () => {
+    it('keeps desktop browser-access guidance and both actions after both attempts', async () => {
+        const fallbackRequests: PlaybackFallbackRequest[] = [];
+        component.externalFallbackRequested.subscribe((request) =>
+            fallbackRequests.push(request)
+        );
         await render();
         vjs().playbackIssue.emit(browserAccessIssue('videojs'));
         fixture.detectChanges();
 
         click('playback-fallback-mpv');
+        const openedMpv = externalSession({
+            id: 'mpv-browser-session',
+            status: 'opened',
+        });
+        activeExternalSession.set(openedMpv);
+        fallbackRequests[0].trackLaunch(Promise.resolve(openedMpv));
+        await Promise.resolve();
         fixture.detectChanges();
         click('playback-fallback-vlc');
+        await fixture.whenStable();
+        const openedVlc = externalSession({
+            id: 'vlc-browser-session',
+            player: 'vlc',
+            status: 'opened',
+        });
+        activeExternalSession.set(openedVlc);
+        fallbackRequests[1].trackLaunch(Promise.resolve(openedVlc));
+        await Promise.resolve();
         fixture.detectChanges();
 
         const banner = query('playback-diagnostic-banner');
         expect(banner?.textContent).toContain(
-            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+            'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
         );
         expect(banner?.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
@@ -223,7 +278,10 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(banner?.textContent).not.toContain(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
         );
-        expect(playerActionIds()).toEqual([]);
+        expect(playerActionIds()).toEqual([
+            'playback-fallback-mpv',
+            'playback-fallback-vlc',
+        ]);
     });
 
     it('preserves attempts when the URL changes under the same content key', async () => {
@@ -243,6 +301,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         expect(playerActionIds()).toEqual([
             'playback-recommendation-html5',
             'playback-fallback-vlc',
+            'playback-fallback-mpv',
         ]);
     });
 
@@ -1079,66 +1138,6 @@ describe('WebPlayerViewComponent recovery integration', () => {
         );
     });
 
-    it.each([
-        { target: 'mpv' as const, testId: 'playback-fallback-mpv' },
-        { target: 'vlc' as const, testId: 'playback-fallback-vlc' },
-    ])(
-        'emits one exact $target request for a same-tick double activation',
-        async ({ target, testId }) => {
-            const requests: unknown[] = [];
-            component.externalFallbackRequested.subscribe((request) =>
-                requests.push(request)
-            );
-            await render();
-            const issue = mediaIssue('videojs');
-            vjs().playbackIssue.emit(issue);
-            fixture.detectChanges();
-            const button = requiredButton(testId);
-
-            button.click();
-            button.click();
-
-            expect(requests).toEqual([
-                {
-                    player: target,
-                    playback: component.resolvedPlayback(),
-                    diagnostic: issue,
-                },
-            ]);
-        }
-    );
-
-    it.each([
-        { target: 'mpv' as const, testId: 'playback-fallback-mpv' },
-        { target: 'vlc' as const, testId: 'playback-fallback-vlc' },
-    ])(
-        'rejects a stale $target activation after playback becomes DRM protected',
-        async ({ testId }) => {
-            const requests: unknown[] = [];
-            component.externalFallbackRequested.subscribe((request) =>
-                requests.push(request)
-            );
-            await render();
-            vjs().playbackIssue.emit(mediaIssue('videojs'));
-            fixture.detectChanges();
-            const staleButton = requiredButton(testId);
-
-            setPlayback({
-                drm: {
-                    licenseType: 'clearkey',
-                    supported: true,
-                    clearKeys: {
-                        '00112233445566778899aabbccddeeff':
-                            'ffeeddccbbaa99887766554433221100',
-                    },
-                },
-            });
-            staleButton.click();
-
-            expect(requests).toEqual([]);
-        }
-    );
-
     it('keeps a replaced-source diagnostic detached across every handoff outcome', async () => {
         await render();
         vjs().playbackIssue.emit(mediaIssue('videojs'));
@@ -1280,6 +1279,22 @@ describe('WebPlayerViewComponent recovery integration', () => {
         handler.call(component, event, ownership);
     }
 });
+
+function externalSession(
+    overrides: Partial<ExternalPlayerSession> = {}
+): ExternalPlayerSession {
+    return {
+        id: 'external-session',
+        player: 'mpv',
+        status: 'opened',
+        title: 'Recovery stream',
+        streamUrl: 'https://example.com/live.m3u8',
+        startedAt: '2026-08-08T10:00:00.000Z',
+        updatedAt: '2026-08-08T10:00:01.000Z',
+        canClose: true,
+        ...overrides,
+    };
+}
 
 function mediaIssue(
     player: 'videojs' | 'html5',

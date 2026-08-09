@@ -37,6 +37,7 @@
                 <button
                     class="play-btn play-btn--restart"
                     (click)="restartVod(playableItem)"
+                    [disabled]="isExternalLaunchPending()"
                 >
                     <mat-icon>replay</mat-icon>
                     {{ 'XTREAM.RESTART' | translate }}
@@ -119,6 +120,7 @@
                             type="button"
                             class="icon-action-btn"
                             (click)="playFromProviderSource(playableItem)"
+                            [disabled]="isExternalLaunchPending()"
                             [matTooltip]="
                                 'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
                                     | translate

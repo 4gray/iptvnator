@@ -2,9 +2,7 @@ import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
 
 describe('ExternalPlaybackService', () => {
-    let listener:
-        | ((session: ExternalPlayerSession) => void)
-        | undefined;
+    let listener: ((session: ExternalPlayerSession) => void) | undefined;
     let closeExternalPlayerSession: jest.Mock;
     let service: ExternalPlaybackService;
 
@@ -94,7 +92,9 @@ describe('ExternalPlaybackService', () => {
                 contentType: 'vod',
             })
         ).toBeNull();
-        expect(service.visibleSession()).toBeNull();
+        expect(service.visibleSession()).toEqual(
+            expect.objectContaining({ status: 'error' })
+        );
     });
 
     it('delegates close requests for closable sessions', async () => {
@@ -133,18 +133,48 @@ describe('ExternalPlaybackService', () => {
         expect(closeExternalPlayerSession).toHaveBeenCalledWith('session-2');
     });
 
-    it('hides terminal sessions from the dock', () => {
+    it('hides closed sessions but keeps errors visible until dismissed', () => {
         listener?.(createSession({ status: 'closed', canClose: false }));
         expect(service.visibleSession()).toBeNull();
 
-        listener?.(
-            createSession({
-                id: 'session-3',
-                status: 'error',
-                error: 'Launch failed',
-                canClose: false,
-            })
-        );
+        const failed = createSession({
+            id: 'session-3',
+            status: 'error',
+            error: 'Launch failed',
+            canClose: false,
+        });
+        listener?.(createSession({ id: failed.id }));
+        listener?.(failed);
+
+        expect(service.visibleSession()).toEqual(failed);
+
+        service.dismissActiveSession();
         expect(service.visibleSession()).toBeNull();
+    });
+
+    it('adopts an exactly correlated restored session after replacement teardown fails', () => {
+        const previous = createSession({
+            id: 'session-previous',
+            status: 'opened',
+            title: 'Previous stream',
+        });
+        const replacement = createSession({
+            id: 'session-replacement',
+            title: 'Replacement stream',
+        });
+        listener?.(previous);
+        listener?.(replacement);
+
+        listener?.({
+            ...previous,
+            restoredFromSessionId: replacement.id,
+            updatedAt: '2026-03-07T10:00:20.000Z',
+        });
+
+        expect(service.activeSession()).toMatchObject({
+            id: previous.id,
+            status: 'opened',
+        });
+        expect(service.visibleSession()?.id).toBe(previous.id);
     });
 });

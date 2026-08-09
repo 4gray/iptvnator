@@ -776,8 +776,10 @@ describe('SerialDetailsComponent', () => {
         const playbackService = fixture.debugElement.injector.get(
             SerialDetailsPlaybackService
         );
+        const trackLaunch = jest.fn();
         playbackService.handleExternalFallbackRequest({
             player: 'mpv',
+            trackLaunch,
             playback: {
                 streamUrl: 'http://xtream.example/series/2001.mp4',
                 title: 'Season 2 Episode 1',
@@ -795,6 +797,9 @@ describe('SerialDetailsComponent', () => {
         await fixture.whenStable();
 
         expect(openExternalPlayback).toHaveBeenCalledTimes(1);
+        expect(trackLaunch).toHaveBeenCalledWith(
+            openExternalPlayback.mock.results[0].value
+        );
         expect(savePlaybackPosition).toHaveBeenCalledWith(
             'xtream-1',
             expect.objectContaining({

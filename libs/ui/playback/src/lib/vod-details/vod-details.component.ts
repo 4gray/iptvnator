@@ -251,7 +251,11 @@ export class VodDetailsComponent {
 
     async onPrimaryAction(): Promise<void> {
         if (this.isExternalStopAction()) {
-            await this.stopExternalPlayback();
+            try {
+                await this.stopExternalPlayback();
+            } catch {
+                // The dock stays visible when process teardown is unconfirmed.
+            }
             return;
         }
 

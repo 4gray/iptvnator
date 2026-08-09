@@ -2,14 +2,15 @@ import type {
     ExternalPlayerSession,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
+import { isLiveExternalPlayerSession } from '@iptvnator/portal/shared/util';
 
 /**
  * Which external player process, and which position rows, belong to this page.
  *
  * Multi-source makes both questions harder than they look: playback can be on
  * a copy of the film in ANOTHER playlist, whose ids the session and the
- * position rows then carry, and during a switch the controller has already
- * moved "active" to the destination before playback is handed over.
+ * position rows then carry. A source handoff also waits for exact process
+ * teardown before the destination can become active.
  */
 
 /** Ids this page owns, beyond the route's own copy. */
@@ -53,10 +54,9 @@ export function ownsContent(
 /**
  * The external process this page started, if it is still up.
  *
- * Matched on the ids we LAUNCHED with rather than on what is active now: a
- * switch marks the destination active before handing playback over, so asking
- * "is this session ours?" at that moment answers no and leaves the running
- * process playing beside its replacement.
+ * Matched on the ids we LAUNCHED with rather than only on what is active now:
+ * refreshes and overlapping handoffs may update controller state while exact
+ * process teardown is still in flight.
  */
 export function runningExternalSession(
     session: ExternalPlayerSession | null,
@@ -66,7 +66,7 @@ export function runningExternalSession(
     if (
         !session?.contentInfo ||
         session.status === 'closed' ||
-        session.status === 'error'
+        (session.status === 'error' && !session.canClose)
     ) {
         return null;
     }
@@ -83,26 +83,29 @@ export function runningExternalSession(
 /**
  * Close the running external player before its replacement starts.
  *
- * A failure is logged rather than propagated: the caller has already
- * committed the switch, so refusing to launch would leave the page naming a
- * source with nothing playing — worse than a possibly-lingering process, and
- * a close that rejects usually means the session was gone already.
+ * A failed close leaves teardown unconfirmed. Report false so the caller can
+ * cancel the replacement instead of starting a second external process.
  */
 export async function closeRunningExternalSession(
     session: ExternalPlayerSession | null,
     close: (session: ExternalPlayerSession) => Promise<void>,
     warn: (message: string, error: unknown) => void
-): Promise<void> {
+): Promise<boolean> {
     if (!session) {
-        return;
+        return true;
+    }
+    if (isLiveExternalPlayerSession(session) && !session.canClose) {
+        return false;
     }
 
     try {
         await close(session);
+        return true;
     } catch (error) {
         warn(
-            'Closing the previous external player failed; starting the replacement anyway.',
+            'Closing the previous external player failed; cancelling the replacement.',
             error
         );
+        return false;
     }
 }
