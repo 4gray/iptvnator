@@ -251,8 +251,12 @@ gate), and terminal handshake/profile errors — never timeouts or other
 network failures), at most once per SOURCE CONFIGURATION (endpoint + mode + MAC +
 identity fingerprint) per playlist per session — an edited configuration
 may probe when it fails, while every already-probed one stays latched for
-the session — and persists only a configuration discovery has proven to
-answer, and only when it differs from the failing one. A repaired configuration is applied immediately via an
+the session. Before an unrecorded probe makes any portal request, it verifies
+that the persisted row still carries the failing source; a request that failed
+late after Edit committed is declined before discovery can authenticate against
+the old portal and invalidate the edited session. Repair persists only a
+configuration discovery has proven to answer, and only when it differs from the
+failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
 keep working) and persisted through `PlaylistsService.transformPlaylistMeta`
 — the verification and the patch run in ONE slot of the per-playlist write

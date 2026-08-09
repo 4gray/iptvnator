@@ -353,12 +353,14 @@ describe('StalkerPortalRepairService', () => {
             // without the credentials the probe reports `login-required` and
             // the source could never be repaired.
             discover.mockResolvedValue({ status: 'unreachable' });
-
-            await service.repairPortal({
+            const playlistWithCredentials = {
                 ...MISCLASSIFIED,
                 username: 'user',
                 password: 'secret',
-            });
+            } as PlaylistMeta;
+            persistedRow = playlistWithCredentials as Playlist;
+
+            await service.repairPortal(playlistWithCredentials);
 
             expect(discover).toHaveBeenCalledWith(
                 expect.any(String),
@@ -377,21 +379,17 @@ describe('StalkerPortalRepairService', () => {
             expect(discover).toHaveBeenCalledTimes(1);
         });
 
-        it('re-enters for an edited configuration after awaiting a pending probe', async () => {
-            // A's probe is in flight when a request from the EDITED config B
-            // fails: after A settles (and is discarded by the row guard), B
-            // must get its own probe instead of inheriting A's outcome.
+        it('re-enters for an edited configuration after declining a pending stale source', async () => {
+            // A's persisted-row preflight is in flight when a request from
+            // the EDITED config B fails: after stale A is declined, B must
+            // get its own probe instead of inheriting A's outcome.
             const edited = {
                 ...MISCLASSIFIED,
                 portalUrl: 'http://edited.example/portal.php',
             } as PlaylistMeta;
             persistedRow = edited as Playlist;
 
-            let resolveFirstDiscovery!: (value: unknown) => void;
-            discover.mockReturnValueOnce(
-                new Promise((resolve) => (resolveFirstDiscovery = resolve))
-            );
-            discover.mockResolvedValueOnce({
+            discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: 'http://edited.example/server/load.php',
                 isFullStalkerPortal: true,
@@ -400,15 +398,9 @@ describe('StalkerPortalRepairService', () => {
             const oldRepair = service.repairPortal(MISCLASSIFIED);
             const editedRepair = service.repairPortal(edited);
 
-            resolveFirstDiscovery({
-                status: 'resolved',
-                portalUrl: MISCLASSIFIED.portalUrl,
-                isFullStalkerPortal: true,
-            });
-
             expect(await oldRepair).toBeNull();
             const repaired = await editedRepair;
-            expect(discover).toHaveBeenCalledTimes(2);
+            expect(discover).toHaveBeenCalledTimes(1);
             expect(repaired?.portalUrl).toBe(
                 'http://edited.example/server/load.php'
             );
@@ -529,6 +521,29 @@ describe('StalkerPortalRepairService', () => {
 
             service.releasePlaylistEdit(MISCLASSIFIED._id);
             await fence;
+        });
+
+        it('does not probe a stale source after explicit Edit has committed', async () => {
+            const edited = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/server/load.php',
+                isFullStalkerPortal: true,
+            } as Playlist;
+            await service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            persistedRow = edited;
+            service.commitPlaylistEdit(MISCLASSIFIED._id);
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+                token: 'STALE_REPAIR_TOKEN',
+            });
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toBeNull();
+            expect(discover).not.toHaveBeenCalled();
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
         });
 
         it('discards a repair verified before explicit Edit but completed after it', async () => {
@@ -724,9 +739,9 @@ describe('StalkerPortalRepairService', () => {
         });
 
         it('re-probes a DISCARDED configuration once the row is restored to it', async () => {
-            // A's probe was discarded because the row moved to B mid-probe;
-            // after the user restores the row to A, A's next failure must
-            // probe again instead of staying dead for the session.
+            // A's probe was discarded by the persisted-row preflight because
+            // the row had moved to B; after the user restores the row to A,
+            // A's next failure must probe instead of staying dead.
             discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: MISCLASSIFIED.portalUrl,
@@ -737,12 +752,12 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://edited.example/portal.php',
             } as Playlist;
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(discover).toHaveBeenCalledTimes(1);
+            expect(discover).not.toHaveBeenCalled();
 
             // Row restored to A → the discarded marker yields to a new probe.
             persistedRow = MISCLASSIFIED as Playlist;
             const repaired = await service.repairPortal(MISCLASSIFIED);
-            expect(discover).toHaveBeenCalledTimes(2);
+            expect(discover).toHaveBeenCalledTimes(1);
             expect(repaired).toMatchObject({ isFullStalkerPortal: true });
         });
 
@@ -752,7 +767,8 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://edited.example/portal.php',
             } as PlaylistMeta;
 
-            // Probe of the OLD config lands after the user edit → discarded.
+            // The OLD config is declined before discovery because the row
+            // already carries the user edit.
             discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: MISCLASSIFIED.portalUrl,
@@ -760,12 +776,12 @@ describe('StalkerPortalRepairService', () => {
             });
             persistedRow = edited as Playlist;
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(discover).toHaveBeenCalledTimes(1);
+            expect(discover).not.toHaveBeenCalled();
 
             // A stale snapshot of the already-probed config must NOT loop
             // the probe…
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(discover).toHaveBeenCalledTimes(1);
+            expect(discover).not.toHaveBeenCalled();
 
             // …but the EDITED configuration failing later must be allowed
             // to repair without an application restart.
@@ -775,7 +791,7 @@ describe('StalkerPortalRepairService', () => {
                 isFullStalkerPortal: true,
             });
             const repaired = await service.repairPortal(edited);
-            expect(discover).toHaveBeenCalledTimes(2);
+            expect(discover).toHaveBeenCalledTimes(1);
             expect(repaired?.portalUrl).toBe(
                 'http://edited.example/server/load.php'
             );

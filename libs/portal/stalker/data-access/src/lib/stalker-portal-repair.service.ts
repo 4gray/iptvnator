@@ -387,6 +387,18 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         playlist: PlaylistMeta,
         editGeneration: number
     ): Promise<PlaylistMeta | null> {
+        // A request sent before an explicit Edit can fail only after that Edit
+        // commits and releases its fence. Verify the caller still owns the
+        // persisted source before discovery: confirmation may authenticate
+        // against the old portal and invalidate the freshly edited session
+        // even though the atomic transform below would reject its write.
+        if (
+            !(await this.rowCurrentlyMatches(playlist)) ||
+            this.editGenerationChanged(playlist._id, editGeneration)
+        ) {
+            return this.discardSupersededRepair(playlist);
+        }
+
         const outcome = await this.discovery.discover(
             playlist.portalUrl ?? '',
             playlist.macAddress ?? '',
@@ -541,10 +553,10 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     }
 
     /**
-     * Cheap gate for retrying a DISCARDED configuration: reads the current
-     * row and reports whether it now carries the caller's configuration.
-     * Only avoids pointless discovery runs — the authoritative check stays
-     * the atomic transform.
+     * Cheap preflight for an unrecorded or DISCARDED configuration: reads the
+     * current row and reports whether it still carries the caller's source.
+     * This prevents stale discovery from authenticating against an edited
+     * portal; the authoritative write guard remains the atomic transform.
      */
     private async rowCurrentlyMatches(
         playlist: PlaylistMeta
