@@ -207,6 +207,11 @@ export class StalkerSearchComponent {
     private readonly accumulatedSearchResults = signal<StalkerVodSource[]>([]);
     readonly searchResults = this.accumulatedSearchResults.asReadonly();
     readonly searchHasMore = signal(false);
+    /**
+     * A failed append page. The next near-end RETRIES that page instead of
+     * advancing — incrementing past it would silently omit its results.
+     */
+    readonly searchAppendError = signal(false);
 
     readonly searchResultsResource = resource({
         params: () => ({
@@ -246,52 +251,94 @@ export class StalkerSearchComponent {
                 ...(contentType === 'vod' ? { genre: '0' } : {}),
             };
 
-            // executeStalkerRequest owns the portal-mode decision (shared
-            // predicate with URL fallback for legacy rows) and the lazy
-            // portal repair, so search cannot drift from the catalog paths.
-            const response = await executeStalkerRequest<StalkerSearchResponse>(
-                {
-                    dataService: this.dataService,
-                    stalkerSession: this.stalkerSession,
-                    portalRepair: this.portalRepair,
-                },
-                playlist,
-                requestParams
-            );
-            const items = (response.js?.data || []).map(
-                (item: StalkerVodSource) =>
-                    this.processItemUrls(item, portalUrl)
-            );
-
             // A stale response (term/filter/page moved on while this page
             // was in flight) must not clobber the accumulated list.
-            const isCurrent =
+            const isCurrent = (): boolean =>
                 params.search === this.searchTerm() &&
                 params.contentType === this.selectedFilterType() &&
                 params.page === this.searchPage();
-            if (!isCurrent) {
-                return items;
-            }
 
-            const previous =
-                params.page === 1 ? [] : this.accumulatedSearchResults();
-            const merged =
-                params.page === 1
-                    ? items
-                    : dedupeSearchResults([...previous, ...items]);
-            const totalItems = response.js?.total_items;
-            // Without a usable total, keep paging only while pages make
-            // progress — a portal repeating the same page dedupes to no
-            // growth and terminates the loop.
-            this.searchHasMore.set(
-                typeof totalItems === 'number' && totalItems >= 0
-                    ? merged.length < totalItems
-                    : items.length > 0 && merged.length > previous.length
-            );
-            this.accumulatedSearchResults.set(merged);
-            return merged;
+            try {
+                // executeStalkerRequest owns the portal-mode decision (shared
+                // predicate with URL fallback for legacy rows) and the lazy
+                // portal repair, so search cannot drift from the catalog
+                // paths.
+                const response =
+                    await executeStalkerRequest<StalkerSearchResponse>(
+                        {
+                            dataService: this.dataService,
+                            stalkerSession: this.stalkerSession,
+                            portalRepair: this.portalRepair,
+                        },
+                        playlist,
+                        requestParams
+                    );
+                const items = (response.js?.data || []).map(
+                    (item: StalkerVodSource) =>
+                        this.processItemUrls(item, portalUrl)
+                );
+
+                if (!isCurrent()) {
+                    return items;
+                }
+
+                return this.applySearchPageSuccess(
+                    params.page,
+                    items,
+                    response.js?.total_items
+                );
+            } catch (error) {
+                this.logger.warn('Stalker search page failed', {
+                    page: params.page,
+                    error,
+                });
+                if (!isCurrent()) {
+                    return this.accumulatedSearchResults();
+                }
+
+                return this.applySearchPageFailure(params.page);
+            }
         },
     });
+
+    /** Merges a successful portal page into the accumulated result list. */
+    applySearchPageSuccess(
+        page: number,
+        items: StalkerVodSource[],
+        totalItems: number | undefined
+    ): StalkerVodSource[] {
+        const previous = page === 1 ? [] : this.accumulatedSearchResults();
+        const merged =
+            page === 1 ? items : dedupeSearchResults([...previous, ...items]);
+        // Without a usable total, keep paging only while pages make
+        // progress — a portal repeating the same page dedupes to no
+        // growth and terminates the loop.
+        this.searchHasMore.set(
+            typeof totalItems === 'number' && totalItems >= 0
+                ? merged.length < totalItems
+                : items.length > 0 && merged.length > previous.length
+        );
+        this.searchAppendError.set(false);
+        this.accumulatedSearchResults.set(merged);
+        return merged;
+    }
+
+    /**
+     * A failed FRESH search (page 1) must not keep rendering the previous
+     * query's cards; a failed append keeps the accumulated pages and flags
+     * the error so the next near-end retries this page instead of advancing.
+     */
+    applySearchPageFailure(page: number): StalkerVodSource[] {
+        if (page === 1) {
+            this.accumulatedSearchResults.set([]);
+            this.searchHasMore.set(false);
+            this.searchAppendError.set(false);
+            return [];
+        }
+
+        this.searchAppendError.set(true);
+        return this.accumulatedSearchResults();
+    }
 
     readonly isInitialSearchLoading = computed(
         () => this.searchResultsResource.isLoading() && this.searchPage() === 1
@@ -302,6 +349,13 @@ export class StalkerSearchComponent {
 
     loadMoreSearchResults(): void {
         if (this.searchResultsResource.isLoading() || !this.searchHasMore()) {
+            return;
+        }
+
+        if (this.searchAppendError()) {
+            // Retry the SAME page — advancing would permanently omit it.
+            this.searchAppendError.set(false);
+            this.searchResultsResource.reload();
             return;
         }
 
