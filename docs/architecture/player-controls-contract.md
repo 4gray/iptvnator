@@ -333,6 +333,42 @@ their `transitionKey`. Session disposal, retry, channel changes, and engine
 handoff therefore clear stale recording ownership without showing a false
 `RECORDING_SAVED` confirmation.
 
+### Vendor-chrome (preference-off) keyboard shortcuts
+
+With `webPlayerSharedControls` off, `app-player-controls` never renders, so no
+`ControlsShortcuts` instance existed and the playback keys advertised in the
+in-app help silently did nothing. The vendor-chrome HTML5, Video.js, and
+ArtPlayer hosts therefore attach `LegacyPlayerShortcuts`
+(`legacy-player-shortcuts.ts`) — a thin wrapper over the same
+`ControlsShortcuts` arbitration and ignore rules — and forward the commands
+straight to the engine:
+
+- **HTML5** (`html-video-legacy-shortcuts.ts`) acts on the native video
+  element. Play goes through the component's session so playback diagnostics
+  stay owned there, and F fullscreens the video element itself, matching what
+  the native controls' own fullscreen button does.
+- **Video.js** (`vjs-legacy-shortcuts.ts`) goes through the player API so the
+  vendor control bar stays in sync; F uses the player's
+  `requestFullscreen`/`exitFullscreen`. The legacy configuration still never
+  enables `userActions.hotkeys`.
+- **ArtPlayer** (`art-player-legacy-shortcuts.ts`) uses the vendor setters its
+  own hotkeys used (`toggle`, `forward`/`backward`, `volume`, `muted`,
+  `fullscreen`), so ArtPlayer's notices and UI stay in sync. The legacy chrome
+  now passes `hotkey: false` — ArtPlayer's focus-scoped hotkeys ignore
+  `defaultPrevented` and would double-handle every key — and the wiring
+  restores the one behavior lost with it: Escape exits `fullscreenWeb`.
+
+Shared legacy rules: seek is gated on authoritative `isLive` plus a finite,
+positive duration (ArtPlayer gates on `art.duration`, the same value its seek
+setter clamps against, so an unknown duration never jumps to zero); volume
+steps by ±5% and syncs muted state the way `applyVideoVolume` does (raising
+out of mute unmutes, reaching zero mutes); `isAvailable` is the host's
+`interactionEnabled`, so a visible playback diagnostic disables the keys; and
+Escape defaults to a no-op without consuming the key, because the vendor
+chrome owns its own overlays. Instances attach in the component's legacy
+branch and detach on destroy; the arbitration registry is shared with
+shared-controls instances, so exactly one owner handles each key.
+
 ### Timeline scrubbing
 
 Timeline input is previewed locally while the user drags. The slider value,
@@ -631,6 +667,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts
 ├── controls-shortcuts.ts
+├── legacy-player-shortcuts.ts
 ├── controls-surface.ts
 ├── controls-view-model.ts
 ├── controls-visibility.ts

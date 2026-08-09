@@ -10,9 +10,11 @@ export class MockArtplayer {
     readonly on = jest.fn();
     readonly off = jest.fn();
     readonly destroy = jest.fn();
+    readonly toggle = jest.fn();
     readonly currentTime = 0;
     readonly duration = 0;
     seek = 0;
+    muted = false;
     volume: number;
 
     constructor(readonly options: Record<string, unknown>) {

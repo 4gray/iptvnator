@@ -25,6 +25,7 @@ import {
     createPlaybackSourceMetadata,
 } from '@iptvnator/playback/util';
 import {
+    type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -35,6 +36,7 @@ import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-pl
 import { logVjsAudioTracks, setupVjsAudioTrackMenu } from './vjs-audio-tracks';
 import { VjsLegacyTracks } from './vjs-legacy-tracks';
 import { VjsMpegTsSession } from './vjs-mpegts-session';
+import { attachVjsLegacyShortcuts } from './vjs-legacy-shortcuts';
 import { VjsPlayerControlsBridge } from './vjs-player-controls.bridge';
 import {
     createVjsPlayerOptions,
@@ -113,6 +115,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private controlsBridge: VjsPlayerControlsBridge | null = null;
     /** Track ownership for the legacy chrome; null with shared controls. */
     private legacyTracks: VjsLegacyTracks | null = null;
+    /** Keyboard shortcuts for the legacy chrome; null with shared controls. */
+    private legacyShortcuts: LegacyPlayerShortcuts | null = null;
     private desiredSource: VideoPlayerSource | null = null;
     private readyHandled = false;
     private destroyed = false;
@@ -138,6 +142,14 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         ) as unknown as VideoJsPlayer;
         this.bindPlayerEvents();
         initializeVjsPlugins(this.player);
+        if (!this.sharedControls) {
+            this.legacyShortcuts = attachVjsLegacyShortcuts({
+                player: () => this.player ?? null,
+                hostElement: () => this.playerRoot()?.nativeElement ?? null,
+                isAvailable: () => this.interactionEnabled(),
+                isLive: () => this.options().isLive !== false,
+            });
+        }
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -185,6 +197,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     ngOnDestroy(): void {
         this.destroyed = true;
+        this.legacyShortcuts?.detach();
+        this.legacyShortcuts = null;
         this.resetCoordinator.destroy();
         this.controlsBridge?.destroy();
         this.controlsBridge = null;

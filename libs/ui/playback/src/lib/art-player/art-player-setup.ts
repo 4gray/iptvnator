@@ -24,6 +24,10 @@ export function buildArtPlayerChrome(
             fullscreen: true,
             fullscreenWeb: true,
             airplay: true,
+            // The app-level legacy shortcuts own the keyboard: ArtPlayer's
+            // focus-scoped hotkeys ignore `defaultPrevented` and would
+            // double-handle every key they cover.
+            hotkey: false,
         };
     }
 

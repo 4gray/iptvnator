@@ -15,6 +15,7 @@ import Artplayer from 'artplayer';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import {
+    type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -22,6 +23,7 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { attachArtPlayerLegacyShortcuts } from './art-player-legacy-shortcuts';
 import {
     buildArtPlayerChrome,
     exitOwnedArtPlayerFullscreen,
@@ -75,12 +77,22 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     private player: Artplayer | null = null;
     private sourceSession: ArtPlayerSourceSession | null = null;
     private videoSession: ArtPlayerVideoSession | null = null;
+    private legacyShortcuts: LegacyPlayerShortcuts | null = null;
 
     ngOnInit(): void {
         this.seriesNavigationSignal.set(this.seriesNavigation());
         if (this.sharedControls) {
             this.controlsAdapter.setContext({
                 seriesNavigation: this.seriesNavigationSignal,
+            });
+        } else {
+            // Survives the channel-change destroy/init cycle: the handlers
+            // read the current player lazily.
+            this.legacyShortcuts = attachArtPlayerLegacyShortcuts({
+                player: () => this.player,
+                hostElement: () => this.playerRoot()?.nativeElement ?? null,
+                isAvailable: () => this.interactionEnabled(),
+                isLive: () => this.isLive(),
             });
         }
         this.initPlayer();
@@ -123,6 +135,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     ngOnDestroy(): void {
+        this.legacyShortcuts?.detach();
+        this.legacyShortcuts = null;
         this.destroyPlayer();
     }
 
