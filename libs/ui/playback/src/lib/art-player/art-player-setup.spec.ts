@@ -6,7 +6,7 @@ import {
 } from './art-player-setup';
 
 describe('ArtPlayer setup', () => {
-    it('preserves the complete legacy chrome when shared controls are disabled', () => {
+    it('preserves the legacy chrome but hands the keyboard to app shortcuts', () => {
         expect(buildArtPlayerChrome(false)).toEqual({
             pip: true,
             autoPlayback: true,
@@ -19,6 +19,7 @@ describe('ArtPlayer setup', () => {
             fullscreen: true,
             fullscreenWeb: true,
             airplay: true,
+            hotkey: false,
         });
     });
 

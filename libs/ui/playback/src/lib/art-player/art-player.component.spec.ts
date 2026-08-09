@@ -212,7 +212,9 @@ describe('ArtPlayerComponent', () => {
                 fullscreenWeb: true,
             })
         );
-        expect(artPlayerInstances[0].options['hotkey']).toBeUndefined();
+        // The app-level legacy shortcuts own the keyboard instead of
+        // ArtPlayer's focus-scoped hotkeys.
+        expect(artPlayerInstances[0].options['hotkey']).toBe(false);
         expect(
             fixture.debugElement.query(By.css('app-player-controls'))
         ).toBeNull();
@@ -221,6 +223,32 @@ describe('ArtPlayerComponent', () => {
                 By.css('.art-player-interaction-capture')
             )
         ).toBeNull();
+    });
+
+    it('drives playback keyboard shortcuts through the legacy player', () => {
+        createComponent({
+            url: 'https://example.com/movie.mp4',
+            name: 'Movie',
+        });
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(artPlayerInstances[0].toggle).toHaveBeenCalledTimes(1);
+
+        fixture.destroy();
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(artPlayerInstances[0].toggle).toHaveBeenCalledTimes(1);
     });
 
     it('emits a playback issue when mpegts.js reports an unsupported codec', () => {

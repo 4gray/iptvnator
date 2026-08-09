@@ -94,6 +94,32 @@ describe('VjsPlayerComponent', () => {
         ).toBeNull();
     });
 
+    it('drives playback keyboard shortcuts through the legacy player', () => {
+        render({
+            sources: [{ src: 'https://example.test/movie.mp4' }],
+            isLive: false,
+        });
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(harness.play).toHaveBeenCalledTimes(1);
+
+        fixture.destroy();
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(harness.play).toHaveBeenCalledTimes(1);
+    });
+
     it('does not reload Video.js when options keep the same source', () => {
         const source = {
             src: 'https://example.test/live/playlist.m3u8',
@@ -406,6 +432,7 @@ describe('VjsPlayerComponent', () => {
 function createPlayerHarness() {
     const listeners = new Map<string, Set<() => void>>();
     let volumeValue = 0.5;
+    let mutedValue = false;
     const harness = {
         currentVideo: document.createElement('video'),
         currentError: null as NativePlaybackErrorInput | null,
@@ -413,6 +440,7 @@ function createPlayerHarness() {
         paused: true,
         pauseCompletesImmediately: true,
         ready: () => undefined,
+        play: jest.fn(() => Promise.resolve()),
         pause: jest.fn(() => {
             if (harness.pauseCompletesImmediately) {
                 harness.paused = true;
@@ -425,6 +453,12 @@ function createPlayerHarness() {
                 volumeValue = value;
             }
             return volumeValue;
+        }),
+        muted: jest.fn((value?: boolean) => {
+            if (value !== undefined) {
+                mutedValue = value;
+            }
+            return mutedValue;
         }),
         emit(event: string) {
             for (const listener of listeners.get(event) ?? []) {
@@ -451,6 +485,11 @@ function createPlayerHarness() {
         }),
         pause: harness.pause,
         paused: jest.fn(() => harness.paused),
+        play: harness.play,
+        muted: harness.muted,
+        isFullscreen: jest.fn(() => false),
+        requestFullscreen: jest.fn(),
+        exitFullscreen: jest.fn(),
         reset: harness.reset,
         src: harness.src,
         tech: jest.fn(() => ({

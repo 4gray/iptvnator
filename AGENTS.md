@@ -384,7 +384,11 @@ Key files:
   metadata, while a visible playback diagnostic disables both shared surface
   interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
   diagnostic actions remain visible. The preference-off path keeps native
-  controls and legacy series navigation unchanged.
+  controls and legacy series navigation unchanged, while the playback keyboard
+  shortcuts (Space/K, F, arrow seek/volume, M) attach through
+  `LegacyPlayerShortcuts` with commands acting on the native video element
+  (`html-video-legacy-shortcuts.ts`); seek requires authoritative VOD metadata
+  plus a finite positive duration, and a visible diagnostic disables the keys.
 - Video.js is the third guarded consumer. `VjsPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; its bridge binds the current Tech
   video, rebinds after `playerreset`, exposes source-stable audio/subtitle IDs,
@@ -395,7 +399,10 @@ Key files:
   The shared-controls path disables native controls, Video.js
   click/double-click/hotkey actions, and spatial navigation;
   diagnostic gating and owned-fullscreen exit match HTML5. The preference-off
-  path keeps the existing Video.js skin and legacy series navigation unchanged.
+  path keeps the existing Video.js skin and legacy series navigation unchanged
+  (still without `userActions.hotkeys`), while the playback keyboard shortcuts
+  attach through `LegacyPlayerShortcuts` and drive the player API so the
+  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`).
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
   HLS/DASH(Shaka)/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
@@ -407,7 +414,13 @@ Key files:
   and a transparent capture layer gives shared controls exclusive click and
   double-click ownership. Diagnostic interaction gating and owned-fullscreen
   exit match the other web players. The preference-off path keeps the legacy
-  ArtPlayer skin, source behavior, and series navigation unchanged.
+  ArtPlayer skin, source behavior, and series navigation unchanged, while the
+  playback keyboard shortcuts attach through `LegacyPlayerShortcuts` using the
+  vendor setters ArtPlayer's own hotkeys used
+  (`art-player-legacy-shortcuts.ts`); the legacy chrome passes `hotkey: false`
+  because ArtPlayer's focus-scoped hotkeys ignore `defaultPrevented` and would
+  double-handle every key, and the wiring restores its Escape-exits-web-
+  fullscreen behavior.
 - Shared web picture-in-picture stays inside that default-off rollout.
   `PlayerController` exposes capability `pictureInPicture`, state
   `pictureInPictureActive`/`canPictureInPicture`, and command
