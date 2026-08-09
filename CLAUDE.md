@@ -422,11 +422,12 @@ Key patterns:
   (`libs/portal/shared/ui`) measures container overflow to auto-fill tall
   viewports (terminating on lack of container growth, not on a load count)
   and fires `loadMore` near the bottom. The search layout routes its results
-  container through the same directive (`nearEnd*` inputs). Transitional:
-  `PortalCatalogFacade.supportsInfiniteScroll` gates the shared
-  `CategoryContentViewComponent` — Xtream scrolls, Stalker still pages until
-  its server-paged append lands, after which the paged facade members and
-  the flag are deleted
+  container through the same directive (`nearEnd*` inputs). Stalker feeds the
+  same contract from server-paged appends: portal pages accumulate into one
+  deduplicated list, `hasMoreContent` derives from accumulated length vs
+  `total_items`, a failed append keeps loaded pages and offers a tail retry,
+  and the facade maps page 0 to the skeleton and later pages to the tail
+  spinner. No paginator remains anywhere in the app
 
 Xtream data strategies by runtime capability:
 

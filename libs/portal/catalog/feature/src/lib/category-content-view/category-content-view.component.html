@@ -204,16 +204,6 @@
                         }
                     </mat-menu>
                 }
-                @if (!supportsInfiniteScroll && categoryItemCount() > 0) {
-                    <mat-paginator
-                        [pageIndex]="pageIndex()"
-                        [length]="categoryItemCount()"
-                        [pageSize]="limit()"
-                        [pageSizeOptions]="pageSizeOptions"
-                        (page)="onPageChange($event)"
-                        aria-label="Select page"
-                    />
-                }
             </div>
             <app-grid-list
                 appInfiniteScroll

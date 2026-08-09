@@ -133,6 +133,30 @@ describe('SearchLayoutComponent', () => {
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
 
+    it('exposes scroll save/restore for the results container', () => {
+        const resultsContainer = renderResultsContainer();
+        Object.defineProperty(resultsContainer, 'scrollTop', {
+            configurable: true,
+            writable: true,
+            value: 640,
+        });
+        const scrollTo = jest.fn(
+            (options: { top: number }) =>
+                ((resultsContainer as unknown as { scrollTop: number }).scrollTop =
+                    options.top)
+        );
+        Object.defineProperty(resultsContainer, 'scrollTo', {
+            configurable: true,
+            value: scrollTo,
+        });
+
+        expect(fixture.componentInstance.getResultsScrollTop()).toBe(640);
+
+        fixture.componentInstance.restoreResultsScrollTop(120);
+        expect(scrollTo).toHaveBeenCalledWith({ top: 120 });
+        expect(fixture.componentInstance.getResultsScrollTop()).toBe(120);
+    });
+
     it('does not emit nearEnd when the consumer reports no more results', () => {
         const nearEndSpy = jest.fn();
         fixture.componentInstance.nearEnd.subscribe(nearEndSpy);

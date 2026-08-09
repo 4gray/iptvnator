@@ -16,7 +16,6 @@ import { map } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -59,7 +58,6 @@ interface CategoryContentItem {
         MatButtonModule,
         MatIcon,
         MatMenuModule,
-        MatPaginatorModule,
         MatTooltip,
         NgComponentOutlet,
         PlaylistErrorViewComponent,
@@ -73,8 +71,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
-    private hasAppliedInitialQueryParams = false;
-    private previousSearchQuery: string | null = null;
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
     ) as PortalCatalogFacade<
@@ -85,16 +81,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     readonly detailComponent = inject(PORTAL_CATALOG_DETAIL_COMPONENT);
     readonly contentType = this.catalog.contentType;
-    /**
-     * Transitional (pagination removal, PR 1): infinite scroll drives Xtream,
-     * while a facade without the capability (Stalker) keeps the paginator and
-     * the `?page=` round-trip below. PR 2 deletes the paged branch.
-     */
-    readonly supportsInfiniteScroll =
-        this.catalog.supportsInfiniteScroll === true;
-    readonly limit = this.catalog.limit ?? computed(() => 0);
-    readonly pageIndex = this.catalog.pageIndex ?? computed(() => 0);
-    readonly pageSizeOptions = Array.from(this.catalog.pageSizeOptions ?? []);
     readonly selectedCategory = this.catalog.selectedCategory;
     readonly paginatedContent = this.catalog.paginatedContent;
     readonly selectedCategoryTitle = this.catalog.selectedCategoryTitle;
@@ -102,16 +88,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly selectedItem = this.catalog.selectedItem;
     readonly contentSortMode = this.catalog.contentSortMode;
     readonly isPaginatedContentLoading = this.catalog.isPaginatedContentLoading;
-    readonly infiniteHasMore = computed(
-        () =>
-            this.supportsInfiniteScroll && (this.catalog.hasMore?.() ?? false)
-    );
-    readonly infiniteAppending = computed(
-        () => this.catalog.isAppending?.() ?? false
-    );
-    readonly infiniteAppendError = computed(
-        () => this.catalog.appendError?.() ?? false
-    );
+    readonly infiniteHasMore = this.catalog.hasMore;
+    readonly infiniteAppending = this.catalog.isAppending;
+    readonly infiniteAppendError = this.catalog.appendError;
     readonly isXtreamLoadingSubtitle = computed(
         () =>
             this.catalog.provider === 'xtream' &&
@@ -215,10 +194,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     constructor() {
         effect(() => {
             const resetKey = this.gridResetKey();
-            if (!this.supportsInfiniteScroll) {
-                return;
-            }
-
             if (
                 this.previousGridResetKey !== null &&
                 this.previousGridResetKey !== resetKey
@@ -230,13 +205,18 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
         // One-shot scroll restore after a detail round-trip: once the list is
         // rendered (not loading, no detail overlay), ask the facade for a
-        // saved position matching the current selection.
+        // saved position matching the current selection. An open detail
+        // re-arms the shot — Stalker details render inline in THIS instance,
+        // so closing one must restore just like a route round-trip does.
         effect(() => {
+            if (this.selectedItem()) {
+                this.hasAttemptedScrollRestore = false;
+                return;
+            }
+
             if (
-                !this.supportsInfiniteScroll ||
                 this.hasAttemptedScrollRestore ||
-                this.isPaginatedContentLoading() ||
-                this.selectedItem()
+                this.isPaginatedContentLoading()
             ) {
                 return;
             }
@@ -278,42 +258,13 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         this.activatedRoute.queryParamMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((params) => {
-                const searchQuery = params.get('q') ?? '';
+                this.catalog.setSearchQuery?.(params.get('q') ?? '');
 
-                this.catalog.setSearchQuery?.(searchQuery);
-
-                if (this.supportsInfiniteScroll) {
-                    // A search change resets the render window in the store;
-                    // only a stale `?page=` from a legacy deep link needs
-                    // cleaning up here.
-                    if (params.has('page')) {
-                        this.clearPageQueryParam();
-                    }
-                    return;
+                // A search change resets the list in the facade; only a stale
+                // `?page=` from a legacy deep link needs cleaning up here.
+                if (params.has('page')) {
+                    this.clearPageQueryParam();
                 }
-
-                const pageIndex = this.toPageIndex(params.get('page'));
-
-                if (!this.hasAppliedInitialQueryParams) {
-                    this.hasAppliedInitialQueryParams = true;
-                    this.previousSearchQuery = searchQuery;
-                    this.catalog.setPage?.(pageIndex);
-                    return;
-                }
-
-                const didSearchChange =
-                    searchQuery !== this.previousSearchQuery;
-                this.previousSearchQuery = searchQuery;
-
-                if (didSearchChange) {
-                    this.catalog.setPage?.(0);
-                    if (params.has('page')) {
-                        this.clearPageQueryParam();
-                    }
-                    return;
-                }
-
-                this.catalog.setPage?.(pageIndex);
             });
     }
 
@@ -321,7 +272,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         // Leaving the list without opening a detail (e.g. switching portal
         // tabs) still snapshots the spot; the facade validates the selection
         // before ever restoring it.
-        if (this.supportsInfiniteScroll && !this.selectedItem()) {
+        if (!this.selectedItem()) {
             const grid = this.gridElement();
             if (grid) {
                 this.catalog.saveScrollPosition?.(grid.scrollTop);
@@ -329,36 +280,19 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         }
     }
 
-    onPageChange(event: PageEvent): void {
-        this.catalog.setPage?.(event.pageIndex);
-        this.catalog.setLimit?.(event.pageSize);
-        this.scrollGridToTop();
-
-        void this.router.navigate([], {
-            relativeTo: this.activatedRoute,
-            queryParams: {
-                page: event.pageIndex > 0 ? event.pageIndex + 1 : null,
-            },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-        });
-    }
-
     onLoadMore(): void {
-        this.catalog.loadMore?.();
+        this.catalog.loadMore();
     }
 
     onRetryAppend(): void {
-        this.catalog.retryAppend?.();
+        this.catalog.retryAppend();
     }
 
     onItemClick(item: CategoryContentItem): void {
-        if (this.supportsInfiniteScroll) {
-            // Snapshot the grid offset before the detail replaces the list.
-            const grid = this.gridElement();
-            if (grid) {
-                this.catalog.saveScrollPosition?.(grid.scrollTop);
-            }
+        // Snapshot the grid offset before the detail replaces the list.
+        const grid = this.gridElement();
+        if (grid) {
+            this.catalog.saveScrollPosition?.(grid.scrollTop);
         }
 
         this.providerOnlyStalkerItemId.set(null);
@@ -369,11 +303,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                 queryParamsHandling: 'preserve',
             });
         }
-    }
-
-    private toPageIndex(value: string | null): number {
-        const page = Number(value);
-        return Number.isInteger(page) && page > 0 ? page - 1 : 0;
     }
 
     private gridElement(): HTMLElement | null {

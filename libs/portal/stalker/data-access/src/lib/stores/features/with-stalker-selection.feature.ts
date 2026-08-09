@@ -50,7 +50,15 @@ export function withStalkerSelection() {
             setSelectedContentType(
                 type: 'vod' | 'itv' | 'series' | 'radio'
             ) {
-                patchState(store, { selectedContentType: type });
+                if (store.selectedContentType() === type) {
+                    return;
+                }
+
+                // Without the page reset, switching e.g. /vod -> /series with
+                // the same category id ('*' on both section roots) would leave
+                // page > 1 in place and make the new type's FIRST response an
+                // append onto the old type's accumulated list.
+                patchState(store, { selectedContentType: type, page: 0 });
             },
             setSelectedCategory(id: string | number | null) {
                 const newId =
@@ -85,6 +93,10 @@ export function withStalkerSelection() {
                 }
 
                 patchState(store, { page });
+            },
+            /** Advances to the next portal page (infinite-scroll append). */
+            nextPage() {
+                patchState(store, { page: store.page() + 1 });
             },
             setSearchPhrase(phrase: string) {
                 if (store.searchPhrase() === phrase) {
