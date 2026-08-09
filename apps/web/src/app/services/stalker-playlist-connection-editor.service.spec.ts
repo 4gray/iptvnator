@@ -107,7 +107,8 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
             expect.objectContaining({
                 portalUrl: sourcePlaylist.portalUrl,
                 stalkerSerialNumber: sourcePlaylist.stalkerSerialNumber,
-            })
+            }),
+            expect.any(Promise)
         );
 
         expect(discovery.discover).toHaveBeenCalledWith(

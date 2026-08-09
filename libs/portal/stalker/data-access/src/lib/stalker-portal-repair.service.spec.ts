@@ -276,6 +276,10 @@ describe('StalkerPortalRepairService', () => {
 
         it('holds playlist authority from persisted preflight through the conditional commit', async () => {
             let rowAuthorityHeld = false;
+            let finishPhysicalRelease: () => void = () => undefined;
+            const physicalRelease = new Promise<void>((resolve) => {
+                finishPhysicalRelease = resolve;
+            });
             const request = jest.fn(
                 async <T>(
                     name: string,
@@ -287,10 +291,12 @@ describe('StalkerPortalRepairService', () => {
                     }
                     rowAuthorityHeld = true;
                     try {
-                        return await callback({
+                        const result = await callback({
                             name,
                             mode: options.mode ?? 'exclusive',
                         } as Lock);
+                        await physicalRelease;
+                        return result;
                     } finally {
                         rowAuthorityHeld = false;
                     }
@@ -320,9 +326,22 @@ describe('StalkerPortalRepairService', () => {
                 return of(next);
             });
 
-            await expect(
-                service.repairPortal(MISCLASSIFIED)
-            ).resolves.toMatchObject({ isFullStalkerPortal: true });
+            let repairSettled = false;
+            const repair = service.repairPortal(MISCLASSIFIED);
+            void repair.then(() => {
+                repairSettled = true;
+            });
+            while (transformPlaylistMeta.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            await flushMicrotasks();
+            expect(repairSettled).toBe(false);
+            expect(rowAuthorityHeld).toBe(true);
+
+            finishPhysicalRelease();
+            await expect(repair).resolves.toMatchObject({
+                isFullStalkerPortal: true,
+            });
 
             expect(rowAuthorityHeld).toBe(false);
             expect(request).toHaveBeenCalledWith(

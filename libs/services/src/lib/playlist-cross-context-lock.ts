@@ -1,7 +1,11 @@
 const PLAYLIST_AUTHORITY_BARRIER = 'iptvnator:playlist-authority';
 
 export type PlaylistAuthorityReservation =
-    | { readonly status: 'acquired'; readonly release: () => void }
+    | {
+          readonly status: 'acquired';
+          readonly release: () => void;
+          readonly released: Promise<void>;
+      }
     | { readonly status: 'busy' }
     | { readonly status: 'unavailable' };
 
@@ -75,7 +79,11 @@ export async function reservePlaylistAuthority(
             typeof window !== 'undefined' &&
             Boolean((window as Window & { electron?: unknown }).electron);
         if (typeof window === 'undefined' || isElectronRenderer) {
-            return { status: 'acquired', release: () => undefined };
+            return {
+                status: 'acquired',
+                release: () => undefined,
+                released: Promise.resolve(),
+            };
         }
         return { status: 'unavailable' };
     }
@@ -84,6 +92,7 @@ export async function reservePlaylistAuthority(
     const held = new Promise<void>((resolve) => {
         releaseHeldLock = resolve;
     });
+    let requestSettled = Promise.resolve();
     const acquired = new Promise<boolean>((resolve, reject) => {
         const request = locks.request(
             PLAYLIST_AUTHORITY_BARRIER,
@@ -102,6 +111,7 @@ export async function reservePlaylistAuthority(
                     }
                 )
         );
+        requestSettled = request.then(() => undefined);
         void request.catch(reject);
     });
 
@@ -118,6 +128,7 @@ export async function reservePlaylistAuthority(
                 releaseHeldLock();
             }
         },
+        released: requestSettled,
     };
 }
 

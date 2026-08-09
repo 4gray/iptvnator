@@ -241,6 +241,9 @@ or unavailable PWA locking declines repair without discovery, while an acquired
 reservation stays held through its conditional row transform. The reservation
 blocks every new authentication (including a URL edit with the same normalized
 fingerprint) and repair, and drains any work already in flight.
+When Save follows a lazy repair in the same tab, Edit publishes its local
+authentication owner first, drains that repair through the actual Web Lock
+request completion, and only then requests the row reservation itself.
 Ownership is rechecked after every asynchronous drain or authority rebase.
 Ordinary failure releases that reservation with the previous runtime untouched;
 if a bounded discovery result still has an abandoned authentication on the

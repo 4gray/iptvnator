@@ -47,6 +47,7 @@ export class StalkerRepairAuthorityCoordinator {
             return await operation();
         } finally {
             reservation.release();
+            await reservation.released;
         }
     }
 }

@@ -222,7 +222,8 @@ export class AppStalkerPlaylistConnectionEditorService implements StalkerPlaylis
         try {
             fence = await this.stalkerSession.beginEditDiscovery(
                 playlist,
-                sourcePlaylist
+                sourcePlaylist,
+                repairDrain
             );
             await repairDrain;
             this.editFences.set(playlist._id, fence);

@@ -255,9 +255,14 @@ export class StalkerSessionService {
      */
     beginEditDiscovery(
         playlist: Playlist,
-        sourcePlaylist: Playlist = playlist
+        sourcePlaylist: Playlist = playlist,
+        beforeCrossContextReservation: Promise<void> = Promise.resolve()
     ): Promise<StalkerEditFence> {
-        return this.editedSessions.beginEdit(playlist, sourcePlaylist);
+        return this.editedSessions.beginEdit(
+            playlist,
+            sourcePlaylist,
+            beforeCrossContextReservation
+        );
     }
 
     /**

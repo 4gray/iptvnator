@@ -92,7 +92,8 @@ export class StalkerEditedSessionCoordinator {
 
     async beginEdit(
         playlist: Playlist,
-        sourcePlaylist: Playlist = playlist
+        sourcePlaylist: Playlist = playlist,
+        beforeCrossContextReservation: Promise<void> = Promise.resolve()
     ): Promise<StalkerEditFence> {
         const playlistId = playlist._id;
         if (sourcePlaylist._id !== playlistId) {
@@ -113,6 +114,11 @@ export class StalkerEditedSessionCoordinator {
         });
 
         try {
+            // The local Edit owner is already published, blocking new auth.
+            // A same-tab repair may still hold the cross-context row lock;
+            // drain it before requesting that lock instead of failing Save.
+            await beforeCrossContextReservation;
+            this.assertFenceCurrent(fence, configurationFingerprint);
             const releaseCrossContextReservation =
                 await acquireCrossContextEditReservation(playlistId);
             const pending = this.pendingEdits.get(playlistId);

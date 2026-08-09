@@ -150,6 +150,35 @@ describe('Stalker edited-session coordination', () => {
         service.cancelEditDiscovery(fence);
     });
 
+    it('publishes Edit ownership while draining local repair before requesting the row lock', async () => {
+        let finishRepairDrain: () => void = () => undefined;
+        const repairDrain = new Promise<void>((resolve) => {
+            finishRepairDrain = resolve;
+        });
+        const request = globalThis.navigator?.locks?.request as jest.Mock;
+
+        const fencePromise = service.beginEditDiscovery(
+            oldPlaylist,
+            oldPlaylist,
+            repairDrain
+        );
+        await Promise.resolve();
+
+        expect(request).not.toHaveBeenCalled();
+        await expect(service.beginEditDiscovery(oldPlaylist)).rejects.toThrow(
+            /already in progress/i
+        );
+
+        finishRepairDrain();
+        const fence = await fencePromise;
+        expect(request).toHaveBeenCalledWith(
+            'iptvnator:playlist-authority',
+            { mode: 'shared' },
+            expect.any(Function)
+        );
+        service.cancelEditDiscovery(fence);
+    });
+
     it('blocks new authentication while a same-fingerprint edit owns the playlist', async () => {
         const textOnlyEdit = {
             ...oldPlaylist,
