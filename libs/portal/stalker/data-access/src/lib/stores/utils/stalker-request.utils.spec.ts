@@ -17,6 +17,7 @@ function createDeps(): StalkerRequestDeps {
         },
         stalkerSession: {
             makeAuthenticatedRequest: jest.fn().mockResolvedValue({ js: [] }),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         },
     } as unknown as StalkerRequestDeps;
 }
@@ -75,6 +76,32 @@ describe('executeStalkerRequest', () => {
         expect(
             deps.stalkerSession.makeAuthenticatedRequest
         ).not.toHaveBeenCalled();
+        expect(deps.stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ...playlist,
+                lastUsage: '',
+            })
+        );
+    });
+
+    it('does not dispatch a token-free request from a stale portal mode', async () => {
+        const deps = createDeps();
+        const stalePlaylist = {
+            _id: 'stalker-stale-simple',
+            title: 'Stale simple snapshot',
+            portalUrl: 'https://portal.example.test/server/load.php',
+            macAddress: 'has-mac-address',
+            isFullStalkerPortal: false,
+        } as PlaylistMeta;
+        (deps.stalkerSession.ensureToken as jest.Mock).mockRejectedValue(
+            new Error('Stale Stalker playlist configuration')
+        );
+
+        await expect(
+            executeStalkerRequest(deps, stalePlaylist, CATEGORY_PARAMS)
+        ).rejects.toThrow(/stale/i);
+
+        expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 });
 

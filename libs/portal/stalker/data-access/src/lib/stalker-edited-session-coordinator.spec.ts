@@ -176,6 +176,48 @@ describe('Stalker edited-session coordination', () => {
         );
     });
 
+    it('rejects a stale full snapshot after a mode-only edit to simple', async () => {
+        const simplePlaylist = {
+            ...oldPlaylist,
+            isFullStalkerPortal: false,
+            stalkerToken: undefined,
+            stalkerSessionIdentity: undefined,
+        } as Playlist;
+        updatePlaylistMeta.mockReturnValueOnce(of(simplePlaylist));
+        getPlaylistById.mockReturnValueOnce(of(simplePlaylist));
+        authenticate.mockReset().mockResolvedValue({
+            token: 'STALE_FULL_TOKEN',
+        });
+
+        await service.replaceSessionAfterEdit(simplePlaylist);
+
+        await expect(service.ensureToken(oldPlaylist)).rejects.toThrow(
+            /stale/i
+        );
+        expect(authenticate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a stale simple snapshot after a mode-only edit to full', async () => {
+        const simplePlaylist = {
+            ...oldPlaylist,
+            isFullStalkerPortal: false,
+        } as Playlist;
+        const resolvedFullPlaylist = {
+            ...oldPlaylist,
+            stalkerToken: 'NEW_FULL_TOKEN',
+        } as Playlist;
+        updatePlaylistMeta.mockReturnValueOnce(of(resolvedFullPlaylist));
+        getPlaylistById.mockReturnValueOnce(of(resolvedFullPlaylist));
+
+        const fence = await service.beginEditDiscovery(simplePlaylist);
+        await service.replaceSessionAfterEdit(resolvedFullPlaylist, fence);
+
+        await expect(service.ensureToken(simplePlaylist)).rejects.toThrow(
+            /stale/i
+        );
+        expect(authenticate).not.toHaveBeenCalled();
+    });
+
     it('persists a resolved full connection and session in one metadata write', async () => {
         const editedPlaylist = {
             ...oldPlaylist,

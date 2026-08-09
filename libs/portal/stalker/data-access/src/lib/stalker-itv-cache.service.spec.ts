@@ -101,7 +101,12 @@ describe('StalkerItvCacheService', () => {
                 { provide: DataService, useValue: { sendIpcEvent } },
                 {
                     provide: StalkerSessionService,
-                    useValue: { makeAuthenticatedRequest: jest.fn() },
+                    useValue: {
+                        makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
+                    },
                 },
             ],
         });

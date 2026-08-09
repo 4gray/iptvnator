@@ -222,10 +222,14 @@ before the app adapter replaces the active `StalkerStore` snapshot and
 session/watchdog state, so persistence failure cannot expose a partial runtime
 edit and metadata absent from the form (such as playback `Referer`/`Origin`)
 survives the replacement.
-Runtime session authority normally rejects stale playlist objects, but a
-different fingerprint may rebase only after the current persisted row proves
-that it owns the same playlist ID; this keeps delete/restore and backup merge
-flows usable without letting an in-flight stale request overrule Edit.
+Runtime configuration authority combines the session fingerprint with the
+observed full/simple mode. Both authenticated calls and direct simple-mode
+requests cross that guard, so a same-endpoint mode-only Edit rejects stale
+playlist objects in either direction before they can authenticate or issue a
+token-free portal request. A different authority may rebase only after the
+current persisted row proves that it owns the same playlist ID; this keeps
+delete/restore and backup merge flows usable without letting an in-flight
+stale request overrule Edit.
 `PlaylistMetaUpdate` carries the persisted part as a transient
 `stalkerSessionPatch` (`undefined` preserves, `null` clears, an object fully
 replaces); `PlaylistsService` projects it onto the existing flat playlist
@@ -600,6 +604,13 @@ with no recorded fingerprint (written before this existed) counts as
 unverified and is never re-presented — such a row owes a full profile anyway,
 and the write-back then records the fingerprint.
 
+The Edit coordinator deliberately keeps a separate, in-run configuration
+authority key containing that session fingerprint plus the observed portal
+mode. The mode is not added to `stalkerSessionIdentity`, so existing persisted
+sessions remain compatible, but a full↔simple Edit at the same endpoint still
+retires stale runtime snapshots. The token-free dispatch path calls
+`ensureToken()` as a network-free authority guard before its direct IPC request.
+
 Because that reuse skips the only response carrying the watchdog cadence, the
 cadence is persisted **with** the token (`Playlist.stalkerWatchdogTimeout` /
 `stalkerTimeslot`, payload fields like `stalkerToken` itself — no schema
@@ -909,8 +920,8 @@ Every static return therefore warms first, through one primitive —
 `ensureToken` performs handshake + `get_profile` with no link minted, and
 validates the identity the cached token was negotiated for — which the raw
 `getCachedToken()` cannot. It is cheap where it is not needed: a simple portal
-returns immediately and a warm cache with a matching fingerprint resolves
-without a request.
+runs only the in-memory configuration-authority guard and returns immediately,
+while a warm cache with a matching fingerprint resolves without a request.
 
 The store's player feature reads `getCachedToken()` for its header set, which
 is safe there because it runs immediately after the warm above populated the

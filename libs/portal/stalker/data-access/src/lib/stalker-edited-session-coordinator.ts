@@ -17,12 +17,12 @@ export interface StalkerEditFence {
 
 interface PendingEdit {
     readonly owner: symbol;
-    readonly fingerprint: string;
+    readonly configurationFingerprint: string;
 }
 
 /** Serializes authoritative Edit results against pre-edit authentication. */
 export class StalkerEditedSessionCoordinator {
-    private readonly authoritativeFingerprints = new Map<string, string>();
+    private readonly authoritativeConfigurations = new Map<string, string>();
     private readonly pendingEdits = new Map<string, PendingEdit>();
     private readonly replacements = new Map<string, Promise<Playlist>>();
 
@@ -33,36 +33,57 @@ export class StalkerEditedSessionCoordinator {
     ) {}
 
     markAuthoritative(playlist: Playlist): string {
-        const fingerprint = stalkerSessionFingerprint(playlist);
-        this.authoritativeFingerprints.set(playlist._id, fingerprint);
-        return fingerprint;
+        const sessionFingerprint = stalkerSessionFingerprint(playlist);
+        this.authoritativeConfigurations.set(
+            playlist._id,
+            stalkerConfigurationFingerprint(playlist, sessionFingerprint)
+        );
+        return sessionFingerprint;
     }
 
     async guard(playlist: Playlist): Promise<string> {
-        const fingerprint = stalkerSessionFingerprint(playlist);
+        const sessionFingerprint = stalkerSessionFingerprint(playlist);
+        const configurationFingerprint = stalkerConfigurationFingerprint(
+            playlist,
+            sessionFingerprint
+        );
         this.assertNoPendingEdit(playlist._id);
-        const authoritative = this.authoritativeFingerprints.get(playlist._id);
-        if (authoritative && authoritative !== fingerprint) {
-            await this.rebaseFromPersistedRow(playlist, fingerprint);
+        const authoritative = this.authoritativeConfigurations.get(
+            playlist._id
+        );
+        if (authoritative && authoritative !== configurationFingerprint) {
+            await this.rebaseFromPersistedRow(
+                playlist,
+                configurationFingerprint
+            );
         }
         // The persisted-row lookup yields. An Edit that acquired the ID while
         // it was in flight must still fence this request, even if the lookup
         // proved that the caller owned the row before Edit began.
-        this.assertCurrent(playlist._id, fingerprint);
+        this.assertCurrent(playlist, sessionFingerprint);
         const replacement = this.replacements.get(playlist._id);
         if (replacement) {
             await replacement;
-            this.assertCurrent(playlist._id, fingerprint);
+            this.assertCurrent(playlist, sessionFingerprint);
         }
-        return fingerprint;
+        return sessionFingerprint;
     }
 
-    assertCurrent(playlistId: string, fingerprint: string): void {
+    assertCurrent(playlist: Playlist, sessionFingerprint: string): void {
+        const playlistId = playlist._id;
         // A reservation blocks every new authentication, including a
         // text-only URL edit whose normalized session fingerprint is equal.
         this.assertNoPendingEdit(playlistId);
-        const authoritative = this.authoritativeFingerprints.get(playlistId);
-        if (authoritative && authoritative !== fingerprint) {
+        if (stalkerSessionFingerprint(playlist) !== sessionFingerprint) {
+            throw new Error('Stale Stalker playlist configuration');
+        }
+        const authoritative =
+            this.authoritativeConfigurations.get(playlistId);
+        if (
+            authoritative &&
+            authoritative !==
+                stalkerConfigurationFingerprint(playlist, sessionFingerprint)
+        ) {
             throw new Error('Stale Stalker playlist configuration');
         }
     }
@@ -72,20 +93,21 @@ export class StalkerEditedSessionCoordinator {
         if (this.pendingEdits.has(playlistId)) {
             throw new Error('Stalker playlist edit already in progress');
         }
-        const fingerprint = stalkerSessionFingerprint(playlist);
+        const configurationFingerprint =
+            stalkerConfigurationFingerprint(playlist);
         const fence = { playlistId, owner: Symbol('stalker-edit') };
         this.pendingEdits.set(playlistId, {
             owner: fence.owner,
-            fingerprint,
+            configurationFingerprint,
         });
 
         try {
             await this.replacements.get(playlistId)?.catch(() => undefined);
-            this.assertFenceCurrent(fence, fingerprint);
+            this.assertFenceCurrent(fence, configurationFingerprint);
             await this.tokens
                 .getPending(playlistId)
                 ?.promise.catch(() => undefined);
-            this.assertFenceCurrent(fence, fingerprint);
+            this.assertFenceCurrent(fence, configurationFingerprint);
             return fence;
         } catch (error) {
             this.cancelEdit(fence);
@@ -101,7 +123,11 @@ export class StalkerEditedSessionCoordinator {
 
     replace(playlist: Playlist, fence?: StalkerEditFence): Promise<Playlist> {
         const playlistId = playlist._id;
-        const fingerprint = stalkerSessionFingerprint(playlist);
+        const sessionFingerprint = stalkerSessionFingerprint(playlist);
+        const configurationFingerprint = stalkerConfigurationFingerprint(
+            playlist,
+            sessionFingerprint
+        );
         const owner = fence?.owner ?? Symbol('stalker-edit');
         if (
             fence &&
@@ -114,11 +140,21 @@ export class StalkerEditedSessionCoordinator {
         }
         // Keep the same owner while discovery replaces its input-shaped
         // fingerprint with the resolved endpoint/mode fingerprint.
-        this.pendingEdits.set(playlistId, { owner, fingerprint });
+        this.pendingEdits.set(playlistId, {
+            owner,
+            configurationFingerprint,
+        });
         const previous = this.replacements.get(playlistId) ?? Promise.resolve();
         const replacement = previous
             .catch(() => undefined)
-            .then(() => this.commit(playlist, fingerprint, owner));
+            .then(() =>
+                this.commit(
+                    playlist,
+                    sessionFingerprint,
+                    configurationFingerprint,
+                    owner
+                )
+            );
         this.replacements.set(playlistId, replacement);
         void replacement
             .finally(() => {
@@ -135,15 +171,22 @@ export class StalkerEditedSessionCoordinator {
 
     private async commit(
         playlist: Playlist,
-        fingerprint: string,
+        sessionFingerprint: string,
+        configurationFingerprint: string,
         owner: symbol
     ): Promise<Playlist> {
         const playlistId = playlist._id;
-        this.assertFenceCurrent({ playlistId, owner }, fingerprint);
+        this.assertFenceCurrent(
+            { playlistId, owner },
+            configurationFingerprint
+        );
         await this.tokens
             .getPending(playlistId)
             ?.promise.catch(() => undefined);
-        this.assertFenceCurrent({ playlistId, owner }, fingerprint);
+        this.assertFenceCurrent(
+            { playlistId, owner },
+            configurationFingerprint
+        );
 
         const playlists = this.resolvePlaylistsService();
         const isFullPortal = isFullStalkerPortalPlaylist(playlist);
@@ -157,7 +200,7 @@ export class StalkerEditedSessionCoordinator {
             }
             sessionPatch = {
                 stalkerToken: token,
-                stalkerSessionIdentity: fingerprint,
+                stalkerSessionIdentity: sessionFingerprint,
                 stalkerWatchdogTimeout: playlist.stalkerWatchdogTimeout,
                 stalkerTimeslot: playlist.stalkerTimeslot,
                 stalkerAccountInfo: playlist.stalkerAccountInfo,
@@ -173,8 +216,14 @@ export class StalkerEditedSessionCoordinator {
         if (!persistedPlaylist) {
             throw new Error('Resolved Stalker playlist could not be persisted');
         }
-        this.assertFenceCurrent({ playlistId, owner }, fingerprint);
-        this.authoritativeFingerprints.set(playlistId, fingerprint);
+        this.assertFenceCurrent(
+            { playlistId, owner },
+            configurationFingerprint
+        );
+        this.authoritativeConfigurations.set(
+            playlistId,
+            configurationFingerprint
+        );
         if (this.pendingEdits.get(playlistId)?.owner === owner) {
             this.pendingEdits.delete(playlistId);
         }
@@ -184,7 +233,11 @@ export class StalkerEditedSessionCoordinator {
             return persistedPlaylist;
         }
 
-        this.tokens.set(playlistId, sessionPatch.stalkerToken, fingerprint);
+        this.tokens.set(
+            playlistId,
+            sessionPatch.stalkerToken,
+            sessionFingerprint
+        );
         this.watchdog.applyProfileTiming(playlistId, {
             watchdogTimeoutSeconds: playlist.stalkerWatchdogTimeout,
             timeslotSeconds: playlist.stalkerTimeslot,
@@ -194,13 +247,13 @@ export class StalkerEditedSessionCoordinator {
 
     private assertFenceCurrent(
         fence: StalkerEditFence,
-        fingerprint: string
+        configurationFingerprint: string
     ): void {
         const pending = this.pendingEdits.get(fence.playlistId);
         if (
             !pending ||
             pending.owner !== fence.owner ||
-            pending.fingerprint !== fingerprint
+            pending.configurationFingerprint !== configurationFingerprint
         ) {
             throw new Error('Stale Stalker playlist configuration');
         }
@@ -214,7 +267,7 @@ export class StalkerEditedSessionCoordinator {
 
     private async rebaseFromPersistedRow(
         playlist: Playlist,
-        fingerprint: string
+        configurationFingerprint: string
     ): Promise<void> {
         try {
             const persisted = await firstValueFrom(
@@ -222,9 +275,13 @@ export class StalkerEditedSessionCoordinator {
             );
             if (
                 persisted &&
-                stalkerSessionFingerprint(persisted) === fingerprint
+                stalkerConfigurationFingerprint(persisted) ===
+                    configurationFingerprint
             ) {
-                this.authoritativeFingerprints.set(playlist._id, fingerprint);
+                this.authoritativeConfigurations.set(
+                    playlist._id,
+                    configurationFingerprint
+                );
                 return;
             }
         } catch {
@@ -233,4 +290,15 @@ export class StalkerEditedSessionCoordinator {
         }
         throw new Error('Stale Stalker playlist configuration');
     }
+}
+
+/** In-run Edit authority also owns the observed full/simple routing mode. */
+function stalkerConfigurationFingerprint(
+    playlist: Playlist,
+    sessionFingerprint = stalkerSessionFingerprint(playlist)
+): string {
+    return JSON.stringify([
+        sessionFingerprint,
+        isFullStalkerPortalPlaylist(playlist),
+    ]);
 }

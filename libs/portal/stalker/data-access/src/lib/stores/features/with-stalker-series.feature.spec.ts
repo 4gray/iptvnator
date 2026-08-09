@@ -94,6 +94,9 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
                     provide: StalkerSessionService,
                     useValue: {
                         makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
                     },
                 },
                 {

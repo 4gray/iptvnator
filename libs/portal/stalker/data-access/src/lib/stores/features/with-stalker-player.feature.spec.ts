@@ -112,6 +112,9 @@ describe('withStalkerPlayer', () => {
                     useValue: {
                         getCachedToken: jest.fn(),
                         makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
                     },
                 },
                 {

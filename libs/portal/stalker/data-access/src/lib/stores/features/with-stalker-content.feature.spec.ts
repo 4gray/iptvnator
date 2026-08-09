@@ -150,6 +150,9 @@ describe('withStalkerContent failure states', () => {
                     provide: StalkerSessionService,
                     useValue: {
                         makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
                     },
                 },
                 {
@@ -520,6 +523,9 @@ describe('withStalkerContent full ITV channel list cache', () => {
                     provide: StalkerSessionService,
                     useValue: {
                         makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
                     },
                 },
                 {

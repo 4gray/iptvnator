@@ -15,6 +15,7 @@ describe('StalkerAccountInfoService', () => {
     let stalkerSession: {
         refreshAccountProfile: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
+        ensureToken: jest.Mock;
     };
     let portalRepair: {
         applyOverride: jest.Mock;
@@ -44,6 +45,7 @@ describe('StalkerAccountInfoService', () => {
         stalkerSession = {
             refreshAccountProfile: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
         portalRepair = {
             applyOverride: jest.fn((playlist) => playlist),

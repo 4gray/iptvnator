@@ -79,17 +79,16 @@ export async function ensureStalkerSession(
         ? deps.portalRepair.applyOverride(playlist)
         : playlist;
 
-    // A token-free panel needs no session, so it can serve credentialed
-    // streams as well as it ever could.
-    if (!isFullStalkerPortalPlaylist(effective)) {
-        return true;
-    }
-
     try {
         const { token } = await deps.stalkerSession.ensureToken(
             toStalkerSessionPlaylist(effective)
         );
-        return Boolean(token);
+        // `ensureToken` is also the post-Edit configuration guard. For a
+        // simple portal it returns immediately with no token and no network
+        // request, but still rejects a snapshot whose observed mode is stale.
+        return isFullStalkerPortalPlaylist(effective)
+            ? Boolean(token)
+            : true;
     } catch (error) {
         logger?.warn('Could not establish the Stalker session', error);
         return false;
@@ -114,6 +113,12 @@ async function dispatchStalkerRequest<T>(
             params
         );
     }
+
+    // A direct request has no authentication layer to invoke the Edit
+    // authority guard. `ensureToken` is network-free in simple mode, and
+    // prevents a pre-Edit simple snapshot from issuing a token-free request
+    // after the same endpoint has been reclassified as full.
+    await deps.stalkerSession.ensureToken(toStalkerSessionPlaylist(playlist));
 
     return deps.dataService.sendIpcEvent<T>(STALKER_REQUEST, {
         url: playlist.portalUrl,

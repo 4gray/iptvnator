@@ -394,7 +394,7 @@ export class StalkerSessionService {
         // guard() may have yielded for a persisted-row authority rebase. An
         // Edit can reserve the playlist before this continuation claims the
         // token slot, so close that final pre-handshake window as well.
-        this.editedSessions.assertCurrent(playlist._id, fingerprint);
+        this.editedSessions.assertCurrent(playlist, fingerprint);
 
         // Create the authentication promise and store it to prevent concurrent auth attempts
         // Use async/await wrapper to properly clean up on both success and failure
@@ -427,7 +427,7 @@ export class StalkerSessionService {
                             stored.watchdogTimeoutSeconds !== undefined,
                     }
                 );
-                this.editedSessions.assertCurrent(playlist._id, fingerprint);
+                this.editedSessions.assertCurrent(playlist, fingerprint);
                 this.setCachedToken(playlist._id, result.token, playlist);
                 this.applySessionOutcome(
                     playlist._id,
@@ -493,7 +493,7 @@ export class StalkerSessionService {
             // performs its own handshake either way.
             await inFlight.promise.catch(() => undefined);
         }
-        this.editedSessions.assertCurrent(playlist._id, fingerprint);
+        this.editedSessions.assertCurrent(playlist, fingerprint);
 
         // Publish the slot before the first await so no other waiter can
         // observe it as free while this handshake is starting.
@@ -534,7 +534,7 @@ export class StalkerSessionService {
                     },
                 }
             );
-            this.editedSessions.assertCurrent(playlist._id, fingerprint);
+            this.editedSessions.assertCurrent(playlist, fingerprint);
             this.setCachedToken(playlist._id, result.token, playlist);
             // This path always ran a real get_profile, so the decoded cadence
             // is authoritative; the previous values are only the write-back
