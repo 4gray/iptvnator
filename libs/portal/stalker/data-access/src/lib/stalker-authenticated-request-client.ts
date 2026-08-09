@@ -7,6 +7,7 @@ import {
 import type { DataService } from '@iptvnator/services';
 import { StalkerPortalError } from './stalker-portal-error';
 import { isStalkerAuthorizationFailure } from './stalker-response-classification';
+import { stalkerSessionFingerprint } from './stalker-session-store';
 import type { StalkerTokenCache } from './stalker-token-cache';
 
 /** Authenticated request + one-shot session renewal shared by all callers. */
@@ -16,7 +17,11 @@ export class StalkerAuthenticatedRequestClient {
         private readonly tokens: StalkerTokenCache,
         private readonly ensureToken: (
             playlist: Playlist
-        ) => Promise<{ token: string | null; serialNumber?: string }>
+        ) => Promise<{ token: string | null; serialNumber?: string }>,
+        private readonly assertCurrent: (
+            playlist: Playlist,
+            sessionFingerprint: string
+        ) => void
     ) {}
 
     async request<T>(
@@ -24,22 +29,30 @@ export class StalkerAuthenticatedRequestClient {
         params: Record<string, string | number>,
         retryOnAuthFailure = true
     ): Promise<T> {
-        const { token, serialNumber } = await this.ensureToken(playlist);
+        // Bind the whole request to one immutable connection snapshot. An
+        // Edit can replace the authoritative endpoint/mode while transport is
+        // in flight; its old response must never reach a store or player.
+        const configuration = { ...playlist } as Playlist;
+        const sessionFingerprint =
+            stalkerSessionFingerprint(configuration);
+        const { token, serialNumber } =
+            await this.ensureToken(configuration);
 
         try {
             const response = await this.dataService.sendIpcEvent<T>(
                 STALKER_REQUEST,
                 {
-                    url: playlist.portalUrl,
-                    macAddress: playlist.macAddress,
+                    url: configuration.portalUrl,
+                    macAddress: configuration.macAddress,
                     params,
                     token,
                     ...(serialNumber ? { serialNumber } : {}),
                 }
             );
+            this.assertCurrent(configuration, sessionFingerprint);
             if (isStalkerAuthorizationFailure(response)) {
                 return this.handleAuthorizationFailure<T>(
-                    playlist,
+                    configuration,
                     params,
                     token,
                     response,
@@ -55,12 +68,12 @@ export class StalkerAuthenticatedRequestClient {
                 throw error;
             }
             if (isStalkerAuthorizationFailure(error)) {
-                this.tokens.retireFailed(playlist._id, token);
+                this.tokens.retireFailed(configuration._id, token);
                 if (
                     retryOnAuthFailure &&
-                    isFullStalkerPortalPlaylist(playlist)
+                    isFullStalkerPortalPlaylist(configuration)
                 ) {
-                    return this.request<T>(playlist, params, false);
+                    return this.request<T>(configuration, params, false);
                 }
             }
             // Transport evidence (especially HTTP 401/403) is consumed by

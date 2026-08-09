@@ -103,6 +103,41 @@ describe('executeStalkerRequest', () => {
 
         expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
+
+    it('rejects a direct response completed after its mode becomes stale', async () => {
+        const deps = createDeps();
+        const simplePlaylist = {
+            _id: 'stalker-in-flight-simple',
+            title: 'In-flight simple snapshot',
+            portalUrl: 'https://portal.example.test/server/load.php',
+            macAddress: 'has-mac-address',
+            isFullStalkerPortal: false,
+        } as PlaylistMeta;
+        let resolveResponse!: (value: unknown) => void;
+        (deps.dataService.sendIpcEvent as jest.Mock).mockReturnValueOnce(
+            new Promise((resolve) => (resolveResponse = resolve))
+        );
+        (deps.stalkerSession.ensureToken as jest.Mock)
+            .mockResolvedValueOnce({ token: null })
+            .mockRejectedValueOnce(
+                new Error('Stale Stalker playlist configuration')
+            );
+
+        const request = executeStalkerRequest(
+            deps,
+            simplePlaylist,
+            CATEGORY_PARAMS
+        );
+        while (
+            (deps.dataService.sendIpcEvent as jest.Mock).mock.calls.length === 0
+        ) {
+            await Promise.resolve();
+        }
+        resolveResponse({ js: ['STALE_CATEGORY'] });
+
+        await expect(request).rejects.toThrow(/stale/i);
+        expect(deps.stalkerSession.ensureToken).toHaveBeenCalledTimes(2);
+    });
 });
 
 describe('executeStalkerRequest portal-mode fallback', () => {

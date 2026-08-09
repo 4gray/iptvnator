@@ -16,6 +16,7 @@ describe('Stalker edited-session coordination', () => {
     } as Playlist;
 
     let authenticate: jest.SpyInstance;
+    let sendIpcEvent: jest.Mock;
     let resolveOldAuthentication: (
         value: Awaited<ReturnType<StalkerSessionService['authenticate']>>
     ) => void = () => undefined;
@@ -28,12 +29,13 @@ describe('Stalker edited-session coordination', () => {
         getPlaylistById = jest.fn(() => of(oldPlaylist));
         updatePlaylistMeta = jest.fn(() => of(oldPlaylist));
         updateStalkerSession = jest.fn(() => of(oldPlaylist));
+        sendIpcEvent = jest.fn();
         TestBed.configureTestingModule({
             providers: [
                 StalkerSessionService,
                 {
                     provide: DataService,
-                    useValue: { sendIpcEvent: jest.fn() },
+                    useValue: { sendIpcEvent },
                 },
                 {
                     provide: PlaylistsService,
@@ -216,6 +218,32 @@ describe('Stalker edited-session coordination', () => {
             /stale/i
         );
         expect(authenticate).not.toHaveBeenCalled();
+    });
+
+    it('rejects an authenticated response completed after Edit commits', async () => {
+        service.setCachedToken(oldPlaylist._id, 'OLD_TOKEN', oldPlaylist);
+        let resolveOldResponse!: (value: unknown) => void;
+        sendIpcEvent.mockReturnValueOnce(
+            new Promise((resolve) => (resolveOldResponse = resolve))
+        );
+        const oldRequest = service.makeAuthenticatedRequest(oldPlaylist, {
+            type: 'itv',
+            action: 'get_genres',
+        });
+        while (sendIpcEvent.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+
+        const editedPlaylist = {
+            ...oldPlaylist,
+            portalUrl: 'https://new.example.com/server/load.php',
+            stalkerToken: 'NEW_TOKEN',
+        } as Playlist;
+        updatePlaylistMeta.mockReturnValueOnce(of(editedPlaylist));
+        await service.replaceSessionAfterEdit(editedPlaylist);
+        resolveOldResponse({ js: { data: ['STALE_CATEGORY'] } });
+
+        await expect(oldRequest).rejects.toThrow(/stale/i);
     });
 
     it('persists a resolved full connection and session in one metadata write', async () => {

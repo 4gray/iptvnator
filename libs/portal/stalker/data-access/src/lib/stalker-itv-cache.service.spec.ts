@@ -189,7 +189,12 @@ describe('StalkerItvCacheService', () => {
         });
 
         const load = service.ensureLoaded(PLAYLIST);
-        await flushMicrotasks();
+        // The second request starts only after page-one progress is recorded.
+        // Wait for that observable boundary instead of a fixed microtask
+        // count: request guards may add network-free async hops.
+        while (callsFor('get_ordered_list') < 2) {
+            await Promise.resolve();
+        }
 
         expect(service.isLoading(PLAYLIST)).toBe(true);
         expect(service.progressOf(PLAYLIST)).toEqual({ loaded: 14, total: 28 });

@@ -118,13 +118,18 @@ async function dispatchStalkerRequest<T>(
     // authority guard. `ensureToken` is network-free in simple mode, and
     // prevents a pre-Edit simple snapshot from issuing a token-free request
     // after the same endpoint has been reclassified as full.
-    await deps.stalkerSession.ensureToken(toStalkerSessionPlaylist(playlist));
+    const sessionPlaylist = toStalkerSessionPlaylist(playlist);
+    await deps.stalkerSession.ensureToken(sessionPlaylist);
 
-    return deps.dataService.sendIpcEvent<T>(STALKER_REQUEST, {
+    const response = await deps.dataService.sendIpcEvent<T>(STALKER_REQUEST, {
         url: playlist.portalUrl,
         macAddress: playlist.macAddress,
         params,
     });
+    // Re-check after transport: Edit may have committed while the direct
+    // request was in flight. In simple mode this guard remains network-free.
+    await deps.stalkerSession.ensureToken(sessionPlaylist);
+    return response;
 }
 
 /**

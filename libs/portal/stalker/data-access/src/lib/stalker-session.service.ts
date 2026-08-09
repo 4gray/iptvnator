@@ -99,7 +99,9 @@ export class StalkerSessionService {
     private readonly requestClient = new StalkerAuthenticatedRequestClient(
         this.dataService,
         this.tokens,
-        (playlist) => this.ensureToken(playlist)
+        (playlist) => this.ensureToken(playlist),
+        (playlist, sessionFingerprint) =>
+            this.editedSessions.assertCurrent(playlist, sessionFingerprint)
     );
 
     /**

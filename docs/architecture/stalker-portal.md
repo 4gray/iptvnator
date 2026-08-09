@@ -224,12 +224,13 @@ edit and metadata absent from the form (such as playback `Referer`/`Origin`)
 survives the replacement.
 Runtime configuration authority combines the session fingerprint with the
 observed full/simple mode. Both authenticated calls and direct simple-mode
-requests cross that guard, so a same-endpoint mode-only Edit rejects stale
-playlist objects in either direction before they can authenticate or issue a
-token-free portal request. A different authority may rebase only after the
-current persisted row proves that it owns the same playlist ID; this keeps
-delete/restore and backup merge flows usable without letting an in-flight
-stale request overrule Edit.
+requests cross that guard before dispatch and again after transport, so a
+same-endpoint mode-only Edit rejects stale playlist objects in either direction
+before they can authenticate or issue a token-free portal request, and discards
+an older portal response that completes after Edit commits. A different
+authority may rebase only after the current persisted row proves that it owns
+the same playlist ID; this keeps delete/restore and backup merge flows usable
+without letting an in-flight stale request overrule Edit.
 `PlaylistMetaUpdate` carries the persisted part as a transient
 `stalkerSessionPatch` (`undefined` preserves, `null` clears, an object fully
 replaces); `PlaylistsService` projects it onto the existing flat playlist
