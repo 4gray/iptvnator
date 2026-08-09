@@ -196,6 +196,7 @@ describe('VideoPlayerComponent', () => {
     const showCaptions = signal(false);
     const stripCountryPrefix = signal(false);
     const epgViewMode = signal<'timeline' | 'list'>('timeline');
+    const epgUrlSetting = signal<string[]>([]);
     const originalElectron = window.electron;
 
     const overlayRef = {
@@ -397,6 +398,7 @@ describe('VideoPlayerComponent', () => {
                         showCaptions,
                         stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
+                        epgUrl: epgUrlSetting,
                     },
                 },
                 {
@@ -1173,6 +1175,45 @@ describe('VideoPlayerComponent', () => {
         expect(storeMock.dispatch).toHaveBeenCalledWith(
             EpgActions.resetActiveEpgProgram()
         );
+    });
+
+    describe('EPG needs-setup empty state', () => {
+        beforeEach(() => {
+            // Earlier tests leave programmes in the shared subject; the
+            // component keeps a live subscription, so this reset reaches it.
+            epgUrlSetting.set([]);
+            epgPrograms$.next([]);
+        });
+
+        afterEach(() => {
+            epgUrlSetting.set([]);
+            epgPrograms$.next([]);
+        });
+
+        it('claims needs-setup only while no EPG source exists anywhere', () => {
+            expect(component.liveEpgEmptyReason()).toBe('m3u-needs-setup');
+
+            epgUrlSetting.set(['https://example.org/guide.xml']);
+
+            expect(component.liveEpgEmptyReason()).toBe('none');
+        });
+
+        it('never overrides a channel that actually has programmes', () => {
+            // Uploaded XMLTV files produce programmes without any
+            // configured source URL — the ribbon must win over the hint.
+            epgPrograms$.next([buildProgram('Morning Bulletin')]);
+
+            expect(component.liveEpgEmptyReason()).toBe('none');
+        });
+
+        it('deep links the empty-state button to the EPG settings page', () => {
+            component.openEpgSettings();
+
+            expect(routerMock.navigate).toHaveBeenCalledWith([
+                '/workspace/settings',
+                'epg',
+            ]);
+        });
     });
 });
 

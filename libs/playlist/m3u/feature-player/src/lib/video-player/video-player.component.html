@@ -125,6 +125,7 @@
                             "
                             [summary]="liveEpgPanelSummary()"
                             [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
+                            [emptyReason]="liveEpgEmptyReason()"
                             (programActivated)="
                                 onTimelineProgramActivated($event)
                             "
@@ -135,6 +136,7 @@
                             (collapsedChange)="
                                 onLiveEpgPanelCollapsedChange($event)
                             "
+                            (openEpgSettings)="openEpgSettings()"
                         />
                     } @else {
                         <app-epg-timeline
@@ -153,6 +155,7 @@
                             "
                             [summary]="liveEpgPanelSummary()"
                             [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
+                            [emptyReason]="liveEpgEmptyReason()"
                             (programActivated)="
                                 onTimelineProgramActivated($event)
                             "
@@ -163,6 +166,7 @@
                             (collapsedChange)="
                                 onLiveEpgPanelCollapsedChange($event)
                             "
+                            (openEpgSettings)="openEpgSettings()"
                         />
                     }
                 </div>

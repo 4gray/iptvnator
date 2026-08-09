@@ -10,6 +10,7 @@ import {
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     saveSettings,
     test,
     waitForM3uCatalog,
@@ -47,6 +48,7 @@ test.describe('Electron Remote Control', () => {
 
         try {
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'playback');
             await selectSettingsOption(
                 app.mainWindow,
                 'select-video-player',

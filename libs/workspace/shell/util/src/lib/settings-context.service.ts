@@ -6,32 +6,22 @@ export interface SettingsNavItem {
     icon: string;
 }
 
+/**
+ * Bridge between the routed settings page and the workspace context panel:
+ * the page publishes which section pages exist for the current runtime, the
+ * panel renders them as router links to `/workspace/settings/:section`.
+ * Active-state highlighting comes from the router (`routerLinkActive`), not
+ * from this service.
+ */
 @Injectable({ providedIn: 'root' })
 export class SettingsContextService {
     readonly sections = signal<SettingsNavItem[]>([]);
-    readonly activeSection = signal<string>('general');
-    readonly pendingScrollTarget = signal<string | null>(null);
 
     setSections(items: SettingsNavItem[]): void {
         this.sections.set(items);
     }
 
-    setActiveSection(id: string): void {
-        this.activeSection.set(id);
-    }
-
-    navigateToSection(id: string): void {
-        this.activeSection.set(id);
-        this.pendingScrollTarget.set(id);
-    }
-
-    clearPendingScrollTarget(): void {
-        this.pendingScrollTarget.set(null);
-    }
-
     reset(): void {
         this.sections.set([]);
-        this.activeSection.set('general');
-        this.pendingScrollTarget.set(null);
     }
 }

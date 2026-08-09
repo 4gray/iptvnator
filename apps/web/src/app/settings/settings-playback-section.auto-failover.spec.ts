@@ -38,7 +38,6 @@ describe('SettingsPlaybackSectionComponent — VOD auto-failover', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsPlaybackSectionComponent);
-        fixture.componentRef.setInput('activeSection', 'playback');
         fixture.componentRef.setInput('players', []);
         fixture.componentRef.setInput('streamFormatEnum', StreamFormat);
     });

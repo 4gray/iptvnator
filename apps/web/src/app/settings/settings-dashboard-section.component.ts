@@ -20,5 +20,4 @@ import { TranslateModule } from '@ngx-translate/core';
 })
 export class SettingsDashboardSectionComponent {
     readonly form = input.required<FormGroup>();
-    readonly activeSection = input.required<string>();
 }
