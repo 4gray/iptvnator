@@ -48,6 +48,7 @@ import {
     EpgActions,
     PlaylistActions,
     buildExternalPlayerPayload,
+    resolveExternalPlayerHttpHeaders,
     resolveChannelEpgLookupKey,
     selectActive,
     selectActiveEpgProgram,
@@ -290,16 +291,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return null;
         }
 
-        const http: Partial<Channel['http']> = playbackTarget.http ?? {};
+        // Embedded MPV requests bypass the Electron webRequest override, so
+        // the playlist-level custom headers must ride in the payload; channel
+        // #EXTVLCOPT values still win.
+        const effective = resolveExternalPlayerHttpHeaders(
+            playbackTarget,
+            this.activePlaylistMeta()
+        );
         const headers: Record<string, string> = {};
-        if (http['user-agent']) {
-            headers['User-Agent'] = http['user-agent'];
+        if (effective['user-agent']) {
+            headers['User-Agent'] = effective['user-agent'];
         }
-        if (http.referrer) {
-            headers['Referer'] = http.referrer;
+        if (effective.referer) {
+            headers['Referer'] = effective.referer;
         }
-        if (http.origin) {
-            headers['Origin'] = http.origin;
+        if (effective.origin) {
+            headers['Origin'] = effective.origin;
         }
 
         return {
@@ -311,9 +318,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             thumbnail: activeChannel.tvg?.logo ?? null,
             isLive: !this.activePlaybackUrl(),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
-            userAgent: http['user-agent'] || undefined,
-            referer: http.referrer || undefined,
-            origin: http.origin || undefined,
+            userAgent: effective['user-agent'],
+            referer: effective.referer,
+            origin: effective.origin,
             // Playlists imported before the DRM feature carry no drm field
             // yet, but their raw KODIPROP block survived in the stored items
             // — extract lazily so they work without a re-import.
@@ -361,7 +368,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             ? 'EPG.ARCHIVE_PLAYBACK'
             : 'EPG.CURRENT_PROGRAM'
     );
-    private readonly activePlaylistForEpg =
+    private readonly activePlaylistMeta =
         this.store.selectSignal(selectActivePlaylist);
     /**
      * Without a single configured XMLTV source the whole playlist has no EPG,
@@ -382,7 +389,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             ? globalSources.some((url) => Boolean(url?.trim?.()))
             : Boolean(globalSources);
         const hasPlaylistSources = (
-            this.activePlaylistForEpg()?.epgUrls ?? []
+            this.activePlaylistMeta()?.epgUrls ?? []
         ).some((url) => Boolean(url?.trim?.()));
 
         return hasGlobalSources || hasPlaylistSources
@@ -1078,7 +1085,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
         const payload = buildExternalPlayerPayload(
             this.activeChannel(),
-            request.playback.streamUrl
+            request.playback.streamUrl,
+            this.activePlaylistMeta()
         );
         if (!payload) {
             return;

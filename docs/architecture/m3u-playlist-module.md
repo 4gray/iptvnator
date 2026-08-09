@@ -954,6 +954,23 @@ class EpgService {
   for a programme the user clicked, both hosts surface a
   `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
 
+### External Player Request Headers
+
+The built-in web players inherit the playlist-level custom
+User-Agent/Referer through the Electron `webRequest` header override
+(`set-user-agent` IPC: the playlist values form the session-wide override, the
+active channel's `#EXTVLCOPT` values a stream-scoped one on top). External
+MPV/VLC and the embedded MPV player make their own HTTP requests, so those
+launches carry the headers in the payload instead:
+`resolveExternalPlayerHttpHeaders()` in
+`libs/m3u-state/src/lib/external-player-payload.util.ts` resolves each of
+User-Agent/Referer/Origin independently — the channel's `#EXTVLCOPT` value
+wins, the playlist-level value (import dialog / playlist settings) is the
+fallback, and blank values count as absent. Every M3U external launch path
+goes through it: the auto-launch and catch-up effects in `m3u-state`, the
+manual MPV/VLC fallback in `VideoPlayerComponent`, and the embedded MPV
+payload (`embeddedPlayback`).
+
 ### DASH + ClearKey Playback
 
 MPEG-DASH (`.mpd`) channels play through a Shaka Player _source engine_ inside

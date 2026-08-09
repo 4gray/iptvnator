@@ -33,6 +33,12 @@ describe('buildExternalPlayerPayload', () => {
         epgParams: '',
     };
 
+    const playlistMeta = {
+        userAgent: 'Playlist Agent/2.0',
+        referrer: 'https://playlist-referrer.example.com',
+        origin: 'https://playlist-origin.example.com',
+    };
+
     it('uses the resolved archive url while preserving headers and title', () => {
         expect(
             buildExternalPlayerPayload(
@@ -45,6 +51,89 @@ describe('buildExternalPlayerPayload', () => {
             'user-agent': 'Codex Test Agent',
             referer: 'https://referrer.example.com',
             origin: 'https://origin.example.com',
+        });
+    });
+
+    it('falls back to the playlist headers when the channel has none', () => {
+        const bareChannel: Channel = {
+            ...activeChannel,
+            http: { referrer: '', 'user-agent': '', origin: '' },
+        };
+
+        expect(
+            buildExternalPlayerPayload(
+                bareChannel,
+                bareChannel.url,
+                playlistMeta
+            )
+        ).toEqual({
+            url: bareChannel.url,
+            title: 'Sample TV',
+            'user-agent': 'Playlist Agent/2.0',
+            referer: 'https://playlist-referrer.example.com',
+            origin: 'https://playlist-origin.example.com',
+        });
+    });
+
+    it('keeps channel-level #EXTVLCOPT headers over the playlist fallback', () => {
+        expect(
+            buildExternalPlayerPayload(
+                activeChannel,
+                activeChannel.url,
+                playlistMeta
+            )
+        ).toEqual({
+            url: activeChannel.url,
+            title: 'Sample TV',
+            'user-agent': 'Codex Test Agent',
+            referer: 'https://referrer.example.com',
+            origin: 'https://origin.example.com',
+        });
+    });
+
+    it('treats whitespace-only values as absent on both levels', () => {
+        const bareChannel: Channel = {
+            ...activeChannel,
+            http: { referrer: '  ', 'user-agent': '  ', origin: '' },
+        };
+
+        expect(
+            buildExternalPlayerPayload(bareChannel, bareChannel.url, {
+                userAgent: '  ',
+                referrer: undefined,
+                origin: 'https://playlist-origin.example.com',
+            })
+        ).toEqual({
+            url: bareChannel.url,
+            title: 'Sample TV',
+            'user-agent': undefined,
+            referer: undefined,
+            origin: 'https://playlist-origin.example.com',
+        });
+    });
+
+    it('mixes per-header: each header falls back independently', () => {
+        const partialChannel: Channel = {
+            ...activeChannel,
+            http: {
+                'user-agent': 'Codex Test Agent',
+                referrer: '',
+                origin: '',
+            },
+        };
+
+        expect(
+            buildExternalPlayerPayload(
+                partialChannel,
+                partialChannel.url,
+                playlistMeta
+            )
+        ).toEqual({
+            url: partialChannel.url,
+            title: 'Sample TV',
+            'user-agent': 'Codex Test Agent',
+            referer: 'https://playlist-referrer.example.com',
+            origin: 'https://playlist-origin.example.com',
         });
     });
 
