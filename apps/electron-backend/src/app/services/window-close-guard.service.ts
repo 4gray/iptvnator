@@ -101,6 +101,17 @@ export class WindowCloseGuard {
 
     setGuardActive(active: boolean): void {
         this.guardActive = active;
+
+        // A disarm with an unanswered intercepted close is the teardown
+        // race: the renderer left settings between the interception and
+        // this disarm reaching us, so nobody remains to confirm and the
+        // user's close would be silently swallowed. The guard is mount-long
+        // in the renderer, so a disarm only ever means "settings is gone" —
+        // its form was already settled by the router guard, nothing is left
+        // to protect, and the intercepted intent can complete.
+        if (!active && this.pendingIntent !== null) {
+            this.confirmClose();
+        }
     }
 
     /**

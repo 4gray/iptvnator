@@ -258,6 +258,38 @@ describe('WindowCloseGuard', () => {
         expect(win.fireClose()).toBe(false);
     });
 
+    it('completes a close left unanswered when the renderer disarms', () => {
+        // Teardown race: close intercepted, then the settings page is torn
+        // down and disarms before answering — the close must not be
+        // swallowed.
+        const { guard, win } = createArmedGuard();
+
+        win.fireClose();
+        guard.setGuardActive(false);
+
+        expect(win.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('resumes an unanswered quit when the renderer disarms', () => {
+        const { app, guard, win } = createArmedGuard();
+
+        app.fireBeforeQuit();
+        win.fireClose();
+        guard.setGuardActive(false);
+
+        expect(app.quit).toHaveBeenCalledTimes(1);
+        expect(win.close).not.toHaveBeenCalled();
+    });
+
+    it('closes nothing on a plain disarm without a pending intent', () => {
+        const { app, guard, win } = createArmedGuard();
+
+        guard.setGuardActive(false);
+
+        expect(win.close).not.toHaveBeenCalled();
+        expect(app.quit).not.toHaveBeenCalled();
+    });
+
     it('drops an unanswered quit intent when the renderer navigates away', () => {
         const { app, guard, win } = createArmedGuard();
 
