@@ -179,6 +179,7 @@
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
                 detail-player
+                [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="item.info.name"
@@ -205,8 +206,7 @@
             [playlistId]="currentPlaylistId()"
             [seriesTitle]="info.name"
             [playbackPositions]="episodePlaybackPositions()"
-            [xtreamDownloadContext]="xtreamDownloadContext()"
-            [downloadMetadataContext]="downloadMetadataContext()"
+            [downloadAdapter]="episodeDownloadAdapter()"
             [downloadsEnabled]="!providerOnly()"
             [openingEpisodeId]="openingEpisodeId()"
             [activeEpisodeId]="activeEpisodeId()"

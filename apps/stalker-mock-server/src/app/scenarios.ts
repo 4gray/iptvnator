@@ -25,6 +25,19 @@ export interface ScenarioConfig {
     marketingFixture?: true;
     /** Answer `get_profile` with `status: 2` until `auth_second_step=1`. */
     requiresLogin?: true;
+    /**
+     * `create_link` returns this server's own `/stream/gated/video.mp4`,
+     * which answers 403 unless the request carries the portal mac cookie AND
+     * the MAC's Bearer token — proves a player's media requests really carry
+     * the portal credentials (the "only VLC works" cluster).
+     */
+    gatedStream?: true;
+    /**
+     * Generate ITV channels that need NO temporary link: a directly playable
+     * `cmd` with `use_http_tmp_link`/`use_load_balancing` both `'0'`. A client
+     * honouring the flags must play those without calling `create_link`.
+     */
+    staticChannelCmd?: true;
 }
 
 /**
@@ -136,7 +149,38 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         embeddedSeriesFraction: 0,
         marketingFixture: true,
     },
+    '00:1a:79:00:00:09': {
+        name: 'gated-stream',
+        description:
+            'Streams gated on portal credentials — create_link returns a ' +
+            'local URL that 403s without the mac cookie + Bearer token',
+        seed: 9009,
+        categoryCount: { itv: 2, radio: 1, vod: 1, series: 1 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        gatedStream: true,
+    },
+    '00:1a:79:00:00:0a': {
+        name: 'static-channel-cmd',
+        description:
+            'ITV rows that need no temporary link — playable cmd with ' +
+            'use_http_tmp_link/use_load_balancing both 0',
+        seed: 1010,
+        categoryCount: { itv: 2, radio: 1, vod: 1, series: 1 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        staticChannelCmd: true,
+    },
 };
+
+/** Worker-scoped aliases used by parallel auth E2E runs. */
+const WORKER_LOGIN_REQUIRED_MAC = /^00:1a:79:ae:[0-9a-f]{2}:02$/;
 
 /**
  * Convert a MAC address string to a numeric seed for unknown MACs.
@@ -154,6 +198,9 @@ export function getScenario(mac: string): ScenarioConfig {
     const normalizedMac = mac.toLowerCase();
     if (SCENARIOS[normalizedMac]) {
         return SCENARIOS[normalizedMac];
+    }
+    if (WORKER_LOGIN_REQUIRED_MAC.test(normalizedMac)) {
+        return SCENARIOS['00:1a:79:00:00:08'];
     }
     // Unknown MAC: use MAC bytes as seed, default shape
     return {

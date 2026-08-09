@@ -89,9 +89,11 @@ state.
     - favorites snapshots
     - recently viewed snapshots
 
-Explicitly excluded:
+Explicitly excluded — session state, as opposed to the connection definition:
 
 - `stalkerToken`
+- `stalkerSessionIdentity` (the fingerprint the token was negotiated for)
+- `stalkerWatchdogTimeout` / `stalkerTimeslot` (the profile-advertised cadence)
 - `stalkerAccountInfo`
 - playback positions in v1
 

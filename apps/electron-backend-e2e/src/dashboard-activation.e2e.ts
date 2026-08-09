@@ -254,13 +254,18 @@ async function goBackFromDetail(page: Page): Promise<void> {
     }
 }
 
+// By accessible name, not class: the Xtream movie detail's favorite control is
+// an icon-only button that carries its label in aria-label, while series and
+// Stalker details still use the labeled variant. This matches both.
 async function addCurrentDetailToFavorites(page: Page): Promise<void> {
-    const addButton = page.locator('button.favorite-btn').first();
+    const addButton = page
+        .getByRole('button', { name: /add to favorites/i })
+        .first();
 
     await expect(addButton).toBeVisible({ timeout: 20000 });
     await addButton.click();
     await expect(
-        page.locator('button.favorite-btn--active').first()
+        page.getByRole('button', { name: /remove from favorites/i }).first()
     ).toBeVisible({
         timeout: 20000,
     });

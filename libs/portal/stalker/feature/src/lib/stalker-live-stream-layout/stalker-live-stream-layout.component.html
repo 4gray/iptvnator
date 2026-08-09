@@ -32,7 +32,9 @@
                     mat-icon-button
                     type="button"
                     [disabled]="isFullListLoading()"
-                    [attr.aria-label]="'PORTALS.REFRESH_CHANNEL_LIST' | translate"
+                    [attr.aria-label]="
+                        'PORTALS.REFRESH_CHANNEL_LIST' | translate
+                    "
                     [matTooltip]="'PORTALS.REFRESH_CHANNEL_LIST' | translate"
                     (click)="refreshChannels()"
                 >
@@ -83,7 +85,9 @@
                 <div class="empty-search-state">
                     <app-portal-empty-state
                         icon="tv_off"
-                        [message]="'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate"
+                        [message]="
+                            'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate
+                        "
                     />
                 </div>
             } @else {
@@ -120,7 +124,9 @@
                         (clicked)="playChannel(item)"
                         (activated)="playChannel(item, true)"
                         (favoriteToggled)="toggleFavorite(item)"
-                        (contextMenuRequested)="onChannelContextMenu(item, $event)"
+                        (contextMenuRequested)="
+                            onChannelContextMenu(item, $event)
+                        "
                     />
                 }
             }
@@ -180,6 +186,7 @@
                     />
                 } @else {
                     <app-web-player-view
+                        [playbackSessionKey]="playbackSessionKey()"
                         [streamUrl]="streamUrl()"
                         [title]="activePlayback()?.title ?? ''"
                         [playback]="activePlayback()"

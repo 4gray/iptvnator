@@ -17,11 +17,11 @@ import {
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import {
-    EpgListViewComponent,
-    EpgTimelineComponent,
-} from '@iptvnator/ui/epg';
-import { AudioPlayerComponent } from '@iptvnator/ui/playback';
+    AudioPlayerComponent,
+    type PlaybackFallbackRequest,
+} from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
@@ -31,7 +31,11 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    EpgItem,
+    EpgProgram,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
@@ -66,10 +70,11 @@ class StubChannelListItemComponent {
     template: '',
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input('');
     readonly title = input('');
     readonly playback = input<unknown>(null);
-    readonly externalFallbackRequested = output<unknown>();
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 }
 
 @Component({
@@ -202,9 +207,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         loaded: number;
         total: number;
     } | null>(null);
-    const itvFullChannelList = signal<
-        ReturnType<typeof defaultItvChannels>
-    >([]);
+    const itvFullChannelList = signal<ReturnType<typeof defaultItvChannels>>(
+        []
+    );
     const itvSelectedCategoryFromCache = signal(false);
     const isPaginatedContentLoading = signal(false);
 
@@ -249,6 +254,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fetchChannelEpg: jest.fn(),
         ensureBulkItvEpg: jest.fn(),
         applyMappedItvEpg: jest.fn().mockResolvedValue(undefined),
+        hasItvEpgMappingOverride: jest.fn(() => false),
         clearBulkItvEpgCache: jest.fn(() => {
             bulkItvEpgByChannel.set({});
             bulkItvEpgLoaded.set(false);
@@ -266,6 +272,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     const portalPlayer = {
         isEmbeddedPlayer: jest.fn(() => true),
         openResolvedPlayback: jest.fn(),
+        openExternalPlayback: jest.fn(),
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
@@ -277,8 +284,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         // The store mock is module-scoped: reset so a failed test can't leak
         // 'list' into siblings.
         settingsStore.resolvedEpgViewMode.set('timeline');
+        playlist.set({ _id: 'playlist-1', title: 'Demo Stalker' });
         window.electron = {
             platform: 'darwin',
+            setUserAgent: jest.fn().mockResolvedValue(true),
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
@@ -326,21 +335,15 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         portalPlayer.isEmbeddedPlayer.mockReset();
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         portalPlayer.openResolvedPlayback.mockClear();
+        portalPlayer.openExternalPlayback.mockClear();
         fetchChannelEpg.mockReset();
         fetchChannelEpg.mockResolvedValue([]);
+        // mockReset drops the implementation; undefined reads as "unmapped".
+        stalkerStore.hasItvEpgMappingOverride.mockReset();
         ensureBulkItvEpg.mockReset();
-        ensureBulkItvEpg.mockImplementation(async () => {
-            const bulkPrograms = {
-                '10001': [buildProgram('10001', 'Current Show')],
-                '10002': [buildProgram('10002', 'Next Channel Show')],
-            };
-            bulkItvEpgByChannel.set(bulkPrograms);
-            bulkItvEpgLoaded.set(true);
-            bulkItvEpgPlaylistId.set('playlist-1');
-            bulkItvEpgPeriodHours.set(168);
-            selectedItvEpgPrograms.set(
-                bulkPrograms[selectedItvId() ?? ''] ?? []
-            );
+        mockBulkEpg({
+            '10001': [buildProgram('10001', 'Current Show')],
+            '10002': [buildProgram('10002', 'Next Channel Show')],
         });
         stalkerStore.setItvChannels.mockClear();
         stalkerStore.setRadioChannels.mockClear();
@@ -406,9 +409,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     useValue: {
                         supportsEpgMapping: false,
                         getEpgMapping: jest.fn().mockResolvedValue(null),
-                        getEpgMappingsBatch: jest
-                            .fn()
-                            .mockResolvedValue(null),
+                        getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
                     },
                 },
             ],
@@ -502,7 +503,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         const channelRows = fixture.debugElement.queryAll(
             By.directive(StubChannelListItemComponent)
         );
@@ -523,6 +526,43 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     ).showDetailsContextMenu()
             )
         ).toBe(true);
+    });
+
+    it('forwards the exact resolved live playback to external fallback', () => {
+        const playback: ResolvedPortalPlayback = {
+            streamUrl: 'https://example.com/stalker-fallback.m3u8',
+            title: 'Alpha TV',
+            isLive: true,
+            headers: { Authorization: 'Bearer token' },
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 10001,
+                contentType: 'live',
+            },
+        };
+        const request: PlaybackFallbackRequest = {
+            player: 'vlc',
+            playback,
+            diagnostic: {
+                code: 'network-error',
+                player: 'html5',
+                source: 'hls',
+                container: '',
+                mimeType: '',
+                videoCodecs: [],
+                audioCodecs: [],
+            },
+        };
+
+        component.handleExternalFallbackRequest(request);
+
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            playback,
+            'vlc'
+        );
+        expect(portalPlayer.openExternalPlayback.mock.calls[0][0]).toBe(
+            playback
+        );
     });
 
     it('renders radio channel rows with compact no-EPG density', () => {
@@ -1084,6 +1124,94 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(fetchChannelEpg).not.toHaveBeenCalled();
     });
 
+    function mockBulkEpg(bulkPrograms: Record<string, EpgProgram[]>): void {
+        ensureBulkItvEpg.mockImplementation(async () => {
+            bulkItvEpgByChannel.set(bulkPrograms);
+            bulkItvEpgLoaded.set(true);
+            bulkItvEpgPlaylistId.set('playlist-1');
+            bulkItvEpgPeriodHours.set(168);
+            selectedItvEpgPrograms.set(
+                bulkPrograms[selectedItvId() ?? ''] ?? []
+            );
+        });
+    }
+
+    /**
+     * The reported portal shape: bulk get_epg_info returns only programmes
+     * that start in the future — the currently airing one is missing — while
+     * get_short_epg answers with the current programme.
+     */
+    function mockFutureOnlyBulkEpg(): void {
+        mockBulkEpg({
+            '10001': [buildFutureProgram('10001', 'Future Show')],
+            '10002': [buildFutureProgram('10002', 'Future Beta Show')],
+        });
+        fetchChannelEpg.mockImplementation(async (channelId: string) => [
+            buildEpgItem(String(channelId), `Now ${channelId}`),
+        ]);
+    }
+
+    it('merges the short-EPG fallback into the panel when bulk EPG has only future programmes', async () => {
+        // The old either/or gate skipped the short-EPG fallback whenever bulk
+        // was non-empty, leaving the panel without a current programme.
+        mockFutureOnlyBulkEpg();
+
+        fixture.detectChanges();
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchChannelEpg).toHaveBeenCalledWith('10001');
+        expect(component.currentProgram()?.title).toBe('Now 10001');
+        expect(
+            component.activeEpgPrograms().map((program) => program.title)
+        ).toEqual(['Now 10001', 'Future Show']);
+    });
+
+    it('fills row previews from the short EPG when bulk EPG misses the current programmes', async () => {
+        mockFutureOnlyBulkEpg();
+
+        await settleEagerEpg();
+        // The throttled per-channel fallback queue drains the two rows
+        // (one request immediately, the next behind a 200 ms delay).
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        fixture.detectChanges();
+
+        expect(
+            ['10001', '10002'].map(
+                (id) => component.epgPreviewPrograms.get(id)?.title
+            )
+        ).toEqual(['Now 10001', 'Now 10002']);
+    });
+
+    it('keeps manually mapped channels away from the portal short-EPG fallback', async () => {
+        // A mapping replaces the portal schedule; merging the portal's short
+        // EPG back in could surface the portal's programme instead.
+        mockFutureOnlyBulkEpg();
+        stalkerStore.hasItvEpgMappingOverride.mockImplementation(
+            (id: string | number) => String(id) === '10001'
+        );
+
+        fixture.detectChanges();
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        fixture.detectChanges();
+
+        // Neither the panel nor the row queue asked the portal for 10001.
+        expect(
+            fetchChannelEpg.mock.calls.map(([id]: [unknown]) => String(id))
+        ).not.toContain('10001');
+        // Panel keeps the mapped (future-only) schedule: no "on now" entry.
+        expect(component.currentProgram()).toBeNull();
+        // The unmapped sibling still gets the row fallback; the mapped
+        // channel's row stays on its (empty) mapped schedule.
+        expect(component.epgPreviewPrograms.get('10001')).toBeUndefined();
+        expect(component.epgPreviewPrograms.get('10002')?.title).toBe(
+            'Now 10002'
+        );
+    });
+
     it('does not re-fetch bulk EPG when switching channels once it is loaded', async () => {
         await settleEagerEpg();
         // Bulk EPG has loaded (eagerly, on entry).
@@ -1114,7 +1242,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(ensureBulkItvEpg).not.toHaveBeenCalled();
         expect(fetchChannelEpg).not.toHaveBeenCalled();
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
@@ -1127,10 +1257,131 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(audioPlayer.channelName()).toBe('Jazz FM');
         expect(audioPlayer.dispatchAdjacentChannelAction()).toBe(false);
     });
+
+    it('configures the scoped Electron header override before radio playback starts', async () => {
+        // The radio branch renders the dedicated audio player, not
+        // WebPlayerViewComponent — without this wiring an auth-gated portal
+        // radio stream 403s because its credentials never reach the request.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: {
+                'User-Agent': 'MAG250',
+                Referer: 'http://portal.example',
+                Cookie: 'mac=00:1A:79:00:00:01',
+                Authorization: 'Bearer TOKEN99',
+            },
+        });
+
+        await component.playChannel(radioChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(window.electron?.setUserAgent).toHaveBeenCalledWith(
+            'MAG250',
+            'http://portal.example',
+            'http://portal.example/radio_2.mpg',
+            {
+                authorization: 'Bearer TOKEN99',
+                cookie: 'mac=00:1A:79:00:00:01',
+            }
+        );
+
+        const audioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+        expect(audioPlayer.url()).toBe('http://portal.example/radio_2.mpg');
+    });
+
+    it('clears the radio header override when destroyed while the apply IPC is pending', async () => {
+        // Leaving the radio route mid-apply must not leave the portal
+        // cookie/token installed: ownership is claimed before awaiting the
+        // IPC, so ngOnDestroy can always name the stream to clear.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        let resolveApply: (() => void) | undefined;
+        let signalApplyIssued!: () => void;
+        const applyIssued = new Promise<void>(
+            (resolve) => (signalApplyIssued = resolve)
+        );
+        // Once: only the apply call gets the pending promise — the destroy
+        // clear below also calls the bridge and must not steal the resolver.
+        (window.electron?.setUserAgent as jest.Mock).mockImplementationOnce(
+            () => {
+                signalApplyIssued();
+                return new Promise<boolean>((resolve) => {
+                    resolveApply = () => resolve(true);
+                });
+            }
+        );
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: { Cookie: 'mac=00:1A:79:00:00:01' },
+        });
+
+        const playPromise = component.playChannel(radioChannels()[0]);
+        // The header IPC has been issued but is still pending.
+        await applyIssued;
+
+        fixture.destroy();
+        resolveApply?.();
+        await playPromise;
+
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg'
+        );
+        expect(component.activePlayback()).toBeNull();
+    });
+
+    it('releases the radio override when the next selection never mounts a player', async () => {
+        // Switching from a playing radio to a channel whose resolution fails
+        // (or plays externally) mounts no player surface — the selection
+        // itself must release the previously installed credentials.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: { Cookie: 'mac=00:1A:79:00:00:01' },
+        });
+        await component.playChannel(radioChannels()[0]);
+        await fixture.whenStable();
+
+        stalkerStore.selectedContentType.set('itv');
+        resolveItvPlayback.mockRejectedValueOnce(new Error('portal down'));
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg'
+        );
+    });
 });
 
-function buildProgram(channelId: string, title: string): EpgProgram {
-    const startTimestamp = Math.floor((Date.now() - 10 * 60 * 1000) / 1000);
+function buildProgram(
+    channelId: string,
+    title: string,
+    // Started 10 minutes ago (currently airing) unless shifted.
+    startOffsetMinutes = -10
+): EpgProgram {
+    const startTimestamp =
+        Math.floor(Date.now() / 1000) + startOffsetMinutes * 60;
     const stopTimestamp = startTimestamp + 30 * 60;
 
     return {
@@ -1142,5 +1393,28 @@ function buildProgram(channelId: string, title: string): EpgProgram {
         category: null,
         startTimestamp,
         stopTimestamp,
+    };
+}
+
+/** A programme that starts two hours from now — nothing airing "now". */
+function buildFutureProgram(channelId: string, title: string): EpgProgram {
+    return buildProgram(channelId, title, 120);
+}
+
+/** A currently airing short-EPG entry in the store's EpgItem shape. */
+function buildEpgItem(channelId: string, title: string): EpgItem {
+    const program = buildProgram(channelId, title);
+    return {
+        id: `${channelId}-${title}`,
+        epg_id: '',
+        title,
+        lang: '',
+        start: program.start,
+        end: program.stop,
+        stop: program.stop,
+        description: `${title} description`,
+        channel_id: channelId,
+        start_timestamp: String(program.startTimestamp),
+        stop_timestamp: String(program.stopTimestamp),
     };
 }

@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
 import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 /**
  * Context panel rendered in the workspace-shell aside for
@@ -52,6 +53,11 @@ import { WorkspaceContextCategoryViewComponent } from './components/workspace-co
 })
 export class WorkspaceCollectionContextPanelComponent {
     readonly ctx = inject(PortalCollectionContextService);
+    // Root-provided; optional keeps standalone unit tests light. Closes the phone
+    // drawer after a selection, which never navigates on this panel.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
 
     readonly selectedCategory = computed(() => {
         const categories = this.ctx.categories();
@@ -70,5 +76,6 @@ export class WorkspaceCollectionContextPanelComponent {
     }): void {
         const id = String(item.category_id ?? item.id ?? 'all');
         this.ctx.setCategoryId(id);
+        this.contextDrawer?.close();
     }
 }

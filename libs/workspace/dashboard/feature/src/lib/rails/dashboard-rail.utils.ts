@@ -1,4 +1,5 @@
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { isPortalAccountPlaylist } from '@iptvnator/shared/interfaces';
 import {
     buildCollectionViewState,
     COLLECTION_VIEW_STATE_KEY,
@@ -48,7 +49,7 @@ export function buildDashboardSourceActions(
         labelKey: 'HOME.PLAYLISTS.SHOW_DETAILS',
     });
 
-    if (isXtreamAccountPlaylist(playlist)) {
+    if (isPortalAccountPlaylist(playlist)) {
         actions.push({
             id: 'account-info',
             icon: 'person',
@@ -65,18 +66,6 @@ export function buildDashboardSourceActions(
     });
 
     return actions;
-}
-
-export function isXtreamAccountPlaylist(
-    playlist: PlaylistMeta
-): playlist is PlaylistMeta & {
-    serverUrl: string;
-    username: string;
-    password: string;
-} {
-    return Boolean(
-        playlist.serverUrl && playlist.username && playlist.password
-    );
 }
 
 export function liveRailTitleKeyForSource(

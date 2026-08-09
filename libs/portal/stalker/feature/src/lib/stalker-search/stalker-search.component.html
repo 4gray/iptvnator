@@ -12,6 +12,7 @@
     @if (showingDetails) {
         <app-stalker-inline-detail
             details
+            [playbackSessionKey]="playbackSessionKey()"
             [categoryId]="inlineDetail().categoryId"
             [seriesItem]="inlineDetail().seriesItem"
             [isSeries]="inlineDetail().isSeries"

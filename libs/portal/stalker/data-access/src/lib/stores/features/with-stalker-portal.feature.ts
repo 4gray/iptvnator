@@ -3,12 +3,12 @@ import {
     patchState,
     signalStoreFeature,
     withMethods,
-    withProps,
     withState,
 } from '@ngrx/signals';
-import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { toStalkerSessionPlaylist } from '../utils';
 
@@ -40,57 +40,32 @@ export function withStalkerPortal() {
     const logger = createLogger('withStalkerPortal');
     return signalStoreFeature(
         withState<StalkerPortalState>(initialPortalState),
-        withProps(
-            (
-                _store,
-                dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
-            ) => ({
-                /**
-                 * Helper to make stalker requests with automatic token handling
-                 */
-                async makeStalkerRequest(
-                    playlist: PlaylistMeta,
-                    params: Record<string, string | number>
-                ) {
-                    // Get token if it's a full stalker portal
-                    let token: string | undefined;
-                    let serialNumber: string | undefined;
-                    if (playlist.isFullStalkerPortal) {
-                        try {
-                            const result = await stalkerSession.ensureToken(
-                                toStalkerSessionPlaylist(playlist)
-                            );
-                            token = result.token ?? undefined;
-                            serialNumber = result.serialNumber;
-                        } catch (error) {
-                            logger.error('Failed to get stalker token', error);
-                        }
-                    }
-
-                    return dataService.sendIpcEvent(STALKER_REQUEST, {
-                        url: playlist.portalUrl,
-                        macAddress: playlist.macAddress,
-                        params,
-                        token,
-                        serialNumber,
-                    });
-                },
-            })
-        ),
+        // NOTE: the old `makeStalkerRequest` prop was removed — it was a
+        // production-dead fourth copy of the portal-mode branch. All request
+        // paths go through `executeStalkerRequest` (stores/utils), which
+        // applies the shared predicate and the lazy portal repair.
         withMethods(
             (
                 store,
                 stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService),
                 runtime = inject(RuntimeCapabilitiesService)
             ) => ({
                 async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
+                    // A lazy repair may have corrected this playlist's
+                    // endpoint/mode while the NgRx meta stayed stale; route
+                    // re-activation must not hand the stale snapshot back to
+                    // the watchdog (it would stop or repoint the repaired
+                    // keepalive) or into the store state.
+                    const effectivePlaylist = playlist
+                        ? portalRepair.applyOverride(playlist)
+                        : playlist;
                     stalkerSession.setActiveWatchdogPlaylist(
-                        playlist
-                            ? toStalkerSessionPlaylist(playlist)
+                        effectivePlaylist
+                            ? toStalkerSessionPlaylist(effectivePlaylist)
                             : undefined
                     );
-                    patchState(store, { currentPlaylist: playlist });
+                    patchState(store, { currentPlaylist: effectivePlaylist });
 
                     // Ensure Stalker playlist exists in SQLite for playback positions
                     // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)

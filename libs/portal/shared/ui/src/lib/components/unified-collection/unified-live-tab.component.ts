@@ -55,12 +55,14 @@ import { GlobalFavoritesListComponent } from '../global-favorites-list/global-fa
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 import {
     AudioPlayerComponent,
+    ElectronStreamHeadersService,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 
 @Component({
     selector: 'app-unified-live-tab',
@@ -103,9 +105,12 @@ export class UnifiedLiveTabComponent {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    /** Stream URL of the radio playback whose header override this tab configured. */
+    private radioHeaderScopeUrl: string | null = null;
 
     readonly player = this.settingsStore.player;
     readonly supportsEpg = this.runtime.supportsEpg;
@@ -119,6 +124,9 @@ export class UnifiedLiveTabComponent {
      *  portal archive fields (tvArchive/tvArchiveDuration) and to
      *  supply credentials for Xtream catch-up URL resolution. */
     readonly activeItem = signal<UnifiedCollectionItem | null>(null);
+    readonly playbackSessionKey = computed(() =>
+        createUnifiedLivePlaybackSessionKey(this.activeItem())
+    );
     readonly isSelecting = signal(false);
     readonly epgMap = signal<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = signal(0);
@@ -262,9 +270,7 @@ export class UnifiedLiveTabComponent {
         return getLiveEpgPanelSummary(this.activeDetail());
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
-        this.activeTimeshift()
-            ? 'EPG.ARCHIVE_PLAYBACK'
-            : 'EPG.CURRENT_PROGRAM'
+        this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
     );
 
     readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
@@ -340,7 +346,13 @@ export class UnifiedLiveTabComponent {
             () => this.progressTick.update((tick) => tick + 1),
             30_000
         );
-        this.destroyRef.onDestroy(() => clearInterval(tickInterval));
+        this.destroyRef.onDestroy(() => {
+            clearInterval(tickInterval);
+            // Invalidate a playback continuation still awaiting its header
+            // IPC and drop any radio credentials owned by this tab.
+            this.selectionRequestId += 1;
+            this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        });
     }
 
     async onChannelSelected(channel: UnifiedFavoriteChannel): Promise<void> {
@@ -472,10 +484,7 @@ export class UnifiedLiveTabComponent {
             program.startTimestamp,
             program.start
         );
-        const stopEpoch = toEpochSeconds(
-            program.stopTimestamp,
-            program.stop
-        );
+        const stopEpoch = toEpochSeconds(program.stopTimestamp, program.stop);
         if (startEpoch == null || stopEpoch == null) {
             this.snackBar.open(
                 this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
@@ -541,6 +550,10 @@ export class UnifiedLiveTabComponent {
         this.activeUid.set(null);
         this.activeItem.set(null);
         this.activeTimeshift.set(null);
+        // Radio credentials must not outlive the closed player; the service
+        // no-ops when a newer playback already owns the override slot.
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        this.radioHeaderScopeUrl = null;
     }
 
     onEpgMappingChanged(): void {
@@ -579,6 +592,12 @@ export class UnifiedLiveTabComponent {
         this.activeDetail.set(null);
         this.activeTimeshift.set(null);
         this.isSelecting.set(true);
+        // A previously owned radio override must not survive into a
+        // selection that never mounts a player surface of its own — external
+        // video playback and failed resolutions would otherwise keep the old
+        // radio credentials installed for that origin.
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        this.radioHeaderScopeUrl = null;
 
         try {
             const detail =
@@ -587,6 +606,21 @@ export class UnifiedLiveTabComponent {
                     : await this.streamResolver.resolveLiveDetail(item);
             if (requestId !== this.selectionRequestId) {
                 return;
+            }
+
+            if (item.radio === 'true') {
+                // Radio renders the dedicated audio player, never
+                // WebPlayerViewComponent, so the scoped Electron header
+                // override (portal cookie/token for auth-gated streams) is
+                // configured here BEFORE the audio element gets the URL.
+                // Ownership is claimed synchronously so a close/destroy
+                // during the pending IPC can still clear the credentials.
+                const headerSync = this.streamHeaders.apply(detail.playback);
+                this.radioHeaderScopeUrl = detail.playback.streamUrl;
+                const stillCurrent = headerSync ? await headerSync : true;
+                if (!stillCurrent || requestId !== this.selectionRequestId) {
+                    return;
+                }
             }
 
             this.activeDetail.set(detail);
@@ -676,5 +710,4 @@ export class UnifiedLiveTabComponent {
             };
         });
     }
-
 }

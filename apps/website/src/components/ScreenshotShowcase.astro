@@ -1,17 +1,45 @@
 ---
-import { Image } from 'astro:assets';
-import playerImg from '../assets/screenshots/player.png';
-import epgImg from '../assets/screenshots/epg.png';
-import playlistsImg from '../assets/screenshots/playlists.png';
-import settingsImg from '../assets/screenshots/settings.png';
-import uploadFileImg from '../assets/screenshots/upload-file.png';
-
 const tabs = [
-  { id: 'player', label: 'Player', image: playerImg, alt: 'IPTVnator video player interface' },
-  { id: 'epg', label: 'EPG Guide', image: epgImg, alt: 'Electronic program guide view' },
-  { id: 'playlists', label: 'Playlists', image: playlistsImg, alt: 'Playlist management screen' },
-  { id: 'settings', label: 'Settings', image: settingsImg, alt: 'Application settings' },
-  { id: 'upload', label: 'Add Playlist', image: uploadFileImg, alt: 'Add playlist dialog' },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    image: '/iptvnator/screenshots/dashboard-with-content.webp',
+    alt: 'Dashboard with recently watched content and global favorites',
+    width: 2072,
+    height: 1602,
+  },
+  {
+    id: 'live-tv',
+    label: 'Live TV',
+    image: '/iptvnator/screenshots/screenshot-player.webp',
+    alt: 'Live channels with the inline player and EPG',
+    width: 2442,
+    height: 1806,
+  },
+  {
+    id: 'epg',
+    label: 'EPG Guide',
+    image: '/iptvnator/screenshots/multi-epg-view.webp',
+    alt: 'Multi-channel electronic program guide',
+    width: 2180,
+    height: 1448,
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    image: '/iptvnator/screenshots/settings.webp',
+    alt: 'Application settings in the dark theme',
+    width: 2500,
+    height: 1602,
+  },
+  {
+    id: 'add-playlist',
+    label: 'Add Playlist',
+    image: '/iptvnator/screenshots/add-playlist.webp',
+    alt: 'Add playlist dialog for M3U, Xtream, and Stalker sources',
+    width: 2260,
+    height: 1490,
+  },
 ];
 ---
 
@@ -79,11 +107,14 @@ const tabs = [
                     </div>
                     <span class="ml-2 font-mono text-[11px] text-surface-500">{tab.label}</span>
                   </div>
-                  <Image
+                  <img
                     src={tab.image}
                     alt={tab.alt}
-                    width={1000}
-                    class="w-full"
+                    width={tab.width}
+                    height={tab.height}
+                    class="h-auto w-full"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>

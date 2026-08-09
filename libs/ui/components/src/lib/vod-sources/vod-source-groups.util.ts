@@ -55,21 +55,3 @@ export function groupVodSources(
     }));
 }
 
-/**
- * What tells two copies from the same playlist apart.
- *
- * Their tags are usually identical (both parsed from near-identical titles), so
- * the provider's own raw title is the only honest discriminator left. Falls
- * back to the stream id when even the titles match.
- */
-export function variantLabel(
-    source: VodSourceDescriptor,
-    siblings: readonly VodSourceDescriptor[]
-): string {
-    const titles = new Set(siblings.map((s) => s.rawTitle));
-    if (titles.size > 1 && source.rawTitle) {
-        return source.rawTitle;
-    }
-
-    return `#${source.contentId}`;
-}

@@ -14,6 +14,7 @@ import {
     sourceMonogram,
     sourceNeedsCheck,
 } from './vod-source-tags';
+import { VodSourceTagListComponent } from './vod-source-tag-list.component';
 import { playlistDisplayLabel } from '@iptvnator/shared/interfaces';
 
 /**
@@ -28,7 +29,7 @@ import { playlistDisplayLabel } from '@iptvnator/shared/interfaces';
     templateUrl: './vod-source-row.component.html',
     styleUrls: ['./vod-source-row.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatIcon, MatTooltip, TranslatePipe],
+    imports: [MatIcon, MatTooltip, TranslatePipe, VodSourceTagListComponent],
 })
 export class VodSourceRowComponent {
     readonly source = input.required<VodSourceDescriptor>();

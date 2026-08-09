@@ -1,4 +1,4 @@
-import { getPlaybackMediaExtensionFromUrl } from '../playback-diagnostics/playback-diagnostics.util';
+import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 
 /**
  * ArtPlayer option overrides for the legacy and shared-control surfaces.

@@ -11,10 +11,9 @@ import { handleHandshake } from './handshake.handler';
 /**
  * Handler-level coverage for the authentication actions.
  *
- * The e2e suite drives the app against this server, but the login-required
- * flow cannot be reached from the client yet (its `do_auth` path is dormant
- * and sends empty credentials), so the scenario is pinned down here rather
- * than only asserted in prose.
+ * The e2e suite drives the app through this flow end to end; these handler
+ * tests pin the SERVER half of the contract independently, so a client-side
+ * regression and a mock-side one cannot mask each other.
  *
  * Handlers are called directly instead of through the dispatcher: the
  * dispatcher pulls in every content handler and therefore the faker-based
@@ -22,6 +21,7 @@ import { handleHandshake } from './handshake.handler';
  */
 
 const LOGIN_REQUIRED_MAC = '00:1A:79:00:00:08';
+const WORKER_LOGIN_REQUIRED_MAC = '00:1A:79:AE:05:02';
 const PLAIN_MAC = '00:1A:79:00:00:01';
 const BAD_FORMAT_MAC = 'AA:BB:CC:DD:EE:01';
 
@@ -82,8 +82,8 @@ describe('stalker mock authentication handlers', () => {
         })['token'] as string;
         expect(token).toMatch(/^[0-9A-F]{32}$/);
 
-        // The app sends auth_second_step=1 on its very first profile request,
-        // so that parameter alone must not satisfy the scenario.
+        // A client could mislabel its first profile as the second auth step;
+        // that parameter alone must not satisfy the scenario.
         expect(
             invoke(
                 handleGetProfile,
@@ -124,6 +124,34 @@ describe('stalker mock authentication handlers', () => {
                 true
             )
         ).toBe(null);
+    });
+
+    it('applies the login-required scenario to parallel-slot MACs', () => {
+        const token = invoke(handleHandshake, { action: 'handshake' }, {
+            mac: WORKER_LOGIN_REQUIRED_MAC,
+        })['token'] as string;
+
+        expect(
+            invoke(
+                handleGetProfile,
+                { action: 'get_profile' },
+                { mac: WORKER_LOGIN_REQUIRED_MAC, token }
+            )['status']
+        ).toBe(2);
+
+        invoke(
+            handleDoAuth,
+            { action: 'do_auth', login: 'user', password: 'secret' },
+            { mac: WORKER_LOGIN_REQUIRED_MAC }
+        );
+
+        expect(
+            invoke(
+                handleGetProfile,
+                { action: 'get_profile' },
+                { mac: WORKER_LOGIN_REQUIRED_MAC, token }
+            )['status']
+        ).toBe(0);
     });
 
     it('rejects a non-Infomir MAC and never adopts its token', () => {

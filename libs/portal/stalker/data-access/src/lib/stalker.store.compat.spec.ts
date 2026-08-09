@@ -148,7 +148,6 @@ describe('StalkerStore API compatibility smoke', () => {
             'addToRecentlyViewed',
             'removeFromRecentlyViewed',
             'fetchChannelEpg',
-            'makeStalkerRequest',
         ];
 
         for (const methodName of expectedMethods) {

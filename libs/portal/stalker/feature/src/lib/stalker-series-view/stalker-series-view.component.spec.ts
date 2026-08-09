@@ -6,6 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SeasonContainerComponent } from '@iptvnator/ui/components';
+import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -17,7 +18,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { DownloadsService, TmdbEnrichmentService } from '@iptvnator/services';
+import { TmdbEnrichmentService } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -39,9 +40,9 @@ class StubSeasonContainerComponent {
     readonly seasonDescriptions = input<unknown>(null);
     readonly isLoading = input(false);
     readonly downloadsEnabled = input(true);
+    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
-    readonly episodeDownloadRequested = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
     readonly selectedSeason = signal<string | undefined>(undefined);
 }
@@ -52,6 +53,7 @@ class StubSeasonContainerComponent {
     template: '',
 })
 class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
@@ -90,13 +92,18 @@ describe('StalkerSeriesViewComponent', () => {
     const openResolvedPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const tmdbGetSeason = jest.fn();
-    const startDownload = jest.fn();
     const fetchLinkToPlay = jest.fn();
     const currentPlaylist = signal({
         _id: 'stalker-1',
+        title: 'Living Room Portal',
         portalUrl: 'https://stalker.example.test',
         macAddress: '00:1A:79:12:34:56',
     });
+
+    async function stabilize(): Promise<void> {
+        fixture.detectChanges();
+        await fixture.whenStable();
+    }
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -155,12 +162,12 @@ describe('StalkerSeriesViewComponent', () => {
             overview: 'Season overview from TMDB',
             episodes: [],
         });
-        startDownload.mockReset().mockResolvedValue({ success: true });
         fetchLinkToPlay
             .mockReset()
             .mockResolvedValue('https://cdn.example.test/episode.mpg');
         currentPlaylist.set({
             _id: 'stalker-1',
+            title: 'Living Room Portal',
             portalUrl: 'https://stalker.example.test',
             macAddress: '00:1A:79:12:34:56',
         });
@@ -210,12 +217,6 @@ describe('StalkerSeriesViewComponent', () => {
                     provide: Router,
                     useValue: {
                         navigateByUrl: jest.fn(),
-                    },
-                },
-                {
-                    provide: DownloadsService,
-                    useValue: {
-                        startDownload,
                     },
                 },
                 {
@@ -290,8 +291,7 @@ describe('StalkerSeriesViewComponent', () => {
     });
 
     it('renders quick start for regular series and starts the first episode', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         const quickStartButton: HTMLButtonElement | null =
@@ -327,8 +327,7 @@ describe('StalkerSeriesViewComponent', () => {
     it('keeps provider episodes playable while hiding download presentation', async () => {
         fixture.componentRef.setInput('providerOnly', true);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         const seasonContainer = fixture.debugElement.query(
             By.directive(StubSeasonContainerComponent)
@@ -346,65 +345,100 @@ describe('StalkerSeriesViewComponent', () => {
         ).not.toBeNull();
     });
 
-    it('captures enriched parent and episode metadata when an episode download starts', async () => {
+    it('binds a Stalker adapter that prepares canonical episode metadata', async () => {
         selectedContentType.set('vod');
         selectedItem.set({
             id: '50001',
             is_series: true,
             category_id: '18',
-            info: {
-                name: 'Signal House',
-                description: 'Parent series plot',
-                movie_image:
-                    'https://images.example.test/posters/signal-house.jpg',
-                actors: 'Sienna Wave',
-                director: 'Cora Bell',
-                tmdb_cast: [],
-                tmdb_directors: [],
-            },
+            info: { name: 'Signal House' },
         });
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
-        await fixture.componentInstance.downloadEpisode({
-            episode_num: '0',
-            title: 'The Call',
-            info: {
-                plot: 'Episode-specific plot',
-                movie_image: 'https://images.example.test/stills/the-call.jpg',
-            },
-            custom_sid: 'vod-series',
-            season: '0',
-            originalId: '502',
-        } as never);
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        const initialAdapter = seasonContainer.downloadAdapter();
+        const candidate = initialAdapter?.createCandidate(
+            {
+                id: '61001',
+                episode_num: 3,
+                title: 'The Call',
+                custom_sid: 'vod-series',
+                season: 2,
+                originalId: '502',
+            } as never,
+            '2'
+        );
 
-        expect(startDownload).toHaveBeenCalledWith(
+        const request = await candidate?.prepare();
+
+        expect(fetchLinkToPlay).toHaveBeenCalledWith(
+            'https://stalker.example.test',
+            '00:1A:79:12:34:56',
+            '/media/file_502.mpg',
+            3
+        );
+        expect(request).toEqual(
             expect.objectContaining({
+                episodeIdentityScope: 'stalker-lazy-vod',
                 playlistId: 'stalker-1',
-                playlistType: 'stalker',
                 seriesXtreamId: 50001,
-                seasonNumber: 0,
-                episodeNumber: '0',
-                title: 'Signal House - S00E00 - The Call',
+                xtreamId: 61001,
+                title: 'Signal House - S02E03 - The Call',
+            })
+        );
+
+        currentPlaylist.set({
+            _id: 'stalker-2',
+            title: 'Bedroom Portal',
+            portalUrl: 'https://bedroom.example.test',
+            macAddress: '00:1A:79:65:43:21',
+        });
+        selectedItem.set({
+            id: '40002:season-slice',
+            category_id: '22',
+            info: { name: 'Second Signal' },
+        });
+        await stabilize();
+
+        const updatedAdapter = seasonContainer.downloadAdapter();
+        expect(updatedAdapter).not.toBe(initialAdapter);
+        const updatedCandidate = updatedAdapter?.createCandidate(
+            {
+                id: '62001',
+                episode_num: 1,
+                title: 'Pilot',
+                custom_sid: 'regular-series',
+                season: 4,
+                originalCmd: '/media/file_888.mpg',
+            } as never,
+            '4'
+        );
+        if (!updatedCandidate) {
+            throw new Error('expected a refreshed Stalker download adapter');
+        }
+        const updatedRequest = await updatedCandidate.prepare();
+
+        expect(fetchLinkToPlay).toHaveBeenLastCalledWith(
+            'https://bedroom.example.test',
+            '00:1A:79:65:43:21',
+            '/media/file_888.mpg',
+            1
+        );
+        expect(updatedRequest).toEqual(
+            expect.objectContaining({
+                episodeIdentityScope: 'stalker-regular-series',
+                playlistId: 'stalker-2',
+                seriesXtreamId: 40002,
+                xtreamId: 62001,
+                title: 'Second Signal - S04E01 - Pilot',
+                portalUrl: 'https://bedroom.example.test',
+                macAddress: '00:1A:79:65:43:21',
                 metadataSnapshot: expect.objectContaining({
-                    language: 'en',
-                    mediaKind: 'series',
-                    title: 'Signal House',
-                    plot: 'Parent series plot',
-                    posterUrl:
-                        'https://images.example.test/posters/signal-house.jpg',
-                    providerCategoryId: '18',
-                    cast: [{ name: 'Sienna Wave' }],
-                    creators: [{ name: 'Cora Bell' }],
-                    episode: {
-                        seasonNumber: 0,
-                        episodeNumber: 0,
-                        title: 'The Call',
-                        plot: 'Episode-specific plot',
-                        stillUrl:
-                            'https://images.example.test/stills/the-call.jpg',
-                    },
+                    title: 'Second Signal',
+                    providerCategoryId: '22',
                 }),
             })
         );
@@ -424,8 +458,7 @@ describe('StalkerSeriesViewComponent', () => {
         serialSeasonsResource.set([]);
         vodSeriesSeasonsResource.set([]);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.componentInstance.vodSeriesSeasons.set([
             {
                 id: 'season-1',
@@ -505,8 +538,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         const quickStartButton: HTMLButtonElement | null =
@@ -577,8 +609,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.vodSeriesSeasons.set([
             {
@@ -677,8 +708,7 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         isEmbeddedPlayer.mockReturnValue(true);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.vodSeriesSeasons.set([
             {
@@ -742,17 +772,17 @@ describe('StalkerSeriesViewComponent', () => {
                 }),
             })
         );
-        expect(inlinePlayer.episodeMetadata()).toEqual({
-            label: 'S01E01',
-            title: 'Pilot',
-            seasonNumber: 1,
-            episodeNumber: 1,
-        });
+        // Prettier expands these compact fixtures enough to breach the spec's
+        // hard 1,200-line lint limit.
+        // prettier-ignore
+        expect(inlinePlayer.episodeMetadata()).toEqual({ label: 'S01E01', title: 'Pilot', seasonNumber: 1, episodeNumber: 1 });
         expect(inlinePlayer.seriesNavigation()).toEqual({
             canPrevious: false,
             canNext: true,
             autoplayEnabled: true,
         });
+        const firstEpisodeKey = inlinePlayer.playbackSessionKey();
+        expect(firstEpisodeKey).not.toBe('');
 
         inlinePlayer.playbackEnded.emit();
         await fixture.whenStable();
@@ -777,6 +807,7 @@ describe('StalkerSeriesViewComponent', () => {
             canNext: false,
             autoplayEnabled: true,
         });
+        expect(inlinePlayer.playbackSessionKey()).not.toBe(firstEpisodeKey);
 
         inlinePlayer.playbackEnded.emit();
         await fixture.whenStable();
@@ -820,8 +851,7 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         isEmbeddedPlayer.mockReturnValue(true);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         // Season 1 loaded, season 2 still empty — the state a user is in
         // right after opening the series and starting the first episode.
@@ -855,8 +885,7 @@ describe('StalkerSeriesViewComponent', () => {
         const firstEpisode = fixture.componentInstance.mappedSeasons()['1'][0];
         fixture.componentInstance.onEpisodeClicked(firstEpisode);
         await fixture.whenStable();
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
@@ -904,8 +933,7 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         isEmbeddedPlayer.mockReturnValue(true);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.vodSeriesSeasons.set([
             {
@@ -938,8 +966,7 @@ describe('StalkerSeriesViewComponent', () => {
         const seasonOne = fixture.componentInstance.mappedSeasons()['1'];
         fixture.componentInstance.onEpisodeClicked(seasonOne[0]);
         await fixture.whenStable();
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
@@ -947,8 +974,7 @@ describe('StalkerSeriesViewComponent', () => {
         // Further playback activity in the same season must not retrigger it.
         fixture.componentInstance.onEpisodeClicked(seasonOne[1]);
         await fixture.whenStable();
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
@@ -982,8 +1008,7 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         isEmbeddedPlayer.mockReturnValue(true);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.vodSeriesSeasons.set([
             {
@@ -1014,8 +1039,7 @@ describe('StalkerSeriesViewComponent', () => {
         const seasonOne = fixture.componentInstance.mappedSeasons()['1'];
         fixture.componentInstance.onEpisodeClicked(seasonOne[0]);
         await fixture.whenStable();
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         // The failure must not loop while the same episode keeps playing.
@@ -1027,8 +1051,7 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         fixture.componentInstance.onEpisodeClicked(seasonOne[1]);
         await fixture.whenStable();
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(2);
@@ -1079,8 +1102,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
 
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.vodSeriesSeasons.set([
             {
@@ -1151,8 +1173,7 @@ describe('StalkerSeriesViewComponent', () => {
     });
 
     it('fetches the TMDB season once the show-level match arrives after auto-select', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.detectChanges();
 
         // Season tabs auto-select immediately — usually before the async
@@ -1161,8 +1182,7 @@ describe('StalkerSeriesViewComponent', () => {
             By.directive(StubSeasonContainerComponent)
         ).componentInstance as StubSeasonContainerComponent;
         seasonContainer.seasonSelected.emit('1');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
         // The TMDB match lands afterwards — the fetch must run now.
@@ -1176,8 +1196,7 @@ describe('StalkerSeriesViewComponent', () => {
                 tmdb_id: 777,
             },
         } as never);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
     });
@@ -1194,12 +1213,10 @@ describe('StalkerSeriesViewComponent', () => {
                 tmdb_id: 777,
             },
         } as never);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.onSeasonSelected('1');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         // Season resource still loading — fetching now would pass a zero
         // season count, suppress the title-marker override and cache the
@@ -1214,8 +1231,7 @@ describe('StalkerSeriesViewComponent', () => {
                 series: [1, 2],
             },
         ]);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         // Single-season slice whose provider season is renumbered to 1:
         // the title marker names the real TMDB season.
@@ -1223,12 +1239,10 @@ describe('StalkerSeriesViewComponent', () => {
     });
 
     it('gates the fetch on the reloading season resource during detail-to-detail navigation', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.onSeasonSelected('1');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         // No show-level TMDB match yet — nothing fetched for the first item
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
@@ -1246,8 +1260,7 @@ describe('StalkerSeriesViewComponent', () => {
                 tmdb_id: 888,
             },
         } as never);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         // The new tmdb_id must NOT pair with the previous series' season
         // context while the resource reloads.
@@ -1266,17 +1279,14 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
         isSerialSeasonsLoading.set(false);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
     });
 
     it('enriches after equal-id navigation once the season resource settles', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         fixture.componentInstance.onSeasonSelected('1');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         // Distinct items can reuse a provider id; the loading gate (not an
         // id comparison) keeps the stale map from being used.
@@ -1291,13 +1301,11 @@ describe('StalkerSeriesViewComponent', () => {
                 tmdb_id: 999,
             },
         } as never);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
         isSerialSeasonsLoading.set(false);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
         expect(tmdbGetSeason).toHaveBeenCalledWith(999, 3);
     });
 
@@ -1313,12 +1321,10 @@ describe('StalkerSeriesViewComponent', () => {
                 tmdb_id: 777,
             },
         } as never);
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         fixture.componentInstance.onSeasonSelected('1');
-        fixture.detectChanges();
-        await fixture.whenStable();
+        await stabilize();
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
     });

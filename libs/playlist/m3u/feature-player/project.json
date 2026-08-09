@@ -5,6 +5,7 @@
     "prefix": "lib",
     "projectType": "library",
     "tags": ["scope:playlist", "domain:m3u", "type:feature"],
+    "implicitDependencies": ["ui-styles"],
     "targets": {
         "test": {
             "executor": "nx:run-commands",

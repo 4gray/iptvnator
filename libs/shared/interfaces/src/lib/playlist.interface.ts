@@ -58,11 +58,35 @@ export interface Playlist {
     serverTimezone?: string;
     /** Session token for full stalker portal authentication - persisted for session */
     stalkerToken?: string;
+    /**
+     * Identity fingerprint the persisted `stalkerToken` was negotiated for.
+     * Re-presenting a token minted for a DIFFERENT identity (the user edited
+     * the MAC, serial or device ids) would pair a new identity with an old
+     * session — the same class of bug the in-memory cache guards against, so
+     * reuse is refused unless this still matches the playlist.
+     */
+    stalkerSessionIdentity?: string;
+    /**
+     * Watchdog cadence the portal advertised in `get_profile`, persisted
+     * alongside the token: reusing a stored token skips the profile request
+     * that carries these, so without persistence the keep-alive would fall
+     * back to the 120 s default forever.
+     */
+    stalkerWatchdogTimeout?: number;
+    /** Per-user watchdog jitter (seconds) from `get_profile`. */
+    stalkerTimeslot?: number;
     /** Serial number for stalker portal - generated once and stored for consistency */
     stalkerSerialNumber?: string;
-    /** Optional device ID 1 for stalker portal - if not provided, auto-generated from MAC */
+    /**
+     * Optional device ID 1 for stalker portal. Absent means absent — nothing
+     * generates one at request time. The import dialog can pre-fill a
+     * MAC-derived value on request, but it is stored here as a literal string
+     * from then on: the portal pins the first non-empty value to the MAC
+     * permanently, so a value that silently followed a later MAC edit would be
+     * refused as a device conflict.
+     */
     stalkerDeviceId1?: string;
-    /** Optional device ID 2 for stalker portal - if not provided, auto-generated from MAC */
+    /** Optional device ID 2 for stalker portal - same pinning rules as `stalkerDeviceId1`. */
     stalkerDeviceId2?: string;
     /** Optional signature 1 for stalker portal - required by some portals for device verification */
     stalkerSignature1?: string;

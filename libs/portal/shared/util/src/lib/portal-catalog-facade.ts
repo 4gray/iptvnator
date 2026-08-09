@@ -87,10 +87,22 @@ export interface StalkerPortalCatalogFacade<
     addToFavorites(item: Record<string, unknown>, onDone?: () => void): void;
     removeFromFavorites(favoriteId: string, onDone?: () => void): void;
     fetchMovieFileId(itemId: string): Promise<string | null>;
+    /**
+     * `linkFlags` carries the catalog row's `use_http_tmp_link` /
+     * `use_load_balancing`; without it the portal is always asked for a
+     * temporary link.
+     *
+     * The shape is spelled out rather than imported as `StalkerLinkFlagSource`
+     * on purpose: this lib is `type:util`/`domain:portal-shared` and may not
+     * depend on `portal-stalker-data-access` (`type:data-access`/`domain:stalker`)
+     * — the Nx module-boundary rule rejects that edge.
+     */
     fetchLinkToPlay(
         portalUrl: string,
         macAddress: string,
-        cmd: string
+        cmd: string,
+        series?: number,
+        linkFlags?: { use_http_tmp_link?: unknown; use_load_balancing?: unknown }
     ): Promise<string>;
     resolveVodPlayback(
         cmd?: string,

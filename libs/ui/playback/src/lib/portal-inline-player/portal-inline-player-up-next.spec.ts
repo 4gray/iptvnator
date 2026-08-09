@@ -18,6 +18,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
     template: '<div data-test-id="stub-web-player-view"></div>',
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input.required<string>();
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
@@ -41,12 +42,10 @@ describe('PortalInlinePlayerComponent up next rail', () => {
     let component: PortalInlinePlayerComponentInstance;
 
     beforeAll(async () => {
-        ({ PortalInlinePlayerComponent } = await import(
-            './portal-inline-player.component'
-        ));
-        ({ WebPlayerViewComponent } = await import(
-            '../web-player-view/web-player-view.component'
-        ));
+        ({ PortalInlinePlayerComponent } =
+            await import('./portal-inline-player.component'));
+        ({ WebPlayerViewComponent } =
+            await import('../web-player-view/web-player-view.component'));
     });
 
     afterEach(() => {
@@ -77,9 +76,11 @@ describe('PortalInlinePlayerComponent up next rail', () => {
 
         fixture = TestBed.createComponent(PortalInlinePlayerComponent);
         component = fixture.componentInstance;
+        fixture.componentRef.setInput('playbackSessionKey', 'up-next-key');
     }
 
-    const railEl = () => fixture.nativeElement.querySelector('app-up-next-rail');
+    const railEl = () =>
+        fixture.nativeElement.querySelector('app-up-next-rail');
 
     const seriesPlayback = {
         streamUrl: 'https://example.com/episode.mp4',

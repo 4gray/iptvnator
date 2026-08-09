@@ -6,7 +6,7 @@ import {
     createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
 
 interface VjsDurationPlayer {
     duration(value?: number): unknown;

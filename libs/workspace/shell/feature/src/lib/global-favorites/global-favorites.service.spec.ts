@@ -4,13 +4,17 @@ import { TranslateService } from '@ngx-translate/core';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
 import { GlobalFavoritesService } from './global-favorites.service';
+import { of } from 'rxjs';
 
 describe('GlobalFavoritesService', () => {
     let service: GlobalFavoritesService;
     let electronApi: {
+        dbGetAppState: jest.Mock;
         dbReorderGlobalFavorites: jest.Mock;
         dbSetAppState: jest.Mock;
     };
+    const storeSelect = jest.fn();
+    const getPlaylistById = jest.fn();
 
     const makeChannel = (
         overrides: Partial<UnifiedFavoriteChannel> &
@@ -25,7 +29,10 @@ describe('GlobalFavoritesService', () => {
     });
 
     beforeEach(() => {
+        storeSelect.mockReset().mockReturnValue(of([]));
+        getPlaylistById.mockReset();
         electronApi = {
+            dbGetAppState: jest.fn().mockResolvedValue(null),
             dbReorderGlobalFavorites: jest
                 .fn()
                 .mockResolvedValue({ success: true }),
@@ -39,9 +46,12 @@ describe('GlobalFavoritesService', () => {
         TestBed.configureTestingModule({
             providers: [
                 GlobalFavoritesService,
-                { provide: Store, useValue: { select: jest.fn() } },
+                { provide: Store, useValue: { select: storeSelect } },
                 { provide: DatabaseService, useValue: {} },
-                { provide: PlaylistsService, useValue: {} },
+                {
+                    provide: PlaylistsService,
+                    useValue: { getPlaylistById },
+                },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -56,6 +66,52 @@ describe('GlobalFavoritesService', () => {
             value: undefined,
             configurable: true,
         });
+    });
+
+    it('keeps legacy URL UIDs aligned with the persisted M3U order', async () => {
+        const firstUrl = 'https://streams.example/one.ts';
+        const secondUrl = 'https://streams.example/two.ts';
+        storeSelect.mockReturnValue(
+            of([
+                {
+                    _id: 'playlist-one',
+                    title: 'Playlist',
+                    favorites: [firstUrl, secondUrl],
+                },
+            ])
+        );
+        getPlaylistById.mockReturnValue(
+            of({
+                playlist: {
+                    items: [
+                        {
+                            id: 'channel-one',
+                            name: 'Channel One',
+                            url: firstUrl,
+                        },
+                        {
+                            id: 'channel-two',
+                            name: 'Channel Two',
+                            url: secondUrl,
+                        },
+                    ],
+                },
+            })
+        );
+        electronApi.dbGetAppState.mockResolvedValue(
+            JSON.stringify([
+                `m3u::playlist-one::${secondUrl}`,
+                `m3u::playlist-one::${firstUrl}`,
+            ])
+        );
+
+        const channels = await service.getUnifiedLiveFavorites();
+
+        expect(channels.map((channel) => channel.uid)).toEqual([
+            `m3u::playlist-one::${secondUrl}`,
+            `m3u::playlist-one::${firstUrl}`,
+        ]);
+        expect(channels.map((channel) => channel.position)).toEqual([0, 1]);
     });
 
     describe('reorder', () => {
@@ -109,7 +165,10 @@ describe('GlobalFavoritesService', () => {
             expect(electronApi.dbReorderGlobalFavorites).not.toHaveBeenCalled();
             expect(electronApi.dbSetAppState).toHaveBeenCalledWith(
                 'global-favorites-channel-order-v1',
-                JSON.stringify(['m3u::playlist-m::url', 'stalker::playlist-s::5'])
+                JSON.stringify([
+                    'm3u::playlist-m::url',
+                    'stalker::playlist-s::5',
+                ])
             );
         });
     });

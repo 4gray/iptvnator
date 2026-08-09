@@ -7,8 +7,7 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
-The shared-controls foundation from PR #1148 now supports four runtime
-consumers and includes:
+The shared-controls foundation supports four runtime consumers and includes:
 
 - the `PlayerController` contract, default state, and capability presets;
 - the standalone `app-player-controls` presentation component and its
@@ -81,6 +80,25 @@ normal DOM layering, while the native platform view cannot. The integration
 also includes a recording coordinator that correlates asynchronous snapshots
 with the active playback/session owner, serializes toggles, and cancels pending
 ownership when the session, playback, engine, or component changes.
+
+## Diagnostics And Recovery Ownership Boundary
+
+`PlayerController` remains a sibling of playback diagnostics and recovery
+recommendations. It owns engine-neutral playback state, capabilities, and
+commands for the shared controls; it does not classify errors, call
+`recommendPlaybackRecovery()`, rank actions, track recovery attempts, choose a
+temporary player, or own content-session policy.
+
+Those pure contracts and policies live in `@iptvnator/playback/util` (Nx
+project `playback-util`). `WebPlayerViewComponent` owns their in-memory,
+session-local application. No diagnostic or recommendation state or command is
+added to `PlayerController`.
+
+The only controls-layer participation is interaction gating. While the sibling
+diagnostic panel is visible, a web-player host disables shared surface and
+keyboard ownership and exits only its own DOM fullscreen so the recovery
+actions remain reachable. Clearing the diagnostic restores those paths; it
+does not make the controls contract an owner of the recovery lifecycle.
 
 ## Why this exists
 
@@ -257,6 +275,15 @@ popovers even when a modifier is held or playback shortcuts are unavailable.
 Buttons, form controls, links, ARIA menu controls, and content-editable targets
 are also ignored anywhere in the event's composed path.
 
+A player whose host sits inside an `inert` region ignores every shortcut,
+including Escape: `inert` strips pointer and Tab access but document-level
+listeners still fire, so the optional `hostElement` handler on
+`ControlsShortcutHandlers` lets the shortcuts opt out while a modal surface
+above the player (e.g. the workspace's phone context drawer) owns the
+keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
+the radio audio player's document-level volume/mute keys apply the same
+rule.
+
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute
 requires volume capability, and fullscreen requires an available DOM
@@ -297,7 +324,7 @@ playback diagnostic is visible: `WebPlayerViewComponent` passes
 components bind that value to `showControls` and
 `shortcutsEnabled`. If the active player shell owns DOM fullscreen, its host
 exits fullscreen before hiding the controls so the sibling diagnostic banner
-and its retry/fallback actions remain visible; fullscreen owned by another
+and its recovery actions remain visible; fullscreen owned by another
 element is left untouched. Retrying playback or clearing the diagnostic
 restores both interaction paths.
 

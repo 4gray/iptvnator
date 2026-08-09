@@ -21,21 +21,40 @@ type DownloadAsyncLstat = (
     filePath: string
 ) => Promise<Pick<Stats, 'isFile' | 'isSymbolicLink'>>;
 
+type DownloadFileAvailabilityProbeResult = boolean | 'unknown';
+
 type DownloadFileAvailabilityProbe = (
     filePath: string
-) => Promise<boolean>;
+) => Promise<DownloadFileAvailabilityProbeResult>;
 
 const DEFAULT_MAX_CONCURRENT_FILE_PROBES = 4;
+const DEFAULT_FILE_PROBE_TIMEOUT_MS = 1_000;
 
-function createDownloadFileAvailabilityProbe(
+export type BoundedDownloadFileAvailability =
+    ElectronDownloadFileAvailability | 'unknown';
+
+function isMissingFileSystemError(error: unknown): boolean {
+    if (!error || typeof error !== 'object' || !('code' in error)) {
+        return false;
+    }
+    const code = (error as { code?: unknown }).code;
+    return code === 'ENOENT' || code === 'ENOTDIR';
+}
+
+export function createDownloadFileAvailabilityProbe(
     asyncLstat: DownloadAsyncLstat = lstat,
     maxConcurrent = DEFAULT_MAX_CONCURRENT_FILE_PROBES
 ): DownloadFileAvailabilityProbe {
     const concurrency = Math.max(1, Math.floor(maxConcurrent));
     const pending: Array<() => void> = [];
-    // Coalesce only active probes. Completed results are discarded so an
-    // externally removed file is visible on the next list refresh.
-    const inFlight = new Map<string, Promise<boolean>>();
+    // Coalesce unfinished probes, including work waiting for a slot. Caller
+    // deadlines never evict this raw operation, so a stalled lstat remains
+    // charged to the concurrency cap instead of being duplicated by refreshes.
+    // Completed results are discarded so later filesystem changes stay visible.
+    const inFlight = new Map<
+        string,
+        Promise<DownloadFileAvailabilityProbeResult>
+    >();
     let active = 0;
 
     const acquire = (): Promise<void> => {
@@ -55,13 +74,15 @@ function createDownloadFileAvailabilityProbe(
         }
     };
 
-    const inspect = async (filePath: string): Promise<boolean> => {
+    const inspect = async (
+        filePath: string
+    ): Promise<DownloadFileAvailabilityProbeResult> => {
         await acquire();
         try {
             const stats = await asyncLstat(filePath);
             return stats.isFile() && !stats.isSymbolicLink();
-        } catch {
-            return false;
+        } catch (error) {
+            return isMissingFileSystemError(error) ? false : 'unknown';
         } finally {
             release();
         }
@@ -86,6 +107,40 @@ function createDownloadFileAvailabilityProbe(
 }
 
 const probeDownloadFileAvailability = createDownloadFileAvailabilityProbe();
+
+function toBoundedDownloadFileAvailability(
+    available: DownloadFileAvailabilityProbeResult
+): BoundedDownloadFileAvailability {
+    if (available === 'unknown') {
+        return available;
+    }
+    return available ? 'available' : 'missing';
+}
+
+async function probeDownloadFileAvailabilityWithTimeout(
+    filePath: string,
+    timeoutMs: number,
+    probe: DownloadFileAvailabilityProbe
+): Promise<DownloadFileAvailabilityProbeResult> {
+    const boundedTimeoutMs =
+        Number.isFinite(timeoutMs) && timeoutMs >= 0
+            ? timeoutMs
+            : DEFAULT_FILE_PROBE_TIMEOUT_MS;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<'unknown'>((resolve) => {
+        timeout = setTimeout(() => resolve('unknown'), boundedTimeoutMs);
+    });
+
+    try {
+        return await Promise.race([probe(filePath), timedOut]);
+    } catch {
+        return 'unknown';
+    } finally {
+        if (timeout !== undefined) {
+            clearTimeout(timeout);
+        }
+    }
+}
 
 export function isAvailableDownloadFile(
     filePath: string | null | undefined,
@@ -128,7 +183,34 @@ export async function getDownloadFileAvailabilityAsync(
         return 'missing';
     }
 
-    return (await probe(download.filePath)) ? 'available' : 'missing';
+    const available = await probeDownloadFileAvailabilityWithTimeout(
+        download.filePath,
+        DEFAULT_FILE_PROBE_TIMEOUT_MS,
+        probe
+    );
+    return available === true ? 'available' : 'missing';
+}
+
+export async function getDownloadFileAvailabilityWithTimeoutAsync(
+    download: DownloadFileRow,
+    timeoutMs = DEFAULT_FILE_PROBE_TIMEOUT_MS,
+    probe: DownloadFileAvailabilityProbe = probeDownloadFileAvailability
+): Promise<BoundedDownloadFileAvailability> {
+    if (download.status !== 'completed') {
+        return 'not-applicable';
+    }
+
+    if (!download.filePath) {
+        return 'missing';
+    }
+
+    return toBoundedDownloadFileAvailability(
+        await probeDownloadFileAvailabilityWithTimeout(
+            download.filePath,
+            timeoutMs,
+            probe
+        )
+    );
 }
 
 export function decorateDownloadItem<T extends DownloadFileRow>(

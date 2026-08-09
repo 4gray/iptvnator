@@ -138,6 +138,8 @@ export class PwaService extends DataService {
                     macAddress: string;
                     params: Record<string, string>;
                     token?: string;
+                    serialNumber?: string;
+                    silent?: boolean;
                 }
             ) as T;
         }
@@ -479,6 +481,9 @@ export class PwaService extends DataService {
         params: Record<string, string>;
         macAddress: string;
         token?: string;
+        serialNumber?: string;
+        /** Endpoint-discovery probes expect failures; no error snackbar. */
+        silent?: boolean;
     }) {
         let context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -494,11 +499,18 @@ export class PwaService extends DataService {
         try {
             const targetId = await this.getProviderTargetId(payload.url);
             const token = payload.token ?? payload.params.token;
+            // `macAddress`, `token` and `serialNumber` are control params for
+            // the /stalker proxy: it turns them into the portal-facing
+            // Cookie / Authorization / SN headers and strips them from the
+            // query it forwards to the portal.
             const requestParams = {
                 targetId,
                 ...payload.params,
                 macAddress: payload.macAddress,
                 ...(token ? { token } : {}),
+                ...(payload.serialNumber
+                    ? { serialNumber: payload.serialNumber }
+                    : {}),
             };
             const params = new URLSearchParams(requestParams);
             const requestUrl = `${this.corsProxyUrl}/stalker?${params.toString()}`;
@@ -525,6 +537,29 @@ export class PwaService extends DataService {
 
             // Parse and return the JSON response
             const responseBody = await response.json();
+
+            // The proxy converts upstream provider failures (404 on an
+            // absent endpoint, 5xx) into an HTTP 200 `{ message, status }`
+            // body WITHOUT a `payload` key. Surface those as errors carrying
+            // the status so endpoint discovery and the lazy portal repair
+            // can classify them — unwrapping `payload` here silently
+            // returned `undefined`, making a dead endpoint look like an
+            // empty answer and unreachable to the repair.
+            if (
+                responseBody &&
+                typeof responseBody === 'object' &&
+                !('payload' in responseBody) &&
+                typeof responseBody.status === 'number'
+            ) {
+                const proxyError = new Error(
+                    `HTTP Error ${responseBody.status}: ${
+                        responseBody.message ?? ''
+                    }`
+                ) as Error & { status: number };
+                proxyError.status = responseBody.status;
+                throw proxyError;
+            }
+
             logPortalDebugEvent(
                 createPortalDebugSuccessEvent(context, responseBody)
             );
@@ -534,13 +569,15 @@ export class PwaService extends DataService {
             logPortalDebugEvent(createPortalDebugErrorEvent(context, err));
             this.logger.error('Stalker request error:', err);
 
-            this.snackBar.open(
-                `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
-                'Close',
-                {
-                    duration: 5000,
-                }
-            );
+            if (!payload.silent) {
+                this.snackBar.open(
+                    `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
+            }
             throw err;
         }
     }

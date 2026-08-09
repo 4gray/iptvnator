@@ -49,7 +49,7 @@ store imports):
 | `tmdb-runtime.service.ts`    | Shared runtime context: opt-in gate, effective API key, language resolution                                                                  |
 | `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups                                     |
 | `tmdb-person.service.ts`     | Cached person details + combined filmography (`person:<id>` rows)                                                                            |
-| `tmdb-season.service.ts`     | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows)                                                                            |
+| `tmdb-season.service.ts`     | Cached lazy per-season payloads — overview + episode list (`id:<id>\|season:<n>` rows)                                                       |
 | `tmdb-trending.service.ts`   | Weekly trending (movie + tv merged by popularity, `trending:week` rows, 1-day TTL)                                                           |
 
 Integration glue per portal:
@@ -215,8 +215,9 @@ project site as Referer for YouTube embed hosts
 Show-level merges store the matched id as `tmdb_id` on the enriched info
 (`XtreamSerieInfo` / `StalkerVodInfo`). When the user opens a season, the
 detail views lazily fetch `/tv/{tmdbId}/season/{n}` via
-`TmdbEnrichmentService.getSeasonEpisodes` (cached per language under
-`id:{tmdbId}|season:{n}`) and overlay it with `mergeEpisodesWithTmdb`:
+`TmdbEnrichmentService.getSeason` (cached per language under
+`id:{tmdbId}|season:{n}`) and overlay its episodes with
+`mergeEpisodesWithTmdb`:
 
 - generic provider titles ("Episode 4", "Серия 4", "S01E04", bare numbers)
   are replaced with real episode names; meaningful provider titles are kept
@@ -224,6 +225,20 @@ detail views lazily fetch `/tv/{tmdbId}/season/{n}` via
   empty provider fields; durations stay provider-owned
 - episodes without a TMDB counterpart (by episode number) pass through
   untouched
+
+Season enrichment re-fires from the serial detail view after every
+selection write, so its own write is convergent: a repeat cache-served run
+that would change nothing (episodes already merged, overview already
+stored) writes nothing, ending the re-fire chain.
+
+The same payload's season `overview` is stored on the Xtream selection as
+`tmdb_season_overviews[seasonKey]`. The serial detail view renders season
+descriptions provider-first (`buildSeasonDescriptions` in
+`libs/portal/xtream/feature/src/lib/serial-details/season-descriptions.util.ts`):
+a `get_series_info` season overview wins when it is real prose, but panels
+routinely fill it with a bare cover-image URL —
+`sanitizeProviderOverview` (`@iptvnator/shared/interfaces`) treats a
+URL-only value as absent, and the stored TMDB overview fills the gap.
 
 The season number `{n}` is the provider's episode season number, with one
 correction (`resolveEnrichmentSeasonNumber` in
@@ -405,14 +420,48 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   the worker at startup, and runs once per app session.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
-  backdrop (when the provider item has none), a rating badge and up to two
+  backdrop (when the activity row has none), a rating badge and up to two
   genre chips — resolved through the enrichment facade, so items already
   opened in a detail view come from the SQLite cache without network.
-  Results are memoized per title for the session. The hero renders
+  Results are memoized per lookup identity for the session. The hero renders
   immediately from provider data; extras appear when resolved. Series
   heroes additionally show the tracked "S{n}·E{n}" badge from the playback
   position (no TMDB involved); the watch-progress bar is limited to
   movie/series heroes.
+
+  The query is built to **match what the detail view searched with**, not
+  just what the card displays. A title alone is weaker identity than the
+  detail page had: without a year `pickConfidentMatch` requires a single
+  exact title match, which common titles never satisfy, and the miss lands
+  in the negative cache under a lookup key the detail view's hit can never
+  be found at. Stalker rows carry those facts —
+  `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads
+  `info.name`, `info.o_name`, `info.releasedate` and `info.tmdb_id` off the
+  stored entry, mirroring `enrichStalkerSelectionWithTmdb` field for field.
+  A `'movie'` verdict gets a second attempt under `'tv'` — `'movie'` is what
+  every row falls back to when nothing says otherwise, and an embedded-VOD
+  series is a `'movie'` activity row but a show on TMDB. That retry **drops
+  the id**, which is only ever valid for the media type it was resolved
+  under: `/movie/<tv id>` resolves to an unrelated film. A `'tv'` verdict
+  gets no retry — it is reached only on positive evidence (series category,
+  `is_series`, or a non-empty episode array), and the gate cannot tell an
+  adaptation sharing its show's name and year from the show itself.
+
+  Note the id in a stored Stalker entry is not a provider claim. Stalker
+  portals never send one; its only source is a match this app already made
+  and gated.
+
+### Stalker backdrops on activity rows
+
+Xtream detail views back-fill `content.backdrop_url`, which the dashboard
+reads directly. Stalker items never reach the `content` table, so their
+backdrop travels inside the stored playlist entry instead
+(`info.tmdb_backdrop`, written by the same merge that enriched the detail
+view) and the activity mappers surface it as `backdrop_url` —
+`mapStalkerPlaylistRecentItems` in `playlist-recently-viewed.utils.ts` and
+`buildStalkerFavoriteItems` in `dashboard-mappers.ts`. Entries saved before
+enrichment (or with TMDB off) simply have none, and the dashboard falls back
+to a blurred poster.
 
 ### `badProviderId:` rows
 

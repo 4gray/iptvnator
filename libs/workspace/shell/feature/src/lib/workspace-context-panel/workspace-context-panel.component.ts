@@ -17,7 +17,10 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerStore,
+    asStalkerPortalError,
+} from '@iptvnator/portal/stalker/data-access';
 import {
     PortalCategorySortMode,
     persistPortalCategorySortMode,
@@ -28,6 +31,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -69,6 +73,13 @@ export class WorkspaceContextPanelComponent {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
+    // Root-provided; optional keeps standalone unit tests light. Only relevant
+    // when the panel renders as the phone drawer. Some selections here (e.g.
+    // Stalker ITV/radio) update the store without navigating, so the drawer's
+    // NavigationEnd auto-close never fires for them.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
@@ -144,6 +155,39 @@ export class WorkspaceContextPanelComponent {
         this.stalkerStore.isCategoryResourceLoading;
     readonly isStalkerCategoryFailed =
         this.stalkerStore.isCategoryResourceFailed;
+    /**
+     * When category loading failed because the portal refused the session,
+     * the portal's own explanation (msg/block_msg or the documented
+     * plain-text failure body) replaces the generic hint; a login-required
+     * refusal gets its own actionable text.
+     */
+    readonly stalkerCategoryErrorDescription = computed(() => {
+        const portalError = asStalkerPortalError(
+            this.isStalkerCategoryFailed()
+        );
+        // Device conflicts are the exception to "the portal explains itself":
+        // its own wording blames the hardware, so the actionable sentence
+        // leads and the portal's text follows it.
+        if (portalError?.kind === 'device-conflict') {
+            const hint = this.translate.instant(
+                'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT'
+            );
+            return portalError.portalText
+                ? `${hint} ${portalError.portalText}`
+                : hint;
+        }
+        if (portalError?.portalText) {
+            return portalError.portalText;
+        }
+        if (portalError?.kind === 'login-required') {
+            return this.translate.instant(
+                'PORTALS.ERROR_VIEW.STALKER_LOGIN_REQUIRED'
+            );
+        }
+        return this.translate.instant(
+            'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR_HINT'
+        );
+    });
     // Category count badges are only available for Stalker Live TV, where the
     // full channel list is cached — VOD/series/radio still page lazily, so
     // their per-category totals are unknown.
@@ -370,6 +414,7 @@ export class WorkspaceContextPanelComponent {
             return;
         }
         const categoryId = numericCategoryId;
+        this.contextDrawer?.close();
 
         if (section === 'live') {
             this.xtreamStore.setSelectedCategory(categoryId);
@@ -410,6 +455,7 @@ export class WorkspaceContextPanelComponent {
         const section = this.section();
         const categoryId = String(item.category_id ?? '*');
 
+        this.contextDrawer?.close();
         this.stalkerStore.setSelectedCategory(categoryId);
         this.stalkerStore.setPage(0);
         this.stalkerStore.clearSelectedItem();
@@ -451,6 +497,8 @@ export class WorkspaceContextPanelComponent {
 
     private getXtreamImportPhaseLabelKey(phase: string | null): string {
         switch (phase) {
+            case 'loading-cached':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING_CACHED';
             case 'preparing-content':
                 return 'WORKSPACE.SHELL.XTREAM_IMPORT_PREPARING';
             case 'loading-categories':

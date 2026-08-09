@@ -167,6 +167,7 @@
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
                 detail-player
+                [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="serial.info.name"
@@ -202,13 +203,13 @@
                 "
                 [seasonDescriptions]="seasonDescriptions()"
                 [downloadsEnabled]="!providerOnly()"
+                [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
                     isCurrentSeasonLoading(seasonContainer?.selectedSeason())
                 "
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
-                (episodeDownloadRequested)="downloadEpisode($event)"
                 (playbackToggleRequested)="
                     handlePlaybackToggleRequestedFromUi($event)
                 "

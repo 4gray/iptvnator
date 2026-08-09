@@ -8,6 +8,13 @@ export interface XtreamSerieDetails {
     seasons: XtreamSerieSeason[];
     info: XtreamSerieInfo;
     episodes: Record<string, XtreamSerieEpisode[]>;
+    /**
+     * Populated by lazy TMDB season enrichment; absent in raw provider
+     * responses. Keyed by the provider season key (the `episodes` record
+     * key). Detail views use it as the season-description fallback when
+     * the provider's `seasons[].overview` is empty or URL-only junk.
+     */
+    tmdb_season_overviews?: Record<string, string>;
 }
 
 export interface XtreamSerieInfo {

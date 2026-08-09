@@ -8,6 +8,7 @@
         <app-stalker-series-view [providerOnly]="providerOnly()" />
     } @else if (vodDetailsItem()) {
         <app-vod-details
+            [playbackSessionKey]="playbackSessionKey()"
             [item]="vodDetailsItem()!"
             [isFavorite]="isSelectedVodFavorite()"
             [playbackPosition]="selectedVodPlaybackPosition()"

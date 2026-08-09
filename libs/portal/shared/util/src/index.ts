@@ -31,3 +31,4 @@ export * from './lib/xtream-catchup.util';
 export * from './lib/external-playback-button-state';
 export * from './lib/inline-playback-position-writer';
 export * from './lib/downloads/download-metadata-snapshot';
+export * from './lib/downloads/episode-download-identity';

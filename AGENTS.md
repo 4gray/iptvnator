@@ -16,6 +16,24 @@ This file provides guidance to coding agents working in this repository.
 - Use scoped path aliases from `tsconfig.base.json` such as `@iptvnator/services`, `@iptvnator/shared/interfaces`, and `@iptvnator/ui/components`. Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json` so `@nx/enforce-module-boundaries` remains useful for humans and agents.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
+- Keep `nx` and every official `@nx/*` package on the same exact version; run
+  `pnpm run deps:nx:validate` after dependency updates.
+- Vite `7.3.5`, resolved through Angular's build tooling, is patched with
+  bounded transform prefilters and the upstream precise matchers in
+  `patches/vite@7.3.5.patch`. Keep the patch until supported Angular tooling
+  resolves a Vite version containing the fix, and run `pnpm run deps:vite:test`
+  after related dependency updates.
+- A directory holding files consumed by other projects must be an Nx project.
+  Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
+  across project roots creates no edge and the imported file lands in no task
+  hash — edits then return a cache hit instead of rebuilding. Shared partials
+  live in `libs/ui/styles` (project `ui-styles`), and each consumer declares
+  `"implicitDependencies": ["ui-styles"]`. Run `pnpm run styles:inputs:validate`
+  after adding a cross-project stylesheet import.
+- Update Nx with `pnpm nx migrate nx@<target> --skipInstall`, regenerate the
+  lockfile, run generated migrations when present, and validate before opening
+  a PR. Major updates are always manual. Replace incomplete Dependabot security
+  PRs with a coordinated update instead of editing the bot branch.
 - ESLint enforces `max-lines` on TypeScript files: production code targets under 300 with a hard maximum of 400, while tests (`**/*.spec.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held to 1200 — a long spec signals coverage, not the design debt the production limit catches. Blank lines and comments are not counted, so a docblock never forces a split. Limits live in `tools/eslint/max-lines-config.mjs`, imported by both `eslint.config.mjs` and the generator so the rule and the baseline cannot drift. Files that predate the rule are baselined in `tools/eslint/max-lines-baseline.mjs`; after splitting a file, regenerate it with `node tools/eslint/generate-max-lines-baseline.mjs` (it runs ESLint's own rule rather than counting lines itself). Never add new files to the baseline — the list must only shrink. A new file that genuinely cannot be split (for example a function serialized into another process) instead carries its own file-wide `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so a justified exemption never lands in the baseline. Remove such a directive once ESLint reports it as unused.
 - Project `lint` targets that shell out to eslint must quote the glob, e.g. `eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX shell on Linux and macOS (which has no `globstar`, so it matches only a shallow subset of files) while Windows passes the literal pattern to ESLint, which expands it recursively — the two hosts then lint different file sets. The target still reports success either way, so a broken glob hides missing coverage instead of failing. After changing such a target, compare the linted file count against `find <project> -name '*.ts' | wc -l`.
 - Repository-specific skills live under `.codex/skills/`.
@@ -210,20 +228,67 @@ Key files:
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
-  source kind `shaka`. The Shaka `5.2.2` diagnostic boundary version-locks
-  public severity/category/code evidence, ignores recoverable error events,
+  source kind `shaka`. The DOM-free Shaka `5.2.2` diagnostic boundary lives in
+  `libs/playback/util`; it version-locks public severity/category/code evidence,
+  ignores recoverable error events,
   treats rejected loads as terminal lifecycle outcomes, preserves exact public
   DASH text-parser category/code evidence with unknown stage/failure, and never
   retains or renders raw messages or `error.data`. A failed browser-support
-  preflight stays unknown but keeps external fallback for clear DASH; KODIPROP
-  DRM still suppresses it. See the CLAUDE.md "Video Players" feature entry and
-  `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
+  preflight stays generic-unknown but carries the exact app-owned
+  `PlaybackRuntimeSupport.ShakaBrowserUnsupported` marker, preserving managed
+  external fallback only for clear transferable DASH; PWA capability and
+  KODIPROP DRM still suppress it. See the CLAUDE.md "Video Players" feature
+  entry and the "DASH + ClearKey Playback" section of
+  `docs/architecture/m3u-playlist-module.md`.
 - mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
-  version-locked structured evidence boundary. Only exact public type/detail
-  pairs, pair-derived stage/failure, terminal disposition, and the validated
-  HTTP 4xx/5xx status slot are retained; raw messages and arbitrary `info`
+  version-locked structured evidence boundary in `libs/playback/util`. Only
+  exact public type/detail pairs, pair-derived stage/failure, terminal
+  disposition, and the validated HTTP 4xx/5xx status slot are retained; raw
+  messages and arbitrary `info`
   never reach diagnostics. This is a sibling of `PlayerController`, not part
   of the controls contract.
+- Browser playback diagnostics and recovery policy live in
+  `libs/playback/util` and are exported by `@iptvnator/playback/util`.
+  Public engine errors cross allowlisted sanitizers into a
+  `PlaybackDiagnostic`; `recommendPlaybackRecovery(context)` then ranks at
+  most three actions, and `WebPlayerViewComponent` executes only the action
+  the user selects. The policy is a sibling of `PlayerController`; shared
+  controls only gate interaction while the diagnostic panel is visible.
+  `WebPlayerViewComponent` owns a host-derived content-session key that is
+  stable for the mounted logical selection, attempted target IDs, the temporary
+  player override, and VOD handoff position. Its `PlaybackBinding` is exactly
+  `{ generation, target }`, while every source/target/reload application uses a
+  fieldless opaque `Symbol` token. Diagnostic storage uses a separate fieldless
+  intent `Symbol`, and source applications advance a third fieldless revision
+  `Symbol` that clears only the VOD handoff position; target-only switches and
+  Retry leave that revision stable. None of these ownership primitives contains
+  URLs, headers, DRM material, or credentials. The application effect
+  synchronizes the content session before tracking intent, so clearing a
+  temporary player override cannot schedule a duplicate application or header
+  handoff. Every application start clears both the diagnostic owner and backing
+  signal before asynchronous header setup; a current false result or rejection
+  leaves them clear, and a stale completion cannot erase a newer owned
+  diagnostic. Each
+  rendered web or Embedded MPV application captures its nullable binding, the
+  application and source-revision tokens, and live/VOD flag; a time update
+  changes resume state only while that exact capture still owns the current
+  application. A recommended built-in
+  player temporarily
+  outranks the host override and saved player for that mounted content session,
+  never mutates `Settings.player`, and resumes finite VOD position on a
+  best-effort basis; live playback returns to the live edge. Retry and
+  alternative sources preserve attempts, while a different content-session key
+  or component teardown resets them. Recovery recommendations never
+  auto-switch, persist history, learn across sessions, or emit telemetry.
+  The policy projects attempted inline target IDs through the validated
+  canonical source/target capabilities and excludes every attempted engine
+  family, so HTML5 and ArtPlayer are not separate hls.js recoveries. Network
+  and generic unknown evidence fail closed to Retry/alternative source; the
+  exact Shaka browser-unsupported preflight marker is the sole unknown-code
+  exception. PWA capability suppresses managed MPV/VLC, and ClearKey/KODIPROP
+  DRM suppresses external targets because its payload is not transferable. Raw
+  engine messages, arbitrary data, and credentials never enter recommendation
+  evidence or ownership state.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared

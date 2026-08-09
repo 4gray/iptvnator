@@ -8,6 +8,7 @@ import { StalkerInlineDetailComponent } from './stalker-inline-detail.component'
 
 @Component({ selector: 'app-vod-details', template: '' })
 class StubVodDetailsComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly item = input.required<unknown>();
     readonly providerOnly = input(false);
     readonly isFavorite = input(false);
@@ -57,6 +58,10 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
             .compileComponents();
         fixture = TestBed.createComponent(StalkerInlineDetailComponent);
         fixture.componentRef.setInput('providerOnly', true);
+        fixture.componentRef.setInput(
+            'playbackSessionKey',
+            'collection-owned-vod-key'
+        );
     });
 
     afterEach(() => fixture.destroy());
@@ -70,6 +75,7 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
             By.directive(StubVodDetailsComponent)
         ).componentInstance as StubVodDetailsComponent;
         expect(child.providerOnly()).toBe(true);
+        expect(child.playbackSessionKey()).toBe('collection-owned-vod-key');
     });
 
     it.each([

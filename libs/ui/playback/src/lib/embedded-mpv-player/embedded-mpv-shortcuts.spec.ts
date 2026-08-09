@@ -30,6 +30,31 @@ describe('EmbeddedMpvShortcuts', () => {
         shortcuts.detach();
     });
 
+    it('ignores every shortcut while the host sits inside an inert region', () => {
+        const inertRegion = document.createElement('div');
+        inertRegion.setAttribute('inert', '');
+        const host = document.createElement('div');
+        inertRegion.appendChild(host);
+        document.body.appendChild(inertRegion);
+        (
+            handlers as unknown as { hostElement: () => HTMLElement }
+        ).hostElement = () => host;
+
+        try {
+            expect(dispatchKey(' ')).toBe(false);
+            expect(dispatchKey('ArrowUp')).toBe(false);
+            expect(dispatchKey('m')).toBe(false);
+            dispatchKey('Escape');
+
+            expect(handlers.togglePaused).not.toHaveBeenCalled();
+            expect(handlers.adjustVolume).not.toHaveBeenCalled();
+            expect(handlers.toggleMute).not.toHaveBeenCalled();
+            expect(handlers.onEscape).not.toHaveBeenCalled();
+        } finally {
+            inertRegion.remove();
+        }
+    });
+
     it('forwards playback, seek, volume, and fullscreen shortcuts', () => {
         expect(dispatchKey(' ')).toBe(true);
         expect(dispatchKey('ArrowLeft')).toBe(true);

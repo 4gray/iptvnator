@@ -21,6 +21,8 @@ export interface ScenarioConfig {
     performanceFixture?: 'catalog-100k';
     /** Build series details on demand instead of during portal initialization. */
     deferSeriesDetails?: true;
+    /** Optional local stream fixture for deterministic download queue tests. */
+    downloadStreamFixture?: 'slow-series';
 }
 
 /**
@@ -98,6 +100,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         episodesPerSeason: 3,
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
+    },
+    'downloadqueue:downloadqueue': {
+        name: 'download-queue',
+        description:
+            'Download queue — 1 series category, 4 series with 4 episodes each',
+        seed: 8080,
+        categoryCount: { live: 0, vod: 0, series: 1 },
+        itemsPerCategory: 4,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 4,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        downloadStreamFixture: 'slow-series',
     },
     'epg:epg': {
         name: 'epg-fixture',

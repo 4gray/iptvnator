@@ -80,6 +80,7 @@ function createController() {
 
     return {
         controller,
+        inlinePlayback,
         playbackPositions,
         selectedVodPosition,
     };
@@ -114,5 +115,32 @@ describe('StalkerVodPlaybackController', () => {
         await olderLoadPromise;
         expect(selectedVodPosition()?.contentXtreamId).toBe(202);
         expect(selectedVodPosition()?.positionSeconds).toBe(20);
+    });
+
+    it('does not mount playback that resolves after the detail closes', async () => {
+        const { controller, inlinePlayback } = createController();
+        const pending = createDeferred<{ streamUrl: string }>();
+        const playback = controller.startVodPlayback(() => pending.promise);
+
+        controller.closeInlinePlayer();
+        pending.resolve({ streamUrl: 'https://stale.example/movie.mpg' });
+        await playback;
+
+        expect(inlinePlayback()).toBeNull();
+    });
+
+    it('keeps the newest VOD request when resolutions finish out of order', async () => {
+        const { controller, inlinePlayback } = createController();
+        const older = createDeferred<{ streamUrl: string }>();
+        const newer = createDeferred<{ streamUrl: string }>();
+        const olderRequest = controller.startVodPlayback(() => older.promise);
+        const newerRequest = controller.startVodPlayback(() => newer.promise);
+        const newestPlayback = { streamUrl: 'https://new.example/movie.mpg' };
+
+        newer.resolve(newestPlayback);
+        older.resolve({ streamUrl: 'https://old.example/movie.mpg' });
+        await Promise.all([olderRequest, newerRequest]);
+
+        expect(inlinePlayback()).toBe(newestPlayback);
     });
 });

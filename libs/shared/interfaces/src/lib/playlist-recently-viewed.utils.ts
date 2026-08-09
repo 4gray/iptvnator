@@ -1,5 +1,6 @@
 import { PlaylistMeta } from './playlist-meta.type';
 import { PortalRecentItem } from './portal-activity-item.interface';
+import { extractStalkerItemTmdbHints } from './stalker-item-tmdb-hints';
 import {
     extractStalkerItemId,
     extractStalkerItemPoster,
@@ -52,6 +53,10 @@ function mapStalkerPlaylistRecentItems(
                 category_id: String(item['category_id'] ?? ''),
                 xtream_id: id,
                 poster_url: extractStalkerItemPoster(item),
+                // Stalker has no `content` row to back-fill, so the backdrop
+                // travels inside the stored entry itself — present once the
+                // detail view has enriched the item.
+                backdrop_url: extractStalkerItemTmdbHints(item).backdropUrl,
                 source: 'stalker',
                 stalker_item: rawItem,
             });

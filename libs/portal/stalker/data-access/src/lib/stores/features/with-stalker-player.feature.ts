@@ -16,6 +16,7 @@ import {
     isCrossOriginStalkerStream,
     STALKER_MAG_USER_AGENT,
 } from '../../stalker-live-playback.utils';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
     normalizeStalkerEntityId,
@@ -31,14 +32,16 @@ import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
     fetchStalkerPlaybackLink,
-    normalizeStalkerPlaybackCommand,
+    hasStalkerLinkFlagEvidence,
     shouldResolveMovieFileId,
+    type StalkerLinkFlagSource,
 } from '../utils';
 
-type StalkerPlayableItem = StalkerPortalItem & {
-    cmd?: string;
-    has_files?: unknown;
-};
+type StalkerPlayableItem = StalkerPortalItem &
+    StalkerLinkFlagSource & {
+        cmd?: string;
+        has_files?: unknown;
+    };
 
 /**
  * Playback/link/player concern methods.
@@ -54,6 +57,7 @@ export function withStalkerPlayer() {
                 playlistService = inject(PlaylistsService),
                 playerService = inject(PORTAL_PLAYER),
                 stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService),
                 snackBar = inject(MatSnackBar),
                 translate = inject(TranslateService),
                 ngrxStore = inject(Store)
@@ -63,6 +67,7 @@ export function withStalkerPlayer() {
                 const requestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
 
                 const createRequestPlaylist = (
@@ -186,6 +191,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd: cmdToUse,
                             series: episodeNum,
+                            linkFlags: item,
                         }
                     );
 
@@ -196,14 +202,38 @@ export function withStalkerPlayer() {
                     const selectedItemId =
                         normalizeStalkerEntityIdAsNumber(item?.id) ?? 0;
 
+                    // VOD and series streams sit behind the same portal gate
+                    // as ITV: without the mac cookie/Bearer token an
+                    // auth-enforcing portal answers 403 (they previously
+                    // carried no portal headers at all — audit finding 5).
+                    const token = stalkerSession.getCachedToken(playlist._id);
+                    const headers = buildStalkerExternalPlaybackHeaders(
+                        playlist,
+                        token,
+                        streamUrl
+                    );
+                    const crossOriginStream = isCrossOriginStalkerStream(
+                        playlist,
+                        streamUrl
+                    );
+                    const portalOrigin = getStalkerPortalOrigin(playlist);
+
                     return {
                         streamUrl,
                         title: title ?? '',
                         thumbnail,
                         startTime,
-                        userAgent: playlist.userAgent,
-                        referer: playlist.referrer,
-                        origin: playlist.origin,
+                        headers,
+                        userAgent:
+                            headers['User-Agent'] ||
+                            playlist.userAgent ||
+                            STALKER_MAG_USER_AGENT,
+                        referer: crossOriginStream
+                            ? undefined
+                            : playlist.referrer || portalOrigin,
+                        origin: crossOriginStream
+                            ? undefined
+                            : playlist.origin || portalOrigin,
                         contentInfo: {
                             playlistId: playlist._id,
                             contentXtreamId:
@@ -238,6 +268,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd: item.cmd,
                             forcedContentType: 'itv',
+                            linkFlags: item,
                         }
                     );
 
@@ -291,26 +322,32 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    let streamUrl = normalizeStalkerPlaybackCommand(item.cmd);
-                    if (
-                        !streamUrl.startsWith('http://') &&
-                        !streamUrl.startsWith('https://')
-                    ) {
-                        streamUrl = await fetchStalkerPlaybackLink(
-                            requestDeps,
-                            {
-                                playlist,
-                                selectedContentType:
-                                    storeState.selectedContentType(),
-                                cmd: item.cmd,
-                                forcedContentType: 'radio',
-                            }
-                        );
-                    }
-
-                    if (!streamUrl) {
-                        throw new Error('nothing_to_play');
-                    }
+                    // Radio has always skipped `create_link` for a directly
+                    // playable command. Handing the row to the shared decision
+                    // adds the flags, so a station the portal proxies now gets
+                    // its temporary link instead of a dead static URL — but a
+                    // row carrying no flags at all must keep the old rule
+                    // rather than start minting, or a portal whose radio
+                    // `create_link` never worked would lose playback it has.
+                    // ITV and VOD have no such history and stay conservative.
+                    const radioLinkFlags = hasStalkerLinkFlagEvidence(item)
+                        ? item
+                        : {
+                              ...item,
+                              use_http_tmp_link: '0',
+                              use_load_balancing: '0',
+                          };
+                    const streamUrl = await fetchStalkerPlaybackLink(
+                        requestDeps,
+                        {
+                            playlist,
+                            selectedContentType:
+                                storeState.selectedContentType(),
+                            cmd: item.cmd,
+                            forcedContentType: 'radio',
+                            linkFlags: radioLinkFlags,
+                        }
+                    );
 
                     recordRecentlyViewed(
                         item,
@@ -319,13 +356,36 @@ export function withStalkerPlayer() {
                         item.o_name || item.name || item.title
                     );
 
+                    // Radio streams come off the same portal as ITV and are
+                    // gated the same way — give them the identical header set
+                    // (they previously carried no portal headers at all).
+                    const token = stalkerSession.getCachedToken(playlist._id);
+                    const headers = buildStalkerExternalPlaybackHeaders(
+                        playlist,
+                        token,
+                        streamUrl
+                    );
+                    const crossOriginStream = isCrossOriginStalkerStream(
+                        playlist,
+                        streamUrl
+                    );
+                    const portalOrigin = getStalkerPortalOrigin(playlist);
+
                     return {
                         streamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
-                        userAgent: playlist.userAgent,
-                        referer: playlist.referrer,
-                        origin: playlist.origin,
+                        headers,
+                        userAgent:
+                            headers['User-Agent'] ||
+                            playlist.userAgent ||
+                            STALKER_MAG_USER_AGENT,
+                        referer: crossOriginStream
+                            ? undefined
+                            : playlist.referrer || portalOrigin,
+                        origin: crossOriginStream
+                            ? undefined
+                            : playlist.origin || portalOrigin,
                     };
                 };
 
@@ -334,7 +394,8 @@ export function withStalkerPlayer() {
                         portalUrl: string,
                         macAddress: string,
                         cmd: string,
-                        series?: number
+                        series?: number,
+                        linkFlags?: StalkerLinkFlagSource | null
                     ) {
                         return fetchStalkerPlaybackLink(requestDeps, {
                             playlist: createRequestPlaylist(
@@ -345,6 +406,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd,
                             series,
+                            linkFlags,
                         });
                     },
                     async getExpireDate() {

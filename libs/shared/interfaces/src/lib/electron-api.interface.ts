@@ -138,6 +138,23 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
 export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
 
+export const ELECTRON_BRIDGE_DOWNLOAD_START_REASONS = {
+    AlreadyDownloaded: 'already-downloaded',
+    AlreadyInProgress: 'already-in-progress',
+} as const;
+
+export type ElectronBridgeDownloadStartReason =
+    (typeof ELECTRON_BRIDGE_DOWNLOAD_START_REASONS)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_START_REASONS];
+
+export const ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES = {
+    StalkerEmbeddedVod: 'stalker-embedded-vod',
+    StalkerLazyVod: 'stalker-lazy-vod',
+    StalkerRegularSeries: 'stalker-regular-series',
+} as const;
+
+export type ElectronBridgeEpisodeIdentityScope =
+    (typeof ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES)[keyof typeof ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES];
+
 export type ElectronDownloadFileAvailability =
     'available' | 'missing' | 'not-applicable';
 
@@ -184,6 +201,17 @@ export interface ElectronBridgeDialogFilter {
 export interface ElectronBridgeWindowState {
     isMaximized: boolean;
     isFullScreen: boolean;
+}
+
+/**
+ * Portal credentials for an auth-gated stream, passed alongside the scoped
+ * header override. The main process attaches them only to requests going to
+ * the exact origin of the override's `scopeUrl`, keeps them in memory only,
+ * and drops them when the scoped override is cleared or replaced.
+ */
+export interface ElectronBridgeStreamCredentials {
+    authorization?: string | null;
+    cookie?: string | null;
 }
 
 /**
@@ -523,6 +551,7 @@ export interface ElectronBridgeDownloadStartPayload {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
     playlistName?: string;
     playlistType?: ElectronBridgePlaylistType;
     serverUrl?: string;
@@ -532,6 +561,7 @@ export interface ElectronBridgeDownloadStartPayload {
 
 export interface ElectronBridgeDownloadStartResult extends ElectronBridgeErrorResult {
     id?: number;
+    reason?: ElectronBridgeDownloadStartReason;
 }
 
 export interface ElectronBridgeDownloadRedownloadResult extends ElectronBridgeErrorResult {
@@ -546,6 +576,7 @@ export interface ElectronDownloadItem {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope | null;
     title: string;
     url: string;
     fileName?: string;
@@ -624,7 +655,8 @@ export interface ElectronBridgeApi {
     setUserAgent: (
         userAgent?: string | null,
         referer?: string | null,
-        scopeUrl?: string | null
+        scopeUrl?: string | null,
+        credentials?: ElectronBridgeStreamCredentials | null
     ) => Promise<boolean>;
     openInMpv: (
         url: string,

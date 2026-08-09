@@ -3,6 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceKeyboardShortcutsService } from './workspace-keyboard-shortcuts.service';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 describe('WorkspaceKeyboardShortcutsService', () => {
     let afterClosed$: Subject<void>;
@@ -50,6 +51,30 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         );
 
         expect(dialog.open).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not open the dialog over the modal phone context drawer', () => {
+        TestBed.resetTestingModule();
+        const gatedDialog = { open: jest.fn() };
+        TestBed.configureTestingModule({
+            providers: [
+                WorkspaceKeyboardShortcutsService,
+                { provide: MatDialog, useValue: gatedDialog },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { isElectron: true },
+                },
+                {
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: { isOpen: () => true },
+                },
+            ],
+        });
+        TestBed.inject(WorkspaceKeyboardShortcutsService);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }));
+
+        expect(gatedDialog.open).not.toHaveBeenCalled();
     });
 
     it('does not open while typing in an input', () => {

@@ -8,7 +8,10 @@ import {
     EpgRuntimeBridgeService,
     EpgService,
 } from '@iptvnator/epg/data-access';
-import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+import {
+    WorkspaceShellContextDrawerService,
+    WORKSPACE_SHELL_ACTIONS,
+} from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
 import { WindowControlsComponent } from '@iptvnator/ui/components';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -62,6 +65,7 @@ export class AppComponent implements OnInit {
     private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
 
     /** Default language as fallback */
     private readonly DEFAULT_LANG = Language.ENGLISH;
@@ -87,6 +91,12 @@ export class AppComponent implements OnInit {
         if (this.runtime.isElectron) {
             document.addEventListener('keydown', (event) => {
                 if (event.ctrlKey || event.metaKey) {
+                    // While the phone context drawer is modal, workspace
+                    // shortcuts must not navigate away behind it — same gate
+                    // as Ctrl/Cmd+F, Ctrl/Cmd+K, and the shortcuts dialog.
+                    if (this.contextDrawer.isOpen()) {
+                        return;
+                    }
                     if (event.key === 'r') {
                         event.preventDefault();
                         this.workspaceShellActions.openGlobalRecent();

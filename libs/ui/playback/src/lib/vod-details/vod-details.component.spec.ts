@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
@@ -118,6 +119,10 @@ describe('VodDetailsComponent offline playback', () => {
     } = {}) => {
         fixture = TestBed.createComponent(VodDetailsComponent);
         fixture.componentRef.setInput('item', STALKER_VOD);
+        fixture.componentRef.setInput(
+            'playbackSessionKey',
+            'stalker-host-owned-key'
+        );
         fixture.componentRef.setInput('playbackPosition', playbackPosition);
         fixture.componentRef.setInput('externalPlayback', externalPlayback);
         fixture.componentRef.setInput('providerOnly', providerOnly);
@@ -127,6 +132,24 @@ describe('VodDetailsComponent offline playback', () => {
         fixture.componentInstance.resumeClicked.subscribe(resumeClicked);
         await fixture.whenStable();
     };
+
+    it('passes the host-owned session key unchanged to inline playback', async () => {
+        await render();
+        fixture.componentRef.setInput('inlinePlayback', {
+            streamUrl: 'https://portal.example/movie.mp4',
+            title: 'Catalog Movie',
+        });
+        fixture.detectChanges();
+
+        const inlinePlayer = fixture.debugElement.query(
+            By.css('app-portal-inline-player')
+        ).componentInstance as {
+            playbackSessionKey(): string;
+        };
+        expect(inlinePlayer.playbackSessionKey()).toBe(
+            'stalker-host-owned-key'
+        );
+    });
 
     const completeDownload = (
         fileAvailability: DownloadItem['fileAvailability'] = 'available'

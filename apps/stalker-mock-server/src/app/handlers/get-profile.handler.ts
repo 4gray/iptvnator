@@ -33,10 +33,11 @@ export function handleGetProfile(
         return;
     }
 
-    // Gate on the actual do_auth completion, not on auth_second_step: the app
-    // sends auth_second_step=1 on its very first get_profile, so a parameter
-    // check would let the login-required flow be bypassed without ever
-    // exercising status 2 -> do_auth -> profile retry.
+    // Gate on the actual do_auth completion, not on auth_second_step. The
+    // client now sends `auth_second_step=0` first and `1` only on the retry
+    // after do_auth, so a parameter check would happen to work — but it would
+    // also silently pass for any client that mislabels its first profile,
+    // which is exactly the protocol mistake this scenario exists to catch.
     if (scenario.requiresLogin && !hasCompletedDoAuth(mac)) {
         res.json({
             js: {

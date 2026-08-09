@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
-import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPortal } from './with-stalker-portal.feature';
 
@@ -38,6 +39,7 @@ describe('withStalkerPortal', () => {
         ensureToken: jest.Mock;
         setActiveWatchdogPlaylist: jest.Mock;
     };
+    let applyOverride: jest.Mock;
 
     beforeEach(() => {
         dbCreatePlaylist = jest.fn().mockResolvedValue(undefined);
@@ -57,6 +59,7 @@ describe('withStalkerPortal', () => {
             ensureToken: jest.fn(),
             setActiveWatchdogPlaylist: jest.fn(),
         };
+        applyOverride = jest.fn((playlist) => playlist);
 
         TestBed.configureTestingModule({
             providers: [
@@ -74,6 +77,10 @@ describe('withStalkerPortal', () => {
                 {
                     provide: StalkerSessionService,
                     useValue: stalkerSession,
+                },
+                {
+                    provide: StalkerPortalRepairService,
+                    useValue: { applyOverride },
                 },
             ],
         });
@@ -100,6 +107,29 @@ describe('withStalkerPortal', () => {
         );
     });
 
+    it('hands the repaired configuration to the watchdog and store on activation', async () => {
+        // Route re-activation passes the stale NgRx meta; the repair
+        // override must win here, or reopening the portal would stop or
+        // repoint the repaired keepalive back to the broken configuration.
+        const repaired = {
+            ...PLAYLIST,
+            portalUrl: 'http://demo.example/server/load.php',
+            isFullStalkerPortal: true,
+        };
+        applyOverride.mockReturnValue(repaired);
+
+        await store.setCurrentPlaylist(PLAYLIST);
+
+        expect(applyOverride).toHaveBeenCalledWith(PLAYLIST);
+        expect(stalkerSession.setActiveWatchdogPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                portalUrl: 'http://demo.example/server/load.php',
+                isFullStalkerPortal: true,
+            })
+        );
+        expect(store.currentPlaylist()).toEqual(repaired);
+    });
+
     it('does not touch SQLite when the Electron bridge is partial', async () => {
         runtime.supportsStalkerPlaylistSqliteSync = false;
 
@@ -109,21 +139,4 @@ describe('withStalkerPortal', () => {
         expect(dbCreatePlaylist).not.toHaveBeenCalled();
     });
 
-    it('sends Stalker requests through DataService without requiring the SQLite bridge', async () => {
-        const dataService = TestBed.inject(DataService) as unknown as {
-            sendIpcEvent: jest.Mock;
-        };
-        dataService.sendIpcEvent.mockResolvedValue({ js: { data: [] } });
-
-        await store.makeStalkerRequest(PLAYLIST, { action: 'get_profile' });
-
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            STALKER_REQUEST,
-            expect.objectContaining({
-                macAddress: '00:1A:79:00:00:01',
-                params: { action: 'get_profile' },
-                url: 'http://demo.example/stalker_portal/server/load.php',
-            })
-        );
-    });
 });

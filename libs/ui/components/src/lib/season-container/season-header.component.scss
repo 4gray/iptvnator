@@ -1,0 +1,106 @@
+:host {
+    display: block;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    min-height: 32px;
+    gap: 16px;
+
+    &__left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex: 1;
+    }
+
+    &__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+    }
+
+    .view-toggle {
+        mat-button-toggle-group {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+
+            ::ng-deep {
+                .mat-button-toggle {
+                    background: transparent;
+
+                    .mat-button-toggle-button {
+                        padding: 0 8px;
+                        height: 32px;
+                    }
+
+                    mat-icon {
+                        font-size: 18px;
+                        width: 18px;
+                        height: 18px;
+                        color: var(--text-secondary);
+                    }
+
+                    &.mat-button-toggle-checked {
+                        background: rgba(255, 255, 255, 0.1);
+
+                        mat-icon {
+                            color: var(--accent-color);
+                        }
+                    }
+
+                    &:hover:not(.mat-button-toggle-checked) {
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+                }
+
+                .mat-button-toggle-appearance-standard {
+                    .mat-button-toggle-label-content {
+                        line-height: 32px;
+                        padding: 0;
+                    }
+                }
+
+                .mat-button-toggle + .mat-button-toggle {
+                    border-left: 1px solid rgba(255, 255, 255, 0.1);
+                }
+            }
+        }
+    }
+}
+
+.season-download-button {
+    min-height: 36px;
+
+    mat-spinner {
+        display: inline-block;
+        margin-inline-end: 8px;
+    }
+}
+
+@media (max-width: 560px) {
+    .section-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+
+        &__actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+}

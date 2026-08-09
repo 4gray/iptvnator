@@ -154,7 +154,6 @@ describe('HtmlVideoPlayerComponent shared controls sources', () => {
                     failure: 'http',
                     httpStatus: 404,
                 }),
-                externalFallbackRecommended: false,
             }),
         ]);
         expect(JSON.stringify(issues)).not.toContain(secret);

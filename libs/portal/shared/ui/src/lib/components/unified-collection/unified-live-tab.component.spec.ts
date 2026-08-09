@@ -25,10 +25,7 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     EpgItem,
     EpgProgram,
@@ -46,6 +43,7 @@ import {
     StreamResolverService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
+import { createPlaybackSessionKey as sessionKey } from '@iptvnator/playback/util';
 
 @Directive({
     selector: '[appResizable]',
@@ -125,6 +123,7 @@ class StubAudioPlayerComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input.required<string>();
     readonly title = input('');
     readonly playback = input<ResolvedPortalPlayback | null>(null);
@@ -586,6 +585,13 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(webPlayer.streamUrl()).toBe('https://example.com/xtream.m3u8');
         expect(webPlayer.title()).toBe('Xtream Live');
+        const sourceId = item.playlistId;
+        const contentId = String(item.xtreamId);
+        const key = sessionKey({ kind: 'live', sourceId, contentId });
+        expect(webPlayer.playbackSessionKey()).toBe(key);
+        component.activeItem.set({ ...item, playlistId: 'p2', uid: 'c2' });
+        expect(component.playbackSessionKey()).not.toBe(key);
+        component.activeItem.set(item);
         const playback = webPlayer.playback();
         expect(playback).toEqual(
             expect.objectContaining({
@@ -597,15 +603,10 @@ describe('UnifiedLiveTabComponent', () => {
             throw new Error('Expected wrapper playback to be set');
         }
         expect(webPlayer.playerOverride()).toBe(VideoPlayer.VideoJs);
-        expect(
-            fixture.nativeElement.querySelector('app-vjs-player')
-        ).toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-html-video-player')
-        ).toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-art-player')
-        ).toBeNull();
+        const host = fixture.nativeElement;
+        expect(host.querySelector('app-vjs-player')).toBeNull();
+        expect(host.querySelector('app-html-video-player')).toBeNull();
+        expect(host.querySelector('app-art-player')).toBeNull();
 
         webPlayer.externalFallbackRequested.emit({
             player: 'mpv',
@@ -618,16 +619,13 @@ describe('UnifiedLiveTabComponent', () => {
                 mimeType: '',
                 videoCodecs: [],
                 audioCodecs: [],
-                externalFallbackRecommended: false,
             },
         });
 
-        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
-            expect.objectContaining({
-                streamUrl: 'https://example.com/xtream.m3u8',
-            }),
-            'mpv'
-        );
+        const [forwardedPlayback, forwardedPlayer] =
+            portalPlayer.openExternalPlayback.mock.calls[0];
+        expect(forwardedPlayback).toBe(playback);
+        expect(forwardedPlayer).toBe('mpv');
     });
 
     it('does not wait for M3U program lookup before opening playback', async () => {
@@ -743,6 +741,15 @@ describe('UnifiedLiveTabComponent', () => {
     });
 
     it('renders inline audio for Stalker radio items and skips external playback', async () => {
+        // Radio renders the dedicated audio player, never the shared web
+        // player wrapper — so this test also pins that the tab itself
+        // configures the scoped header override (portal cookie/token for
+        // auth-gated streams) before the audio element gets the URL, and
+        // clears it again on close.
+        const setUserAgent = jest.fn().mockResolvedValue(true);
+        (window.electron as unknown as Record<string, unknown>)[
+            'setUserAgent'
+        ] = setUserAgent;
         const item = {
             ...buildLiveItem('stalker'),
             name: 'Jazz Radio',
@@ -754,6 +761,12 @@ describe('UnifiedLiveTabComponent', () => {
                 streamUrl: 'https://example.com/jazz.mp3',
                 title: 'Jazz Radio',
                 thumbnail: 'jazz.png',
+                headers: {
+                    'User-Agent': 'MAG250',
+                    Referer: 'http://portal.example',
+                    Cookie: 'mac=00:1A:79:00:00:01',
+                    Authorization: 'Bearer TOKEN99',
+                },
             },
             channel: {
                 id: '40001',
@@ -802,6 +815,25 @@ describe('UnifiedLiveTabComponent', () => {
         expect(audioPlayer.url()).toBe('https://example.com/jazz.mp3');
         expect(audioPlayer.icon()).toBe('jazz.png');
         expect(audioPlayer.channelName()).toBe('Jazz Radio');
+
+        expect(setUserAgent).toHaveBeenCalledWith(
+            'MAG250',
+            'http://portal.example',
+            'https://example.com/jazz.mp3',
+            {
+                authorization: 'Bearer TOKEN99',
+                cookie: 'mac=00:1A:79:00:00:01',
+            }
+        );
+
+        component.onClose();
+
+        // Closing the radio player must drop the portal credentials.
+        expect(setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'https://example.com/jazz.mp3'
+        );
     });
 
     it('renders shared EPG view for Xtream items and records recent history', async () => {
@@ -1154,6 +1186,7 @@ describe('UnifiedLiveTabComponent', () => {
                 'https://example.com/timeshift.m3u8'
             );
             const item = await selectXtreamArchiveChannel();
+            const key = component.playbackSessionKey();
 
             component.onTimelineProgramActivated(timeshiftEvent());
             await fixture.whenStable();
@@ -1169,6 +1202,7 @@ describe('UnifiedLiveTabComponent', () => {
                 'https://example.com/timeshift.m3u8'
             );
             expect(component.inlinePlayback()?.isLive).toBe(false);
+            expect(component.playbackSessionKey()).toBe(key);
             expect(component.activeTimeshiftProgram()?.title).toBe(
                 'Xtream Show'
             );

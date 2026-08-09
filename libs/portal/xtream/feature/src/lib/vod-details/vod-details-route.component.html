@@ -75,67 +75,139 @@
             </button>
         }
         @if (playableItem) {
-            @if (!isFavorite()) {
-                <button class="favorite-btn" (click)="toggleFavorite()">
-                    <mat-icon>add</mat-icon>
-                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-                </button>
-            } @else {
-                <button
-                    class="favorite-btn favorite-btn--active"
-                    (click)="toggleFavorite()"
-                >
-                    <mat-icon>check</mat-icon>
-                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-                </button>
-            }
+            @let favoriteLabel =
+                (isFavorite()
+                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                    : 'PORTALS.ADD_TO_FAVORITES'
+                ) | translate;
+            <button
+                type="button"
+                class="icon-action-btn icon-action-btn--favorite"
+                [class.is-active]="isFavorite()"
+                [class.is-pulsing]="favoritePulse()"
+                (click)="toggleFavorite()"
+                [matTooltip]="favoriteLabel"
+                [attr.aria-label]="favoriteLabel"
+                [attr.aria-pressed]="isFavorite()"
+                data-testid="vod-favorite-toggle"
+            >
+                <mat-icon>{{
+                    isFavorite() ? 'favorite' : 'favorite_border'
+                }}</mat-icon>
+            </button>
             @if (isElectron() && !providerOnly()) {
                 @if (isDownloaded()) {
+                    <button
+                        type="button"
+                        class="icon-action-btn icon-action-btn--done"
+                        (click)="revealDownloadedFile()"
+                        [matTooltip]="'DOWNLOADS.DOWNLOADED_REVEAL' | translate"
+                        [attr.aria-label]="
+                            'DOWNLOADS.DOWNLOADED_REVEAL' | translate
+                        "
+                        data-testid="vod-download-done"
+                    >
+                        <mat-icon>check_circle</mat-icon>
+                    </button>
+                    <!-- The primary button plays the local file once a movie
+                         is downloaded, and the sources popover only exists
+                         when another playlist also carries the film. Without
+                         this, a downloaded movie in a single-playlist library
+                         offers no way to stream the provider's copy at all. -->
                     @if (externalPrimaryButtonState() === 'idle') {
                         <button
-                            class="download-btn"
+                            type="button"
+                            class="icon-action-btn"
                             (click)="playFromProviderSource(playableItem)"
-                        >
-                            <mat-icon>play_arrow</mat-icon>
-                            {{
+                            [matTooltip]="
                                 'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
                                     | translate
-                            }}
+                            "
+                            [attr.aria-label]="
+                                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                                    | translate
+                            "
+                            data-testid="vod-play-provider"
+                        >
+                            <mat-icon>play_arrow</mat-icon>
                         </button>
                     }
-                } @else if (isPausedDownload()) {
-                    <button
-                        class="download-btn download-btn--paused"
-                        (click)="resumePausedDownload()"
-                    >
-                        <mat-icon>play_arrow</mat-icon>
-                        {{ 'DOWNLOADS.RESUME' | translate }}
-                    </button>
                 } @else if (isDownloading()) {
+                    <!-- Covers downloading, queued and paused: the ring holds
+                         the real percent, spins when the size is unknown, and
+                         pauses behind a resume glyph. -->
+                    @let downloadLabel =
+                        isPausedDownload()
+                            ? ('DOWNLOADS.RESUME' | translate)
+                            : downloadPercent() !== null
+                              ? ('DOWNLOADS.DOWNLOADING_PERCENT'
+                                | translate: { percent: downloadPercent() })
+                              : ('DOWNLOADS.STATUS.DOWNLOADING' | translate);
                     <button
-                        class="download-btn download-btn--downloading"
-                        disabled
+                        type="button"
+                        class="icon-action-btn icon-action-btn--progress"
+                        (click)="
+                            isPausedDownload()
+                                ? resumePausedDownload()
+                                : promptCancelDownload()
+                        "
+                        [matTooltip]="downloadLabel"
+                        [attr.aria-label]="downloadLabel"
+                        data-testid="vod-download-progress"
                     >
-                        <mat-icon>downloading</mat-icon>
-                        {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+                        <svg
+                            class="download-ring"
+                            [class.download-ring--indeterminate]="
+                                downloadPercent() === null &&
+                                !isPausedDownload()
+                            "
+                            viewBox="0 0 36 36"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                class="download-ring__track"
+                                cx="18"
+                                cy="18"
+                                r="15.5"
+                            />
+                            <circle
+                                class="download-ring__value"
+                                cx="18"
+                                cy="18"
+                                r="15.5"
+                                [style.stroke-dasharray]="
+                                    downloadRingCircumference
+                                "
+                                [style.stroke-dashoffset]="downloadRingOffset()"
+                            />
+                        </svg>
+                        @if (isPausedDownload()) {
+                            <mat-icon class="icon-action-btn__center"
+                                >play_arrow</mat-icon
+                            >
+                        }
                     </button>
                 } @else {
                     <button
-                        class="download-btn"
+                        type="button"
+                        class="icon-action-btn"
                         (click)="downloadVod(playableItem)"
+                        [matTooltip]="'DOWNLOADS.DOWNLOAD' | translate"
+                        [attr.aria-label]="'DOWNLOADS.DOWNLOAD' | translate"
+                        data-testid="vod-download-start"
                     >
                         <mat-icon>download</mat-icon>
-                        {{ 'DOWNLOADS.DOWNLOAD' | translate }}
                     </button>
                 }
             }
 
             @if (multiSource.hasAlternatives()) {
+                <!-- No [count] override: the badge states the TOTAL number of
+                     copies across all playlists, i.e. what the popover lists. -->
                 <app-vod-sources-chip
                     [sources]="multiSource.sources()"
                     [title]="multiSourceTitle()"
                     [matchKind]="multiSource.matchKind()"
-                    [count]="multiSource.alternativeCount()"
                     [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
                     [autoFailoverSupported]="autoFailoverSupported()"
                     [playbackLive]="playbackLive()"
@@ -182,6 +254,7 @@
     @if (playableVodItem()) {
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
+                [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
                 [alternativeSources]="multiSource.alternatives()"
                 [allSources]="multiSource.sources()"

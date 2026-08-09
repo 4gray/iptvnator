@@ -17,6 +17,13 @@ export interface StalkerVodSource {
     cmd?: string;
     series?: unknown[];
     has_files?: number;
+    /**
+     * Temporary-link flags the portal sets on a row. Carried through every
+     * normalizer because playback and downloads read them to decide whether
+     * `create_link` is required — dropping one fails open.
+     */
+    use_http_tmp_link?: unknown;
+    use_load_balancing?: unknown;
     is_series?: boolean | number | string | null | undefined;
     video_id?: string;
     category_id?: string;
@@ -47,6 +54,9 @@ export interface StalkerSelectedVodItem extends StalkerVodDetails {
     is_series?: true;
     video_id?: string;
     category_id?: string;
+    /** See {@link StalkerVodSource.use_http_tmp_link}. */
+    use_http_tmp_link?: unknown;
+    use_load_balancing?: unknown;
 }
 
 /**

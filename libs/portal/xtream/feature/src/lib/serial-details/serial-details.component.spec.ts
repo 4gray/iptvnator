@@ -17,14 +17,16 @@ import {
     PORTAL_PLAYER,
     SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
+import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { EMPTY, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 @Component({
     selector: 'app-season-container',
@@ -37,8 +39,7 @@ class StubSeasonContainerComponent {
     readonly playlistId = input('');
     readonly seriesTitle = input<string | undefined>(undefined);
     readonly playbackPositions = input<unknown>(null);
-    readonly xtreamDownloadContext = input<unknown>(null);
-    readonly downloadMetadataContext = input<unknown>(null);
+    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
@@ -54,6 +55,7 @@ class StubSeasonContainerComponent {
     template: '',
 })
 class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
@@ -88,9 +90,9 @@ describe('SerialDetailsComponent', () => {
         serverUrl: 'http://xtream.example',
         username: 'user',
         password: 'pass',
-        userAgent: 'Provider Player/1.0',
-        referrer: 'https://provider.test/player',
-        origin: 'https://provider.test',
+        userAgent: 'ProtectedProvider/2.0',
+        referrer: 'https://referrer.example/series',
+        origin: 'https://origin.example',
     });
     const fetchSerialDetailsWithMetadata = jest.fn();
     const cancelDetailsRequest = jest.fn();
@@ -108,6 +110,10 @@ describe('SerialDetailsComponent', () => {
     let seriesResumeTarget: ReturnType<
         typeof signal<SeriesResumeTarget | null>
     >;
+    let routeParams: BehaviorSubject<{
+        categoryId: string;
+        serialId: string;
+    }>;
 
     beforeEach(async () => {
         window.history.replaceState({}, '', window.location.href);
@@ -174,6 +180,10 @@ describe('SerialDetailsComponent', () => {
         getSeriesPlaybackPositions.mockClear();
         getSeriesPlaybackPositions.mockResolvedValue([]);
         seriesResumeTarget = signal<SeriesResumeTarget | null>(null);
+        routeParams = new BehaviorSubject({
+            categoryId: '3',
+            serialId: '103',
+        });
 
         await TestBed.configureTestingModule({
             imports: [SerialDetailsComponent],
@@ -181,10 +191,7 @@ describe('SerialDetailsComponent', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        params: of({
-                            categoryId: '3',
-                            serialId: '103',
-                        }),
+                        params: routeParams,
                         snapshot: {
                             params: {
                                 categoryId: '3',
@@ -359,30 +366,108 @@ describe('SerialDetailsComponent', () => {
             ],
         });
         expect(seasonContainer?.downloadsEnabled()).toBe(true);
-        expect(seasonContainer?.xtreamDownloadContext()).toEqual({
-            serverUrl: 'http://xtream.example',
-            username: 'user',
-            password: 'pass',
-            userAgent: 'Provider Player/1.0',
-            referrer: 'https://provider.test/player',
-            origin: 'https://provider.test',
+        const adapter = seasonContainer?.downloadAdapter();
+        const candidate = adapter?.createCandidate(
+            (
+                seasonContainer?.seasons() as Record<
+                    string,
+                    Array<Record<string, unknown>>
+                >
+            )['1'][0] as never,
+            '1'
+        );
+        expect(candidate?.identity).toEqual({
+            playlistId: 'xtream-1',
+            contentType: 'episode',
+            xtreamId: 1001,
+            seriesXtreamId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
         });
-        expect(seasonContainer?.downloadMetadataContext()).toEqual(
-            expect.objectContaining({
+        await expect(candidate?.prepare()).resolves.toEqual({
+            playlistId: 'xtream-1',
+            xtreamId: 1001,
+            contentType: 'episode',
+            title: 'Series One - S01E01 - Episode 1',
+            url: 'http://xtream.example/series/user/pass/1001.mp4',
+            posterUrl: undefined,
+            seriesXtreamId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+            headers: {
+                userAgent: 'ProtectedProvider/2.0',
+                referer: 'https://referrer.example/series',
+                origin: 'https://origin.example',
+            },
+            metadataSnapshot: {
+                version: 1,
                 language: 'en',
+                mediaKind: 'series',
                 title: 'Series One',
                 plot: 'Series plot',
                 genres: ['Drama'],
-                providerCategoryId: '3',
                 tmdbId: 901,
-                cast: expect.arrayContaining([
-                    expect.objectContaining({
-                        name: 'Sienna Wave',
-                        role: 'Mara',
-                    }),
-                ]),
-            })
-        );
+                providerCategoryId: '3',
+                cast: [{ name: 'Sienna Wave', role: 'Mara' }],
+                episode: {
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                    title: 'Episode 1',
+                },
+                enrichedAt: expect.any(String),
+            },
+        });
+    });
+
+    it('filters URL-only season overviews and falls back to TMDB descriptions', async () => {
+        selectedItem.set({
+            series_id: 103,
+            info: {
+                name: 'Series One',
+                plot: 'Series plot',
+                cover: 'cover.jpg',
+                backdrop_path: [],
+                genre: 'Drama',
+                category_id: '3',
+            },
+            seasons: [
+                {
+                    season_number: 1,
+                    overview:
+                        'http://line.example.net:80/images/series/cover_small.jpg',
+                },
+                {
+                    season_number: 2,
+                    overview: 'Provider season 2 text',
+                },
+            ],
+            tmdb_season_overviews: {
+                '1': 'TMDB season 1 overview',
+                '2': 'TMDB season 2 overview',
+            },
+            episodes: {
+                '1': [
+                    { id: '1001', episode_num: 1, title: 'E1', season: 1 },
+                ],
+                '2': [
+                    { id: '2001', episode_num: 1, title: 'E1', season: 2 },
+                ],
+            },
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        )?.componentInstance as StubSeasonContainerComponent;
+
+        // The bare cover URL is junk → TMDB fills season 1; real provider
+        // text keeps priority over TMDB for season 2.
+        expect(seasonContainer.seasonDescriptions()).toEqual({
+            '1': 'TMDB season 1 overview',
+            '2': 'Provider season 2 text',
+        });
     });
 
     it('keeps every provider episode but disables download presentation in provider-only mode', async () => {
@@ -819,6 +904,15 @@ describe('SerialDetailsComponent', () => {
             seasonNumber: 1,
             episodeNumber: 1,
         });
+        const firstEpisodeKey = createPlaybackSessionKey({
+            kind: 'episode',
+            sourceId: 'xtream-1',
+            contentId: 1001,
+            seriesId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        expect(inlinePlayer.playbackSessionKey()).toBe(firstEpisodeKey);
         expect(inlinePlayer.seriesNavigation()).toEqual({
             canPrevious: false,
             canNext: true,
@@ -847,6 +941,7 @@ describe('SerialDetailsComponent', () => {
             canNext: false,
             autoplayEnabled: true,
         });
+        expect(inlinePlayer.playbackSessionKey()).not.toBe(firstEpisodeKey);
 
         inlinePlayer.playbackEnded.emit();
         fixture.detectChanges();
@@ -858,6 +953,61 @@ describe('SerialDetailsComponent', () => {
         );
         expect(constructEpisodeStreamUrl).not.toHaveBeenCalledWith(
             expect.objectContaining({ id: '2001' })
+        );
+    });
+
+    it('owns the parent identity from the route and ignores replacement playback payloads', async () => {
+        isEmbeddedPlayer.mockReturnValue(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const item = fixture.componentInstance.selectedItem();
+        const episode = item?.episodes?.['1'][0];
+        if (!item || !episode) {
+            throw new Error('Expected the serial fixture and first episode');
+        }
+        fixture.componentInstance.playEpisode(episode);
+        fixture.detectChanges();
+        const expected = createPlaybackSessionKey({
+            kind: 'episode',
+            sourceId: 'xtream-1',
+            contentId: 1001,
+            seriesId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(expected);
+
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://alternative.example/replaced.mkv',
+            title: 'Alternative payload',
+            headers: { Authorization: 'Bearer replacement' },
+            contentInfo: {
+                playlistId: 'alternative-playlist',
+                contentXtreamId: 999001,
+                contentType: 'episode',
+                seriesXtreamId: 999,
+                seasonNumber: 9,
+                episodeNumber: 9,
+            },
+        });
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(expected);
+
+        selectedItem.set({ ...item, series_id: 999 });
+        routeParams.next({ categoryId: '3', serialId: '104' });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.playEpisode(episode);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(
+            createPlaybackSessionKey({
+                kind: 'episode',
+                sourceId: 'xtream-1',
+                contentId: 1001,
+                seriesId: 104,
+                seasonNumber: 1,
+                episodeNumber: 1,
+            })
         );
     });
 });

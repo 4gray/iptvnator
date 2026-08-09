@@ -5,8 +5,12 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerPortalError,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import { WORKSPACE_CATEGORY_SORT_STORAGE_KEY } from '@iptvnator/portal/shared/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import {
     XtreamContentLoadState,
     XtreamStore,
@@ -170,6 +174,12 @@ describe('WorkspaceContextPanelComponent', () => {
                 {
                     provide: MatDialog,
                     useValue: dialog,
+                },
+                {
+                    // Root-provided in production; stubbed because the spec's
+                    // Router mock has no `events` stream for the real service.
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: { close: jest.fn(), isOpen: () => false },
                 },
             ],
         }).compileComponents();
@@ -550,5 +560,37 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(stalkerStore.setPage).toHaveBeenCalledWith(0);
         expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
         expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    describe('Stalker category error description', () => {
+        afterEach(() => {
+            stalkerStore.isCategoryResourceFailed.set(false as never);
+        });
+
+        it('leads with the remedy for a device conflict', () => {
+            // The portal blames the hardware ("Your STB is damaged"), which
+            // is the opposite of actionable — the explanation has to come
+            // first, with the portal's own words kept after it.
+            stalkerStore.isCategoryResourceFailed.set(
+                new StalkerPortalError(
+                    'device-conflict',
+                    'device conflict - device_id mismatch — Your STB is damaged.'
+                ) as never
+            );
+
+            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
+                'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT device conflict - device_id mismatch — Your STB is damaged.'
+            );
+        });
+
+        it('still relays any other refusal verbatim', () => {
+            stalkerStore.isCategoryResourceFailed.set(
+                new StalkerPortalError('blocked', 'Account disabled') as never
+            );
+
+            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
+                'Account disabled'
+            );
+        });
     });
 });

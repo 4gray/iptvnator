@@ -1,4 +1,4 @@
-import { InlinePlaybackPlayer } from '../playback-diagnostics/playback-diagnostics.model';
+import { InlinePlaybackPlayer } from '@iptvnator/playback/util';
 import {
     createFakeShakaEnvironment,
     flushShakaMicrotasks as flush,

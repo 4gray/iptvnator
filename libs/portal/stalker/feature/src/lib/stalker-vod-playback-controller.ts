@@ -21,22 +21,30 @@ interface StalkerVodPlaybackControllerConfig {
     translateService: TranslateService;
     logger: Logger;
     playbackErrorLogMessage: string;
+    playbackOwnerKey?: () => string;
 }
 
 export class StalkerVodPlaybackController {
     private lastInlineSaveTime = 0;
     private loadSelectedVodPositionRequestId = 0;
+    private playbackRequestId = 0;
 
     constructor(private readonly config: StalkerVodPlaybackControllerConfig) {}
 
     async startVodPlayback(
         resolvePlayback: () => Promise<ResolvedPortalPlayback>
     ): Promise<void> {
+        const requestId = ++this.playbackRequestId;
+        const usesEmbeddedPlayer = this.config.portalPlayer.isEmbeddedPlayer();
+        const playbackOwnerKey = this.config.playbackOwnerKey?.();
         try {
             const playback = await resolvePlayback();
+            if (!this.isPlaybackRequestCurrent(requestId, playbackOwnerKey)) {
+                return;
+            }
 
             this.lastInlineSaveTime = 0;
-            if (this.config.portalPlayer.isEmbeddedPlayer()) {
+            if (usesEmbeddedPlayer) {
                 this.config.inlinePlayback.set(playback);
                 return;
             }
@@ -44,6 +52,9 @@ export class StalkerVodPlaybackController {
             this.closeInlinePlayer();
             void this.config.portalPlayer.openResolvedPlayback(playback, true);
         } catch (error) {
+            if (!this.isPlaybackRequestCurrent(requestId, playbackOwnerKey)) {
+                return;
+            }
             this.config.logger.error(
                 this.config.playbackErrorLogMessage,
                 error
@@ -115,8 +126,20 @@ export class StalkerVodPlaybackController {
     }
 
     closeInlinePlayer(): void {
+        this.playbackRequestId += 1;
         this.config.inlinePlayback.set(null);
         this.lastInlineSaveTime = 0;
+    }
+
+    private isPlaybackRequestCurrent(
+        requestId: number,
+        playbackOwnerKey: string | undefined
+    ): boolean {
+        return (
+            requestId === this.playbackRequestId &&
+            (this.config.playbackOwnerKey === undefined ||
+                this.config.playbackOwnerKey() === playbackOwnerKey)
+        );
     }
 
     showCopyNotification(): void {

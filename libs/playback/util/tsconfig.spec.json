@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc",
+        "module": "ESNext",
+        "target": "ESNext",
+        "esModuleInterop": true,
+        "types": ["jest", "node"],
+        "moduleResolution": "bundler"
+    },
+    "include": ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"]
+}

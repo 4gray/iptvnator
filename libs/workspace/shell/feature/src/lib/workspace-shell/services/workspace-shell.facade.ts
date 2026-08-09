@@ -17,12 +17,14 @@ import {
     CommandBuilderActions,
     CommandBuilderContext,
 } from './helpers/workspace-shell-command-builders';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 export type { WorkspaceHeaderBulkAction } from './helpers/workspace-shell-constants';
 
@@ -48,8 +50,17 @@ export class WorkspaceShellFacade {
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
     );
+    // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
+    // palette over it would stack two competing focus-trapped surfaces.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
+            return;
+        }
+
+        if (this.contextDrawer?.isOpen()) {
             return;
         }
 
@@ -94,6 +105,8 @@ export class WorkspaceShellFacade {
     readonly dashboardXtreamContext = this.routeState.dashboardXtreamContext;
     readonly contextPanel = this.routeState.contextPanel;
     readonly showContextPanel = this.routeState.showContextPanel;
+    readonly hasContextPanelContent = this.routeState.hasContextPanelContent;
+    readonly contextDrawerLabelKeys = this.routeState.contextDrawerLabelKeys;
     readonly showXtreamImportOverlay =
         this.xtreamImport.showXtreamImportOverlay;
     readonly searchCapability = this.search.searchCapability;
@@ -211,6 +224,10 @@ export class WorkspaceShellFacade {
 
     openAccountInfo(): void {
         this.header.openAccountInfo();
+    }
+
+    openAccountInfoFor(playlist: PlaylistMeta): void {
+        this.header.openAccountInfoFor(playlist);
     }
 
     refreshCurrentPlaylist(): void {

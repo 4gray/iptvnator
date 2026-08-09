@@ -169,6 +169,40 @@ export function buildVodSourceTags(
 }
 
 /**
+ * Tags for one copy inside an expanded "N copies" group.
+ *
+ * The parent row already states the primary copy's metadata, so a child row
+ * repeating it would bury the one thing the user opened the group to learn:
+ * what makes this copy different. Only fields that DIFFER from the primary
+ * are kept — plus the fuzzy-match warning and the probe verdict, which are
+ * per-copy claims and never redundant.
+ */
+export function buildVodSourceCopyTags(
+    source: VodSourceDescriptor,
+    primary: VodSourceDescriptor
+): VodSourceRowTag[] {
+    const differing = (
+        id: string,
+        field: VodSourceField | undefined,
+        primaryField: VodSourceField | undefined
+    ): VodSourceRowTag | null =>
+        field && field.value !== primaryField?.value
+            ? fieldTag(id, field)
+            : null;
+
+    const tags: (VodSourceRowTag | null)[] = [
+        differing('quality', source.quality, primary.quality),
+        differing('codec', source.codec, primary.codec),
+        differing('container', source.container, primary.container),
+        differing('audio', source.audio, primary.audio),
+        matchTag(source),
+        probeTag(source),
+    ];
+
+    return tags.filter((tag): tag is VodSourceRowTag => tag !== null);
+}
+
+/**
  * The check chip is offered whenever something is unknown — either the stream
  * was never probed, or a metadata field is missing. It is deliberately a single
  * chip rather than one per gap: the user asks once, and the check fills in what

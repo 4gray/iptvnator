@@ -3,6 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
+import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PortalInlinePlayerComponent as PortalInlinePlayerComponentInstance } from './portal-inline-player.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -19,6 +21,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
     template: '<div data-test-id="stub-web-player-view"></div>',
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input.required<string>();
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
@@ -27,7 +30,7 @@ class StubWebPlayerViewComponent {
     readonly seriesNavigation = input<unknown>(null);
     readonly alternativeSources = input<unknown[]>([]);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly externalFallbackRequested = output<unknown>();
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly alternativeSourceRequested = output<string>();
     readonly playbackFailed = output<unknown>();
     readonly playbackEnded = output<void>();
@@ -42,12 +45,10 @@ describe('PortalInlinePlayerComponent', () => {
     let component: PortalInlinePlayerComponentInstance;
 
     beforeAll(async () => {
-        ({ PortalInlinePlayerComponent } = await import(
-            './portal-inline-player.component'
-        ));
-        ({ WebPlayerViewComponent } = await import(
-            '../web-player-view/web-player-view.component'
-        ));
+        ({ PortalInlinePlayerComponent } =
+            await import('./portal-inline-player.component'));
+        ({ WebPlayerViewComponent } =
+            await import('../web-player-view/web-player-view.component'));
     });
 
     beforeEach(async () => {
@@ -66,6 +67,10 @@ describe('PortalInlinePlayerComponent', () => {
 
         fixture = TestBed.createComponent(PortalInlinePlayerComponent);
         component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'playbackSessionKey',
+            'host-owned-session-key'
+        );
     });
 
     afterEach(() => {
@@ -94,13 +99,17 @@ describe('PortalInlinePlayerComponent', () => {
         (
             component as unknown as {
                 playbackEnded: { subscribe: (fn: () => void) => void };
-                previousEpisodeRequested: { subscribe: (fn: () => void) => void };
+                previousEpisodeRequested: {
+                    subscribe: (fn: () => void) => void;
+                };
                 nextEpisodeRequested: { subscribe: (fn: () => void) => void };
             }
         ).playbackEnded.subscribe(() => events.push('ended'));
         (
             component as unknown as {
-                previousEpisodeRequested: { subscribe: (fn: () => void) => void };
+                previousEpisodeRequested: {
+                    subscribe: (fn: () => void) => void;
+                };
             }
         ).previousEpisodeRequested.subscribe(() => events.push('previous'));
         (
@@ -119,12 +128,54 @@ describe('PortalInlinePlayerComponent', () => {
             By.directive(StubWebPlayerViewComponent)
         ).componentInstance as StubWebPlayerViewComponent;
         expect(webPlayer.seriesNavigation()).toBe(seriesNavigation);
+        expect(webPlayer.playbackSessionKey()).toBe('host-owned-session-key');
 
         webPlayer.playbackEnded.emit();
         webPlayer.previousEpisodeRequested.emit();
         webPlayer.nextEpisodeRequested.emit();
 
         expect(events).toEqual(['ended', 'previous', 'next']);
+    });
+
+    it('forwards the exact resolved playback fallback request unchanged', () => {
+        const playback: ResolvedPortalPlayback = {
+            streamUrl: 'https://example.test/live.m3u8',
+            title: 'Header-bearing live stream',
+            isLive: true,
+            headers: { Authorization: 'Bearer token' },
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 42,
+                contentType: 'live',
+            },
+        };
+        const request: PlaybackFallbackRequest = {
+            player: 'mpv',
+            playback,
+            diagnostic: {
+                code: 'network-error',
+                player: 'videojs',
+                source: 'hls',
+                container: '',
+                mimeType: '',
+                videoCodecs: [],
+                audioCodecs: [],
+            },
+        };
+        let forwarded: PlaybackFallbackRequest | undefined;
+        component.externalFallbackRequested.subscribe(
+            (value) => (forwarded = value)
+        );
+        fixture.componentRef.setInput('playback', playback);
+        fixture.detectChanges();
+
+        const webPlayer = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        webPlayer.externalFallbackRequested.emit(request);
+
+        expect(forwarded).toBe(request);
+        expect(forwarded?.playback).toBe(playback);
     });
 
     describe('playerMediaTitle', () => {
@@ -254,6 +305,10 @@ describe('PortalInlinePlayerComponent', () => {
                 .compileComponents();
 
             fixture = TestBed.createComponent(PortalInlinePlayerComponent);
+            fixture.componentRef.setInput(
+                'playbackSessionKey',
+                'host-owned-session-key'
+            );
             component = fixture.componentInstance;
         });
 
@@ -308,6 +363,10 @@ describe('PortalInlinePlayerComponent', () => {
                 .compileComponents();
 
             fixture = TestBed.createComponent(PortalInlinePlayerComponent);
+            fixture.componentRef.setInput(
+                'playbackSessionKey',
+                'host-owned-session-key'
+            );
             component = fixture.componentInstance;
         }
 

@@ -12,7 +12,8 @@ import {
     createHlsPlaybackEvidence,
     createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
+import { isBrowserMediaTypeSupported } from '../web-video-support/browser-media-type-support';
 import type { WebVideoControlsAdapter } from '../player-controls';
 import type { ShakaModuleLoader } from '../shaka-engine/shaka-module.types';
 import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
@@ -307,7 +308,10 @@ export class ArtPlayerSourceSession {
                 .map((level) => level.videoCodec)
                 .filter((codec): codec is string => Boolean(codec))
         );
-        const issue = classifyUnsupportedHlsManifestCodecs(metadata);
+        const issue = classifyUnsupportedHlsManifestCodecs(
+            metadata,
+            isBrowserMediaTypeSupported
+        );
         if (issue) {
             this.config.emitPlaybackIssue(issue);
         }

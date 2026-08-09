@@ -1,7 +1,8 @@
 # Every Dependabot PR triggers the full pipeline (~15 jobs), so version
-# updates are batched: weekly cadence, minor+patch bumps grouped into one PR
-# per ecosystem, majors as individual PRs so CI gates them one by one.
-# Security updates are separate and are not limited by this schedule.
+# updates are batched weekly. Nx minor+patch updates use a dedicated group so
+# official packages move together; Nx majors are manual coordinated migrations,
+# and other minor+patch updates are grouped per ecosystem. Security updates are
+# separate and are not limited by this schedule; CI enforces complete Nx lockstep.
 version: 2
 updates:
     - package-ecosystem: npm
@@ -11,8 +12,32 @@ updates:
           day: monday
           time: '06:00'
       open-pull-requests-limit: 5
+      ignore:
+          - dependency-name: nx
+            update-types:
+                - version-update:semver-major
+          - dependency-name: '@nx/*'
+            update-types:
+                - version-update:semver-major
       groups:
+          nx-version-updates:
+              applies-to: version-updates
+              patterns:
+                  - nx
+                  - '@nx/*'
+              update-types:
+                  - minor
+                  - patch
+          nx-security-updates:
+              applies-to: security-updates
+              patterns:
+                  - nx
+                  - '@nx/*'
           npm-minor-patch:
+              applies-to: version-updates
+              exclude-patterns:
+                  - nx
+                  - '@nx/*'
               update-types:
                   - minor
                   - patch

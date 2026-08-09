@@ -27,6 +27,7 @@ import {
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, NEVER, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -34,6 +35,7 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
     template: '<div data-testid="inline-vod-player"></div>',
 })
 class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly playback = input<unknown>(null);
     // Multi-source wiring: the real player takes these, so the stub has to
     // accept them or the template binding fails to compile.
@@ -90,6 +92,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const isDownloaded = jest.fn().mockReturnValue(false);
     const getDownloadedFilePath = jest.fn();
     const playDownload = jest.fn().mockResolvedValue(undefined);
+    const revealFile = jest.fn().mockResolvedValue({ success: true });
     const toggleFavorite = jest.fn();
     const sparseItem = (): SparseVodItem => ({
         info: [],
@@ -185,6 +188,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 }
             );
         playDownload.mockClear();
+        revealFile.mockClear();
         toggleFavorite.mockClear();
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
@@ -248,6 +252,12 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         resumeDownloadByContent: jest.fn(),
                         startDownload,
                         getDownloadedFilePath,
+                        getDownloadByContent: jest.fn(),
+                        getProgressPercent: jest.fn().mockReturnValue(0),
+                        cancelDownload: jest.fn().mockResolvedValue({
+                            success: true,
+                        }),
+                        revealFile,
                         playDownload,
                     },
                 },
@@ -342,8 +352,12 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         fixture.detectChanges();
         const host = fixture.nativeElement as HTMLElement;
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('button.favorite-btn')).not.toBeNull();
-        expect(host.querySelector('button.download-btn')).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-download-start"]')
+        ).not.toBeNull();
         host.querySelector<HTMLButtonElement>('button.play-btn')?.click();
         fixture.detectChanges();
         expect(constructVodStreamUrl).toHaveBeenCalledWith(item);
@@ -357,6 +371,25 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 thumbnail: 'https://example.com/catalog-poster.jpg',
             })
         );
+        const expectedKey = createPlaybackSessionKey({
+            kind: 'vod',
+            sourceId: 'playlist-1',
+            contentId: 650020,
+        });
+        expect(inlinePlayer.playbackSessionKey()).toBe(expectedKey);
+
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://copy.example/movie/9001.mkv',
+            title: 'Catalog movie',
+            headers: { 'User-Agent': 'Copy Provider' },
+            contentInfo: {
+                playlistId: 'copy-playlist',
+                contentXtreamId: 9001,
+                contentType: 'vod',
+            },
+        });
+        fixture.detectChanges();
+        expect(inlinePlayer.playbackSessionKey()).toBe(expectedKey);
         expect(
             host.querySelector('app-portal-detail-shell')?.classList
         ).toContain('shell-host--watch');
@@ -385,8 +418,12 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             'button.play-btn--resume'
         )?.click();
         fixture.detectChanges();
-        host.querySelector<HTMLButtonElement>('button.favorite-btn')?.click();
-        host.querySelector<HTMLButtonElement>('button.download-btn')?.click();
+        host.querySelector<HTMLButtonElement>(
+            '[data-testid="vod-favorite-toggle"]'
+        )?.click();
+        host.querySelector<HTMLButtonElement>(
+            '[data-testid="vod-download-start"]'
+        )?.click();
         await fixture.whenStable();
 
         expect(constructVodStreamUrl).toHaveBeenNthCalledWith(1, item);
@@ -457,14 +494,14 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             host.querySelector<HTMLButtonElement>('button.play-btn');
         expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
         expect(primary?.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        // The download slot flips to the done state: a checkmark whose click
+        // reveals the finished file, replacing the old labeled secondary.
         expect(
-            Array.from(host.querySelectorAll('button.download-btn')).some(
-                (button) =>
-                    button.textContent?.includes(
-                        'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
-                    )
-            )
-        ).toBe(true);
+            host.querySelector('[data-testid="vod-download-done"]')
+        ).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-download-start"]')
+        ).toBeNull();
 
         primary?.click();
         await fixture.whenStable();
@@ -565,6 +602,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         selectedItem.set(richItem());
         fixture.detectChanges();
         expect(fixture.componentInstance.providerOnly()).toBe(true);
+        const firstSessionKey = fixture.componentInstance.playbackSessionKey();
 
         window.history.replaceState({}, '', window.location.href);
         selectedItem.set({
@@ -578,6 +616,16 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.providerOnly()).toBe(false);
+        expect(fixture.componentInstance.playbackSessionKey()).not.toBe(
+            firstSessionKey
+        );
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(
+            createPlaybackSessionKey({
+                kind: 'vod',
+                sourceId: 'playlist-1',
+                contentId: 650021,
+            })
+        );
     });
 
     it('plays a rich downloaded movie locally without a usable provider source', async () => {
@@ -608,7 +656,11 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         expect(openResolvedPlayback).not.toHaveBeenCalled();
     });
 
-    it('keeps pinned provider playback behind the downloaded secondary action', async () => {
+    it('still offers provider playback for a downloaded movie with no alternatives', async () => {
+        // The primary button plays the local file once downloaded, and the
+        // sources chip only appears when another playlist carries the film —
+        // so without this control a single-playlist library loses every way
+        // to stream the provider's copy.
         selectedItem.set(sparseItem());
         downloadsAvailable.set(true);
         isDownloaded.mockReturnValue(true);
@@ -618,19 +670,38 @@ describe('VodDetailsRouteComponent fallback actions', () => {
 
         fixture.detectChanges();
 
-        const providerButton = Array.from(
-            (
-                fixture.nativeElement as HTMLElement
-            ).querySelectorAll<HTMLButtonElement>('button')
-        ).find((button) =>
-            button.textContent?.includes(
-                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
-            )
+        const host = fixture.nativeElement as HTMLElement;
+        expect(fixture.componentInstance.multiSource.hasAlternatives()).toBe(
+            false
         );
+        const providerButton = host.querySelector<HTMLButtonElement>(
+            '[data-testid="vod-play-provider"]'
+        );
+        expect(providerButton).not.toBeNull();
+
         providerButton?.click();
         await fixture.whenStable();
 
         expect(playPinned).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('reveals the finished file from the downloaded state button', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/catalog-movie.mp4');
+
+        fixture.detectChanges();
+
+        (fixture.nativeElement as HTMLElement)
+            .querySelector<HTMLButtonElement>(
+                '[data-testid="vod-download-done"]'
+            )
+            ?.click();
+        await fixture.whenStable();
+
+        expect(revealFile).toHaveBeenCalledWith('/downloads/catalog-movie.mp4');
         expect(playDownload).not.toHaveBeenCalled();
         expect(constructVodStreamUrl).not.toHaveBeenCalled();
     });

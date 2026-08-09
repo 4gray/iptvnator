@@ -16,6 +16,8 @@ export * from './lib/portal-detail-shell/portal-detail-shell.component';
 export * from './lib/progress-capsule/progress-capsule.component';
 export * from './lib/resizable/resizable.directive';
 export * from './lib/season-container/season-container.component';
+export * from './lib/vod-sources/vod-source-copy-row.component';
+export * from './lib/vod-sources/vod-source-filtering.util';
 export * from './lib/vod-sources/vod-source-row.component';
 export * from './lib/vod-sources/vod-source-tags';
 export * from './lib/vod-sources/vod-sources-chip.component';

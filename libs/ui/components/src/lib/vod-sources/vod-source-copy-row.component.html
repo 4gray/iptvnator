@@ -1,0 +1,50 @@
+<div class="copy-row" [class.copy-row--active]="source().isActive">
+    <div class="copy-row__main">
+        <div class="copy-row__title-line">
+            @if (language(); as lang) {
+                <span class="copy-row__lang" aria-hidden="true">{{ lang }}</span>
+            }
+            <span class="copy-row__title" [title]="title()">{{ title() }}</span>
+            @if (source().isActive) {
+                <span class="copy-row__badge">{{
+                    (playbackLive()
+                        ? 'PORTALS.MULTI_SOURCE.PLAYING'
+                        : 'PORTALS.MULTI_SOURCE.CURRENT'
+                    ) | translate
+                }}</span>
+            }
+        </div>
+
+        <div class="copy-row__tags">
+            <app-vod-source-tag-list [tags]="tags()" />
+            @if (isPrimaryCopy()) {
+                <span class="copy-row__same">{{
+                    'PORTALS.MULTI_SOURCE.SAME_AS_ABOVE' | translate
+                }}</span>
+            }
+        </div>
+    </div>
+
+    <div class="copy-row__actions">
+        <button
+            type="button"
+            class="copy-row__action"
+            (click)="onCheck($event)"
+            [matTooltip]="'PORTALS.MULTI_SOURCE.CHECK_TOOLTIP' | translate"
+            [attr.aria-label]="'PORTALS.MULTI_SOURCE.CHECK_TOOLTIP' | translate"
+        >
+            <mat-icon>refresh</mat-icon>
+        </button>
+        <button
+            type="button"
+            class="copy-row__action copy-row__action--play"
+            (click)="onPlay($event)"
+            [matTooltip]="'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate"
+            [attr.aria-label]="
+                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
+            "
+        >
+            <mat-icon>play_arrow</mat-icon>
+        </button>
+    </div>
+</div>

@@ -416,9 +416,11 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(host.textContent).toContain('Movie B');
         expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
         expect(host.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
-        expect(host.textContent).toContain(
-            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
-        );
+        // The download slot shows the done-state icon button once playable
+        // details arrive; provider playback now lives in the sources popover.
+        expect(
+            host.querySelector('[data-testid="vod-download-done"]')
+        ).not.toBeNull();
     });
 
     it('downloads the route movie with the metadata precedence rendered on screen', async () => {

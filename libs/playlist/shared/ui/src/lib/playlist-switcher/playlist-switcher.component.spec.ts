@@ -327,6 +327,22 @@ describe('PlaylistSwitcherComponent', () => {
         expect(playlistInfoSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('offers per-playlist account info for portal playlists only', async () => {
+        await createComponent();
+
+        const requestedPlaylists: PlaylistMeta[] = [];
+        component.accountInfoForPlaylistRequested.subscribe((playlist) =>
+            requestedPlaylists.push(playlist)
+        );
+
+        expect(component.hasAccountInfo(m3uPlaylist)).toBe(false);
+        expect(component.hasAccountInfo(stalkerPlaylist)).toBe(true);
+        expect(component.hasAccountInfo(xtreamPlaylist)).toBe(true);
+
+        component.requestAccountInfoFor(stalkerPlaylist);
+        expect(requestedPlaylists).toEqual([stalkerPlaylist]);
+    });
+
     it('opens the menu, syncs overlay width, and checks portal statuses for Xtream playlists', fakeAsync(async () => {
         await createComponent();
 

@@ -6,14 +6,16 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
 import {
+    classifyStalkerAuthFailureBody,
+    createStalkerAuthFailureMarker,
     PortalDebugEvent,
     STALKER_REQUEST,
+    buildStalkerIdentityRequestContext,
+    buildStalkerRequestUrl,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { buildStalkerIdentityRequestContext } from './stalker-identity';
-import { buildStalkerRequestUrl } from './stalker-request-url';
 import { assertRemoteUrlAllowed } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
@@ -100,11 +102,28 @@ ipcMain.handle(
                     response.status,
                     response.statusText
                 );
-                throw {
-                    message: `HTTP Error: ${response.statusText}`,
-                    status: response.status,
-                };
+                // The numeric code must live in the MESSAGE: ipcRenderer
+                // strips custom properties from rejected values, and the
+                // renderer's endpoint discovery needs to tell a 404 (probe
+                // next candidate) from a network failure (stop probing).
+                const httpError = new Error(
+                    `HTTP Error ${response.status}: ${response.statusText}`
+                ) as Error & { status: number };
+                httpError.status = response.status;
+                throw httpError;
             }
+
+            // The portal answers auth failures with HTTP 200 and a plain
+            // text/html body ("Authorization failed.", "Access denied.",
+            // "Unauthorized request."). Classify them here so the renderer
+            // receives a structured marker instead of pattern-matching raw
+            // response text.
+            const authFailureBody = classifyStalkerAuthFailureBody(
+                response.data
+            );
+            const responseData = authFailureBody
+                ? createStalkerAuthFailureMarker(authFailureBody)
+                : response.data;
 
             // Return the response data
             if (
@@ -131,12 +150,12 @@ ipcMain.handle(
                     durationMs: Date.now() - startedAt,
                     status: 'success',
                     request: debugRequest,
-                    response: response.data,
+                    response: responseData,
                 };
                 emitPortalDebugEvent(debugEvent);
             }
 
-            return response.data;
+            return responseData;
         } catch (error) {
             if (payload.requestId) {
                 const debugEvent: PortalDebugEvent = {
@@ -163,16 +182,26 @@ ipcMain.handle(
             );
 
             // Format error response
-            if (axios.isAxiosError(error)) {
-                const errorResponse = {
-                    type: 'ERROR',
-                    message:
-                        error.response?.data?.message ||
-                        error.message ||
-                        'Failed to fetch data from Stalker portal',
-                    status: error.response?.status || 500,
-                };
-                throw errorResponse;
+            if (axios.isAxiosError(error) && error.response) {
+                // A real HTTP response (5xx lands here via validateStatus).
+                // Same parseable message shape as the 4xx branch: only the
+                // message crosses ipcRenderer.invoke, and the renderer's
+                // endpoint discovery must tell "this endpoint answered 5xx —
+                // try the next candidate" from a host-level failure.
+                const httpError = new Error(
+                    `HTTP Error ${error.response.status}: ${error.response.statusText ?? ''}`
+                ) as Error & { status: number };
+                httpError.status = error.response.status;
+                throw httpError;
+            } else if (axios.isAxiosError(error)) {
+                // A real Error, not a plain object: Electron serializes
+                // handler rejections via toString(), so a plain object
+                // reaches the renderer as "[object Object]" and its
+                // timeout-vs-connection classification is lost — discovery
+                // would stop probing as if the whole host were unreachable.
+                throw new Error(
+                    error.message || 'Failed to fetch data from Stalker portal'
+                );
             } else if (
                 error &&
                 typeof error === 'object' &&

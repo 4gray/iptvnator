@@ -4,7 +4,12 @@ import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
-import { ErrorDetails, ErrorTypes, type ErrorData } from 'hls.js';
+import {
+    ErrorDetails,
+    ErrorTypes,
+    type ErrorData,
+    type ManifestParsedData,
+} from 'hls.js';
 import {
     PlayerControlsComponent,
     WebVideoControlsAdapter,
@@ -124,7 +129,7 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(component.playChannel).toHaveBeenCalledWith(TEST_CHANNEL);
     });
 
-    it('passes channel headers and stream URL to Electron header overrides', () => {
+    it('does not configure Electron header overrides itself — WebPlayerViewComponent owns them', () => {
         jest.spyOn(
             component.videoPlayer.nativeElement,
             'load'
@@ -145,39 +150,9 @@ describe('HtmlVideoPlayerComponent', () => {
             url: 'https://stream.example/video.mp4',
         });
 
-        expect(electronApi.setUserAgent).toHaveBeenCalledWith(
-            'ChannelAgent/1.0',
-            'https://portal.example/referrer',
-            'https://stream.example/video.mp4'
-        );
-    });
-
-    it('clears Electron header overrides for channels without custom headers', () => {
-        jest.spyOn(
-            component.videoPlayer.nativeElement,
-            'load'
-        ).mockImplementation(() => undefined);
-        jest.spyOn(
-            component.videoPlayer.nativeElement,
-            'play'
-        ).mockResolvedValue(undefined);
-
-        component.playChannel({
-            ...TEST_CHANNEL,
-            http: {
-                'user-agent': '',
-                origin: '',
-                referrer: '',
-            },
-            radio: 'false',
-            url: 'https://stream.example/video.mp4',
-        });
-
-        expect(electronApi.setUserAgent).toHaveBeenCalledWith(
-            '',
-            '',
-            'https://stream.example/video.mp4'
-        );
+        // A second three-header call from here would overwrite the richer
+        // scoped override (incl. Cookie/Authorization) the host configured.
+        expect(electronApi.setUserAgent).not.toHaveBeenCalled();
     });
 
     it('replaces and reloads native video sources when switching episodes', () => {
@@ -228,9 +203,88 @@ describe('HtmlVideoPlayerComponent', () => {
                 code: 'unsupported-container',
                 source: 'native',
                 sourceUrl: 'http://test.ts',
-                externalFallbackRecommended: true,
             }),
         ]);
+    });
+
+    it('uses browser media-type support for HLS manifest codec diagnostics', () => {
+        const mediaSourceDescriptor = Object.getOwnPropertyDescriptor(
+            globalThis,
+            'MediaSource'
+        );
+        Object.defineProperty(globalThis, 'MediaSource', {
+            configurable: true,
+            value: { isTypeSupported: jest.fn(() => false) },
+        });
+        const issues: unknown[] = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+
+        try {
+            (
+                component as unknown as {
+                    handleHlsManifestParsed: (
+                        url: string,
+                        data: ManifestParsedData
+                    ) => void;
+                }
+            ).handleHlsManifestParsed(
+                'https://example.com/live/playlist.m3u8',
+                {
+                    levels: [{ audioCodec: 'ac-3', videoCodec: 'avc1.64001f' }],
+                } as ManifestParsedData
+            );
+        } finally {
+            restoreMediaSource(mediaSourceDescriptor);
+        }
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'unsupported-codec',
+                source: 'source',
+            }),
+        ]);
+    });
+
+    it('keeps HLS manifest handling alive when the browser support probe throws', () => {
+        const mediaSourceDescriptor = Object.getOwnPropertyDescriptor(
+            globalThis,
+            'MediaSource'
+        );
+        Object.defineProperty(globalThis, 'MediaSource', {
+            configurable: true,
+            value: {
+                isTypeSupported: () => {
+                    throw new Error('provider-controlled-codec');
+                },
+            },
+        });
+        const issues: unknown[] = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+
+        try {
+            expect(() =>
+                (
+                    component as unknown as {
+                        handleHlsManifestParsed: (
+                            url: string,
+                            data: ManifestParsedData
+                        ) => void;
+                    }
+                ).handleHlsManifestParsed(
+                    'https://example.com/live/playlist.m3u8',
+                    {
+                        levels: [
+                            {
+                                audioCodec: 'provider-controlled-codec',
+                                videoCodec: 'avc1.64001f',
+                            },
+                        ],
+                    } as ManifestParsedData
+                )
+            ).not.toThrow();
+        } finally {
+            restoreMediaSource(mediaSourceDescriptor);
+        }
+        expect(issues).toEqual([]);
     });
 
     it('does not emit a playback issue when HLS.js reports a recoverable error', () => {
@@ -385,3 +439,11 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(events).toEqual(['previous']);
     });
 });
+
+function restoreMediaSource(descriptor?: PropertyDescriptor): void {
+    if (descriptor) {
+        Object.defineProperty(globalThis, 'MediaSource', descriptor);
+        return;
+    }
+    Reflect.deleteProperty(globalThis, 'MediaSource');
+}
