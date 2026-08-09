@@ -7,8 +7,8 @@
     </h2>
     <fieldset
         class="playlist-info-fields"
-        [disabled]="isSaving()"
-        [attr.aria-busy]="isSaving()"
+        [disabled]="isSaving() || isHydratingStalkerPlaylist()"
+        [attr.aria-busy]="isSaving() || isHydratingStalkerPlaylist()"
     >
         <mat-dialog-content class="mat-typography">
             <mat-form-field class="w-full">
@@ -364,7 +364,9 @@
                 [disabled]="
                     !playlistDetails.valid ||
                     playlistDetails.pristine ||
-                    isSaving()
+                    isSaving() ||
+                    isHydratingStalkerPlaylist() ||
+                    stalkerPlaylistHydrationFailed()
                 "
             >
                 {{

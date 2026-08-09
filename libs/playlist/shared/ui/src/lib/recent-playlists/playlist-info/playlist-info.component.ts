@@ -192,6 +192,9 @@ export class PlaylistInfoComponent {
     });
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
     readonly isSaving = signal(false);
+    readonly isHydratingStalkerPlaylist = signal(false);
+    readonly stalkerPlaylistHydrationFailed = signal(false);
+    private readonly stalkerPlaylistHydration: Promise<void>;
 
     get isDesktop(): boolean {
         return this.runtime.supportsDesktopFileSave;
@@ -295,6 +298,13 @@ export class PlaylistInfoComponent {
     constructor() {
         this.playlist = this.playlistData;
         this.createForm();
+        if (this.playlist.portalUrl) {
+            this.isHydratingStalkerPlaylist.set(true);
+            this.stalkerPlaylistHydration =
+                this.hydrateCompleteStalkerPlaylist();
+        } else {
+            this.stalkerPlaylistHydration = Promise.resolve();
+        }
     }
 
     /**
@@ -360,7 +370,7 @@ export class PlaylistInfoComponent {
     }
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
-        if (this.isSaving() || this.playlistDetails.invalid) {
+        if (this.isSaving()) {
             return;
         }
 
@@ -369,10 +379,22 @@ export class PlaylistInfoComponent {
             this.dialogRef.disableClose = true;
         }
         try {
+            let submittedPlaylist = playlist;
+            if (this.isHydratingStalkerPlaylist()) {
+                await this.stalkerPlaylistHydration;
+                submittedPlaylist = this.playlistDetails.value as PlaylistMeta;
+            }
+            if (
+                this.stalkerPlaylistHydrationFailed() ||
+                this.playlistDetails.invalid
+            ) {
+                return;
+            }
+
             let resolvedStalkerConnection = false;
             let normalizedPlaylist: PlaylistMetaUpdate =
                 this.normalizeStalkerPlaylistMeta(
-                    this.normalizeXtreamPlaylistMeta(playlist)
+                    this.normalizeXtreamPlaylistMeta(submittedPlaylist)
                 );
             if (this.playlist.portalUrl) {
                 if (
@@ -453,6 +475,42 @@ export class PlaylistInfoComponent {
                 this.dialogRef.disableClose = false;
             }
             this.isSaving.set(false);
+        }
+    }
+
+    /**
+     * Electron's startup metadata projection deliberately excludes the
+     * payload-only Stalker identity and session fields. Editing that summary
+     * directly would render the identity controls empty and could clear a
+     * portal-pinned serial/device identity on the next discovery. Hydrate the
+     * authoritative row before enabling the form in every runtime so Edit
+     * always starts from the same persisted connection that playback uses.
+     */
+    private async hydrateCompleteStalkerPlaylist(): Promise<void> {
+        try {
+            const persistedPlaylist = await firstValueFrom(
+                this.playlistsService.getPlaylistById(this.playlist._id)
+            );
+            if (!persistedPlaylist) {
+                throw new Error('Stored Stalker playlist was not found');
+            }
+
+            this.playlist = {
+                ...this.playlistData,
+                ...persistedPlaylist,
+                id: this.playlistData.id ?? persistedPlaylist._id,
+            };
+            this.createForm();
+        } catch (error) {
+            console.error('Failed to load complete Stalker playlist:', error);
+            this.stalkerPlaylistHydrationFailed.set(true);
+            this.snackBar.open(
+                this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'),
+                this.translate.instant('CLOSE'),
+                { duration: 3000 }
+            );
+        } finally {
+            this.isHydratingStalkerPlaylist.set(false);
         }
     }
 

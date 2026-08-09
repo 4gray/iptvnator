@@ -3,7 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -23,6 +23,7 @@ describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
     let playlistsService: {
+        getPlaylistById: jest.Mock;
         getRawPlaylistById: jest.Mock;
     };
     let databaseService: {
@@ -70,6 +71,7 @@ describe('PlaylistInfoComponent', () => {
 
     beforeEach(async () => {
         playlistsService = {
+            getPlaylistById: jest.fn(),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U\n')),
         };
         databaseService = {
@@ -592,19 +594,75 @@ describe('PlaylistInfoComponent', () => {
         function createStalkerComponent(
             overrides: Partial<Playlist> = {}
         ): void {
+            const stalkerPlaylist = {
+                ...playlist,
+                url: undefined,
+                portalUrl: 'https://portal.example.com/c',
+                macAddress: '00:1a:79:aa:bb:cc',
+                isFullStalkerPortal: true,
+                ...overrides,
+            } as Playlist & { id: string };
+            playlistsService.getPlaylistById.mockReturnValue(
+                of(stalkerPlaylist)
+            );
             TestBed.overrideProvider(MAT_DIALOG_DATA, {
-                useValue: {
-                    ...playlist,
-                    url: undefined,
-                    portalUrl: 'https://portal.example.com/c',
-                    macAddress: '00:1a:79:aa:bb:cc',
-                    isFullStalkerPortal: true,
-                    ...overrides,
-                } as Playlist & { id: string },
+                useValue: stalkerPlaylist,
             });
             createComponent();
             fixture.detectChanges();
         }
+
+        it('hydrates the complete stored row before editing a summarized Stalker playlist', async () => {
+            const summary = {
+                ...playlist,
+                url: undefined,
+                portalUrl: 'https://portal.example.com/c',
+                macAddress: '00:1a:79:aa:bb:cc',
+            } as Playlist & { id: string };
+            const storedPlaylist = {
+                ...summary,
+                isFullStalkerPortal: true,
+                stalkerSerialNumber: 'STORED-SERIAL',
+                stalkerDeviceId1: 'STORED-DEVICE-1',
+                stalkerDeviceId2: 'STORED-DEVICE-2',
+                stalkerSignature1: 'STORED-SIGNATURE-1',
+                stalkerSignature2: 'STORED-SIGNATURE-2',
+            };
+            const storedPlaylist$ = new Subject<Playlist>();
+            playlistsService.getPlaylistById.mockReturnValue(storedPlaylist$);
+            TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: summary });
+            createComponent();
+            fixture.detectChanges();
+
+            expect(component.isHydratingStalkerPlaylist()).toBe(true);
+
+            storedPlaylist$.next(storedPlaylist);
+            storedPlaylist$.complete();
+            await fixture.whenStable();
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+                'playlist-1'
+            );
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    portalUrl: 'https://new.example.com',
+                    stalkerSerialNumber: 'STORED-SERIAL',
+                    stalkerDeviceId1: 'STORED-DEVICE-1',
+                    stalkerDeviceId2: 'STORED-DEVICE-2',
+                    stalkerSignature1: 'STORED-SIGNATURE-1',
+                    stalkerSignature2: 'STORED-SIGNATURE-2',
+                })
+            );
+        });
 
         it('canonicalizes an edited MAC on blur', () => {
             createStalkerComponent();
@@ -836,6 +894,7 @@ describe('PlaylistInfoComponent', () => {
 
         it('ignores a second Save while discovery is pending', async () => {
             createStalkerComponent();
+            await fixture.whenStable();
             let resolveDiscovery:
                 | ((value: { status: 'unreachable'; message: string }) => void)
                 | undefined;

@@ -197,6 +197,10 @@ discovery, since every candidate shares the host.
 The playlist-info Edit dialog compares URL, MAC, username/password, serial,
 device IDs and signatures as one connection identity. A metadata-only edit
 does not run discovery and preserves the stored connection byte-for-byte.
+Before enabling a Stalker form, the dialog loads the complete persisted
+playlist row by ID. Electron's startup metadata projection omits payload-only
+identity fields, so editing that summary directly could otherwise display and
+then persist empty serial, device ID, signature, or mode values.
 Changing any connection field disables the form while the same discovery
 service validates the draft. Auth rejection or an unreachable portal leaves
 the dialog open and writes nothing. Escape/backdrop closure is disabled for the
