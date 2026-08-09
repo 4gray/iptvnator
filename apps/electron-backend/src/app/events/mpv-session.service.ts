@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import { createConnection } from 'net';
 import { PlayerContentInfo } from '@iptvnator/shared/interfaces';
 import {
@@ -29,6 +29,11 @@ import {
     sendPlayerErrorNotification,
     traceExternalPlayer,
 } from './external-player-runtime';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
+import {
+    MpvReusableProcess,
+    MpvReuseAttemptState,
+} from './mpv-reusable-process';
 
 export interface OpenExternalPlayerRequest {
     url: string;
@@ -42,8 +47,7 @@ export interface OpenExternalPlayerRequest {
     headers?: Record<string, string>;
 }
 
-let mpvProcess: ChildProcess | null = null;
-let mpvSocketPath: string | null = null;
+const reusableMpvProcess = new MpvReusableProcess();
 let positionPollingInterval: NodeJS.Timeout | null = null;
 
 function getMpvPath(options: PlayerPathOptions = {}): string {
@@ -152,53 +156,16 @@ function startPositionPolling(
     }, 2000);
 }
 
-function sendMpvCommand(
-    command: string,
-    args: Array<string | number>
-): Promise<void> {
-    return new Promise((resolve, reject) => {
-        if (!mpvSocketPath) {
-            reject(new Error('No MPV socket path available'));
-            return;
-        }
-
-        const client = createConnection(mpvSocketPath);
-        const request = JSON.stringify({ command: [command, ...args] }) + '\n';
-
-        client.on('connect', () => {
-            traceExternalPlayer('mpv ipc command', {
-                command,
-                argsCount: args.length,
-            });
-            client.write(request);
-            client.end();
-            resolve();
-        });
-
-        client.on('error', (err) => {
-            console.error('MPV socket error:', err);
-            reject(err);
-        });
-    });
-}
-
-function killStoredMpvProcess(reason: string): void {
-    if (!mpvProcess || mpvProcess.killed) {
-        return;
-    }
-    traceExternalPlayer(reason);
-    mpvProcess.kill();
-    mpvProcess = null;
-    mpvSocketPath = null;
-    stopPositionPolling();
-}
-
 export function setMpvReuseInstance(reuseInstance: boolean): void {
     traceExternalPlayer('set mpv reuse instance', { reuseInstance });
     store.set(MPV_REUSE_INSTANCE, reuseInstance);
 
     if (!reuseInstance) {
-        killStoredMpvProcess('clean up mpv process after disabling reuse');
+        reusableMpvProcess.stopStored(
+            'clean up mpv process after disabling reuse',
+            stopPositionPolling,
+            true
+        );
     }
 }
 
@@ -208,7 +175,10 @@ export function setMpvReuseInstance(reuseInstance: boolean): void {
  * app and keeps playing after quit.
  */
 export function shutdownMpvSession(): void {
-    killStoredMpvProcess('kill reused mpv process on app shutdown');
+    reusableMpvProcess.stopStored(
+        'kill reused mpv process on app shutdown',
+        stopPositionPolling
+    );
 }
 
 export async function openMpvPlayer({
@@ -222,6 +192,9 @@ export async function openMpvPlayer({
     startTime,
     headers,
 }: OpenExternalPlayerRequest) {
+    externalPlayerProcessTeardownGate.assertLaunchAllowed();
+    const displacedSessionId = externalPlayerSessions.getActiveSessionId();
+    const previousProcessSessionId = reusableMpvProcess.currentSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'mpv',
         title,
@@ -229,6 +202,11 @@ export async function openMpvPlayer({
         streamUrl: url,
         contentInfo,
     });
+    const reuseState: MpvReuseAttemptState = {
+        teardownUnconfirmed: false,
+        contentMutated: false,
+    };
+    let freshTeardownUnconfirmed = false;
 
     try {
         const isFlatpak = isRunningInFlatpak();
@@ -273,80 +251,22 @@ export async function openMpvPlayer({
                 parseExternalPlayerArguments(customMpvArguments).length,
         });
 
-        if (
-            reuseInstance &&
-            mpvProcess &&
-            !mpvProcess.killed &&
-            mpvSocketPath
-        ) {
-            traceExternalPlayer('reuse existing mpv instance');
-            try {
-                if (effectiveUserAgent) {
-                    await sendMpvCommand('set_property', [
-                        'user-agent',
-                        effectiveUserAgent,
-                    ]);
-                }
-                if (effectiveReferer) {
-                    await sendMpvCommand('set_property', [
-                        'referrer',
-                        effectiveReferer,
-                    ]);
-                }
-                if (headerFields.length > 0) {
-                    await sendMpvCommand('set_property', [
-                        'http-header-fields',
-                        joinMpvHeaderFields(headerFields),
-                    ]);
-                }
-
-                const loadFileArgs: Array<string | number> = [url, 'replace'];
-                const loadFileOptions: string[] = [];
-
-                if (title) {
-                    loadFileOptions.push(`force-media-title=${title}`);
-                }
-                if (loadFileOptions.length > 0) {
-                    loadFileArgs.push(-1, loadFileOptions.join(','));
-                }
-
-                await sendMpvCommand('loadfile', loadFileArgs);
-                traceExternalPlayer('loaded new url in existing mpv instance');
-
-                externalPlayerSessions.attachCloser(session.id, async () => {
-                    try {
-                        await sendMpvCommand('quit', []);
-                    } catch {
-                        if (mpvProcess && !mpvProcess.killed) {
-                            mpvProcess.kill();
-                        }
-                    }
-                });
-
-                if (startTime) {
-                    await sendMpvCommand('seek', [
-                        String(startTime),
-                        'absolute',
-                    ]);
-                }
-
-                if (contentInfo) {
-                    startPositionPolling(
-                        mpvSocketPath,
-                        contentInfo,
-                        session.id
-                    );
-                } else {
-                    stopPositionPolling();
-                }
-
-                return externalPlayerSessions.markOpened(session.id) ?? session;
-            } catch (err) {
-                console.error('Failed to send command to existing MPV:', err);
-                mpvProcess = null;
-                mpvSocketPath = null;
-                stopPositionPolling();
-            }
+        if (reuseInstance) {
+            const reused = await reusableMpvProcess.tryReuse({
+                session,
+                previousProcessSessionId,
+                url,
+                title,
+                effectiveUserAgent,
+                effectiveReferer,
+                headerFields,
+                contentInfo,
+                startTime,
+                state: reuseState,
+                startPositionPolling,
+                stopPositionPolling,
+            });
+            if (reused) return reused;
         }
 
         traceExternalPlayer('create new mpv instance');
@@ -373,7 +293,9 @@ export async function openMpvPlayer({
         }
 
         if (headerFields.length > 0) {
-            args.push(`--http-header-fields=${joinMpvHeaderFields(headerFields)}`);
+            args.push(
+                `--http-header-fields=${joinMpvHeaderFields(headerFields)}`
+            );
         }
 
         if (title) {
@@ -387,10 +309,36 @@ export async function openMpvPlayer({
         args.push(url);
 
         await new Promise<void>((resolve, reject) => {
+            let settled = false;
+            let startConfirmationTimer: NodeJS.Timeout | null = null;
+            const resolveLaunch = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                if (startConfirmationTimer) {
+                    clearTimeout(startConfirmationTimer);
+                }
+                resolve();
+            };
+            const rejectLaunch = (error: Error) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                if (startConfirmationTimer) {
+                    clearTimeout(startConfirmationTimer);
+                }
+                reject(error);
+            };
             const spawnSpec = buildExternalPlayerSpawnSpec(
                 mpvLaunchContext,
                 buildPlayerArgsWithCustomArguments(customMpvArguments, args)
             );
+            // Reuse teardown yields while waiting for the old child. Another
+            // external process may enter teardown during that window, so the
+            // process-wide invariant must be checked at the actual spawn too.
+            externalPlayerProcessTeardownGate.assertLaunchAllowed();
             const proc = spawn(spawnSpec.command, spawnSpec.args, {
                 shell: false,
                 detached: !reuseInstance,
@@ -455,20 +403,28 @@ export async function openMpvPlayer({
 
             proc.on('error', (err) => {
                 console.error('Failed to start MPV player:', err);
-                mpvProcess = null;
-                mpvSocketPath = null;
+                const processSessionId = reusableMpvProcess.sessionIdFor(
+                    proc,
+                    session.id
+                );
+                reusableMpvProcess.clear(proc);
                 stopPositionPolling();
                 externalPlayerSessions.markError(
-                    session.id,
+                    processSessionId,
                     `Failed to start MPV player: ${err.message}`
                 );
-                reject(buildPlayerStartError('MPV', err, mpvLaunchContext));
+                rejectLaunch(
+                    buildPlayerStartError('MPV', err, mpvLaunchContext)
+                );
             });
 
             proc.on('exit', (code) => {
                 traceExternalPlayer('mpv exited', { code });
-                mpvProcess = null;
-                mpvSocketPath = null;
+                const processSessionId = reusableMpvProcess.sessionIdFor(
+                    proc,
+                    session.id
+                );
+                reusableMpvProcess.clear(proc);
                 stopPositionPolling();
 
                 if (code !== 0 && code !== null) {
@@ -480,18 +436,19 @@ export async function openMpvPlayer({
                         `MPV player closed unexpectedly (exit code: ${code})`
                     );
                     externalPlayerSessions.markError(
-                        session.id,
+                        processSessionId,
                         `MPV player closed unexpectedly (exit code: ${code})`
                     );
+                    resolveLaunch();
                     return;
                 }
 
-                externalPlayerSessions.markClosed(session.id);
+                externalPlayerSessions.markClosed(processSessionId);
+                resolveLaunch();
             });
 
             if (reuseInstance && socketPath) {
-                mpvProcess = proc;
-                mpvSocketPath = socketPath;
+                reusableMpvProcess.track(proc, socketPath, session.id);
                 traceExternalPlayer('stored mpv process for reuse', {
                     socketPath,
                 });
@@ -500,8 +457,27 @@ export async function openMpvPlayer({
             }
 
             externalPlayerSessions.attachCloser(session.id, async () => {
-                if (!proc.killed) {
-                    proc.kill();
+                if (
+                    reuseInstance &&
+                    !reusableMpvProcess.owns(proc, session.id)
+                ) {
+                    return;
+                }
+                try {
+                    await externalPlayerProcessTeardownGate.terminate(proc);
+                } catch (error) {
+                    const teardownError =
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error));
+                    freshTeardownUnconfirmed = true;
+                    externalPlayerSessions.markError(
+                        session.id,
+                        teardownError.message,
+                        { canClose: true }
+                    );
+                    rejectLaunch(teardownError);
+                    throw teardownError;
                 }
             });
 
@@ -509,22 +485,38 @@ export async function openMpvPlayer({
                 startPositionPolling(socketPath, contentInfo, session.id);
             }
 
-            setTimeout(() => {
+            startConfirmationTimer = setTimeout(() => {
                 if (!proc.killed) {
-                    resolve();
+                    resolveLaunch();
                 }
             }, 100);
+            startConfirmationTimer.unref();
         });
 
         return externalPlayerSessions.markOpened(session.id) ?? session;
     } catch (error) {
         console.error('Error opening MPV player:', error);
-        mpvProcess = null;
-        mpvSocketPath = null;
-        stopPositionPolling();
+        if (!reuseState.teardownUnconfirmed && !freshTeardownUnconfirmed) {
+            stopPositionPolling();
+        }
+        const restoredSession =
+            reuseState.teardownUnconfirmed &&
+            !reuseState.contentMutated &&
+            displacedSessionId
+                ? externalPlayerSessions.restoreActiveSession(
+                      displacedSessionId,
+                      session.id
+                  )
+                : null;
         externalPlayerSessions.markError(
             session.id,
-            error instanceof Error ? error.message : String(error)
+            error instanceof Error ? error.message : String(error),
+            {
+                canClose:
+                    freshTeardownUnconfirmed ||
+                    (reuseState.teardownUnconfirmed &&
+                        (reuseState.contentMutated || !restoredSession)),
+            }
         );
         throw error;
     }

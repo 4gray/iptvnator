@@ -75,8 +75,6 @@ import {
             class="all-items-grid app-scrollbar"
             [isLoading]="loading()"
             [items]="pagedGridItems()"
-            [limit]="pageSize()"
-            [showPaginator]="false"
             [searchTerm]="searchTerm()"
             [variant]="'logo'"
             [type]="'live'"

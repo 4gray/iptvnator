@@ -26,6 +26,7 @@ export * from './lib/navigation/provider-detail-mode';
 export * from './lib/navigation/portal-route.utils';
 export * from './lib/navigation/workspace-portal-navigation';
 export * from './lib/collection';
+export * from './lib/xtream-catchup.util';
 export * from './lib/external-playback-button-state';
 export * from './lib/inline-playback-position-writer';
 export * from './lib/downloads/download-metadata-snapshot';

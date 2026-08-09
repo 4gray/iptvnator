@@ -33,14 +33,15 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     private loadedPositionsPlaylistId: string | null = null;
 
     readonly provider = 'xtream' as const;
-    readonly pageSizeOptions = [10, 25, 50, 100] as const;
+    readonly supportsInfiniteScroll = true;
     readonly contentType = this.xtreamStore.selectedContentType;
-    readonly limit = this.xtreamStore.limit;
-    readonly pageIndex = this.xtreamStore.page;
     readonly selectedCategory = this.xtreamStore.getSelectedCategory;
     readonly paginatedContent = this.xtreamStore.getPaginatedContent;
     readonly selectedItem = this.xtreamStore.selectedItem;
-    readonly totalPages = this.xtreamStore.getTotalPages;
+    readonly hasMore = this.xtreamStore.hasMoreContent;
+    /** Appends are synchronous in-memory slices — never pending, never failing. */
+    readonly isAppending = computed(() => false);
+    readonly appendError = computed(() => false);
     readonly isPaginatedContentLoading =
         this.xtreamStore.isPaginatedContentLoading;
     readonly selectedCategoryTitle = computed(() => {
@@ -105,12 +106,20 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         this.xtreamStore.setCategorySearchTerm(query);
     }
 
-    setPage(page: number): void {
-        this.xtreamStore.setPage(page);
+    loadMore(): void {
+        this.xtreamStore.loadMoreContent();
     }
 
-    setLimit(limit: number): void {
-        this.xtreamStore.setLimit(limit);
+    retryAppend(): void {
+        // In-memory appends cannot fail; nothing to retry.
+    }
+
+    saveScrollPosition(scrollTop: number): void {
+        this.xtreamStore.saveCatalogScrollState(scrollTop);
+    }
+
+    consumeSavedScrollPosition(): number | null {
+        return this.xtreamStore.consumeCatalogScrollState();
     }
 
     setContentSortMode(mode: PortalCatalogSortMode): void {

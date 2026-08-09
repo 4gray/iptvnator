@@ -8,10 +8,14 @@
     [showSearchInput]="showInlineSearchInput"
     [minSearchLength]="minSearchLength"
     [initialDescriptionKey]="initialDescriptionKey"
+    [nearEndHasMore]="hasMoreSearchResults()"
+    [nearEndAppending]="isAppendingSearchResults()"
+    [nearEndRenderedCount]="renderedSearchResultsCount()"
+    [nearEndResetKey]="searchResetIdentity()"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
     (backClick)="goBack()"
-    (nearEnd)="loadMoreGlobalResults()"
+    (nearEnd)="onResultsNearEnd()"
 >
     <!-- Type filters -->
     <ng-container filters>
@@ -155,9 +159,9 @@
                 </div>
             }
         } @else {
-            <!-- Playlist-level Search Results -->
+            <!-- Playlist-level Search Results (windowed; grows via nearEnd) -->
             <div class="results-grid">
-                @for (item of xtreamStore.searchResults(); track item.id) {
+                @for (item of visibleInPortalResults(); track item.id) {
                     <app-content-card
                         [posterUrl]="item.poster_url ?? undefined"
                         [title]="item.title"

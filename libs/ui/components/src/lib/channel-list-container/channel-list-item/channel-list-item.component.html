@@ -28,7 +28,24 @@
             }
         </div>
         <div class="channel-details">
-            <div class="channel-name">{{ displayName() }}</div>
+            <div class="channel-name-row">
+                <div class="channel-name">{{ displayName() }}</div>
+                @if (catchupAvailable()) {
+                    <mat-icon
+                        class="catchup-badge"
+                        data-test-id="catchup-badge"
+                        [matTooltip]="
+                            catchupLabelKey()
+                                | translate: { days: catchupDays() }
+                        "
+                        >history</mat-icon
+                    >
+                    <!-- mat-icon is aria-hidden; expose the status as text -->
+                    <span class="visually-hidden">{{
+                        catchupLabelKey() | translate: { days: catchupDays() }
+                    }}</span>
+                }
+            </div>
             @if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">
@@ -65,23 +82,11 @@
         </div>
     </div>
     @if (
-        (showProgramInfoButton() && showEpg() && epgProgram()) ||
+        (showProgramInfoButton() && showEpg()) ||
         showFavoriteButton() ||
         showAuxActionButton()
     ) {
         <div class="action-buttons">
-            @if (showProgramInfoButton() && showEpg() && epgProgram(); as program) {
-                <button
-                    mat-icon-button
-                    class="program-info-button"
-                    [matTooltip]="
-                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
-                    "
-                    (click)="showProgramDescription(program, $event)"
-                >
-                    <mat-icon>info</mat-icon>
-                </button>
-            }
             @if (showFavoriteButton()) {
                 <button
                     mat-icon-button
@@ -107,6 +112,23 @@
                     (click)="onAuxActionClick($event)"
                 >
                     <mat-icon>{{ auxActionIcon() }}</mat-icon>
+                </button>
+            }
+            @if (showProgramInfoButton() && showEpg()) {
+                <!-- The slot is reserved even before the programme loads so
+                     the buttons above never shift when EPG data arrives -->
+                <button
+                    mat-icon-button
+                    class="program-info-button"
+                    [class.slot-empty]="!epgProgram()"
+                    [disabled]="!epgProgram()"
+                    [attr.aria-hidden]="!epgProgram()"
+                    [matTooltip]="
+                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                    "
+                    (click)="onProgramInfoClick($event)"
+                >
+                    <mat-icon>info</mat-icon>
                 </button>
             }
         </div>

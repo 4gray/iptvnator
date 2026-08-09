@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
+    isLiveExternalPlayerSession,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -125,7 +126,7 @@ export class SerialDetailsPlaybackService {
                 return;
             }
 
-            if (session.status === 'opened' || session.status === 'playing') {
+            if (isLiveExternalPlayerSession(session)) {
                 this.openingEpisodeId.set(null);
                 this.activeEpisodeId.set(session.contentInfo.contentXtreamId);
                 return;
@@ -295,12 +296,14 @@ export class SerialDetailsPlaybackService {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        const launch = this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
+        );
+        request.trackLaunch(launch);
         void this.playbackPositionState.recordExternalLaunch(
             request.playback,
-            this.portalPlayer.openExternalPlayback(
-                request.playback,
-                request.player
-            ),
+            launch,
             (playlistId, position) =>
                 this.playbackPositions.savePlaybackPosition(
                     playlistId,

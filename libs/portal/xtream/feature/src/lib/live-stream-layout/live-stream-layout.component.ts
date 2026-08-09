@@ -17,12 +17,12 @@ import { filter } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     GridListComponent,
+    InfiniteScrollDirective,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
@@ -98,11 +98,11 @@ interface XtreamLiveChannelItem {
         MatButtonModule,
         MatIcon,
         MatMenuModule,
-        MatPaginatorModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
         NgTemplateOutlet,
         GridListComponent,
+        InfiniteScrollDirective,
         PortalChannelsListComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
@@ -143,11 +143,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         this.route,
         'q',
         (value) => (value ?? '').trim()
-    );
-    private readonly routePageIndex = queryParamSignal(
-        this.route,
-        'page',
-        (value) => this.toPageIndex(value)
     );
     readonly workspaceSearchTerm = computed(() =>
         this.isWorkspaceLayout ? this.routeSearchTerm() : ''
@@ -230,7 +225,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly liveChannelSortLabel = computed(() =>
         getPortalChannelSortModeLabel(this.liveChannelSortMode())
     );
-    readonly liveRootPageSizeOptions = [10, 25, 50, 100];
     readonly liveRootItems = computed(
         () =>
             this.xtreamStore.getPaginatedContent() as unknown as Record<
@@ -245,12 +239,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         const count = this.liveRootItemCount();
         return `${count} ${count === 1 ? 'channel' : 'channels'}`;
     });
-    readonly liveRootPageIndex = this.xtreamStore.page;
-    readonly liveRootLimit = this.xtreamStore.limit;
-    readonly liveRootTotalPages = this.xtreamStore.getTotalPages;
-    readonly showLiveRootPaginator = computed(
-        () => this.liveRootItemCount() > 0
-    );
+    readonly liveRootHasMore = this.xtreamStore.hasMoreContent;
 
     readonly selectedCategoryInfo = computed(() => {
         const categoryId = this.selectedCategoryId();
@@ -296,20 +285,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             }, 30_000);
 
             onCleanup(() => clearInterval(intervalId));
-        });
-
-        effect(() => {
-            if (
-                this.xtreamStore.selectedContentType() !== 'live' ||
-                this.showLiveChannelSidebar()
-            ) {
-                return;
-            }
-
-            const pageIndex = this.routePageIndex();
-            if (this.liveRootPageIndex() !== pageIndex) {
-                this.xtreamStore.setPage(pageIndex);
-            }
         });
 
         // Read pending auto-open state on every NavigationEnd — covers both the
@@ -488,19 +463,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         persistPortalChannelSortMode(LIVE_CHANNEL_SORT_STORAGE_KEY, mode);
     }
 
-    onLiveRootPageChange(event: PageEvent): void {
-        this.xtreamStore.setPage(event.pageIndex);
-        this.xtreamStore.setLimit(event.pageSize);
-        this.scrollLiveRootGridToTop();
-
-        void this.router.navigate([], {
-            relativeTo: this.route,
-            queryParams: {
-                page: event.pageIndex > 0 ? event.pageIndex + 1 : null,
-            },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-        });
+    onLiveRootLoadMore(): void {
+        this.xtreamStore.loadMoreContent();
     }
 
     onLiveRootItemClick(item: unknown): void {
@@ -601,26 +565,16 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
+        const launch = this.portalPlayer.openExternalPlayback(
             request.playback,
             request.player
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 
     private getAllLiveStreams(): XtreamLiveChannelItem[] {
         return this.xtreamStore.liveStreams() as unknown as XtreamLiveChannelItem[];
-    }
-
-    private toPageIndex(value: string | null): number {
-        const page = Number(value);
-        return Number.isInteger(page) && page > 0 ? page - 1 : 0;
-    }
-
-    private scrollLiveRootGridToTop(): void {
-        const gridList = this.hostElement.nativeElement.querySelector(
-            'app-grid-list'
-        ) as HTMLElement | null;
-        gridList?.scrollTo?.({ top: 0 });
     }
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {

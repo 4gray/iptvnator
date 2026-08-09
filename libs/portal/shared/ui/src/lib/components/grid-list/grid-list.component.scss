@@ -107,6 +107,41 @@ mat-card:hover {
 }
 
 // ─── Rating badge ─────────────────────────────────────────────────────────────
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.catchup-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 24px;
+    height: 24px;
+    // Solid dark pill like .rating — no expensive backdrop-filter
+    background: rgba(0, 0, 0, 0.85);
+    color: rgba(255, 255, 255, 0.88);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    mat-icon {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+        line-height: 15px;
+    }
+}
+
 .rating {
     position: absolute;
     top: 6px;
@@ -165,5 +200,26 @@ mat-card:hover {
             --error-empty-title-weight: 640;
             --error-empty-copy-gap: 8px;
         }
+    }
+}
+
+// ─── Infinite scroll ─────────────────────────────────────────────────────────
+// Off-screen cards skip rendering work; the intrinsic-size hint keeps the
+// scrollbar stable while they are skipped (poster 2/3 ratio + title row).
+.grid-list__grid mat-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 270px;
+}
+
+.grid-list__tail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 18px 0 6px;
+    color: var(--app-muted-color, inherit);
+
+    &.grid-list__tail--error {
+        color: var(--mat-sys-error, inherit);
     }
 }

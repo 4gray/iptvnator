@@ -543,6 +543,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         const request: PlaybackFallbackRequest = {
             player: 'vlc',
             playback,
+            trackLaunch: jest.fn(),
             diagnostic: {
                 code: 'network-error',
                 player: 'html5',
@@ -560,8 +561,8 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             playback,
             'vlc'
         );
-        expect(portalPlayer.openExternalPlayback.mock.calls[0][0]).toBe(
-            playback
+        expect(request.trackLaunch).toHaveBeenCalledWith(
+            portalPlayer.openExternalPlayback.mock.results[0].value
         );
     });
 

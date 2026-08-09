@@ -41,6 +41,7 @@ import {
 import {
     Channel,
     EpgProgram,
+    ExternalPlayerSession,
     ResolvedPortalPlayback,
     Settings,
     VideoPlayer,
@@ -197,6 +198,7 @@ describe('VideoPlayerComponent', () => {
     const stripCountryPrefix = signal(false);
     const epgViewMode = signal<'timeline' | 'list'>('timeline');
     const epgUrlSetting = signal<string[]>([]);
+    const externalSession = signal<ExternalPlayerSession | null>(null);
     const originalElectron = window.electron;
 
     const overlayRef = {
@@ -325,6 +327,7 @@ describe('VideoPlayerComponent', () => {
         channelsLoading.set(false);
         currentEpgProgram.set(null);
         activeEpgProgram.set(null);
+        externalSession.set(null);
         currentEpgProgram$.next(null);
         epgPrograms$.next([]);
         overlayMock.create.mockClear();
@@ -415,7 +418,7 @@ describe('VideoPlayerComponent', () => {
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
                     useValue: {
-                        activeSession: signal(null),
+                        activeSession: externalSession,
                     },
                 },
             ],
@@ -582,9 +585,13 @@ describe('VideoPlayerComponent', () => {
                 Origin: 'https://origin.example.com',
             },
         };
+        const launch = Promise.resolve();
+        const trackLaunch = jest.fn();
+        dataServiceMock.sendIpcEvent.mockReturnValueOnce(launch);
         component.handleExternalFallbackRequest({
             player: 'mpv',
             playback,
+            trackLaunch,
             diagnostic: {
                 code: 'unsupported-codec',
                 source: 'hls',
@@ -605,6 +612,7 @@ describe('VideoPlayerComponent', () => {
                 origin: 'https://origin.example.com',
             }
         );
+        expect(trackLaunch).toHaveBeenCalledWith(launch);
     });
 
     it('renders the embedded mpv inline player with the EPG panel', () => {
@@ -639,6 +647,38 @@ describe('VideoPlayerComponent', () => {
                 .querySelector('.epg')
                 ?.classList.contains('epg-collapsed')
         ).toBe(false);
+    });
+
+    it('clears the channel when a closable error becomes terminal', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.MPV);
+        const closableError: ExternalPlayerSession = {
+            id: 'external-1',
+            player: 'mpv',
+            status: 'error',
+            title: sampleChannel.name,
+            streamUrl: sampleChannel.url,
+            startedAt: '2026-08-08T00:00:00.000Z',
+            updatedAt: '2026-08-08T00:00:00.000Z',
+            error: 'Process exit was not confirmed',
+            canClose: true,
+        };
+        externalSession.set(closableError);
+        fixture.detectChanges();
+        expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.resetActiveChannel()
+        );
+
+        externalSession.set({
+            ...closableError,
+            canClose: false,
+            updatedAt: '2026-08-08T00:00:01.000Z',
+        });
+        fixture.detectChanges();
+
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            ChannelActions.resetActiveChannel()
+        );
     });
 
     it('keeps DASH channels inline on the HTML5 player even when MPV is configured', () => {

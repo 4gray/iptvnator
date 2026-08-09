@@ -72,6 +72,7 @@ export function createVodDetailsRouteStubs() {
         closeSession: jest.fn(),
         isEmbeddedPlayer: jest.fn().mockReturnValue(false),
         openResolvedPlayback: jest.fn(),
+        openExternalPlayback: jest.fn(),
         snackBarOpen: jest.fn(),
         startDownload: jest.fn().mockResolvedValue(undefined),
         locationBack: jest.fn(),
@@ -109,6 +110,7 @@ export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
     stubs.isDownloading.mockReturnValue(false);
     stubs.isPausedDownload.mockReturnValue(false);
     stubs.getDownloadedFilePath.mockReturnValue(undefined);
+    stubs.isEmbeddedPlayer.mockReturnValue(false);
 }
 
 /**
@@ -245,6 +247,7 @@ export async function configureVodDetailsRouteTestBed(
                 useValue: {
                     isEmbeddedPlayer: stubs.isEmbeddedPlayer,
                     openResolvedPlayback: stubs.openResolvedPlayback,
+                    openExternalPlayback: stubs.openExternalPlayback,
                 },
             },
             { provide: MatSnackBar, useValue: { open: stubs.snackBarOpen } },

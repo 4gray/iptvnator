@@ -6,6 +6,7 @@ import {
     effect,
     inject,
     Inject,
+    linkedSignal,
     Optional,
     signal,
     viewChild,
@@ -55,6 +56,13 @@ interface GlobalSearchResultGroup {
 }
 
 const GLOBAL_SEARCH_PAGE_SIZE = 100;
+
+/**
+ * Render window for the in-portal (single playlist) search, which receives its
+ * complete result set in one response. The window grows via the layout's
+ * `nearEnd` scroll hook, mirroring the global search's paged appends.
+ */
+const IN_PORTAL_RESULTS_CHUNK = 60;
 
 function groupResultsByPlaylistId(
     items: XtreamSearchResultItem[]
@@ -169,6 +177,73 @@ export class SearchResultsComponent implements AfterViewInit {
         }
         return groupResultsByPlaylistId(results);
     });
+
+    /** Resets to the first chunk whenever a new result set replaces the old. */
+    private readonly inPortalVisibleCount = linkedSignal({
+        source: () => this.xtreamStore.searchResults(),
+        computation: () => IN_PORTAL_RESULTS_CHUNK,
+    });
+
+    /** Windowed slice of the in-portal search results. */
+    readonly visibleInPortalResults = computed(() =>
+        this.xtreamStore.searchResults().slice(0, this.inPortalVisibleCount())
+    );
+
+    /**
+     * Feeds the search layout's infinite scroll so its auto-fill can reveal
+     * further chunks even when the rendered ones do not overflow the viewport.
+     */
+    readonly hasMoreSearchResults = computed(() =>
+        this.isGlobalSearch
+            ? this.hasMoreGlobalResults()
+            : this.xtreamStore.searchResults().length >
+              this.inPortalVisibleCount()
+    );
+
+    readonly isAppendingSearchResults = computed(
+        () => this.isGlobalSearch && this.isLoadingMoreGlobalResults()
+    );
+
+    /**
+     * RENDERED result count for the layout's overflow re-measure: the
+     * windowed slice for in-portal mode (grows chunk by chunk), the full
+     * loaded set for global mode (server pages append into it).
+     */
+    readonly renderedSearchResultsCount = computed(() =>
+        this.isGlobalSearch
+            ? this.xtreamStore.searchResults().length
+            : this.visibleInPortalResults().length
+    );
+
+    /**
+     * Result-set identity for the layout's near-end latch and auto-fill
+     * budget. Type filters and the hidden-categories toggle replace the
+     * result set without changing the term, so they are part of the identity.
+     */
+    readonly searchResetIdentity = computed(() => {
+        const filters = this.filters();
+        return [
+            this.searchTerm(),
+            String(filters.live),
+            String(filters.movie),
+            String(filters.series),
+            String(this.excludeHidden()),
+        ].join('|');
+    });
+
+    onResultsNearEnd(): void {
+        if (this.isGlobalSearch) {
+            void this.loadMoreGlobalResults();
+            return;
+        }
+
+        const total = this.xtreamStore.searchResults().length;
+        if (this.inPortalVisibleCount() < total) {
+            this.inPortalVisibleCount.update(
+                (count) => count + IN_PORTAL_RESULTS_CHUNK
+            );
+        }
+    }
 
     constructor(
         @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData | null,
@@ -322,7 +397,12 @@ export class SearchResultsComponent implements AfterViewInit {
             append &&
             (!this.hasMoreGlobalResults() ||
                 this.isLoadingMoreGlobalResults() ||
-                this.xtreamStore.isSearching())
+                this.xtreamStore.isSearching() ||
+                // An append continues the LAST EXECUTED search. While an
+                // edited query is still debouncing, the visible results
+                // belong to the old term — fetching a new-term page at the
+                // old offset would interleave two different queries.
+                trimmedTerm !== this.lastGlobalSearchTerm)
         ) {
             return;
         }

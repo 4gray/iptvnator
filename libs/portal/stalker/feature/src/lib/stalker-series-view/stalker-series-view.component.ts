@@ -33,6 +33,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
 import {
+    isLiveExternalPlayerSession,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -438,7 +439,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 return;
             }
 
-            if (session.status === 'opened' || session.status === 'playing') {
+            if (isLiveExternalPlayerSession(session)) {
                 this.openingEpisodeId.set(null);
                 this.activeEpisodeId.set(session.contentInfo.contentXtreamId);
                 return;
@@ -900,10 +901,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
+        const launch = this.portalPlayer.openExternalPlayback(
             request.playback,
             request.player
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 
     playPreviousEpisode(): void {

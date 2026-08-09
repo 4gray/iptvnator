@@ -122,6 +122,7 @@ export function setupVodMultiSourceHost() {
     const movie = signal<VodMultiSourceMovie | null>(null);
     /** Whatever is on screen; the pin path distinguishes it from selection. */
     const playbackLive = signal(false);
+    const playbackStartBlocked = signal(false);
     const vodAutoFailover = signal(false);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
@@ -132,6 +133,7 @@ export function setupVodMultiSourceHost() {
     const harness = {
         movie,
         playbackLive,
+        playbackStartBlocked,
         vodAutoFailover,
         startPlayback,
         discovery,
@@ -143,8 +145,10 @@ export function setupVodMultiSourceHost() {
         /** Call from `beforeEach`; returns the freshly bound service. */
         reset(): VodMultiSourceHostService {
             jest.resetAllMocks();
+            startPlayback.mockResolvedValue(true);
             movie.set(null);
             playbackLive.set(false);
+            playbackStartBlocked.set(false);
             vodAutoFailover.set(false);
             discovery.isAvailable = true;
             discovery.discover.mockResolvedValue({
@@ -170,7 +174,12 @@ export function setupVodMultiSourceHost() {
 
             harness.service = TestBed.inject(VodMultiSourceHostService);
             TestBed.runInInjectionContext(() =>
-                harness.service.bind({ startPlayback, movie, playbackLive })
+                harness.service.bind({
+                    startPlayback,
+                    movie,
+                    playbackLive,
+                    playbackStartBlocked,
+                })
             );
             return harness.service;
         },

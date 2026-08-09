@@ -75,6 +75,33 @@ describe('GlobalFavoritesListComponent', () => {
         expect(icons).toEqual(['star_outline', 'star']);
     });
 
+    it('shows the catch-up badge on Xtream rows with a playable archive', () => {
+        fixture.componentRef.setInput('channels', [
+            buildChannel('x1', 'Archive Channel', {
+                sourceType: 'xtream',
+                xtreamId: 42,
+                tvArchive: 1,
+                tvArchiveDuration: 7,
+            }),
+            buildChannel('x2', 'Plain Channel', {
+                sourceType: 'xtream',
+                xtreamId: 43,
+                tvArchive: 0,
+                tvArchiveDuration: 0,
+            }),
+            buildChannel('m1', 'M3U Channel'),
+        ]);
+        fixture.detectChanges();
+
+        const badges = fixture.nativeElement.querySelectorAll(
+            '[data-test-id="catchup-badge"]'
+        );
+        expect(badges).toHaveLength(1);
+
+        const badgeRow = badges[0].closest('[data-test-id="channel-item"]');
+        expect(badgeRow?.textContent).toContain('Archive Channel');
+    });
+
     it('renders radio rows as compact without a false EPG placeholder', () => {
         fixture.componentRef.setInput('channels', [
             buildChannel('radio', 'Radio One', { radio: 'true' }),

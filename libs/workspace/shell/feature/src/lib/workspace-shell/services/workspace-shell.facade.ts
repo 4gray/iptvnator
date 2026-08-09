@@ -52,9 +52,12 @@ export class WorkspaceShellFacade {
     );
     // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
     // palette over it would stack two competing focus-trapped surfaces.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
-        optional: true,
-    });
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
+        {
+            optional: true,
+        }
+    );
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
             return;
@@ -153,9 +156,13 @@ export class WorkspaceShellFacade {
     }
 
     closeActiveExternalSession(): void {
-        void this.externalPlayback.closeSession(
-            this.externalPlayback.activeSession()
-        );
+        void this.externalPlayback
+            .closeSession(this.externalPlayback.activeSession())
+            .catch(() => undefined);
+    }
+
+    dismissActiveExternalSession(): void {
+        this.externalPlayback.dismissActiveSession();
     }
 
     openActiveExternalSessionTarget(): void {

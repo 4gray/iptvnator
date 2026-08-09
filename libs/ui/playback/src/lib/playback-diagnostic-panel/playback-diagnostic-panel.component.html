@@ -101,12 +101,30 @@
                         [attr.data-test-id]="
                             getRecommendationTestId(recommendation)
                         "
-                        [disabled]="pending()"
+                        [class.web-player-diagnostic__player-card--disabled]="
+                            pending()
+                        "
+                        [disabled]="
+                            pending() &&
+                            !isExternalPlayerRecommendation(recommendation)
+                        "
+                        [attr.aria-disabled]="pending() ? 'true' : null"
+                        [attr.aria-busy]="
+                            isExternalLaunching(recommendation) ? 'true' : null
+                        "
                         (click)="activate(recommendation)"
                     >
-                        <mat-icon aria-hidden="true">{{
-                            getRecommendationIcon(recommendation)
-                        }}</mat-icon>
+                        @if (isExternalLaunching(recommendation)) {
+                            <mat-spinner
+                                aria-hidden="true"
+                                diameter="18"
+                                strokeWidth="2"
+                            />
+                        } @else {
+                            <mat-icon aria-hidden="true">{{
+                                getRecommendationIcon(recommendation)
+                            }}</mat-icon>
+                        }
                         <span class="web-player-diagnostic__player-copy">
                             <span class="web-player-diagnostic__player-label">
                                 {{
@@ -124,6 +142,17 @@
                                     ) | translate
                                 }}
                             </span>
+                            @if (
+                                getExternalStatusKey(recommendation);
+                                as statusKey
+                            ) {
+                                <span
+                                    class="web-player-diagnostic__player-status"
+                                    aria-live="polite"
+                                >
+                                    {{ statusKey | translate }}
+                                </span>
+                            }
                             @if (
                                 isTemporaryBuiltInRecommendation(recommendation)
                             ) {
