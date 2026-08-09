@@ -27,9 +27,7 @@ describe('StalkerPortalDiscoveryService', () => {
             const { url } = payload as { url: string };
             const handler = handlers[url];
             if (!handler) {
-                return Promise.reject(
-                    new Error(`unexpected probe for ${url}`)
-                );
+                return Promise.reject(new Error(`unexpected probe for ${url}`));
             }
             if ('reject' in handler) {
                 return Promise.reject(handler.reject);
@@ -180,7 +178,10 @@ describe('StalkerPortalDiscoveryService', () => {
         // for portals that previously authenticated directly.
         mockProbes({
             'http://gated.example/portal.php': {
-                reject: { message: 'HTTP Error 401: Unauthorized', status: 401 },
+                reject: {
+                    message: 'HTTP Error 401: Unauthorized',
+                    status: 401,
+                },
             },
         });
         authenticate.mockResolvedValue({ token: 'TOKEN4' });
@@ -214,7 +215,9 @@ describe('StalkerPortalDiscoveryService', () => {
                 reject: { message: 'HTTP Error 404: Not Found', status: 404 },
             },
         });
-        authenticate.mockRejectedValue(new Error('Handshake failed: No token received'));
+        authenticate.mockRejectedValue(
+            new Error('Handshake failed: No token received')
+        );
 
         const outcome = await service.discover('http://gated.example/c', MAC);
 
@@ -370,10 +373,7 @@ describe('StalkerPortalDiscoveryService', () => {
                 }
             );
 
-            const discovery = service.discover(
-                'http://slow.example/c',
-                MAC
-            );
+            const discovery = service.discover('http://slow.example/c', MAC);
             // Let the probe resolve so the auth attempt actually starts.
             await Promise.resolve();
             await Promise.resolve();
@@ -454,6 +454,47 @@ describe('StalkerPortalDiscoveryService', () => {
         }
     });
 
+    it('preserves a later abandoned attempt over an earlier ordinary rejection', async () => {
+        jest.useFakeTimers();
+        try {
+            mockProbes({
+                'http://mixed.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+                'http://mixed.example/server/load.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+            authenticate
+                .mockRejectedValueOnce(new Error('first refused'))
+                .mockImplementationOnce(() => new Promise(() => undefined));
+
+            const discovery = service.discover('http://mixed.example/c', MAC);
+            for (let i = 0; i < 20; i += 1) {
+                await Promise.resolve();
+            }
+            expect(authenticate).toHaveBeenCalledTimes(2);
+
+            jest.advanceTimersByTime(65_001);
+            for (let i = 0; i < 20; i += 1) {
+                await Promise.resolve();
+            }
+            jest.advanceTimersByTime(15_001);
+            for (let i = 0; i < 20; i += 1) {
+                await Promise.resolve();
+            }
+
+            await expect(discovery).resolves.toMatchObject({
+                status: 'auth-rejected',
+                portalUrl: 'http://mixed.example/server/load.php',
+                abandonedInFlight: true,
+                abandonedAuthenticationSettled: expect.any(Promise),
+            });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('stops discovery when the drain deadline expires with the attempt still live', async () => {
         jest.useFakeTimers();
         try {
@@ -471,9 +512,15 @@ describe('StalkerPortalDiscoveryService', () => {
                 },
             });
 
-            // Never settles — not even after the drain.
+            let settleAuthentication: () => void = () => undefined;
             authenticate
-                .mockImplementationOnce(() => new Promise(() => undefined))
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            settleAuthentication = () =>
+                                resolve({ token: 'ABANDONED' });
+                        })
+                )
                 .mockResolvedValue({ token: 'SECOND' });
 
             const discovery = service.discover('http://hung.example/c', MAC);
@@ -490,12 +537,28 @@ describe('StalkerPortalDiscoveryService', () => {
                 await Promise.resolve();
             }
 
-            await expect(discovery).resolves.toMatchObject({
+            const outcome = await discovery;
+            expect(outcome).toMatchObject({
                 status: 'auth-rejected',
                 abandonedInFlight: true,
             });
             // The second candidate was never authenticated.
             expect(authenticate).toHaveBeenCalledTimes(1);
+
+            if (outcome.status !== 'auth-rejected') {
+                throw new Error('Expected an authentication rejection');
+            }
+            expect(outcome.abandonedAuthenticationSettled).toBeDefined();
+            let abandonedSettled = false;
+            void outcome.abandonedAuthenticationSettled?.then(() => {
+                abandonedSettled = true;
+            });
+            await Promise.resolve();
+            expect(abandonedSettled).toBe(false);
+
+            settleAuthentication();
+            await outcome.abandonedAuthenticationSettled;
+            expect(abandonedSettled).toBe(true);
         } finally {
             jest.useRealTimers();
         }

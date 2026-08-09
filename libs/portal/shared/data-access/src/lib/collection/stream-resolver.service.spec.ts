@@ -995,7 +995,7 @@ describe('StreamResolverService', () => {
         expect(playback.headers?.['Authorization']).toBeUndefined();
     });
 
-    it('does not authenticate a simple portal for playback headers', async () => {
+    it('guards a simple portal without requiring playback auth headers', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'stalker-2',
@@ -1006,7 +1006,7 @@ describe('StreamResolverService', () => {
         );
         stalkerSession.getCachedToken.mockReturnValue(null);
 
-        await service.resolvePlayback({
+        const playback = await service.resolvePlayback({
             uid: 'stalker::stalker-2::99',
             name: 'Simple Radio',
             contentType: 'live',
@@ -1018,7 +1018,13 @@ describe('StreamResolverService', () => {
             stalkerCmd: 'https://simple.example.com/radio/99.mp3',
         } satisfies UnifiedCollectionItem);
 
-        expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+        expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'stalker-2',
+                isFullStalkerPortal: false,
+            })
+        );
+        expect(playback.headers?.['Authorization']).toBeUndefined();
     });
 
     it('keeps Stalker collection playback from a foreign CDN credential-free', async () => {

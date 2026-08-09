@@ -376,6 +376,7 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
+                filter((action) => action.persist !== false),
                 switchMap((action) =>
                     this.playlistsService
                         .updatePlaylistMeta(action.playlist)

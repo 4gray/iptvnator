@@ -39,11 +39,9 @@ export const playlistReducers = [
             detectedEpgUrls:
                 action.playlist.detectedEpgUrls ??
                 currentPlaylist?.detectedEpgUrls,
-            enabledEpgUrls:
-                action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
+            enabledEpgUrls: action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
             manualEpgUrls:
-                action.playlist.manualEpgUrls ??
-                currentPlaylist?.manualEpgUrls,
+                action.playlist.manualEpgUrls ?? currentPlaylist?.manualEpgUrls,
             disabledEpgUrls:
                 action.playlist.disabledEpgUrls ??
                 currentPlaylist?.disabledEpgUrls,
@@ -149,6 +147,39 @@ export const playlistReducers = [
                         ...(p.isFullStalkerPortal !== undefined
                             ? {
                                   isFullStalkerPortal: p.isFullStalkerPortal,
+                              }
+                            : {}),
+                        ...(p.stalkerSerialNumber !== undefined
+                            ? {
+                                  stalkerSerialNumber: p.stalkerSerialNumber,
+                              }
+                            : {}),
+                        ...(p.stalkerDeviceId1 !== undefined
+                            ? { stalkerDeviceId1: p.stalkerDeviceId1 }
+                            : {}),
+                        ...(p.stalkerDeviceId2 !== undefined
+                            ? { stalkerDeviceId2: p.stalkerDeviceId2 }
+                            : {}),
+                        ...(p.stalkerSignature1 !== undefined
+                            ? { stalkerSignature1: p.stalkerSignature1 }
+                            : {}),
+                        ...(p.stalkerSignature2 !== undefined
+                            ? { stalkerSignature2: p.stalkerSignature2 }
+                            : {}),
+                        ...(p.stalkerSessionPatch !== undefined
+                            ? {
+                                  stalkerToken:
+                                      p.stalkerSessionPatch?.stalkerToken,
+                                  stalkerSessionIdentity:
+                                      p.stalkerSessionPatch
+                                          ?.stalkerSessionIdentity,
+                                  stalkerWatchdogTimeout:
+                                      p.stalkerSessionPatch
+                                          ?.stalkerWatchdogTimeout,
+                                  stalkerTimeslot:
+                                      p.stalkerSessionPatch?.stalkerTimeslot,
+                                  stalkerAccountInfo:
+                                      p.stalkerSessionPatch?.stalkerAccountInfo,
                               }
                             : {}),
                         ...(p.favorites != null

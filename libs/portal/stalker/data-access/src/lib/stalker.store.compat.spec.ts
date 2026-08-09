@@ -27,6 +27,9 @@ describe('StalkerStore API compatibility smoke', () => {
                     useValue: {
                         ensureToken: jest.fn(),
                         makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
                     },
                 },
                 {

@@ -42,6 +42,7 @@ describe('withStalkerEpg', () => {
     let runtimeSupportsEpg: boolean;
     let stalkerSessionService: {
         makeAuthenticatedRequest: jest.Mock<Promise<unknown>, unknown[]>;
+        ensureToken: jest.Mock<Promise<unknown>, unknown[]>;
     };
     let epgBridge: {
         supportsEpgMapping: boolean;
@@ -56,6 +57,7 @@ describe('withStalkerEpg', () => {
         };
         stalkerSessionService = {
             makeAuthenticatedRequest: jest.fn(),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
         epgBridge = {
             supportsEpgMapping: true,

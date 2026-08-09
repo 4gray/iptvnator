@@ -60,41 +60,42 @@ below is reached as `/workspace/stalker/:id/…`.
    `DataService.sendIpcEvent(STALKER_REQUEST, ...)` directly. It also hooks
    the lazy portal repair (see "Portal Mode and Endpoint Discovery").
 
-   Four callers deliberately sit outside it and issue `STALKER_REQUEST`
-   themselves, because each one runs *below* or *before* what it routes on:
+    Four callers deliberately sit outside it and issue `STALKER_REQUEST`
+    themselves, because each one runs _below_ or _before_ what it routes on:
 
-   - `StalkerAuthApi` — `handshake` / `get_profile` / `do_auth` are what the
-     full-portal branch is implemented in terms of, so routing them back
-     through it would recurse.
-   - `StalkerPortalDiscoveryService` — probes run before a mode exists; the
-     mode is what they are determining.
-   - `StalkerAccountInfoService.fetchViaProfile()` — the full-mode refresh is
-     a profile request, so it takes the same exemption as the auth layer.
-   - `StreamResolverService`, for a collection item carrying its own portal
-     coordinates with **no playlist row** — there is no meta to route or
-     repair with. The playlist-backed branch beside it does use
-     `executeStalkerRequest()`, and wins when a row exists, so a repaired
-     endpoint beats a stale favorite's snapshot.
+    - `StalkerAuthApi` — `handshake` / `get_profile` / `do_auth` are what the
+      full-portal branch is implemented in terms of, so routing them back
+      through it would recurse.
+    - `StalkerPortalDiscoveryService` — probes run before a mode exists; the
+      mode is what they are determining.
+    - `StalkerAccountInfoService.fetchViaProfile()` — the full-mode refresh is
+      a profile request, so it takes the same exemption as the auth layer.
+    - `StreamResolverService`, for a collection item carrying its own portal
+      coordinates with **no playlist row** — there is no meta to route or
+      repair with. The playlist-backed branch beside it does use
+      `executeStalkerRequest()`, and wins when a row exists, so a repaired
+      endpoint beats a stale favorite's snapshot.
 
-   The exemption is from the routing, not from the repair it hooks — but only
-   **one** of the four wires `StalkerPortalRepairService` itself, and the
-   asymmetry is worth knowing before adding a fifth:
+    The exemption is from the routing, not from the repair it hooks — but only
+    **one** of the four wires `StalkerPortalRepairService` itself, and the
+    asymmetry is worth knowing before adding a fifth:
 
-   - `StalkerAccountInfoService.fetchViaProfile()` wires it explicitly,
-     because opening the account dialog on a playlist with a stale endpoint
-     must be able to fix it instead of waiting for an unrelated catalog
-     request.
-   - `StalkerPortalDiscoveryService` is what repair *drives*, so it cannot
-     repair itself.
-   - The auth layer wires nothing. It does not need to: a terminal handshake
-     failure propagates out of the full-portal branch and is caught by
-     whichever `executeStalkerRequest()` call triggered the authentication,
-     which is exactly why "terminal handshake failures" is one of the repair
-     triggers listed above.
-   - `StreamResolverService`'s row-less branch has no playlist to repair.
+    - `StalkerAccountInfoService.fetchViaProfile()` wires it explicitly,
+      because opening the account dialog on a playlist with a stale endpoint
+      must be able to fix it instead of waiting for an unrelated catalog
+      request.
+    - `StalkerPortalDiscoveryService` is what repair _drives_, so it cannot
+      repair itself.
+    - The auth layer wires nothing. It does not need to: a terminal handshake
+      failure propagates out of the full-portal branch and is caught by
+      whichever `executeStalkerRequest()` call triggered the authentication,
+      which is exactly why "terminal handshake failures" is one of the repair
+      triggers listed above.
+    - `StreamResolverService`'s row-less branch has no playlist to repair.
 
-   Anything new that is not auth or discovery belongs on
-   `executeStalkerRequest()`.
+    Anything new that is not auth or discovery belongs on
+    `executeStalkerRequest()`.
+
 4. Electron main process handles `STALKER_REQUEST` in
    `apps/electron-backend/src/app/events/stalker.events.ts`.
 5. Axios calls the portal's persisted API endpoint (`portal.php` on
@@ -135,20 +136,20 @@ Two portal modes exist, persisted per playlist as
   `Accept`/`Accept-Language`/`Connection` set (see "Request Transport and
   `cmd` Encoding").
 
-  What it does **not** get is anything carried by the session. The direct
-  branch of `dispatchStalkerRequest()` forwards only `url`, `macAddress` and
-  `params`, so the builder never sees a token *or* a serial: no
-  `Authorization: Bearer` (there is none to send), and no `SN` header or
-  serial-derived `__cfduid` cookie **even when the playlist stores a serial**.
-  The full-portal branch forwards both, because `makeAuthenticatedRequest()`
-  passes `token` and `serialNumber`. This covers portal API requests only —
-  playback headers are built from the playlist row by a different helper and
-  are NOT mode-gated, so the same simple-mode playlist does send its serial
-  with a portal-owned stream (see "Stalker Identity Policy").
-  Whether a simple panel ought to receive
-  the serial is unproven: no reference portal is known to require it, and the
-  `sn` *parameter* only ever travels on `get_profile`, which a simple portal
-  never calls. Treat it as an open question rather than a bug to fix blind.
+    What it does **not** get is anything carried by the session. The direct
+    branch of `dispatchStalkerRequest()` forwards only `url`, `macAddress` and
+    `params`, so the builder never sees a token _or_ a serial: no
+    `Authorization: Bearer` (there is none to send), and no `SN` header or
+    serial-derived `__cfduid` cookie **even when the playlist stores a serial**.
+    The full-portal branch forwards both, because `makeAuthenticatedRequest()`
+    passes `token` and `serialNumber`. This covers portal API requests only —
+    playback headers are built from the playlist row by a different helper and
+    are NOT mode-gated, so the same simple-mode playlist does send its serial
+    with a portal-owned stream (see "Stalker Identity Policy").
+    Whether a simple panel ought to receive
+    the serial is unproven: no reference portal is known to require it, and the
+    `sn` _parameter_ only ever travels on `get_profile`, which a simple portal
+    never calls. Treat it as an open question rather than a bug to fix blind.
 
 Neither label is tied to a URL shape: mode follows OBSERVED behavior, so a
 `portal.php` panel that enforces the token is classified — and treated
@@ -164,30 +165,123 @@ copies of this rule existed (import, session service, legacy-flag migration)
 and their drift shipped broken configurations (#850, #686, #755); no new
 consumer may re-implement the rule.
 
-**Endpoint discovery (import).** `portal.php` does not exist in official
-Stalker/Ministra — it is a reseller-panel alias; the canonical endpoint
-derived from a `…/c` URL is `<base>/server/load.php`. Instead of guessing
-from the URL shape, `StalkerPortalDiscoveryService`
-(`libs/portal/stalker/data-access`) probes candidates in order — the pasted
-URL itself when it already names a `.php` endpoint, then `<base>/portal.php`
-→ `<base>/server/load.php` → `<base>/stalker_portal/server/load.php` — and
-classifies each endpoint by observed behavior: a token-less
+**Endpoint discovery (import and edit).** The address field requires an
+explicit `http://` or `https://` scheme, but accepts a bare host, a browser
+entry point such as `…/c`, or a concrete `.php` API endpoint. `portal.php`
+does not exist in official Stalker/Ministra — it is a reseller-panel alias;
+the canonical endpoint derived from a `…/c` URL is
+`<base>/server/load.php`. Instead of guessing from the URL shape,
+`StalkerPortalDiscoveryService` (`libs/portal/stalker/data-access`) probes
+candidates in order — the pasted URL itself when it already names a `.php`
+endpoint, then `<base>/portal.php` → `<base>/server/load.php` →
+`<base>/stalker_portal/server/load.php` — and classifies each endpoint by
+observed behavior: a token-less
 `itv/get_genres` that returns data proves a token-free panel; the plain-text
 auth failure proves the endpoint enforces the token, which is confirmed by
 running the real handshake + `get_profile`. The import dialog persists the
-proven endpoint and mode. When no candidate answers at all, panel-style URLs
-fall back to the pre-discovery behavior (legacy `…/c` → `portal.php` rewrite,
-simple mode, import succeeds with a warning) so temporarily offline panels
-can still be added; canonical-shaped URLs abort like the old mandatory
-handshake did (both classifications run on the normalized
-`origin + pathname` form). Probe failure sequencing: ANY resolvable HTTP
-status moves to the next candidate — 4xx means the endpoint is absent, a
-5xx can be one broken handler beside a healthy sibling — and 401/403
-specifically classify as auth-required (the handshake is attempted, for
-middlewares that answer HTTP auth codes instead of the stock 200 +
+proven endpoint and mode, and that resolved API endpoint is what Edit shows.
+When no candidate answers at all, panel-style URLs fall back to the
+pre-discovery behavior (a bare host becomes `<base>/portal.php`; legacy
+`…/c` becomes the matching `portal.php`; simple mode, import succeeds with a
+warning) so temporarily offline panels can still be added. Canonical-shaped
+URLs abort like the old mandatory handshake did (both classifications run on
+the normalized `origin + pathname` form). Probe failure sequencing: ANY
+resolvable HTTP status moves to the next candidate — 4xx means the endpoint
+is absent, a 5xx can be one broken handler beside a healthy sibling — and
+401/403 specifically classify as auth-required (the handshake is attempted,
+for middlewares that answer HTTP auth codes instead of the stock 200 +
 plain-text body). Status-less TIMEOUTS also continue (a single handler can
 hang); only connection-level failures (refused, unresolvable host) abort
 discovery, since every candidate shares the host.
+
+The playlist-info Edit dialog compares URL, MAC, username/password, serial,
+device IDs and signatures as one connection identity. A metadata-only edit
+does not run discovery; its queued write omits every connection/mode field so
+the current stored connection stays byte-for-byte, including when the dialog
+was hydrated before an older discovery result committed.
+Before enabling a Stalker form, the dialog loads the complete persisted
+playlist row by ID. Electron's startup metadata projection omits payload-only
+identity fields, so editing that summary directly could otherwise display and
+then persist empty serial, device ID, signature, or mode values.
+Changing any connection field disables the form while the same discovery
+service validates the draft. Auth rejection or an unreachable portal leaves
+the dialog open and writes nothing. Escape/backdrop closure is disabled for the
+validation window. If navigation or another owner starts closing/destroys the
+dialog while discovery is in flight, a successful result still crosses the
+atomic persistence boundary: the submitted `get_profile` may already have
+pinned the new serial/device identity remotely and cannot be recalled. The
+late commit uses `transformPlaylistMeta()` inside the per-playlist write queue
+to merge only the resolved connection/session fields into the current row, so
+a newer title, EPG, or other metadata edit wins. The returned merged row feeds
+the state-only update, while dialog close and success UI are suppressed after
+destruction. Both the ordinary resolved metadata update and this late transform
+require the storage-current row to retain the source connection authority
+captured when Edit began. Electron performs the check inside its per-playlist
+write queue; PWA performs the read, predicate, and cursor update in one
+IndexedDB readwrite transaction so another tab cannot interleave a replacement.
+The one-time legacy mode-flag migration likewise scans and updates rows through
+one readwrite cursor transaction; it never replays a snapshot collected before
+another tab's delete/restore or replacement.
+Delete/restore or replacement under the same ID therefore aborts instead of
+receiving a portal/session write. A row identified by its persisted `portalUrl`
+stays on the Stalker save path even if legacy Xtream fields remain, so an
+unrelated Xtream write cannot strand the Edit reservation. Before discovery
+starts, PWA Edit acquires a shared playlist-authority barrier plus an exclusive
+origin-wide Web Lock keyed by playlist ID and, while holding both, verifies that
+the persisted row still has the source connection shown when Edit began.
+Add/delete, backup restore, and bulk replacement paths take the same row lock;
+Delete All takes the barrier exclusively. The checked authority therefore
+cannot be replaced between that preflight and the identity-bearing discovery
+request. Another tab fails before overlapping discovery, while a replacement
+waits for the existing Edit owner; a stale dialog also fails before it can touch
+the remote session. PWA fails closed when Web Locks are unavailable, while
+Electron relies on its single-instance local owner. Lazy repair tries the same
+barrier and row reservation before its persisted-source preflight; contention
+or unavailable PWA locking declines repair without discovery, while an acquired
+reservation stays held through its conditional row transform. The reservation
+blocks every new authentication (including a URL edit with the same normalized
+fingerprint) and repair, and drains any work already in flight.
+When Save follows a lazy repair in the same tab, Edit publishes its local
+authentication owner first, drains that repair through the actual Web Lock
+request completion, and only then requests the row reservation itself. Repair
+callers already queued behind that owner observe the Edit block and return
+without trying to reserve the row again.
+Ownership is rechecked after every asynchronous drain or authority rebase.
+Ordinary failure releases that reservation with the previous runtime untouched;
+if a bounded discovery result still has an abandoned authentication on the
+wire, Edit keeps both reservations until the transport operation actually
+settles.
+Success atomically replaces the endpoint, mode and normalized identity together
+with session metadata: simple mode
+clears token/fingerprint/watchdog/account state, while full mode replaces it
+with the confirmed authorization result. That awaited write returns the
+complete merged playlist row before NgRx receives its state-only update and
+before the app adapter replaces the active `StalkerStore` snapshot and
+session/watchdog state, so persistence failure cannot expose a partial runtime
+edit and metadata absent from the form (such as playback `Referer`/`Origin`)
+survives the replacement. The state-only update reattaches the transient
+session patch from discovery, because the persisted flat row deliberately does
+not contain that field; this lets NgRx replace or clear its session projection.
+Runtime configuration authority combines the session fingerprint with the
+observed full/simple mode. Both authenticated calls and direct simple-mode
+requests cross that guard before dispatch and again after transport, so a
+same-endpoint mode-only Edit rejects stale playlist objects in either direction
+before they can authenticate or issue a token-free portal request, and discards
+an older portal response that completes after Edit commits. A different
+authority may rebase only after the current persisted row proves that it owns
+the same playlist ID; this keeps delete/restore and backup merge flows usable
+without letting an in-flight stale request overrule Edit.
+`PlaylistMetaUpdate` carries the persisted part as a transient
+`stalkerSessionPatch` (`undefined` preserves, `null` clears, an object fully
+replaces); `PlaylistsService` projects it onto the existing flat playlist
+fields, so the patch itself never enters SQLite, IndexedDB or a backup and no
+schema or backup-version migration is required.
+
+The shared playlist UI exposes only
+`STALKER_PLAYLIST_CONNECTION_EDITOR` and its
+`resolved | auth-rejected | unreachable` result contract. The web composition
+layer implements the token with Stalker data-access; the UI library must not
+import Stalker discovery directly.
 
 **Lazy repair (existing playlists).** The flag is frozen in the DB, so
 records persisted by the old guess stay broken without repair — but a large
@@ -199,17 +293,38 @@ plain-text auth bodies AND their JSON envelopes (`js.error`/`js.msg`),
 HTTP 404 (endpoint absent), HTTP 401/403 (endpoint behind an HTTP auth
 gate), and terminal handshake/profile errors — never timeouts or other
 network failures), at most once per SOURCE CONFIGURATION (endpoint + mode + MAC +
-identity fingerprint) per playlist per session — an edited configuration
+identity fingerprint + credentials) per playlist per session — an edited configuration
 may probe when it fails, while every already-probed one stays latched for
-the session — and persists only a configuration discovery has proven to
-answer, and only when it differs from the failing one. A repaired configuration is applied immediately via an
+the session. Before an unrecorded probe makes any portal request, it verifies
+that the persisted row still carries the failing source; a request that failed
+late after Edit committed is declined before discovery can authenticate against
+the old portal and invalidate the edited session. A repair installs a
+per-playlist authentication fence before probing, drains authentication that
+already owns the runtime token slot, and makes request routing wait before it
+chooses the effective connection. The fence normally ends with the repair; an
+abandoned authentication keeps both it and `pendingRepairs` alive until the
+transport settles. Repair persists only a
+configuration discovery has proven to answer, and only when it differs from the
+failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
-keep working) and persisted through `PlaylistsService.transformPlaylistMeta`
+keep working). The override is bound to that source's endpoint, mode, device
+identity, and credentials; an Edit or backup restore under the same playlist
+ID retires it when any connection field differs, but only after the persisted
+row confirms ownership and only if no explicit Edit took ownership during
+that read — a delayed stale request cannot globally remove the current
+override or a token negotiated by the overlapping Edit. The repair is persisted
+through `PlaylistsService.transformPlaylistMeta`
 — the verification and the patch run in ONE slot of the per-playlist write
 queue, so a user edit that is queued but not yet committed wins over the
 repair instead of being overwritten; the transform patches the freshly read
 row (`portalUrl` + `isFullStalkerPortal` only, so user state can never be
-clobbered) and returns null to abort. Deletion runs through the same queue,
+clobbered) and returns null to abort. Explicit Edit also advances an in-run
+generation before replacing the session. Repair captures it before any
+history-path row read and rechecks it together with the active Edit fence
+before reserving discovery, so restoring a discarded configuration cannot
+start a probe alongside Edit; a repair that already verified its row but
+finishes later likewise cannot install its older override or token.
+Deletion runs through the same queue,
 so a repair can never resurrect a playlist deleted mid-probe. Portals
 that work are never probed, let alone rewritten. E2E coverage:
 `apps/electron-backend-e2e/src/stalker-portal-discovery.e2e.ts` against the
@@ -298,8 +413,8 @@ describes the emulated box, not the account — see "Reported device profile".)
   and reused for initial auth, token refresh, retry auth, normal API requests,
   and same-origin playback headers.
 
-  Those last two reach the wire by different routes, and **only one is
-  mode-gated** — the asymmetry is easy to get backwards:
+    Those last two reach the wire by different routes, and **only one is
+    mode-gated** — the asymmetry is easy to get backwards:
 
     - **Portal API requests** receive the serial through
       `makeAuthenticatedRequest()`, which only the full-portal branch of
@@ -309,9 +424,10 @@ describes the emulated box, not the account — see "Reported device profile".)
     - **Same-origin playback headers** are built by
       `buildStalkerExternalPlaybackHeaders()`, which reads
       `playlist.stalkerSerialNumber` straight off the row with no mode check
-      at all. So a simple-mode playlist holding a real serial *does* send `SN`
+      at all. So a simple-mode playlist holding a real serial _does_ send `SN`
       and the serial-derived `__cfduid` on portal-owned streams — while its
       API calls do not.
+
 - Empty optional identity fields remain absent. IPTVnator must never generate a
   device ID behind the user's back, and must never duplicate `device_id2` from
   `device_id1` on its own.
@@ -353,7 +469,7 @@ never rewritten on read:
 - rewriting them at the transport would move `stalkerSessionFingerprint` for
   every existing playlist at once, with no user action and no way to opt out.
 
-An edit therefore *does* move the fingerprint and force a re-authentication.
+An edit therefore _does_ move the fingerprint and force a re-authentication.
 That is intended: the user changed the identity, and the field shows exactly
 what will be sent.
 
@@ -367,7 +483,7 @@ MAC. Refusing one would stop those users adding or editing a portal that works
 for them. The mock encodes the same split (`enforceMacFormat` is set only on
 the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
 `stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
-endpoint and be refused *there*, not in the form.
+endpoint and be refused _there_, not in the form.
 
 In the edit dialog **both** passes — blur and submit — normalize only a MAC the
 user actually changed, compared against the value the dialog was opened with
@@ -435,10 +551,11 @@ later empty value as a permanent lockout. Therefore:
       deliberately emptied, and the import would pin IDs the user opted out
       of.
 
-  All three are mutation-verified. Note the tests have to control when the
-  digest settles (hold it behind a gate, or delay the older invocation):
-  Node resolves digests this small in start order, so the naive versions pass
-  with the guards removed;
+    All three are mutation-verified. Note the tests have to control when the
+    digest settles (hold it behind a gate, or delay the older invocation):
+    Node resolves digests this small in start order, so the naive versions pass
+    with the guards removed;
+
 - **the MAC and its device IDs travel as one value.**
   `settleMacAddressIdentity()` reads the MAC once, before it awaits, and
   returns it together with the IDs derived from exactly it; `addPlaylist()`
@@ -469,17 +586,17 @@ later empty value as a permanent lockout. Therefore:
   out" would be false and would discourage them from fixing an ID that was
   never pinned.
 
-  **Known imprecision, deliberately not closed here.** The gate proves that
-  *some* device ID reached the portal, not that the currently stored one did:
-  a user who edits the ID after import keeps `isFullStalkerPortal` true while
-  the new value has never seen `get_profile`. The copy is hedged for exactly
-  that ("a device ID", not "this one") and the fields stay editable, so the
-  remedy — restoring the ID that was pinned — is never blocked. Making it
-  exact needs a per-identity confirmation signal;
-  `Playlist.stalkerSessionIdentity` already carries a session fingerprint that
-  would serve, but reading it here would make a `type:ui` playlist library
-  depend on the Stalker data-access lib, which the Nx boundaries forbid. Worth
-  revisiting behind a shared contract, not worth a boundary exception.
+    **Known imprecision, deliberately not closed here.** The gate proves that
+    _some_ device ID reached the portal, not that the currently stored one did:
+    a user who edits the ID after import keeps `isFullStalkerPortal` true while
+    the new value has never seen `get_profile`. The copy is hedged for exactly
+    that ("a device ID", not "this one") and the fields stay editable, so the
+    remedy — restoring the ID that was pinned — is never blocked. Making it
+    exact needs a per-identity confirmation signal;
+    `Playlist.stalkerSessionIdentity` already carries a session fingerprint that
+    would serve, but reading it here would make a `type:ui` playlist library
+    depend on the Stalker data-access lib, which the Nx boundaries forbid. Worth
+    revisiting behind a shared contract, not worth a boundary exception.
 
 The trade-off the option exists for is interoperability, not obfuscation: a
 user who reaches the same account from StbEmu already has this exact value
@@ -537,19 +654,30 @@ The handshake's `not_valid` flag is propagated into the follow-up
 `get_profile` as `not_valid_token`.
 
 Reuse is gated on a session fingerprint (`stalkerSessionFingerprint`) covering
-the **portal endpoint (origin AND path), the device identity and the account
-credentials**, stored
+the **portal endpoint (origin, path, and URL Basic-auth userinfo), the device
+identity and the account credentials**, stored
 next to the token as `Playlist.stalkerSessionIdentity` and used for the
 in-run cache as well, so an edit applies without a restart. All three halves
 are load-bearing: `ensureToken()` re-presents tokens in a handshake, so an
 endpoint edit would otherwise disclose the previous portal's bearer token to
 another portal — and origin alone is not enough, since discovery deliberately
 preserves tenant base paths, so `/tenant-a/…` and `/tenant-b/…` on one host
-are different portals; an identity edit must not inherit the old session; and for a
-status-2 portal the login decides which account the token represents. A token
+are different portals. The URL parser omits `user:pass@` from `origin`, so that
+userinfo is fingerprinted separately; changing a reverse proxy's Basic-auth
+identity must not reuse a bearer token negotiated through the previous one.
+Endpoints without userinfo retain their previous fingerprint across upgrades.
+An identity edit must not inherit the old session; and for a status-2 portal
+the login decides which account the token represents. A token
 with no recorded fingerprint (written before this existed) counts as
 unverified and is never re-presented — such a row owes a full profile anyway,
 and the write-back then records the fingerprint.
+
+The Edit coordinator deliberately keeps a separate, in-run configuration
+authority key containing that session fingerprint plus the observed portal
+mode. The mode is not added to `stalkerSessionIdentity`, so existing persisted
+sessions remain compatible, but a full↔simple Edit at the same endpoint still
+retires stale runtime snapshots. The token-free dispatch path calls
+`ensureToken()` as a network-free authority guard before its direct IPC request.
 
 Because that reuse skips the only response carrying the watchdog cadence, the
 cadence is persisted **with** the token (`Playlist.stalkerWatchdogTimeout` /
@@ -563,7 +691,7 @@ imported before the cadence was persisted has a reusable token and no
 cadence, and skipping would strand it on the 120 s default permanently, since
 the profile is the only thing that could teach it. Such a playlist runs one
 profile, persists what it learns, and skips from then on. What gets persisted
-is the *effective* cadence (the 120 s default when the portal advertises
+is the _effective_ cadence (the 120 s default when the portal advertises
 none), so stored absence keeps meaning exactly one thing — never profiled —
 rather than sending a portal that advertises nothing back through a profile on
 every start.
@@ -682,11 +810,17 @@ plus the 15 s drain is one no transport can recall — the PWA `fetch()` takes n
 signal at all, and the Electron main process runs its HTTP request to
 completion. Advancing anyway would stake the next candidate's freshly issued
 session on that request never landing. So the rejection carries
-`abandonedInFlight` and the candidate loop returns instead of probing on,
+`abandonedInFlight` plus a settlement promise and the candidate loop returns
+instead of probing on,
 preferring an honest "could not confirm this portal" the user can retry over a
 session that looks established and dies later. It costs nothing in the normal
 case: an aborted attempt settles as soon as its in-flight request errors out,
-so the drain returns at once and the loop continues.
+so the drain returns at once and the loop continues. Edit may return that
+bounded error to the dialog, but its session and repair fences remain installed
+until the settlement promise resolves. Import reports the refusal immediately
+but keeps Add and the form disabled for the same lifetime. Lazy repair retains
+its pending/runtime-authentication fences. Catalog, watchdog, repair, Add and
+retry authentication therefore cannot race the abandoned `get_profile`.
 
 The budget itself covers the longest real flow: a status-2 portal costs four
 sequential requests (handshake, profile, `do_auth`, profile retry) and the
@@ -795,15 +929,15 @@ portal has to resolve the command. `null` is deliberately wider than the flag
 check alone; the extra guards can only push a row back onto the `create_link`
 path, so they cannot regress a portal that works today:
 
-| Input | Verdict | Why |
-| --- | --- | --- |
-| Either flag truthy (`1`, `'1'`, `true`) | `create_link` | The portal asked for a temporary link. |
-| No row supplied at all | `create_link` | A caller that cannot show the flags gets no verdict. |
-| A row carrying neither flag KEY | `create_link` | Absence means "no evidence", not "no". A stock portal returns both flags on every row, so their PRESENCE is the provenance signal — and the only one available, because rows persisted into Favorites/Recently Viewed before this change were stripped of them by `buildStalkerSelectedVodItem`'s whitelist, making a legacy snapshot indistinguishable from a genuinely unflagged row. There is no migration for those. **Radio is the documented exception**: a directly playable radio command has always played as-is, so a flagless radio row keeps that rather than newly minting. |
-| Relative `/media/file_12.mpg` or query-only `?token=…` | `create_link` | Only the portal turns those into an address; the VOD `has_files` rewrite produces exactly the first shape. |
-| Non-HTTP scheme (`ffrt4://ch/live/…`) | `create_link` | Portal-internal pseudo-URL. |
-| Portal-local host — `localhost` and any `*.localhost` name (RFC 6761 §6.3 reserves the whole suffix for loopback), `localhost.localdomain`, all of `127.0.0.0/8`, `0.0.0.0`, `::1`, `::`, and the IPv4-mapped forms `URL` normalizes to hex (`::ffff:7f00:1`); a terminal DNS root dot is stripped first | `create_link` | `ffrt3 http://localhost/ch/1234_` is an instruction to the portal, not an address a set-top box could open. |
-| Otherwise | static `cmd` | Solution prefix stripped by `normalizeStalkerPlaybackCommand()`. |
+| Input                                                                                                                                                                                                                                                                                                    | Verdict       | Why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Either flag truthy (`1`, `'1'`, `true`)                                                                                                                                                                                                                                                                  | `create_link` | The portal asked for a temporary link.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| No row supplied at all                                                                                                                                                                                                                                                                                   | `create_link` | A caller that cannot show the flags gets no verdict.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| A row carrying neither flag KEY                                                                                                                                                                                                                                                                          | `create_link` | Absence means "no evidence", not "no". A stock portal returns both flags on every row, so their PRESENCE is the provenance signal — and the only one available, because rows persisted into Favorites/Recently Viewed before this change were stripped of them by `buildStalkerSelectedVodItem`'s whitelist, making a legacy snapshot indistinguishable from a genuinely unflagged row. There is no migration for those. **Radio is the documented exception**: a directly playable radio command has always played as-is, so a flagless radio row keeps that rather than newly minting. |
+| Relative `/media/file_12.mpg` or query-only `?token=…`                                                                                                                                                                                                                                                   | `create_link` | Only the portal turns those into an address; the VOD `has_files` rewrite produces exactly the first shape.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Non-HTTP scheme (`ffrt4://ch/live/…`)                                                                                                                                                                                                                                                                    | `create_link` | Portal-internal pseudo-URL.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Portal-local host — `localhost` and any `*.localhost` name (RFC 6761 §6.3 reserves the whole suffix for loopback), `localhost.localdomain`, all of `127.0.0.0/8`, `0.0.0.0`, `::1`, `::`, and the IPv4-mapped forms `URL` normalizes to hex (`::ffff:7f00:1`); a terminal DNS root dot is stripped first | `create_link` | `ffrt3 http://localhost/ch/1234_` is an instruction to the portal, not an address a set-top box could open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Otherwise                                                                                                                                                                                                                                                                                                | static `cmd`  | Solution prefix stripped by `normalizeStalkerPlaybackCommand()`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 `fetchStalkerPlaybackLink()` applies the verdict for ITV, VOD and radio, and
 short-circuits before the request. It never applies it when `series` is set:
@@ -860,8 +994,8 @@ Every static return therefore warms first, through one primitive —
 `ensureToken` performs handshake + `get_profile` with no link minted, and
 validates the identity the cached token was negotiated for — which the raw
 `getCachedToken()` cannot. It is cheap where it is not needed: a simple portal
-returns immediately and a warm cache with a matching fingerprint resolves
-without a request.
+runs only the in-memory configuration-authority guard and returns immediately,
+while a warm cache with a matching fingerprint resolves without a request.
 
 The store's player feature reads `getCachedToken()` for its header set, which
 is safe there because it runs immediately after the warm above populated the
@@ -925,14 +1059,14 @@ A temporary link lives about 5 seconds (`tv_tmp_link_ttl` /
 so the rule is to resolve immediately before playback and never persist,
 cache or replay the result. What each persisting path actually stores:
 
-| Path | Stores | Verdict |
-| --- | --- | --- |
-| Recently Viewed | the raw row including `cmd` (`buildStalkerRecentlyViewedPayload` spreads the item) | Re-resolves on replay. |
-| Favorites | the raw row including `cmd` (`addStalkerFavorite`, `toggleFavorite`) | Re-resolves on replay. |
-| Playback positions | `playlist_id` + `content_xtream_id` + content type only — no URL column | Not applicable. |
-| Main-process playback context (`stalker-playback-context.service.ts`) | header sets keyed by the stream URL's origin + path, 15 min TTL | Stores no URL. The key drops the query, so a re-minted link with a fresh token still finds its headers instead of playing bare. |
-| ITV full-list cache (`StalkerItvCacheService`) | catalog rows | Rows, not links. |
-| Downloads | the resolved `url` on the `downloads` row | **The one exception** — see below. |
+| Path                                                                  | Stores                                                                             | Verdict                                                                                                                         |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Recently Viewed                                                       | the raw row including `cmd` (`buildStalkerRecentlyViewedPayload` spreads the item) | Re-resolves on replay.                                                                                                          |
+| Favorites                                                             | the raw row including `cmd` (`addStalkerFavorite`, `toggleFavorite`)               | Re-resolves on replay.                                                                                                          |
+| Playback positions                                                    | `playlist_id` + `content_xtream_id` + content type only — no URL column            | Not applicable.                                                                                                                 |
+| Main-process playback context (`stalker-playback-context.service.ts`) | header sets keyed by the stream URL's origin + path, 15 min TTL                    | Stores no URL. The key drops the query, so a re-minted link with a fresh token still finds its headers instead of playing bare. |
+| ITV full-list cache (`StalkerItvCacheService`)                        | catalog rows                                                                       | Rows, not links.                                                                                                                |
+| Downloads                                                             | the resolved `url` on the `downloads` row                                          | **The one exception** — see below.                                                                                              |
 
 The download row is the only place a resolved URL outlives the playback that
 produced it, because the main-process downloader needs a URL it can retry and

@@ -54,7 +54,9 @@ describe('buildStalkerEndpointCandidates', () => {
 
     it('keeps a nonstandard pasted endpoint as the first candidate', () => {
         expect(
-            buildStalkerEndpointCandidates('http://portal.example/cp/portal.php')
+            buildStalkerEndpointCandidates(
+                'http://portal.example/cp/portal.php'
+            )
         ).toEqual([
             'http://portal.example/cp/portal.php',
             'http://portal.example/cp/server/load.php',
@@ -62,7 +64,7 @@ describe('buildStalkerEndpointCandidates', () => {
         ]);
     });
 
-    it('derives standard fallbacks from a nonstandard endpoint\'s directory', () => {
+    it("derives standard fallbacks from a nonstandard endpoint's directory", () => {
         // The pasted endpoint keeps the first shot, but recovery candidates
         // must be its SIBLINGS — not paths appended to the file itself.
         expect(
@@ -319,9 +321,7 @@ describe('classifyStalkerProbeResponse', () => {
         expect(classifyStalkerProbeResponse({ js: false })).toBe(
             'not-a-portal'
         );
-        expect(classifyStalkerProbeResponse({ js: null })).toBe(
-            'not-a-portal'
-        );
+        expect(classifyStalkerProbeResponse({ js: null })).toBe('not-a-portal');
         expect(classifyStalkerProbeResponse({ js: {} })).toBe('not-a-portal');
     });
 
@@ -368,6 +368,12 @@ describe('getStalkerRequestErrorStatus', () => {
 });
 
 describe('legacyTransformStalkerPortalUrl', () => {
+    it('uses portal.php for an offline bare host', () => {
+        expect(legacyTransformStalkerPortalUrl('http://x.example')).toBe(
+            'http://x.example/portal.php'
+        );
+    });
+
     it('keeps the historical rewrites for the unreachable-host fallback', () => {
         expect(legacyTransformStalkerPortalUrl('http://x.example/c')).toBe(
             'http://x.example/portal.php'

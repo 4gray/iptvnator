@@ -317,7 +317,7 @@ describe('stalker-player-request.utils', () => {
             );
         });
 
-        it('skips the handshake for a simple portal', async () => {
+        it('guards a simple portal without requiring a token', async () => {
             // The command has to be PORTAL-OWNED, or the foreign-host early
             // return would skip the handshake by itself and this would pass
             // without saying anything about portal mode. `PLAYLIST` is a
@@ -330,7 +330,12 @@ describe('stalker-player-request.utils', () => {
             });
 
             expect(streamUrl).toBe('http://demo.example/live/42.m3u8');
-            expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+            expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: PLAYLIST._id,
+                    isFullStalkerPortal: false,
+                })
+            );
             expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         });
 

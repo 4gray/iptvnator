@@ -3,7 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -14,11 +14,16 @@ import {
 } from '@iptvnator/services';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistInfoComponent } from './playlist-info.component';
+import {
+    STALKER_PLAYLIST_CONNECTION_EDITOR,
+    STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
+} from './stalker-playlist-connection-editor.token';
 
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
     let playlistsService: {
+        getPlaylistById: jest.Mock;
         getRawPlaylistById: jest.Mock;
     };
     let databaseService: {
@@ -46,7 +51,14 @@ describe('PlaylistInfoComponent', () => {
         dispatch: jest.Mock;
     };
     let dialogRef: {
+        beforeClosed: jest.Mock;
         close: jest.Mock;
+        disableClose: boolean;
+    };
+    let dialogBeforeClosed: Subject<void>;
+    let stalkerConnectionEditor: {
+        applyResolvedConnection: jest.Mock;
+        resolveConnection: jest.Mock;
     };
     const originalElectron = window.electron;
 
@@ -62,6 +74,7 @@ describe('PlaylistInfoComponent', () => {
 
     beforeEach(async () => {
         playlistsService = {
+            getPlaylistById: jest.fn(),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U\n')),
         };
         databaseService = {
@@ -95,8 +108,22 @@ describe('PlaylistInfoComponent', () => {
         store = {
             dispatch: jest.fn(),
         };
+        dialogBeforeClosed = new Subject<void>();
         dialogRef = {
+            beforeClosed: jest.fn(() => dialogBeforeClosed),
             close: jest.fn(),
+            disableClose: false,
+        };
+        stalkerConnectionEditor = {
+            applyResolvedConnection: jest.fn(
+                async (playlist: PlaylistMeta) => playlist
+            ),
+            resolveConnection: jest.fn(
+                async (updatedPlaylist: PlaylistMeta) => ({
+                    status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                    playlist: updatedPlaylist,
+                })
+            ),
         };
 
         await TestBed.configureTestingModule({
@@ -154,6 +181,10 @@ describe('PlaylistInfoComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
+                },
+                {
+                    provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
+                    useValue: stalkerConnectionEditor,
                 },
             ],
         }).compileComponents();
@@ -567,25 +598,87 @@ describe('PlaylistInfoComponent', () => {
     });
 
     describe('Stalker identity fields', () => {
-        function createStalkerComponent(
+        async function createStalkerComponent(
             overrides: Partial<Playlist> = {}
-        ): void {
+        ): Promise<void> {
+            const stalkerPlaylist = {
+                ...playlist,
+                url: undefined,
+                portalUrl: 'https://portal.example.com/c',
+                macAddress: '00:1a:79:aa:bb:cc',
+                isFullStalkerPortal: true,
+                ...overrides,
+            } as Playlist & { id: string };
+            playlistsService.getPlaylistById.mockReturnValue(
+                of(stalkerPlaylist)
+            );
             TestBed.overrideProvider(MAT_DIALOG_DATA, {
-                useValue: {
-                    ...playlist,
-                    url: undefined,
-                    portalUrl: 'https://portal.example.com/c',
-                    macAddress: '00:1a:79:aa:bb:cc',
-                    isFullStalkerPortal: true,
-                    ...overrides,
-                } as Playlist & { id: string },
+                useValue: stalkerPlaylist,
             });
             createComponent();
             fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
         }
 
-        it('canonicalizes an edited MAC on blur', () => {
-            createStalkerComponent();
+        it('hydrates the complete stored row before editing a summarized Stalker playlist', async () => {
+            const summary = {
+                ...playlist,
+                url: undefined,
+                portalUrl: 'https://portal.example.com/c',
+                macAddress: '00:1a:79:aa:bb:cc',
+            } as Playlist & { id: string };
+            const storedPlaylist = {
+                ...summary,
+                isFullStalkerPortal: true,
+                stalkerSerialNumber: 'STORED-SERIAL',
+                stalkerDeviceId1: 'STORED-DEVICE-1',
+                stalkerDeviceId2: 'STORED-DEVICE-2',
+                stalkerSignature1: 'STORED-SIGNATURE-1',
+                stalkerSignature2: 'STORED-SIGNATURE-2',
+            };
+            const storedPlaylist$ = new Subject<Playlist>();
+            playlistsService.getPlaylistById.mockReturnValue(storedPlaylist$);
+            TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: summary });
+            createComponent();
+            fixture.detectChanges();
+
+            expect(component.isHydratingStalkerPlaylist()).toBe(true);
+
+            storedPlaylist$.next(storedPlaylist);
+            storedPlaylist$.complete();
+            await fixture.whenStable();
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+                'playlist-1'
+            );
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    portalUrl: 'https://new.example.com',
+                    stalkerSerialNumber: 'STORED-SERIAL',
+                    stalkerDeviceId1: 'STORED-DEVICE-1',
+                    stalkerDeviceId2: 'STORED-DEVICE-2',
+                    stalkerSignature1: 'STORED-SIGNATURE-1',
+                    stalkerSignature2: 'STORED-SIGNATURE-2',
+                }),
+                expect.objectContaining({
+                    portalUrl: 'https://portal.example.com/c',
+                    stalkerSerialNumber: 'STORED-SERIAL',
+                })
+            );
+        });
+
+        it('canonicalizes an edited MAC on blur', async () => {
+            await createStalkerComponent();
             const control = component.playlistDetails.get('macAddress');
             control?.setValue('00-1a-79-ab-cd-ef');
 
@@ -596,10 +689,10 @@ describe('PlaylistInfoComponent', () => {
             expect(control?.dirty).toBe(true);
         });
 
-        it('leaves a stored MAC untouched until it is edited', () => {
+        it('leaves a stored MAC untouched until it is edited', async () => {
             // Loading the dialog must not move the session fingerprint: the
             // stored lowercase MAC is what the portal already accepted.
-            createStalkerComponent();
+            await createStalkerComponent();
 
             expect(component.playlistDetails.get('macAddress')?.value).toBe(
                 '00:1a:79:aa:bb:cc'
@@ -607,8 +700,8 @@ describe('PlaylistInfoComponent', () => {
             expect(component.playlistDetails.pristine).toBe(true);
         });
 
-        it('refuses to save a malformed MAC', () => {
-            createStalkerComponent();
+        it('refuses to save a malformed MAC', async () => {
+            await createStalkerComponent();
             const control = component.playlistDetails.get('macAddress');
 
             control?.setValue('00:1A:79:AA:BB');
@@ -620,10 +713,10 @@ describe('PlaylistInfoComponent', () => {
         it('canonicalizes the MAC on submit when no blur fired', async () => {
             // Pressing Enter inside the field submits without the field losing
             // focus, so `onMacAddressBlur` never runs.
-            createStalkerComponent();
-            component.playlistDetails.get('macAddress')?.setValue(
-                '00-1a-79-ab-cd-ef'
-            );
+            await createStalkerComponent();
+            component.playlistDetails
+                .get('macAddress')
+                ?.setValue('00-1a-79-ab-cd-ef');
 
             await component.saveChanges(
                 component.playlistDetails.value as PlaylistMeta
@@ -634,24 +727,464 @@ describe('PlaylistInfoComponent', () => {
                     playlist: expect.objectContaining({
                         macAddress: '00:1A:79:AB:CD:EF',
                     }) as PlaylistMeta,
+                    persist: false,
+                })
+            );
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        it('saves metadata without discovery when connection fields are unchanged', async () => {
+            await createStalkerComponent({
+                username: 'subscriber',
+                password: 'secret',
+                stalkerSerialNumber: 'SERIAL',
+            });
+            component.playlistDetails.get('title')?.setValue('Renamed');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).not.toHaveBeenCalled();
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).not.toHaveBeenCalled();
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: expect.objectContaining({
+                        title: 'Renamed',
+                    }) as PlaylistMeta,
+                })
+            );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('portalUrl');
+            expect(dispatchedPlaylist).not.toHaveProperty(
+                'isFullStalkerPortal'
+            );
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
+            expect(dispatchedPlaylist).not.toHaveProperty('username');
+            expect(dispatchedPlaylist).not.toHaveProperty('password');
+            expect(dispatchedPlaylist).not.toHaveProperty(
+                'stalkerSerialNumber'
+            );
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerDeviceId1');
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerDeviceId2');
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerSignature1');
+            expect(dispatchedPlaylist).not.toHaveProperty('stalkerSignature2');
+        });
+
+        it.each([
+            ['portalUrl', 'https://new.example.com'],
+            ['macAddress', '00:1A:79:AB:CD:EF'],
+            ['username', 'new-user'],
+            ['password', 'new-password'],
+            ['stalkerSerialNumber', 'NEW-SERIAL'],
+            ['stalkerDeviceId1', 'NEW-DEVICE-1'],
+            ['stalkerDeviceId2', 'NEW-DEVICE-2'],
+            ['stalkerSignature1', 'NEW-SIGNATURE-1'],
+            ['stalkerSignature2', 'NEW-SIGNATURE-2'],
+        ])('runs discovery when %s changes', async (field, value) => {
+            await createStalkerComponent({
+                username: 'subscriber',
+                password: 'secret',
+                stalkerSerialNumber: 'SERIAL',
+                stalkerDeviceId1: 'DEVICE-1',
+                stalkerDeviceId2: 'DEVICE-2',
+                stalkerSignature1: 'SIGNATURE-1',
+                stalkerSignature2: 'SIGNATURE-2',
+            });
+            component.playlistDetails.get(field)?.setValue(value);
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        it('dispatches the resolved endpoint, mode and session patch together', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                    stalkerWatchdogTimeout: 90,
+                    stalkerTimeslot: 4,
+                },
+            };
+            const {
+                stalkerSessionPatch,
+                ...persistedPlaylistWithoutSessionPatch
+            } = resolvedPlaylist;
+            stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                persistedPlaylistWithoutSessionPatch
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://portal.example.com/c');
+            component.playlistDetails.get('username')?.setValue('subscriber');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        ...persistedPlaylistWithoutSessionPatch,
+                        stalkerSessionPatch,
+                    },
+                    persist: false,
+                })
+            );
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).toHaveBeenCalledWith(resolvedPlaylist);
+            expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        });
+
+        it('retains a simple-portal session clear in the state-only update', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: false,
+                stalkerSessionPatch: null,
+            };
+            const persistedPlaylist = {
+                ...resolvedPlaylist,
+                stalkerSessionPatch: undefined,
+            };
+            stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                persistedPlaylist
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://portal.example.com/server/load.php');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: {
+                        ...persistedPlaylist,
+                        stalkerSessionPatch: null,
+                    },
+                    persist: false,
                 })
             );
         });
 
+        it('does not route a Stalker edit through stale Xtream metadata', async () => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            await createStalkerComponent({
+                serverUrl: 'https://old-xtream.example.com',
+                username: 'subscriber',
+                password: 'secret',
+            });
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                databaseService.updateXtreamPlaylistDetails
+            ).not.toHaveBeenCalled();
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not normalize Stalker credentials through stale Xtream metadata', async () => {
+            await createStalkerComponent({
+                serverUrl: 'https://old-xtream.example.com',
+                username: ' subscriber ',
+                password: ' secret ',
+            });
+            component.playlistDetails.get('title')?.setValue('Renamed');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).not.toHaveBeenCalled();
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('username');
+            expect(dispatchedPlaylist).not.toHaveProperty('password');
+        });
+
+        it('persists a resolved edit when the component is destroyed during discovery', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                },
+            };
+            const currentPlaylist = {
+                ...resolvedPlaylist,
+                title: 'Newer title',
+                epgUrls: ['https://new.example.com/epg.xml'],
+            };
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                currentPlaylist
+            );
+            let finishDiscovery:
+                | ((value: {
+                      status: 'resolved';
+                      playlist: typeof resolvedPlaylist;
+                  }) => void)
+                | undefined;
+            stalkerConnectionEditor.resolveConnection.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishDiscovery = resolve;
+                })
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+            const saving = component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+            await Promise.resolve();
+
+            fixture.destroy();
+            finishDiscovery?.({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            await saving;
+
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).toHaveBeenCalledWith(resolvedPlaylist, {
+                preserveCurrentMetadata: true,
+            });
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: currentPlaylist,
+                    persist: false,
+                })
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(dialogRef.close).not.toHaveBeenCalled();
+        });
+
+        it('persists a resolved edit while the dialog close animation is pending', async () => {
+            await createStalkerComponent();
+            const resolvedPlaylist = {
+                ...component.playlistDetails.getRawValue(),
+                portalUrl: 'https://portal.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerSessionPatch: {
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                },
+            };
+            const currentPlaylist = {
+                ...resolvedPlaylist,
+                title: 'Newer title',
+                epgUrls: ['https://new.example.com/epg.xml'],
+            };
+            stalkerConnectionEditor.applyResolvedConnection.mockResolvedValueOnce(
+                currentPlaylist
+            );
+            let finishDiscovery:
+                | ((value: {
+                      status: 'resolved';
+                      playlist: typeof resolvedPlaylist;
+                  }) => void)
+                | undefined;
+            stalkerConnectionEditor.resolveConnection.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishDiscovery = resolve;
+                })
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+            const saving = component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+            await Promise.resolve();
+
+            dialogBeforeClosed.next();
+            finishDiscovery?.({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                playlist: resolvedPlaylist,
+            });
+            await saving;
+
+            expect(
+                stalkerConnectionEditor.applyResolvedConnection
+            ).toHaveBeenCalledWith(resolvedPlaylist, {
+                preserveCurrentMetadata: true,
+            });
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: currentPlaylist,
+                    persist: false,
+                })
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(dialogRef.close).not.toHaveBeenCalled();
+        });
+
+        it('does not update UI state or report success when resolved persistence fails', async () => {
+            const consoleError = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+            try {
+                await createStalkerComponent();
+                const resolvedPlaylist = {
+                    ...component.playlistDetails.getRawValue(),
+                    portalUrl: 'https://portal.example.com/server/load.php',
+                    isFullStalkerPortal: true,
+                    stalkerSessionPatch: {
+                        stalkerToken: 'NEW_TOKEN',
+                        stalkerSessionIdentity: 'new-fingerprint',
+                    },
+                };
+                stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                    status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.RESOLVED,
+                    playlist: resolvedPlaylist,
+                });
+                stalkerConnectionEditor.applyResolvedConnection.mockRejectedValue(
+                    new Error('write failed')
+                );
+                component.playlistDetails
+                    .get('username')
+                    ?.setValue('subscriber');
+
+                await component.saveChanges(
+                    component.playlistDetails.getRawValue() as PlaylistMeta
+                );
+
+                expect(store.dispatch).not.toHaveBeenCalled();
+                expect(dialogRef.close).not.toHaveBeenCalled();
+                expect(snackBar.open).toHaveBeenCalledWith(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
+                    'CLOSE',
+                    { duration: 3000 }
+                );
+            } finally {
+                consoleError.mockRestore();
+            }
+        });
+
+        it.each([
+            STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.AUTH_REJECTED,
+            STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
+        ])('keeps the dialog open and saves nothing on %s', async (status) => {
+            await createStalkerComponent();
+            stalkerConnectionEditor.resolveConnection.mockResolvedValue({
+                status,
+                message: `error:${status}`,
+            });
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+
+            await component.saveChanges(
+                component.playlistDetails.getRawValue() as PlaylistMeta
+            );
+
+            expect(store.dispatch).not.toHaveBeenCalled();
+            expect(dialogRef.close).not.toHaveBeenCalled();
+            expect(snackBar.open).toHaveBeenCalledWith(
+                `error:${status}`,
+                'CLOSE',
+                { duration: 8000 }
+            );
+            expect(component.isSaving()).toBe(false);
+        });
+
+        it('ignores a second Save while discovery is pending', async () => {
+            await createStalkerComponent();
+            let resolveDiscovery:
+                | ((value: { status: 'unreachable'; message: string }) => void)
+                | undefined;
+            stalkerConnectionEditor.resolveConnection.mockReturnValue(
+                new Promise((resolve) => {
+                    resolveDiscovery = resolve;
+                })
+            );
+            component.playlistDetails
+                .get('portalUrl')
+                ?.setValue('https://new.example.com');
+            const value =
+                component.playlistDetails.getRawValue() as PlaylistMeta;
+
+            const firstSave = component.saveChanges(value);
+            const secondSave = component.saveChanges(value);
+
+            expect(component.isSaving()).toBe(true);
+            expect(dialogRef.disableClose).toBe(true);
+            expect(
+                stalkerConnectionEditor.resolveConnection
+            ).toHaveBeenCalledTimes(1);
+            resolveDiscovery?.({
+                status: STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS.UNREACHABLE,
+                message: 'offline',
+            });
+            await Promise.all([firstSave, secondSave]);
+            expect(store.dispatch).not.toHaveBeenCalled();
+            expect(dialogRef.disableClose).toBe(false);
+        });
+
+        it('accepts a bare HTTP host but rejects an address without a protocol', async () => {
+            await createStalkerComponent();
+            const control = component.playlistDetails.get('portalUrl');
+
+            control?.setValue('portal.example.com');
+            expect(control?.valid).toBe(false);
+
+            control?.setValue('https://portal.example.com');
+            expect(control?.valid).toBe(true);
+
+            control?.setValue('HTTP://portal.example.com/c');
+            expect(control?.valid).toBe(true);
+        });
+
         it('persists a grandfathered MAC untouched on submit', async () => {
-            createStalkerComponent({ macAddress: 'legacy-device-42' });
+            await createStalkerComponent({ macAddress: 'legacy-device-42' });
 
             await component.saveChanges(
                 component.playlistDetails.value as PlaylistMeta
             );
 
-            expect(store.dispatch).toHaveBeenCalledWith(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: expect.objectContaining({
-                        macAddress: 'legacy-device-42',
-                    }) as PlaylistMeta,
-                })
-            );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
         });
 
         it('leaves a non-canonical MAC alone when focus passes through it', async () => {
@@ -659,7 +1192,9 @@ describe('PlaylistInfoComponent', () => {
             // there would mark the form dirty AND make the value differ from
             // the stored one, which is what the submit guard reads — so a
             // later title-only save would carry the rewritten identity.
-            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            await createStalkerComponent({
+                macAddress: '00-1a-79-aa-bb-cc',
+            });
             const control = component.playlistDetails.get('macAddress');
 
             component.onMacAddressBlur();
@@ -672,13 +1207,9 @@ describe('PlaylistInfoComponent', () => {
                 component.playlistDetails.value as PlaylistMeta
             );
 
-            expect(store.dispatch).toHaveBeenCalledWith(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: expect.objectContaining({
-                        macAddress: '00-1a-79-aa-bb-cc',
-                    }) as PlaylistMeta,
-                })
-            );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
         });
 
         it('leaves an untouched non-canonical MAC alone on an unrelated save', async () => {
@@ -686,7 +1217,9 @@ describe('PlaylistInfoComponent', () => {
             // what a permissive portal registered, and changing them moves
             // the session fingerprint and re-authenticates under a spelling
             // the portal never saw.
-            createStalkerComponent({ macAddress: '00-1a-79-aa-bb-cc' });
+            await createStalkerComponent({
+                macAddress: '00-1a-79-aa-bb-cc',
+            });
             component.playlistDetails.get('title')?.setValue('Renamed');
 
             await component.saveChanges(
@@ -696,18 +1229,20 @@ describe('PlaylistInfoComponent', () => {
             expect(store.dispatch).toHaveBeenCalledWith(
                 PlaylistActions.updatePlaylistMeta({
                     playlist: expect.objectContaining({
-                        macAddress: '00-1a-79-aa-bb-cc',
                         title: 'Renamed',
                     }) as PlaylistMeta,
                 })
             );
+            const dispatchedPlaylist = store.dispatch.mock.calls[0][0]
+                .playlist as PlaylistMeta;
+            expect(dispatchedPlaylist).not.toHaveProperty('macAddress');
         });
 
-        it('does not claim a simple portal has pinned its device IDs', () => {
+        it('does not claim a simple portal has pinned its device IDs', async () => {
             // device_id travels only on get_profile/do_auth, which a
             // panel-style portal never runs — so nothing was pinned and the
             // lockout warning would be false.
-            createStalkerComponent({
+            await createStalkerComponent({
                 isFullStalkerPortal: false,
                 stalkerDeviceId1: 'ABCDEF',
             });
@@ -718,23 +1253,25 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('keeps a MAC outside the Infomir range saveable', () => {
+        it('keeps a MAC outside the Infomir range saveable', async () => {
             // Most reseller panels do not run the stock OUI filter, so this is
             // a working configuration — the import hint explains the risk, the
             // form must not block it.
-            createStalkerComponent({ macAddress: 'AA:BB:CC:DD:EE:01' });
+            await createStalkerComponent({
+                macAddress: 'AA:BB:CC:DD:EE:01',
+            });
 
             expect(component.playlistDetails.get('macAddress')?.valid).toBe(
                 true
             );
         });
 
-        it('grandfathers a stored MAC it would now reject', () => {
+        it('grandfathers a stored MAC it would now reject', async () => {
             // Before this validation existed the field accepted anything, and
             // on a panel that ignores the MAC such a playlist works. Blocking
             // Save would also strand the title, URL and EPG edits in the same
             // dialog.
-            createStalkerComponent({ macAddress: 'legacy-device-42' });
+            await createStalkerComponent({ macAddress: 'legacy-device-42' });
 
             expect(component.playlistDetails.get('macAddress')?.valid).toBe(
                 true
@@ -742,8 +1279,8 @@ describe('PlaylistInfoComponent', () => {
             expect(component.playlistDetails.valid).toBe(true);
         });
 
-        it('still refuses a newly typed malformed MAC on a grandfathered playlist', () => {
-            createStalkerComponent({ macAddress: 'legacy-device-42' });
+        it('still refuses a newly typed malformed MAC on a grandfathered playlist', async () => {
+            await createStalkerComponent({ macAddress: 'legacy-device-42' });
             const control = component.playlistDetails.get('macAddress');
 
             control?.setValue('legacy-device-43');
@@ -751,8 +1288,8 @@ describe('PlaylistInfoComponent', () => {
             expect(control?.valid).toBe(false);
         });
 
-        it('does not warn about a pinning that has not happened', () => {
-            createStalkerComponent();
+        it('does not warn about a pinning that has not happened', async () => {
+            await createStalkerComponent();
 
             expect(component.hasStoredStalkerDeviceIds).toBe(false);
             expect(fixture.nativeElement.textContent).not.toContain(
@@ -760,14 +1297,14 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('treats a blank stored device ID as never sent', () => {
-            createStalkerComponent({ stalkerDeviceId2: '   ' });
+        it('treats a blank stored device ID as never sent', async () => {
+            await createStalkerComponent({ stalkerDeviceId2: '   ' });
 
             expect(component.hasStoredStalkerDeviceIds).toBe(false);
         });
 
-        it('warns once a device ID has been pinned', () => {
-            createStalkerComponent({ stalkerDeviceId1: 'ABCDEF' });
+        it('warns once a device ID has been pinned', async () => {
+            await createStalkerComponent({ stalkerDeviceId1: 'ABCDEF' });
 
             expect(component.hasStoredStalkerDeviceIds).toBe(true);
             expect(fixture.nativeElement.textContent).toContain(
@@ -775,8 +1312,8 @@ describe('PlaylistInfoComponent', () => {
             );
         });
 
-        it('warns when only the second device ID is pinned', () => {
-            createStalkerComponent({ stalkerDeviceId2: 'FEDCBA' });
+        it('warns when only the second device ID is pinned', async () => {
+            await createStalkerComponent({ stalkerDeviceId2: 'FEDCBA' });
 
             expect(component.hasStoredStalkerDeviceIds).toBe(true);
         });

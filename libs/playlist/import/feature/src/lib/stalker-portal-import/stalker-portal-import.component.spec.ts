@@ -72,6 +72,19 @@ describe('StalkerPortalImportComponent identity handling', () => {
         );
     });
 
+    it('accepts HTTP(S) bare hosts and rejects URLs without a web protocol', () => {
+        const control = component.form.controls.portalUrl;
+
+        control.setValue('portal.example.com');
+        expect(control.valid).toBe(false);
+
+        control.setValue('file:///tmp/portal.php');
+        expect(control.valid).toBe(false);
+
+        control.setValue('https://portal.example.com');
+        expect(control.valid).toBe(true);
+    });
+
     it('passes trimmed SN, device IDs, and signatures into initial authentication and persisted playlist metadata', async () => {
         component.form.patchValue({
             _id: 'playlist-1',
@@ -189,7 +202,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
     it('persists the cadence and the identity the token was negotiated for', async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'resolved',
-            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
             isFullStalkerPortal: true,
             token: 'token-1',
             watchdogTimeoutSeconds: 90,
@@ -220,7 +234,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
         // exactly the login portals this flow exists for.
         portalDiscovery.discover.mockResolvedValue({
             status: 'resolved',
-            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
             isFullStalkerPortal: true,
             token: 'token-1',
         });
@@ -251,7 +266,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
     it('records the effective cadence when the portal advertises none', async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'resolved',
-            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
             isFullStalkerPortal: true,
             token: 'token-1',
         });
@@ -275,7 +291,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
     it("relays the portal's own refusal instead of a generic error", async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'auth-rejected',
-            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
             error: new StalkerPortalError('login-required'),
         });
         component.form.patchValue({
@@ -296,10 +313,52 @@ describe('StalkerPortalImportComponent identity handling', () => {
         expect(store.dispatch).not.toHaveBeenCalled();
     });
 
+    it('keeps Add disabled until an abandoned authentication settles', async () => {
+        let settleAuthentication: () => void = () => undefined;
+        const abandonedAuthenticationSettled = new Promise<void>((resolve) => {
+            settleAuthentication = resolve;
+        });
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'auth-rejected',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+            abandonedInFlight: true,
+            abandonedAuthenticationSettled,
+        });
+        component.form.patchValue({
+            _id: 'playlist-abandoned',
+            title: 'Slow Portal',
+            macAddress: '00:1A:79:00:00:08',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        const importing = component.addPlaylist();
+        while (portalDiscovery.discover.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+        for (let i = 0; i < 5; i += 1) {
+            await Promise.resolve();
+        }
+
+        expect(component.isLoading()).toBe(true);
+        expect(component.form.controls.portalUrl.disabled).toBe(true);
+        await component.addPlaylist();
+        expect(portalDiscovery.discover).toHaveBeenCalledTimes(1);
+        expect(store.dispatch).not.toHaveBeenCalled();
+
+        settleAuthentication();
+        await importing;
+
+        expect(component.isLoading()).toBe(false);
+        expect(component.form.controls.portalUrl.enabled).toBe(true);
+    });
+
     it("appends the portal's explanation to a blocked refusal", async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'auth-rejected',
-            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
             error: new StalkerPortalError(
                 'blocked',
                 'device conflict - device_id mismatch'
@@ -517,7 +576,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
             );
         });
 
-        it('does not submit a MAC paired with the previous MAC\'s IDs', async () => {
+        it("does not submit a MAC paired with the previous MAC's IDs", async () => {
             // Clicking Add blurs the MAC field, so the blur's SHA-256 is
             // still in flight when the click handler runs. Snapshotting the
             // form there pairs the corrected MAC with the old MAC's device
@@ -568,9 +627,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
                     const delayed = call++ < 2;
                     const result = await realDigest(algorithm, data);
                     if (delayed) {
-                        await new Promise((resolve) =>
-                            setTimeout(resolve, 20)
-                        );
+                        await new Promise((resolve) => setTimeout(resolve, 20));
                     }
                     return result;
                 }) as typeof globalThis.crypto.subtle.digest);
@@ -727,7 +784,7 @@ describe('StalkerPortalImportComponent identity handling', () => {
             );
         });
 
-        it('never pairs one MAC with another MAC\'s device IDs', async () => {
+        it("never pairs one MAC with another MAC's device IDs", async () => {
             // The submit-time digest is asynchronous, so a MAC edit can land
             // while it runs. Reading the MAC from the form afterwards would
             // ship the new address with the old address's IDs — a mismatch
@@ -860,7 +917,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
     it('gives a device conflict its own headline', async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'auth-rejected',
-            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
             error: new StalkerPortalError(
                 'device-conflict',
                 'device conflict - device_id mismatch'
@@ -901,6 +959,26 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         const playlist = store.dispatch.mock.calls[0][0].playlist;
         expect(playlist).toEqual(
+            expect.objectContaining({
+                portalUrl: 'https://panel.example.com/portal.php',
+                isFullStalkerPortal: false,
+            })
+        );
+    });
+
+    it('persists portal.php instead of the root page for an unreachable bare host', async () => {
+        portalDiscovery.discover.mockResolvedValue({ status: 'unreachable' });
+        component.form.patchValue({
+            _id: 'playlist-bare-host',
+            title: 'Offline Panel',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://panel.example.com',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        await component.addPlaylist();
+
+        expect(store.dispatch.mock.calls[0][0].playlist).toEqual(
             expect.objectContaining({
                 portalUrl: 'https://panel.example.com/portal.php',
                 isFullStalkerPortal: false,

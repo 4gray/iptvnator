@@ -55,6 +55,13 @@ export interface StalkerPortalDiscoveryRejection {
      * invalidate the session a later candidate had just established.
      */
     abandonedInFlight?: boolean;
+    /**
+     * Resolves once the abandoned authentication has actually left the
+     * transport. Callers that reserve the playlist during discovery must
+     * keep that reservation until this resolves: returning the user-facing
+     * rejection is bounded, but the request on the wire is not.
+     */
+    abandonedAuthenticationSettled?: Promise<void>;
 }
 
 /** No candidate answered like a Stalker portal (host down or not a portal). */
@@ -167,7 +174,10 @@ export class StalkerPortalDiscoveryService {
                         return outcome;
                     }
                     if (outcome.abandonedInFlight) {
-                        return authRejection ?? outcome;
+                        // This attempt's transport lifetime must reach the
+                        // caller. Returning an earlier ordinary refusal would
+                        // hide the live request and let Edit release its fence.
+                        return outcome;
                     }
                     authRejection = authRejection ?? outcome;
                     continue;
@@ -217,7 +227,7 @@ export class StalkerPortalDiscoveryService {
                     // An attempt still on the wire outranks further probing:
                     // see `abandonedInFlight`.
                     if (outcome.abandonedInFlight) {
-                        return authRejection ?? outcome;
+                        return outcome;
                     }
                     // The endpoint is real but refused our credentials;
                     // remember the first such endpoint in case no later
@@ -294,11 +304,12 @@ export class StalkerPortalDiscoveryService {
             // would stake a working candidate's session on a request nobody
             // can recall.
             const DRAINED = Symbol('drained');
+            const abandonedAuthenticationSettled = pending.then(
+                () => undefined,
+                () => undefined
+            );
             const outcome = await Promise.race([
-                pending.then(
-                    () => DRAINED,
-                    () => DRAINED
-                ),
+                abandonedAuthenticationSettled.then(() => DRAINED),
                 new Promise<undefined>((resolve) =>
                     setTimeout(resolve, ABANDONED_DRAIN_MS)
                 ),
@@ -312,7 +323,12 @@ export class StalkerPortalDiscoveryService {
                 status: 'auth-rejected',
                 portalUrl: candidate,
                 error,
-                ...(outcome === DRAINED ? {} : { abandonedInFlight: true }),
+                ...(outcome === DRAINED
+                    ? {}
+                    : {
+                          abandonedInFlight: true,
+                          abandonedAuthenticationSettled,
+                      }),
             };
         }
     }
