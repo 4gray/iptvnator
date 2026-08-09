@@ -6,6 +6,7 @@ import {
     effect,
     inject,
     Inject,
+    linkedSignal,
     Optional,
     signal,
     viewChild,
@@ -55,6 +56,13 @@ interface GlobalSearchResultGroup {
 }
 
 const GLOBAL_SEARCH_PAGE_SIZE = 100;
+
+/**
+ * Render window for the in-portal (single playlist) search, which receives its
+ * complete result set in one response. The window grows via the layout's
+ * `nearEnd` scroll hook, mirroring the global search's paged appends.
+ */
+const IN_PORTAL_RESULTS_CHUNK = 60;
 
 function groupResultsByPlaylistId(
     items: XtreamSearchResultItem[]
@@ -169,6 +177,31 @@ export class SearchResultsComponent implements AfterViewInit {
         }
         return groupResultsByPlaylistId(results);
     });
+
+    /** Resets to the first chunk whenever a new result set replaces the old. */
+    private readonly inPortalVisibleCount = linkedSignal({
+        source: () => this.xtreamStore.searchResults(),
+        computation: () => IN_PORTAL_RESULTS_CHUNK,
+    });
+
+    /** Windowed slice of the in-portal search results. */
+    readonly visibleInPortalResults = computed(() =>
+        this.xtreamStore.searchResults().slice(0, this.inPortalVisibleCount())
+    );
+
+    onResultsNearEnd(): void {
+        if (this.isGlobalSearch) {
+            void this.loadMoreGlobalResults();
+            return;
+        }
+
+        const total = this.xtreamStore.searchResults().length;
+        if (this.inPortalVisibleCount() < total) {
+            this.inPortalVisibleCount.update(
+                (count) => count + IN_PORTAL_RESULTS_CHUNK
+            );
+        }
+    }
 
     constructor(
         @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData | null,

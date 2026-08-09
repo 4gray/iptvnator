@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "所有語言",
             "SAME_AS_ABOVE": "與上行相同",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "正在載入更多…",
+            "LOAD_MORE_FAILED": "無法載入更多內容",
+            "RETRY": "重試"
         }
     },
     "INFORMATION": "資訊",

@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "모든 언어",
             "SAME_AS_ABOVE": "위와 동일",
             "SHOWING_OF_TOTAL": "{{total}}개 중 {{visible}}개"
+        },
+        "GRID": {
+            "LOADING_MORE": "더 불러오는 중…",
+            "LOAD_MORE_FAILED": "추가 항목을 불러오지 못했습니다",
+            "RETRY": "다시 시도"
         }
     },
     "INFORMATION": "정보",

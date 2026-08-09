@@ -377,7 +377,7 @@ libs/portal/xtream/
 │   │   ├── features/
 │   │   │   ├── with-portal.feature.ts             # Playlist & portal status
 │   │   │   ├── with-content.feature.ts            # Categories & streams
-│   │   │   ├── with-selection.feature.ts          # UI selection & pagination
+│   │   │   ├── with-selection.feature.ts          # UI selection & infinite-scroll window
 │   │   │   ├── with-search.feature.ts             # Search functionality
 │   │   │   ├── with-epg.feature.ts                # EPG data
 │   │   │   ├── with-player.feature.ts             # Stream URLs & player
@@ -415,6 +415,15 @@ Key patterns:
   `ElectronXtreamDataSource` only when
   `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`; otherwise it
   selects `PwaXtreamDataSource`
+- **Catalog lazy loading**: catalog grids scroll infinitely instead of paging.
+  `withSelection` keeps a `visibleCount` render window over the in-memory
+  catalog plus a saved scroll state for detail round-trips; the shared
+  `InfiniteScrollDirective` (`libs/portal/shared/ui`) measures container
+  overflow to auto-fill tall viewports (capped) and fires `loadMore` near the
+  bottom. Transitional: `PortalCatalogFacade.supportsInfiniteScroll` gates the
+  shared `CategoryContentViewComponent` — Xtream scrolls, Stalker still pages
+  until its server-paged append lands, after which the paged facade members
+  and the flag are deleted
 
 Xtream data strategies by runtime capability:
 

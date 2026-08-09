@@ -1,6 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import { withSelection } from './with-selection.feature';
+import {
+    CATALOG_INITIAL_WINDOW,
+    CATALOG_WINDOW_CHUNK,
+    withSelection,
+} from './with-selection.feature';
+
+/** A category larger than two render windows, for window-growth tests. */
+const BULK_CATEGORY_SIZE = CATALOG_INITIAL_WINDOW + CATALOG_WINDOW_CHUNK + 20;
+const bulkVodStreams = Array.from({ length: BULK_CATEGORY_SIZE }, (_, i) => ({
+    xtream_id: 1000 + i,
+    category_id: '90',
+    title: `Bulk ${i + 1}`,
+    added: String(1000 - i),
+}));
 
 const TestSelectionStore = signalStore(
     withState({
@@ -53,6 +66,12 @@ const TestSelectionStore = signalStore(
                 category_name: 'Documentaries',
                 type: 'vod',
             },
+            {
+                id: 90,
+                category_id: '90',
+                category_name: 'Bulk',
+                type: 'vod',
+            },
         ],
         vodStreams: [
             {
@@ -91,6 +110,7 @@ const TestSelectionStore = signalStore(
                 title: 'Cosmos',
                 added: '6',
             },
+            ...bulkVodStreams,
         ],
         serialCategories: [
             {
@@ -140,8 +160,6 @@ describe('withSelection', () => {
     let store: InstanceType<typeof TestSelectionStore>;
 
     beforeEach(() => {
-        localStorage.clear();
-
         TestBed.configureTestingModule({
             providers: [TestSelectionStore],
         });
@@ -149,37 +167,82 @@ describe('withSelection', () => {
         store = TestBed.inject(TestSelectionStore);
     });
 
-    afterEach(() => {
-        localStorage.clear();
+    it('reveals the first window and grows it with loadMoreContent', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(90);
+
+        expect(store.getPaginatedContent().length).toBe(
+            CATALOG_INITIAL_WINDOW
+        );
+        expect(store.hasMoreContent()).toBe(true);
+
+        store.loadMoreContent();
+        expect(store.getPaginatedContent().length).toBe(
+            CATALOG_INITIAL_WINDOW + CATALOG_WINDOW_CHUNK
+        );
+
+        store.loadMoreContent();
+        expect(store.getPaginatedContent().length).toBe(BULK_CATEGORY_SIZE);
+        expect(store.hasMoreContent()).toBe(false);
+
+        // No-op once the window covers everything.
+        const coveredCount = store.visibleCount();
+        store.loadMoreContent();
+        expect(store.visibleCount()).toBe(coveredCount);
     });
 
-    it('keeps the current page when the category search term is unchanged', () => {
+    it('keeps the render window when the category search term is unchanged', () => {
         store.setSelectedContentType('vod');
-        store.setSelectedCategory(10);
-        store.setLimit(2);
-        store.setPage(1);
+        store.setSelectedCategory(90);
+        store.loadMoreContent();
 
         store.setCategorySearchTerm('');
 
-        expect(store.page()).toBe(1);
-        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
-            'Third',
-            'Fourth',
-        ]);
+        expect(store.visibleCount()).toBe(
+            CATALOG_INITIAL_WINDOW + CATALOG_WINDOW_CHUNK
+        );
     });
 
-    it('resets the current page when the category search term changes', () => {
+    it('resets the render window when the category search term changes', () => {
         store.setSelectedContentType('vod');
+        store.setSelectedCategory(90);
+        store.loadMoreContent();
+
+        store.setCategorySearchTerm('bulk');
+
+        expect(store.visibleCount()).toBe(CATALOG_INITIAL_WINDOW);
+        expect(store.getPaginatedContent().length).toBe(
+            CATALOG_INITIAL_WINDOW
+        );
+    });
+
+    it('resets the render window when the category changes', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(90);
+        store.loadMoreContent();
+
         store.setSelectedCategory(10);
-        store.setLimit(2);
-        store.setPage(1);
 
-        store.setCategorySearchTerm('first');
+        expect(store.visibleCount()).toBe(CATALOG_INITIAL_WINDOW);
+    });
 
-        expect(store.page()).toBe(0);
-        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
-            'First',
-        ]);
+    it('restores a saved scroll state only for the matching selection', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(90);
+        store.loadMoreContent();
+        store.saveCatalogScrollState(1234);
+
+        // A detour to another category must not consume the slot.
+        store.setSelectedCategory(10);
+        expect(store.consumeCatalogScrollState()).toBeNull();
+
+        // Returning to the saved selection restores window + offset once.
+        store.setSelectedCategory(90);
+        expect(store.consumeCatalogScrollState()).toBe(1234);
+        expect(store.visibleCount()).toBe(
+            CATALOG_INITIAL_WINDOW + CATALOG_WINDOW_CHUNK
+        );
+        expect(store.consumeCatalogScrollState()).toBeNull();
     });
 
     it('filters all VOD items when no category is selected', () => {

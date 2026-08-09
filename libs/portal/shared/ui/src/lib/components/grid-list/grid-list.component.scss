@@ -167,3 +167,24 @@ mat-card:hover {
         }
     }
 }
+
+// ─── Infinite scroll ─────────────────────────────────────────────────────────
+// Off-screen cards skip rendering work; the intrinsic-size hint keeps the
+// scrollbar stable while they are skipped (poster 2/3 ratio + title row).
+.grid-list__grid mat-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 270px;
+}
+
+.grid-list__tail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 18px 0 6px;
+    color: var(--app-muted-color, inherit);
+
+    &.grid-list__tail--error {
+        color: var(--mat-sys-error, inherit);
+    }
+}

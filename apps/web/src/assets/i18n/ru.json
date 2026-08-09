@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "Все языки",
             "SAME_AS_ABOVE": "как строкой выше",
             "SHOWING_OF_TOTAL": "{{visible}} из {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "Загружаем ещё…",
+            "LOAD_MORE_FAILED": "Не удалось загрузить больше элементов",
+            "RETRY": "Повторить"
         }
     },
     "INFORMATION": "Инфо",

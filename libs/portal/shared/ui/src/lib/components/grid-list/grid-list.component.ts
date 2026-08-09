@@ -7,9 +7,10 @@ import {
     output,
     signal,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
@@ -196,24 +197,32 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                 }
             }
         </div>
-        @if (showPaginator() && items().length > 0) {
-            <mat-paginator
-                [pageIndex]="pageIndex()"
-                [length]="totalPages() * limit()"
-                [pageSize]="limit()"
-                [pageSizeOptions]="pageSizeOptions()"
-                (page)="pageChange.emit($event)"
-                aria-label="Select page"
-            />
-        } `,
+        @if (isAppending()) {
+            <div class="grid-list__tail" aria-live="polite">
+                <mat-spinner diameter="28" />
+                <span>{{ 'PORTALS.GRID.LOADING_MORE' | translate }}</span>
+            </div>
+        } @else if (appendError()) {
+            <div class="grid-list__tail grid-list__tail--error" role="alert">
+                <span>{{ 'PORTALS.GRID.LOAD_MORE_FAILED' | translate }}</span>
+                <button
+                    type="button"
+                    mat-stroked-button
+                    (click)="retryLoadMore.emit()"
+                >
+                    {{ 'PORTALS.GRID.RETRY' | translate }}
+                </button>
+            </div>
+        }`,
     styleUrl: './grid-list.component.scss',
     imports: [
         TranslatePipe,
         PlaylistErrorViewComponent,
+        MatButtonModule,
         MatCardModule,
         MatIcon,
+        MatProgressSpinnerModule,
         MatTooltip,
-        MatPaginatorModule,
         ProgressCapsuleComponent,
         WatchedBadgeComponent,
     ],
@@ -225,15 +234,14 @@ export class GridListComponent {
 
     readonly items = input<GridListItem[]>([]);
     readonly isLoading = input<boolean>(false);
-    readonly showPaginator = input(true);
+    /** True while an infinite-scroll append is in flight (tail spinner). */
+    readonly isAppending = input<boolean>(false);
+    /** True when the latest append failed; renders the retry tail. */
+    readonly appendError = input<boolean>(false);
     readonly searchTerm = input<string>('');
     readonly itemClicked = output<GridListItem>();
-    readonly pageChange = output<PageEvent>();
+    readonly retryLoadMore = output<void>();
 
-    readonly pageIndex = input<number>(0);
-    readonly totalPages = input<number>(0);
-    readonly limit = input<number>(25);
-    readonly pageSizeOptions = input<number[]>([]);
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');
     protected readonly resolveRating = resolveGridRating;
@@ -259,11 +267,9 @@ export class GridListComponent {
         return stripped || 'No name';
     };
 
-    readonly skeletonRows = computed(() => {
-        const preferredCount = this.limit() ?? 12;
-        const count = Math.max(8, Math.min(18, preferredCount));
-        return Array.from({ length: count }, (_, index) => index);
-    });
+    readonly skeletonRows = computed(() =>
+        Array.from({ length: 12 }, (_, index) => index)
+    );
 
     protected hasArtworkFailed(poster: string): boolean {
         return this.failedArtworkUrls().has(poster);

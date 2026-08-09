@@ -26,14 +26,41 @@ export type XtreamCategorySortMode =
     | 'rating-asc';
 
 /**
- * Selection state for managing UI selection and pagination
+ * First render window of the infinite-scroll catalog grid. Growing the window
+ * is a free in-memory slice, so the initial batch is a generous constant — the
+ * shared scroll directive tops it up by measuring container overflow rather
+ * than by computing card counts from the viewport.
+ */
+export const CATALOG_INITIAL_WINDOW = 50;
+
+/** How many more items each `loadMoreContent()` reveals. */
+export const CATALOG_WINDOW_CHUNK = 50;
+
+/**
+ * Grid scroll position captured when a detail view opens, so returning to the
+ * same list restores both the render window and the scroll offset. The
+ * selection coordinates guard the restore: any of them changing makes the
+ * saved offset meaningless.
+ */
+export interface CatalogScrollState {
+    contentType: ContentType;
+    categoryId: number | null;
+    searchTerm: string;
+    sortMode: XtreamCategorySortMode;
+    minRating: number | null;
+    visibleCount: number;
+    scrollTop: number;
+}
+
+/**
+ * Selection state for managing UI selection and the infinite-scroll window
  */
 export interface SelectionState {
     selectedContentType: ContentType;
     selectedCategoryId: number | null;
     selectedItem: XtreamSelectionItem | null;
-    page: number;
-    limit: number;
+    visibleCount: number;
+    savedCatalogScroll: CatalogScrollState | null;
     contentSortMode: XtreamCategorySortMode;
     categorySearchTerm: string;
     minRating: number | null;
@@ -48,8 +75,8 @@ const initialSelectionState: SelectionState = {
     selectedContentType: 'vod',
     selectedCategoryId: null,
     selectedItem: null,
-    page: 0,
-    limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
+    visibleCount: CATALOG_INITIAL_WINDOW,
+    savedCatalogScroll: null,
     contentSortMode: 'date-desc',
     categorySearchTerm: '',
     minRating: null,
@@ -174,12 +201,12 @@ export const filterByMinRating = (
 };
 
 /**
- * Selection feature store for managing UI selection and pagination.
- * Handles:
+ * Selection feature store for managing UI selection and the infinite-scroll
+ * render window. Handles:
  * - Content type selection (live, vod, series)
  * - Category selection
  * - Item selection
- * - Pagination (page, limit)
+ * - Infinite-scroll window (visibleCount) + detail-round-trip scroll restore
  */
 export function withSelection() {
     return signalStoreFeature(
@@ -431,17 +458,13 @@ export function withSelection() {
                 }),
 
                 /**
-                 * Get paginated content for the selected category.
-                 * Slices from the stable `filteredAndSortedContent` intermediate so
-                 * page navigation never triggers a full re-sort of the array.
+                 * The visible slice of the selected category — the first
+                 * `visibleCount` items of the stable `filteredAndSortedContent`
+                 * intermediate, so growing the window never re-sorts the array.
                  */
-                getPaginatedContent: computed(() => {
-                    const start = store.page() * store.limit();
-                    return filteredAndSortedContent().slice(
-                        start,
-                        start + store.limit()
-                    );
-                }),
+                getPaginatedContent: computed(() =>
+                    filteredAndSortedContent().slice(0, store.visibleCount())
+                ),
 
                 /**
                  * Get all items from the selected category (without pagination).
@@ -453,11 +476,12 @@ export function withSelection() {
                 ),
 
                 /**
-                 * Get total pages for the selected category.
-                 * Derives length from the shared `filteredAndSortedContent` intermediate.
+                 * Whether the filtered list extends beyond the current render
+                 * window.
                  */
-                getTotalPages: computed(() =>
-                    Math.ceil(filteredAndSortedContent().length / store.limit())
+                hasMoreContent: computed(
+                    () =>
+                        filteredAndSortedContent().length > store.visibleCount()
                 ),
 
                 /**
@@ -518,7 +542,7 @@ export function withSelection() {
                 patchState(store, {
                     selectedContentType: type,
                     selectedCategoryId: null,
-                    page: 0,
+                    visibleCount: CATALOG_INITIAL_WINDOW,
                     categorySearchTerm: '',
                     minRating: null,
                 });
@@ -526,18 +550,18 @@ export function withSelection() {
 
             /**
              * Set the selected category
-             * Only resets page to 0 when category actually changes
+             * Only resets the render window when the category actually changes
              */
             setSelectedCategory(categoryId: number | null): void {
                 const newCategoryId =
                     categoryId !== null ? Number(categoryId) : null;
                 const currentCategoryId = store.selectedCategoryId();
 
-                // Only reset page if category actually changed
+                // Only reset the window if the category actually changed
                 if (currentCategoryId !== newCategoryId) {
                     patchState(store, {
                         selectedCategoryId: newCategoryId,
-                        page: 0,
+                        visibleCount: CATALOG_INITIAL_WINDOW,
                         categorySearchTerm: '',
                         // Clear the rating filter on category change too, mirroring
                         // categorySearchTerm and setSelectedContentType — otherwise a
@@ -569,18 +593,62 @@ export function withSelection() {
             },
 
             /**
-             * Set the current page
+             * Reveal the next chunk of the filtered list. No-op once the
+             * window already covers everything.
              */
-            setPage(page: number): void {
-                patchState(store, { page });
+            loadMoreContent(): void {
+                const total = store.selectItemsFromSelectedCategory().length;
+                if (store.visibleCount() >= total) {
+                    return;
+                }
+
+                patchState(store, {
+                    visibleCount: store.visibleCount() + CATALOG_WINDOW_CHUNK,
+                });
             },
 
             /**
-             * Set the page limit (items per page)
+             * Capture the grid scroll offset together with the selection
+             * coordinates it belongs to (single slot — a later save wins).
              */
-            setLimit(limit: number): void {
-                patchState(store, { limit });
-                localStorage.setItem('xtream-page-size', String(limit));
+            saveCatalogScrollState(scrollTop: number): void {
+                patchState(store, {
+                    savedCatalogScroll: {
+                        contentType: store.selectedContentType(),
+                        categoryId: store.selectedCategoryId(),
+                        searchTerm: store.categorySearchTerm(),
+                        sortMode: store.contentSortMode(),
+                        minRating: store.minRating(),
+                        visibleCount: store.visibleCount(),
+                        scrollTop,
+                    },
+                });
+            },
+
+            /**
+             * If the saved scroll state matches the current selection, restore
+             * its render window, clear the slot, and return the scroll offset
+             * to re-apply. Returns null (and keeps the slot) otherwise, so a
+             * detour through another category does not destroy the saved spot.
+             */
+            consumeCatalogScrollState(): number | null {
+                const saved = store.savedCatalogScroll();
+                if (
+                    !saved ||
+                    saved.contentType !== store.selectedContentType() ||
+                    saved.categoryId !== store.selectedCategoryId() ||
+                    saved.searchTerm !== store.categorySearchTerm() ||
+                    saved.sortMode !== store.contentSortMode() ||
+                    saved.minRating !== store.minRating()
+                ) {
+                    return null;
+                }
+
+                patchState(store, {
+                    visibleCount: saved.visibleCount,
+                    savedCatalogScroll: null,
+                });
+                return saved.scrollTop;
             },
 
             /**
@@ -592,7 +660,7 @@ export function withSelection() {
                 }
                 patchState(store, {
                     contentSortMode: mode,
-                    page: 0,
+                    visibleCount: CATALOG_INITIAL_WINDOW,
                 });
             },
 
@@ -607,7 +675,7 @@ export function withSelection() {
                 }
                 patchState(store, {
                     minRating: normalized,
-                    page: 0,
+                    visibleCount: CATALOG_INITIAL_WINDOW,
                 });
             },
 
@@ -621,7 +689,7 @@ export function withSelection() {
 
                 patchState(store, {
                     categorySearchTerm: term,
-                    page: 0,
+                    visibleCount: CATALOG_INITIAL_WINDOW,
                 });
             },
 
@@ -629,12 +697,7 @@ export function withSelection() {
              * Reset selection state
              */
             resetSelection(): void {
-                patchState(store, {
-                    ...initialSelectionState,
-                    limit: Number(
-                        localStorage.getItem('xtream-page-size') ?? 25
-                    ),
-                });
+                patchState(store, initialSelectionState);
             },
         }))
     );

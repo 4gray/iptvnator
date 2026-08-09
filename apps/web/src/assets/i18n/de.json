@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "Alle Sprachen",
             "SAME_AS_ABOVE": "wie oben",
             "SHOWING_OF_TOTAL": "{{visible}} von {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "Lade mehr…",
+            "LOAD_MORE_FAILED": "Weitere Einträge konnten nicht geladen werden",
+            "RETRY": "Erneut versuchen"
         }
     },
     "INFORMATION": "Information",

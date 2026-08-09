@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "Tüm diller",
             "SAME_AS_ABOVE": "üsttekiyle aynı",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "Daha fazla yükleniyor…",
+            "LOAD_MORE_FAILED": "Daha fazla öğe yüklenemedi",
+            "RETRY": "Yeniden dene"
         }
     },
     "INFORMATION": "Bilgi",

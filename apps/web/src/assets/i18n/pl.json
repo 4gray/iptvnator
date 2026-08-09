@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "Wszystkie języki",
             "SAME_AS_ABOVE": "tak samo jak wyżej",
             "SHOWING_OF_TOTAL": "{{visible}} z {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "Wczytywanie kolejnych…",
+            "LOAD_MORE_FAILED": "Nie udało się wczytać kolejnych pozycji",
+            "RETRY": "Ponów"
         }
     },
     "INFORMATION": "Informacje",

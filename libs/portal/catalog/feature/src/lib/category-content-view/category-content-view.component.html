@@ -204,7 +204,7 @@
                         }
                     </mat-menu>
                 }
-                @if (categoryItemCount() > 0) {
+                @if (!supportsInfiniteScroll && categoryItemCount() > 0) {
                     <mat-paginator
                         [pageIndex]="pageIndex()"
                         [length]="categoryItemCount()"
@@ -216,17 +216,20 @@
                 }
             </div>
             <app-grid-list
+                appInfiniteScroll
+                [infiniteHasMore]="infiniteHasMore()"
+                [infiniteAppending]="infiniteAppending()"
+                [infiniteItemCount]="contentWithProgress().length"
+                [infiniteResetKey]="gridResetKey()"
+                (infiniteLoadMore)="onLoadMore()"
                 [isLoading]="isPaginatedContentLoading()"
+                [isAppending]="infiniteAppending()"
+                [appendError]="infiniteAppendError()"
+                (retryLoadMore)="onRetryAppend()"
                 [items]="contentWithProgress()"
                 (itemClicked)="onItemClick($event)"
-                [pageIndex]="pageIndex()"
-                [totalPages]="totalPages()"
-                [limit]="limit()"
-                [pageSizeOptions]="pageSizeOptions"
-                [showPaginator]="false"
                 [searchTerm]="searchTerm()"
                 [type]="contentType() ?? ''"
-                (pageChange)="onPageChange($event)"
             />
         </div>
     }

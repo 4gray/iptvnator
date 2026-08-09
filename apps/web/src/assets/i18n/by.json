@@ -1074,6 +1074,11 @@
             "ALL_LANGUAGES": "Усе мовы",
             "SAME_AS_ABOVE": "як радком вышэй",
             "SHOWING_OF_TOTAL": "{{visible}} з {{total}}"
+        },
+        "GRID": {
+            "LOADING_MORE": "Загружаем яшчэ…",
+            "LOAD_MORE_FAILED": "Не атрымалася загрузіць больш элементаў",
+            "RETRY": "Паўтарыць"
         }
     },
     "INFORMATION": "Інфармацыя",
