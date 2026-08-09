@@ -131,6 +131,49 @@ describe('Stalker edited-session coordination', () => {
         service.cancelEditDiscovery(fence);
     });
 
+    it('blocks runtime authentication while portal repair discovery owns the playlist', async () => {
+        const repairFence = service.beginPortalRepairDiscovery(oldPlaylist._id);
+        await repairFence.drained;
+
+        const authentication = service.ensureToken(oldPlaylist);
+        for (let i = 0; i < 5; i += 1) {
+            await Promise.resolve();
+        }
+        expect(authenticate).not.toHaveBeenCalled();
+
+        service.completePortalRepairDiscovery(repairFence);
+        while (authenticate.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+        resolveOldAuthentication({ token: 'REPAIRED_TOKEN' });
+
+        await expect(authentication).resolves.toMatchObject({
+            token: 'REPAIRED_TOKEN',
+        });
+    });
+
+    it('drains authentication that started before portal repair discovery', async () => {
+        const authentication = service.ensureToken(oldPlaylist);
+        while (authenticate.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+
+        const repairFence = service.beginPortalRepairDiscovery(oldPlaylist._id);
+        let drained = false;
+        void repairFence.drained.then(() => {
+            drained = true;
+        });
+        await Promise.resolve();
+        expect(drained).toBe(false);
+
+        resolveOldAuthentication({ token: 'PRE_REPAIR_TOKEN' });
+        await expect(authentication).rejects.toThrow(/stale/i);
+        await repairFence.drained;
+        expect(drained).toBe(true);
+
+        service.completePortalRepairDiscovery(repairFence);
+    });
+
     it('rejects an overlapping edit without retiring the first owner', async () => {
         const firstFence = await service.beginEditDiscovery(oldPlaylist);
 

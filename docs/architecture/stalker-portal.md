@@ -261,7 +261,12 @@ may probe when it fails, while every already-probed one stays latched for
 the session. Before an unrecorded probe makes any portal request, it verifies
 that the persisted row still carries the failing source; a request that failed
 late after Edit committed is declined before discovery can authenticate against
-the old portal and invalidate the edited session. Repair persists only a
+the old portal and invalidate the edited session. A repair installs a
+per-playlist authentication fence before probing, drains authentication that
+already owns the runtime token slot, and makes request routing wait before it
+chooses the effective connection. The fence normally ends with the repair; an
+abandoned authentication keeps both it and `pendingRepairs` alive until the
+transport settles. Repair persists only a
 configuration discovery has proven to answer, and only when it differs from the
 failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
@@ -762,8 +767,10 @@ session that looks established and dies later. It costs nothing in the normal
 case: an aborted attempt settles as soon as its in-flight request errors out,
 so the drain returns at once and the loop continues. Edit may return that
 bounded error to the dialog, but its session and repair fences remain installed
-until the settlement promise resolves; catalog, watchdog, repair and retry
-authentication therefore cannot race the abandoned `get_profile`.
+until the settlement promise resolves. Import reports the refusal immediately
+but keeps Add and the form disabled for the same lifetime. Lazy repair retains
+its pending/runtime-authentication fences. Catalog, watchdog, repair, Add and
+retry authentication therefore cannot race the abandoned `get_profile`.
 
 The budget itself covers the longest real flow: a status-2 portal costs four
 sequential requests (handshake, profile, `do_auth`, profile retry) and the

@@ -13,6 +13,8 @@ import { StalkerSessionService } from '../../stalker-session.service';
  * at the lib root and depend on these utils without a cycle.
  */
 export interface StalkerPortalRepairApi {
+    /** Waits until repair can no longer change the effective connection. */
+    waitForPendingRepair?(playlistId: string): Promise<void>;
     /** Applies a completed repair; returns the SAME reference when no-op. */
     applyOverride<T extends PlaylistMeta>(playlist: T): T;
     /** Whether this failure shape justifies probing the portal at all. */
@@ -70,6 +72,8 @@ export async function ensureStalkerSession(
         return false;
     }
 
+    await deps.portalRepair?.waitForPendingRepair?.(playlist._id);
+
     // The repair override is applied here for the same reason
     // `executeStalkerRequest` applies it on its first line: a completed repair
     // may have moved the endpoint or the mode while the caller still holds the
@@ -86,9 +90,7 @@ export async function ensureStalkerSession(
         // `ensureToken` is also the post-Edit configuration guard. For a
         // simple portal it returns immediately with no token and no network
         // request, but still rejects a snapshot whose observed mode is stale.
-        return isFullStalkerPortalPlaylist(effective)
-            ? Boolean(token)
-            : true;
+        return isFullStalkerPortalPlaylist(effective) ? Boolean(token) : true;
     } catch (error) {
         logger?.warn('Could not establish the Stalker session', error);
         return false;
@@ -169,6 +171,7 @@ export async function executeStalkerRequest<T>(
     playlist: PlaylistMeta,
     params: Record<string, string | number>
 ): Promise<T> {
+    await deps.portalRepair?.waitForPendingRepair?.(playlist._id);
     const effective = deps.portalRepair
         ? deps.portalRepair.applyOverride(playlist)
         : playlist;

@@ -18,6 +18,7 @@ describe('StalkerAccountInfoService', () => {
         ensureToken: jest.Mock;
     };
     let portalRepair: {
+        waitForPendingRepair: jest.Mock;
         applyOverride: jest.Mock;
         shouldAttemptRepair: jest.Mock;
         repairPortal: jest.Mock;
@@ -48,6 +49,7 @@ describe('StalkerAccountInfoService', () => {
             ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
         portalRepair = {
+            waitForPendingRepair: jest.fn().mockResolvedValue(undefined),
             applyOverride: jest.fn((playlist) => playlist),
             shouldAttemptRepair: jest.fn().mockReturnValue(false),
             repairPortal: jest.fn().mockResolvedValue(null),
@@ -123,9 +125,7 @@ describe('StalkerAccountInfoService', () => {
         expect(portalRepair.repairPortal).toHaveBeenCalledWith(
             fullPortalPlaylist
         );
-        expect(
-            stalkerSession.refreshAccountProfile
-        ).toHaveBeenLastCalledWith(
+        expect(stalkerSession.refreshAccountProfile).toHaveBeenLastCalledWith(
             expect.objectContaining({ portalUrl: repaired.portalUrl })
         );
         expect(snapshot).toMatchObject({ login: 'user-1' });
@@ -276,9 +276,9 @@ describe('StalkerAccountInfoService', () => {
         const boom = new Error('timeout of 15000ms exceeded');
         stalkerSession.refreshAccountProfile.mockRejectedValue(boom);
 
-        await expect(
-            service.fetchAccountInfo(fullPortalPlaylist)
-        ).rejects.toBe(boom);
+        await expect(service.fetchAccountInfo(fullPortalPlaylist)).rejects.toBe(
+            boom
+        );
         expect(portalRepair.repairPortal).not.toHaveBeenCalled();
     });
 
@@ -408,9 +408,9 @@ describe('StalkerAccountInfoService', () => {
     it('propagates portal errors so the dialog can fall back to cached data', async () => {
         dataService.sendIpcEvent.mockRejectedValue(new Error('offline'));
 
-        await expect(
-            service.fetchAccountInfo(portalPlaylist)
-        ).rejects.toThrow('offline');
+        await expect(service.fetchAccountInfo(portalPlaylist)).rejects.toThrow(
+            'offline'
+        );
     });
 });
 

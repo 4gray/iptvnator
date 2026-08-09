@@ -26,6 +26,10 @@ import { StalkerAuthenticatedRequestClient } from './stalker-authenticated-reque
 import { StalkerEditedSessionCoordinator } from './stalker-edited-session-coordinator';
 import type { StalkerEditFence } from './stalker-edited-session-coordinator';
 import {
+    StalkerPortalRepairDiscoveryCoordinator,
+    type StalkerPortalRepairDiscoveryFence,
+} from './stalker-portal-repair-discovery-coordinator';
+import {
     stalkerSessionFingerprint,
     StalkerSessionStore,
     type PersistedStalkerSession,
@@ -40,6 +44,7 @@ export {
 };
 export type { StalkerPortalIdentity };
 export type { StalkerEditFence };
+export type { StalkerPortalRepairDiscoveryFence };
 export type {
     StalkerAuthenticateOptions,
     StalkerAuthenticationResult,
@@ -76,6 +81,12 @@ export class StalkerSessionService {
         this.dataService,
         this.logger
     );
+    readonly performHandshake = this.authApi.performHandshake.bind(
+        this.authApi
+    );
+    readonly getProfile = this.authApi.getProfile.bind(this.authApi);
+    readonly doAuth = this.authApi.doAuth.bind(this.authApi);
+    readonly authenticate = this.authApi.authenticate.bind(this.authApi);
     private readonly sessionStore = new StalkerSessionStore(
         () => this.injector.get(PlaylistsService),
         this.logger
@@ -96,12 +107,16 @@ export class StalkerSessionService {
         this.watchdog,
         () => this.injector.get(PlaylistsService)
     );
+    private readonly portalRepairDiscoveries =
+        new StalkerPortalRepairDiscoveryCoordinator(this.tokens);
     private readonly requestClient = new StalkerAuthenticatedRequestClient(
         this.dataService,
         this.tokens,
         (playlist) => this.ensureToken(playlist),
-        (playlist, sessionFingerprint) =>
-            this.editedSessions.assertCurrent(playlist, sessionFingerprint)
+        (playlist, sessionFingerprint) => {
+            this.portalRepairDiscoveries.assertAvailable(playlist._id);
+            this.editedSessions.assertCurrent(playlist, sessionFingerprint);
+        }
     );
 
     /**
@@ -242,6 +257,24 @@ export class StalkerSessionService {
         return this.editedSessions.beginEdit(playlist);
     }
 
+    /**
+     * Blocks new runtime authentication while lazy repair probes this
+     * playlist, and snapshots authentication that was already in flight so
+     * repair can drain it before issuing its own profile request.
+     */
+    beginPortalRepairDiscovery(
+        playlistId: string
+    ): StalkerPortalRepairDiscoveryFence {
+        return this.portalRepairDiscoveries.begin(playlistId);
+    }
+
+    /** Releases the exact lazy-repair authentication owner. */
+    completePortalRepairDiscovery(
+        fence: StalkerPortalRepairDiscoveryFence
+    ): void {
+        this.portalRepairDiscoveries.complete(fence);
+    }
+
     /** Releases a discovery reservation whose result will not be saved. */
     cancelEditDiscovery(fence: StalkerEditFence): void {
         this.editedSessions.cancelEdit(fence);
@@ -259,86 +292,6 @@ export class StalkerSessionService {
     }
 
     /**
-     * Performs handshake to get a session token for a full stalker portal.
-     * An optional persisted token is re-presented: the handshake is
-     * idempotent, so a still-valid token comes back unchanged.
-     */
-    performHandshake(
-        portalUrl: string,
-        macAddress: string,
-        identity: StalkerPortalIdentity = {},
-        storedToken?: string
-    ): Promise<{ token: string; random: string; notValid: boolean }> {
-        return this.authApi.performHandshake(
-            portalUrl,
-            macAddress,
-            identity,
-            storedToken
-        );
-    }
-
-    /**
-     * Gets account profile information to validate the portal and check
-     * subscription.
-     */
-    getProfile(
-        portalUrl: string,
-        macAddress: string,
-        token: string,
-        identity: StalkerPortalIdentity,
-        handshakeRandom: string,
-        options: { authSecondStep?: boolean; notValidToken?: boolean } = {}
-    ): Promise<StalkerProfileResponse> {
-        return this.authApi.getProfile(
-            portalUrl,
-            macAddress,
-            token,
-            identity,
-            handshakeRandom,
-            options
-        );
-    }
-
-    /**
-     * Performs do_auth — the login/password step behind get_profile status 2.
-     */
-    doAuth(
-        portalUrl: string,
-        macAddress: string,
-        token: string,
-        credentials: StalkerPortalCredentials,
-        identity: StalkerPortalIdentity = {}
-    ): Promise<boolean> {
-        return this.authApi.doAuth(
-            portalUrl,
-            macAddress,
-            token,
-            credentials,
-            identity
-        );
-    }
-
-    /**
-     * Performs the full authentication flow: handshake → get_profile, driving
-     * the status-2 `do_auth` login flow when the portal demands credentials.
-     * Throws `StalkerPortalError` with the portal's own `msg`/`block_msg`
-     * text when the portal refuses the session.
-     */
-    authenticate(
-        portalUrl: string,
-        macAddress: string,
-        identity: StalkerPortalIdentity = {},
-        options: StalkerAuthenticateOptions = {}
-    ): Promise<StalkerAuthenticationResult> {
-        return this.authApi.authenticate(
-            portalUrl,
-            macAddress,
-            identity,
-            options
-        );
-    }
-
-    /**
      * Ensures a valid token exists for a playlist, performing auth if needed.
      * A previously persisted token is re-presented in the handshake first —
      * while it is still the MAC's session token the portal returns it
@@ -348,7 +301,14 @@ export class StalkerSessionService {
     async ensureToken(
         playlist: Playlist
     ): Promise<{ token: string | null; serialNumber?: string }> {
+        const pendingRepair = this.portalRepairDiscoveries.waitIfPending(
+            playlist._id
+        );
+        if (pendingRepair) {
+            await pendingRepair;
+        }
         const fingerprint = await this.editedSessions.guard(playlist);
+        this.portalRepairDiscoveries.assertAvailable(playlist._id);
 
         // If not a full stalker portal, no token needed
         if (!isFullStalkerPortalPlaylist(playlist)) {
@@ -409,6 +369,10 @@ export class StalkerSessionService {
                     playlist,
                     fingerprint
                 );
+                // Repair may have claimed the playlist while the persisted
+                // session read yielded. Its fence will drain this published
+                // slot; abort before putting another get_profile on the wire.
+                this.portalRepairDiscoveries.assertAvailable(playlist._id);
                 const result = await this.authenticate(
                     portalUrl,
                     macAddress,
@@ -429,6 +393,7 @@ export class StalkerSessionService {
                             stored.watchdogTimeoutSeconds !== undefined,
                     }
                 );
+                this.portalRepairDiscoveries.assertAvailable(playlist._id);
                 this.editedSessions.assertCurrent(playlist, fingerprint);
                 this.setCachedToken(playlist._id, result.token, playlist);
                 this.applySessionOutcome(
@@ -474,6 +439,12 @@ export class StalkerSessionService {
             throw new Error('Portal URL and MAC address are required');
         }
 
+        const pendingRepair = this.portalRepairDiscoveries.waitIfPending(
+            playlist._id
+        );
+        if (pendingRepair) {
+            await pendingRepair;
+        }
         const portalUrl = playlist.portalUrl;
         const macAddress = playlist.macAddress;
         const identity = getStalkerPortalIdentityFromPlaylist(playlist);
@@ -481,6 +452,7 @@ export class StalkerSessionService {
         // identity-only in-run key would hand the cached bearer token to a
         // freshly edited endpoint before the persisted check ever ran.
         const fingerprint = await this.editedSessions.guard(playlist);
+        this.portalRepairDiscoveries.assertAvailable(playlist._id);
 
         // Claim the per-playlist slot. Re-check after every await: one
         // settled promise releases every waiter at once, so a single
@@ -495,6 +467,7 @@ export class StalkerSessionService {
             // performs its own handshake either way.
             await inFlight.promise.catch(() => undefined);
         }
+        this.portalRepairDiscoveries.assertAvailable(playlist._id);
         this.editedSessions.assertCurrent(playlist, fingerprint);
 
         // Publish the slot before the first await so no other waiter can
@@ -536,6 +509,7 @@ export class StalkerSessionService {
                     },
                 }
             );
+            this.portalRepairDiscoveries.assertAvailable(playlist._id);
             this.editedSessions.assertCurrent(playlist, fingerprint);
             this.setCachedToken(playlist._id, result.token, playlist);
             // This path always ran a real get_profile, so the decoded cadence

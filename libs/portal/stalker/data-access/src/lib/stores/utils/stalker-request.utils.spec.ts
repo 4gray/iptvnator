@@ -173,12 +173,49 @@ describe('executeStalkerRequest lazy portal repair', () => {
         overrides: Partial<StalkerPortalRepairApi> = {}
     ): StalkerPortalRepairApi {
         return {
+            waitForPendingRepair: jest.fn().mockResolvedValue(undefined),
             applyOverride: jest.fn((playlist) => playlist),
             shouldAttemptRepair: jest.fn().mockReturnValue(false),
             repairPortal: jest.fn().mockResolvedValue(null),
             ...overrides,
         } as StalkerPortalRepairApi;
     }
+
+    it('waits for a pending repair before choosing the effective connection', async () => {
+        const deps = createDeps();
+        let releaseRepair: () => void = () => undefined;
+        const repairSettled = new Promise<void>((resolve) => {
+            releaseRepair = resolve;
+        });
+        const repaired = {
+            ...PLAYLIST,
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        const repair = createRepair({
+            waitForPendingRepair: jest.fn(() => repairSettled),
+            applyOverride: jest.fn().mockReturnValue(repaired),
+        });
+        deps.portalRepair = repair;
+
+        const request = executeStalkerRequest(deps, PLAYLIST, CATEGORY_PARAMS);
+        await Promise.resolve();
+
+        expect(repair.applyOverride).not.toHaveBeenCalled();
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).not.toHaveBeenCalled();
+
+        releaseRepair();
+        await request;
+
+        expect(repair.applyOverride).toHaveBeenCalledWith(PLAYLIST);
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ isFullStalkerPortal: true }),
+            CATEGORY_PARAMS
+        );
+    });
 
     it('retries once against the repaired configuration after an auth-failure body', async () => {
         const deps = createDeps();
@@ -258,9 +295,7 @@ describe('executeStalkerRequest lazy portal repair', () => {
 
         await executeStalkerRequest(deps, PLAYLIST, CATEGORY_PARAMS);
 
-        expect(
-            deps.stalkerSession.makeAuthenticatedRequest
-        ).toHaveBeenCalled();
+        expect(deps.stalkerSession.makeAuthenticatedRequest).toHaveBeenCalled();
         expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 

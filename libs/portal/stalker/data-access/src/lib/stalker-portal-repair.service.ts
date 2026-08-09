@@ -16,7 +16,10 @@ import {
     getStalkerPortalIdentityFromPlaylist,
     stalkerIdentityFingerprint,
 } from './stalker-identity.utils';
-import { StalkerSessionService } from './stalker-session.service';
+import {
+    StalkerSessionService,
+    type StalkerPortalRepairDiscoveryFence,
+} from './stalker-session.service';
 import {
     type StalkerPortalRepairApi,
     toStalkerSessionPlaylist,
@@ -346,16 +349,25 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         // produced override or the 'discarded' marker.
         history.set(fingerprint, 'no-change');
         this.probeHistory.set(playlistId, history);
-        const run = this.runRepair(
-            playlist,
-            this.editGenerations.get(playlistId) ?? 0
+        const authenticationFence: StalkerPortalRepairDiscoveryFence =
+            this.stalkerSession.beginPortalRepairDiscovery(playlistId);
+        const run = authenticationFence.drained.then(() =>
+            this.runRepair(playlist, this.editGenerations.get(playlistId) ?? 0)
         );
         this.pendingRepairs.set(playlistId, run);
         try {
             return await run;
         } finally {
             this.pendingRepairs.delete(playlistId);
+            this.stalkerSession.completePortalRepairDiscovery(
+                authenticationFence
+            );
         }
+    }
+
+    /** Lets request routing choose its effective row after repair settles. */
+    async waitForPendingRepair(playlistId: string): Promise<void> {
+        await this.pendingRepairs.get(playlistId)?.catch(() => null);
     }
 
     /**
@@ -420,6 +432,17 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             this.logger.info(
                 `Portal probe found no working configuration (${outcome.status}); leaving playlist untouched`
             );
+            if (
+                outcome.status === 'auth-rejected' &&
+                outcome.abandonedInFlight
+            ) {
+                // Returning the repair would release its session fence. The
+                // transport can outlive discovery's bounded error, so hold
+                // every runtime authenticator until the old get_profile has
+                // actually settled. Missing lifetime evidence fails closed.
+                await (outcome.abandonedAuthenticationSettled ??
+                    new Promise<void>(() => undefined));
+            }
             return null;
         }
 

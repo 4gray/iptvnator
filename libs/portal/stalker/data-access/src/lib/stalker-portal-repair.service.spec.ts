@@ -39,6 +39,8 @@ describe('StalkerPortalRepairService', () => {
     let adoptDiscoveredSimplePortal: jest.Mock;
     let clearCachedToken: jest.Mock;
     let refreshActiveWatchdogPlaylist: jest.Mock;
+    let beginPortalRepairDiscovery: jest.Mock;
+    let completePortalRepairDiscovery: jest.Mock;
 
     beforeEach(() => {
         discover = jest.fn();
@@ -67,6 +69,12 @@ describe('StalkerPortalRepairService', () => {
         adoptDiscoveredSimplePortal = jest.fn();
         clearCachedToken = jest.fn();
         refreshActiveWatchdogPlaylist = jest.fn();
+        beginPortalRepairDiscovery = jest.fn((playlistId: string) => ({
+            playlistId,
+            owner: Symbol('portal-repair'),
+            drained: Promise.resolve(),
+        }));
+        completePortalRepairDiscovery = jest.fn();
 
         TestBed.configureTestingModule({
             providers: [
@@ -89,6 +97,8 @@ describe('StalkerPortalRepairService', () => {
                         adoptDiscoveredSimplePortal,
                         clearCachedToken,
                         refreshActiveWatchdogPlaylist,
+                        beginPortalRepairDiscovery,
+                        completePortalRepairDiscovery,
                     },
                 },
             ],
@@ -290,6 +300,49 @@ describe('StalkerPortalRepairService', () => {
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
             expect(writtenRow).toBeNull();
+        });
+
+        it('keeps repair authentication fenced until an abandoned attempt settles', async () => {
+            let settleAuthentication: () => void = () => undefined;
+            const abandonedAuthenticationSettled = new Promise<void>(
+                (resolve) => {
+                    settleAuthentication = resolve;
+                }
+            );
+            discover.mockResolvedValue({
+                status: 'auth-rejected',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                abandonedInFlight: true,
+                abandonedAuthenticationSettled,
+            });
+
+            const repair = service.repairPortal(MISCLASSIFIED);
+            while (discover.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            let repairSettled = false;
+            void repair.then(() => {
+                repairSettled = true;
+            });
+            for (let i = 0; i < 5; i += 1) {
+                await Promise.resolve();
+            }
+
+            expect(repairSettled).toBe(false);
+            expect(beginPortalRepairDiscovery).toHaveBeenCalledWith(
+                MISCLASSIFIED._id
+            );
+            expect(completePortalRepairDiscovery).not.toHaveBeenCalled();
+
+            const waitingForRepair = service.waitForPendingRepair(
+                MISCLASSIFIED._id
+            );
+            settleAuthentication();
+            await expect(repair).resolves.toBeNull();
+            await expect(waitingForRepair).resolves.toBeUndefined();
+            expect(completePortalRepairDiscovery).toHaveBeenCalledWith(
+                expect.objectContaining({ playlistId: MISCLASSIFIED._id })
+            );
         });
 
         it('discards a repair whose credentials changed while probing', async () => {

@@ -313,6 +313,47 @@ describe('StalkerPortalImportComponent identity handling', () => {
         expect(store.dispatch).not.toHaveBeenCalled();
     });
 
+    it('keeps Add disabled until an abandoned authentication settles', async () => {
+        let settleAuthentication: () => void = () => undefined;
+        const abandonedAuthenticationSettled = new Promise<void>((resolve) => {
+            settleAuthentication = resolve;
+        });
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'auth-rejected',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+            abandonedInFlight: true,
+            abandonedAuthenticationSettled,
+        });
+        component.form.patchValue({
+            _id: 'playlist-abandoned',
+            title: 'Slow Portal',
+            macAddress: '00:1A:79:00:00:08',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        const importing = component.addPlaylist();
+        while (portalDiscovery.discover.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+        for (let i = 0; i < 5; i += 1) {
+            await Promise.resolve();
+        }
+
+        expect(component.isLoading()).toBe(true);
+        expect(component.form.controls.portalUrl.disabled).toBe(true);
+        await component.addPlaylist();
+        expect(portalDiscovery.discover).toHaveBeenCalledTimes(1);
+        expect(store.dispatch).not.toHaveBeenCalled();
+
+        settleAuthentication();
+        await importing;
+
+        expect(component.isLoading()).toBe(false);
+        expect(component.form.controls.portalUrl.enabled).toBe(true);
+    });
+
     it("appends the portal's explanation to a blocked refusal", async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'auth-rejected',

@@ -433,6 +433,14 @@ export class StalkerPortalImportComponent {
                     undefined,
                     { duration: 8000 }
                 );
+                if (discovery.abandonedInFlight) {
+                    // The bounded error may arrive while get_profile is still
+                    // on the wire. Keep Add and every identity field locked
+                    // until it leaves the transport, or an immediate retry
+                    // could establish a token that this late attempt revokes.
+                    await (discovery.abandonedAuthenticationSettled ??
+                        new Promise<void>(() => undefined));
+                }
                 return;
             } else if (
                 isFullStalkerPortalUrl(
