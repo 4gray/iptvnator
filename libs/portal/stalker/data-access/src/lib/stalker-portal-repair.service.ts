@@ -192,6 +192,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             if (
                 matches &&
                 !this.editGenerationChanged(playlist._id, editGeneration) &&
+                !this.editFenceCounts.has(playlist._id) &&
                 this.overrides.get(playlist._id) === override
             ) {
                 this.dropOverride(playlist._id);
