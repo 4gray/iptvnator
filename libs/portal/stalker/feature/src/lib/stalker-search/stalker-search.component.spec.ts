@@ -274,6 +274,12 @@ describe('StalkerSearchComponent playback session key', () => {
 
 describe('StalkerSearchComponent result paging', () => {
     let component: StalkerSearchComponent;
+    const activePlaylist = signal({
+        _id: 'playlist|one',
+        title: 'Search portal',
+        portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+        macAddress: '00:1A:79:00:00:01',
+    });
 
     function searchItems(prefix: string, count: number) {
         return Array.from({ length: count }, (_, index) => ({
@@ -283,6 +289,12 @@ describe('StalkerSearchComponent result paging', () => {
     }
 
     beforeEach(() => {
+        activePlaylist.set({
+            _id: 'playlist|one',
+            title: 'Search portal',
+            portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+            macAddress: '00:1A:79:00:00:01',
+        });
         TestBed.configureTestingModule({
             providers: [
                 {
@@ -300,15 +312,7 @@ describe('StalkerSearchComponent result paging', () => {
                 { provide: DataService, useValue: {} },
                 {
                     provide: PlaylistContextFacade,
-                    useValue: {
-                        activePlaylist: signal({
-                            _id: 'playlist|one',
-                            title: 'Search portal',
-                            portalUrl:
-                                'http://demo.example/stalker_portal/server/load.php',
-                            macAddress: '00:1A:79:00:00:01',
-                        }),
-                    },
+                    useValue: { activePlaylist },
                 },
                 {
                     provide: PlaylistsService,
@@ -432,5 +436,32 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchResults()).toHaveLength(0);
         expect(component.searchHasMore()).toBe(false);
         expect(component.searchAppendError()).toBe(false);
+    });
+
+    it('resets paging when the active playlist changes on a reused route', () => {
+        // Regression: /stalker/A/search -> /stalker/B/search reuses the
+        // component; a surviving page number would append portal B's later
+        // page onto portal A's results and skip B's first page.
+        Object.defineProperty(component, 'searchResultsResource', {
+            configurable: true,
+            value: { isLoading: () => false, reload: jest.fn(() => true) },
+        });
+        component.applySearchPageSuccess(
+            1,
+            searchItems('portalA', 3),
+            6
+        );
+        component.loadMoreSearchResults();
+        expect(component.searchPage()).toBe(2);
+
+        activePlaylist.set({
+            _id: 'playlist|two',
+            title: 'Other portal',
+            portalUrl: 'http://other.example/stalker_portal/server/load.php',
+            macAddress: '00:1A:79:00:00:02',
+        });
+
+        expect(component.searchPage()).toBe(1);
+        expect(component.searchScrollResetKey()).toContain('playlist|two');
     });
 });

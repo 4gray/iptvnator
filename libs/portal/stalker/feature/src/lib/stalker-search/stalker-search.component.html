@@ -9,7 +9,7 @@
     [nearEndHasMore]="searchHasMore()"
     [nearEndAppending]="isAppendingSearchResults()"
     [nearEndRenderedCount]="resultsCount"
-    [nearEndResetKey]="searchTerm() + '|' + selectedFilterType()"
+    [nearEndResetKey]="searchScrollResetKey()"
     (searchTermChange)="updateSearchTerm($event)"
     (backClick)="goBack()"
     (nearEnd)="loadMoreSearchResults()"

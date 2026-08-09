@@ -195,11 +195,18 @@ export class StalkerSearchComponent {
         () => this.favoritesRefresh.refreshVersion()
     );
 
-    /** Portal page for the current term+filter; resets on either changing. */
+    /**
+     * Portal page for the current term+filter+portal; resets when any of
+     * them changes. The playlist belongs to the identity: Angular reuses the
+     * search route across `/stalker/A/search` -> `/stalker/B/search`, and a
+     * surviving page number would append portal B's later page onto portal
+     * A's accumulated results while skipping B's first page.
+     */
     readonly searchPage = linkedSignal({
         source: () => ({
             term: this.searchTerm(),
             type: this.selectedFilterType(),
+            playlistId: this.currentPlaylist()?._id ?? null,
         }),
         computation: () => 1,
     });
@@ -218,6 +225,7 @@ export class StalkerSearchComponent {
             contentType: this.selectedFilterType(),
             search: this.searchTerm(),
             page: this.searchPage(),
+            playlistId: this.currentPlaylist()?._id ?? null,
             action: StalkerPortalActions.GetOrderedList,
         }),
         loader: async ({ params }) => {
@@ -251,12 +259,13 @@ export class StalkerSearchComponent {
                 ...(contentType === 'vod' ? { genre: '0' } : {}),
             };
 
-            // A stale response (term/filter/page moved on while this page
-            // was in flight) must not clobber the accumulated list.
+            // A stale response (term/filter/page/portal moved on while this
+            // page was in flight) must not clobber the accumulated list.
             const isCurrent = (): boolean =>
                 params.search === this.searchTerm() &&
                 params.contentType === this.selectedFilterType() &&
-                params.page === this.searchPage();
+                params.page === this.searchPage() &&
+                params.playlistId === (this.currentPlaylist()?._id ?? null);
 
             try {
                 // executeStalkerRequest owns the portal-mode decision (shared
@@ -339,6 +348,18 @@ export class StalkerSearchComponent {
         this.searchAppendError.set(true);
         return this.accumulatedSearchResults();
     }
+
+    /**
+     * Result-set identity for the layout's near-end latch and auto-fill
+     * budget — term, filter, and portal, mirroring the paging identity.
+     */
+    readonly searchScrollResetKey = computed(() =>
+        [
+            this.searchTerm(),
+            this.selectedFilterType(),
+            this.currentPlaylist()?._id ?? '',
+        ].join('|')
+    );
 
     readonly isInitialSearchLoading = computed(
         () => this.searchResultsResource.isLoading() && this.searchPage() === 1
