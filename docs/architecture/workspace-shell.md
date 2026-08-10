@@ -313,7 +313,8 @@ Toolchain notes for the Electron 41 upgrade:
 2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
    `@electron/rebuild` (via `electron-builder install-app-deps`) can map
    Electron 41 to its ABI.
-3. Local development needs **Node >= 22.13**, declared in `engines`.
+3. Local development supports **Node 22.13–22.x or Node >= 24**, declared in
+   `engines` as `^22.13.0 || >=24.0.0`.
    The direct `@faker-js/faker` dependency and current lint tooling require
    that floor. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
    which requires Node 22.12 or newer, and the root `postinstall` runs
