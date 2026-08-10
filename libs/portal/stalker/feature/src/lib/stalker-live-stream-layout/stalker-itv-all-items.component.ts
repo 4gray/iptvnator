@@ -5,28 +5,33 @@ import {
     input,
     linkedSignal,
     output,
-    signal,
 } from '@angular/core';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
-import { GridListComponent } from '@iptvnator/portal/shared/ui';
+import {
+    GridListComponent,
+    InfiniteScrollDirective,
+} from '@iptvnator/portal/shared/ui';
 import {
     StalkerItvChannel,
     StalkerItvLoadProgress,
 } from '@iptvnator/portal/stalker/data-access';
 
+/** Initial render window and per-`loadMore` growth over the cached list. */
+const RENDER_CHUNK = 50;
+
 /**
  * "All channels" grid shown in the Live TV main area before a category is
  * selected — mirrors the Xtream live "All Items" view. Fed by the full ITV
- * channel list cache; pagination is purely client-side so it never touches the
- * store's legacy page state (which would re-fire portal requests).
+ * channel list cache; the render window is purely client-side so growing it
+ * never touches the store's legacy page state (which would re-fire portal
+ * requests).
  */
 @Component({
     selector: 'app-stalker-itv-all-items',
     imports: [
         GridListComponent,
-        MatPaginatorModule,
+        InfiniteScrollDirective,
         MatProgressSpinnerModule,
         TranslatePipe,
     ],
@@ -60,23 +65,16 @@ import {
                     >
                 }
             </div>
-            @if (!loading() && filteredChannels().length > 0) {
-                <mat-paginator
-                    [pageIndex]="pageIndex()"
-                    [length]="filteredChannels().length"
-                    [pageSize]="pageSize()"
-                    [pageSizeOptions]="pageSizeOptions"
-                    (page)="onPageChange($event)"
-                    aria-label="Select page"
-                />
-            }
         </div>
         <app-grid-list
             class="all-items-grid app-scrollbar"
+            appInfiniteScroll
+            [infiniteHasMore]="hasMoreItems()"
+            [infiniteItemCount]="visibleGridItems().length"
+            [infiniteResetKey]="searchTerm()"
+            (infiniteLoadMore)="loadMore()"
             [isLoading]="loading()"
-            [items]="pagedGridItems()"
-            [limit]="pageSize()"
-            [showPaginator]="false"
+            [items]="visibleGridItems()"
             [searchTerm]="searchTerm()"
             [variant]="'logo'"
             [type]="'live'"
@@ -93,15 +91,13 @@ export class StalkerItvAllItemsComponent {
 
     readonly channelActivated = output<StalkerItvChannel>();
 
-    readonly pageSizeOptions = [10, 25, 50, 100];
-    readonly pageSize = signal(25);
-    /** Resets to the first page whenever the source list or search changes. */
-    readonly pageIndex = linkedSignal({
+    /** Resets to the first chunk whenever the source list or search changes. */
+    readonly renderLimit = linkedSignal({
         source: () => ({
             term: this.searchTerm(),
             channelCount: this.channels().length,
         }),
-        computation: () => 0,
+        computation: () => RENDER_CHUNK,
     });
 
     readonly filteredChannels = computed(() => {
@@ -118,11 +114,14 @@ export class StalkerItvAllItemsComponent {
         );
     });
 
-    /** The current page, mapped so GridListComponent can resolve the logo. */
-    readonly pagedGridItems = computed(() => {
-        const start = this.pageIndex() * this.pageSize();
-        return this.filteredChannels()
-            .slice(start, start + this.pageSize())
+    readonly hasMoreItems = computed(
+        () => this.filteredChannels().length > this.renderLimit()
+    );
+
+    /** The visible window, mapped so GridListComponent can resolve the logo. */
+    readonly visibleGridItems = computed(() =>
+        this.filteredChannels()
+            .slice(0, this.renderLimit())
             .map((channel) => {
                 // GridListItem forbids null is_series; Stalker payloads may
                 // carry it — drop the nullish form (same as toPlayableChannel).
@@ -132,12 +131,15 @@ export class StalkerItvAllItemsComponent {
                     ...(is_series == null ? {} : { is_series }),
                     stream_icon: channel.logo,
                 };
-            });
-    });
+            })
+    );
 
-    onPageChange(event: PageEvent): void {
-        this.pageSize.set(event.pageSize);
-        this.pageIndex.set(event.pageIndex);
+    loadMore(): void {
+        if (!this.hasMoreItems()) {
+            return;
+        }
+
+        this.renderLimit.update((limit) => limit + RENDER_CHUNK);
     }
 
     onItemClicked(item: unknown): void {

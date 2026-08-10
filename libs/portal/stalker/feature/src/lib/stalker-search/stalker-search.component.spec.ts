@@ -5,7 +5,7 @@ import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -269,5 +269,267 @@ describe('StalkerSearchComponent playback session key', () => {
         await fixture.whenStable();
 
         expect(fixture.componentInstance.inlinePlayback()).toBe(playback);
+    });
+});
+
+describe('StalkerSearchComponent result paging', () => {
+    let component: StalkerSearchComponent;
+    const activePlaylist = signal({
+        _id: 'playlist|one',
+        title: 'Search portal',
+        portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+        macAddress: '00:1A:79:00:00:01',
+    });
+
+    function searchItems(prefix: string, count: number) {
+        return Array.from({ length: count }, (_, index) => ({
+            id: `${prefix}-${index + 1}`,
+            name: `${prefix} ${index + 1}`,
+        }));
+    }
+
+    beforeEach(() => {
+        activePlaylist.set({
+            _id: 'playlist|one',
+            title: 'Search portal',
+            portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+            macAddress: '00:1A:79:00:00:01',
+        });
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        queryParamMap: of(convertToParamMap({})),
+                        snapshot: {
+                            data: {},
+                            queryParamMap: convertToParamMap({}),
+                            routeConfig: { path: 'search' },
+                        },
+                    },
+                },
+                { provide: Location, useValue: { back: jest.fn() } },
+                { provide: DataService, useValue: {} },
+                {
+                    provide: PlaylistContextFacade,
+                    useValue: { activePlaylist },
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: { getPortalFavorites: () => of([]) },
+                },
+                {
+                    provide: StalkerStore,
+                    useValue: {
+                        selectedItem: signal(null),
+                        setSelectedContentType: jest.fn(),
+                        setSelectedItem: jest.fn(),
+                        addToFavorites: jest.fn(),
+                        removeFromFavorites: jest.fn(),
+                        resolveVodPlayback: jest.fn(),
+                    },
+                },
+                { provide: StalkerSessionService, useValue: {} },
+                { provide: StalkerPortalRepairService, useValue: {} },
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: { activeSession: signal(null) },
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: {
+                        getPlaybackPosition: jest.fn().mockResolvedValue(null),
+                        savePlaybackPosition: jest.fn(),
+                    },
+                },
+                {
+                    provide: PORTAL_PLAYER,
+                    useValue: {
+                        isEmbeddedPlayer: () => true,
+                        openResolvedPlayback: jest.fn(),
+                        openExternalPlayback: jest.fn(),
+                    },
+                },
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: { instant: (key: string) => key },
+                },
+            ],
+        });
+        component = TestBed.runInInjectionContext(
+            () => new StalkerSearchComponent()
+        );
+    });
+
+    it('accumulates deduplicated pages and derives hasMore from the total', () => {
+        const pageOne = [
+            ...searchItems('page1', 3),
+            { id: 'shared', name: 'Shared item' },
+        ];
+        component.applySearchPageSuccess(1, pageOne, 7);
+        expect(component.searchResults()).toHaveLength(4);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The portal shifted `shared` between pages — it must not duplicate.
+        component.applySearchPageSuccess(
+            2,
+            [...searchItems('page2', 2), { id: 'shared', name: 'Shared item' }],
+            7
+        );
+        expect(component.searchResults()).toHaveLength(6);
+        expect(component.searchHasMore()).toBe(true);
+
+        component.applySearchPageSuccess(3, searchItems('page3', 1), 7);
+        expect(component.searchResults()).toHaveLength(7);
+        expect(component.searchHasMore()).toBe(false);
+    });
+
+    it('stops paging when a total-backed append makes no progress', () => {
+        component.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The portal repeats page 1 under a larger claimed total — dedupe
+        // yields no growth, which must still end the paging loop.
+        component.applySearchPageSuccess(2, searchItems('page1', 3), 10);
+        expect(component.searchResults()).toHaveLength(3);
+        expect(component.searchHasMore()).toBe(false);
+    });
+
+    it('stops paging without a total once pages stop making progress', () => {
+        component.applySearchPageSuccess(1, searchItems('page1', 3), undefined);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The portal ignores paging and repeats the same page — dedupe
+        // yields no growth, which must terminate the loop.
+        component.applySearchPageSuccess(2, searchItems('page1', 3), undefined);
+        expect(component.searchHasMore()).toBe(false);
+    });
+
+    it('keeps accumulated pages on a failed append and retries the SAME page', () => {
+        component.applySearchPageSuccess(1, searchItems('page1', 3), 6);
+        expect(component.searchHasMore()).toBe(true);
+
+        component.applySearchPageFailure(2);
+        // The failed append kept page 1 on screen and flagged the error.
+        expect(component.searchResults()).toHaveLength(3);
+        expect(component.searchAppendError()).toBe(true);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The real resource never settles in this template-less harness —
+        // substitute a deterministic stand-in for the guard checks.
+        const reload = jest.fn(() => true);
+        Object.defineProperty(component, 'searchResultsResource', {
+            configurable: true,
+            value: { isLoading: () => false, reload },
+        });
+
+        // The next near-end must RETRY page 2 (page stays put, the error is
+        // consumed) instead of advancing to page 3 and skipping results.
+        const pageBefore = component.searchPage();
+        component.loadMoreSearchResults();
+        expect(component.searchPage()).toBe(pageBefore);
+        expect(component.searchAppendError()).toBe(false);
+        expect(reload).toHaveBeenCalledTimes(1);
+
+        // With the error cleared, the following near-end advances normally.
+        component.loadMoreSearchResults();
+        expect(component.searchPage()).toBe(pageBefore + 1);
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it("clears the previous query's results when a fresh search fails", () => {
+        component.applySearchPageSuccess(1, searchItems('matrix', 3), 3);
+        expect(component.searchResults()).toHaveLength(3);
+
+        component.applySearchPageFailure(1);
+
+        expect(component.searchResults()).toHaveLength(0);
+        expect(component.searchHasMore()).toBe(false);
+        expect(component.searchAppendError()).toBe(false);
+    });
+
+    it('restores the results scroll after an inline detail round trip', () => {
+        // Regression: the layout destroys the results container while an
+        // inline detail is open and recreates it at offset zero.
+        const rafCallbacks: FrameRequestCallback[] = [];
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            (callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }
+        );
+        try {
+            const layout = {
+                getResultsScrollTop: jest.fn(() => 860),
+                restoreResultsScrollTop: jest.fn(),
+            };
+            Object.defineProperty(component, 'searchLayout', {
+                configurable: true,
+                value: () => layout,
+            });
+
+            component.selectItem({ id: '42', name: 'Deep result' });
+            expect(layout.getResultsScrollTop).toHaveBeenCalledTimes(1);
+
+            component.onVodBack();
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+            expect(layout.restoreResultsScrollTop).toHaveBeenCalledWith(860);
+
+            // The captured offset is one-shot.
+            component.onVodBack();
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+            expect(layout.restoreResultsScrollTop).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.restoreAllMocks();
+        }
+    });
+
+    it('empties the accumulator and paging flags for unsearchable portals', () => {
+        // The loader calls this on every no-portal early return (deleted or
+        // malformed playlist on a reused route, short term) so the previous
+        // portal's cards cannot keep rendering under the new context.
+        component.applySearchPageSuccess(1, searchItems('portalA', 3), 6);
+        component.applySearchPageFailure(2);
+        expect(component.searchResults()).toHaveLength(3);
+
+        component.resetSearchAccumulator();
+
+        expect(component.searchResults()).toHaveLength(0);
+        expect(component.searchHasMore()).toBe(false);
+        expect(component.searchAppendError()).toBe(false);
+    });
+
+    it('resets paging when the active playlist changes on a reused route', () => {
+        // Regression: /stalker/A/search -> /stalker/B/search reuses the
+        // component; a surviving page number would append portal B's later
+        // page onto portal A's results and skip B's first page.
+        Object.defineProperty(component, 'searchResultsResource', {
+            configurable: true,
+            value: { isLoading: () => false, reload: jest.fn(() => true) },
+        });
+        component.applySearchPageSuccess(
+            1,
+            searchItems('portalA', 3),
+            6
+        );
+        component.loadMoreSearchResults();
+        expect(component.searchPage()).toBe(2);
+
+        activePlaylist.set({
+            _id: 'playlist|two',
+            title: 'Other portal',
+            portalUrl: 'http://other.example/stalker_portal/server/load.php',
+            macAddress: '00:1A:79:00:00:02',
+        });
+
+        expect(component.searchPage()).toBe(1);
+        expect(component.searchScrollResetKey()).toContain('playlist|two');
     });
 });

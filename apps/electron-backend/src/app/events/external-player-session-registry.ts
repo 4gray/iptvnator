@@ -23,6 +23,19 @@ interface ExternalPlayerSessionRuntime {
     close?: () => Promise<void> | void;
 }
 
+interface MarkExternalPlayerSessionErrorOptions {
+    canClose?: boolean;
+}
+
+function isRestorableSession(session: ExternalPlayerSession): boolean {
+    return (
+        session.status === 'launching' ||
+        session.status === 'opened' ||
+        session.status === 'playing' ||
+        (session.status === 'error' && session.canClose)
+    );
+}
+
 export class ExternalPlayerSessionRegistry {
     private readonly sessions = new Map<string, ExternalPlayerSessionRuntime>();
     private activeSessionId: string | null = null;
@@ -62,6 +75,32 @@ export class ExternalPlayerSessionRegistry {
         return this.sessions.get(id)?.snapshot ?? null;
     }
 
+    /**
+     * Re-publish the exact still-live session that a failed replacement had
+     * temporarily displaced. Its existing closer remains attached.
+     */
+    restoreActiveSession(
+        id: string,
+        displacedSessionId: string
+    ): ExternalPlayerSession | null {
+        const runtime = this.sessions.get(id);
+        if (
+            !runtime ||
+            !isRestorableSession(runtime.snapshot) ||
+            this.activeSessionId !== displacedSessionId
+        ) {
+            return null;
+        }
+
+        this.activeSessionId = id;
+        this.onUpdate({
+            ...runtime.snapshot,
+            updatedAt: new Date().toISOString(),
+            restoredFromSessionId: displacedSessionId,
+        });
+        return runtime.snapshot;
+    }
+
     attachCloser(
         id: string,
         close: () => Promise<void> | void
@@ -95,12 +134,21 @@ export class ExternalPlayerSessionRegistry {
     }
 
     markOpened(id: string): ExternalPlayerSession | null {
+        const current = this.getSession(id);
+        if (!current || current.status !== 'launching') {
+            return current;
+        }
         return this.updateSession(id, { status: 'opened' });
     }
 
     markPlaying(id: string): ExternalPlayerSession | null {
         const current = this.getSession(id);
-        if (!current || current.status === 'playing') {
+        if (
+            !current ||
+            current.status === 'playing' ||
+            current.status === 'error' ||
+            current.status === 'closed'
+        ) {
             return current;
         }
 
@@ -108,17 +156,30 @@ export class ExternalPlayerSessionRegistry {
     }
 
     markClosed(id: string): ExternalPlayerSession | null {
+        const current = this.getSession(id);
+        if (!current || current.status === 'closed') {
+            return current;
+        }
         if (this.activeSessionId === id) {
             this.activeSessionId = null;
         }
         return this.updateSession(id, { status: 'closed', canClose: false });
     }
 
-    markError(id: string, error: string): ExternalPlayerSession | null {
+    markError(
+        id: string,
+        error: string,
+        options: MarkExternalPlayerSessionErrorOptions = {}
+    ): ExternalPlayerSession | null {
+        const current = this.getSession(id);
+        if (!current || current.status === 'closed') {
+            return current;
+        }
+
         return this.updateSession(id, {
             status: 'error',
             error,
-            canClose: false,
+            canClose: options.canClose ?? false,
         });
     }
 
@@ -128,12 +189,18 @@ export class ExternalPlayerSessionRegistry {
             return null;
         }
 
-        try {
-            await runtime.close?.();
-        } catch {
-            // Close failures must not keep the session in a live state; the
-            // registry still reports it as closed below.
+        // A renderer can deliver a delayed duplicate Stop after the exact
+        // child has already exited and a newer external player owns the
+        // process slot. Never re-enter the terminal session's saved closer:
+        // its protocol endpoint may since have been reused by another child.
+        if (runtime.snapshot.status === 'closed') {
+            return runtime.snapshot;
         }
+
+        // A failed closer cannot prove that the underlying process stopped.
+        // Preserve the live session and propagate the failure so callers do
+        // not start a replacement process alongside it.
+        await runtime.close?.();
 
         return this.markClosed(id);
     }

@@ -123,6 +123,9 @@ async function selectDownloadCoverSize(
 ): Promise<void> {
     await openSettings(page);
     await page.getByTestId(`cover-size-${size}`).click();
+    // Cover size is staged like every other setting now — it reaches the
+    // store (and the document dataset) only once the save lands.
+    await saveSettings(page);
     await expect
         .poll(() =>
             page.evaluate(
@@ -130,7 +133,6 @@ async function selectDownloadCoverSize(
             )
         )
         .toBe(size);
-    await saveSettings(page);
     await openDownloadsPage(page);
 }
 

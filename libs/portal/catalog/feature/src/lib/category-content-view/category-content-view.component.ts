@@ -4,8 +4,10 @@ import {
     Component,
     computed,
     DestroyRef,
+    effect,
     ElementRef,
     inject,
+    OnDestroy,
     OnInit,
     signal,
 } from '@angular/core';
@@ -14,12 +16,12 @@ import { map } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     GridListComponent,
+    InfiniteScrollDirective,
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
@@ -52,25 +54,23 @@ interface CategoryContentItem {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         GridListComponent,
+        InfiniteScrollDirective,
         MatButtonModule,
         MatIcon,
         MatMenuModule,
-        MatPaginatorModule,
         MatTooltip,
         NgComponentOutlet,
         PlaylistErrorViewComponent,
         TranslatePipe,
     ],
 })
-export class CategoryContentViewComponent implements OnInit {
+export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
-    private hasAppliedInitialQueryParams = false;
-    private previousSearchQuery: string | null = null;
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
     ) as PortalCatalogFacade<
@@ -81,17 +81,16 @@ export class CategoryContentViewComponent implements OnInit {
 
     readonly detailComponent = inject(PORTAL_CATALOG_DETAIL_COMPONENT);
     readonly contentType = this.catalog.contentType;
-    readonly limit = this.catalog.limit;
-    readonly pageIndex = this.catalog.pageIndex;
-    readonly pageSizeOptions = Array.from(this.catalog.pageSizeOptions);
     readonly selectedCategory = this.catalog.selectedCategory;
     readonly paginatedContent = this.catalog.paginatedContent;
     readonly selectedCategoryTitle = this.catalog.selectedCategoryTitle;
     readonly categoryItemCount = this.catalog.categoryItemCount;
     readonly selectedItem = this.catalog.selectedItem;
-    readonly totalPages = this.catalog.totalPages;
     readonly contentSortMode = this.catalog.contentSortMode;
     readonly isPaginatedContentLoading = this.catalog.isPaginatedContentLoading;
+    readonly infiniteHasMore = this.catalog.hasMore;
+    readonly infiniteAppending = this.catalog.isAppending;
+    readonly infiniteAppendError = this.catalog.appendError;
     readonly isXtreamLoadingSubtitle = computed(
         () =>
             this.catalog.provider === 'xtream' &&
@@ -172,6 +171,72 @@ export class CategoryContentViewComponent implements OnInit {
             ...this.catalog.getItemProgress(item),
         }))
     );
+    /**
+     * Identity of the rendered list. A change means the grid shows a
+     * different result set: the scroll resets to the top and the infinite
+     * scroll directive gets a fresh auto-fill budget. Appends keep the key
+     * stable, so they never scroll.
+     */
+    readonly gridResetKey = computed(() => {
+        const category = this.selectedCategory();
+        const categoryId = category?.category_id ?? category?.id ?? '';
+        return [
+            this.contentType() ?? '',
+            String(categoryId),
+            this.searchTerm(),
+            this.contentSortMode() ?? '',
+            String(this.minRating() ?? ''),
+        ].join('|');
+    });
+    private previousGridResetKey: string | null = null;
+    private hasAttemptedScrollRestore = false;
+
+    constructor() {
+        effect(() => {
+            const resetKey = this.gridResetKey();
+            if (
+                this.previousGridResetKey !== null &&
+                this.previousGridResetKey !== resetKey
+            ) {
+                this.scrollGridToTop();
+            }
+            this.previousGridResetKey = resetKey;
+        });
+
+        // One-shot scroll restore after a detail round-trip: once the list is
+        // rendered (not loading, no detail overlay), ask the facade for a
+        // saved position matching the current selection. An open detail
+        // re-arms the shot — Stalker details render inline in THIS instance,
+        // so closing one must restore just like a route round-trip does.
+        effect(() => {
+            if (this.selectedItem()) {
+                this.hasAttemptedScrollRestore = false;
+                return;
+            }
+
+            if (
+                this.hasAttemptedScrollRestore ||
+                this.isPaginatedContentLoading()
+            ) {
+                return;
+            }
+
+            this.hasAttemptedScrollRestore = true;
+            const scrollTop =
+                this.catalog.consumeSavedScrollPosition?.() ?? null;
+            if (scrollTop === null || scrollTop <= 0) {
+                return;
+            }
+
+            // Two frames: one for change detection to render the restored
+            // window, one to apply the offset to the grown grid.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this.gridElement()?.scrollTo?.({ top: scrollTop });
+                });
+            });
+        });
+    }
 
     setContentSortMode(mode: PortalCatalogSortMode): void {
         this.catalog.setContentSortMode(mode);
@@ -193,50 +258,43 @@ export class CategoryContentViewComponent implements OnInit {
         this.activatedRoute.queryParamMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((params) => {
-                const searchQuery = params.get('q') ?? '';
-                const pageIndex = this.toPageIndex(params.get('page'));
+                this.catalog.setSearchQuery?.(params.get('q') ?? '');
 
-                this.catalog.setSearchQuery?.(searchQuery);
-
-                if (!this.hasAppliedInitialQueryParams) {
-                    this.hasAppliedInitialQueryParams = true;
-                    this.previousSearchQuery = searchQuery;
-                    this.catalog.setPage(pageIndex);
-                    return;
+                // A search change resets the list in the facade; only a stale
+                // `?page=` from a legacy deep link needs cleaning up here.
+                if (params.has('page')) {
+                    this.clearPageQueryParam();
                 }
-
-                const didSearchChange =
-                    searchQuery !== this.previousSearchQuery;
-                this.previousSearchQuery = searchQuery;
-
-                if (didSearchChange) {
-                    this.catalog.setPage(0);
-                    if (params.has('page')) {
-                        this.clearPageQueryParam();
-                    }
-                    return;
-                }
-
-                this.catalog.setPage(pageIndex);
             });
     }
 
-    onPageChange(event: PageEvent): void {
-        this.catalog.setPage(event.pageIndex);
-        this.catalog.setLimit(event.pageSize);
-        this.scrollGridToTop();
+    ngOnDestroy(): void {
+        // Leaving the list without opening a detail (e.g. switching portal
+        // tabs) still snapshots the spot; the facade validates the selection
+        // before ever restoring it.
+        if (!this.selectedItem()) {
+            const grid = this.gridElement();
+            if (grid) {
+                this.catalog.saveScrollPosition?.(grid.scrollTop);
+            }
+        }
+    }
 
-        void this.router.navigate([], {
-            relativeTo: this.activatedRoute,
-            queryParams: {
-                page: event.pageIndex > 0 ? event.pageIndex + 1 : null,
-            },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-        });
+    onLoadMore(): void {
+        this.catalog.loadMore();
+    }
+
+    onRetryAppend(): void {
+        this.catalog.retryAppend();
     }
 
     onItemClick(item: CategoryContentItem): void {
+        // Snapshot the grid offset before the detail replaces the list.
+        const grid = this.gridElement();
+        if (grid) {
+            this.catalog.saveScrollPosition?.(grid.scrollTop);
+        }
+
         this.providerOnlyStalkerItemId.set(null);
         const navigation = this.catalog.selectItem(item);
         if (navigation?.length) {
@@ -247,16 +305,14 @@ export class CategoryContentViewComponent implements OnInit {
         }
     }
 
-    private toPageIndex(value: string | null): number {
-        const page = Number(value);
-        return Number.isInteger(page) && page > 0 ? page - 1 : 0;
+    private gridElement(): HTMLElement | null {
+        return this.hostElement.nativeElement.querySelector(
+            'app-grid-list'
+        ) as HTMLElement | null;
     }
 
     private scrollGridToTop(): void {
-        const gridList = this.hostElement.nativeElement.querySelector(
-            'app-grid-list'
-        ) as HTMLElement | null;
-        gridList?.scrollTo?.({ top: 0 });
+        this.gridElement()?.scrollTo?.({ top: 0 });
     }
 
     private clearPageQueryParam(): void {

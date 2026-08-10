@@ -66,6 +66,7 @@ import {
     isTypingInInput,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
+    REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
@@ -76,6 +77,11 @@ import {
     normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
+import {
+    EPG_PREVIEW_FETCH_SIZE,
+    StalkerEpgPreviewQueue,
+    mergeEpgProgramLists,
+} from './stalker-live-epg-preview';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 type StalkerPlayableChannel = StalkerPortalItem & {
@@ -307,13 +313,32 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     );
 
     /** EPG */
-    readonly fallbackEpgPrograms = signal<EpgProgram[]>([]);
+    /** Short-EPG panel fallback, tagged with the channel it was fetched for. */
+    readonly fallbackEpgPrograms = signal<{
+        channelId: string;
+        programs: EpgProgram[];
+    } | null>(null);
     readonly isLoadingFallbackEpg = signal(false);
+    // Merged, not either/or: some portals' bulk get_epg_info carries only
+    // future programmes, so a non-empty bulk list can still miss the one
+    // airing now — the short-EPG fallback fills exactly that gap. The merge
+    // is scoped to the fallback's own channel: a channel switch moves the
+    // selection synchronously while the old fallback is only replaced once
+    // the new channel's EPG load runs, and an unscoped merge would mix the
+    // previous channel's programmes into the new panel meanwhile.
     readonly activeEpgPrograms = computed(() => {
-        const bulkPrograms = this.stalkerStore.selectedItvEpgPrograms();
-        return bulkPrograms.length > 0
-            ? bulkPrograms
-            : this.fallbackEpgPrograms();
+        const fallback = this.fallbackEpgPrograms();
+        const selectedId = this.selectedChannelId();
+        const fallbackPrograms =
+            fallback &&
+            selectedId &&
+            fallback.channelId === normalizeStalkerEntityId(selectedId)
+                ? fallback.programs
+                : [];
+        return mergeEpgProgramLists(
+            this.stalkerStore.selectedItvEpgPrograms(),
+            fallbackPrograms
+        );
     });
     readonly currentProgram = computed(() =>
         this.findCurrentProgram(this.activeEpgPrograms())
@@ -372,6 +397,18 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly epgPreviewPrograms = new Map<string | number, EpgProgram>();
     readonly currentProgramsProgress = new Map<string | number, number>();
     private readonly cdr = inject(ChangeDetectorRef);
+    /** Short-EPG fallback for rows the bulk guide cannot answer. */
+    private readonly epgPreviewQueue = new StalkerEpgPreviewQueue({
+        fetchPrograms: async (channelId) =>
+            (
+                await this.stalkerStore.fetchChannelEpg(
+                    channelId,
+                    EPG_PREVIEW_FETCH_SIZE
+                )
+            ).map((item) => this.toProgram(item, channelId)),
+        onPrograms: (channelId, programs) =>
+            this.applyFallbackPreviewPrograms(channelId, programs),
+    });
 
     /** Favorites */
     readonly favorites = new Map<string | number, boolean>();
@@ -379,6 +416,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Scroll */
     readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
+    private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null =
+        null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;
@@ -440,7 +479,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 this.stalkerStore.setPage(0);
                 this.clearEpgPreviewMaps();
                 this.epgLoadRequestId += 1;
-                this.fallbackEpgPrograms.set([]);
+                this.fallbackEpgPrograms.set(null);
                 this.isLoadingFallbackEpg.set(false);
             });
         });
@@ -457,6 +496,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             if (this.isRadioMode() || !this.supportsEpg) {
                 this.clearEpgPreviewMaps();
+                // Supersede the queue too — an abandoned ITV view must not
+                // keep spending portal requests on rows that are gone.
+                this.epgPreviewQueue.sync([]);
                 this.cdr.markForCheck();
                 return;
             }
@@ -481,8 +523,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             this.lastPlaylistId = playlistId;
             this.epgLoadRequestId += 1;
-            this.fallbackEpgPrograms.set([]);
+            this.fallbackEpgPrograms.set(null);
             this.isLoadingFallbackEpg.set(false);
+            // Channel ids are only unique per portal — cached previews of the
+            // previous playlist must not leak into the new one.
+            this.epgPreviewQueue.reset();
             this.stalkerStore.clearBulkItvEpgCache();
         });
 
@@ -526,7 +571,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const selectedType = this.stalkerStore.selectedContentType();
             const channels = this.filteredChannels();
 
-            if (selectedType !== 'itv' || !selectedItem?.id) {
+            // Radio shares this layout and its remote channel handlers, so
+            // it must publish live status too — otherwise the remote shows
+            // "waiting for playback" while its commands keep working.
+            if (
+                (selectedType !== 'itv' && selectedType !== 'radio') ||
+                !selectedItem?.id
+            ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'stalker',
                     isLiveView: false,
@@ -535,10 +586,19 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 return;
             }
 
+            // String-normalized comparison: radio ids ("radio-1") and other
+            // non-numeric portal ids would turn into NaN under Number().
+            const selectedId = normalizeStalkerEntityId(selectedItem.id);
             const currentIndex = channels.findIndex(
-                (item) => Number(item.id) === Number(selectedItem.id)
+                (item) => normalizeStalkerEntityId(item.id) === selectedId
             );
-            const currentProgram = this.currentProgram();
+            // ITV only: selectedItvEpgPrograms is fed by the ITV-keyed bulk
+            // EPG cache, which survives itv→radio navigation. Ministra
+            // assigns small integer ids to itv and radio independently, so a
+            // radio station's id routinely collides with an unrelated TV
+            // channel's programmes.
+            const currentProgram =
+                selectedType === 'itv' ? this.currentProgram() : null;
 
             remoteControl.updateRemoteControlStatus({
                 portal: 'stalker',
@@ -578,7 +638,17 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     ngOnDestroy() {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
+        // Leaving the live view would otherwise keep the last channel
+        // advertised as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.(
+            REMOTE_CONTROL_RESET_STATUS
+        );
         this.removeScrollListener();
+        if (this.epgPreviewRefreshTimer !== null) {
+            clearTimeout(this.epgPreviewRefreshTimer);
+            this.epgPreviewRefreshTimer = null;
+        }
+        this.epgPreviewQueue.destroy();
         // Invalidate any playback continuation still awaiting its header
         // IPC, then drop the radio credentials — they must not outlive this
         // layout. The service no-ops when a newer playback already owns the
@@ -930,7 +1000,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     private async loadEpgForChannel(item: StalkerItvChannel) {
         if (!this.supportsEpg) {
-            this.fallbackEpgPrograms.set([]);
+            this.fallbackEpgPrograms.set(null);
             this.isLoadingFallbackEpg.set(false);
             this.clearEpgPreviewMaps();
             return;
@@ -944,7 +1014,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.stalkerStore.bulkItvEpgPlaylistId() !== playlistId ||
             this.stalkerStore.bulkItvEpgPeriodHours() !== 168;
 
-        this.fallbackEpgPrograms.set([]);
+        this.fallbackEpgPrograms.set(null);
         this.isLoadingFallbackEpg.set(false);
 
         try {
@@ -955,7 +1025,36 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 }
             }
 
-            if (this.stalkerStore.selectedItvEpgPrograms().length > 0) {
+            // Skip the short-EPG fallback only when the bulk guide can
+            // actually answer "what's on now" — a non-empty bulk list of
+            // future-only programmes still needs the fallback merged in.
+            if (
+                this.findCurrentProgram(
+                    this.stalkerStore.selectedItvEpgPrograms()
+                )
+            ) {
+                return;
+            }
+
+            // Resolve this channel's manual mapping before falling back: a
+            // mapped channel must show the mapped XMLTV schedule only —
+            // merging the portal's short EPG in could surface the portal's
+            // programme, defeating the mapping the user created to replace
+            // it. The store dedupes per channel id, so this is cheap.
+            await this.stalkerStore.applyMappedItvEpg([item.id]);
+            if (!this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
+                return;
+            }
+            if (
+                this.findCurrentProgram(
+                    this.stalkerStore.selectedItvEpgPrograms()
+                )
+            ) {
+                return;
+            }
+            if (
+                this.stalkerStore.hasItvEpgMappingOverride(normalizedChannelId)
+            ) {
                 return;
             }
 
@@ -967,15 +1066,16 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 return;
             }
 
-            this.fallbackEpgPrograms.set(
-                fallbackItems.map((epgItem) =>
+            this.fallbackEpgPrograms.set({
+                channelId: normalizedChannelId,
+                programs: fallbackItems.map((epgItem) =>
                     this.toProgram(epgItem, normalizedChannelId)
-                )
-            );
+                ),
+            });
         } catch (error) {
             this.logger.warn('Failed to load Stalker live EPG', error);
             if (this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
-                this.fallbackEpgPrograms.set([]);
+                this.fallbackEpgPrograms.set(null);
             }
         } finally {
             if (this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
@@ -993,21 +1093,39 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.clearEpgPreviewMaps();
 
         const bulkProgramsByChannel = this.stalkerStore.bulkItvEpgByChannel();
-        if (
-            channels.length === 0 ||
-            Object.keys(bulkProgramsByChannel).length === 0
-        ) {
+        if (channels.length === 0) {
+            // A legacy-paged category switch clears the list before the new
+            // channels arrive — supersede the backlog so the disappeared
+            // rows stop consuming portal request capacity.
+            this.epgPreviewQueue.sync([]);
             this.cdr.markForCheck();
             return;
         }
 
+        const channelsWithoutCurrent: string[] = [];
         for (const channel of channels) {
             const channelId = normalizeStalkerEntityId(channel.id);
-            const currentProgram = this.findCurrentProgram(
-                bulkProgramsByChannel[channelId] ?? []
-            );
+            // Manually mapped channels are bulk-only: their programs in the
+            // bulk record come from the uploaded XMLTV guide, and the portal
+            // short EPG must not stand in for the schedule the mapping
+            // deliberately replaces.
+            const hasMappingOverride =
+                this.stalkerStore.hasItvEpgMappingOverride(channelId);
+            const currentProgram =
+                this.findCurrentProgram(
+                    bulkProgramsByChannel[channelId] ?? []
+                ) ??
+                (hasMappingOverride
+                    ? null
+                    : this.findCurrentProgram(
+                          this.epgPreviewQueue.getCachedPrograms(channelId) ??
+                              []
+                      ));
 
             if (!currentProgram) {
+                if (!hasMappingOverride) {
+                    channelsWithoutCurrent.push(channelId);
+                }
                 continue;
             }
 
@@ -1015,6 +1133,45 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.updateProgramProgress(channelId, currentProgram);
         }
 
+        // Rows the bulk guide cannot answer (portals whose get_epg_info
+        // returns only future programmes, or none at all) fall back to
+        // per-channel short EPG. Deferred until the bulk request settles so
+        // the queue never races the answer it is a fallback for; the effect
+        // tracks bulkItvEpgLoaded, so it re-runs when that happens.
+        if (this.stalkerStore.bulkItvEpgLoaded()) {
+            this.epgPreviewQueue.sync(channelsWithoutCurrent);
+        }
+
+        this.cdr.markForCheck();
+    }
+
+    private applyFallbackPreviewPrograms(
+        channelId: string,
+        programs: EpgProgram[]
+    ): void {
+        if (this.isRadioMode() || !this.supportsEpg) {
+            return;
+        }
+
+        // Revalidate ownership: the fetch was enqueued before mapping
+        // resolution (or a bulk refresh) could finish, and an owner installed
+        // in the meantime must not be overwritten by a late portal response.
+        if (
+            this.stalkerStore.hasItvEpgMappingOverride(channelId) ||
+            this.findCurrentProgram(
+                this.stalkerStore.bulkItvEpgByChannel()[channelId] ?? []
+            )
+        ) {
+            return;
+        }
+
+        const currentProgram = this.findCurrentProgram(programs);
+        if (!currentProgram) {
+            return;
+        }
+
+        this.epgPreviewPrograms.set(channelId, currentProgram);
+        this.updateProgramProgress(channelId, currentProgram);
         this.cdr.markForCheck();
     }
 
@@ -1063,6 +1220,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         if (!container) return;
 
         const onScroll = () => {
+            this.scheduleEpgPreviewRefresh();
             if (this.isLoadingMore() || !this.hasMoreItems()) return;
 
             const { scrollTop, scrollHeight, clientHeight } = container;
@@ -1094,6 +1252,25 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.scrollListener();
             this.scrollListener = null;
         }
+    }
+
+    /**
+     * The preview queue caps each sync's backlog so request count tracks
+     * user engagement, not render size — scrolling therefore re-syncs to
+     * fetch the next rows the user is moving toward. Throttled; a fully
+     * cached list makes the re-sync a no-op.
+     */
+    private scheduleEpgPreviewRefresh(): void {
+        if (this.epgPreviewRefreshTimer !== null) {
+            return;
+        }
+        this.epgPreviewRefreshTimer = setTimeout(() => {
+            this.epgPreviewRefreshTimer = null;
+            if (this.isRadioMode() || !this.supportsEpg) {
+                return;
+            }
+            this.syncBulkEpgPreviews(this.visibleChannels());
+        }, 300);
     }
 
     private toProgram(item: EpgItem, channelId: string | number): EpgProgram {
@@ -1238,9 +1415,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
+        const launch = this.portalPlayer.openExternalPlayback(
             request.playback,
             request.player
         );
+        request.trackLaunch(launch);
+        void launch;
     }
 }

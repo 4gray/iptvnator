@@ -19,6 +19,7 @@ import {
     type PlaybackFallbackRequest,
     type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     STORE_KEY,
@@ -41,15 +42,19 @@ import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-pl
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import type { VideoPlayerOptions } from '../vjs-player/vjs-player.types';
 import { ElectronStreamHeadersService } from './electron-stream-headers.service';
+import { ExternalPlaybackRecoveryCoordinator } from './external-playback-recovery-coordinator';
 import {
     type PlaybackBinding,
     PlaybackRecoverySession,
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import {
+    ownsPlaybackApplication,
+    type PlaybackApplicationOwnership,
+} from './web-player-application-ownership';
+import {
     createWebPlayerApplicationState,
     type WebPlayerApplicationToken,
-    type WebPlayerSourceRevisionToken,
 } from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import {
@@ -61,17 +66,8 @@ import {
 
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
-    return typeof storedValue === 'boolean'
-        ? storedValue
-        : WEB_PLAYER_SHARED_CONTROLS_ENABLED;
-}
-
-interface PlaybackApplicationOwnership {
-    readonly binding: PlaybackBinding | null;
-    readonly embeddedMpv: boolean;
-    readonly isLive: boolean;
-    readonly sourceRevision: WebPlayerSourceRevisionToken;
-    readonly token: WebPlayerApplicationToken;
+    const fallback = WEB_PLAYER_SHARED_CONTROLS_ENABLED;
+    return typeof storedValue === 'boolean' ? storedValue : fallback;
 }
 
 @Component({
@@ -98,7 +94,13 @@ export class WebPlayerViewComponent implements OnDestroy {
     private readonly storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
+        optional: true,
+    });
     private readonly recoverySession = new PlaybackRecoverySession();
+    private readonly externalRecovery = new ExternalPlaybackRecoveryCoordinator(
+        this.externalPlayback
+    );
     private readonly applicationHandoff =
         new WebPlayerApplicationHandoffCoordinator(
             inject(ElectronStreamHeadersService),
@@ -136,7 +138,13 @@ export class WebPlayerViewComponent implements OnDestroy {
     );
     readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
-    readonly recoveryPending = this.recoverySession.switchPending;
+    readonly externalRecoveryState = this.externalRecovery.states;
+    readonly externalRecoveryPending = this.externalRecovery.pending;
+    readonly recoveryPending = computed(
+        () =>
+            this.recoverySession.switchPending() ||
+            this.externalRecoveryPending()
+    );
     readonly activeBinding = this.recoverySession.activeBinding;
 
     channel: Channel | undefined;
@@ -215,6 +223,7 @@ export class WebPlayerViewComponent implements OnDestroy {
                     ? binding
                     : null,
             attemptedTargets: this.recoverySession.attemptedTargets(),
+            externalStates: this.externalRecoveryState(),
             managedExternalPlayersAvailable:
                 this.runtime.supportsManagedExternalPlayers,
             playbackExternallyTransferable:
@@ -245,6 +254,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     });
 
     constructor() {
+        effect(() => {
+            const session = this.externalPlayback?.activeSession() ?? null;
+            untracked(() => this.externalRecovery.observe(session));
+        });
         effect(() => {
             // Session sync may clear a temporary player override. Run it before
             // tracking intent so that reset is folded into this application.
@@ -287,6 +300,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
     }
 
@@ -328,7 +342,21 @@ export class WebPlayerViewComponent implements OnDestroy {
         event: { currentTime: number; duration: number },
         ownership: PlaybackApplicationOwnership
     ): void {
-        if (!this.ownsPlaybackApplication(ownership)) {
+        if (
+            !ownsPlaybackApplication({
+                ownership,
+                currentToken: this.playbackApplicationToken(),
+                currentSourceRevision: this.playbackSourceRevisionToken(),
+                bindingOwned: ownership.binding
+                    ? this.applicationHandoff.owns(
+                          ownership.binding,
+                          ownership.token
+                      )
+                    : false,
+                embeddedMpvSelected:
+                    this.selectedPlayer() === VideoPlayer.EmbeddedMpv,
+            })
+        ) {
             return;
         }
 
@@ -351,12 +379,22 @@ export class WebPlayerViewComponent implements OnDestroy {
             return;
         }
         if (target === 'mpv' || target === 'vlc') {
-            this.recoverySession.recordExternalAttempt(target);
-            this.externalFallbackRequested.emit({
-                player: target,
-                playback: this.resolvedPlayback(),
-                diagnostic,
-            });
+            this.externalRecovery.request(
+                target,
+                () => this.recoverySession.recordExternalAttempt(target),
+                (trackLaunch) => {
+                    if (this.visiblePlaybackDiagnostic() !== diagnostic) {
+                        return false;
+                    }
+                    this.externalFallbackRequested.emit({
+                        player: target,
+                        playback: this.resolvedPlayback(),
+                        diagnostic,
+                        trackLaunch,
+                    });
+                    return true;
+                }
+            );
             return;
         }
         this.recoverySession.beginPlayerSwitch(target, this.resolvedIsLive());
@@ -371,6 +409,7 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     private syncRecoverySession(): void {
         const sessionKey = this.playbackSessionKey();
+        this.externalRecovery.syncSession(sessionKey);
         if (untracked(() => this.recoverySession.syncSession(sessionKey))) {
             this.clearPlaybackDiagnostic();
         }
@@ -379,26 +418,5 @@ export class WebPlayerViewComponent implements OnDestroy {
     private clearPlaybackDiagnostic(): void {
         this.playbackDiagnosticOwnerToken.set(null);
         this.playbackDiagnostic.set(null);
-    }
-
-    private ownsPlaybackApplication(
-        ownership: PlaybackApplicationOwnership
-    ): boolean {
-        if (
-            ownership.token !== this.playbackApplicationToken() ||
-            ownership.sourceRevision !== this.playbackSourceRevisionToken()
-        ) {
-            return false;
-        }
-        if (ownership.binding) {
-            return (
-                !ownership.embeddedMpv &&
-                this.applicationHandoff.owns(ownership.binding, ownership.token)
-            );
-        }
-        return (
-            ownership.embeddedMpv &&
-            this.selectedPlayer() === VideoPlayer.EmbeddedMpv
-        );
     }
 }

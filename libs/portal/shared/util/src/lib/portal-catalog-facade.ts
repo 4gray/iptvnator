@@ -33,19 +33,34 @@ export interface PortalCatalogFacade<
     TSelectedItem = unknown,
 > {
     readonly provider: PortalCatalogProvider;
-    readonly pageSizeOptions: readonly number[];
     readonly contentType: Signal<string | null | undefined>;
-    readonly limit: Signal<number>;
-    readonly pageIndex: Signal<number>;
     readonly selectedCategory: Signal<TCategory | null | undefined>;
     readonly paginatedContent: Signal<readonly TItem[] | undefined>;
     readonly selectedItem: Signal<TSelectedItem | null | undefined>;
-    readonly totalPages: Signal<number>;
     readonly isPaginatedContentLoading: Signal<boolean>;
     readonly selectedCategoryTitle: Signal<string>;
     readonly categoryItemCount: Signal<number>;
     readonly contentSortMode: Signal<PortalCatalogSortMode | null>;
     readonly playlist: Signal<PortalCatalogPlaylistMeta | null>;
+    /**
+     * Infinite-scroll contract: the facade grows one continuous list via
+     * `loadMore()`; the catalog view renders no paginator.
+     */
+    readonly hasMore: Signal<boolean>;
+    /** True while an asynchronous append is in flight (tail spinner). */
+    readonly isAppending: Signal<boolean>;
+    /** True when the latest append failed; the tail shows a retry action. */
+    readonly appendError: Signal<boolean>;
+    loadMore(): void;
+    retryAppend(): void;
+    /**
+     * Scroll-position handoff for detail round-trips: the view saves the grid
+     * offset when an item opens, and consumes it (the facade restores the
+     * matching list window first) when the same list is shown again. Returns
+     * null when the saved position no longer matches the current selection.
+     */
+    saveScrollPosition?(scrollTop: number): void;
+    consumeSavedScrollPosition?(): number | null;
     /**
      * Optional IMDb-rating capability (Xtream VOD/series). Providers without
      * structured ratings (e.g. Stalker) leave these undefined, and the rating
@@ -57,8 +72,6 @@ export interface PortalCatalogFacade<
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;
     clearSelectedItem(): void;
-    setPage(page: number): void;
-    setLimit(limit: number): void;
     setContentSortMode(mode: PortalCatalogSortMode): void;
     setMinRating?(value: number | null): void;
     selectItem(item: TItem): string[] | null;

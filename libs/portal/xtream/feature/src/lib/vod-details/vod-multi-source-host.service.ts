@@ -61,8 +61,14 @@ import {
  */
 
 export interface VodMultiSourceBindings {
-    /** Applies a playback — inline swap or external launch, host's choice. */
-    startPlayback: (playback: ResolvedPortalPlayback) => void;
+    /**
+     * Applies a playback — inline swap or external launch, host's choice.
+     * False leaves the controller on its current source.
+     */
+    startPlayback: (
+        playback: ResolvedPortalPlayback,
+        isCurrent: () => boolean
+    ) => Promise<boolean>;
     /** The movie on screen, or null while its identity is not yet knowable. */
     movie: Signal<VodMultiSourceMovie | null>;
     /**
@@ -70,6 +76,12 @@ export interface VodMultiSourceBindings {
      * A pinned row stays selected after its player is closed.
      */
     playbackLive: Signal<boolean>;
+    /**
+     * True while an external launch has no exact closer yet. A source pick in
+     * that interval cannot safely replace the launch and must not supersede
+     * the switch token that still owns it.
+     */
+    playbackStartBlocked: Signal<boolean>;
 }
 
 export type { VodMultiSourceSwitchNotice };
@@ -483,11 +495,16 @@ export class VodMultiSourceHostService {
      * so an older resolution would replace what the user just asked for.
      */
     markRouteSourceActive(): void {
-        this.switchToken++;
+        this.supersedePendingSwitch();
         if (this.routeSourceId) {
             this.controller.markPlaying(this.routeSourceId);
             this.publish();
         }
+    }
+
+    /** Cancel an older source resolution without claiming that route playback started. */
+    supersedePendingSwitch(): void {
+        this.switchToken++;
     }
 
     /** The live position, fed ahead of the persist throttle. */
@@ -501,7 +518,7 @@ export class VodMultiSourceHostService {
 
     private switchTo(candidate: VodSourceCandidate): Promise<SwitchOutcome> {
         const bindings = this.bindings;
-        if (!bindings) {
+        if (!bindings || bindings.playbackStartBlocked()) {
             return Promise.resolve('superseded');
         }
 
@@ -512,7 +529,8 @@ export class VodMultiSourceHostService {
             controller: this.controller,
             resolve: (target, options) =>
                 this.resolver.resolve(target, options),
-            startPlayback: (playback) => bindings.startPlayback(playback),
+            startPlayback: (playback, isCurrent) =>
+                bindings.startPlayback(playback, isCurrent),
             isCurrent: () => this.isCurrentSwitch(session, attempt),
             setPreviousSource: (id) => this._previousSourceId.set(id),
             setNotice: (notice) => this._lastSwitch.set(notice),

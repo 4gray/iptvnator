@@ -9,6 +9,8 @@ import {
     launchElectronApp,
     openWorkspaceSection,
     openSettings,
+    openSettingsSection,
+    saveSettings,
     test,
 } from './electron-test-fixtures';
 
@@ -74,6 +76,7 @@ test.describe('Electron EPG', () => {
 
         try {
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
             await app.mainWindow
                 .getByRole('button', { name: 'Add EPG source' })
                 .click();
@@ -107,6 +110,11 @@ test.describe('Electron EPG', () => {
             await expect(app.mainWindow.locator('.epg-source-row')).toHaveCount(
                 0
             );
+            // Adding and removing the source row leaves the settings form
+            // dirty; save so the unsaved-changes close guard has nothing to
+            // ask about when the app closes below — an unanswered dialog
+            // would block the close and leak the Electron process.
+            await saveSettings(app.mainWindow);
 
             await app.mainWindow
                 .getByRole('button', { name: 'Clear EPG data' })
@@ -254,6 +262,7 @@ test.describe('Electron EPG', () => {
             );
 
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
             await app.mainWindow
                 .getByRole('button', { name: 'Add EPG source' })
                 .click();
@@ -271,6 +280,11 @@ test.describe('Electron EPG', () => {
                     timeout: 30000,
                 })
                 .toBeGreaterThan(0);
+
+            // The added source is still only staged in the form — leaving
+            // settings without saving would surface the unsaved-changes
+            // dialog and block the navigation below.
+            await saveSettings(app.mainWindow);
 
             await openWorkspaceSection(app.mainWindow, 'All channels');
 

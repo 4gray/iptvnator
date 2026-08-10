@@ -7,7 +7,7 @@ import {
     createPlaylistObject,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
+import { DBMode, NgxIndexedDBService } from 'ngx-indexed-db';
 import {
     combineLatest,
     defer,
@@ -27,13 +27,17 @@ import {
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
     Playlist,
-    PlaylistMeta,
+    PlaylistMetaUpdate,
     PlaylistRecentlyViewedItem,
     PlaylistUpdateState,
     StalkerPortalItem,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
+import {
+    runWithPlaylistAuthorityMutation,
+    runWithPlaylistAuthorityReset,
+} from './playlist-cross-context-lock';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -346,21 +350,32 @@ export class PlaylistsService {
                 return;
             }
 
-            const storedPlaylists = await firstValueFrom(
-                this.dbService.getAll<Playlist>(DbStores.Playlists)
-            );
-            const updates =
-                this.collectStalkerMetadataMigrationUpdates(storedPlaylists);
-
-            if (updates.length > 0) {
-                await firstValueFrom(
-                    combineLatest(
-                        updates.map((playlist) =>
-                            this.dbService.update(DbStores.Playlists, playlist)
-                        )
-                    )
-                );
-            }
+            await new Promise<void>((resolve, reject) => {
+                this.dbService
+                    .openCursor<Playlist>({
+                        storeName: DbStores.Playlists,
+                        mode: DBMode.readwrite,
+                    })
+                    .subscribe({
+                        next: (cursor) => {
+                            try {
+                                const migratedPlaylist =
+                                    this.withExplicitLegacyStalkerPortalFlag(
+                                        cursor.value
+                                    );
+                                if (migratedPlaylist !== cursor.value) {
+                                    cursor.update(migratedPlaylist);
+                                }
+                                cursor.continue();
+                            } catch (error) {
+                                cursor.request.transaction?.abort();
+                                reject(error);
+                            }
+                        },
+                        error: reject,
+                        complete: resolve,
+                    });
+            });
 
             this.writeIndexedDbMigrationFlag(
                 STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
@@ -441,6 +456,36 @@ export class PlaylistsService {
         );
     }
 
+    private transformIndexedDbPlaylistMeta(
+        playlistId: string,
+        transform: (current: Playlist) => Playlist | null
+    ): Promise<Playlist | null> {
+        return new Promise((resolve, reject) => {
+            let nextPlaylist: Playlist | null = null;
+            this.dbService
+                .openCursor<Playlist>({
+                    storeName: DbStores.Playlists,
+                    query: playlistId,
+                    mode: DBMode.readwrite,
+                })
+                .subscribe({
+                    next: (cursor) => {
+                        try {
+                            nextPlaylist = transform(cursor.value);
+                            if (nextPlaylist !== null) {
+                                cursor.update(nextPlaylist);
+                            }
+                        } catch (error) {
+                            cursor.request.transaction?.abort();
+                            reject(error);
+                        }
+                    },
+                    error: reject,
+                    complete: () => resolve(nextPlaylist),
+                });
+        });
+    }
+
     getAllPlaylists() {
         if (this.isElectronStorageAvailable) {
             return this.runOnSqlite(async () => {
@@ -463,13 +508,18 @@ export class PlaylistsService {
     }
 
     addPlaylist(playlist: Playlist) {
-        if (this.isElectronStorageAvailable) {
-            return this.upsertSqlitePlaylist(playlist);
-        }
+        return this.serializePlaylistWrite(playlist._id, () =>
+            runWithPlaylistAuthorityMutation([playlist._id], async () => {
+                if (this.isElectronStorageAvailable) {
+                    return firstValueFrom(this.upsertSqlitePlaylist(playlist));
+                }
 
-        return this.dbService
-            .add(DbStores.Playlists, playlist)
-            .pipe(map(() => playlist));
+                await firstValueFrom(
+                    this.dbService.add(DbStores.Playlists, playlist)
+                );
+                return playlist;
+            })
+        );
     }
 
     getPlaylist(id: string) {
@@ -486,20 +536,21 @@ export class PlaylistsService {
         // row back and resurrect the playlist.
         const delete$: Observable<unknown> = this.serializePlaylistWrite(
             playlistId,
-            async () => {
-                if (this.isElectronStorageAvailable) {
-                    await this.ensureElectronPlaylistMigrations();
-                    const electron = this.electronApi;
-                    if (electron) {
-                        await electron.dbDeletePlaylist(playlistId);
+            () =>
+                runWithPlaylistAuthorityMutation([playlistId], async () => {
+                    if (this.isElectronStorageAvailable) {
+                        await this.ensureElectronPlaylistMigrations();
+                        const electron = this.electronApi;
+                        if (electron) {
+                            await electron.dbDeletePlaylist(playlistId);
+                        }
+                        return undefined;
                     }
-                    return undefined;
-                }
 
-                return firstValueFrom(
-                    this.dbService.delete(DbStores.Playlists, playlistId)
-                );
-            }
+                    return firstValueFrom(
+                        this.dbService.delete(DbStores.Playlists, playlistId)
+                    );
+                })
         );
 
         return delete$.pipe(
@@ -627,113 +678,171 @@ export class PlaylistsService {
         );
     }
 
-    updatePlaylistMeta(updatedPlaylist: PlaylistMeta) {
+    updatePlaylistMeta(updatedPlaylist: PlaylistMetaUpdate) {
+        return this.updatePlaylistMetaInQueue(updatedPlaylist);
+    }
+
+    /** Applies a meta update only while the storage-current row still matches. */
+    updatePlaylistMetaIfCurrent(
+        updatedPlaylist: PlaylistMetaUpdate,
+        isCurrent: (playlist: Playlist) => boolean
+    ) {
+        return this.updatePlaylistMetaInQueue(updatedPlaylist, isCurrent);
+    }
+
+    private updatePlaylistMetaInQueue(
+        updatedPlaylist: PlaylistMetaUpdate
+    ): Observable<Playlist>;
+    private updatePlaylistMetaInQueue(
+        updatedPlaylist: PlaylistMetaUpdate,
+        isCurrent: (playlist: Playlist) => boolean
+    ): Observable<Playlist | null>;
+    private updatePlaylistMetaInQueue(
+        updatedPlaylist: PlaylistMetaUpdate,
+        isCurrent?: (playlist: Playlist) => boolean
+    ): Observable<Playlist | null> {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
+            if (isCurrent && !this.isElectronStorageAvailable) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                return this.transformIndexedDbPlaylistMeta(
+                    updatedPlaylist._id,
+                    (current) =>
+                        isCurrent(current)
+                            ? this.mergePlaylistMeta(current, updatedPlaylist)
+                            : null
+                );
+            }
+
             const playlist = await firstValueFrom(
                 this.getPlaylistById(updatedPlaylist._id)
             );
-            const epgSourceState = resolvePlaylistEpgSourceState({
-                detectedEpgUrls:
-                    updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,
-                enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,
-                manualEpgUrls:
-                    updatedPlaylist.manualEpgUrls ?? playlist.manualEpgUrls,
-                disabledEpgUrls:
-                    updatedPlaylist.disabledEpgUrls ?? playlist.disabledEpgUrls,
-            });
-            const nextPlaylist: Playlist = {
-                ...playlist,
-                ...(updatedPlaylist.title != null
-                    ? { title: updatedPlaylist.title }
-                    : {}),
-                ...(updatedPlaylist.autoRefresh != null
-                    ? { autoRefresh: updatedPlaylist.autoRefresh }
-                    : {}),
-                ...(updatedPlaylist.userAgent != null
-                    ? { userAgent: updatedPlaylist.userAgent }
-                    : {}),
-                ...(updatedPlaylist.referrer !== undefined
-                    ? { referrer: updatedPlaylist.referrer }
-                    : {}),
-                ...(updatedPlaylist.origin !== undefined
-                    ? { origin: updatedPlaylist.origin }
-                    : {}),
-                ...(updatedPlaylist.serverUrl != null
-                    ? { serverUrl: updatedPlaylist.serverUrl }
-                    : {}),
-                ...(updatedPlaylist.portalUrl != null
-                    ? { portalUrl: updatedPlaylist.portalUrl }
-                    : {}),
-                ...(updatedPlaylist.isFullStalkerPortal !== undefined
-                    ? {
-                          isFullStalkerPortal:
-                              updatedPlaylist.isFullStalkerPortal,
-                      }
-                    : {}),
-                ...(updatedPlaylist.macAddress != null
-                    ? { macAddress: updatedPlaylist.macAddress }
-                    : {}),
-                ...(updatedPlaylist.username != null
-                    ? { username: updatedPlaylist.username }
-                    : {}),
-                ...(updatedPlaylist.password != null
-                    ? { password: updatedPlaylist.password }
-                    : {}),
-                ...(updatedPlaylist.favorites != null
-                    ? { favorites: updatedPlaylist.favorites }
-                    : {}),
-                ...(updatedPlaylist.recentlyViewed != null
-                    ? { recentlyViewed: updatedPlaylist.recentlyViewed }
-                    : {}),
-                ...(updatedPlaylist.hiddenGroupTitles != null
-                    ? {
-                          hiddenGroupTitles: updatedPlaylist.hiddenGroupTitles,
-                      }
-                    : {}),
-                ...(updatedPlaylist.detectedEpgUrls !== undefined
-                    ? { detectedEpgUrls: epgSourceState.detectedEpgUrls }
-                    : {}),
-                ...(updatedPlaylist.manualEpgUrls !== undefined
-                    ? { manualEpgUrls: epgSourceState.manualEpgUrls }
-                    : {}),
-                ...(updatedPlaylist.disabledEpgUrls !== undefined
-                    ? { disabledEpgUrls: epgSourceState.disabledEpgUrls }
-                    : {}),
-                ...(updatedPlaylist.epgUrls !== undefined ||
-                updatedPlaylist.detectedEpgUrls !== undefined ||
-                updatedPlaylist.manualEpgUrls !== undefined ||
-                updatedPlaylist.disabledEpgUrls !== undefined
-                    ? { epgUrls: epgSourceState.epgUrls }
-                    : {}),
-                ...(updatedPlaylist.updateDate !== undefined
-                    ? { updateDate: updatedPlaylist.updateDate }
-                    : {}),
-                ...(updatedPlaylist.stalkerSerialNumber !== undefined
-                    ? {
-                          stalkerSerialNumber:
-                              updatedPlaylist.stalkerSerialNumber,
-                      }
-                    : {}),
-                ...(updatedPlaylist.stalkerDeviceId1 !== undefined
-                    ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
-                    : {}),
-                ...(updatedPlaylist.stalkerDeviceId2 !== undefined
-                    ? { stalkerDeviceId2: updatedPlaylist.stalkerDeviceId2 }
-                    : {}),
-                ...(updatedPlaylist.stalkerSignature1 !== undefined
-                    ? {
-                          stalkerSignature1: updatedPlaylist.stalkerSignature1,
-                      }
-                    : {}),
-                ...(updatedPlaylist.stalkerSignature2 !== undefined
-                    ? {
-                          stalkerSignature2: updatedPlaylist.stalkerSignature2,
-                      }
-                    : {}),
-            };
-
-            return this.persistPlaylistMutation(nextPlaylist);
+            if (isCurrent && !isCurrent(playlist)) {
+                return null;
+            }
+            return this.persistPlaylistMutation(
+                this.mergePlaylistMeta(playlist, updatedPlaylist)
+            );
         });
+    }
+
+    private mergePlaylistMeta(
+        playlist: Playlist,
+        updatedPlaylist: PlaylistMetaUpdate
+    ): Playlist {
+        const epgSourceState = resolvePlaylistEpgSourceState({
+            detectedEpgUrls:
+                updatedPlaylist.detectedEpgUrls ?? playlist.detectedEpgUrls,
+            enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,
+            manualEpgUrls:
+                updatedPlaylist.manualEpgUrls ?? playlist.manualEpgUrls,
+            disabledEpgUrls:
+                updatedPlaylist.disabledEpgUrls ?? playlist.disabledEpgUrls,
+        });
+        return {
+            ...playlist,
+            ...(updatedPlaylist.title != null
+                ? { title: updatedPlaylist.title }
+                : {}),
+            ...(updatedPlaylist.autoRefresh != null
+                ? { autoRefresh: updatedPlaylist.autoRefresh }
+                : {}),
+            ...(updatedPlaylist.userAgent != null
+                ? { userAgent: updatedPlaylist.userAgent }
+                : {}),
+            ...(updatedPlaylist.referrer !== undefined
+                ? { referrer: updatedPlaylist.referrer }
+                : {}),
+            ...(updatedPlaylist.origin !== undefined
+                ? { origin: updatedPlaylist.origin }
+                : {}),
+            ...(updatedPlaylist.serverUrl != null
+                ? { serverUrl: updatedPlaylist.serverUrl }
+                : {}),
+            ...(updatedPlaylist.portalUrl != null
+                ? { portalUrl: updatedPlaylist.portalUrl }
+                : {}),
+            ...(updatedPlaylist.isFullStalkerPortal !== undefined
+                ? {
+                      isFullStalkerPortal: updatedPlaylist.isFullStalkerPortal,
+                  }
+                : {}),
+            ...(updatedPlaylist.macAddress != null
+                ? { macAddress: updatedPlaylist.macAddress }
+                : {}),
+            ...(updatedPlaylist.username != null
+                ? { username: updatedPlaylist.username }
+                : {}),
+            ...(updatedPlaylist.password != null
+                ? { password: updatedPlaylist.password }
+                : {}),
+            ...(updatedPlaylist.favorites != null
+                ? { favorites: updatedPlaylist.favorites }
+                : {}),
+            ...(updatedPlaylist.recentlyViewed != null
+                ? { recentlyViewed: updatedPlaylist.recentlyViewed }
+                : {}),
+            ...(updatedPlaylist.hiddenGroupTitles != null
+                ? {
+                      hiddenGroupTitles: updatedPlaylist.hiddenGroupTitles,
+                  }
+                : {}),
+            ...(updatedPlaylist.detectedEpgUrls !== undefined
+                ? { detectedEpgUrls: epgSourceState.detectedEpgUrls }
+                : {}),
+            ...(updatedPlaylist.manualEpgUrls !== undefined
+                ? { manualEpgUrls: epgSourceState.manualEpgUrls }
+                : {}),
+            ...(updatedPlaylist.disabledEpgUrls !== undefined
+                ? { disabledEpgUrls: epgSourceState.disabledEpgUrls }
+                : {}),
+            ...(updatedPlaylist.epgUrls !== undefined ||
+            updatedPlaylist.detectedEpgUrls !== undefined ||
+            updatedPlaylist.manualEpgUrls !== undefined ||
+            updatedPlaylist.disabledEpgUrls !== undefined
+                ? { epgUrls: epgSourceState.epgUrls }
+                : {}),
+            ...(updatedPlaylist.updateDate !== undefined
+                ? { updateDate: updatedPlaylist.updateDate }
+                : {}),
+            ...(updatedPlaylist.stalkerSerialNumber !== undefined
+                ? {
+                      stalkerSerialNumber: updatedPlaylist.stalkerSerialNumber,
+                  }
+                : {}),
+            ...(updatedPlaylist.stalkerDeviceId1 !== undefined
+                ? { stalkerDeviceId1: updatedPlaylist.stalkerDeviceId1 }
+                : {}),
+            ...(updatedPlaylist.stalkerDeviceId2 !== undefined
+                ? { stalkerDeviceId2: updatedPlaylist.stalkerDeviceId2 }
+                : {}),
+            ...(updatedPlaylist.stalkerSignature1 !== undefined
+                ? {
+                      stalkerSignature1: updatedPlaylist.stalkerSignature1,
+                  }
+                : {}),
+            ...(updatedPlaylist.stalkerSignature2 !== undefined
+                ? {
+                      stalkerSignature2: updatedPlaylist.stalkerSignature2,
+                  }
+                : {}),
+            ...(updatedPlaylist.stalkerSessionPatch !== undefined
+                ? {
+                      stalkerToken:
+                          updatedPlaylist.stalkerSessionPatch?.stalkerToken,
+                      stalkerSessionIdentity:
+                          updatedPlaylist.stalkerSessionPatch
+                              ?.stalkerSessionIdentity,
+                      stalkerWatchdogTimeout:
+                          updatedPlaylist.stalkerSessionPatch
+                              ?.stalkerWatchdogTimeout,
+                      stalkerTimeslot:
+                          updatedPlaylist.stalkerSessionPatch?.stalkerTimeslot,
+                      stalkerAccountInfo:
+                          updatedPlaylist.stalkerSessionPatch
+                              ?.stalkerAccountInfo,
+                  }
+                : {}),
+        };
     }
 
     /**
@@ -824,13 +933,11 @@ export class PlaylistsService {
     }
 
     /**
-     * Applies an atomic, conditional meta mutation: the transform runs on
-     * the freshly read row INSIDE the per-playlist write queue and may
-     * return null to abort without writing. Callers use this when the
-     * decision to write depends on the row's CURRENT state — e.g. the lazy
-     * Stalker portal repair verifying the row still carries the
-     * configuration it probed; a plain read-check-then-update pair would
-     * race a user edit already queued but not yet committed.
+     * Applies an atomic, conditional meta mutation. Electron uses the
+     * per-playlist write queue; IndexedDB additionally performs the read,
+     * predicate, and cursor update in one readwrite transaction so another
+     * browser context cannot interleave a replacement. The transform may
+     * return null to abort without writing.
      */
     transformPlaylistMeta(
         playlistId: string,
@@ -841,6 +948,14 @@ export class PlaylistsService {
         }
 
         return this.serializePlaylistWrite(playlistId, async () => {
+            if (!this.isElectronStorageAvailable) {
+                await this.ensureIndexedDbPlaylistMigrations();
+                return this.transformIndexedDbPlaylistMeta(
+                    playlistId,
+                    transform
+                );
+            }
+
             const playlist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );
@@ -1088,13 +1203,24 @@ export class PlaylistsService {
     addManyPlaylists(
         playlists: Playlist[]
     ): Observable<AddManyPlaylistsResult> {
-        if (this.isElectronStorageAvailable) {
-            return this.upsertManySqlitePlaylists(playlists);
-        }
+        return defer(() =>
+            runWithPlaylistAuthorityMutation(
+                playlists.map((playlist) => playlist._id),
+                async () => {
+                    if (this.isElectronStorageAvailable) {
+                        return firstValueFrom(
+                            this.upsertManySqlitePlaylists(playlists)
+                        );
+                    }
 
-        return this.dbService.bulkAdd(
-            DbStores.Playlists,
-            playlists as unknown as Playlist[]
+                    return firstValueFrom(
+                        this.dbService.bulkAdd(
+                            DbStores.Playlists,
+                            playlists as unknown as Playlist[]
+                        )
+                    );
+                }
+            )
         );
     }
 
@@ -1151,19 +1277,21 @@ export class PlaylistsService {
     }
 
     removeAll(): Observable<void> {
-        if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
-                if (electron) {
-                    await electron.dbDeleteAllPlaylists();
+        return defer(() =>
+            runWithPlaylistAuthorityReset(async () => {
+                if (this.isElectronStorageAvailable) {
+                    await this.ensureElectronPlaylistMigrations();
+                    const electron = this.electronApi;
+                    if (electron) {
+                        await electron.dbDeleteAllPlaylists();
+                    }
+                    return undefined;
                 }
-                return undefined;
-            }).pipe(map(() => undefined));
-        }
 
-        return this.dbService
-            .clear(DbStores.Playlists)
-            .pipe(map(() => undefined));
+                await firstValueFrom(this.dbService.clear(DbStores.Playlists));
+                return undefined;
+            })
+        );
     }
 
     private normalizePortalRecentIdentity(value: unknown): string {

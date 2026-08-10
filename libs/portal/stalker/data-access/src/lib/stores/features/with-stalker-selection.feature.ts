@@ -22,7 +22,6 @@ export interface StalkerSelectionState {
     selectedVodId: string | undefined;
     selectedSerialId: string | undefined;
     selectedItvId: string | undefined;
-    limit: number;
     page: number;
     searchPhrase: string;
     selectedItem: StalkerVodSource | null | undefined;
@@ -34,7 +33,6 @@ const initialSelectionState: StalkerSelectionState = {
     selectedVodId: undefined,
     selectedSerialId: undefined,
     selectedItvId: undefined,
-    limit: 14,
     page: 0,
     searchPhrase: '',
     selectedItem: undefined,
@@ -50,7 +48,15 @@ export function withStalkerSelection() {
             setSelectedContentType(
                 type: 'vod' | 'itv' | 'series' | 'radio'
             ) {
-                patchState(store, { selectedContentType: type });
+                if (store.selectedContentType() === type) {
+                    return;
+                }
+
+                // Without the page reset, switching e.g. /vod -> /series with
+                // the same category id ('*' on both section roots) would leave
+                // page > 1 in place and make the new type's FIRST response an
+                // append onto the old type's accumulated list.
+                patchState(store, { selectedContentType: type, page: 0 });
             },
             setSelectedCategory(id: string | number | null) {
                 const newId =
@@ -72,19 +78,16 @@ export function withStalkerSelection() {
             setSelectedItvId(id: string) {
                 patchState(store, { selectedItvId: id });
             },
-            setLimit(limit: number) {
-                if (store.limit() === limit) {
-                    return;
-                }
-
-                patchState(store, { limit });
-            },
             setPage(page: number) {
                 if (store.page() === page) {
                     return;
                 }
 
                 patchState(store, { page });
+            },
+            /** Advances to the next portal page (infinite-scroll append). */
+            nextPage() {
+                patchState(store, { page: store.page() + 1 });
             },
             setSearchPhrase(phrase: string) {
                 if (store.searchPhrase() === phrase) {

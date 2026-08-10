@@ -94,7 +94,9 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
     // ends in /stalker_portal — nesting it again would probe a path no
     // server has.
     if (!/\/stalker_portal(\/|$)/i.test(base)) {
-        candidates.push(candidateFrom(`${base}/stalker_portal/server/load.php`));
+        candidates.push(
+            candidateFrom(`${base}/stalker_portal/server/load.php`)
+        );
     }
 
     return [...new Set(candidates)];
@@ -112,7 +114,8 @@ export {
     isStalkerAuthFailureResponse,
 } from '@iptvnator/shared/interfaces';
 
-export type StalkerProbeClassification = 'data' | 'auth-required' | 'not-a-portal';
+export type StalkerProbeClassification =
+    'data' | 'auth-required' | 'not-a-portal';
 
 /**
  * Classifies what a token-less content request got back from a candidate
@@ -207,6 +210,15 @@ export function isStalkerProbeTimeout(error: unknown): boolean {
  */
 export function legacyTransformStalkerPortalUrl(url: string): string {
     url = url.replace(/\/+$/, '');
+
+    try {
+        if (new URL(url).pathname === '/') {
+            return `${url}/portal.php`;
+        }
+    } catch {
+        // The import form validates URLs before this fallback runs. Preserve
+        // the historical best-effort behavior for direct helper callers.
+    }
 
     if (url.endsWith('/c')) {
         if (url.includes('/stalker_portal')) {

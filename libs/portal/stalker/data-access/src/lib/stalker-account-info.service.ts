@@ -76,6 +76,7 @@ export class StalkerAccountInfoService {
             return null;
         }
 
+        await this.portalRepair.waitForPendingRepair(playlist._id);
         const effectivePlaylist = this.portalRepair.applyOverride(playlist);
         if (isFullStalkerPortalPlaylist(effectivePlaylist)) {
             return this.fetchViaProfile(effectivePlaylist);

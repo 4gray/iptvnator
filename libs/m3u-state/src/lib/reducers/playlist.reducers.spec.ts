@@ -46,6 +46,125 @@ describe('playlistReducers', () => {
         ).toEqual(['Movies', 'News']);
     });
 
+    it('updates a resolved Stalker connection and projects the transient session patch', () => {
+        const existingPlaylist = {
+            _id: 'stalker-1',
+            title: 'Stalker Portal',
+            count: 0,
+            importDate: '2026-08-08T00:00:00.000Z',
+            portalUrl: 'https://old.example.com/portal.php',
+            macAddress: '00:1A:79:AA:BB:CC',
+            isFullStalkerPortal: false,
+            stalkerSerialNumber: 'OLD-SERIAL',
+        } as PlaylistMeta;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(
+                existingPlaylist,
+                initialState.playlists
+            ),
+        };
+
+        const nextState = reducer(
+            state,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    ...existingPlaylist,
+                    portalUrl: 'https://new.example.com/server/load.php',
+                    isFullStalkerPortal: true,
+                    macAddress: '00:1A:79:DD:EE:FF',
+                    username: 'subscriber',
+                    password: 'secret',
+                    stalkerSerialNumber: 'NEW-SERIAL',
+                    stalkerDeviceId1: 'DEVICE-1',
+                    stalkerDeviceId2: 'DEVICE-2',
+                    stalkerSignature1: 'SIGNATURE-1',
+                    stalkerSignature2: 'SIGNATURE-2',
+                    stalkerSessionPatch: {
+                        stalkerToken: 'NEW_TOKEN',
+                        stalkerSessionIdentity: 'new-fingerprint',
+                        stalkerWatchdogTimeout: 90,
+                        stalkerTimeslot: 3,
+                        stalkerAccountInfo: {
+                            login: 'subscriber',
+                            status: 'active',
+                        },
+                    },
+                },
+            })
+        );
+        const stored = nextState.playlists.entities['stalker-1'];
+
+        expect(stored).toEqual(
+            expect.objectContaining({
+                portalUrl: 'https://new.example.com/server/load.php',
+                isFullStalkerPortal: true,
+                macAddress: '00:1A:79:DD:EE:FF',
+                username: 'subscriber',
+                password: 'secret',
+                stalkerSerialNumber: 'NEW-SERIAL',
+                stalkerDeviceId1: 'DEVICE-1',
+                stalkerDeviceId2: 'DEVICE-2',
+                stalkerSignature1: 'SIGNATURE-1',
+                stalkerSignature2: 'SIGNATURE-2',
+                stalkerToken: 'NEW_TOKEN',
+                stalkerSessionIdentity: 'new-fingerprint',
+                stalkerWatchdogTimeout: 90,
+                stalkerTimeslot: 3,
+                stalkerAccountInfo: {
+                    login: 'subscriber',
+                    status: 'active',
+                },
+            })
+        );
+        expect(stored).not.toHaveProperty('stalkerSessionPatch');
+    });
+
+    it('clears the active Stalker session when the transient patch is null', () => {
+        const existingPlaylist = {
+            _id: 'stalker-1',
+            title: 'Stalker Portal',
+            count: 0,
+            importDate: '2026-08-08T00:00:00.000Z',
+            portalUrl: 'https://old.example.com/server/load.php',
+            macAddress: '00:1A:79:AA:BB:CC',
+            stalkerToken: 'OLD_TOKEN',
+            stalkerSessionIdentity: 'old-fingerprint',
+            stalkerWatchdogTimeout: 120,
+            stalkerTimeslot: 7,
+            stalkerAccountInfo: { login: 'old-user' },
+        } as Playlist;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(
+                existingPlaylist,
+                initialState.playlists
+            ),
+        };
+
+        const nextState = reducer(
+            state,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    ...existingPlaylist,
+                    stalkerSessionPatch: null,
+                },
+            })
+        );
+        const stored = nextState.playlists.entities['stalker-1'];
+
+        expect(stored).toEqual(
+            expect.objectContaining({
+                stalkerToken: undefined,
+                stalkerSessionIdentity: undefined,
+                stalkerWatchdogTimeout: undefined,
+                stalkerTimeslot: undefined,
+                stalkerAccountInfo: undefined,
+            })
+        );
+        expect(stored).not.toHaveProperty('stalkerSessionPatch');
+    });
+
     it('updates the active playlist channel cache and clears loading on playlist refresh', () => {
         const refreshedChannel = {
             epgParams: '',
@@ -160,9 +279,9 @@ describe('playlistReducers', () => {
             })
         );
 
-        expect(
-            nextState.playlists.entities['playlist-1']?.autoRefresh
-        ).toBe(true);
+        expect(nextState.playlists.entities['playlist-1']?.autoRefresh).toBe(
+            true
+        );
     });
 
     it('keeps autoRefresh disabled on playlist refresh when the existing playlist has it disabled', () => {
@@ -194,8 +313,8 @@ describe('playlistReducers', () => {
             })
         );
 
-        expect(
-            nextState.playlists.entities['playlist-1']?.autoRefresh
-        ).toBe(false);
+        expect(nextState.playlists.entities['playlist-1']?.autoRefresh).toBe(
+            false
+        );
     });
 });

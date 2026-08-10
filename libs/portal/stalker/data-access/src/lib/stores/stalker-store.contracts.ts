@@ -13,6 +13,8 @@ export interface ResourceState<T> {
     value(): T;
     isLoading(): boolean;
     error(): unknown;
+    /** Re-runs the loader with the current params (append retry). */
+    reload(): boolean;
 }
 
 export interface StalkerPortalStoreContract {
@@ -25,7 +27,6 @@ export interface StalkerSelectionStoreContract {
     selectedVodId(): string | undefined;
     selectedSerialId(): string | undefined;
     selectedItvId(): string | undefined;
-    limit(): number;
     page(): number;
     searchPhrase(): string;
     selectedItem(): StalkerVodSource | null | undefined;

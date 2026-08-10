@@ -2,6 +2,7 @@
     class="external-playback-dock"
     [class.external-playback-dock--compact]="compact()"
     [class.external-playback-dock--error]="session().status === 'error'"
+    [attr.aria-busy]="session().status === 'launching' ? 'true' : null"
 >
     <button
         type="button"
@@ -10,9 +11,7 @@
             artworkInteractive()
         "
         [disabled]="!artworkInteractive()"
-        [attr.aria-label]="
-            artworkInteractive() ? 'Open in playlist' : null
-        "
+        [attr.aria-label]="artworkInteractive() ? 'Open in playlist' : null"
         (click)="onArtworkClick()"
     >
         @if (showArtwork()) {
@@ -31,41 +30,89 @@
 
     <div class="external-playback-dock__meta">
         <div class="external-playback-dock__title">{{ displayTitle() }}</div>
-        <div class="external-playback-dock__status">
-            <span class="external-playback-dock__chip">{{ playerLabel() }}</span>
+        <div class="external-playback-dock__status" aria-live="polite">
+            <span class="external-playback-dock__chip">{{
+                playerLabel()
+            }}</span>
             <span
                 class="external-playback-dock__status-separator"
                 aria-hidden="true"
                 >·</span
             >
             @if (showSpinner()) {
-                <mat-spinner diameter="12" strokeWidth="2"></mat-spinner>
+                <mat-spinner
+                    aria-hidden="true"
+                    diameter="12"
+                    strokeWidth="2"
+                ></mat-spinner>
             } @else if (showStatusIcon()) {
-                <mat-icon class="external-playback-dock__status-icon">{{
-                    statusIcon()
-                }}</mat-icon>
+                <mat-icon
+                    aria-hidden="true"
+                    class="external-playback-dock__status-icon"
+                    >{{ statusIcon() }}</mat-icon
+                >
             }
-            <span class="external-playback-dock__status-text">{{
-                statusLabel()
-            }}</span>
+            <span class="external-playback-dock__status-text">
+                @if (session().status === 'error' && session().error) {
+                    {{ session().error }}
+                } @else {
+                    {{ statusLabelKey() | translate }}
+                }
+            </span>
         </div>
     </div>
 
     <div class="external-playback-dock__actions">
-        @if (showCloseButton()) {
+        @if (showCloseAction()) {
             <button
                 type="button"
                 mat-button
                 class="external-playback-dock__button"
-                (click)="closeClicked.emit()"
+                [attr.aria-label]="
+                    'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_CLOSE' | translate
+                "
+                (click)="onCloseClick()"
             >
-                <mat-icon>stop_circle</mat-icon>
+                <mat-icon aria-hidden="true">stop_circle</mat-icon>
                 @if (!compact()) {
                     <span>{{
                         'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_CLOSE' | translate
                     }}</span>
                 }
             </button>
+        }
+        @if (showDismissAction()) {
+            @if (compact()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="external-playback-dock__button external-playback-dock__dismiss"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS' | translate
+                    "
+                    (click)="onDismissClick()"
+                >
+                    <mat-icon aria-hidden="true">close</mat-icon>
+                </button>
+            } @else {
+                <button
+                    type="button"
+                    mat-button
+                    class="external-playback-dock__button external-playback-dock__dismiss"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS' | translate
+                    "
+                    (click)="onDismissClick()"
+                >
+                    <mat-icon aria-hidden="true">close</mat-icon>
+                    @if (!compact()) {
+                        <span>{{
+                            'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_DISMISS'
+                                | translate
+                        }}</span>
+                    }
+                </button>
+            }
         }
     </div>
 </section>

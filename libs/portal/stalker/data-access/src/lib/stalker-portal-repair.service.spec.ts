@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -24,10 +24,18 @@ const MISCLASSIFIED = {
     isFullStalkerPortal: false,
 } as PlaylistMeta;
 
+async function flushMicrotasks(): Promise<void> {
+    for (let i = 0; i < 4; i += 1) {
+        await Promise.resolve();
+    }
+}
+
 describe('StalkerPortalRepairService', () => {
+    const originalLockManager = globalThis.navigator?.locks;
     let service: StalkerPortalRepairService;
     let discover: jest.Mock;
     let transformPlaylistMeta: jest.Mock;
+    let getPlaylistById: jest.Mock;
     /** What the persisted row looks like when the repair re-verifies it. */
     let persistedRow: Playlist | undefined;
     /** The row the atomic transform actually wrote, if any. */
@@ -36,10 +44,29 @@ describe('StalkerPortalRepairService', () => {
     let persistError: Error | null;
     let setCachedToken: jest.Mock;
     let adoptDiscoveredSession: jest.Mock;
+    let adoptDiscoveredSimplePortal: jest.Mock;
     let clearCachedToken: jest.Mock;
     let refreshActiveWatchdogPlaylist: jest.Mock;
+    let beginPortalRepairDiscovery: jest.Mock;
+    let completePortalRepairDiscovery: jest.Mock;
 
     beforeEach(() => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: {
+                request: jest.fn(
+                    async <T>(
+                        name: string,
+                        options: LockOptions,
+                        callback: (lock: Lock | null) => Promise<T>
+                    ) =>
+                        callback({
+                            name,
+                            mode: options.mode ?? 'exclusive',
+                        } as Lock)
+                ),
+            },
+        });
         discover = jest.fn();
         persistedRow = MISCLASSIFIED as Playlist;
         writtenRow = null;
@@ -61,10 +88,18 @@ describe('StalkerPortalRepairService', () => {
             writtenRow = next;
             return of(next);
         });
+        getPlaylistById = jest.fn(() => of(persistedRow));
         setCachedToken = jest.fn();
         adoptDiscoveredSession = jest.fn();
+        adoptDiscoveredSimplePortal = jest.fn();
         clearCachedToken = jest.fn();
         refreshActiveWatchdogPlaylist = jest.fn();
+        beginPortalRepairDiscovery = jest.fn((playlistId: string) => ({
+            playlistId,
+            owner: Symbol('portal-repair'),
+            drained: Promise.resolve(),
+        }));
+        completePortalRepairDiscovery = jest.fn();
 
         TestBed.configureTestingModule({
             providers: [
@@ -76,7 +111,7 @@ describe('StalkerPortalRepairService', () => {
                     provide: PlaylistsService,
                     useValue: {
                         transformPlaylistMeta,
-                        getPlaylistById: jest.fn(() => of(persistedRow)),
+                        getPlaylistById,
                     },
                 },
                 {
@@ -84,8 +119,11 @@ describe('StalkerPortalRepairService', () => {
                     useValue: {
                         setCachedToken,
                         adoptDiscoveredSession,
+                        adoptDiscoveredSimplePortal,
                         clearCachedToken,
                         refreshActiveWatchdogPlaylist,
+                        beginPortalRepairDiscovery,
+                        completePortalRepairDiscovery,
                     },
                 },
             ],
@@ -94,10 +132,20 @@ describe('StalkerPortalRepairService', () => {
         service = TestBed.inject(StalkerPortalRepairService);
     });
 
+    afterEach(() => {
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: originalLockManager,
+        });
+    });
+
     describe('shouldAttemptRepair', () => {
         it('triggers on the middleware plain-text auth bodies', () => {
             expect(
-                service.shouldAttemptRepair(MISCLASSIFIED, 'Authorization failed.')
+                service.shouldAttemptRepair(
+                    MISCLASSIFIED,
+                    'Authorization failed.'
+                )
             ).toBe(true);
             expect(
                 service.shouldAttemptRepair(
@@ -175,9 +223,9 @@ describe('StalkerPortalRepairService', () => {
                     status: 500,
                 })
             ).toBe(false);
-            expect(
-                service.shouldAttemptRepair(MISCLASSIFIED, { js: [] })
-            ).toBe(false);
+            expect(service.shouldAttemptRepair(MISCLASSIFIED, { js: [] })).toBe(
+                false
+            );
         });
 
         it('never triggers for playlists without portal coordinates', () => {
@@ -191,6 +239,123 @@ describe('StalkerPortalRepairService', () => {
     });
 
     describe('repairPortal', () => {
+        it('does not preflight or discover while another tab owns the playlist authority', async () => {
+            const request = jest.fn(
+                async <T>(
+                    name: string,
+                    options: LockOptions,
+                    callback: (lock: Lock | null) => Promise<T>
+                ) => {
+                    if (name === 'iptvnator:playlist-authority') {
+                        return callback({
+                            name,
+                            mode: options.mode ?? 'shared',
+                        } as Lock);
+                    }
+                    return callback(null);
+                }
+            );
+            Object.defineProperty(globalThis.navigator, 'locks', {
+                configurable: true,
+                value: { request },
+            });
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toBeNull();
+
+            expect(getPlaylistById).not.toHaveBeenCalled();
+            expect(beginPortalRepairDiscovery).not.toHaveBeenCalled();
+            expect(discover).not.toHaveBeenCalled();
+        });
+
+        it('holds playlist authority from persisted preflight through the conditional commit', async () => {
+            let rowAuthorityHeld = false;
+            let finishPhysicalRelease: () => void = () => undefined;
+            const physicalRelease = new Promise<void>((resolve) => {
+                finishPhysicalRelease = resolve;
+            });
+            const request = jest.fn(
+                async <T>(
+                    name: string,
+                    options: LockOptions,
+                    callback: (lock: Lock | null) => Promise<T>
+                ) => {
+                    if (name === 'iptvnator:playlist-authority') {
+                        return callback({ name, mode: 'shared' } as Lock);
+                    }
+                    rowAuthorityHeld = true;
+                    try {
+                        const result = await callback({
+                            name,
+                            mode: options.mode ?? 'exclusive',
+                        } as Lock);
+                        await physicalRelease;
+                        return result;
+                    } finally {
+                        rowAuthorityHeld = false;
+                    }
+                }
+            );
+            Object.defineProperty(globalThis.navigator, 'locks', {
+                configurable: true,
+                value: { request },
+            });
+            getPlaylistById.mockImplementation(() => {
+                expect(rowAuthorityHeld).toBe(true);
+                return of(persistedRow);
+            });
+            discover.mockImplementation(async () => {
+                expect(rowAuthorityHeld).toBe(true);
+                return {
+                    status: 'resolved',
+                    portalUrl: MISCLASSIFIED.portalUrl,
+                    isFullStalkerPortal: true,
+                    token: 'LOCKED_REPAIR_TOKEN',
+                };
+            });
+            transformPlaylistMeta.mockImplementation((_id, transform) => {
+                expect(rowAuthorityHeld).toBe(true);
+                const next = transform(persistedRow) as Playlist;
+                writtenRow = next;
+                return of(next);
+            });
+
+            let repairSettled = false;
+            const repair = service.repairPortal(MISCLASSIFIED);
+            void repair.then(() => {
+                repairSettled = true;
+            });
+            while (transformPlaylistMeta.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            await flushMicrotasks();
+            expect(repairSettled).toBe(false);
+            expect(rowAuthorityHeld).toBe(true);
+
+            finishPhysicalRelease();
+            await expect(repair).resolves.toMatchObject({
+                isFullStalkerPortal: true,
+            });
+
+            expect(rowAuthorityHeld).toBe(false);
+            expect(request).toHaveBeenCalledWith(
+                'iptvnator:playlist-authority',
+                { mode: 'shared' },
+                expect.any(Function)
+            );
+            expect(request).toHaveBeenCalledWith(
+                `iptvnator:playlist-authority:${MISCLASSIFIED._id}`,
+                { ifAvailable: true, mode: 'exclusive' },
+                expect.any(Function)
+            );
+        });
+
         it('persists a proven different mode and returns the patched playlist', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',
@@ -286,6 +451,49 @@ describe('StalkerPortalRepairService', () => {
             expect(writtenRow).toBeNull();
         });
 
+        it('keeps repair authentication fenced until an abandoned attempt settles', async () => {
+            let settleAuthentication: () => void = () => undefined;
+            const abandonedAuthenticationSettled = new Promise<void>(
+                (resolve) => {
+                    settleAuthentication = resolve;
+                }
+            );
+            discover.mockResolvedValue({
+                status: 'auth-rejected',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                abandonedInFlight: true,
+                abandonedAuthenticationSettled,
+            });
+
+            const repair = service.repairPortal(MISCLASSIFIED);
+            while (discover.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            let repairSettled = false;
+            void repair.then(() => {
+                repairSettled = true;
+            });
+            for (let i = 0; i < 5; i += 1) {
+                await Promise.resolve();
+            }
+
+            expect(repairSettled).toBe(false);
+            expect(beginPortalRepairDiscovery).toHaveBeenCalledWith(
+                MISCLASSIFIED._id
+            );
+            expect(completePortalRepairDiscovery).not.toHaveBeenCalled();
+
+            const waitingForRepair = service.waitForPendingRepair(
+                MISCLASSIFIED._id
+            );
+            settleAuthentication();
+            await expect(repair).resolves.toBeNull();
+            await expect(waitingForRepair).resolves.toBeUndefined();
+            expect(completePortalRepairDiscovery).toHaveBeenCalledWith(
+                expect.objectContaining({ playlistId: MISCLASSIFIED._id })
+            );
+        });
+
         it('discards a repair whose credentials changed while probing', async () => {
             // Discovery can run for tens of seconds; a login saved meanwhile
             // means the outcome was negotiated for an account the row no
@@ -347,12 +555,14 @@ describe('StalkerPortalRepairService', () => {
             // without the credentials the probe reports `login-required` and
             // the source could never be repaired.
             discover.mockResolvedValue({ status: 'unreachable' });
-
-            await service.repairPortal({
+            const playlistWithCredentials = {
                 ...MISCLASSIFIED,
                 username: 'user',
                 password: 'secret',
-            });
+            } as PlaylistMeta;
+            persistedRow = playlistWithCredentials as Playlist;
+
+            await service.repairPortal(playlistWithCredentials);
 
             expect(discover).toHaveBeenCalledWith(
                 expect.any(String),
@@ -371,21 +581,17 @@ describe('StalkerPortalRepairService', () => {
             expect(discover).toHaveBeenCalledTimes(1);
         });
 
-        it('re-enters for an edited configuration after awaiting a pending probe', async () => {
-            // A's probe is in flight when a request from the EDITED config B
-            // fails: after A settles (and is discarded by the row guard), B
-            // must get its own probe instead of inheriting A's outcome.
+        it('re-enters for an edited configuration after declining a pending stale source', async () => {
+            // A's persisted-row preflight is in flight when a request from
+            // the EDITED config B fails: after stale A is declined, B must
+            // get its own probe instead of inheriting A's outcome.
             const edited = {
                 ...MISCLASSIFIED,
                 portalUrl: 'http://edited.example/portal.php',
             } as PlaylistMeta;
             persistedRow = edited as Playlist;
 
-            let resolveFirstDiscovery!: (value: unknown) => void;
-            discover.mockReturnValueOnce(
-                new Promise((resolve) => (resolveFirstDiscovery = resolve))
-            );
-            discover.mockResolvedValueOnce({
+            discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: 'http://edited.example/server/load.php',
                 isFullStalkerPortal: true,
@@ -394,15 +600,9 @@ describe('StalkerPortalRepairService', () => {
             const oldRepair = service.repairPortal(MISCLASSIFIED);
             const editedRepair = service.repairPortal(edited);
 
-            resolveFirstDiscovery({
-                status: 'resolved',
-                portalUrl: MISCLASSIFIED.portalUrl,
-                isFullStalkerPortal: true,
-            });
-
             expect(await oldRepair).toBeNull();
             const repaired = await editedRepair;
-            expect(discover).toHaveBeenCalledTimes(2);
+            expect(discover).toHaveBeenCalledTimes(1);
             expect(repaired?.portalUrl).toBe(
                 'http://edited.example/server/load.php'
             );
@@ -467,7 +667,9 @@ describe('StalkerPortalRepairService', () => {
                 ...MISCLASSIFIED,
                 portalUrl: 'http://other.example/portal.php',
             } as PlaylistMeta;
+            persistedRow = edited as Playlist;
             expect(service.applyOverride(edited)).toBe(edited);
+            await flushMicrotasks();
 
             // …and the once-per-session latch re-arms so the EDITED
             // configuration may probe if it fails too.
@@ -476,12 +678,144 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://other.example/server/load.php',
                 isFullStalkerPortal: true,
             });
-            persistedRow = edited as Playlist;
             const repairedAgain = await service.repairPortal(edited);
             expect(discover).toHaveBeenCalledTimes(2);
             expect(repairedAgain?.portalUrl).toBe(
                 'http://other.example/server/load.php'
             );
+        });
+
+        it('fences an edit without changing runtime state until persistence commits', async () => {
+            const wrongEndpoint = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://ministra.example/portal.php',
+            } as PlaylistMeta;
+            persistedRow = wrongEndpoint as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://ministra.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'TOKEN2',
+            });
+            await service.repairPortal(wrongEndpoint);
+            clearCachedToken.mockClear();
+
+            service.fenceForPlaylistEdit(wrongEndpoint._id);
+
+            expect(service.applyOverride(wrongEndpoint).portalUrl).toBe(
+                'http://ministra.example/server/load.php'
+            );
+            expect(clearCachedToken).not.toHaveBeenCalled();
+
+            service.commitPlaylistEdit(wrongEndpoint._id);
+
+            expect(service.applyOverride(wrongEndpoint)).toBe(wrongEndpoint);
+            expect(clearCachedToken).not.toHaveBeenCalled();
+        });
+
+        it('does not start another repair while explicit Edit discovery owns the playlist', async () => {
+            const fence = service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            discover.mockClear();
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toBeNull();
+            expect(discover).not.toHaveBeenCalled();
+
+            service.releasePlaylistEdit(MISCLASSIFIED._id);
+            await fence;
+        });
+
+        it('blocks an already-queued same-tab repair from reserving after Edit starts', async () => {
+            let finishDiscovery: (outcome: {
+                status: 'resolved';
+                portalUrl: string;
+                isFullStalkerPortal: boolean;
+            }) => void = () => undefined;
+            discover.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishDiscovery = resolve;
+                })
+            );
+            const request = globalThis.navigator?.locks?.request as jest.Mock;
+
+            const firstRepair = service.repairPortal(MISCLASSIFIED);
+            while (discover.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            const queuedRepair = service.repairPortal(MISCLASSIFIED);
+            const editDrain = service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+
+            finishDiscovery({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+
+            await expect(firstRepair).resolves.toBeNull();
+            await expect(queuedRepair).resolves.toBeNull();
+            await editDrain;
+            expect(discover).toHaveBeenCalledTimes(1);
+            expect(request).toHaveBeenCalledTimes(2);
+
+            service.releasePlaylistEdit(MISCLASSIFIED._id);
+        });
+
+        it('does not probe a stale source after explicit Edit has committed', async () => {
+            const edited = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/server/load.php',
+                isFullStalkerPortal: true,
+            } as Playlist;
+            await service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            persistedRow = edited;
+            service.commitPlaylistEdit(MISCLASSIFIED._id);
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+                token: 'STALE_REPAIR_TOKEN',
+            });
+
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toBeNull();
+            expect(discover).not.toHaveBeenCalled();
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
+        });
+
+        it('discards a repair verified before explicit Edit but completed after it', async () => {
+            const wrongEndpoint = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://ministra.example/portal.php',
+            } as PlaylistMeta;
+            persistedRow = wrongEndpoint as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://ministra.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'REPAIR_TOKEN',
+            });
+            const writeCompletion = new Subject<Playlist | null>();
+            transformPlaylistMeta.mockImplementation((_id, transform) => {
+                writtenRow = transform(persistedRow) as Playlist | null;
+                return writeCompletion;
+            });
+
+            const repair = service.repairPortal(wrongEndpoint);
+            while (transformPlaylistMeta.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            // The transform has verified A and computed B, but its async
+            // persistence has not completed. Explicit Edit C must fence all
+            // repair-side runtime/session effects that follow that await.
+            service.fenceForPlaylistEdit(wrongEndpoint._id);
+            writeCompletion.next(writtenRow);
+
+            await expect(repair).resolves.toBeNull();
+            expect(service.applyOverride(wrongEndpoint)).toBe(wrongEndpoint);
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
+            expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
 
         it('discards an in-flight repair when the row was edited during the probe', async () => {
@@ -544,11 +878,13 @@ describe('StalkerPortalRepairService', () => {
                 stalkerSerialNumber: 'a',
                 stalkerDeviceId1: 'b',
             } as PlaylistMeta;
+            persistedRow = shiftedIdentity as Playlist;
 
             // A DIFFERENT identity must invalidate, not inherit.
             expect(service.applyOverride(shiftedIdentity)).toBe(
                 shiftedIdentity
             );
+            await flushMicrotasks();
             expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
         });
 
@@ -569,10 +905,13 @@ describe('StalkerPortalRepairService', () => {
                 macAddress: '00:1A:79:00:44:44',
             } as PlaylistMeta;
             // The edit drops the active override…
+            persistedRow = editedIdentity as Playlist;
             expect(service.applyOverride(editedIdentity)).toBe(editedIdentity);
+            await flushMicrotasks();
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
 
             // …and the restored configuration reinstalls it on failure.
+            persistedRow = MISCLASSIFIED as Playlist;
             refreshActiveWatchdogPlaylist.mockClear();
             const restored = await service.repairPortal(MISCLASSIFIED);
             expect(discover).toHaveBeenCalledTimes(1);
@@ -603,8 +942,9 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://c.example/portal.php',
             } as PlaylistMeta;
             // The edit drops the active override…
-            expect(service.applyOverride(otherConfig)).toBe(otherConfig);
             persistedRow = otherConfig as Playlist;
+            expect(service.applyOverride(otherConfig)).toBe(otherConfig);
+            await flushMicrotasks();
             refreshActiveWatchdogPlaylist.mockClear();
 
             // …and a stale A request does not bring it back.
@@ -632,20 +972,129 @@ describe('StalkerPortalRepairService', () => {
                 macAddress: '00:1A:79:00:88:88',
             } as PlaylistMeta;
 
+            persistedRow = editedIdentity as Playlist;
             expect(service.applyOverride(editedIdentity)).toBe(editedIdentity);
+            await flushMicrotasks();
             expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
             // The latch is re-armed for the edited identity.
             discover.mockClear();
             discover.mockResolvedValue({ status: 'unreachable' });
-            persistedRow = editedIdentity as Playlist;
             await service.repairPortal(editedIdentity);
             expect(discover).toHaveBeenCalledTimes(1);
         });
 
+        it('drops a repaired override when a restored row has new credentials', async () => {
+            const original = {
+                ...MISCLASSIFIED,
+                username: 'user-1',
+                password: 'password-1',
+            } as PlaylistMeta;
+            persistedRow = original as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: original.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(original);
+            clearCachedToken.mockClear();
+
+            const restored = {
+                ...original,
+                username: 'user-2',
+                password: 'password-2',
+            } as PlaylistMeta;
+            persistedRow = restored as Playlist;
+
+            expect(service.applyOverride(restored)).toBe(restored);
+            await flushMicrotasks();
+            expect(clearCachedToken).toHaveBeenCalledWith(original._id);
+
+            discover.mockResolvedValue({ status: 'unreachable' });
+            await service.repairPortal(restored);
+            expect(discover).toHaveBeenCalledTimes(2);
+        });
+
+        it('keeps a valid override when only a delayed snapshot has stale credentials', async () => {
+            const current = {
+                ...MISCLASSIFIED,
+                username: 'current-user',
+                password: 'current-password',
+            } as PlaylistMeta;
+            persistedRow = current as Playlist;
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: current.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(current);
+            persistedRow = writtenRow as Playlist;
+            clearCachedToken.mockClear();
+
+            const delayed = {
+                ...current,
+                username: 'stale-user',
+                password: 'stale-password',
+            } as PlaylistMeta;
+            expect(service.applyOverride(delayed)).toBe(delayed);
+            await flushMicrotasks();
+
+            expect(clearCachedToken).not.toHaveBeenCalled();
+            expect(service.applyOverride(current)).toMatchObject({
+                isFullStalkerPortal: true,
+            });
+        });
+
+        it.each(['before', 'after'] as const)(
+            'does not retire a token when its row read starts %s an explicit edit takes ownership',
+            async (readOrder) => {
+                const original = {
+                    ...MISCLASSIFIED,
+                    username: 'repair-user',
+                    password: 'repair-password',
+                } as PlaylistMeta;
+                persistedRow = original as Playlist;
+                discover.mockResolvedValue({
+                    status: 'resolved',
+                    portalUrl: original.portalUrl,
+                    isFullStalkerPortal: true,
+                    token: 'REPAIR_TOKEN',
+                });
+                await service.repairPortal(original);
+                clearCachedToken.mockClear();
+
+                const edited = {
+                    ...original,
+                    username: 'edited-user',
+                    password: 'edited-password',
+                } as PlaylistMeta;
+                const rowRead = new Subject<Playlist | undefined>();
+                getPlaylistById.mockReturnValueOnce(rowRead);
+
+                if (readOrder === 'before') {
+                    expect(service.applyOverride(edited)).toBe(edited);
+                }
+                // A confirmation may have started just before Edit, or a
+                // delayed caller may start it while Edit owns the ID.
+                await service.fenceForPlaylistEdit(original._id);
+                if (readOrder === 'after') {
+                    expect(service.applyOverride(edited)).toBe(edited);
+                }
+
+                setCachedToken(original._id, 'EDIT_TOKEN', edited);
+                rowRead.next(edited as Playlist);
+                rowRead.complete();
+                await flushMicrotasks();
+
+                expect(clearCachedToken).not.toHaveBeenCalled();
+                service.commitPlaylistEdit(original._id);
+                expect(service.applyOverride(original)).toBe(original);
+            }
+        );
+
         it('re-probes a DISCARDED configuration once the row is restored to it', async () => {
-            // A's probe was discarded because the row moved to B mid-probe;
-            // after the user restores the row to A, A's next failure must
-            // probe again instead of staying dead for the session.
+            // A's probe was discarded by the persisted-row preflight because
+            // the row had moved to B; after the user restores the row to A,
+            // A's next failure must probe instead of staying dead.
             discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: MISCLASSIFIED.portalUrl,
@@ -656,13 +1105,58 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://edited.example/portal.php',
             } as Playlist;
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(discover).toHaveBeenCalledTimes(1);
+            expect(discover).not.toHaveBeenCalled();
 
             // Row restored to A → the discarded marker yields to a new probe.
             persistedRow = MISCLASSIFIED as Playlist;
             const repaired = await service.repairPortal(MISCLASSIFIED);
-            expect(discover).toHaveBeenCalledTimes(2);
+            expect(discover).toHaveBeenCalledTimes(1);
             expect(repaired).toMatchObject({ isFullStalkerPortal: true });
+        });
+
+        it('does not start discovery when Edit takes ownership during a DISCARDED history read', async () => {
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/portal.php',
+            } as Playlist;
+            await service.repairPortal(MISCLASSIFIED);
+            expect(discover).not.toHaveBeenCalled();
+
+            persistedRow = MISCLASSIFIED as Playlist;
+            const historyRead = new Subject<Playlist | undefined>();
+            getPlaylistById.mockClear();
+            getPlaylistById.mockReturnValueOnce(historyRead);
+            beginPortalRepairDiscovery.mockClear();
+            completePortalRepairDiscovery.mockClear();
+
+            const repair = service.repairPortal(MISCLASSIFIED);
+            while (getPlaylistById.mock.calls.length === 0) {
+                await Promise.resolve();
+            }
+            expect(getPlaylistById).toHaveBeenCalledTimes(1);
+            // Edit installs its generation fence immediately, then drains
+            // the published repair owner while the row read is still live.
+            const editDrain = service.fenceForPlaylistEdit(MISCLASSIFIED._id);
+            historyRead.next(MISCLASSIFIED as Playlist);
+            historyRead.complete();
+
+            await expect(repair).resolves.toBeNull();
+            await editDrain;
+            expect(beginPortalRepairDiscovery).not.toHaveBeenCalled();
+            expect(discover).not.toHaveBeenCalled();
+
+            // A failed/cancelled Edit releases the fence without consuming
+            // the discarded history record; the restored source can retry.
+            service.releasePlaylistEdit(MISCLASSIFIED._id);
+            await expect(
+                service.repairPortal(MISCLASSIFIED)
+            ).resolves.toMatchObject({ isFullStalkerPortal: true });
+            expect(discover).toHaveBeenCalledTimes(1);
         });
 
         it('re-arms the EDITED configuration after a mid-probe edit discarded a repair', async () => {
@@ -671,7 +1165,8 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://edited.example/portal.php',
             } as PlaylistMeta;
 
-            // Probe of the OLD config lands after the user edit → discarded.
+            // The OLD config is declined before discovery because the row
+            // already carries the user edit.
             discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: MISCLASSIFIED.portalUrl,
@@ -679,12 +1174,12 @@ describe('StalkerPortalRepairService', () => {
             });
             persistedRow = edited as Playlist;
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(discover).toHaveBeenCalledTimes(1);
+            expect(discover).not.toHaveBeenCalled();
 
             // A stale snapshot of the already-probed config must NOT loop
             // the probe…
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(discover).toHaveBeenCalledTimes(1);
+            expect(discover).not.toHaveBeenCalled();
 
             // …but the EDITED configuration failing later must be allowed
             // to repair without an application restart.
@@ -694,7 +1189,7 @@ describe('StalkerPortalRepairService', () => {
                 isFullStalkerPortal: true,
             });
             const repaired = await service.repairPortal(edited);
-            expect(discover).toHaveBeenCalledTimes(2);
+            expect(discover).toHaveBeenCalledTimes(1);
             expect(repaired?.portalUrl).toBe(
                 'http://edited.example/server/load.php'
             );
@@ -724,9 +1219,9 @@ describe('StalkerPortalRepairService', () => {
             const repaired = await service.repairPortal(MISCLASSIFIED);
 
             expect(repaired?.isFullStalkerPortal).toBe(true);
-            expect(service.applyOverride(MISCLASSIFIED).isFullStalkerPortal).toBe(
-                true
-            );
+            expect(
+                service.applyOverride(MISCLASSIFIED).isFullStalkerPortal
+            ).toBe(true);
         });
 
         it('clears a stale cached token when a portal turns out token-free', async () => {
@@ -745,7 +1240,13 @@ describe('StalkerPortalRepairService', () => {
             const repaired = await service.repairPortal(wronglyFull);
 
             expect(repaired?.isFullStalkerPortal).toBe(false);
-            expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
+            expect(adoptDiscoveredSimplePortal).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: 'portal-1',
+                    portalUrl: 'http://panel.example/portal.php',
+                    isFullStalkerPortal: false,
+                })
+            );
         });
     });
 });

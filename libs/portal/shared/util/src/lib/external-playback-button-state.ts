@@ -48,6 +48,21 @@ export interface ExternalPlaybackButtonStateApi {
     buttonState: Signal<ExternalPlaybackButtonState>;
 }
 
+/**
+ * An error can still own a real process when bounded teardown could not
+ * confirm its exit. Keep that session live until Stop succeeds; only a
+ * confirmed close or an unclosable failure is terminal.
+ */
+export function isLiveExternalPlayerSession(
+    session: ExternalPlayerSession | null | undefined
+): session is ExternalPlayerSession {
+    return (
+        !!session &&
+        session.status !== 'closed' &&
+        (session.status !== 'error' || session.canClose)
+    );
+}
+
 export function createExternalPlaybackButtonState(
     config: ExternalPlaybackButtonStateConfig
 ): ExternalPlaybackButtonStateApi {
@@ -56,11 +71,7 @@ export function createExternalPlaybackButtonState(
     const matchedSession = computed(() => {
         const session = config.session();
         // A closed or errored session says nothing about what is playing now.
-        if (
-            !session?.contentInfo ||
-            session.status === 'closed' ||
-            session.status === 'error'
-        ) {
+        if (!session?.contentInfo || !isLiveExternalPlayerSession(session)) {
             return null;
         }
 
@@ -92,6 +103,7 @@ export function createExternalPlaybackButtonState(
                 return `Opening in ${player}...`;
             case 'opened':
             case 'playing':
+            case 'error':
                 return `Stop ${player}`;
             default:
                 return null;
@@ -104,6 +116,7 @@ export function createExternalPlaybackButtonState(
                 return 'hourglass_top';
             case 'opened':
             case 'playing':
+            case 'error':
                 return 'stop_circle';
             default:
                 return 'play_arrow';
@@ -116,7 +129,9 @@ export function createExternalPlaybackButtonState(
 
     const isStopAction = computed(() => {
         const status = matchedSession()?.status;
-        return status === 'opened' || status === 'playing';
+        return (
+            status === 'opened' || status === 'playing' || status === 'error'
+        );
     });
 
     const buttonState = computed<ExternalPlaybackButtonState>(() => {

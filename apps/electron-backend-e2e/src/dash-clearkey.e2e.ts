@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { basename, join } from 'path';
 import type {
     ExternalPlayerName,
+    ExternalPlayerSession,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -12,7 +13,12 @@ import {
     launchElectronApp,
     LaunchedElectronApp,
     openAddPlaylistDialog,
+    openSourceEditor,
+    openSources,
+    saveSourceDialog,
+    sourceRowByTitle,
     test,
+    updateSourceDialog,
     waitForM3uCatalog,
     workspaceRoot,
 } from './electron-test-fixtures';
@@ -189,6 +195,7 @@ type CapturedExternalPlayerLaunch = {
 };
 
 type PlaybackRecommendationCaptureSnapshot = {
+    closed: string[];
     completed: number;
     launches: CapturedExternalPlayerLaunch[];
     released: boolean;
@@ -197,6 +204,7 @@ type PlaybackRecommendationCaptureSnapshot = {
 type PlaybackRecommendationCaptureState =
     PlaybackRecommendationCaptureSnapshot & {
         releaseFirstResponse: (() => void) | undefined;
+        sessions: Record<string, ExternalPlayerSession>;
         waitForFirstResponse: Promise<void>;
     };
 
@@ -209,10 +217,12 @@ async function installPlaybackRecommendationLaunchCapture(
             releaseFirstResponse = resolve;
         });
         const state: PlaybackRecommendationCaptureState = {
+            closed: [],
             completed: 0,
             launches: [],
             released: false,
             releaseFirstResponse,
+            sessions: {},
             waitForFirstResponse,
         };
         const globalRef = globalThis as typeof globalThis & {
@@ -223,7 +233,7 @@ async function installPlaybackRecommendationLaunchCapture(
         const captureLaunch =
             (player: ExternalPlayerName) =>
             async (
-                _event: unknown,
+                rawEvent: unknown,
                 url: string,
                 title: string,
                 thumbnail?: string,
@@ -248,30 +258,81 @@ async function installPlaybackRecommendationLaunchCapture(
                     ],
                     player,
                 });
+                const now = new Date().toISOString();
+                const id = `e2e-recommended-${player}-${invocation}`;
+                const event = rawEvent as {
+                    sender: {
+                        send: (
+                            channel: string,
+                            session: ExternalPlayerSession
+                        ) => void;
+                    };
+                };
+                const launching: ExternalPlayerSession = {
+                    canClose: true,
+                    id,
+                    player,
+                    startedAt: now,
+                    status: 'launching',
+                    streamUrl: url,
+                    thumbnail: thumbnail ?? null,
+                    title,
+                    updatedAt: now,
+                };
+                state.sessions[id] = launching;
+                event.sender.send('EXTERNAL_PLAYER_SESSION_UPDATE', launching);
 
                 if (invocation === 1 && !state.released) {
                     await state.waitForFirstResponse;
                 }
 
                 state.completed += 1;
-                const now = new Date().toISOString();
-                return {
-                    canClose: false,
-                    id: `e2e-recommended-${player}-${invocation}`,
+                const completed: ExternalPlayerSession = {
+                    ...launching,
+                    canClose: player === 'mpv',
+                    error:
+                        player === 'vlc'
+                            ? 'E2E player launch failed'
+                            : undefined,
                     player,
-                    startedAt: now,
-                    status: 'opened',
-                    streamUrl: url,
-                    thumbnail: thumbnail ?? null,
-                    title,
-                    updatedAt: now,
+                    status: player === 'mpv' ? 'opened' : 'error',
+                    updatedAt: new Date().toISOString(),
                 };
+                state.sessions[id] = completed;
+                event.sender.send('EXTERNAL_PLAYER_SESSION_UPDATE', completed);
+                return completed;
             };
 
         ipcMain.removeHandler('OPEN_MPV_PLAYER');
         ipcMain.removeHandler('OPEN_VLC_PLAYER');
         ipcMain.handle('OPEN_MPV_PLAYER', captureLaunch('mpv'));
         ipcMain.handle('OPEN_VLC_PLAYER', captureLaunch('vlc'));
+        ipcMain.removeHandler('CLOSE_EXTERNAL_PLAYER_SESSION');
+        ipcMain.handle(
+            'CLOSE_EXTERNAL_PLAYER_SESSION',
+            (rawEvent: unknown, sessionId: string) => {
+                const session = state.sessions[sessionId];
+                if (!session) return null;
+                const closed: ExternalPlayerSession = {
+                    ...session,
+                    canClose: false,
+                    status: 'closed',
+                    updatedAt: new Date().toISOString(),
+                };
+                state.closed.push(sessionId);
+                state.sessions[sessionId] = closed;
+                const event = rawEvent as {
+                    sender: {
+                        send: (
+                            channel: string,
+                            update: ExternalPlayerSession
+                        ) => void;
+                    };
+                };
+                event.sender.send('EXTERNAL_PLAYER_SESSION_UPDATE', closed);
+                return closed;
+            }
+        );
     });
 }
 
@@ -289,6 +350,7 @@ async function getPlaybackRecommendationCapture(
             );
         }
         return {
+            closed: capture.closed,
             completed: capture.completed,
             launches: capture.launches,
             released: capture.released,
@@ -313,7 +375,7 @@ async function releasePlaybackRecommendationCapture(
     });
 }
 
-test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens in MPV', async ({
+test('@electron @dash ClearKey DASH filters DRM fallback and reports external launch states', async ({
     dataDir,
 }) => {
     const fixtureServer = await startDashFixtureServer();
@@ -422,14 +484,17 @@ test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens 
             /web-player-diagnostic__player-card--primary/
         );
 
+        // Blank channel-level #EXTVLCOPT values resolve to `undefined` (not
+        // empty strings) since the playlist-level header fallback landed —
+        // absent means absent on the IPC boundary.
         const expectedLaunches = [
             {
                 args: [
                     `${fixtureServer.origin}/unsupported.mkv`,
                     'Unsupported MKV',
                     '',
-                    '',
-                    '',
+                    undefined,
+                    undefined,
                     undefined,
                     undefined,
                     undefined,
@@ -439,6 +504,7 @@ test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens 
             },
         ] satisfies CapturedExternalPlayerLaunch[];
         expect(await getPlaybackRecommendationCapture(app)).toEqual({
+            closed: [],
             completed: 0,
             launches: [],
             released: false,
@@ -450,18 +516,33 @@ test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens 
                 timeout: 10_000,
             })
             .toEqual({
+                closed: [],
                 completed: 0,
                 launches: expectedLaunches,
                 released: false,
             });
-        expect(
-            (await getPlaybackRecommendationCapture(app)).launches.filter(
-                ({ player }) => player === 'vlc'
-            )
-        ).toHaveLength(0);
-        await expect(mpvFallback).toHaveCount(0);
-        await expect(vlcFallback).toHaveClass(
-            /web-player-diagnostic__player-card--primary/
+        await expect(mpvFallback).toBeVisible();
+        await expect(vlcFallback).toBeVisible();
+        await expect(mpvFallback).toContainText('Opening MPV');
+        await expect(mpvFallback).toContainText('Opening player');
+        await expect(mpvFallback).toHaveAttribute('aria-busy', 'true');
+        await expect(vlcFallback).toHaveAttribute('aria-disabled', 'true');
+        await vlcFallback.evaluate((button: HTMLButtonElement) =>
+            button.click()
+        );
+        await expect
+            .poll(() => getPlaybackRecommendationCapture(app))
+            .toEqual({
+                closed: [],
+                completed: 0,
+                launches: expectedLaunches,
+                released: false,
+            });
+        const dock = app.mainWindow.locator('app-external-playback-dock');
+        await expect(dock).toContainText('Opening player');
+        await expect(dock.locator('.external-playback-dock')).toHaveAttribute(
+            'aria-busy',
+            'true'
         );
 
         await releasePlaybackRecommendationCapture(app);
@@ -470,6 +551,7 @@ test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens 
                 timeout: 10_000,
             })
             .toEqual({
+                closed: [],
                 completed: 1,
                 launches: expectedLaunches,
                 released: true,
@@ -483,14 +565,132 @@ test('@electron @dash ClearKey DASH filters DRM fallback and eligible MKV opens 
                 })
         );
         expect(await getPlaybackRecommendationCapture(app)).toEqual({
+            closed: [],
             completed: 1,
             launches: expectedLaunches,
             released: true,
         });
-        await expect(mpvFallback).toHaveCount(0);
+        await expect(mpvFallback).toBeVisible();
+        await expect(mpvFallback).toContainText('Open MPV again');
+        await expect(mpvFallback).toContainText('Player started');
         await expect(vlcFallback).toHaveClass(
             /web-player-diagnostic__player-card--primary/
         );
+        await expect(dock).toContainText('Player started');
+        const dockThemeStyles = await dock
+            .locator('.external-playback-dock')
+            .evaluate((element) => {
+                const body = element.ownerDocument.body;
+                const wasDark = body.classList.contains('dark-theme');
+                const read = () => {
+                    const style = getComputedStyle(element);
+                    return {
+                        borderColor: style.borderColor,
+                        color: style.color,
+                        onSurface: style
+                            .getPropertyValue('--app-heading-color')
+                            .trim(),
+                        surface: style
+                            .getPropertyValue('--app-widget-bg')
+                            .trim(),
+                    };
+                };
+                body.classList.remove('dark-theme');
+                const light = read();
+                body.classList.add('dark-theme');
+                const dark = read();
+                body.classList.toggle('dark-theme', wasDark);
+                return { dark, light };
+            });
+        expect(dockThemeStyles.light.surface).not.toBe('');
+        expect(dockThemeStyles.dark.surface).not.toBe('');
+        expect(dockThemeStyles.light.onSurface).not.toBe('');
+        expect(dockThemeStyles.dark.onSurface).not.toBe('');
+        expect(dockThemeStyles.light).not.toEqual(dockThemeStyles.dark);
+
+        await vlcFallback.click();
+        const expectedBothLaunches = [
+            ...expectedLaunches,
+            { ...expectedLaunches[0], player: 'vlc' as const },
+        ];
+        await expect
+            .poll(() => getPlaybackRecommendationCapture(app), {
+                timeout: 10_000,
+            })
+            .toEqual({
+                closed: ['e2e-recommended-mpv-1'],
+                completed: 2,
+                launches: expectedBothLaunches,
+                released: true,
+            });
+        await expect(mpvFallback).toBeVisible();
+        await expect(vlcFallback).toBeVisible();
+        await expect(vlcFallback).toContainText('Try VLC again');
+        await expect(vlcFallback).toContainText('External player error');
+        await expect(mpvFallback).toHaveClass(
+            /web-player-diagnostic__player-card--primary/
+        );
+        await expect(dock).toContainText('E2E player launch failed');
+        await expect(
+            dock.getByRole('button', { name: 'Dismiss' })
+        ).toBeVisible();
+        await dock.getByRole('button', { name: 'Dismiss' }).click();
+        await expect(dock).toBeHidden();
+
+        // Playlist-level custom headers must cross the IPC boundary when the
+        // channel itself carries no #EXTVLCOPT values (#1221): set a
+        // User-Agent on the source, relaunch the MPV fallback, and expect the
+        // captured launch to carry it.
+        await openSources(app.mainWindow);
+        const sourceDialog = await openSourceEditor(
+            app.mainWindow,
+            'Imported as text'
+        );
+        await updateSourceDialog(sourceDialog, {
+            userAgent: 'Playlist Agent E2E/1.0',
+        });
+        await saveSourceDialog(app.mainWindow, sourceDialog);
+        await sourceRowByTitle(app.mainWindow, 'Imported as text')
+            .first()
+            .click();
+        await waitForM3uCatalog(app.mainWindow);
+
+        await channelItemByTitle(app.mainWindow, 'Unsupported MKV')
+            .first()
+            .click();
+        await expect(banner).toContainText(
+            /container is likely unsupported by the browser player/i,
+            { timeout: 15_000 }
+        );
+        await expect(mpvFallback).toBeVisible();
+        await mpvFallback.click();
+        const expectedPlaylistHeaderLaunch = {
+            args: [
+                `${fixtureServer.origin}/unsupported.mkv`,
+                'Unsupported MKV',
+                '',
+                'Playlist Agent E2E/1.0',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+            ],
+            player: 'mpv',
+        } satisfies CapturedExternalPlayerLaunch;
+        await expect
+            .poll(() => getPlaybackRecommendationCapture(app), {
+                timeout: 10_000,
+            })
+            .toEqual({
+                closed: ['e2e-recommended-mpv-1'],
+                completed: 3,
+                launches: [
+                    ...expectedBothLaunches,
+                    expectedPlaylistHeaderLaunch,
+                ],
+                released: true,
+            });
     } finally {
         await releasePlaybackRecommendationCapture(app).catch(() => undefined);
         await closeElectronApp(app);

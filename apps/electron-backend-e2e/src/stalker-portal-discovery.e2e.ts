@@ -4,12 +4,15 @@ import {
     closeElectronApp,
     expect,
     launchElectronApp,
+    openSourceEditor,
     openSources,
     resetMockServers,
     restartElectronApp,
     sourceRowByTitle,
     stalkerMockServer,
     test,
+    updateSourceDialog,
+    saveSourceDialog,
     waitForStalkerCatalog,
 } from './electron-test-fixtures';
 
@@ -34,6 +37,7 @@ import {
 const CANONICAL_IMPORT_MAC = '00:1A:79:00:00:21';
 const MINISTRA_IMPORT_MAC = '00:1A:79:00:00:22';
 const RESELLER_IMPORT_MAC = '00:1A:79:00:00:23';
+const BARE_HOST_IMPORT_MAC = '00:1A:79:00:00:27';
 const REPAIR_FLAG_MAC = '00:1A:79:00:00:24';
 const REPAIR_ENDPOINT_MAC = '00:1A:79:00:00:25';
 const HEALTHY_RESELLER_MAC = '00:1A:79:00:00:26';
@@ -82,22 +86,26 @@ async function seedStalkerPlaylist(
     }
 ): Promise<void> {
     const nowIso = new Date().toISOString();
-    await page.evaluate(async (playlist) => {
-        const electron = (window as unknown as PlaylistStorageWindow).electron;
-        await electron.dbUpsertAppPlaylist(playlist);
-    }, {
-        _id: row.id,
-        title: row.title,
-        macAddress: row.macAddress,
-        portalUrl: row.portalUrl,
-        isFullStalkerPortal: row.isFullStalkerPortal,
-        count: 0,
-        autoRefresh: false,
-        importDate: nowIso,
-        lastUsage: nowIso,
-        favorites: [],
-        recentlyViewed: [],
-    });
+    await page.evaluate(
+        async (playlist) => {
+            const electron = (window as unknown as PlaylistStorageWindow)
+                .electron;
+            await electron.dbUpsertAppPlaylist(playlist);
+        },
+        {
+            _id: row.id,
+            title: row.title,
+            macAddress: row.macAddress,
+            portalUrl: row.portalUrl,
+            isFullStalkerPortal: row.isFullStalkerPortal,
+            count: 0,
+            autoRefresh: false,
+            importDate: nowIso,
+            lastUsage: nowIso,
+            favorites: [],
+            recentlyViewed: [],
+        }
+    );
 }
 
 async function openSeededPortal(page: Page, title: string): Promise<void> {
@@ -106,7 +114,7 @@ async function openSeededPortal(page: Page, title: string): Promise<void> {
     await waitForStalkerCatalog(page);
 }
 
-test('@electron @stalker import discovery resolves canonical, ministra-/c and reseller URLs', async ({
+test('@electron @stalker Add and Edit discover bare, canonical, Ministra and reseller URLs', async ({
     dataDir,
     request,
 }) => {
@@ -167,6 +175,37 @@ test('@electron @stalker import discovery resolves canonical, ministra-/c and re
             portalUrl: `${stalkerMockServer}/portal.php`,
             isFullStalkerPortal: false,
         });
+
+        // 4) A bare host is valid input. The reseller endpoint answers first,
+        // so Add persists the resolved API handler rather than root HTML.
+        await openSources(app.mainWindow);
+        await addStalkerPortal(app.mainWindow, {
+            name: 'Bare Host',
+            macAddress: BARE_HOST_IMPORT_MAC,
+            portalUrl: stalkerMockServer,
+        });
+        await waitForStalkerCatalog(app.mainWindow);
+        expect(
+            await readStoredPortalConfig(app.mainWindow, 'Bare Host')
+        ).toEqual({
+            portalUrl: `${stalkerMockServer}/portal.php`,
+            isFullStalkerPortal: false,
+        });
+
+        // Edit uses the same discovery path as Add. Moving the source to a
+        // genuine Ministra tenant must replace endpoint and mode together.
+        await openSources(app.mainWindow);
+        const editDialog = await openSourceEditor(app.mainWindow, 'Bare Host');
+        await updateSourceDialog(editDialog, {
+            portalUrl: `${stalkerMockServer}/ministra/c`,
+        });
+        await saveSourceDialog(app.mainWindow, editDialog);
+        await expect
+            .poll(() => readStoredPortalConfig(app.mainWindow, 'Bare Host'))
+            .toEqual({
+                portalUrl: `${stalkerMockServer}/ministra/server/load.php`,
+                isFullStalkerPortal: true,
+            });
     } finally {
         await closeElectronApp(app);
     }
@@ -219,7 +258,10 @@ test('@electron @stalker lazy repair fixes misclassified stored portals and neve
         await openSeededPortal(app.mainWindow, 'Misclassified Canonical');
         await expect
             .poll(() =>
-                readStoredPortalConfig(app.mainWindow, 'Misclassified Canonical')
+                readStoredPortalConfig(
+                    app.mainWindow,
+                    'Misclassified Canonical'
+                )
             )
             .toEqual({
                 portalUrl: `${stalkerMockServer}/server/load.php`,

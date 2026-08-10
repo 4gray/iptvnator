@@ -9,6 +9,7 @@ import {
     goToDashboard,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     openWorkspaceSection,
     resetMockServers,
     saveSettings,
@@ -62,6 +63,12 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
                 fixture.stream.name ?? ''
             ).first();
             await expect(channelRow).toBeVisible({ timeout: 20000 });
+
+            // Provider-declared catch-up (tv_archive=1 in the fixture) is
+            // surfaced as a badge on the sidebar row (#1128).
+            await expect(
+                channelRow.getByTestId('catchup-badge')
+            ).toBeVisible();
 
             // Sidebar channel list shows the per-channel "now" programme line.
             await expect
@@ -302,6 +309,7 @@ test('@epg @xtream @electron renders the vertical list view when the setting is 
         // Opt into the list view first (from the fresh workspace) so the portal
         // → Live TV → channel flow afterwards mirrors the timeline test exactly.
         await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
         await app.mainWindow
             .locator('[data-test-id="epg-view-mode-list"]')
             .click();

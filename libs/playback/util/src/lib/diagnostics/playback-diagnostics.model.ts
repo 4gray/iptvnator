@@ -1,5 +1,6 @@
 import type {
     ExternalPlayerName,
+    ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { ErrorDetails, ErrorTypes } from 'hls.js';
@@ -278,4 +279,7 @@ export interface PlaybackFallbackRequest {
     readonly player: ExternalPlayerName;
     readonly playback: ResolvedPortalPlayback;
     readonly diagnostic: PlaybackDiagnostic;
+    readonly trackLaunch: (
+        launch: Promise<ExternalPlayerSession | void>
+    ) => void;
 }

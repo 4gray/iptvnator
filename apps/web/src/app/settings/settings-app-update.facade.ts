@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
+import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 
@@ -24,6 +25,7 @@ export class SettingsAppUpdateFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsService = inject(SettingsService);
     private readonly translate = inject(TranslateService);
+    private readonly installService = inject(AppUpdateInstallService);
 
     /** Latest updater status, polled once and then pushed by the backend */
     readonly status = signal<ElectronBridgeAppUpdateStatus | null>(null);
@@ -64,11 +66,18 @@ export class SettingsAppUpdateFacade {
     }
 
     async installAppUpdate(): Promise<void> {
-        if (!this.runtime.isElectron || !window.electron?.installAppUpdate) {
+        if (!this.runtime.isElectron) {
             return;
         }
 
-        this.status.set(await window.electron.installAppUpdate());
+        // Installing quits the app; AppUpdateInstallService owns the whole
+        // choreography of standing the unsaved-settings unload guard down
+        // for that quit and restoring it when the quit provably fails.
+        const status = await this.installService.installAppUpdate();
+
+        if (status) {
+            this.status.set(status);
+        }
     }
 
     openManualAppUpdate(): void {

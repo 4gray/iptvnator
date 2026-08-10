@@ -29,8 +29,6 @@ const PLAYLIST_TWO: XtreamPlaylistData = {
 describe('XtreamCatalogFacadeService', () => {
     let service: XtreamCatalogFacadeService;
     const contentType = signal<'live' | 'vod' | 'series'>('vod');
-    const limit = signal(25);
-    const page = signal(0);
     const selectedCategory = signal<Record<string, unknown> | null>({
         id: 11,
         name: 'Movies',
@@ -44,7 +42,7 @@ describe('XtreamCatalogFacadeService', () => {
         { xtream_id: 2, title: 'B' },
     ]);
     const selectedItem = signal<Record<string, unknown> | null>(null);
-    const totalPages = signal(1);
+    const hasMoreContent = signal(false);
     const isPaginatedContentLoading = signal(false);
     const contentSortMode = signal<PortalCatalogSortMode>('date-desc');
     const minRating = signal<number | null>(null);
@@ -52,14 +50,12 @@ describe('XtreamCatalogFacadeService', () => {
 
     const xtreamStore = {
         selectedContentType: contentType,
-        limit,
-        page,
         getSelectedCategory: selectedCategory,
         selectedCategoryId,
         getPaginatedContent: paginatedContent,
         selectItemsFromSelectedCategory: selectedCategoryItems,
         selectedItem,
-        getTotalPages: totalPages,
+        hasMoreContent,
         isPaginatedContentLoading,
         contentSortMode,
         minRating,
@@ -72,12 +68,9 @@ describe('XtreamCatalogFacadeService', () => {
         setSelectedCategory: jest.fn((categoryId: number | null) => {
             selectedCategoryId.set(categoryId);
         }),
-        setPage: jest.fn((nextPage: number) => {
-            page.set(nextPage);
-        }),
-        setLimit: jest.fn((nextLimit: number) => {
-            limit.set(nextLimit);
-        }),
+        loadMoreContent: jest.fn(),
+        saveCatalogScrollState: jest.fn(),
+        consumeCatalogScrollState: jest.fn().mockReturnValue(null),
         setContentSortMode: jest.fn((mode: PortalCatalogSortMode) => {
             contentSortMode.set(mode);
         }),
@@ -92,8 +85,6 @@ describe('XtreamCatalogFacadeService', () => {
     beforeEach(() => {
         localStorage.removeItem('xtream-category-sort-mode');
         contentType.set('vod');
-        limit.set(25);
-        page.set(0);
         selectedCategory.set({ id: 11, name: 'Movies' });
         selectedCategoryId.set(11);
         paginatedContent.set([{ xtream_id: 1, title: 'A' }]);
@@ -102,7 +93,7 @@ describe('XtreamCatalogFacadeService', () => {
             { xtream_id: 2, title: 'B' },
         ]);
         selectedItem.set(null);
-        totalPages.set(1);
+        hasMoreContent.set(false);
         isPaginatedContentLoading.set(false);
         contentSortMode.set('date-desc');
         minRating.set(null);
@@ -112,8 +103,9 @@ describe('XtreamCatalogFacadeService', () => {
         xtreamStore.setCategorySearchTerm.mockClear();
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
-        xtreamStore.setPage.mockClear();
-        xtreamStore.setLimit.mockClear();
+        xtreamStore.loadMoreContent.mockClear();
+        xtreamStore.saveCatalogScrollState.mockClear();
+        xtreamStore.consumeCatalogScrollState.mockClear();
         xtreamStore.setContentSortMode.mockClear();
         xtreamStore.setMinRating.mockClear();
         xtreamStore.hasSeriesProgress.mockClear();
@@ -141,11 +133,11 @@ describe('XtreamCatalogFacadeService', () => {
         );
     });
 
-    it('exposes store-driven paginated content, total pages, and category counts', () => {
+    it('exposes store-driven windowed content, hasMore, and category counts', () => {
         expect(service.paginatedContent()).toEqual([
             { xtream_id: 1, title: 'A' },
         ]);
-        expect(service.totalPages()).toBe(1);
+        expect(service.hasMore()).toBe(false);
         expect(service.categoryItemCount()).toBe(2);
 
         paginatedContent.set([
@@ -157,14 +149,30 @@ describe('XtreamCatalogFacadeService', () => {
             { xtream_id: 4, title: 'D' },
             { xtream_id: 5, title: 'E' },
         ]);
-        totalPages.set(4);
+        hasMoreContent.set(true);
 
         expect(service.paginatedContent()).toEqual([
             { xtream_id: 3, title: 'C' },
             { xtream_id: 4, title: 'D' },
         ]);
-        expect(service.totalPages()).toBe(4);
+        expect(service.hasMore()).toBe(true);
         expect(service.categoryItemCount()).toBe(3);
+    });
+
+    it('delegates loadMore and the scroll-position handoff to the store', () => {
+        service.loadMore();
+        expect(xtreamStore.loadMoreContent).toHaveBeenCalledTimes(1);
+
+        service.saveScrollPosition(420);
+        expect(xtreamStore.saveCatalogScrollState).toHaveBeenCalledWith(420);
+
+        xtreamStore.consumeCatalogScrollState.mockReturnValueOnce(420);
+        expect(service.consumeSavedScrollPosition()).toBe(420);
+        expect(service.consumeSavedScrollPosition()).toBeNull();
+
+        // Synchronous in-memory appends never surface async tail states.
+        expect(service.isAppending()).toBe(false);
+        expect(service.appendError()).toBe(false);
     });
 
     it('restores saved sort mode, sets the selected category, and loads positions once per playlist', () => {

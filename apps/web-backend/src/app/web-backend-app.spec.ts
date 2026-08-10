@@ -46,6 +46,10 @@ class StubHttpClient implements WebBackendHttpClient {
         this.queuedResponses.push({ data: null, error: new Error(message) });
     }
 
+    queueNetworkError(error: Error): void {
+        this.queuedResponses.push({ data: null, error });
+    }
+
     async get<T>(
         url: string,
         options: WebBackendHttpGetOptions = {}
@@ -496,9 +500,9 @@ https://stream.example/live.m3u8`);
                     `${baseUrl}/stalker?targetId=${targetId}&action=get_categories`
                 );
 
-                expect(
-                    httpClient.requests[0].headers
-                ).not.toHaveProperty('Cookie');
+                expect(httpClient.requests[0].headers).not.toHaveProperty(
+                    'Cookie'
+                );
                 expect(httpClient.requests[0].headers).toMatchObject(
                     STALKER_IDENTITY_HEADERS
                 );
@@ -586,7 +590,9 @@ https://stream.example/live.m3u8`);
                     `${baseUrl}/stalker?targetId=${bareQueryTarget}&action=create_link&cmd=${encodeURIComponent('/media/2.mpg')}`
                 );
 
-                expect(httpClient.requests.map((request) => request.url)).toEqual([
+                expect(
+                    httpClient.requests.map((request) => request.url)
+                ).toEqual([
                     'http://stalker.example/portal.php?action=create_link&cmd=/media/1.mpg&JsHttpRequest=1-xml',
                     'http://stalker.example/load.php?action=create_link&cmd=/media/2.mpg&JsHttpRequest=1-xml',
                 ]);
@@ -644,6 +650,139 @@ https://stream.example/live.m3u8`);
                 });
             }
         );
+    });
+
+    it('surfaces happy-eyeballs network codes on xtream failures', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkError(
+            Object.assign(
+                new AggregateError([
+                    Object.assign(
+                        new Error('connect ETIMEDOUT 104.21.0.1:80'),
+                        { code: 'ETIMEDOUT' }
+                    ),
+                    Object.assign(
+                        new Error('connect ENETUNREACH 2606:4700::1:80'),
+                        { code: 'ENETUNREACH' }
+                    ),
+                ]),
+                { code: 'ETIMEDOUT' }
+            )
+        );
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            await withServer(
+                createWebBackendApp({
+                    httpClient,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (baseUrl) => {
+                    const targetId = await registerProviderTarget(
+                        baseUrl,
+                        'http://xtream.example'
+                    );
+                    const response = await fetch(
+                        `${baseUrl}/xtream?targetId=${targetId}&action=get_account_info&username=secret-user&password=secret-pass`
+                    );
+
+                    await expect(response.json()).resolves.toEqual({
+                        message: 'Bad Gateway (ETIMEDOUT)',
+                        status: 502,
+                        code: 'ETIMEDOUT',
+                    });
+                }
+            );
+
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            const logLine = errorSpy.mock.calls[0][0] as string;
+            expect(logLine).toContain('/xtream');
+            expect(logLine).toContain('xtream.example');
+            expect(logLine).toContain('ETIMEDOUT, ENETUNREACH');
+            expect(logLine).not.toContain('secret-user');
+            expect(logLine).not.toContain('secret-pass');
+        } finally {
+            errorSpy.mockRestore();
+        }
+    });
+
+    it('surfaces network error codes on stalker failures', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkError(
+            Object.assign(new Error('connect ENETUNREACH'), {
+                code: 'ENETUNREACH',
+            })
+        );
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            await withServer(
+                createWebBackendApp({
+                    httpClient,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (baseUrl) => {
+                    const targetId = await registerProviderTarget(
+                        baseUrl,
+                        'http://stalker.example/portal.php'
+                    );
+                    const response = await fetch(
+                        `${baseUrl}/stalker?targetId=${targetId}&action=handshake`
+                    );
+
+                    await expect(response.json()).resolves.toEqual({
+                        message: 'Bad Gateway (ENETUNREACH)',
+                        status: 502,
+                        code: 'ENETUNREACH',
+                    });
+                }
+            );
+        } finally {
+            errorSpy.mockRestore();
+        }
+    });
+
+    it('surfaces network error codes on playlist parse failures', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkError(
+            Object.assign(new Error('connect ETIMEDOUT'), {
+                code: 'ETIMEDOUT',
+            })
+        );
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            await withServer(
+                createWebBackendApp({
+                    httpClient,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (baseUrl) => {
+                    const targetId = await registerProviderTarget(
+                        baseUrl,
+                        'https://provider.example/list.m3u'
+                    );
+                    const response = await fetch(
+                        `${baseUrl}/parse?targetId=${targetId}`
+                    );
+
+                    expect(response.status).toBe(500);
+                    await expect(response.json()).resolves.toEqual({
+                        message: 'Error, something went wrong (ETIMEDOUT)',
+                        status: 500,
+                        code: 'ETIMEDOUT',
+                    });
+                }
+            );
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 
     it('returns provider parse errors as JSON instead of executable text', async () => {

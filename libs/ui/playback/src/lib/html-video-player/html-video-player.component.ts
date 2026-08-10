@@ -23,6 +23,7 @@ import {
     getPlaybackMediaExtensionFromUrl,
 } from '@iptvnator/playback/util';
 import {
+    type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -37,6 +38,7 @@ import {
     setNativeVideoSource,
 } from '../web-video-support/web-video-native-source.util';
 import { WebVideoSourceTracks } from '../web-video-support/web-video-source-tracks';
+import { attachHtmlVideoLegacyShortcuts } from './html-video-legacy-shortcuts';
 import { HtmlVideoElementSession } from './html-video-element-session';
 import {
     emitFatalHlsPlaybackError,
@@ -109,6 +111,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      */
     private captionTracks: WebVideoSourceTracks | null = null;
     private videoSession: HtmlVideoElementSession | null = null;
+    private legacyShortcuts: LegacyPlayerShortcuts | null = null;
 
     ngOnInit() {
         if (this.sharedControls) {
@@ -128,6 +131,13 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 video: this.videoPlayer.nativeElement,
                 showCaptions: () => this.showCaptions(),
                 vendorCaptionControls: true,
+            });
+            this.legacyShortcuts = attachHtmlVideoLegacyShortcuts({
+                video: () => this.videoPlayer.nativeElement,
+                hostElement: () => this.playerRoot()?.nativeElement ?? null,
+                isAvailable: () => this.interactionEnabled(),
+                isLive: () => this.isLive(),
+                play: () => this.handlePlayOperation(),
             });
         }
         if (this.controlsSource) {
@@ -342,6 +352,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Destroy hls instance on component destroy and clean up event listener
      */
     ngOnDestroy(): void {
+        this.legacyShortcuts?.detach();
+        this.legacyShortcuts = null;
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
         this.captionTracks?.destroy();

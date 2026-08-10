@@ -3,7 +3,10 @@ import type {
     ExternalPlayerSession,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
-import { createExternalPlaybackButtonState } from './external-playback-button-state';
+import {
+    createExternalPlaybackButtonState,
+    isLiveExternalPlayerSession,
+} from './external-playback-button-state';
 
 function session(
     overrides: Partial<ExternalPlayerSession> = {}
@@ -104,6 +107,21 @@ describe('createExternalPlaybackButtonState', () => {
             expect(api.buttonState()).toBe('idle');
         }
     );
+
+    it('offers Stop for an errored session whose process may still be alive', () => {
+        const { api } = setup(
+            session({
+                status: 'error',
+                error: 'Process exit was not confirmed',
+                canClose: true,
+            })
+        );
+
+        expect(api.matchedSession()).not.toBeNull();
+        expect(api.buttonState()).toBe('stop');
+        expect(api.primaryLabel()).toBe('Stop MPV');
+        expect(api.isStopAction()).toBe(true);
+    });
 
     it('reports a launching session', () => {
         const { api } = setup(session({ status: 'launching' }));
@@ -206,5 +224,32 @@ describe('createExternalPlaybackButtonState', () => {
         });
 
         expect(api.matchedSession()).toBeNull();
+    });
+});
+
+describe('isLiveExternalPlayerSession', () => {
+    it('keeps ownership while a teardown error can still be stopped', () => {
+        expect(
+            isLiveExternalPlayerSession(
+                session({
+                    status: 'error',
+                    error: 'Process exit was not confirmed',
+                    canClose: true,
+                })
+            )
+        ).toBe(true);
+    });
+
+    it('treats an unclosable error and a confirmed close as terminal', () => {
+        expect(
+            isLiveExternalPlayerSession(
+                session({ status: 'error', canClose: false })
+            )
+        ).toBe(false);
+        expect(
+            isLiveExternalPlayerSession(
+                session({ status: 'closed', canClose: false })
+            )
+        ).toBe(false);
     });
 });

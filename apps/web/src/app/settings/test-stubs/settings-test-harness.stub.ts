@@ -16,7 +16,12 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { Router } from '@angular/router';
+import {
+    ActivatedRoute,
+    convertToParamMap,
+    ParamMap,
+    Router,
+} from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import {
     EpgRuntimeBridgeService,
@@ -47,7 +52,7 @@ import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { from, of } from 'rxjs';
+import { BehaviorSubject, from, of } from 'rxjs';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
 import { SettingsStorageFailure } from '@iptvnator/services';
 import { SettingsStore } from '../../services/settings-store.service';
@@ -121,9 +126,34 @@ export class MatSnackBarStub {
 }
 
 export class MockRouter {
+    navigate = jest.fn().mockResolvedValue(true);
+
     navigateByUrl(url: string): string {
         return url;
     }
+}
+
+/**
+ * Stands in for the `:section` route param the settings page renders from.
+ * Specs switch section pages with `setSettingsSection` below.
+ */
+export class MockActivatedRoute {
+    private readonly params = new BehaviorSubject<ParamMap>(
+        convertToParamMap({ section: 'general' })
+    );
+
+    readonly paramMap = this.params.asObservable();
+
+    setSection(section: string): void {
+        this.params.next(convertToParamMap({ section }));
+    }
+}
+
+/** Routes the rendered settings page to the given section page. */
+export function setSettingsSection(section: string): void {
+    (
+        TestBed.inject(ActivatedRoute) as unknown as MockActivatedRoute
+    ).setSection(section);
 }
 
 export class MockSettingsStore {
@@ -211,6 +241,10 @@ export function createElectronStub(): typeof window.electron {
             .fn()
             .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
         onAppUpdateStatusChange: jest.fn(() => jest.fn()),
+        onWindowCloseRequested: jest.fn(() => jest.fn()),
+        setWindowCloseGuard: jest.fn().mockResolvedValue(undefined),
+        confirmWindowClose: jest.fn().mockResolvedValue(undefined),
+        cancelWindowClose: jest.fn().mockResolvedValue(undefined),
         openInMpv: jest.fn(),
         openInVlc: jest.fn(),
         platform: 'linux',
@@ -273,6 +307,7 @@ export function settingsTestProviders(
         { provide: MatSnackBar, useClass: MatSnackBarStub },
         { provide: DataService, useClass: ElectronServiceStub },
         { provide: Router, useClass: MockRouter },
+        { provide: ActivatedRoute, useClass: MockActivatedRoute },
         provideMockStore({
             selectors: [
                 { selector: selectAllPlaylistsMeta, value: [] },

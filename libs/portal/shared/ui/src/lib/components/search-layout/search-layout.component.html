@@ -60,8 +60,14 @@
             </div>
 
             <div
+                #resultsContainer
                 class="results-container"
-                (scroll)="onSearchContentScroll($event)"
+                appInfiniteScroll
+                [infiniteHasMore]="nearEndHasMore()"
+                [infiniteAppending]="nearEndAppending()"
+                [infiniteItemCount]="nearEndRenderedCount() ?? resultsCount()"
+                [infiniteResetKey]="nearEndResetKey() ?? searchTerm()"
+                (infiniteLoadMore)="nearEnd.emit()"
             >
                 @if (isLoading()) {
                     <div class="loading-state">

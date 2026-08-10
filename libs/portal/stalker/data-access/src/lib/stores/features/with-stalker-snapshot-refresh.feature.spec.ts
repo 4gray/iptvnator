@@ -59,7 +59,14 @@ describe('withStalkerSnapshotRefresh', () => {
             providers: [
                 TestSnapshotRefreshStore,
                 { provide: DataService, useValue: dataService },
-                { provide: StalkerSessionService, useValue: {} },
+                {
+                    provide: StalkerSessionService,
+                    useValue: {
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
+                    },
+                },
             ],
         });
 

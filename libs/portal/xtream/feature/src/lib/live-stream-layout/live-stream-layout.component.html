@@ -137,26 +137,16 @@
                             {{ liveRootSubtitle() }}
                         </div>
                     </div>
-                    @if (showLiveRootPaginator()) {
-                        <mat-paginator
-                            [pageIndex]="liveRootPageIndex()"
-                            [length]="liveRootItemCount()"
-                            [pageSize]="liveRootLimit()"
-                            [pageSizeOptions]="liveRootPageSizeOptions"
-                            (page)="onLiveRootPageChange($event)"
-                            aria-label="Select page"
-                        />
-                    }
                 </div>
                 <app-grid-list
                     class="live-all-items-grid app-scrollbar"
+                    appInfiniteScroll
+                    [infiniteHasMore]="liveRootHasMore()"
+                    [infiniteItemCount]="liveRootItems().length"
+                    [infiniteResetKey]="'live-root'"
+                    (infiniteLoadMore)="onLiveRootLoadMore()"
                     [isLoading]="isSelectedTypeContentLoading()"
                     [items]="liveRootItems()"
-                    [pageIndex]="liveRootPageIndex()"
-                    [totalPages]="liveRootTotalPages()"
-                    [limit]="liveRootLimit()"
-                    [pageSizeOptions]="liveRootPageSizeOptions"
-                    [showPaginator]="false"
                     [searchTerm]="workspaceSearchTerm()"
                     [variant]="'logo'"
                     [type]="'live'"

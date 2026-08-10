@@ -5,6 +5,7 @@ export * from './controls-menu-state';
 export * from './controls-feedback';
 export * from './controls-fullscreen';
 export * from './controls-shortcuts';
+export * from './legacy-player-shortcuts';
 export * from './controls-surface';
 export * from './controls-timeline';
 export * from './controls-view-model';

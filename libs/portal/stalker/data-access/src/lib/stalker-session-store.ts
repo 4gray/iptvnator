@@ -16,7 +16,9 @@ import type { StalkerAuthenticationResult } from './stalker-auth.api';
  *   playlist repointed at another portal would disclose the previous one's
  *   bearer token to it. Origin alone is not enough: discovery deliberately
  *   preserves tenant base paths (`/tenant-a/…` vs `/tenant-b/…`), which are
- *   different portals on one host.
+ *   different portals on one host. URL Basic-auth credentials are part of
+ *   the endpoint authority too: an edited userinfo identity must not receive
+ *   a token negotiated through the previous one.
  * - **Identity** — an edited MAC/serial must not inherit the old session.
  * - **Credentials** — for a status-2 portal the login decides which account
  *   the token represents, so changing it must not keep serving the previous
@@ -64,7 +66,18 @@ function portalEndpoint(portalUrl: string | undefined): string {
     }
     try {
         const parsed = new URL(portalUrl);
-        return `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`;
+        const endpoint = `${parsed.origin}${parsed.pathname.replace(
+            /\/+$/,
+            ''
+        )}`;
+
+        // URL.origin deliberately omits userinfo. Preserve the legacy value
+        // for ordinary endpoints so an upgrade does not invalidate healthy
+        // sessions, while Basic-auth URLs bind the token to the exact accepted
+        // credentials. JSON avoids ambiguous delimiter collisions.
+        return parsed.username || parsed.password
+            ? JSON.stringify([endpoint, parsed.username, parsed.password])
+            : endpoint;
     } catch {
         // Unparseable: fall back to the raw string so a change is still a
         // change — never to a constant, which would alias every endpoint.

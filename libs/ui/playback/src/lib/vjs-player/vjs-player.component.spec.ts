@@ -78,17 +78,46 @@ describe('VjsPlayerComponent', () => {
             expect.any(Element),
             expect.objectContaining({
                 autoplay: true,
+                controls: true,
                 userActions: { hotkeys: true },
                 spatialNavigation: { enabled: true },
             }),
             expect.any(Function)
         );
+        // Native controls stay off: Video.js owns the control bar, and the
+        // bar has to survive the tech-element swap in player.reset().
         expect(fixture.nativeElement.querySelector('video').controls).toBe(
-            true
+            false
         );
         expect(
             fixture.nativeElement.querySelector('app-player-controls')
         ).toBeNull();
+    });
+
+    it('drives playback keyboard shortcuts through the legacy player', () => {
+        render({
+            sources: [{ src: 'https://example.test/movie.mp4' }],
+            isLive: false,
+        });
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(harness.play).toHaveBeenCalledTimes(1);
+
+        fixture.destroy();
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(harness.play).toHaveBeenCalledTimes(1);
     });
 
     it('does not reload Video.js when options keep the same source', () => {
@@ -403,6 +432,7 @@ describe('VjsPlayerComponent', () => {
 function createPlayerHarness() {
     const listeners = new Map<string, Set<() => void>>();
     let volumeValue = 0.5;
+    let mutedValue = false;
     const harness = {
         currentVideo: document.createElement('video'),
         currentError: null as NativePlaybackErrorInput | null,
@@ -410,6 +440,7 @@ function createPlayerHarness() {
         paused: true,
         pauseCompletesImmediately: true,
         ready: () => undefined,
+        play: jest.fn(() => Promise.resolve()),
         pause: jest.fn(() => {
             if (harness.pauseCompletesImmediately) {
                 harness.paused = true;
@@ -422,6 +453,12 @@ function createPlayerHarness() {
                 volumeValue = value;
             }
             return volumeValue;
+        }),
+        muted: jest.fn((value?: boolean) => {
+            if (value !== undefined) {
+                mutedValue = value;
+            }
+            return mutedValue;
         }),
         emit(event: string) {
             for (const listener of listeners.get(event) ?? []) {
@@ -448,6 +485,11 @@ function createPlayerHarness() {
         }),
         pause: harness.pause,
         paused: jest.fn(() => harness.paused),
+        play: harness.play,
+        muted: harness.muted,
+        isFullscreen: jest.fn(() => false),
+        requestFullscreen: jest.fn(),
+        exitFullscreen: jest.fn(),
         reset: harness.reset,
         src: harness.src,
         tech: jest.fn(() => ({

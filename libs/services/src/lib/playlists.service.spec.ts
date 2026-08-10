@@ -1,4 +1,4 @@
-import { firstValueFrom, of } from 'rxjs';
+import { EMPTY, firstValueFrom, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
@@ -9,9 +9,14 @@ const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
 describe('PlaylistsService', () => {
     const testWindow = window as unknown as { electron?: unknown };
     const originalElectron = testWindow.electron;
+    const originalLockManager = globalThis.navigator?.locks;
 
     afterEach(() => {
         testWindow.electron = originalElectron;
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: originalLockManager,
+        });
         localStorage.removeItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG);
         jest.useRealTimers();
         jest.restoreAllMocks();
@@ -26,10 +31,11 @@ describe('PlaylistsService', () => {
             dbService: {
                 clear: jest.fn(() => of(undefined)),
                 delete: jest.fn(() => of(undefined)),
-                // IndexedDB operations always run the Stalker metadata migration first,
-                // and that migration reads all playlists before the requested operation.
+                // IndexedDB operations run the Stalker metadata migration first;
+                // the default cursor represents an empty playlist store.
                 getAll: jest.fn(() => of([])),
                 getByID: jest.fn(() => of(undefined)),
+                openCursor: jest.fn(() => EMPTY),
                 update: jest.fn(() => of(undefined)),
                 ...overrides,
             },
@@ -42,8 +48,7 @@ describe('PlaylistsService', () => {
             runtime: {
                 get supportsSqlite() {
                     const electron = testWindow.electron as
-                        | Record<string, unknown>
-                        | undefined;
+                        Record<string, unknown> | undefined;
                     return (
                         !!electron &&
                         typeof electron['dbGetAppPlaylists'] === 'function' &&
@@ -307,6 +312,56 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('coordinates browser row replacements with the cross-context edit reservation', async () => {
+        const request = jest.fn(
+            async <T>(
+                name: string,
+                options: LockOptions,
+                callback: (lock: Lock | null) => Promise<T>
+            ) =>
+                callback({
+                    name,
+                    mode: options.mode ?? 'exclusive',
+                } as Lock)
+        );
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: { request },
+        });
+        const playlist = {
+            _id: 'playlist-replacement-lock',
+            title: 'Replacement',
+            count: 0,
+            importDate: '2026-04-01T00:00:00.000Z',
+            lastUsage: '2026-04-01T00:00:00.000Z',
+            autoRefresh: false,
+        } as Playlist;
+        const dbService = {
+            add: jest.fn(() => of('generated-key')),
+            delete: jest.fn(() => of(undefined)),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await firstValueFrom(service.addPlaylist(playlist));
+        await firstValueFrom(service.deletePlaylist(playlist._id));
+
+        expect(
+            request.mock.calls.map(([name, options]) => [name, options])
+        ).toEqual([
+            ['iptvnator:playlist-authority', { mode: 'shared' }],
+            [
+                `iptvnator:playlist-authority:${playlist._id}`,
+                { mode: 'exclusive' },
+            ],
+            ['iptvnator:playlist-authority', { mode: 'shared' }],
+            [
+                `iptvnator:playlist-authority:${playlist._id}`,
+                { mode: 'exclusive' },
+            ],
+        ]);
+    });
+
     it('migrates legacy Stalker portal flags in SQLite before returning playlists', async () => {
         let storedPlaylists: Playlist[] = [
             {
@@ -396,7 +451,7 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it('migrates legacy Stalker portal flags in IndexedDB before returning full playlists', async () => {
+    it('migrates legacy Stalker portal flags in one IndexedDB cursor transaction', async () => {
         let storedPlaylists: Playlist[] = [
             {
                 _id: 'stalker-2',
@@ -409,14 +464,19 @@ describe('PlaylistsService', () => {
                 portalUrl: 'http://example.com/portal/c/',
             } as Playlist,
         ];
+        const cursorUpdate = jest.fn((playlist: Playlist) => {
+            storedPlaylists = [playlist];
+        });
+        const cursorContinue = jest.fn();
         const dbService = {
             getAll: jest.fn(() => of(storedPlaylists)),
-            update: jest.fn((_storeName: string, playlist: Playlist) => {
-                storedPlaylists = storedPlaylists.map((current) =>
-                    current._id === playlist._id ? playlist : current
-                );
-                return of(playlist);
-            }),
+            openCursor: jest.fn(() =>
+                of({
+                    value: storedPlaylists[0],
+                    update: cursorUpdate,
+                    continue: cursorContinue,
+                })
+            ),
         };
         testWindow.electron = undefined;
 
@@ -429,13 +489,18 @@ describe('PlaylistsService', () => {
             }),
         ]);
 
-        expect(dbService.update).toHaveBeenCalledWith(
-            DbStores.Playlists,
+        expect(dbService.openCursor).toHaveBeenCalledWith({
+            storeName: DbStores.Playlists,
+            mode: 'readwrite',
+        });
+        expect(cursorUpdate).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: 'stalker-2',
                 isFullStalkerPortal: false,
             })
         );
+        expect(cursorContinue).toHaveBeenCalledTimes(1);
+        expect(dbService.getAll).toHaveBeenCalledTimes(1);
         expect(
             localStorage.getItem(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)
         ).toBe('1');
@@ -585,6 +650,249 @@ describe('PlaylistsService', () => {
                 hiddenGroupTitles: ['Movies', 'Sports'],
             })
         );
+    });
+
+    it('aborts a guarded metadata update in one readwrite transaction when the row no longer matches', async () => {
+        const replacementPlaylist = {
+            _id: 'stalker-replaced',
+            title: 'Restored Portal',
+            portalUrl: 'https://restored.example.com/portal.php',
+        } as Playlist;
+        const cursorUpdate = jest.fn();
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(),
+            update: jest.fn(),
+            openCursor: jest.fn(() =>
+                of({
+                    value: replacementPlaylist,
+                    update: cursorUpdate,
+                })
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await expect(
+            firstValueFrom(
+                service.updatePlaylistMetaIfCurrent(
+                    {
+                        _id: replacementPlaylist._id,
+                        portalUrl: 'https://late.example.com/server/load.php',
+                    } as PlaylistMeta,
+                    (current) =>
+                        current.portalUrl ===
+                        'https://original.example.com/portal.php'
+                )
+            )
+        ).resolves.toBeNull();
+
+        expect(dbService.openCursor).toHaveBeenCalledWith({
+            storeName: DbStores.Playlists,
+            query: replacementPlaylist._id,
+            mode: 'readwrite',
+        });
+        expect(cursorUpdate).not.toHaveBeenCalled();
+        expect(dbService.getByID).not.toHaveBeenCalled();
+        expect(dbService.update).not.toHaveBeenCalled();
+    });
+
+    it('merges and commits a matching guarded browser update through its cursor', async () => {
+        const currentPlaylist = {
+            _id: 'stalker-guarded-write',
+            title: 'Original Portal',
+            portalUrl: 'https://original.example.com/portal.php',
+            macAddress: '00:1A:79:00:00:01',
+        } as Playlist;
+        const cursorUpdate = jest.fn();
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            openCursor: jest.fn(() =>
+                of({
+                    value: currentPlaylist,
+                    update: cursorUpdate,
+                })
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        const result = await firstValueFrom(
+            service.updatePlaylistMetaIfCurrent(
+                {
+                    _id: currentPlaylist._id,
+                    portalUrl: 'https://resolved.example.com/server/load.php',
+                    stalkerSessionPatch: null,
+                } as never,
+                (current) => current.portalUrl === currentPlaylist.portalUrl
+            )
+        );
+
+        expect(cursorUpdate).toHaveBeenCalledWith(result);
+        expect(result).toEqual(
+            expect.objectContaining({
+                title: currentPlaylist.title,
+                portalUrl: 'https://resolved.example.com/server/load.php',
+                macAddress: currentPlaylist.macAddress,
+                stalkerToken: undefined,
+            })
+        );
+    });
+
+    it('commits a browser conditional transform through the same readwrite cursor', async () => {
+        const currentPlaylist = {
+            _id: 'stalker-cursor-write',
+            title: 'Original Portal',
+            portalUrl: 'https://original.example.com/portal.php',
+        } as Playlist;
+        const cursorUpdate = jest.fn();
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(),
+            update: jest.fn(),
+            openCursor: jest.fn(() =>
+                of({
+                    value: currentPlaylist,
+                    update: cursorUpdate,
+                })
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        const result = await firstValueFrom(
+            service.transformPlaylistMeta(currentPlaylist._id, (current) => ({
+                ...current,
+                portalUrl: 'https://resolved.example.com/server/load.php',
+            }))
+        );
+
+        expect(dbService.openCursor).toHaveBeenCalledWith({
+            storeName: DbStores.Playlists,
+            query: currentPlaylist._id,
+            mode: 'readwrite',
+        });
+        expect(cursorUpdate).toHaveBeenCalledWith(result);
+        expect(result?.portalUrl).toBe(
+            'https://resolved.example.com/server/load.php'
+        );
+        expect(dbService.getByID).not.toHaveBeenCalled();
+        expect(dbService.update).not.toHaveBeenCalled();
+    });
+
+    describe('Stalker session patches in playlist meta updates', () => {
+        function createStalkerPlaylist(): Playlist {
+            return {
+                _id: 'stalker-session-patch',
+                title: 'Stalker Portal',
+                count: 0,
+                importDate: '2026-08-08T00:00:00.000Z',
+                lastUsage: '2026-08-08T00:00:00.000Z',
+                autoRefresh: false,
+                stalkerToken: 'OLD_TOKEN',
+                stalkerSessionIdentity: 'old-fingerprint',
+                stalkerWatchdogTimeout: 120,
+                stalkerTimeslot: 15,
+                stalkerAccountInfo: {
+                    login: 'old-login',
+                    expireDate: 1800000000,
+                },
+            };
+        }
+
+        it('preserves the current session when the transient patch is absent', async () => {
+            const existingPlaylist = createStalkerPlaylist();
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(existingPlaylist)),
+                update: jest.fn((_storeName: string, playlist: Playlist) =>
+                    of(playlist)
+                ),
+            };
+            testWindow.electron = undefined;
+            const service = createService(dbService);
+
+            await firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: existingPlaylist._id,
+                    title: 'Renamed Portal',
+                } as PlaylistMeta)
+            );
+
+            expect(dbService.update.mock.calls[0][1]).toEqual(
+                expect.objectContaining({
+                    stalkerToken: 'OLD_TOKEN',
+                    stalkerSessionIdentity: 'old-fingerprint',
+                    stalkerWatchdogTimeout: 120,
+                    stalkerTimeslot: 15,
+                    stalkerAccountInfo: existingPlaylist.stalkerAccountInfo,
+                })
+            );
+        });
+
+        it('clears every stored session field when the transient patch is null', async () => {
+            const existingPlaylist = createStalkerPlaylist();
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(existingPlaylist)),
+                update: jest.fn((_storeName: string, playlist: Playlist) =>
+                    of(playlist)
+                ),
+            };
+            testWindow.electron = undefined;
+            const service = createService(dbService);
+
+            await firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: existingPlaylist._id,
+                    stalkerSessionPatch: null,
+                } as never)
+            );
+
+            const written = dbService.update.mock.calls[0][1];
+            expect(written.stalkerToken).toBeUndefined();
+            expect(written.stalkerSessionIdentity).toBeUndefined();
+            expect(written.stalkerWatchdogTimeout).toBeUndefined();
+            expect(written.stalkerTimeslot).toBeUndefined();
+            expect(written.stalkerAccountInfo).toBeUndefined();
+            expect(written).not.toHaveProperty('stalkerSessionPatch');
+        });
+
+        it('fully replaces session metadata without persisting the transient patch', async () => {
+            const existingPlaylist = createStalkerPlaylist();
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(existingPlaylist)),
+                update: jest.fn((_storeName: string, playlist: Playlist) =>
+                    of(playlist)
+                ),
+            };
+            testWindow.electron = undefined;
+            const service = createService(dbService);
+
+            await firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: existingPlaylist._id,
+                    stalkerSessionPatch: {
+                        stalkerToken: 'NEW_TOKEN',
+                        stalkerSessionIdentity: 'new-fingerprint',
+                        stalkerWatchdogTimeout: 90,
+                    },
+                } as never)
+            );
+
+            const written = dbService.update.mock.calls[0][1];
+            expect(written).toEqual(
+                expect.objectContaining({
+                    stalkerToken: 'NEW_TOKEN',
+                    stalkerSessionIdentity: 'new-fingerprint',
+                    stalkerWatchdogTimeout: 90,
+                })
+            );
+            expect(written.stalkerTimeslot).toBeUndefined();
+            expect(written.stalkerAccountInfo).toBeUndefined();
+            expect(written).not.toHaveProperty('stalkerSessionPatch');
+        });
     });
 
     it('updates many browser playlists with refresh metadata', async () => {
@@ -940,6 +1248,37 @@ describe('PlaylistsService', () => {
             firstValueFrom(service.removeAll())
         ).resolves.toBeUndefined();
         expect(dbService.clear).toHaveBeenCalledWith(DbStores.Playlists);
+    });
+
+    it('takes the exclusive cross-context authority barrier before clearing playlists', async () => {
+        const request = jest.fn(
+            async <T>(
+                name: string,
+                options: LockOptions,
+                callback: (lock: Lock | null) => Promise<T>
+            ) =>
+                callback({
+                    name,
+                    mode: options.mode ?? 'exclusive',
+                } as Lock)
+        );
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: { request },
+        });
+        const dbService = {
+            clear: jest.fn(() => of('cleared')),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await firstValueFrom(service.removeAll());
+
+        expect(request).toHaveBeenCalledWith(
+            'iptvnator:playlist-authority',
+            { mode: 'exclusive' },
+            expect.any(Function)
+        );
     });
 
     it('adds many browser playlists through bulkAdd', async () => {
@@ -1623,7 +1962,7 @@ describe('PlaylistsService', () => {
         });
 
         it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {
-            const { store, electron } = createStatefulElectronStore(
+            const { electron } = createStatefulElectronStore(
                 createBasePlaylist('portal-meta-abort')
             );
             testWindow.electron = electron;
@@ -1662,7 +2001,10 @@ describe('PlaylistsService', () => {
                         'portal-meta-write',
                         (current) =>
                             current.title === 'Edited Title'
-                                ? { ...current, portalUrl: 'http://x/portal.php' }
+                                ? {
+                                      ...current,
+                                      portalUrl: 'http://x/portal.php',
+                                  }
                                 : null
                     )
                 ),

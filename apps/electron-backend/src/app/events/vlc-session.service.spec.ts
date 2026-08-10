@@ -134,11 +134,27 @@ describe('vlc-session.service helpers and launch args', () => {
                 })
             ).toEqual([
                 'clear',
-                'add http://srv/2 :http-referrer=https://origin.example',
+                'add http://srv/2 :http-referrer=https://origin.example ' +
+                    ':http-header=Origin: https://origin.example',
             ]);
             expect(buildVlcEnqueueCommands({ url: 'http://srv/3' })).toEqual([
                 'clear',
                 'add http://srv/3',
+            ]);
+        });
+
+        it('does not duplicate an Origin already present in the headers map', () => {
+            expect(
+                buildVlcEnqueueCommands({
+                    url: 'http://srv/4',
+                    referer: 'https://ref.example',
+                    origin: 'https://origin.example',
+                    headers: { Origin: 'https://explicit.example' },
+                })
+            ).toEqual([
+                'clear',
+                'add http://srv/4 :http-referrer=https://ref.example ' +
+                    ':http-header=Origin: https://explicit.example',
             ]);
         });
     });
@@ -193,7 +209,7 @@ describe('vlc-session.service helpers and launch args', () => {
             expect(session.status).toBe('opened');
         });
 
-        it('uses the origin as referrer fallback when no referer is given', async () => {
+        it('uses the origin as referrer fallback and sends it as a real header', async () => {
             const proc = createMockChildProcess();
             spawnMock.mockReturnValueOnce(proc);
 
@@ -208,6 +224,7 @@ describe('vlc-session.service helpers and launch args', () => {
 
             expect(spawnMock.mock.calls[0][1]).toEqual([
                 ':http-referrer=https://origin.example',
+                ':http-header=Origin: https://origin.example',
                 streamUrl,
                 ':meta-title=Origin Stream',
             ]);

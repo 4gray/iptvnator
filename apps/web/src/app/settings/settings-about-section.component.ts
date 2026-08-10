@@ -24,7 +24,6 @@ import {
     ],
 })
 export class SettingsAboutSectionComponent {
-    readonly activeSection = input.required<string>();
     readonly isDesktop = input(false);
     readonly version = input<string | undefined>();
     readonly buildCommit = input<string | undefined>();

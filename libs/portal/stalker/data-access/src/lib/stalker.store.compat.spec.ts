@@ -27,6 +27,9 @@ describe('StalkerStore API compatibility smoke', () => {
                     useValue: {
                         ensureToken: jest.fn(),
                         makeAuthenticatedRequest: jest.fn(),
+                        ensureToken: jest.fn().mockResolvedValue({
+                            token: null,
+                        }),
                     },
                 },
                 {
@@ -78,7 +81,6 @@ describe('StalkerStore API compatibility smoke', () => {
             'selectedVodId',
             'selectedSerialId',
             'selectedItvId',
-            'limit',
             'page',
             'searchPhrase',
             'currentPlaylist',
@@ -101,7 +103,10 @@ describe('StalkerStore API compatibility smoke', () => {
 
     it('exposes compatibility computed selectors', () => {
         const expectedComputed = [
-            'getTotalPages',
+            // getTotalPages was removed with catalog pagination — the grid
+            // appends portal pages and pages have no UI representation left.
+            'hasMoreContent',
+            'hasContentAppendError',
             'getPaginatedContent',
             'isPaginatedContentLoading',
             'isPaginatedContentFailed',
@@ -127,7 +132,6 @@ describe('StalkerStore API compatibility smoke', () => {
             'setSelectedSerialId',
             'setSelectedVodId',
             'setSelectedItvId',
-            'setLimit',
             'setPage',
             'setCurrentPlaylist',
             'setSelectedItem',

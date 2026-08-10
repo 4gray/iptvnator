@@ -22,11 +22,13 @@ describe('keyboard shortcuts registry', () => {
 
         expect(ids).not.toContain('open-global-search');
         expect(ids).not.toContain('open-recently-viewed');
-        expect(ids).not.toContain('embedded-mpv-play-pause');
-        expect(ids).not.toContain('embedded-mpv-fullscreen');
-        expect(ids).not.toContain('embedded-mpv-seek');
         expect(ids).not.toContain('close-player-popovers');
         expect(ids).toContain('open-command-palette');
+        // Playback shortcuts run in every runtime: the built-in web players
+        // attach them through the legacy shortcut wiring in the PWA too.
+        expect(ids).toContain('play-pause');
+        expect(ids).toContain('toggle-fullscreen');
+        expect(ids).toContain('seek');
         expect(ids).toContain('adjust-volume');
         expect(ids).toContain('mute-audio');
     });
@@ -55,7 +57,7 @@ describe('keyboard shortcuts registry', () => {
             isElectron: true,
         });
 
-        expect(findChordLabels(groups, 'embedded-mpv-seek')).toEqual([
+        expect(findChordLabels(groups, 'seek')).toEqual([
             ['←'],
             ['→'],
         ]);

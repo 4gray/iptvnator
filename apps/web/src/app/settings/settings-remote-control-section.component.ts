@@ -28,7 +28,6 @@ import { QRCodeComponent } from 'angularx-qrcode';
 })
 export class SettingsRemoteControlSectionComponent {
     readonly form = input.required<FormGroup>();
-    readonly activeSection = input.required<string>();
     readonly localIpAddresses = input.required<string[]>();
     readonly visibleQrCodeIp = input<string | null>(null);
 

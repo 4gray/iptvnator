@@ -40,6 +40,8 @@
             [isRadio]="ch.radio === 'true'"
             [epgProgram]="ch.currentEpgProgram"
             [progressPercentage]="ch.progressPercentage"
+            [catchupAvailable]="catchupAvailable(ch)"
+            [catchupDays]="catchupDays(ch)"
             [showFavoriteButton]="true"
             [isFavorite]="isChannelFavorite(ch)"
             [showProgramInfoButton]="true"

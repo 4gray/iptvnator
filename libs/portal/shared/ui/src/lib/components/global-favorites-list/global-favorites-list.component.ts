@@ -34,8 +34,10 @@ import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
+    deriveVisibleFavoriteChannels,
     FavoritesChannelSortMode,
-    sortFavoriteChannelItems,
+    getXtreamCatchupDays,
+    isXtreamCatchupAvailable,
     UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
 import { TranslateModule } from '@ngx-translate/core';
@@ -114,22 +116,15 @@ export class GlobalFavoritesListComponent {
     );
 
     readonly enrichedChannels = computed((): EnrichedUnifiedFavorite[] => {
-        const channels = this.channels();
         const epgMap = this.epgMap();
-        const term = this.searchTermInput().trim().toLowerCase();
         this.progressTick();
 
-        const filtered = term
-            ? channels.filter((ch) => ch.name.toLowerCase().includes(term))
-            : channels;
-
-        const sorted =
-            this.mode() === 'favorites'
-                ? sortFavoriteChannelItems(filtered, this.sortMode(), {
-                      getName: (ch) => ch.name,
-                      getAddedAt: (ch) => ch.addedAt,
-                  })
-                : filtered;
+        const sorted = deriveVisibleFavoriteChannels(this.channels(), {
+            searchTerm: this.searchTermInput(),
+            sortMode: this.mode() === 'favorites' ? this.sortMode() : null,
+            getName: (ch) => ch.name,
+            getAddedAt: (ch) => ch.addedAt,
+        });
 
         return sorted.map((ch) => {
             const epgKey = ch.tvgId?.trim() || ch.name?.trim();
@@ -143,6 +138,21 @@ export class GlobalFavoritesListComponent {
             };
         });
     });
+
+    /** Catch-up fields arrive camelCase on unified rows — adapt for the
+     *  shared snake_case helper. Only Xtream rows carry them. */
+    protected catchupAvailable(channel: UnifiedFavoriteChannel): boolean {
+        return isXtreamCatchupAvailable({
+            tv_archive: channel.tvArchive,
+            tv_archive_duration: channel.tvArchiveDuration,
+        });
+    }
+
+    protected catchupDays(channel: UnifiedFavoriteChannel): number {
+        return getXtreamCatchupDays({
+            tv_archive_duration: channel.tvArchiveDuration,
+        });
+    }
 
     onChannelClick(channel: UnifiedFavoriteChannel): void {
         this.channelSelected.emit(channel);

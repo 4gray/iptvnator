@@ -13,6 +13,8 @@ import { StalkerSessionService } from '../../stalker-session.service';
  * at the lib root and depend on these utils without a cycle.
  */
 export interface StalkerPortalRepairApi {
+    /** Waits until repair can no longer change the effective connection. */
+    waitForPendingRepair?(playlistId: string): Promise<void>;
     /** Applies a completed repair; returns the SAME reference when no-op. */
     applyOverride<T extends PlaylistMeta>(playlist: T): T;
     /** Whether this failure shape justifies probing the portal at all. */
@@ -70,6 +72,8 @@ export async function ensureStalkerSession(
         return false;
     }
 
+    await deps.portalRepair?.waitForPendingRepair?.(playlist._id);
+
     // The repair override is applied here for the same reason
     // `executeStalkerRequest` applies it on its first line: a completed repair
     // may have moved the endpoint or the mode while the caller still holds the
@@ -79,17 +83,14 @@ export async function ensureStalkerSession(
         ? deps.portalRepair.applyOverride(playlist)
         : playlist;
 
-    // A token-free panel needs no session, so it can serve credentialed
-    // streams as well as it ever could.
-    if (!isFullStalkerPortalPlaylist(effective)) {
-        return true;
-    }
-
     try {
         const { token } = await deps.stalkerSession.ensureToken(
             toStalkerSessionPlaylist(effective)
         );
-        return Boolean(token);
+        // `ensureToken` is also the post-Edit configuration guard. For a
+        // simple portal it returns immediately with no token and no network
+        // request, but still rejects a snapshot whose observed mode is stale.
+        return isFullStalkerPortalPlaylist(effective) ? Boolean(token) : true;
     } catch (error) {
         logger?.warn('Could not establish the Stalker session', error);
         return false;
@@ -115,11 +116,22 @@ async function dispatchStalkerRequest<T>(
         );
     }
 
-    return deps.dataService.sendIpcEvent<T>(STALKER_REQUEST, {
+    // A direct request has no authentication layer to invoke the Edit
+    // authority guard. `ensureToken` is network-free in simple mode, and
+    // prevents a pre-Edit simple snapshot from issuing a token-free request
+    // after the same endpoint has been reclassified as full.
+    const sessionPlaylist = toStalkerSessionPlaylist(playlist);
+    await deps.stalkerSession.ensureToken(sessionPlaylist);
+
+    const response = await deps.dataService.sendIpcEvent<T>(STALKER_REQUEST, {
         url: playlist.portalUrl,
         macAddress: playlist.macAddress,
         params,
     });
+    // Re-check after transport: Edit may have committed while the direct
+    // request was in flight. In simple mode this guard remains network-free.
+    await deps.stalkerSession.ensureToken(sessionPlaylist);
+    return response;
 }
 
 /**
@@ -159,6 +171,7 @@ export async function executeStalkerRequest<T>(
     playlist: PlaylistMeta,
     params: Record<string, string | number>
 ): Promise<T> {
+    await deps.portalRepair?.waitForPendingRepair?.(playlist._id);
     const effective = deps.portalRepair
         ? deps.portalRepair.applyOverride(playlist)
         : playlist;

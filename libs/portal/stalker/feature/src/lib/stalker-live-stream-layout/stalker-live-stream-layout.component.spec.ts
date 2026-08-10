@@ -32,6 +32,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
@@ -253,6 +254,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fetchChannelEpg: jest.fn(),
         ensureBulkItvEpg: jest.fn(),
         applyMappedItvEpg: jest.fn().mockResolvedValue(undefined),
+        hasItvEpgMappingOverride: jest.fn(() => false),
         clearBulkItvEpgCache: jest.fn(() => {
             bulkItvEpgByChannel.set({});
             bulkItvEpgLoaded.set(false);
@@ -336,19 +338,12 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         portalPlayer.openExternalPlayback.mockClear();
         fetchChannelEpg.mockReset();
         fetchChannelEpg.mockResolvedValue([]);
+        // mockReset drops the implementation; undefined reads as "unmapped".
+        stalkerStore.hasItvEpgMappingOverride.mockReset();
         ensureBulkItvEpg.mockReset();
-        ensureBulkItvEpg.mockImplementation(async () => {
-            const bulkPrograms = {
-                '10001': [buildProgram('10001', 'Current Show')],
-                '10002': [buildProgram('10002', 'Next Channel Show')],
-            };
-            bulkItvEpgByChannel.set(bulkPrograms);
-            bulkItvEpgLoaded.set(true);
-            bulkItvEpgPlaylistId.set('playlist-1');
-            bulkItvEpgPeriodHours.set(168);
-            selectedItvEpgPrograms.set(
-                bulkPrograms[selectedItvId() ?? ''] ?? []
-            );
+        mockBulkEpg({
+            '10001': [buildProgram('10001', 'Current Show')],
+            '10002': [buildProgram('10002', 'Next Channel Show')],
         });
         stalkerStore.setItvChannels.mockClear();
         stalkerStore.setRadioChannels.mockClear();
@@ -548,6 +543,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         const request: PlaybackFallbackRequest = {
             player: 'vlc',
             playback,
+            trackLaunch: jest.fn(),
             diagnostic: {
                 code: 'network-error',
                 player: 'html5',
@@ -565,8 +561,8 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             playback,
             'vlc'
         );
-        expect(portalPlayer.openExternalPlayback.mock.calls[0][0]).toBe(
-            playback
+        expect(request.trackLaunch).toHaveBeenCalledWith(
+            portalPlayer.openExternalPlayback.mock.results[0].value
         );
     });
 
@@ -1129,6 +1125,94 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(fetchChannelEpg).not.toHaveBeenCalled();
     });
 
+    function mockBulkEpg(bulkPrograms: Record<string, EpgProgram[]>): void {
+        ensureBulkItvEpg.mockImplementation(async () => {
+            bulkItvEpgByChannel.set(bulkPrograms);
+            bulkItvEpgLoaded.set(true);
+            bulkItvEpgPlaylistId.set('playlist-1');
+            bulkItvEpgPeriodHours.set(168);
+            selectedItvEpgPrograms.set(
+                bulkPrograms[selectedItvId() ?? ''] ?? []
+            );
+        });
+    }
+
+    /**
+     * The reported portal shape: bulk get_epg_info returns only programmes
+     * that start in the future — the currently airing one is missing — while
+     * get_short_epg answers with the current programme.
+     */
+    function mockFutureOnlyBulkEpg(): void {
+        mockBulkEpg({
+            '10001': [buildFutureProgram('10001', 'Future Show')],
+            '10002': [buildFutureProgram('10002', 'Future Beta Show')],
+        });
+        fetchChannelEpg.mockImplementation(async (channelId: string) => [
+            buildEpgItem(String(channelId), `Now ${channelId}`),
+        ]);
+    }
+
+    it('merges the short-EPG fallback into the panel when bulk EPG has only future programmes', async () => {
+        // The old either/or gate skipped the short-EPG fallback whenever bulk
+        // was non-empty, leaving the panel without a current programme.
+        mockFutureOnlyBulkEpg();
+
+        fixture.detectChanges();
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchChannelEpg).toHaveBeenCalledWith('10001');
+        expect(component.currentProgram()?.title).toBe('Now 10001');
+        expect(
+            component.activeEpgPrograms().map((program) => program.title)
+        ).toEqual(['Now 10001', 'Future Show']);
+    });
+
+    it('fills row previews from the short EPG when bulk EPG misses the current programmes', async () => {
+        mockFutureOnlyBulkEpg();
+
+        await settleEagerEpg();
+        // The throttled per-channel fallback queue drains the two rows
+        // (one request immediately, the next behind a 200 ms delay).
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        fixture.detectChanges();
+
+        expect(
+            ['10001', '10002'].map(
+                (id) => component.epgPreviewPrograms.get(id)?.title
+            )
+        ).toEqual(['Now 10001', 'Now 10002']);
+    });
+
+    it('keeps manually mapped channels away from the portal short-EPG fallback', async () => {
+        // A mapping replaces the portal schedule; merging the portal's short
+        // EPG back in could surface the portal's programme instead.
+        mockFutureOnlyBulkEpg();
+        stalkerStore.hasItvEpgMappingOverride.mockImplementation(
+            (id: string | number) => String(id) === '10001'
+        );
+
+        fixture.detectChanges();
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        await new Promise<void>((resolve) => setTimeout(resolve, 600));
+        fixture.detectChanges();
+
+        // Neither the panel nor the row queue asked the portal for 10001.
+        expect(
+            fetchChannelEpg.mock.calls.map(([id]: [unknown]) => String(id))
+        ).not.toContain('10001');
+        // Panel keeps the mapped (future-only) schedule: no "on now" entry.
+        expect(component.currentProgram()).toBeNull();
+        // The unmapped sibling still gets the row fallback; the mapped
+        // channel's row stays on its (empty) mapped schedule.
+        expect(component.epgPreviewPrograms.get('10001')).toBeUndefined();
+        expect(component.epgPreviewPrograms.get('10002')?.title).toBe(
+            'Now 10002'
+        );
+    });
+
     it('does not re-fetch bulk EPG when switching channels once it is loaded', async () => {
         await settleEagerEpg();
         // Bulk EPG has loaded (eagerly, on entry).
@@ -1291,8 +1375,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     });
 });
 
-function buildProgram(channelId: string, title: string): EpgProgram {
-    const startTimestamp = Math.floor((Date.now() - 10 * 60 * 1000) / 1000);
+function buildProgram(
+    channelId: string,
+    title: string,
+    // Started 10 minutes ago (currently airing) unless shifted.
+    startOffsetMinutes = -10
+): EpgProgram {
+    const startTimestamp =
+        Math.floor(Date.now() / 1000) + startOffsetMinutes * 60;
     const stopTimestamp = startTimestamp + 30 * 60;
 
     return {
@@ -1304,5 +1394,28 @@ function buildProgram(channelId: string, title: string): EpgProgram {
         category: null,
         startTimestamp,
         stopTimestamp,
+    };
+}
+
+/** A programme that starts two hours from now — nothing airing "now". */
+function buildFutureProgram(channelId: string, title: string): EpgProgram {
+    return buildProgram(channelId, title, 120);
+}
+
+/** A currently airing short-EPG entry in the store's EpgItem shape. */
+function buildEpgItem(channelId: string, title: string): EpgItem {
+    const program = buildProgram(channelId, title);
+    return {
+        id: `${channelId}-${title}`,
+        epg_id: '',
+        title,
+        lang: '',
+        start: program.start,
+        end: program.stop,
+        stop: program.stop,
+        description: `${title} description`,
+        channel_id: channelId,
+        start_timestamp: String(program.startTimestamp),
+        stop_timestamp: String(program.stopTimestamp),
     };
 }

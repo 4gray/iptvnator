@@ -158,7 +158,10 @@ export class PwaService extends DataService {
             .pipe(
                 catchError((error) => {
                     this.snackBar.open(
-                        this.getPlaylistRefreshErrorMessage(error),
+                        this.appendProviderErrorCode(
+                            this.getPlaylistRefreshErrorMessage(error),
+                            error
+                        ),
                         this.translateService.instant('CLOSE'),
                         {
                             duration: 5000,
@@ -220,8 +223,11 @@ export class PwaService extends DataService {
             .pipe(
                 catchError((error) => {
                     this.snackBar.open(
-                        this.getErrorMessageByStatusCode(
-                            this.extractHttpStatusCode(error)
+                        this.appendProviderErrorCode(
+                            this.getErrorMessageByStatusCode(
+                                this.extractHttpStatusCode(error)
+                            ),
+                            error
                         ),
                         'Close',
                         {
@@ -267,6 +273,19 @@ export class PwaService extends DataService {
                 break;
         }
         return this.translateService.instant(messageKey);
+    }
+
+    /**
+     * The web backend attaches the underlying Node network code (ETIMEDOUT,
+     * ENETUNREACH, ...) to proxy error bodies; without it the toast collapses
+     * every connection failure into the same generic fetch error (#1400).
+     */
+    private appendProviderErrorCode(message: string, error: unknown): string {
+        const body = (error as { error?: { code?: unknown } } | null)?.error;
+        const code = typeof body?.code === 'string' ? body.code : '';
+        return code && !message.includes(`(${code})`)
+            ? `${message} (${code})`
+            : message;
     }
 
     private extractHttpStatusCode(error: unknown): number | null {

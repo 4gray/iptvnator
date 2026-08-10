@@ -45,6 +45,7 @@ import {
 } from './actions';
 import {
     selectActive,
+    selectActivePlaylist,
     selectActivePlaylistId,
     selectChannels,
     selectFavorites,
@@ -52,6 +53,7 @@ import {
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 import {
     buildExternalPlayerPayload,
+    type ExternalPlayerHeaderFallback,
     shouldAutoLaunchExternalPlayer,
 } from './external-player-payload.util';
 import { resolvePlaylistScopedEpgFetchPlan } from './playlist-scoped-epg-fetch.util';
@@ -140,11 +142,15 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(EpgActions.setActivePlaybackUrl),
-                withLatestFrom(this.store.select(selectActive)),
-                tap(([action, activeChannel]) => {
+                withLatestFrom(
+                    this.store.select(selectActive),
+                    this.store.select(selectActivePlaylist)
+                ),
+                tap(([action, activeChannel, activePlaylist]) => {
                     void this.openWithConfiguredExternalPlayer(
                         action.playbackUrl,
-                        activeChannel
+                        activeChannel,
+                        activePlaylist
                     );
                 })
             );
@@ -156,12 +162,16 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(EpgActions.returnToLivePlayback),
-                withLatestFrom(this.store.select(selectActive)),
+                withLatestFrom(
+                    this.store.select(selectActive),
+                    this.store.select(selectActivePlaylist)
+                ),
                 filter(([, activeChannel]) => Boolean(activeChannel?.url)),
-                tap(([, activeChannel]) => {
+                tap(([, activeChannel, activePlaylist]) => {
                     void this.openWithConfiguredExternalPlayer(
                         activeChannel?.url ?? '',
-                        activeChannel
+                        activeChannel,
+                        activePlaylist
                     );
                 })
             );
@@ -174,7 +184,8 @@ export class PlaylistEffects {
             ofType(ChannelActions.setActiveChannel),
             // Skip the effect entirely when channel is falsy
             filter((action) => !!action.channel),
-            map((action) => {
+            withLatestFrom(this.store.select(selectActivePlaylist)),
+            map(([action, activePlaylist]) => {
                 const { channel } = action;
 
                 // Use modern EPG service to get channel programs
@@ -198,6 +209,15 @@ export class PlaylistEffects {
 
                 firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
                     (settings: any) => {
+                        const payload = buildExternalPlayerPayload(
+                            channel,
+                            channel.url,
+                            activePlaylist
+                        );
+                        if (!payload) {
+                            return;
+                        }
+
                         if (
                             shouldAutoLaunchExternalPlayer(
                                 settings,
@@ -206,13 +226,10 @@ export class PlaylistEffects {
                                 VideoPlayer.MPV
                             )
                         ) {
-                            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
-                                url: channel.url,
-                                title: channel.name ?? '',
-                                'user-agent': channel.http['user-agent'],
-                                referer: channel.http.referrer,
-                                origin: channel.http.origin,
-                            });
+                            this.dataService.sendIpcEvent(
+                                OPEN_MPV_PLAYER,
+                                payload
+                            );
                         } else if (
                             shouldAutoLaunchExternalPlayer(
                                 settings,
@@ -221,13 +238,10 @@ export class PlaylistEffects {
                                 VideoPlayer.VLC
                             )
                         ) {
-                            this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, {
-                                url: channel.url,
-                                title: channel.name ?? '',
-                                'user-agent': channel.http['user-agent'],
-                                referer: channel.http.referrer,
-                                origin: channel.http.origin,
-                            });
+                            this.dataService.sendIpcEvent(
+                                OPEN_VLC_PLAYER,
+                                payload
+                            );
                         }
                     }
                 );
@@ -259,13 +273,18 @@ export class PlaylistEffects {
 
     private async openWithConfiguredExternalPlayer(
         playbackUrl: string,
-        activeChannel: Channel | undefined | null
+        activeChannel: Channel | undefined | null,
+        activePlaylist?: ExternalPlayerHeaderFallback | null
     ): Promise<void> {
         if (isDashStreamUrl(playbackUrl) || isDashChannel(activeChannel)) {
             return;
         }
 
-        const payload = buildExternalPlayerPayload(activeChannel, playbackUrl);
+        const payload = buildExternalPlayerPayload(
+            activeChannel,
+            playbackUrl,
+            activePlaylist
+        );
         if (!payload) {
             return;
         }
@@ -376,6 +395,7 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
+                filter((action) => action.persist !== false),
                 switchMap((action) =>
                     this.playlistsService
                         .updatePlaylistMeta(action.playlist)

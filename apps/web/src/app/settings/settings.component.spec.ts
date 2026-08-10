@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
+import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
@@ -15,15 +17,17 @@ import {
     createEpgBridgeStub,
     createPlaylistMeta,
     DEFAULT_SETTINGS,
+    MockRouter,
+    setSettingsSection,
     stubSettingsSideEffects,
 } from './test-stubs/settings-test-harness.stub';
 
 /**
- * Page-shell behaviour: chrome, the facade lifecycle and the runtime
- * capabilities that decide which sections and players are offered. Form
- * editing and saving live in `settings.component.form.spec.ts`, section
- * scrolling in `settings-section-scroll.directive.spec.ts`, and the
- * per-section behaviour in the matching `*.facade.spec.ts` files.
+ * Page-shell behaviour: chrome, the `:section` page routing, the facade
+ * lifecycle and the runtime capabilities that decide which sections and
+ * players are offered. Form editing and saving live in
+ * `settings.component.form.spec.ts`, and the per-section behaviour in the
+ * matching `*.facade.spec.ts` files.
  */
 describe('SettingsComponent', () => {
     let component: SettingsComponent;
@@ -102,7 +106,7 @@ describe('SettingsComponent', () => {
         expect(appUpdateDispose).toHaveBeenCalledTimes(1);
     });
 
-    it('should render a compact page header outside dialog mode', () => {
+    it('should render the hidden page header hook', () => {
         const nativeElement = fixture.nativeElement as HTMLElement;
 
         expect(
@@ -111,32 +115,117 @@ describe('SettingsComponent', () => {
         expect(nativeElement.querySelector('.settings-intro')).toBeNull();
     });
 
-    it('should not render the page header in dialog mode', () => {
-        fixture.destroy();
+    describe('Section pages', () => {
+        it('renders only the section named by the route param', () => {
+            const nativeElement = fixture.nativeElement as HTMLElement;
 
-        const dialogFixture = TestBed.createComponent(SettingsComponent);
-        const dialogComponent = dialogFixture.componentInstance;
+            expect(
+                nativeElement.querySelector('app-settings-general-section')
+            ).not.toBeNull();
+            expect(
+                nativeElement.querySelector('app-settings-playback-section')
+            ).toBeNull();
 
-        stubSettingsSideEffects(dialogComponent);
-        dialogComponent.isDialog = true;
-        dialogFixture.detectChanges();
+            setSettingsSection('playback');
+            fixture.detectChanges();
 
-        const nativeElement = dialogFixture.nativeElement as HTMLElement;
-        expect(
-            nativeElement.querySelector('[data-test-id="settings-page-header"]')
-        ).toBeNull();
-        expect(
-            nativeElement.querySelector('h2[mat-dialog-title]')
-        ).not.toBeNull();
+            expect(
+                nativeElement.querySelector('app-settings-general-section')
+            ).toBeNull();
+            expect(
+                nativeElement.querySelector('app-settings-playback-section')
+            ).not.toBeNull();
+        });
+
+        it('falls back to the general page and rewrites unknown section URLs', () => {
+            const navigate = (router as unknown as MockRouter).navigate;
+
+            setSettingsSection('nonsense');
+            fixture.detectChanges();
+
+            expect(component.activeSection()).toBe('general');
+            expect(navigate).toHaveBeenCalledWith(
+                ['/workspace/settings', 'general'],
+                { replaceUrl: true }
+            );
+            expect(
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    'app-settings-general-section'
+                )
+            ).not.toBeNull();
+        });
     });
 
-    it('should navigate back to home page', () => {
-        jest.spyOn(router, 'navigateByUrl');
-        component.backToHome();
-        expect(router.navigateByUrl).toHaveBeenCalledWith('/');
+    describe('Leaving with unsaved changes', () => {
+        const answerDialogWith = (
+            choice: 'save' | 'discard' | undefined
+        ): jest.Mock => {
+            const open = TestBed.inject(MatDialog).open as jest.Mock;
+            open.mockReturnValue({ afterClosed: () => of(choice) });
+            return open;
+        };
+
+        it('lets a pristine form leave without asking', async () => {
+            const open = answerDialogWith(undefined);
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(true);
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it('stays when the dialog is dismissed', async () => {
+            component.settingsForm.markAsDirty();
+            answerDialogWith(undefined);
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(false);
+            expect(component.settingsForm.dirty).toBe(true);
+        });
+
+        it('discard-and-leave reverts the staged edits', async () => {
+            component.settingsForm.get('theme')?.setValue('DARK_THEME');
+            component.settingsForm.markAsDirty();
+            answerDialogWith('discard');
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(true);
+            expect(component.settingsForm.pristine).toBe(true);
+        });
+
+        it('save-and-leave persists before allowing the navigation', async () => {
+            component.settingsForm.markAsDirty();
+            jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
+            answerDialogWith('save');
+
+            await expect(
+                component.confirmLeaveWithUnsavedChanges()
+            ).resolves.toBe(true);
+            expect(component.settingsForm.pristine).toBe(true);
+        });
+
+        it('offers save-and-leave only while the form is valid', async () => {
+            component.settingsForm.markAsDirty();
+            component.settingsForm.setErrors({ invalid: true });
+            const open = answerDialogWith(undefined);
+
+            await component.confirmLeaveWithUnsavedChanges();
+
+            expect(open).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    data: { canSave: false },
+                })
+            );
+        });
     });
 
     it('enables the global wipe action only once a playlist exists', () => {
+        setSettingsSection('reset');
+        fixture.detectChanges();
+
         const deleteButton = () =>
             (fixture.nativeElement as HTMLElement).querySelector(
                 '.danger-zone__button'

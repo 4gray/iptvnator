@@ -23,6 +23,21 @@ describe('withStalkerSelection', () => {
         expect(store.page()).toBe(0);
     });
 
+    it('resets paging when the content type changes, but not when it repeats', () => {
+        // Regression: /vod -> /series with the same category id ('*' on both
+        // section roots) used to keep page > 1, so the new type's first
+        // response was treated as an append onto the old type's list.
+        store.setSelectedContentType('vod');
+        store.setPage(3);
+
+        store.setSelectedContentType('series');
+        expect(store.page()).toBe(0);
+
+        store.setPage(2);
+        store.setSelectedContentType('series');
+        expect(store.page()).toBe(2);
+    });
+
     it('keeps paging when the search phrase is unchanged', () => {
         store.setSearchPhrase('matrix');
         store.setPage(2);

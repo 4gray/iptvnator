@@ -97,6 +97,30 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(adapterAttach).not.toHaveBeenCalled();
     });
 
+    it('drives playback keyboard shortcuts against the native video element', () => {
+        const video = component.videoPlayer.nativeElement;
+        expect(video.muted).toBe(false);
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'm',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(video.muted).toBe(true);
+
+        fixture.destroy();
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'm',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(video.muted).toBe(true);
+    });
+
     it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
         const el = component.videoPlayer.nativeElement;
         const removeSpy = jest.spyOn(el, 'removeEventListener');

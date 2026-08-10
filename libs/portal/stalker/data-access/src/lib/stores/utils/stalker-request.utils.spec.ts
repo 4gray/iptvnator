@@ -17,6 +17,7 @@ function createDeps(): StalkerRequestDeps {
         },
         stalkerSession: {
             makeAuthenticatedRequest: jest.fn().mockResolvedValue({ js: [] }),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         },
     } as unknown as StalkerRequestDeps;
 }
@@ -75,6 +76,67 @@ describe('executeStalkerRequest', () => {
         expect(
             deps.stalkerSession.makeAuthenticatedRequest
         ).not.toHaveBeenCalled();
+        expect(deps.stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ...playlist,
+                lastUsage: '',
+            })
+        );
+    });
+
+    it('does not dispatch a token-free request from a stale portal mode', async () => {
+        const deps = createDeps();
+        const stalePlaylist = {
+            _id: 'stalker-stale-simple',
+            title: 'Stale simple snapshot',
+            portalUrl: 'https://portal.example.test/server/load.php',
+            macAddress: 'has-mac-address',
+            isFullStalkerPortal: false,
+        } as PlaylistMeta;
+        (deps.stalkerSession.ensureToken as jest.Mock).mockRejectedValue(
+            new Error('Stale Stalker playlist configuration')
+        );
+
+        await expect(
+            executeStalkerRequest(deps, stalePlaylist, CATEGORY_PARAMS)
+        ).rejects.toThrow(/stale/i);
+
+        expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('rejects a direct response completed after its mode becomes stale', async () => {
+        const deps = createDeps();
+        const simplePlaylist = {
+            _id: 'stalker-in-flight-simple',
+            title: 'In-flight simple snapshot',
+            portalUrl: 'https://portal.example.test/server/load.php',
+            macAddress: 'has-mac-address',
+            isFullStalkerPortal: false,
+        } as PlaylistMeta;
+        let resolveResponse!: (value: unknown) => void;
+        (deps.dataService.sendIpcEvent as jest.Mock).mockReturnValueOnce(
+            new Promise((resolve) => (resolveResponse = resolve))
+        );
+        (deps.stalkerSession.ensureToken as jest.Mock)
+            .mockResolvedValueOnce({ token: null })
+            .mockRejectedValueOnce(
+                new Error('Stale Stalker playlist configuration')
+            );
+
+        const request = executeStalkerRequest(
+            deps,
+            simplePlaylist,
+            CATEGORY_PARAMS
+        );
+        while (
+            (deps.dataService.sendIpcEvent as jest.Mock).mock.calls.length === 0
+        ) {
+            await Promise.resolve();
+        }
+        resolveResponse({ js: ['STALE_CATEGORY'] });
+
+        await expect(request).rejects.toThrow(/stale/i);
+        expect(deps.stalkerSession.ensureToken).toHaveBeenCalledTimes(2);
     });
 });
 
@@ -111,12 +173,49 @@ describe('executeStalkerRequest lazy portal repair', () => {
         overrides: Partial<StalkerPortalRepairApi> = {}
     ): StalkerPortalRepairApi {
         return {
+            waitForPendingRepair: jest.fn().mockResolvedValue(undefined),
             applyOverride: jest.fn((playlist) => playlist),
             shouldAttemptRepair: jest.fn().mockReturnValue(false),
             repairPortal: jest.fn().mockResolvedValue(null),
             ...overrides,
         } as StalkerPortalRepairApi;
     }
+
+    it('waits for a pending repair before choosing the effective connection', async () => {
+        const deps = createDeps();
+        let releaseRepair: () => void = () => undefined;
+        const repairSettled = new Promise<void>((resolve) => {
+            releaseRepair = resolve;
+        });
+        const repaired = {
+            ...PLAYLIST,
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        const repair = createRepair({
+            waitForPendingRepair: jest.fn(() => repairSettled),
+            applyOverride: jest.fn().mockReturnValue(repaired),
+        });
+        deps.portalRepair = repair;
+
+        const request = executeStalkerRequest(deps, PLAYLIST, CATEGORY_PARAMS);
+        await Promise.resolve();
+
+        expect(repair.applyOverride).not.toHaveBeenCalled();
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).not.toHaveBeenCalled();
+
+        releaseRepair();
+        await request;
+
+        expect(repair.applyOverride).toHaveBeenCalledWith(PLAYLIST);
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ isFullStalkerPortal: true }),
+            CATEGORY_PARAMS
+        );
+    });
 
     it('retries once against the repaired configuration after an auth-failure body', async () => {
         const deps = createDeps();
@@ -196,9 +295,7 @@ describe('executeStalkerRequest lazy portal repair', () => {
 
         await executeStalkerRequest(deps, PLAYLIST, CATEGORY_PARAMS);
 
-        expect(
-            deps.stalkerSession.makeAuthenticatedRequest
-        ).toHaveBeenCalled();
+        expect(deps.stalkerSession.makeAuthenticatedRequest).toHaveBeenCalled();
         expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 

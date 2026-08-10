@@ -67,8 +67,9 @@ season/episode numbers. Keep them on subsequent position writes.
 
 ## Live Contract
 
-- Start bulk ITV EPG eagerly once channel rows exist. Rows read the bulk cache;
-  only the active channel may fall back to `get_short_epg`.
+- Start bulk ITV EPG eagerly once channel rows exist. Rows read the bulk
+  cache, falling back to throttled `get_short_epg` previews when it lacks
+  "now".
 - Radio skips EPG and external players, preserves live collection identity
   with `radio: 'true'`, and uses the shared inline audio player.
 

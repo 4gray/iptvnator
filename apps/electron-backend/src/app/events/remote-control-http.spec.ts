@@ -236,6 +236,79 @@ describe('RemoteControlEvents HTTP endpoints', () => {
         });
     });
 
+    it('clears now-playing fields when a non-live snapshot arrives', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-07-25T10:00:00.000Z'));
+        bootstrapRemoteControl();
+        const updateStatus = getIpcListener('REMOTE_CONTROL_STATUS_UPDATE');
+
+        updateStatus(
+            {},
+            {
+                portal: 'xtream',
+                isLiveView: true,
+                channelName: 'News',
+                channelNumber: 4,
+                epgTitle: 'Evening News',
+                epgStart: '2026-07-25T09:30:00.000Z',
+                epgEnd: '2026-07-25T10:30:00.000Z',
+                supportsVolume: true,
+                volume: 0.5,
+                muted: false,
+            }
+        );
+        // Browsing away from live (e.g. VOD) publishes a non-live snapshot;
+        // it must replace the live state instead of merging into it.
+        updateStatus(
+            {},
+            { portal: 'xtream', isLiveView: false, supportsVolume: false }
+        );
+
+        const result = await invokeHttpHandler(REMOTE_CONTROL_PATHS.STATUS, {
+            method: 'GET',
+        });
+
+        expect(result.response).toEqual({
+            statusCode: 200,
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+                portal: 'xtream',
+                isLiveView: false,
+                supportsVolume: false,
+                updatedAt: '2026-07-25T10:00:00.000Z',
+            }),
+        });
+    });
+
+    it('keeps only the portal on a non-live snapshot, dropping stray fields', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-07-25T10:00:00.000Z'));
+        bootstrapRemoteControl();
+        const updateStatus = getIpcListener('REMOTE_CONTROL_STATUS_UPDATE');
+
+        updateStatus(
+            {},
+            { portal: 'stalker', isLiveView: true, channelName: 'ITV One' }
+        );
+        // Stray now-playing fields on a non-live update must be dropped too:
+        // the reset is authoritative, not a merge base.
+        updateStatus(
+            {},
+            { isLiveView: false, channelName: 'Stray', supportsVolume: true }
+        );
+
+        const result = await invokeHttpHandler(REMOTE_CONTROL_PATHS.STATUS, {
+            method: 'GET',
+        });
+
+        expect(JSON.parse(result.response.body)).toEqual({
+            portal: 'stalker',
+            isLiveView: false,
+            supportsVolume: false,
+            updatedAt: '2026-07-25T10:00:00.000Z',
+        });
+    });
+
     it.each([
         {
             path: REMOTE_CONTROL_PATHS.CHANNEL_UP,

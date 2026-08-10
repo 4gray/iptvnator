@@ -221,10 +221,15 @@
     transform: translateY(1px);
 }
 
-.web-player-diagnostic__player-card:disabled {
+.web-player-diagnostic__player-card:disabled,
+.web-player-diagnostic__player-card--disabled {
     cursor: wait;
     opacity: 0.56;
     transform: none;
+}
+
+.web-player-diagnostic__player-card mat-spinner {
+    --mdc-circular-progress-active-indicator-color: currentColor;
 }
 
 .web-player-diagnostic__player-card:focus-visible,
@@ -276,6 +281,24 @@
     opacity: 0.62;
     text-overflow: clip;
     white-space: normal;
+}
+
+.web-player-diagnostic__player-status {
+    min-width: 0;
+    color: currentColor;
+    font-size: 0.78rem;
+    font-weight: 680;
+    line-height: 1.1;
+    opacity: 0.82;
+    overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .web-player-diagnostic__player-card,
+    .web-player-diagnostic__player-card mat-spinner {
+        transition: none;
+        animation: none;
+    }
 }
 
 .web-player-diagnostic__utilities {

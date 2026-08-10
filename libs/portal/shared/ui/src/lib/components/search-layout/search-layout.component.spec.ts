@@ -113,4 +113,138 @@ describe('SearchLayoutComponent', () => {
         resultsContainer.dispatchEvent(new Event('scroll'));
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
+
+    it('resets the near-end latch when the reset identity changes without a new term', () => {
+        // Regression: a filter-only search transition replaces the result set
+        // while the term stays the same; the latch must not survive it.
+        const nearEndSpy = jest.fn();
+        fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+        const resultsContainer = renderResultsContainer();
+
+        setScrollMetrics(resultsContainer, 700);
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        expect(nearEndSpy).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('nearEndResetKey', 'matrix|movie-only');
+        fixture.detectChanges();
+
+        // Still inside the threshold — a stale latch would swallow this.
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        expect(nearEndSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('exposes scroll save/restore for the results container', () => {
+        const resultsContainer = renderResultsContainer();
+        Object.defineProperty(resultsContainer, 'scrollTop', {
+            configurable: true,
+            writable: true,
+            value: 640,
+        });
+        const scrollTo = jest.fn(
+            (options: { top: number }) =>
+                ((resultsContainer as unknown as { scrollTop: number }).scrollTop =
+                    options.top)
+        );
+        Object.defineProperty(resultsContainer, 'scrollTo', {
+            configurable: true,
+            value: scrollTo,
+        });
+
+        expect(fixture.componentInstance.getResultsScrollTop()).toBe(640);
+
+        fixture.componentInstance.restoreResultsScrollTop(120);
+        expect(scrollTo).toHaveBeenCalledWith({ top: 120 });
+        expect(fixture.componentInstance.getResultsScrollTop()).toBe(120);
+    });
+
+    it('does not emit nearEnd when the consumer reports no more results', () => {
+        const nearEndSpy = jest.fn();
+        fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+        fixture.componentRef.setInput('nearEndHasMore', false);
+        const resultsContainer = renderResultsContainer();
+
+        setScrollMetrics(resultsContainer, 500);
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        setScrollMetrics(resultsContainer, 700);
+        resultsContainer.dispatchEvent(new Event('scroll'));
+
+        expect(nearEndSpy).not.toHaveBeenCalled();
+    });
+
+    it('re-measures when the rendered window grows while the total stays constant', () => {
+        // Regression (bots, round 2): binding the constant result-set total to
+        // the directive left no tracked input changing after the consumer
+        // revealed a chunk, so the auto-fill stopped after one expansion.
+        const rafCallbacks: FrameRequestCallback[] = [];
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            (callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }
+        );
+        jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(
+            () => undefined
+        );
+
+        try {
+            const nearEndSpy = jest.fn();
+            fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+            fixture.componentRef.setInput('searchTerm', 'matrix');
+            fixture.componentRef.setInput('resultsCount', 130);
+            fixture.componentRef.setInput('nearEndRenderedCount', 60);
+            fixture.detectChanges();
+
+            const flush = () => {
+                while (rafCallbacks.length) {
+                    const callback = rafCallbacks.shift();
+                    callback?.(0);
+                }
+            };
+
+            flush();
+            expect(nearEndSpy).toHaveBeenCalledTimes(1);
+
+            // The consumer reveals the next chunk; the total does not change,
+            // but the rendered count must schedule another overflow check.
+            fixture.componentRef.setInput('nearEndRenderedCount', 120);
+            fixture.detectChanges();
+            flush();
+            expect(nearEndSpy).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.restoreAllMocks();
+        }
+    });
+
+    it('auto-fills via nearEnd when the rendered results do not overflow', () => {
+        // Regression: a result window larger than the viewport-visible chunk
+        // must not stall when the rendered cards never create a scrollbar —
+        // the overflow check has to reveal further chunks without any scroll.
+        const rafCallbacks: FrameRequestCallback[] = [];
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(
+            (callback: FrameRequestCallback) => {
+                rafCallbacks.push(callback);
+                return rafCallbacks.length;
+            }
+        );
+        jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(
+            () => undefined
+        );
+
+        try {
+            const nearEndSpy = jest.fn();
+            fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+            renderResultsContainer();
+
+            // JSDOM default geometry (all zeros) models a non-overflowing
+            // container; flushing the scheduled overflow check must emit.
+            while (rafCallbacks.length) {
+                const callback = rafCallbacks.shift();
+                callback?.(0);
+            }
+
+            expect(nearEndSpy).toHaveBeenCalled();
+        } finally {
+            jest.restoreAllMocks();
+        }
+    });
 });

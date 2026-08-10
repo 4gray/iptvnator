@@ -581,6 +581,25 @@ export async function closeElectronApp(
             closePromise.catch(() => undefined),
             electronAppKillWaitMs
         );
+
+        // SIGTERM asks Electron for a graceful quit, which the app can
+        // legitimately refuse — the unsaved-settings close guard cancels the
+        // quit while it waits for an answer. A process that survives here
+        // would outlive the test, hold its data dir, and time out the worker
+        // teardown, so escalate to SIGKILL.
+        if (
+            childProcess.exitCode === null &&
+            childProcess.signalCode === null
+        ) {
+            console.warn(
+                'Electron app survived SIGTERM; escalating to SIGKILL'
+            );
+            childProcess.kill('SIGKILL');
+            await waitForPromiseWithTimeout(
+                closePromise.catch(() => undefined),
+                electronAppKillWaitMs
+            );
+        }
     } catch (error) {
         console.warn('Failed to close Electron app cleanly:', error);
     }
@@ -983,10 +1002,24 @@ export async function openSettings(page: Page): Promise<void> {
     await expect(page.getByTestId('settings-container')).toBeVisible();
 }
 
+/**
+ * Settings render one section page at a time (`/workspace/settings/:section`),
+ * so a control can only be interacted with after its section page is open.
+ */
+export async function openSettingsSection(
+    page: Page,
+    sectionId: string
+): Promise<void> {
+    await page.getByTestId(`settings-section-${sectionId}`).click();
+    await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
+}
+
 export async function enableRemoteControl(
     page: Page,
     port: number
 ): Promise<void> {
+    await openSettingsSection(page, 'remote-control');
+
     const remoteControlCheckbox = page.locator(
         'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
     );
@@ -1011,9 +1044,10 @@ export async function saveSettings(page: Page): Promise<void> {
     // deterministic post-save state below.
     await saveButton.click({ noWaitAfter: true });
     // `onSubmit()` calls `applyChangedSettings()` -> `markAsPristine()` once the
-    // settings write resolves, which disables the button. Awaiting that is a
-    // stronger, race-free confirmation that the save actually committed.
-    await expect(saveButton).toBeDisabled();
+    // settings write resolves, which hides the whole unsaved-changes bar.
+    // Awaiting that is a stronger, race-free confirmation that the save
+    // actually committed.
+    await expect(saveButton).toBeHidden();
     // Let the fire-and-forget `window.electron.updateSettings(...)` IPC flush to
     // the main process before callers may relaunch the app to assert persistence.
     await page.waitForTimeout(300);

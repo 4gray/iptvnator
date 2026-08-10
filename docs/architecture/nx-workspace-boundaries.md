@@ -52,7 +52,7 @@ resulting PR runs the full CI pipeline.
 
 ## Vite Dev-Server Patch
 
-Angular's development builder currently resolves Vite `7.3.5`. That release's
+Angular's development builder currently resolves Vite `7.3.6`. That release's
 asset and worker transform prefilters can catastrophically backtrack on a large
 generated chunk containing unrelated `new URL...` expressions while searching
 for a valid `new URL(..., import.meta.url)` construct. The Electron development
@@ -60,12 +60,12 @@ server can then fail a lazy chunk request with `Maximum call stack size
 exceeded`, even though static builds succeed because they do not pass emitted
 chunks through Vite's request-time plugin container.
 
-`patches/vite@7.3.5.patch` backports Vite's upstream precise-matcher fix from
+`patches/vite@7.3.6.patch` backports Vite's upstream precise-matcher fix from
 [vitejs/vite#21800](https://github.com/vitejs/vite/pull/21800). Bounded
 prefilters keep the request-time scan linear while allowing comment-bearing
 asset and worker expressions to reach the precise matcher after Vite strips
 comments. Keep the patch while the supported Angular toolchain resolves Vite
-`7.3.5`; remove it only after the resolved Vite contains the upstream fix. Run
+`7.3.6`; remove it only after the resolved Vite contains the upstream fix. Run
 the regression check after any related manifest or lockfile update:
 
 ```bash

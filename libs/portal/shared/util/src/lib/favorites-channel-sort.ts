@@ -56,6 +56,39 @@ export function getFavoritesChannelSortModeTranslationKey(
     }
 }
 
+/**
+ * The list a collection surface actually renders: search-filtered, then
+ * sorted in favorites mode (`sortMode: null` keeps the input order, as the
+ * recent view does). Shared by the global favorites list and the unified
+ * live tab's remote-control navigation so the remote's channel order can
+ * never diverge from the rendered rows.
+ */
+export function deriveVisibleFavoriteChannels<T>(
+    channels: readonly T[],
+    options: {
+        searchTerm: string;
+        sortMode: FavoritesChannelSortMode | null;
+        getName: (item: T) => string | null | undefined;
+        getAddedAt?: (item: T) => string | null | undefined;
+    }
+): readonly T[] {
+    const term = options.searchTerm.trim().toLowerCase();
+    const filtered = term
+        ? channels.filter((channel) =>
+              (options.getName(channel) ?? '').toLowerCase().includes(term)
+          )
+        : channels;
+
+    if (options.sortMode === null) {
+        return filtered;
+    }
+
+    return sortFavoriteChannelItems(filtered, options.sortMode, {
+        getName: options.getName,
+        getAddedAt: options.getAddedAt,
+    });
+}
+
 export function sortFavoriteChannelItems<T>(
     items: readonly T[],
     mode: FavoritesChannelSortMode,
