@@ -113,6 +113,32 @@ describe('network family autoselection tuning', () => {
         ).toBe(false);
     });
 
+    it('ignores the flag text embedded in another option value or name', () => {
+        const setAttemptTimeout = jest.fn();
+
+        // The flag string inside another option's VALUE is not the option.
+        const applied = applyDefaultAutoSelectFamilyAttemptTimeout({
+            execArgv: [],
+            nodeOptions:
+                '--title=--network-family-autoselection-attempt-timeout-worker',
+            setAttemptTimeout,
+        });
+
+        expect(applied).toBe(DEFAULT_AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_MS);
+        expect(setAttemptTimeout).toHaveBeenCalledWith(
+            DEFAULT_AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_MS
+        );
+
+        // A longer option NAME that merely starts with the flag text is a
+        // different option.
+        expect(
+            hasExplicitAttemptTimeoutFlag(
+                ['--network-family-autoselection-attempt-timeout-worker=5'],
+                ''
+            )
+        ).toBe(false);
+    });
+
     it('applies the timeout to the real net default when nothing is injected', () => {
         const original = net.getDefaultAutoSelectFamilyAttemptTimeout();
         try {
