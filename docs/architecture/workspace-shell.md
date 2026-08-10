@@ -308,16 +308,18 @@ Toolchain notes for the Electron 41 upgrade:
 1. `better-sqlite3` remains pinned to exactly `12.9.0` so native dependency
    updates happen deliberately with database-worker, packaging, and Electron
    E2E validation. The former Node 20 prebuild constraint no longer applies
-   now that the supported development floor is Node 22.12; revisit this pin
+   now that the supported development floor is Node 22.13; revisit this pin
    in a dedicated native-dependency update.
 2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
    `@electron/rebuild` (via `electron-builder install-app-deps`) can map
    Electron 41 to its ABI.
-3. Local development needs **Node >= 22.12**, declared in `engines`.
-   `electron-builder` 26.15.7 pulls `@electron/rebuild` 4, which sets that
-   floor, and the root `postinstall` runs `install-app-deps` on every
-   `pnpm install`. The 26.15.7 minimum also carries the v26 backport that
-   fully extracts the Snap template's `.tar.7z` payload; 26.15.0–26.15.6 can
+3. Local development needs **Node >= 22.13**, declared in `engines`.
+   The direct `@faker-js/faker` dependency and current lint tooling require
+   that floor. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
+   which requires Node 22.12 or newer, and the root `postinstall` runs
+   `install-app-deps` on every `pnpm install`. The 26.15.7 minimum also
+   carries the v26 backport that fully extracts the Snap template's `.tar.7z`
+   payload; 26.15.0–26.15.6 can
    produce a Snap that is missing `desktop-init.sh`. CI already runs Node 22.
 
 Known caveats:
