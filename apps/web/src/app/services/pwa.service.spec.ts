@@ -7,7 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { EMPTY } from 'rxjs';
+import { config as rxjsConfig, EMPTY } from 'rxjs';
 import {
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
@@ -77,6 +77,84 @@ describe('PwaService', () => {
         });
 
         expect(http.match(() => true)).toHaveLength(0);
+    });
+
+    it('appends the proxy network code to the URL-import failure toast', async () => {
+        // The /parse proxy reports connection-level failures as HTTP 500 with
+        // a `code` field in the body (#1400). The toast must carry that code —
+        // status-only mapping used to collapse ETIMEDOUT into the generic
+        // fetch error. The rethrow after the snackbar has no downstream error
+        // observer, so park RxJS's unhandled-error hook for the test.
+        const unhandled: unknown[] = [];
+        const previousHandler = rxjsConfig.onUnhandledError;
+        rxjsConfig.onUnhandledError = (error) => unhandled.push(error);
+
+        try {
+            service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+                url: 'https://provider.example/list.m3u',
+            });
+
+            await Promise.resolve();
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-1' });
+            await new Promise((resolve) => setTimeout(resolve));
+
+            http.expectOne((req) => req.url.endsWith('/parse')).flush(
+                {
+                    message: 'Error, something went wrong (ETIMEDOUT)',
+                    status: 500,
+                    code: 'ETIMEDOUT',
+                },
+                { status: 500, statusText: 'Internal Server Error' }
+            );
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+                'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
+                'Close',
+                { duration: 5000 }
+            );
+        } finally {
+            rxjsConfig.onUnhandledError = previousHandler;
+        }
+    });
+
+    it('appends the proxy network code to the playlist-refresh failure toast', async () => {
+        const unhandled: unknown[] = [];
+        const previousHandler = rxjsConfig.onUnhandledError;
+        rxjsConfig.onUnhandledError = (error) => unhandled.push(error);
+
+        try {
+            service.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: 'playlist-1',
+                url: 'https://provider.example/list.m3u',
+            });
+
+            await Promise.resolve();
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-1' });
+            await new Promise((resolve) => setTimeout(resolve));
+
+            http.expectOne((req) => req.url.endsWith('/parse')).flush(
+                {
+                    message: 'Error, something went wrong (ENETUNREACH)',
+                    status: 500,
+                    code: 'ENETUNREACH',
+                },
+                { status: 500, statusText: 'Internal Server Error' }
+            );
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+                'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ENETUNREACH)',
+                'CLOSE',
+                { duration: 5000 }
+            );
+        } finally {
+            rxjsConfig.onUnhandledError = previousHandler;
+        }
     });
 
     it('surfaces the stalker proxy error envelope as an HTTP error instead of undefined', async () => {
@@ -152,9 +230,7 @@ describe('PwaService', () => {
                 '00:1A:79:AA:BB:CC'
             );
             expect(requestUrl.searchParams.get('token')).toBe('TOKEN123');
-            expect(requestUrl.searchParams.get('serialNumber')).toBe(
-                'SN1234'
-            );
+            expect(requestUrl.searchParams.get('serialNumber')).toBe('SN1234');
             expect(requestUrl.searchParams.get('action')).toBe(
                 'get_ordered_list'
             );

@@ -290,7 +290,7 @@ This is an Nx monorepo with the following structure:
 
 - **apps/web** - Angular application (frontend, shared by Electron and PWA)
 - **apps/electron-backend** - Electron main process
-- **apps/web-backend** - HTTP backend for the self-hosted PWA (`/parse`, `/parse-xml`, `/xtream`, `/stalker` CORS proxy endpoints)
+- **apps/web-backend** - HTTP backend for the self-hosted PWA (`/parse`, `/parse-xml`, `/xtream`, `/stalker` CORS proxy endpoints). At startup it raises Node's happy-eyeballs per-attempt connection timeout to 2500 ms (`network-family-autoselection.ts`) so dual-stack provider hostnames fall back to IPv4 behind IPv6-less VPN/Docker networks; an explicit `--network-family-autoselection-attempt-timeout` passed via `NODE_OPTIONS`/CLI always wins. Outbound provider failures are logged hostname-only with the underlying Node error codes and return the primary code in the error body (`provider-error.ts`) — the proxied URL query carries credentials and must never be logged
 - **apps/remote-control-web** - Mobile remote-control web app served by the Electron backend
 - **apps/web-e2e** - Playwright E2E tests against the web app
 - **apps/electron-backend-e2e** - Playwright E2E tests against the Electron app
