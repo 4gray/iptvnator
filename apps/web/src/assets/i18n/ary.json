@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "التحكم عن بعد",
         "SUBTITLE": "تحكم في مشغل IPTV ديالك عن بعد",
-        "UP_CHANNEL": "القناة اللي بعد",
-        "DOWN_CHANNEL": "القناة اللي قبل",
+        "UP_CHANNEL": "القناة اللي قبل",
+        "DOWN_CHANNEL": "القناة اللي بعد",
         "HEADER": "التحكم عن بعد ديال IPTVnator",
         "FOOTER": "التحكم عن بعد ديال IPTVnator"
     },

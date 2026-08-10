@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "Zdalne sterowanie",
         "SUBTITLE": "Steruj odtwarzaczem IPTV zdalnie",
-        "UP_CHANNEL": "Kanał w górę",
-        "DOWN_CHANNEL": "Kanał w dół",
+        "UP_CHANNEL": "Poprzedni kanał",
+        "DOWN_CHANNEL": "Następny kanał",
         "HEADER": "Pilot IPTVnator",
         "FOOTER": "Pilot IPTVnator"
     },

@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "Uzaktan kontrol",
         "SUBTITLE": "IPTV oynatıcınızı uzaktan kontrol edin",
-        "UP_CHANNEL": "Sonraki kanal",
-        "DOWN_CHANNEL": "Önceki kanal",
+        "UP_CHANNEL": "Önceki kanal",
+        "DOWN_CHANNEL": "Sonraki kanal",
         "HEADER": "IPTVnator Uzaktan Kumanda",
         "FOOTER": "IPTVnator Uzaktan Kumanda"
     },

@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "Afstandsbediening",
         "SUBTITLE": "Bedien je IPTV-speler op afstand",
-        "UP_CHANNEL": "Kanaal omhoog",
-        "DOWN_CHANNEL": "Kanaal omlaag",
+        "UP_CHANNEL": "Vorig kanaal",
+        "DOWN_CHANNEL": "Volgend kanaal",
         "HEADER": "IPTVnator-afstandsbediening",
         "FOOTER": "IPTVnator-afstandsbediening"
     },

@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "Télécommande",
         "SUBTITLE": "Contrôlez votre lecteur IPTV à distance",
-        "UP_CHANNEL": "Chaîne suivante",
-        "DOWN_CHANNEL": "Chaîne précédente",
+        "UP_CHANNEL": "Chaîne précédente",
+        "DOWN_CHANNEL": "Chaîne suivante",
         "HEADER": "Télécommande IPTVnator",
         "FOOTER": "Télécommande IPTVnator"
     },

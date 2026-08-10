@@ -375,7 +375,7 @@
         "EPG_NOTE": "目前 EPG 仅在 IPTVnator 的 Electron 桌面版本中可用。",
         "EPG_NOTE_URL_TEXT": "在此查看",
         "IMPORT_EXPORT_DATA": "导入/导出播放列表",
-        "IMPORT_EXPORT_DATA_DESCRIPTION": "以应用使用的 JSON 格式导出或导入播放列表。",
+        "IMPORT_EXPORT_DATA_DESCRIPTION": "导出或恢复播放列表备份，包括 M3U 快照、Xtream/Stalker 连接元数据、用户状态和 EPG 源 URL。",
         "IMPORT_DATA": "导入",
         "EXPORT_DATA": "导出",
         "EXPORTING_DATA": "导出中…",

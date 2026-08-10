@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "Τηλεχειριστήριο",
         "SUBTITLE": "Ελέγξτε το πρόγραμμα αναπαραγωγής IPTV σας από απόσταση",
-        "UP_CHANNEL": "Επόμενο κανάλι",
-        "DOWN_CHANNEL": "Προηγούμενο κανάλι",
+        "UP_CHANNEL": "Προηγούμενο κανάλι",
+        "DOWN_CHANNEL": "Επόμενο κανάλι",
         "HEADER": "Τηλεχειριστήριο IPTVnator",
         "FOOTER": "Τηλεχειριστήριο IPTVnator"
     },

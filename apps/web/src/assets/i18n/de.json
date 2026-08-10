@@ -1229,8 +1229,8 @@
     "REMOTE_CONTROL": {
         "TITLE": "Fernbedienung",
         "SUBTITLE": "Steuern Sie Ihren IPTV-Player aus der Ferne",
-        "UP_CHANNEL": "Nächster Kanal",
-        "DOWN_CHANNEL": "Vorheriger Kanal",
+        "UP_CHANNEL": "Vorheriger Kanal",
+        "DOWN_CHANNEL": "Nächster Kanal",
         "HEADER": "IPTVnator-Fernbedienung",
         "FOOTER": "IPTVnator-Fernbedienung"
     },
