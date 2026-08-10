@@ -61,6 +61,25 @@ describe('network family autoselection tuning', () => {
         expect(setAttemptTimeout).not.toHaveBeenCalled();
     });
 
+    it('keeps the underscore spelling Node also accepts', () => {
+        const setAttemptTimeout = jest.fn();
+
+        const viaArgv = applyDefaultAutoSelectFamilyAttemptTimeout({
+            execArgv: ['--network_family_autoselection_attempt_timeout=500'],
+            nodeOptions: '',
+            setAttemptTimeout,
+        });
+        const viaNodeOptions = applyDefaultAutoSelectFamilyAttemptTimeout({
+            execArgv: [],
+            nodeOptions: '--network_family_autoselection_attempt_timeout=700',
+            setAttemptTimeout,
+        });
+
+        expect(viaArgv).toBeNull();
+        expect(viaNodeOptions).toBeNull();
+        expect(setAttemptTimeout).not.toHaveBeenCalled();
+    });
+
     it('detects the flag in both argv shapes and NODE_OPTIONS', () => {
         expect(
             hasExplicitAttemptTimeoutFlag(
@@ -71,6 +90,12 @@ describe('network family autoselection tuning', () => {
         expect(
             hasExplicitAttemptTimeoutFlag(
                 [AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG],
+                ''
+            )
+        ).toBe(true);
+        expect(
+            hasExplicitAttemptTimeoutFlag(
+                ['--network_family-autoselection_attempt-timeout=250'],
                 ''
             )
         ).toBe(true);

@@ -23,6 +23,16 @@ export interface ApplyAutoSelectFamilyAttemptTimeoutOptions {
 }
 
 /**
+ * Node accepts underscores interchangeably with dashes in flag names
+ * (`process.allowedNodeEnvironmentFlags` semantics), so
+ * `--network_family_autoselection_attempt_timeout=500` is just as explicit
+ * as the canonical spelling and must be honored too.
+ */
+function normalizeFlagSpelling(value: string): string {
+    return value.replace(/_/g, '-');
+}
+
+/**
  * An operator who tunes the timeout through Node's own CLI flag (directly or
  * via `NODE_OPTIONS`) must keep the final word: the flag is applied before
  * user code runs, so overwriting it here would silently undo their setting.
@@ -32,11 +42,18 @@ export function hasExplicitAttemptTimeoutFlag(
     nodeOptions: string
 ): boolean {
     return (
-        execArgv.some(
-            (arg) =>
-                arg === AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG ||
-                arg.startsWith(`${AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG}=`)
-        ) || nodeOptions.includes(AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG)
+        execArgv.some((arg) => {
+            const normalized = normalizeFlagSpelling(arg);
+            return (
+                normalized === AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG ||
+                normalized.startsWith(
+                    `${AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG}=`
+                )
+            );
+        }) ||
+        normalizeFlagSpelling(nodeOptions).includes(
+            AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG
+        )
     );
 }
 

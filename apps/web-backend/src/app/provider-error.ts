@@ -117,7 +117,13 @@ function describeProviderFailure(error: unknown): string {
         response &&
         (response.status !== undefined || response.statusText !== undefined)
     ) {
-        return `HTTP ${response.status ?? '?'} ${response.statusText ?? ''}`.trim();
+        // The reason phrase is provider-controlled text and can echo the
+        // credential-bearing request URL; only the numeric status may be
+        // logged. (The statusText still reaches the client response body,
+        // which the provider could see anyway.)
+        return response.status !== undefined
+            ? `HTTP ${response.status}`
+            : 'HTTP error';
     }
 
     const codes = collectProviderErrorCodes(error);

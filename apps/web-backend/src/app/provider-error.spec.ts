@@ -124,19 +124,43 @@ describe('logProviderRequestFailure', () => {
         expect(line).not.toContain('player_api.php');
     });
 
-    it('describes HTTP failures by status instead of codes', () => {
+    it('describes HTTP failures by numeric status only — the reason phrase is provider-controlled', () => {
         const logger = jest.fn();
 
         logProviderRequestFailure({
-            error: Object.assign(new Error('Forbidden'), {
-                response: { status: 403, statusText: 'Forbidden' },
+            error: Object.assign(new Error('Unauthorized'), {
+                response: {
+                    status: 401,
+                    statusText:
+                        'Unauthorized username=alice&password=secret-pass',
+                },
             }),
             route: '/stalker',
             url: new URL('http://portal.example/portal.php'),
             logger,
         });
 
-        expect(logger.mock.calls[0][0]).toContain('HTTP 403 Forbidden');
+        const line = logger.mock.calls[0][0] as string;
+        expect(line).toContain('HTTP 401');
+        expect(line).not.toContain('alice');
+        expect(line).not.toContain('secret-pass');
+    });
+
+    it('logs a generic HTTP error for a statusText-only response', () => {
+        const logger = jest.fn();
+
+        logProviderRequestFailure({
+            error: Object.assign(new Error('partial'), {
+                response: { statusText: 'Gateway Timeout' },
+            }),
+            route: '/stalker',
+            url: new URL('http://portal.example/portal.php'),
+            logger,
+        });
+
+        const line = logger.mock.calls[0][0] as string;
+        expect(line).toContain('HTTP error');
+        expect(line).not.toContain('Gateway Timeout');
     });
 
     it('tolerates unparseable URLs and codeless errors', () => {
