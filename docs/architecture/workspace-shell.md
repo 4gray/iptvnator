@@ -311,8 +311,10 @@ Toolchain notes for the Electron 41 upgrade:
    now that the supported development floor is Node 22.13; revisit this pin
    in a dedicated native-dependency update.
 2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
-   `@electron/rebuild` (via `electron-builder install-app-deps`) can map
-   Electron 41 to its ABI.
+   `better-sqlite3`'s `prebuild-install` can map Electron 41 to ABI 145 when
+   `electron-builder install-app-deps` rebuilds native modules. The 3.85
+   registry stops at Electron 40, while 3.92 includes Electron 41;
+   `@electron/rebuild` itself now resolves `node-abi` 4.x.
 3. Local development supports **Node 22.13–22.x or Node >= 24**, declared in
    `engines` as `^22.13.0 || >=24.0.0`.
    The direct `@faker-js/faker` dependency and current lint tooling require
