@@ -98,6 +98,17 @@ describe('playback keep-awake service', () => {
         expect(mockedBlocker.stop).toHaveBeenCalledWith(7);
     });
 
+    it('releases the blocker when the renderer process crashes', () => {
+        const stub = createSenderStub(1);
+
+        setPlaybackKeepAwake(stub.sender, true);
+        // A crash emits render-process-gone while the WebContents object
+        // stays alive; without a reload no other lifetime event follows.
+        stub.emit('render-process-gone', {}, { reason: 'crashed' });
+
+        expect(mockedBlocker.stop).toHaveBeenCalledWith(7);
+    });
+
     it('releases the blocker on a main-frame navigation (reload)', () => {
         const stub = createSenderStub(1);
 
@@ -127,10 +138,12 @@ describe('playback keep-awake service', () => {
 
         setPlaybackKeepAwake(stub.sender, true);
         expect(stub.listenerCount('destroyed')).toBe(1);
+        expect(stub.listenerCount('render-process-gone')).toBe(1);
         expect(stub.listenerCount('did-start-navigation')).toBe(1);
 
         setPlaybackKeepAwake(stub.sender, false);
         expect(stub.listenerCount('destroyed')).toBe(0);
+        expect(stub.listenerCount('render-process-gone')).toBe(0);
         expect(stub.listenerCount('did-start-navigation')).toBe(0);
     });
 

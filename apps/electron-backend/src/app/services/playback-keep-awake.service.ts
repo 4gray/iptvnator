@@ -13,8 +13,10 @@ import { powerSaveBlocker, WebContents } from 'electron';
  *
  * The renderer's flag must not outlive the page that set it: a reload or a
  * crashed render process would otherwise pin the display awake until app
- * quit. Each activating WebContents therefore gets destroy/navigation
- * listeners that withdraw its vote.
+ * quit. Each activating WebContents therefore gets destroy/crash/navigation
+ * listeners that withdraw its vote — a crash emits `render-process-gone`
+ * while the WebContents object stays alive, so `destroyed` alone would miss
+ * it when no reload follows.
  */
 
 const activeSenders = new Set<number>();
@@ -62,9 +64,11 @@ function watchSenderLifetime(sender: WebContents): void {
         }
     };
     sender.on('destroyed', clear);
+    sender.on('render-process-gone', clear);
     sender.on('did-start-navigation', onNavigation);
     senderCleanups.set(senderId, () => {
         sender.off('destroyed', clear);
+        sender.off('render-process-gone', clear);
         sender.off('did-start-navigation', onNavigation);
     });
 }
