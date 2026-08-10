@@ -22,6 +22,7 @@ import {
 } from '@iptvnator/shared/m3u-utils';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
+    deriveVisibleFavoriteChannels,
     FavoritesChannelSortMode,
     LiveEpgPanelState,
     matchesOpenLiveCollectionItem,
@@ -32,6 +33,7 @@ import {
     UnifiedCollectionItem,
     UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
+import { setupUnifiedLiveTabRemoteControl } from './unified-live-tab-remote-control';
 import {
     ResolvedLiveCollectionDetail,
     StreamResolverService,
@@ -273,6 +275,20 @@ export class UnifiedLiveTabComponent {
         this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
     );
 
+    /**
+     * The channel list in exactly the order the sidebar renders it
+     * (search-filtered; sorted in favorites mode) — remote-control
+     * navigation and channel numbers must follow what is on screen.
+     */
+    readonly visibleChannels = computed(() =>
+        deriveVisibleFavoriteChannels(this.channelsForList(), {
+            searchTerm: this.searchTerm(),
+            sortMode: this.mode() === 'favorites' ? this.sortMode() : null,
+            getName: (channel) => channel.name,
+            getAddedAt: (channel) => channel.addedAt,
+        })
+    );
+
     readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
         this.items().map((item) => ({
             uid: item.uid,
@@ -340,6 +356,20 @@ export class UnifiedLiveTabComponent {
             }
 
             void this.activateItem(matchedItem, true);
+        });
+
+        setupUnifiedLiveTabRemoteControl({
+            visibleChannels: this.visibleChannels,
+            activeUid: this.activeUid,
+            activeSourceType: computed(
+                () => this.activeItem()?.sourceType ?? null
+            ),
+            activeChannelName: computed(() => this.activeItem()?.name ?? null),
+            isPlaybackActive: computed(() => this.activeDetail() !== null),
+            epgSummary: this.liveEpgPanelSummary,
+            playChannel: (channel) => {
+                void this.onChannelPlaybackRequested(channel);
+            },
         });
 
         const tickInterval = setInterval(

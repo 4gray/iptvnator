@@ -12,6 +12,7 @@ import {
     effect,
     inject,
     signal,
+    untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -82,6 +83,7 @@ import {
     persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
     isLiveExternalPlayerSession,
+    REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
     restoreLiveSidebarState,
     WorkspaceHeaderContextService,
@@ -585,6 +587,31 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
             this.store.dispatch(ChannelActions.resetActiveChannel());
         });
+
+        // An external session starting or ending flips who owns the audio
+        // without any store emission (e.g. a diagnostic-recovery MPV launch
+        // while a web player is configured) — republish the volume
+        // capability so the remote's buttons stay honest. Everything except
+        // the session signal is read untracked: channel changes and volume
+        // changes already publish through their own paths.
+        effect(() => {
+            this.externalPlayback.activeSession();
+            untracked(() => {
+                const remoteControl = this.remoteControlBridge;
+                const activeChannel = this.activeChannel();
+                if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
+                    return;
+                }
+
+                remoteControl.updateRemoteControlStatus({
+                    portal: 'm3u',
+                    isLiveView: true,
+                    supportsVolume: this.isRemoteVolumeSupported(activeChannel),
+                    volume: this.volume(),
+                    muted: this.volume() === 0,
+                });
+            });
+        });
     }
 
     /**
@@ -624,7 +651,17 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             this.store.select(selectCurrentEpgProgram).pipe(startWith(null)),
         ]).subscribe(([channels, activeChannel, epgProgram]) => {
             const remoteControl = this.remoteControlBridge;
-            if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
+            if (!remoteControl?.updateRemoteControlStatus) {
+                return;
+            }
+
+            // The active channel can be reset in place (e.g. the user quits
+            // an external MPV/VLC session) — without a reset the remote
+            // would keep advertising the last channel as live.
+            if (!activeChannel) {
+                remoteControl.updateRemoteControlStatus(
+                    REMOTE_CONTROL_RESET_STATUS
+                );
                 return;
             }
 
@@ -642,7 +679,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 epgTitle: currentEpgProgram?.title,
                 epgStart: currentEpgProgram?.start,
                 epgEnd: currentEpgProgram?.stop,
-                supportsVolume: true,
+                supportsVolume: this.isRemoteVolumeSupported(activeChannel),
                 volume: this.volume(),
                 muted: this.volume() === 0,
             });
@@ -697,6 +734,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.statusSubscription?.unsubscribe();
+        // Leaving the player would otherwise keep the last channel advertised
+        // as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.(
+            REMOTE_CONTROL_RESET_STATUS
+        );
     }
 
     onSidebarWidthChange(width: number): void {
@@ -1020,6 +1062,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             | 'volume-toggle-mute';
         number?: number;
     }): void {
+        if (
+            command.type !== 'channel-select-number' &&
+            !this.isRemoteVolumeSupported(this.activeChannel())
+        ) {
+            // The active playback runs in MPV/VLC or Embedded MPV — adjusting
+            // the stored web-player volume would silently do nothing audible.
+            return;
+        }
+
         if (command.type === 'channel-select-number' && command.number) {
             this.switchToChannelByNumber(command.number);
             return;
@@ -1052,7 +1103,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             remoteControl.updateRemoteControlStatus({
                 portal: 'm3u',
                 isLiveView: true,
-                supportsVolume: true,
+                supportsVolume: this.isRemoteVolumeSupported(
+                    this.activeChannel()
+                ),
                 volume: this.volume(),
                 muted: this.volume() === 0,
             });
@@ -1061,6 +1114,47 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     onInlineVolumeChange(volume: number): void {
         this.setVolume(volume);
+    }
+
+    /**
+     * Remote volume commands act on the built-in inline players only:
+     * radio's audio element, the DASH-forced web player, and the HTML5/
+     * Video.js/ArtPlayer engines. External MPV/VLC and Embedded MPV own
+     * their audio, so advertising volume support there would enable remote
+     * buttons that do nothing audible.
+     */
+    private isRemoteVolumeSupported(
+        channel: Channel | null | undefined
+    ): boolean {
+        if (!channel) {
+            return false;
+        }
+        // Radio's audio element is always mounted inline, so it stays
+        // audible and controllable even if an older external session
+        // lingers.
+        if (channel.radio === 'true') {
+            return true;
+        }
+
+        // A live external session owns the audio regardless of how it
+        // started: a diagnostic-recovery "Open in MPV/VLC" launch while a
+        // web player remains configured, or the managed clear-DASH fallback
+        // after Shaka's browser-support preflight fails — the DASH-forced
+        // inline player is not audible then, so this check must precede the
+        // DASH shortcut.
+        if (isLiveExternalPlayerSession(this.externalPlayback.activeSession())) {
+            return false;
+        }
+
+        if (this.activeChannelIsDash()) {
+            return true;
+        }
+
+        const player = this.playerSettings.player;
+        return (
+            !this.isExternalPlayer(player) &&
+            player !== VideoPlayer.EmbeddedMpv
+        );
     }
 
     private get remoteControlBridge(): Window['electron'] | undefined {

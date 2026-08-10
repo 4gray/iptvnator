@@ -38,6 +38,7 @@ import {
     persistLiveEpgPanelState,
     persistPortalChannelSortMode,
     queryParamSignal,
+    REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
     restorePortalChannelSortMode,
 } from '@iptvnator/portal/shared/util';
@@ -520,6 +521,11 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         this.playbackRequestId += 1;
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
+        // Leaving the live view would otherwise keep the last channel
+        // advertised as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.(
+            REMOTE_CONTROL_RESET_STATUS
+        );
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {

@@ -772,6 +772,21 @@ describe('LiveStreamLayoutComponent', () => {
         expect(updateRemoteControlStatus).not.toHaveBeenCalled();
     });
 
+    it('publishes a remote status reset when the live view is destroyed', () => {
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+        fixture.detectChanges();
+        updateRemoteControlStatus.mockClear();
+
+        fixture.destroy();
+
+        expect(updateRemoteControlStatus).toHaveBeenCalledWith({
+            portal: 'unknown',
+            isLiveView: false,
+            supportsVolume: false,
+        });
+    });
+
     it('resolves a catchup url for archived program activation', async () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
 

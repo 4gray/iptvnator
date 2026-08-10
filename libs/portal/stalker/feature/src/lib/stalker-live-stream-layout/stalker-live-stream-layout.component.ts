@@ -66,6 +66,7 @@ import {
     isTypingInInput,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
+    REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
@@ -570,7 +571,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const selectedType = this.stalkerStore.selectedContentType();
             const channels = this.filteredChannels();
 
-            if (selectedType !== 'itv' || !selectedItem?.id) {
+            // Radio shares this layout and its remote channel handlers, so
+            // it must publish live status too — otherwise the remote shows
+            // "waiting for playback" while its commands keep working.
+            if (
+                (selectedType !== 'itv' && selectedType !== 'radio') ||
+                !selectedItem?.id
+            ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'stalker',
                     isLiveView: false,
@@ -579,10 +586,19 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 return;
             }
 
+            // String-normalized comparison: radio ids ("radio-1") and other
+            // non-numeric portal ids would turn into NaN under Number().
+            const selectedId = normalizeStalkerEntityId(selectedItem.id);
             const currentIndex = channels.findIndex(
-                (item) => Number(item.id) === Number(selectedItem.id)
+                (item) => normalizeStalkerEntityId(item.id) === selectedId
             );
-            const currentProgram = this.currentProgram();
+            // ITV only: selectedItvEpgPrograms is fed by the ITV-keyed bulk
+            // EPG cache, which survives itv→radio navigation. Ministra
+            // assigns small integer ids to itv and radio independently, so a
+            // radio station's id routinely collides with an unrelated TV
+            // channel's programmes.
+            const currentProgram =
+                selectedType === 'itv' ? this.currentProgram() : null;
 
             remoteControl.updateRemoteControlStatus({
                 portal: 'stalker',
@@ -622,6 +638,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     ngOnDestroy() {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
+        // Leaving the live view would otherwise keep the last channel
+        // advertised as live on the remote forever.
+        this.remoteControlBridge?.updateRemoteControlStatus?.(
+            REMOTE_CONTROL_RESET_STATUS
+        );
         this.removeScrollListener();
         if (this.epgPreviewRefreshTimer !== null) {
             clearTimeout(this.epgPreviewRefreshTimer);
