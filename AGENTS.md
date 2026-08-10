@@ -446,6 +446,27 @@ Key files:
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 
+## Display Sleep During Playback
+
+- `PlaybackKeepAwakeService`
+  (`apps/web/src/app/services/playback-keep-awake.service.ts`) watches every
+  `<video>` via document-level capture listeners (media events don't bubble;
+  release listeners sit on the tracked element because Chromium's
+  removed-from-DOM pause never reaches the document) and, while any video is
+  playing and the document is visible (or the playing video is in
+  picture-in-picture — the PiP surface survives a minimized window), holds a
+  display-sleep lock.
+- Electron: a main-process `powerSaveBlocker` behind
+  `window.electron.setPlaybackKeepAwake`
+  (`apps/electron-backend/src/app/services/playback-keep-awake.service.ts`);
+  the renderer's vote is auto-cleared on renderer reload, crash
+  (`render-process-gone`), or destruction. PWA: the Screen Wake Lock API,
+  re-requested after browser auto-release; state changes masked by an
+  in-flight `request()` queue one re-evaluation on rejection.
+- Radio's `<audio>` deliberately never blocks display sleep. Embedded MPV
+  holds its own blocker in `EmbeddedMpvNativeService`; external MPV/VLC
+  inhibit the screensaver themselves.
+
 ## Linux Embedded MPV Packaging
 
 - Official Linux frame-copy artifacts are x64-only. AppImage, DEB, RPM,
