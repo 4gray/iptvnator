@@ -27,7 +27,6 @@ export interface StalkerSelectionStoreContract {
     selectedVodId(): string | undefined;
     selectedSerialId(): string | undefined;
     selectedItvId(): string | undefined;
-    limit(): number;
     page(): number;
     searchPhrase(): string;
     selectedItem(): StalkerVodSource | null | undefined;

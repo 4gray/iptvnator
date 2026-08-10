@@ -22,7 +22,6 @@ export interface StalkerSelectionState {
     selectedVodId: string | undefined;
     selectedSerialId: string | undefined;
     selectedItvId: string | undefined;
-    limit: number;
     page: number;
     searchPhrase: string;
     selectedItem: StalkerVodSource | null | undefined;
@@ -34,7 +33,6 @@ const initialSelectionState: StalkerSelectionState = {
     selectedVodId: undefined,
     selectedSerialId: undefined,
     selectedItvId: undefined,
-    limit: 14,
     page: 0,
     searchPhrase: '',
     selectedItem: undefined,
@@ -79,13 +77,6 @@ export function withStalkerSelection() {
             },
             setSelectedItvId(id: string) {
                 patchState(store, { selectedItvId: id });
-            },
-            setLimit(limit: number) {
-                if (store.limit() === limit) {
-                    return;
-                }
-
-                patchState(store, { limit });
             },
             setPage(page: number) {
                 if (store.page() === page) {

@@ -36,7 +36,6 @@ const TestContentStore = signalStore(
         selectedCategoryId: undefined as string | null | undefined,
         searchPhrase: '',
         page: 0,
-        limit: 14,
     }),
     withMethods((store) => ({
         setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
