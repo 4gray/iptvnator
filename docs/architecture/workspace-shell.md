@@ -305,11 +305,11 @@ Window decorations on Linux (shadows, corners):
 
 Toolchain notes for the Electron 41 upgrade:
 
-1. `better-sqlite3` is pinned to exactly `12.9.0` — the last release that
-   ships prebuilt binaries for BOTH Node 20 (ABI 115, used by Jest) and
-   Electron 41 (ABI 145, used at runtime). `12.10.0` dropped the Node 20
-   prebuilds, which forces a from-source build that fails on machines
-   without a C++ toolchain.
+1. `better-sqlite3` remains pinned to exactly `12.9.0` so native dependency
+   updates happen deliberately with database-worker, packaging, and Electron
+   E2E validation. The former Node 20 prebuild constraint no longer applies
+   now that the supported development floor is Node 22.12; revisit this pin
+   in a dedicated native-dependency update.
 2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
    `@electron/rebuild` (via `electron-builder install-app-deps`) can map
    Electron 41 to its ABI.
