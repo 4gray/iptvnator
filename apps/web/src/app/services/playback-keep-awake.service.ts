@@ -54,6 +54,7 @@ export class PlaybackKeepAwakeService {
     private lastSentToBridge: boolean | null = null;
     private wakeLock: WakeLockSentinelLike | null = null;
     private wakeLockRequestInFlight = false;
+    private wakeLockRetryQueued = false;
 
     private readonly onPlaying = (event: Event) => {
         const target = event.target;
@@ -165,7 +166,15 @@ export class PlaybackKeepAwakeService {
     }
 
     private acquireWakeLock(): void {
-        if (this.wakeLock || this.wakeLockRequestInFlight) {
+        if (this.wakeLock) {
+            return;
+        }
+        if (this.wakeLockRequestInFlight) {
+            // A state change arrived while request() is still pending (e.g.
+            // hidden→visible round-trip). The pending request may reject
+            // because of the moment it was processed in, so remember to
+            // re-evaluate once it settles instead of dropping this signal.
+            this.wakeLockRetryQueued = true;
             return;
         }
         const wakeLock = (navigator as WakeLockNavigator).wakeLock;
@@ -177,6 +186,9 @@ export class PlaybackKeepAwakeService {
             .request('screen')
             .then((sentinel) => {
                 this.wakeLockRequestInFlight = false;
+                // The resolve path re-reads current state below, which
+                // covers whatever change queued the retry.
+                this.wakeLockRetryQueued = false;
                 // The browser releases the sentinel on its own when the page
                 // hides; forget it so the next sync() can re-request.
                 sentinel.addEventListener?.('release', () => {
@@ -191,9 +203,16 @@ export class PlaybackKeepAwakeService {
                 this.wakeLock = sentinel;
             })
             .catch(() => {
-                // Denied (battery saver, hidden document, …) — a later
-                // `playing` or visibility event retries via sync().
                 this.wakeLockRequestInFlight = false;
+                if (this.wakeLockRetryQueued) {
+                    // A state change was masked by the in-flight request —
+                    // re-evaluate now. Permanent denials don't loop: without
+                    // a fresh interleaved change nothing queues a retry.
+                    this.wakeLockRetryQueued = false;
+                    this.sync();
+                }
+                // Otherwise: denied (battery saver, hidden document, …) — a
+                // later `playing` or visibility event retries via sync().
             });
     }
 

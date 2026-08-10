@@ -248,6 +248,38 @@ describe('PlaybackKeepAwakeService', () => {
             expect(request).toHaveBeenCalledTimes(2);
         });
 
+        it('re-evaluates after a rejection that masked a state change', async () => {
+            let rejectRequest: ((reason: Error) => void) | undefined;
+            request.mockImplementationOnce(
+                () =>
+                    new Promise((_resolve, reject) => {
+                        rejectRequest = reject;
+                    })
+            );
+
+            video.dispatchEvent(new Event('playing'));
+            // Hidden→visible round-trip while request() is still pending:
+            // both sync() calls are swallowed by the in-flight guard, and
+            // the pending request rejects because of the hidden moment.
+            setVisibility('hidden');
+            setVisibility('visible');
+            rejectRequest?.(new Error('document was hidden'));
+            await flush();
+
+            // The masked state change must trigger a fresh request — the
+            // video is still playing in a visible document.
+            expect(request).toHaveBeenCalledTimes(2);
+        });
+
+        it('does not retry a plain rejection with no interleaved change', async () => {
+            request.mockRejectedValueOnce(new Error('denied'));
+
+            video.dispatchEvent(new Event('playing'));
+            await flush();
+
+            expect(request).toHaveBeenCalledTimes(1);
+        });
+
         it('survives a denied wake lock request', async () => {
             request.mockRejectedValueOnce(new Error('denied'));
 
