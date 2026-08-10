@@ -639,6 +639,14 @@ export interface ElectronBridgeApi {
     onWindowCloseRequested: (
         callback: (requestId: number) => void
     ) => () => void;
+    /**
+     * While active, the main process holds a
+     * `powerSaveBlocker('prevent-display-sleep')` so the screen stays awake
+     * during built-in video playback. The flag is cleared automatically when
+     * the renderer navigates, reloads, or dies, so a crashed page can never
+     * leave the display pinned awake.
+     */
+    setPlaybackKeepAwake: (active: boolean) => Promise<void>;
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
