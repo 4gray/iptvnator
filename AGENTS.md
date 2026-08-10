@@ -496,7 +496,10 @@ Key files:
   `$SNAP/graphics/drirc.d`. The provider is external shared content, not part
   of IPTVnator's package size, source archive, or notices. Installed-Snap CI
   must prove controlled unavailable exit after disconnect, then reconnect and
-  prove success. The helper links `libGL.so.1` rather than `libOpenGL.so.0`.
+  prove success. Static artifact verification requires regular
+  `desktop-init.sh`, `desktop-common.sh`, and `desktop-gnome-specific.sh`
+  files at the Snap root, with `desktop-init.sh` executable. The helper links
+  `libGL.so.1` rather than `libOpenGL.so.0`.
 - The probe and playback helper share one sanitized loader environment:
   ambient audit, preload, library, graphics-driver, and shell-startup overrides
   are removed; the validated private closure wins; trusted Snap GL,

@@ -314,9 +314,11 @@ Toolchain notes for the Electron 41 upgrade:
    `@electron/rebuild` (via `electron-builder install-app-deps`) can map
    Electron 41 to its ABI.
 3. Local development needs **Node >= 22.12**, declared in `engines`.
-   `electron-builder` 26.15.3 pulls `@electron/rebuild` 4, which sets that
+   `electron-builder` 26.15.7 pulls `@electron/rebuild` 4, which sets that
    floor, and the root `postinstall` runs `install-app-deps` on every
-   `pnpm install`. CI already runs Node 22.
+   `pnpm install`. The 26.15.7 minimum also carries the v26 backport that
+   fully extracts the Snap template's `.tar.7z` payload; 26.15.0–26.15.6 can
+   produce a Snap that is missing `desktop-init.sh`. CI already runs Node 22.
 
 Known caveats:
 

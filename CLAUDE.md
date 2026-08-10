@@ -974,8 +974,11 @@ engine` (restart required) or
   default provider. Its only provider-data layouts bind `/usr/share/libdrm`
   from `$SNAP/graphics/libdrm` and symlink `/usr/share/drirc.d` to
   `$SNAP/graphics/drirc.d`. Installed-Snap CI requires controlled unavailable
-  status after disconnect, then reconnects and requires success. The helper
-  links `libGL.so.1`, and probe/playback share a sanitized loader environment
+  status after disconnect, then reconnects and requires success. Static
+  artifact verification requires regular `desktop-init.sh`,
+  `desktop-common.sh`, and `desktop-gnome-specific.sh` files at the Snap root,
+  with `desktop-init.sh` executable. The helper links `libGL.so.1`, and
+  probe/playback share a sanitized loader environment
   in which ambient audit, preload, library, graphics-driver, and shell-startup
   overrides are removed; the validated private closure plus trusted host GL,
   graphics-content, core22 base x64, and exact GNOME-platform roots have
