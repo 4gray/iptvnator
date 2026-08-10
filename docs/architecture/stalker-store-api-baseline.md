@@ -18,7 +18,6 @@ Direct signal properties currently exposed by `signalStore`:
 - `selectedVodId: string | undefined`
 - `selectedSerialId: string | undefined`
 - `selectedItvId: string | undefined`
-- `limit: number`
 - `page: number`
 - `searchPhrase: string`
 - `currentPlaylist: PlaylistMeta | undefined`
@@ -37,7 +36,6 @@ Direct signal properties currently exposed by `signalStore`:
 
 ## Public Computed Selectors
 
-- `getTotalPages: number`
 - `getPaginatedContent: StalkerContentItem[]`
 - `isPaginatedContentLoading: boolean`
 - `isPaginatedContentFailed: unknown`
@@ -69,6 +67,13 @@ Removed:
   owns mode routing plus the lazy portal repair; no facade alias is provided
   because reinstating one would reintroduce the drift the shared predicate
   exists to prevent.
+- `limit`, `setLimit(...)` and `getTotalPages` — deleted with the catalog
+  pagination removal (#1392, #1395). Catalogs now accumulate server-paged
+  results into one deduplicated list, so `hasMoreContent` (accumulated length
+  vs `total_items`) answers what `getTotalPages` used to, and no caller reads a
+  page size: the portal decides how large a page is. No facade alias is
+  provided, because a surviving `limit` would advertise a client-side window
+  that the append path does not honour.
 
 During refactor:
 
@@ -82,7 +87,6 @@ During refactor:
 - `setSelectedSerialId(id: string): void`
 - `setSelectedVodId(id: string): void`
 - `setSelectedItvId(id: string): void`
-- `setLimit(limit: number): void`
 - `setPage(page: number): void`
 - `setCurrentPlaylist(playlist: PlaylistMeta | undefined): Promise<void>`
 - `setSelectedItem(selectedItem: StalkerVodSource | null | undefined): void`
