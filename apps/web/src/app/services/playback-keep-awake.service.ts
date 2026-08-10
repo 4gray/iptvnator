@@ -38,9 +38,12 @@ const RELEASE_EVENTS = ['pause', 'ended', 'emptied', 'error'] as const;
  * MPV/VLC render no `<video>` here and manage display sleep themselves.
  *
  * Visibility gates the lock in both modes: a minimized window streaming
- * audio in the background should not pin the display on. The wake lock is
- * re-requested on `visibilitychange` because the browser auto-releases it
- * when the page hides.
+ * audio in the background should not pin the display on. The exception is a
+ * tracked video in picture-in-picture — hiding the window keeps the PiP
+ * surface on screen, so it counts as visible playback (and PiP enter/leave
+ * resynchronizes the gate). The wake lock is re-requested on
+ * `visibilitychange` because the browser auto-releases it when the page
+ * hides.
  */
 @Injectable({ providedIn: 'root' })
 export class PlaybackKeepAwakeService {
@@ -63,6 +66,11 @@ export class PlaybackKeepAwakeService {
         this.sync();
     };
 
+    // PiP events don't bubble either; capture reaches them from any video.
+    private readonly onPictureInPictureChange = () => {
+        this.sync();
+    };
+
     start(): void {
         if (this.started) {
             return;
@@ -70,6 +78,16 @@ export class PlaybackKeepAwakeService {
         this.started = true;
         document.addEventListener('playing', this.onPlaying, true);
         document.addEventListener('visibilitychange', this.onVisibilityChange);
+        document.addEventListener(
+            'enterpictureinpicture',
+            this.onPictureInPictureChange,
+            true
+        );
+        document.addEventListener(
+            'leavepictureinpicture',
+            this.onPictureInPictureChange,
+            true
+        );
     }
 
     stop(): void {
@@ -81,6 +99,16 @@ export class PlaybackKeepAwakeService {
         document.removeEventListener(
             'visibilitychange',
             this.onVisibilityChange
+        );
+        document.removeEventListener(
+            'enterpictureinpicture',
+            this.onPictureInPictureChange,
+            true
+        );
+        document.removeEventListener(
+            'leavepictureinpicture',
+            this.onPictureInPictureChange,
+            true
         );
         for (const video of [...this.playingVideos]) {
             this.untrackVideo(video);
@@ -115,9 +143,7 @@ export class PlaybackKeepAwakeService {
     }
 
     private sync(): void {
-        const shouldBlock =
-            this.playingVideos.size > 0 &&
-            document.visibilityState === 'visible';
+        const shouldBlock = this.shouldHoldLock();
 
         const bridge = this.getBridge();
         if (bridge?.setPlaybackKeepAwake) {
@@ -158,10 +184,7 @@ export class PlaybackKeepAwakeService {
                         this.wakeLock = null;
                     }
                 });
-                const stillWanted =
-                    this.playingVideos.size > 0 &&
-                    document.visibilityState === 'visible';
-                if (!stillWanted) {
+                if (!this.shouldHoldLock()) {
                     sentinel.release().catch(() => undefined);
                     return;
                 }
@@ -172,6 +195,27 @@ export class PlaybackKeepAwakeService {
                 // `playing` or visibility event retries via sync().
                 this.wakeLockRequestInFlight = false;
             });
+    }
+
+    /**
+     * A hidden document normally releases the lock, but a tracked playing
+     * video in picture-in-picture stays on screen after the window is
+     * minimized — that is still watched playback.
+     */
+    private shouldHoldLock(): boolean {
+        if (this.playingVideos.size === 0) {
+            return false;
+        }
+        if (document.visibilityState === 'visible') {
+            return true;
+        }
+        const pipElement = (
+            document as { pictureInPictureElement?: Element | null }
+        ).pictureInPictureElement;
+        return (
+            pipElement instanceof HTMLVideoElement &&
+            this.playingVideos.has(pipElement)
+        );
     }
 
     private releaseWakeLock(): void {

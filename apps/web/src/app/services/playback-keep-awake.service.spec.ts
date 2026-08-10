@@ -27,11 +27,20 @@ describe('PlaybackKeepAwakeService', () => {
         document.body.appendChild(video);
     });
 
+    const setPictureInPictureElement = (element: Element | null) => {
+        Object.defineProperty(document, 'pictureInPictureElement', {
+            configurable: true,
+            get: () => element,
+        });
+    };
+
     afterEach(() => {
         service.stop();
         video.remove();
         delete (window as ElectronWindow).electron;
         delete (document as { visibilityState?: unknown }).visibilityState;
+        delete (document as { pictureInPictureElement?: unknown })
+            .pictureInPictureElement;
     });
 
     describe('with the Electron bridge', () => {
@@ -114,6 +123,41 @@ describe('PlaybackKeepAwakeService', () => {
             setVisibility('visible');
             expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(true);
             expect(setPlaybackKeepAwake).toHaveBeenCalledTimes(3);
+        });
+
+        it('keeps the lock while a hidden window plays video in picture-in-picture', () => {
+            video.dispatchEvent(new Event('playing'));
+            expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(true);
+
+            setPictureInPictureElement(video);
+            video.dispatchEvent(new Event('enterpictureinpicture'));
+            setVisibility('hidden');
+
+            // The PiP surface stays on screen after minimizing the window.
+            expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(true);
+            expect(setPlaybackKeepAwake).toHaveBeenCalledTimes(1);
+        });
+
+        it('releases the lock when PiP closes while the window is hidden', () => {
+            video.dispatchEvent(new Event('playing'));
+            setPictureInPictureElement(video);
+            video.dispatchEvent(new Event('enterpictureinpicture'));
+            setVisibility('hidden');
+            expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(true);
+
+            setPictureInPictureElement(null);
+            video.dispatchEvent(new Event('leavepictureinpicture'));
+            expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(false);
+        });
+
+        it('does not let a paused PiP video hold the lock', () => {
+            video.dispatchEvent(new Event('playing'));
+            setPictureInPictureElement(video);
+            video.dispatchEvent(new Event('enterpictureinpicture'));
+            setVisibility('hidden');
+
+            video.dispatchEvent(new Event('pause'));
+            expect(setPlaybackKeepAwake).toHaveBeenLastCalledWith(false);
         });
 
         it('retries after a failed IPC call on the next state change', async () => {

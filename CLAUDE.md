@@ -938,7 +938,9 @@ app as a real argument, so it is not an option.
   `<video>` via document-level capture listeners (media events don't bubble;
   release listeners sit on the tracked element because Chromium's
   removed-from-DOM pause never reaches the document) and, while any video is
-  playing and the document is visible, holds a display-sleep lock: in
+  playing and the document is visible (or the playing video is in
+  picture-in-picture — the PiP surface survives a minimized window), holds a
+  display-sleep lock: in
   Electron a main-process `powerSaveBlocker` behind
   `window.electron.setPlaybackKeepAwake`
   (`apps/electron-backend/src/app/services/playback-keep-awake.service.ts`;
