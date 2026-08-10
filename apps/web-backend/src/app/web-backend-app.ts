@@ -13,6 +13,12 @@ import {
     normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import {
+    collectProviderErrorCodes,
+    logProviderRequestFailure,
+    normalizeProviderError,
+    ProviderError,
+} from './provider-error';
 
 export interface WebBackendHttpGetOptions {
     readonly headers?: Record<string, string>;
@@ -27,16 +33,10 @@ export interface WebBackendHttpClient {
     ): Promise<{ data: T }>;
 }
 
-interface ProviderError extends Error {
-    readonly response?: {
-        readonly status?: number;
-        readonly statusText?: string;
-    };
-}
-
 interface PlaylistParseError {
     readonly message: string;
     readonly status: number;
+    readonly code?: string;
 }
 
 export interface WebBackendAppOptions {
@@ -176,6 +176,7 @@ export function createWebBackendApp(
 
             res.json(result);
         } catch (error) {
+            logProviderRequestFailure({ error, route: '/parse-xml', url });
             const providerError = normalizeProviderError(error);
             res.status(providerError.status).json(providerError);
         }
@@ -193,10 +194,11 @@ export function createWebBackendApp(
         const url = new URL(registeredUrl.href);
 
         try {
-            const providerUrlError = await normalizeAndValidateXtreamProviderUrl(
-                url,
-                providerUrlPolicy
-            );
+            const providerUrlError =
+                await normalizeAndValidateXtreamProviderUrl(
+                    url,
+                    providerUrlPolicy
+                );
             if (providerUrlError) {
                 res.status(providerUrlError.status).json(providerUrlError);
                 return;
@@ -216,6 +218,7 @@ export function createWebBackendApp(
                 payload: response.data,
             });
         } catch (error) {
+            logProviderRequestFailure({ error, route: '/xtream', url });
             res.json(normalizeProviderError(error));
         }
     });
@@ -274,6 +277,7 @@ export function createWebBackendApp(
                 payload: response.data,
             });
         } catch (error) {
+            logProviderRequestFailure({ error, route: '/stalker', url });
             res.json(normalizeProviderError(error));
         }
     });
@@ -487,12 +491,21 @@ async function handlePlaylistParse(options: {
             url: options.url,
         });
     } catch (error) {
+        logProviderRequestFailure({ error, route: '/parse', url: options.url });
         const providerError = error as ProviderError;
+        if (providerError?.response?.statusText !== undefined) {
+            return {
+                status: providerError.response.status ?? 500,
+                message: providerError.response.statusText,
+            };
+        }
+        const code = collectProviderErrorCodes(error)[0];
         return {
-            status: providerError.response?.status ?? 500,
-            message:
-                providerError.response?.statusText ??
-                'Error, something went wrong',
+            status: providerError?.response?.status ?? 500,
+            message: code
+                ? `Error, something went wrong (${code})`
+                : 'Error, something went wrong',
+            ...(code ? { code } : {}),
         };
     }
 }
@@ -575,17 +588,6 @@ function createPlaylistObject(options: {
 function getLastUrlSegment(value: string): string {
     const segment = value.slice(value.lastIndexOf('/') + 1).trim();
     return segment.length > 0 ? segment : 'Playlist without title';
-}
-
-function normalizeProviderError(error: unknown): {
-    readonly message: string;
-    readonly status: number;
-} {
-    const providerError = error as ProviderError;
-    return {
-        message: providerError.response?.statusText ?? 'Bad Gateway',
-        status: providerError.response?.status ?? 502,
-    };
 }
 
 function createGuid(): string {

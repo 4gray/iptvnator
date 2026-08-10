@@ -123,6 +123,37 @@ define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
 
+## IPv6, VPNs, And Connection Fallback
+
+Node races IPv6 and IPv4 addresses when a provider hostname has both ("happy
+eyeballs"), and its stock per-attempt budget of 250 ms is too short for many
+VPN and container networks. The classic symptom is a provider that answers
+`wget` from inside the container but fails in IPTVnator with
+`Bad Gateway (ETIMEDOUT)` — typically behind an IPv4-only VPN namespace such
+as Gluetun/WireGuard, where the IPv6 route is unreachable and the working
+IPv4 handshake needs more than 250 ms.
+
+The backend therefore raises the per-attempt connection budget to 2500 ms at
+startup. This keeps the IPv6→IPv4 fallback fully automatic in both
+directions. If you pass
+`--network-family-autoselection-attempt-timeout` yourself through
+`NODE_OPTIONS`, your value wins and the backend leaves it untouched.
+
+If a provider still fails, check the container logs first: outbound provider
+failures are logged with the target hostname and the underlying Node error
+codes (`ETIMEDOUT`, `ENETUNREACH`, `ENOTFOUND`, ...), and the same code is
+returned to the app in the error message. As a last resort you can pin the
+legacy behavior entirely:
+
+```yaml
+services:
+    iptvnator:
+        environment:
+            # Disables IPv6/IPv4 racing completely; only for networks where
+            # IPv6 can never work. Breaks IPv6-only deployments.
+            NODE_OPTIONS: '--dns-result-order=ipv4first --no-network-family-autoselection'
+```
+
 ## Local Validation
 
 ```bash
