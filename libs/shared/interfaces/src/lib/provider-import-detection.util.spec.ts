@@ -126,6 +126,53 @@ describe('detectProviderImportCandidates', () => {
             });
         });
 
+        it('reads decorated reseller messages (math-alphabet labels, arrow separators)', () => {
+            // Real-world shape: labels dressed in Unicode math monospace to
+            // slip past chat spam filters, ➤ as the separator, ├◉ decoration.
+            const candidates = detectProviderImportCandidates(
+                [
+                    '◉𝙿𝙾𝚁𝚃𝙰𝙻➤ http://tv.example.nl:80/',
+                    '├◉𝚄𝚂𝙴𝚁➤ 6b13aa64d3',
+                    '├◉𝙿𝙰𝚂𝚂➤ 602bb462ab75',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0]).toMatchObject({
+                serverUrl: 'http://tv.example.nl',
+                username: '6b13aa64d3',
+                password: '602bb462ab75',
+            });
+        });
+
+        it.each([
+            ['arrow', 'USER ➤ carol\nPASS ➤ pa55'],
+            ['triangle', 'User ► carol\nPass ► pa55'],
+            ['unicode arrow', 'login → carol\npassword → pa55'],
+            ['ascii gt', 'USER > carol\nPASS > pa55'],
+            ['spaced dash', 'User - carol\nPass - pa55'],
+        ])(
+            'accepts the %s label separator',
+            (_variant, message) => {
+                const xtream = only(
+                    detectProviderImportCandidates(message),
+                    'xtream'
+                );
+                expect(xtream).toHaveLength(1);
+                expect(xtream[0].username).toBe('carol');
+                expect(xtream[0].password).toBe('pa55');
+            }
+        );
+
+        it('does not read a hyphenated word as a labeled value', () => {
+            expect(
+                detectProviderImportCandidates(
+                    'Our user-friendly setup takes a minute.'
+                )
+            ).toEqual([]);
+        });
+
         it('treats credentials in the query of a generic URL as xtream', () => {
             const candidates = detectProviderImportCandidates(
                 'http://portal.example.io/api?username=eve&password=pw&foo=bar'

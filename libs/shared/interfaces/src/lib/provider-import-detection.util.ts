@@ -17,10 +17,15 @@ import {
  *
  * Design constraints, in order:
  *
- * 1. **Every value is a verbatim substring of the input** (or a canonical
- *    form produced by an existing shared normalizer such as
+ * 1. **Every value is a verbatim substring of the NFKC-normalized input**
+ *    (or a canonical form produced by an existing shared normalizer such as
  *    `normalizeStalkerMacAddress`). Nothing here invents, completes, or
- *    "fixes" a credential — a password that is almost right is wrong.
+ *    "fixes" a credential — a password that is almost right is wrong. NFKC
+ *    is applied once up front because reseller messages dress labels in
+ *    Unicode math alphabets (`𝚄𝚂𝙴𝚁➤`, `𝙿𝙰𝚂𝚂➤`) to slip past chat spam
+ *    filters; the folding turns them back into the ASCII they denote, and
+ *    real credentials/URLs are ASCII already, so values pass through it
+ *    unchanged.
  * 2. **Detection proposes, it never decides.** The output prefills the
  *    existing import forms; classification authority stays with the
  *    behavioral probes those forms already run (portal discovery, Xtream
@@ -79,14 +84,18 @@ export function detectProviderImportCandidates(
 
     // A raw playlist body pasted wholesale: every URL inside is a channel
     // stream, not a source, so URL mining would only produce noise. Route the
-    // whole paste to the raw-text import instead.
+    // whole paste to the raw-text import instead — the ORIGINAL bytes, since
+    // a playlist body is content, not decoration to be folded.
     if (EXTM3U_HEADER_PATTERN.test(raw)) {
         return [{ kind: 'm3u-text', confidence: 'high', text: raw }];
     }
 
-    const urls = extractUrls(raw);
-    const labeled = extractLabeledFields(raw, urls);
-    const macs = extractMacAddresses(raw, labeled.macAddress);
+    // All scanning runs on one consistently normalized string so label
+    // positions, URL spans and masking agree with each other.
+    const normalized = raw.normalize('NFKC');
+    const urls = extractUrls(normalized);
+    const labeled = extractLabeledFields(normalized, urls);
+    const macs = extractMacAddresses(normalized, labeled.macAddress);
     const candidates: ProviderImportCandidate[] = [];
 
     // ── Stalker: a MAC address is the strongest signal there is. Labeled

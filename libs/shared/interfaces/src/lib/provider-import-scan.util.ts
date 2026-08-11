@@ -61,71 +61,95 @@ interface FieldMatcher {
     validate?: (value: string) => boolean;
 }
 
+/** A label must not continue a word ("sublogin" is not a login label). */
+const LABEL_LOOKBEHIND = String.raw`(?<![\p{L}\p{N}_])`;
+
+/**
+ * What may stand between a label and its value. Reseller messages decorate
+ * this freely — `USER➤ abc`, `PASS ► abc`, `Login → abc` — so besides plain
+ * `:`/`=`/`>` any run of arrow/geometric/dingbat glyphs (U+2190–21FF,
+ * U+25A0–25FF, U+2600–27BF, U+2B00–2BFF) counts. A dash counts only when it
+ * stands alone between spaces: "PASS - abc" is a separator, "user-friendly"
+ * is prose. Some symbol IS still required — a bare "login example" in prose
+ * must keep failing to match.
+ */
+const LABEL_SEPARATOR = String.raw`(?:\s*(?:[:=>]|[←-⇿■-◿☀-➿⬀-⯿])+\s*|\s+[-–—]+\s+)`;
+
+const DEFAULT_VALUE = String.raw`[^\s,;|]+`;
+
+function labeledPattern(labels: string, value = DEFAULT_VALUE): RegExp {
+    return new RegExp(
+        `${LABEL_LOOKBEHIND}(?:${labels})${LABEL_SEPARATOR}(${value})`,
+        'iu'
+    );
+}
+
+const isHexIdentity = (value: string) => HEX_IDENTITY_PATTERN.test(value);
+
 // Order matters only for readability — each matcher targets its own field and
 // the numbered variants ("device id 2") are structured so the unnumbered
 // pattern cannot swallow them (its optional `1` never matches a literal `2`,
-// and the required `:`/`=` separator then fails on the digit).
+// and the required separator then fails on the digit).
 //
-// All matchers require an explicit `:` or `=` separator. Provider messages
-// overwhelmingly use "Label: value"; a bare "login example" in prose is
-// exactly the false positive the separator rule exists to reject. The label
-// vocabulary is deliberately small (English + Russian) until a corpus of
-// real provider messages justifies growing it.
+// The label vocabulary is deliberately small (English + Russian) until a
+// corpus of real provider messages justifies growing it. Callers hand this
+// table NFKC-normalized text, which is what folds the decorative
+// math-alphabet labels (`𝚄𝚂𝙴𝚁`, `𝙿𝙰𝚂𝚂`) into the plain ASCII matched here.
 const FIELD_MATCHERS: FieldMatcher[] = [
     {
         field: 'deviceId2',
-        pattern:
-            /(?<![\p{L}\p{N}_])device[\s_-]*id[\s_-]*2\s*[:=]\s*([^\s,;|]+)/iu,
-        validate: (value) => HEX_IDENTITY_PATTERN.test(value),
+        pattern: labeledPattern(String.raw`device[\s_-]*id[\s_-]*2`),
+        validate: isHexIdentity,
     },
     {
         field: 'deviceId1',
-        pattern:
-            /(?<![\p{L}\p{N}_])device[\s_-]*id[\s_-]*1?\s*[:=]\s*([^\s,;|]+)/iu,
-        validate: (value) => HEX_IDENTITY_PATTERN.test(value),
+        pattern: labeledPattern(String.raw`device[\s_-]*id[\s_-]*1?`),
+        validate: isHexIdentity,
     },
     {
         field: 'signature2',
-        pattern:
-            /(?<![\p{L}\p{N}_])sig(?:nature)?[\s_-]*2\s*[:=]\s*([^\s,;|]+)/iu,
-        validate: (value) => HEX_IDENTITY_PATTERN.test(value),
+        pattern: labeledPattern(String.raw`sig(?:nature)?[\s_-]*2`),
+        validate: isHexIdentity,
     },
     {
         field: 'signature1',
-        pattern:
-            /(?<![\p{L}\p{N}_])sig(?:nature)?[\s_-]*1?\s*[:=]\s*([^\s,;|]+)/iu,
-        validate: (value) => HEX_IDENTITY_PATTERN.test(value),
+        pattern: labeledPattern(String.raw`sig(?:nature)?[\s_-]*1?`),
+        validate: isHexIdentity,
     },
     {
         field: 'serialNumber',
-        pattern:
-            /(?<![\p{L}\p{N}_])(?:serial[\s_-]*(?:number|no)?|s\/n|sn|серийный(?:[\s_-]*номер)?)\s*[:=]\s*([^\s,;|]+)/iu,
+        pattern: labeledPattern(
+            String.raw`serial[\s_-]*(?:number|no)?|s\/n|sn|серийный(?:[\s_-]*номер)?`
+        ),
         validate: (value) => value.length <= 64,
     },
     {
         field: 'macAddress',
-        pattern:
-            /(?<![\p{L}\p{N}_])(?:mac(?:[\s_-]*address)?|мак(?:[\s_-]*адрес)?)\s*[:=]\s*([0-9A-Fa-f:. -]{12,23})/iu,
+        pattern: labeledPattern(
+            String.raw`mac(?:[\s_-]*address)?|мак(?:[\s_-]*адрес)?`,
+            String.raw`[0-9A-Fa-f:. -]{12,23}`
+        ),
         validate: (value) => normalizeStalkerMacAddress(value) !== null,
     },
     {
         field: 'username',
-        pattern:
-            /(?<![\p{L}\p{N}_])(?:user[\s_-]*name|login|user|логин|пользователь)\s*[:=]\s*([^\s,;|]+)/iu,
+        pattern: labeledPattern(
+            String.raw`user[\s_-]*name|login|user|логин|пользователь`
+        ),
     },
     {
         field: 'password',
-        pattern:
-            /(?<![\p{L}\p{N}_])(?:pass[\s_-]*word|pass|pwd|пароль)\s*[:=]\s*([^\s,;|]+)/iu,
+        pattern: labeledPattern(String.raw`pass[\s_-]*word|pass|pwd|пароль`),
     },
     {
         field: 'host',
-        pattern:
-            /(?<![\p{L}\p{N}_])(?:server|portal|host|dns|url|сервер|портал|хост|адрес)(?:[\s_-]*(?:url|address|адрес))?\s*[:=]\s*([^\s,;|]+)/iu,
+        pattern: labeledPattern(
+            String.raw`(?:server|portal|host|dns|url|сервер|портал|хост|адрес)(?:[\s_-]*(?:url|address|адрес))?`
+        ),
     },
     {
         field: 'port',
-        pattern: /(?<![\p{L}\p{N}_])(?:port|порт)\s*[:=]\s*(\d{2,5})\b/iu,
+        pattern: labeledPattern(String.raw`port|порт`, String.raw`\d{2,5}\b`),
     },
 ];
 
