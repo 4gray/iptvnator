@@ -27,6 +27,15 @@ rails also require the underlying data slice to have at least one item.
   cover cards.
 - `recentSources` shows recently used playlist/source entries.
 - `xtreamRecentlyAdded` shows recently added Xtream catalog items.
+- `tmdbRecommendations` shows "Because you watched X" — TMDB
+  recommendations seeded from recently watched movies/series, kept to
+  titles that exist in an imported Xtream library. Needs the TMDB opt-in
+  and the Electron DB worker (hidden in the PWA), and hides itself below
+  five matched cards. Data:
+  `DashboardRecommendationsService` in `workspace/dashboard/data-access`.
+- `tmdbTrending` shows TMDB's weekly trending titles, matched against the
+  imported Xtream libraries. Same TMDB/Electron gating; unmatched cards
+  open the global search prefilled. Data: `DashboardTrendingService`.
 
 ## Settings
 

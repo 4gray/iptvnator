@@ -153,8 +153,15 @@ export class DashboardRecommendationsService {
                 seeds.map((seed) => this.recommendationsForSeed(seed))
             );
             // No seed resolved: TMDB is likely unreachable or every lookup
-            // missed. Do NOT latch — the next dashboard visit retries.
-            if (perSeed.some((seed) => seed.resolved)) {
+            // missed. Do NOT latch — the next dashboard visit retries —
+            // and do NOT blank the rail either: a failed refresh is not a
+            // verdict that there is nothing to recommend, and removing
+            // still-valid cards is the worse answer for an offline user.
+            // Only the cards the user has meanwhile watched or favorited
+            // are dropped, since those the failure cannot excuse.
+            if (!perSeed.some((seed) => seed.resolved)) {
+                this.dropExcludedCards(excluded);
+            } else {
                 const candidates = this.mergeCandidates(
                     perSeed.map((seed) => seed.entries),
                     excluded
@@ -197,6 +204,35 @@ export class DashboardRecommendationsService {
             this.rerunQueued = false;
             await this.load();
         }
+    }
+
+    /**
+     * Re-filter the cards already on screen against a freshly built
+     * exclusion index, used when a refresh could not reach TMDB. Keeps
+     * the rail useful offline while making sure a title the user watched
+     * or favorited since the last successful load cannot linger. Falling
+     * under the match threshold hides the rail, as everywhere else.
+     */
+    private dropExcludedCards(excluded: ExclusionIndex): void {
+        const current = this.items();
+        const kept = current.filter(
+            (item) => !isExcludedCandidate(item, excluded)
+        );
+        if (kept.length === current.length) {
+            return;
+        }
+
+        if (kept.length < MIN_RECOMMENDATION_MATCHES) {
+            this.items.set([]);
+            this.seedTitles.set([]);
+            return;
+        }
+
+        const contributed = new Set(kept.map((item) => item.seedTitle));
+        this.items.set(kept);
+        this.seedTitles.set(
+            this.seedTitles().filter((title) => contributed.has(title))
+        );
     }
 
     /**

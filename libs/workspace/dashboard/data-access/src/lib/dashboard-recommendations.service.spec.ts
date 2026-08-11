@@ -556,6 +556,40 @@ describe('DashboardRecommendationsService', () => {
         expect(titles).not.toContain('Слышь, смотрел?');
     });
 
+    it('keeps the rail when a refresh cannot reach TMDB', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
+
+        // New seed, TMDB unreachable: a failed refresh is not a verdict
+        // that there is nothing to recommend.
+        recentVod = [{ title: 'Heat', type: 'movie' }];
+        recentAll = [...recentVod];
+        enrichMovie.mockResolvedValue(null);
+        await service.load();
+
+        expect(service.items()).toHaveLength(recTitles.length);
+    });
+
+    it('drops a since-favorited card even when the refresh fails', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(service.items().map((item) => item.title)).toContain(
+            'Inception'
+        );
+
+        favorites = [{ title: 'Inception', type: 'movie' }];
+        enrichMovie.mockResolvedValue(null);
+        await service.load();
+
+        const titles = service.items().map((item) => item.title);
+        expect(titles).not.toContain('Inception');
+        // The rest survive — the failure is not a reason to blank them
+        expect(titles).toHaveLength(recTitles.length - 1);
+    });
+
     it('retries on the next visit when no seed resolved', async () => {
         enrichMovie.mockResolvedValue(null);
         const service = createService();

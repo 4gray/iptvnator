@@ -57,6 +57,9 @@ Core implementation:
 │  Recently Added on Xtream (aggregated across providers)             │
 │  [poster][poster][poster] →→                                        │
 ├─────────────────────────────────────────────────────────────────────┤
+│  Because you watched X (TMDB, opt-in, Electron-only)                │
+│  [poster][poster][poster] →→                                        │
+├─────────────────────────────────────────────────────────────────────┤
 │  Trending this week (TMDB, opt-in, Electron-only)                   │
 │  [poster][poster][poster] →→                                        │
 └─────────────────────────────────────────────────────────────────────┘
@@ -139,7 +142,19 @@ Render rules:
        first run waits for `globalFavoritesLoaded()` so the slower
        recently-added DB query does not block the live favorites rail on
        startup.
-    5. `sourceCards` — maps `recentPlaylists()` to rail cards. `recentPlaylists()`
+    5. `recommendationCards` / `trendingCards` — the two TMDB rails. Both
+       need the TMDB opt-in AND the Electron DB worker that answers
+       `DB_MATCH_TITLES` (each is hidden in the PWA), and both load after
+       `globalFavoritesLoaded()` so the batched title match never competes
+       for the worker at startup. `recommendationCards` is seeded from
+       recently watched movies/series and only shows titles present in an
+       imported library, hiding itself below five matched cards; its rail
+       label names the seed ("Because you watched X") when exactly one
+       seed contributed. `trendingCards` shows TMDB's weekly trending and
+       falls back to a prefilled global search for unmatched titles.
+       Contracts: `docs/architecture/tmdb-metadata-enrichment.md`
+       ("Dashboard Integration").
+    6. `sourceCards` — maps `recentPlaylists()` to rail cards. `recentPlaylists()`
        ranks M3U, Xtream, and Stalker sources by their latest recent activity
        from `globalRecentItems()`, then falls back to playlist
        `updateDate` / `importDate` for sources that have never been used.
