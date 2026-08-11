@@ -40,6 +40,20 @@ describe('titleLanguagePrefix', () => {
         expect(titleLanguagePrefix('EN-Movie')).toBeNull();
     });
 
+    it('gates bracket and dash tags to known languages', () => {
+        // Brackets and dashes are where quality and rip tags live; taking
+        // them at their word would fabricate an "HD" language that outranks
+        // and masks a real category-derived one.
+        expect(titleLanguagePrefix('[HD] Dune')).toBeNull();
+        expect(titleLanguagePrefix('[UHD] Dune')).toBeNull();
+        expect(titleLanguagePrefix('[CAM] Dune')).toBeNull();
+        expect(titleLanguagePrefix('NEW - Dune')).toBeNull();
+        expect(titleLanguagePrefix('VIP - Dune')).toBeNull();
+        // The legacy pipe form stays permissive — tightening it would drop
+        // filter options that work today.
+        expect(titleLanguagePrefix('SNF| Dune')).toBe('SNF');
+    });
+
     it('accepts the MULTI marker despite its five letters', () => {
         expect(titleLanguagePrefix('MULTI | Movie')).toBe('MULTI');
         expect(titleLanguagePrefix('Multi| Movie')).toBe('MULTI');

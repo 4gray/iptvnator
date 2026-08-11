@@ -189,7 +189,12 @@ identical to `|`, invisible to a literal match), a bracketed tag at the very
 start (`[EN] Movie`), and an ALL-uppercase tag before a **spaced** dash
 (`EN - Movie`). The dash form is stricter on purpose: dashes are ordinary
 title punctuation, and "Up - the movie" or "X-Men" must not read as a
-language.
+language. Strictness is tiered per form: only the legacy pipe form is taken
+at its word, while a bracket or dash match must ALSO pass
+`isKnownLanguageTag` — those positions are where quality and rip tags live
+("[HD]", "[CAM]", "NEW - "), and since a title prefix outranks the category
+language, a fabricated one would mask a real category-derived language and
+get the row excluded by the very filter meant to find it.
 
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",
 "DE | Apple TV") and leave stream titles bare. Discovery aggregates every
@@ -202,11 +207,14 @@ nothing. Category prefixes must additionally pass `isKnownLanguageTag`,
 because categories routinely start with "NEW |", "TOP |" or "VIP |" — and
 `new`, `top` and `hot` are even assigned ISO 639-3 codes, which is why the
 gate is an `Intl.DisplayNames` check for two-letter codes plus a curated list
-for longer tags rather than a registry lookup. Title prefixes stay permissive:
-a tag in front of a movie title is overwhelmingly a language, and tightening
-there would drop working filter options. The route's own row reads the one
-category the route arrived through (`VodMultiSourceMovie.categoryName`),
-which is the visible one.
+for longer tags rather than a registry lookup. Only the pipe title form stays
+permissive: a tag before a pipe in a movie title is overwhelmingly a
+language, and tightening the legacy form would drop filter options that work
+today. The route's own row reads the one category the route arrived through
+(`VodMultiSourceMovie.categoryName`), which is the visible one; it loads late
+on cold/direct routes, so the host's same-key refresh
+(`refreshRouteFacts`) overlays it — and provider facts — onto the existing
+route row without a rediscovery.
 
 ### The popover: copy rows
 

@@ -144,6 +144,46 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
         expect(discovery.discover).toHaveBeenCalledTimes(2);
     });
 
+    it('overlays a late-arriving category language on the route row', async () => {
+        movie.set(MOVIE_A);
+        await flushEffects();
+        expect(rowFor(CURRENT_A_ID)?.categoryLanguage ?? null).toBeNull();
+
+        // Cold/direct routes load categories after discovery ran, and the
+        // category name is outside the movie key on purpose — the same-key
+        // refresh is the only path that can deliver it to the route row.
+        movie.set({ ...MOVIE_A, categoryName: 'EN | Netflix' });
+        await flushEffects();
+        expect(rowFor(CURRENT_A_ID)?.categoryLanguage).toBe('EN');
+        expect(discovery.discover).toHaveBeenCalledTimes(1);
+
+        // A category that names no language never fabricates one.
+        movie.set({ ...MOVIE_A, categoryName: 'TOP | 250' });
+        await flushEffects();
+        expect(rowFor(CURRENT_A_ID)?.categoryLanguage ?? null).toBeNull();
+    });
+
+    it('keeps a category that lands while discovery is in flight', async () => {
+        const first = createDeferred<DiscoveryResult>();
+        discovery.discover.mockReturnValueOnce(first.promise);
+
+        movie.set(MOVIE_A);
+        while (discovery.discover.mock.calls.length === 0) {
+            TestBed.tick();
+            await Promise.resolve();
+        }
+
+        // The route row does not exist until discovery answers, so this
+        // same-key emission has nothing to refresh — it must not be lost.
+        movie.set({ ...MOVIE_A, categoryName: 'EN | Netflix' });
+        await flushEffects();
+
+        first.resolve({ sources: [], matchKind: 'title-year' });
+        await flushEffects();
+
+        expect(rowFor(CURRENT_A_ID)?.categoryLanguage).toBe('EN');
+    });
+
     it('does not burn a source the user only selected', async () => {
         // One alternative, so the route copy is the ONLY fallback left and
         // the outcome cannot depend on how candidates are ranked.

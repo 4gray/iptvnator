@@ -7,14 +7,20 @@
  * the browse filter and the copy-row chips, and is structurally excluded from
  * ranking and failover (`factualOnly` never reads it).
  *
- * Two parsers with different strictness, on purpose:
+ * Three tiers of strictness, matched to each form's noise profile:
  *
- * - `titleLanguagePrefix` is permissive. A short tag in front of a MOVIE title
- *   is overwhelmingly a language — titles do not start with "VIP |" — so any
- *   2–4 letter prefix counts, as it always has.
- * - Category names are noisier: "NEW | 2024", "TOP | 250" and "VIP | Cinema"
+ * - The PIPE title form is permissive, as it always has been. A tag before a
+ *   pipe in a MOVIE title is overwhelmingly a language — titles do not start
+ *   with "VIP |" — and tightening the legacy form would drop filter options
+ *   that work today.
+ * - The BRACKET and DASH title forms are gated by `isKnownLanguageTag`. They
+ *   are new (nothing to regress) and their prefixes skew toward quality and
+ *   rip tags — "[HD] Dune", "NEW - Dune" — which would not only pollute the
+ *   select but, since a title prefix outranks the category language, mask a
+ *   real one and get the row excluded by the very filter meant to find it.
+ * - Category names are noisiest: "NEW | 2024", "TOP | 250" and "VIP | Cinema"
  *   are everyday category shapes, and `new`, `top` and `hot` are even real
- *   ISO 639-3 codes, so a prefix read off a category must additionally pass
+ *   ISO 639-3 codes, so a prefix read off a category always passes
  *   `isKnownLanguageTag`. Empty beats wrong: an unrecognized tag yields no
  *   language rather than a wrong filter option.
  */
@@ -57,16 +63,25 @@ const DASH_FORM = new RegExp(
  * seen in the wild: tag-before-pipe (including Unicode pipe lookalikes),
  * bracketed tag, and uppercase tag before a spaced dash. Anything longer than
  * four letters is a word that happens to precede a separator, not a language.
+ *
+ * Only the pipe form is taken at its word; a bracket or dash match must also
+ * name a KNOWN language, because those positions are where quality and rip
+ * tags live ("[HD]", "[CAM]") — see the tier rationale in the file header.
  */
 export function titleLanguagePrefix(
     rawTitle: string | null | undefined
 ): string | null {
     const title = rawTitle ?? '';
-    const match =
-        PIPE_FORM.exec(title) ??
-        BRACKET_FORM.exec(title) ??
-        DASH_FORM.exec(title);
-    return match ? match[1].toUpperCase() : null;
+
+    const pipe = PIPE_FORM.exec(title);
+    if (pipe) {
+        return pipe[1].toUpperCase();
+    }
+
+    const gated = BRACKET_FORM.exec(title) ?? DASH_FORM.exec(title);
+    return gated && isKnownLanguageTag(gated[1])
+        ? gated[1].toUpperCase()
+        : null;
 }
 
 /**
