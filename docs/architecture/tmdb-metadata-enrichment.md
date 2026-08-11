@@ -453,8 +453,15 @@ since shipped.)
   items in their original language while the app language localizes the
   TMDB titles; a year-incompatible first-alias match does not veto a
   year-compatible match under the other alias. Only matched,
-  year-compatible titles render (each card navigates to its detail view);
-  fewer than `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
+  year-compatible titles render (each card navigates to its detail view).
+  The rail groups the worker's rows per key itself instead of reusing
+  `buildTitleMatchIndex`, which collapses to one row per key before the
+  candidate's year is known — with both `"Dune 1984"` and `"Dune 2021"`
+  in the catalog the wrong one can win that collapse, and the card is
+  then dropped by the year check with the right row already discarded.
+  Among year-compatible rows an exact-title match still wins over a
+  year-stripped one, mirroring the shared helper's precedence. Fewer than
+  `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
   the latch entirely, because an empty match result is indistinguishable
   from a transient worker failure (`matchTitles` maps failures to `[]`),
   re-running is cheap (mirrors trending's retry-on-empty), and a

@@ -437,6 +437,43 @@ describe('DashboardRecommendationsService', () => {
         expect(enrichMovie).toHaveBeenCalledTimes(2);
     });
 
+    it('picks the year-compatible row when the catalog holds several', async () => {
+        // Two year-stripped rows share one key; the wrong one arrives
+        // first. Collapsing before the year check would discard the right
+        // one and drop the card.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Dune', 2021),
+                ],
+            },
+        });
+        matchTitles.mockImplementation(async (titles: string[]) => {
+            const rows: CatalogTitleMatch[] = [];
+            for (const title of titles) {
+                if (title === 'Dune') {
+                    rows.push(
+                        match(title, { trailingYear: 1984, xtreamId: 84 }),
+                        match(title, { trailingYear: 2021, xtreamId: 21 })
+                    );
+                } else {
+                    rows.push(match(title));
+                }
+            }
+            return rows;
+        });
+        const service = createService();
+
+        await service.load();
+
+        const dune = service.items().find((item) => item.title === 'Dune');
+        expect(dune).toBeDefined();
+        expect(dune?.match.xtreamId).toBe(21);
+    });
+
     it('falls back to the alias match when the localized match is year-incompatible', async () => {
         enrichMovie.mockResolvedValue({
             recommendations: {

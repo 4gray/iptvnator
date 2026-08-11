@@ -2,7 +2,6 @@ import { Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
-    buildTitleMatchIndex,
     extractYear,
     tmdbPosterUrl,
 } from '@iptvnator/services';
@@ -392,25 +391,11 @@ export class DashboardRecommendationsService {
             }
         }
         const matches = await this.titleMatch.matchTitles(queryTitles);
-        const index = buildTitleMatchIndex(matches);
+        const grouped = groupMatchesByKey(matches);
 
         const items: DashboardRecommendationItem[] = [];
         for (const candidate of candidates) {
-            // First alias whose match is ALSO year-compatible: a localized
-            // title can hit a same-named different-year row while the
-            // original-title alias holds the correct match — a bad first
-            // hit must not veto the good second one.
-            const match =
-                candidateTitleKeys(candidate)
-                    .map((key) => index.get(key))
-                    .find(
-                        (found) =>
-                            found &&
-                            titleYearsCompatible(
-                                candidate.year,
-                                found.trailingYear
-                            )
-                    ) ?? null;
+            const match = pickCatalogMatch(candidate, grouped);
             if (!match) {
                 continue;
             }
@@ -449,6 +434,56 @@ function candidateKeySets(
 /** Exact-tier keys only — used for dedupe and catalog-match lookup */
 function candidateTitleKeys(candidate: RecommendationCandidate): string[] {
     return candidateKeySets(candidate).map((keys) => keys.exact);
+}
+
+/**
+ * EVERY match per `type:exactNormalizedTitle`, in the order the worker
+ * returned them.
+ *
+ * Deliberately not the shared `buildTitleMatchIndex`: that collapses to
+ * one row per key before the candidate's year is known, so a catalog
+ * holding both "Dune 1984" and "Dune 2021" keeps whichever arrived first
+ * and a 2021 recommendation then fails the year check with the right row
+ * already discarded. Keeping every row lets the year gate choose.
+ */
+function groupMatchesByKey(
+    matches: readonly CatalogTitleMatch[]
+): Map<string, CatalogTitleMatch[]> {
+    const grouped = new Map<string, CatalogTitleMatch[]>();
+    for (const match of matches) {
+        const key = `${match.type}:${normalizeTitleKeys(match.queryTitle).exact}`;
+        grouped.set(key, [...(grouped.get(key) ?? []), match]);
+    }
+    return grouped;
+}
+
+/**
+ * The catalog row this recommendation should link to, or null.
+ *
+ * Aliases are tried in order (localized title, then original-title), and
+ * within one alias only year-compatible rows qualify — a localized title
+ * can hit a same-named different-year row while the alias holds the
+ * correct match, so a bad hit must not veto the good one. Among equally
+ * compatible rows an exact-title match wins over a year-stripped one,
+ * mirroring `buildTitleMatchIndex`'s own precedence.
+ */
+function pickCatalogMatch(
+    candidate: RecommendationCandidate,
+    grouped: ReadonlyMap<string, CatalogTitleMatch[]>
+): CatalogTitleMatch | null {
+    for (const key of candidateTitleKeys(candidate)) {
+        const compatible = (grouped.get(key) ?? []).filter((row) =>
+            titleYearsCompatible(candidate.year, row.trailingYear)
+        );
+        if (compatible.length === 0) {
+            continue;
+        }
+        return (
+            compatible.find((row) => row.trailingYear === null) ??
+            compatible[0]
+        );
+    }
+    return null;
 }
 
 /**
