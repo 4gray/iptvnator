@@ -59,6 +59,8 @@
                 }
                 @case ('auto') {
                     <app-auto-import
+                        [initialText]="autoDetectText()"
+                        (textChanged)="autoDetectText.set($event)"
                         (candidateSelected)="onCandidateSelected($event)"
                     />
                 }

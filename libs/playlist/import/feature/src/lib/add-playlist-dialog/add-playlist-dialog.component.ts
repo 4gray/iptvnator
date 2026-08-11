@@ -101,6 +101,12 @@ export class AddPlaylistDialogComponent {
     private readonly pendingPrefill =
         signal<ProviderImportCandidate | null>(null);
 
+    /**
+     * Survives the auto-detect surface being destroyed by a method switch, so
+     * returning to it after inspecting a prefilled form keeps the paste.
+     */
+    readonly autoDetectText = signal('');
+
     // Order matches the v0.22 mockup left-to-right: URL first (Most common),
     // then File, Xtream credentials, Stalker portal, raw text paste. Each
     // entry stands on its own — no nested subtypes. Labels are short and

@@ -1,5 +1,5 @@
-import { Component, computed, output } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, input, OnInit, output } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -59,14 +59,36 @@ const CONFIDENCE_LABEL_KEYS: Record<ProviderImportConfidence, string> = {
         TranslatePipe,
     ],
 })
-export class AutoImportComponent {
+export class AutoImportComponent implements OnInit {
     readonly candidateSelected = output<ProviderImportCandidate>();
+
+    /**
+     * The pasted text lives in the DIALOG, not here: switching to a prefilled
+     * form destroys this component (`@switch`), and coming back to compare or
+     * pick another candidate must not cost the user their paste. The dialog
+     * feeds the last text back in and listens for edits.
+     */
+    readonly initialText = input('');
+    readonly textChanged = output<string>();
 
     readonly textControl = new FormControl('', { nonNullable: true });
 
     private readonly textValue = toSignal(this.textControl.valueChanges, {
         initialValue: '',
     });
+
+    constructor() {
+        this.textControl.valueChanges
+            .pipe(takeUntilDestroyed())
+            .subscribe((value) => this.textChanged.emit(value));
+    }
+
+    ngOnInit(): void {
+        const initial = this.initialText();
+        if (initial) {
+            this.textControl.setValue(initial);
+        }
+    }
 
     readonly candidates = computed(() =>
         detectProviderImportCandidates(this.textValue())
