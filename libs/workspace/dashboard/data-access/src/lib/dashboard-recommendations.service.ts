@@ -51,6 +51,27 @@ interface SeedRecommendations {
 }
 
 /**
+ * What the user has already watched or favorited, in the two forms a
+ * recommendation can collide with.
+ */
+interface ExclusionIndex {
+    /** `type:exactNormalizedTitle` — the stored title as it normalizes */
+    readonly exact: ReadonlySet<string>;
+    /**
+     * `type:baseNormalizedTitle` → the trailing years stripped from the
+     * stored titles that produced it. Only titles that HAD a trailing
+     * year appear here, so the base tier is always year-gated.
+     */
+    readonly baseYears: ReadonlyMap<string, readonly number[]>;
+}
+
+/** Normalized keys for one candidate alias, both matching tiers */
+interface CandidateKeys {
+    readonly exact: string;
+    readonly base: string;
+}
+
+/**
  * Fewer confident matches than this hides the rail entirely — a rail of
  * two cards reads worse than no rail.
  */
@@ -113,7 +134,7 @@ export class DashboardRecommendationsService {
             this.loadedKey = null;
             return;
         }
-        const excluded = this.excludedTitleKeys();
+        const excluded = this.buildExclusionIndex();
         // The language is part of the identity: TMDB payloads (and thus
         // card titles) are localized, so a language change must reload —
         // the service outlives the dashboard and would otherwise keep
@@ -252,7 +273,7 @@ export class DashboardRecommendationsService {
      */
     private mergeCandidates(
         lists: readonly RecommendationCandidate[][],
-        excluded: ReadonlySet<string>
+        excluded: ExclusionIndex
     ): RecommendationCandidate[] {
         const seen = new Set<string>();
         const merged: RecommendationCandidate[] = [];
@@ -273,9 +294,8 @@ export class DashboardRecommendationsService {
                 const titleKeys = candidateTitleKeys(entry);
                 if (
                     seen.has(idKey) ||
-                    titleKeys.some(
-                        (key) => seen.has(key) || excluded.has(key)
-                    )
+                    titleKeys.some((key) => seen.has(key)) ||
+                    isExcludedCandidate(entry, excluded)
                 ) {
                     continue;
                 }
@@ -287,18 +307,30 @@ export class DashboardRecommendationsService {
         return merged;
     }
 
-    private excludedTitleKeys(): Set<string> {
-        const keys = new Set<string>();
+    private buildExclusionIndex(): ExclusionIndex {
+        const exact = new Set<string>();
+        const baseYears = new Map<string, number[]>();
         const add = (item: { type: string; title: string }): void => {
-            if (item.type === 'movie' || item.type === 'series') {
-                keys.add(
-                    `${item.type}:${normalizeTitleKeys(item.title).exact}`
-                );
+            if (item.type !== 'movie' && item.type !== 'series') {
+                return;
+            }
+            const keys = normalizeTitleKeys(item.title);
+            exact.add(`${item.type}:${keys.exact}`);
+            // Providers routinely store titles with a trailing release
+            // year ("Inception 2010") whose exact key can never equal the
+            // canonical TMDB title. Record the base + year so the merge
+            // can exclude the canonical form when the years agree.
+            if (keys.trailingYear !== null) {
+                const baseKey = `${item.type}:${keys.base}`;
+                baseYears.set(baseKey, [
+                    ...(baseYears.get(baseKey) ?? []),
+                    keys.trailingYear,
+                ]);
             }
         };
         this.data.globalRecentItems().forEach(add);
         this.data.globalFavoriteItems().forEach(add);
-        return keys;
+        return { exact, baseYears };
     }
 
     private async attachMatches(
@@ -308,14 +340,17 @@ export class DashboardRecommendationsService {
             return [];
         }
         // Both aliases go into the ONE batched request; the index lookup
-        // below prefers the localized form.
-        const matches = await this.titleMatch.matchTitles(
-            candidates.flatMap((candidate) =>
-                candidate.originalTitle
-                    ? [candidate.title, candidate.originalTitle]
-                    : [candidate.title]
-            )
-        );
+        // below prefers the localized form. Built with a loop rather than
+        // flatMap — the web app compiles this lib against `lib: es2018`,
+        // which predates Array.prototype.flatMap.
+        const queryTitles: string[] = [];
+        for (const candidate of candidates) {
+            queryTitles.push(candidate.title);
+            if (candidate.originalTitle) {
+                queryTitles.push(candidate.originalTitle);
+            }
+        }
+        const matches = await this.titleMatch.matchTitles(queryTitles);
         const index = buildTitleMatchIndex(matches);
 
         const items: DashboardRecommendationItem[] = [];
@@ -347,34 +382,81 @@ export class DashboardRecommendationsService {
     }
 }
 
-/** Localized title key first, original-title alias key second */
-function candidateTitleKeys(candidate: RecommendationCandidate): string[] {
+/**
+ * Both matching tiers for each of the candidate's aliases — localized
+ * title first, original-title alias second.
+ */
+function candidateKeySets(
+    candidate: RecommendationCandidate
+): CandidateKeys[] {
     const type = candidate.mediaType === 'movie' ? 'movie' : 'series';
-    const keys = [`${type}:${normalizeTitleKeys(candidate.title).exact}`];
+    const toKeys = (title: string): CandidateKeys => {
+        const keys = normalizeTitleKeys(title);
+        return { exact: `${type}:${keys.exact}`, base: `${type}:${keys.base}` };
+    };
+
+    const sets = [toKeys(candidate.title)];
     if (candidate.originalTitle) {
-        const aliasKey = `${type}:${normalizeTitleKeys(candidate.originalTitle).exact}`;
-        if (aliasKey !== keys[0]) {
-            keys.push(aliasKey);
+        const alias = toKeys(candidate.originalTitle);
+        if (alias.exact !== sets[0].exact) {
+            sets.push(alias);
         }
     }
-    return keys;
+    return sets;
+}
+
+/** Exact-tier keys only — used for dedupe and catalog-match lookup */
+function candidateTitleKeys(candidate: RecommendationCandidate): string[] {
+    return candidateKeySets(candidate).map((keys) => keys.exact);
 }
 
 /**
- * Identity of one load: the seed set, the watched/favorited exclusion set,
- * and the imported-playlist set. Including the exclusions means favoriting
- * a recommended title (or new watch history that does not change the top
- * seeds) still invalidates the latch and re-filters the rail; including
- * the catalog means imports and deletions re-run the matching.
+ * Whether the user has already watched or favorited this recommendation.
+ *
+ * Two tiers, because a provider stores whatever the panel named the file.
+ * The exact tier catches a stored title that normalizes to the canonical
+ * one. The base tier catches the common `"Inception 2010"` shape, whose
+ * exact key can never equal TMDB's `"Inception"` — but only when the
+ * years agree, so a stored `"Blade Runner 2049"` does not swallow the
+ * 1982 film. An unknown year on either side counts as agreeing
+ * (`titleYearsCompatible`): recommending something already watched is the
+ * worse failure of the two.
+ */
+function isExcludedCandidate(
+    candidate: RecommendationCandidate,
+    excluded: ExclusionIndex
+): boolean {
+    return candidateKeySets(candidate).some(
+        ({ exact, base }) =>
+            excluded.exact.has(exact) ||
+            (excluded.baseYears.get(base) ?? []).some((year) =>
+                titleYearsCompatible(candidate.year, year)
+            )
+    );
+}
+
+/**
+ * Identity of one load: the seed set, the watched/favorited exclusion
+ * index, and the imported-playlist set. Including the exclusions means
+ * favoriting a recommended title (or new watch history that does not
+ * change the top seeds) still invalidates the latch and re-filters the
+ * rail; including the catalog means imports and deletions re-run the
+ * matching.
  */
 function buildLoadKey(
     seeds: readonly DashboardTmdbLookupItem[],
-    excluded: ReadonlySet<string>,
+    excluded: ExclusionIndex,
     catalogKey: string
 ): string {
+    const exclusionKey = [
+        ...[...excluded.exact].sort(),
+        ...[...excluded.baseYears]
+            .map(([base, years]) => `${base}=${[...years].sort().join('/')}`)
+            .sort(),
+    ].join('|');
     return `${catalogKey}@@${seeds
         .map(dashboardTmdbLookupKey)
-        .join('||')}##${[...excluded].sort().join('|')}`;
+        .join('||')}##${exclusionKey}`;
 }
 
 function toCandidates(

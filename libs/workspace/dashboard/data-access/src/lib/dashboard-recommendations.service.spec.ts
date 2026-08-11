@@ -177,6 +177,45 @@ describe('DashboardRecommendationsService', () => {
         expect(titles).toContain('Tenet');
     });
 
+    it('excludes a watched title stored with a trailing release year', async () => {
+        // Panels routinely name the file "Inception 2010"; its exact key
+        // can never equal TMDB's canonical "Inception".
+        recentAll = [...recentVod, { title: 'Inception 2010', type: 'movie' }];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).not.toContain(
+            'Inception'
+        );
+    });
+
+    it('does not let a year-suffixed title swallow a different film', async () => {
+        // "Blade Runner 2049" carries a year in its NAME — the 1982 film
+        // shares the base title but is a different movie.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Blade Runner', 1982),
+                ],
+            },
+        });
+        recentAll = [
+            ...recentVod,
+            { title: 'Blade Runner 2049', type: 'movie' },
+        ];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).toContain(
+            'Blade Runner'
+        );
+    });
+
     it('drops year-incompatible matches', async () => {
         matchTitles.mockImplementation(async (titles: string[]) =>
             titles.map((title) =>

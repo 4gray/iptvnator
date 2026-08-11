@@ -432,7 +432,14 @@ since shipped.)
   interleaved round-robin, deduplicated by id AND normalized title,
   stripped of anything already watched or favorited, and matched against
   the imported libraries with ONE batched
-  `CatalogTitleMatchService.matchTitles` request. Matching and exclusion
+  `CatalogTitleMatchService.matchTitles` request. The watched/favorited
+  exclusion runs on two tiers, because a provider stores whatever the
+  panel named the file: the exact normalized title, plus a year-gated
+  base tier for the common `"Inception 2010"` shape whose exact key can
+  never equal TMDB's `"Inception"`. The year gate is what keeps a stored
+  `"Blade Runner 2049"` from swallowing the 1982 film; an unknown year on
+  either side counts as agreeing, since re-recommending something already
+  watched is the worse failure. Matching and exclusion
   work through BOTH the localized title and the TMDB original-title alias
   (cards always display the localized form) — catalogs frequently name
   items in their original language while the app language localizes the
