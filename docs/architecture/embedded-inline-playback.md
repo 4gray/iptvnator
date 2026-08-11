@@ -464,7 +464,7 @@ external-player workflows; it is not copied from the HLS error payload into
 the evidence or technical details. HLS startup development logs are event-only:
 they do not include provider-supplied channel names or source URLs.
 
-Shaka Player `5.2.2` errors cross a separate structured boundary before the
+Shaka Player `5.2.4` errors cross a separate structured boundary before the
 HTML5 or ArtPlayer DASH session emits a diagnostic. Version-locked tests assert
 the installed Shaka version plus the public `Severity`, `Category`, and selected
 online-playback `Code` values used by the boundary. Evidence retains only
