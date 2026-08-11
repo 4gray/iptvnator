@@ -240,7 +240,7 @@ Key files:
   KODIPROP DRM still suppress it. See the CLAUDE.md "Video Players" feature
   entry and the "DASH + ClearKey Playback" section of
   `docs/architecture/m3u-playlist-module.md`.
-- mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
+- mpegts.js `1.8.1` errors from HTML5, Video.js, and ArtPlayer cross one
   version-locked structured evidence boundary in `libs/playback/util`. Only
   exact public type/detail pairs, pair-derived stage/failure, terminal
   disposition, and the validated HTTP 4xx/5xx status slot are retained; raw
