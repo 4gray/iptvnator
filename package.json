@@ -1,6 +1,9 @@
 {
     "name": "iptvnator",
     "version": "0.23.0",
+    "engines": {
+        "node": "^22.13.0 || >=24.0.0"
+    },
     "license": "MIT",
     "description": "IPTV player application.",
     "homepage": "https://github.com/4gray/iptvnator",
@@ -189,7 +192,7 @@
         "cors": "2.8.6",
         "drizzle-kit": "0.31.10",
         "electron": "^41.10.3",
-        "electron-builder": "^26.0.12",
+        "electron-builder": "^26.15.7",
         "electron-playwright-helpers": "1.8.2",
         "esbuild": "0.28.1",
         "eslint": "^9.8.0",

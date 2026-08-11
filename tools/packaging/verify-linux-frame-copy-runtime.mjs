@@ -34,6 +34,11 @@ const {
 const scriptPath = fileURLToPath(import.meta.url);
 const LIBMPV_DEPENDENCY_PATTERN = /^libmpv\.so(?:\.|$)/;
 const SNAP_METADATA_MAX_BYTES = 256 * 1024;
+const SNAP_DESKTOP_RUNTIME_SCRIPTS = [
+    'desktop-init.sh',
+    'desktop-common.sh',
+    'desktop-gnome-specific.sh',
+];
 // Keep this set identical to the packaged helper sanitizer in
 // embedded-mpv-frame-copy-runtime/helper-environment.ts. Feature/debug
 // selectors such as LIBGL_ALWAYS_SOFTWARE remain intentionally available.
@@ -715,6 +720,35 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         ];
     }
     const errors = [];
+    for (const script of SNAP_DESKTOP_RUNTIME_SCRIPTS) {
+        const desktopScriptPath = path.join(extractionRoot, script);
+        let desktopScriptStat;
+        try {
+            desktopScriptStat = fs.lstatSync(desktopScriptPath);
+        } catch {
+            errors.push(
+                `Missing required desktop runtime script: ${desktopScriptPath}`
+            );
+            continue;
+        }
+        if (
+            !desktopScriptStat.isFile() ||
+            desktopScriptStat.isSymbolicLink()
+        ) {
+            errors.push(
+                `Extracted Snap desktop runtime script must be a regular file: ${desktopScriptPath}`
+            );
+            continue;
+        }
+        if (
+            script === 'desktop-init.sh' &&
+            (desktopScriptStat.mode & 0o111) === 0
+        ) {
+            errors.push(
+                `Extracted Snap desktop-init.sh must be executable: ${desktopScriptPath}`
+            );
+        }
+    }
     const graphicsMountPath = path.join(extractionRoot, 'graphics');
     let graphicsMountStat;
     try {

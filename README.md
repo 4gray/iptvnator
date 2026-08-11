@@ -266,7 +266,7 @@ needed.
 
 Requirements:
 
-- Node.js with pnpm (via Corepack)
+- Node.js 22.13–22.x or 24 and newer with pnpm (via Corepack)
 
 1. Clone this repository and install project dependencies:
 
