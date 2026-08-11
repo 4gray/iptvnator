@@ -14,6 +14,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
+import { formatPortalRequestError } from './portal-request-error.util';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
     createXtreamMainPerformanceCaptureForRequest,
@@ -25,52 +26,6 @@ export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
         return ipcMain;
     }
-}
-
-function formatXtreamError(
-    error: unknown,
-    requestUrl: string,
-    action?: string
-) {
-    let parsedUrl: URL | null = null;
-    try {
-        parsedUrl = new URL(requestUrl);
-    } catch {
-        parsedUrl = null;
-    }
-    const base = {
-        action,
-        host: parsedUrl?.host ?? 'unknown',
-        pathname: parsedUrl?.pathname ?? requestUrl,
-    };
-
-    if (axios.isAxiosError(error)) {
-        return {
-            ...base,
-            type: 'AxiosError',
-            code: error.code,
-            status: error.response?.status,
-            message: error.message,
-            syscall: (error as NodeJS.ErrnoException).syscall,
-            hostname: (error as any).hostname,
-        };
-    }
-
-    if (error && typeof error === 'object') {
-        const errObj = error as Record<string, unknown>;
-        return {
-            ...base,
-            type: 'ErrorObject',
-            status: errObj.status,
-            message: errObj.message,
-        };
-    }
-
-    return {
-        ...base,
-        type: 'UnknownError',
-        message: String(error),
-    };
 }
 
 function buildXtreamApiUrl(url: string, params: Record<string, string>): URL {
@@ -240,7 +195,7 @@ ipcMain.handle(
                 console.error(
                     '[XTREAM_REQUEST] Failed',
                     redactSensitiveData(
-                        formatXtreamError(
+                        formatPortalRequestError(
                             error,
                             requestUrlForLog,
                             payload.params?.action
