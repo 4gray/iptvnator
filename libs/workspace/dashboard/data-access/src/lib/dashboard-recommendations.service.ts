@@ -134,7 +134,17 @@ export class DashboardRecommendationsService {
                             .map((seed) => seed.seedTitle)
                             .filter((title) => contributed.has(title))
                     );
-                    this.loadedKey = loadKey;
+                    // Latch only once EVERY seed answered. A seed that did
+                    // not resolve may have failed transiently, and latching
+                    // on its behalf would drop its recommendations for the
+                    // rest of the session. A seed that simply has no TMDB
+                    // match never resolves either, so this rail re-runs on
+                    // each visit for that user — bounded work, since the
+                    // enrichment misses are cached and the catalog match is
+                    // one batched worker call.
+                    this.loadedKey = perSeed.every((seed) => seed.resolved)
+                        ? loadKey
+                        : null;
                 } else {
                     // Below the threshold the rail is hidden — and NOT
                     // latched: an empty match result is indistinguishable

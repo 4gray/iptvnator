@@ -721,6 +721,43 @@ describe('DashboardRecommendationsService', () => {
         );
     });
 
+    it('retries while any seed is still unresolved', async () => {
+        // Two seeds, one transiently failing: the resolved one alone
+        // fills the rail, but latching would drop the other seed's
+        // recommendations for the rest of the session.
+        recentVod = [
+            { title: 'The Matrix', type: 'movie' },
+            { title: 'Blade Runner', type: 'movie' },
+        ];
+        recentAll = [...recentVod];
+        enrichMovie.mockImplementation(async (query: { title: string }) =>
+            query.title === 'The Matrix'
+                ? {
+                      recommendations: {
+                          results: recTitles.map((t, i) => rec(100 + i, t)),
+                      },
+                  }
+                : null
+        );
+        const service = createService();
+
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
+        const callsAfterFirst = enrichMovie.mock.calls.length;
+
+        await service.load();
+        expect(enrichMovie.mock.calls.length).toBeGreaterThan(callsAfterFirst);
+    });
+
+    it('latches once every seed has resolved', async () => {
+        const service = createService();
+
+        await service.load();
+        await service.load();
+
+        expect(enrichMovie).toHaveBeenCalledTimes(1);
+    });
+
     it('retries on the next visit when no seed resolved', async () => {
         enrichMovie.mockResolvedValue(null);
         const service = createService();

@@ -478,7 +478,12 @@ since shipped.)
   previously successful input set must be reloadable after a hidden
   interlude. The rail header names the seed ("Because you watched X")
   when exactly one seed contributed, else falls back to the generic
-  "Recommended for you". Successful loads are keyed by the TMDB language
+  "Recommended for you". A load latches only once EVERY seed answered —
+  a seed that did not resolve may have failed transiently, and latching
+  on its behalf would drop its recommendations for the session; a seed
+  that has no TMDB match never resolves either, so that user's rail
+  re-runs each visit, which is bounded work (cached enrichment misses
+  plus one batched worker call). Latched loads are keyed by the TMDB language
   (payloads are localized; the facade exposes `language()` for this), the
   seed set, the watched/favorited exclusion set AND the imported-playlist
   id set — watching something new re-seeds on the next dashboard visit,
