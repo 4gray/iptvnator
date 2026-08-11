@@ -2,72 +2,29 @@ import { Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
-    extractYear,
-    tmdbPosterUrl,
 } from '@iptvnator/services';
-import type { TmdbSearchResult } from '@iptvnator/services';
-import {
-    CatalogTitleMatch,
-    normalizeTitleKeys,
-    titleYearsCompatible,
-} from '@iptvnator/shared/interfaces';
+import { normalizeTitleKeys } from '@iptvnator/shared/interfaces';
 import { DashboardDataService } from './dashboard-data.service';
 import {
     DashboardTmdbLookupItem,
     buildDashboardTmdbAttempts,
     dashboardTmdbLookupKey,
 } from './dashboard-tmdb-lookup.util';
-
-/** One recommendation card: TMDB entry + the library match that makes it playable */
-export interface DashboardRecommendationItem {
-    tmdbId: number;
-    mediaType: 'movie' | 'tv';
-    title: string;
-    /**
-     * TMDB original title when it differs from the localized one — a
-     * matching/exclusion alias, never displayed. Catalogs frequently name
-     * an item in its original language while the app language localizes
-     * the TMDB title, so matching on the localized form alone would hide
-     * available recommendations.
-     */
-    originalTitle: string | null;
-    year: number | null;
-    posterUrl: string | null;
-    /** vote_average rounded to one decimal, null without votes */
-    rating: string | null;
-    /** Confident match in an imported Xtream playlist — unmatched entries are dropped */
-    match: CatalogTitleMatch;
-    /** Display title of the watched item this recommendation came from */
-    seedTitle: string;
-}
-
-type RecommendationCandidate = Omit<DashboardRecommendationItem, 'match'>;
+import {
+    DashboardRecommendationItem,
+    ExclusionIndex,
+    RecommendationCandidate,
+    buildLoadKey,
+    groupMatchesByKey,
+    isExcludedCandidate,
+    pickCatalogMatch,
+    toCandidates,
+} from './dashboard-recommendations.util';
 
 interface SeedRecommendations {
     resolved: boolean;
     seedTitle: string;
     entries: RecommendationCandidate[];
-}
-
-/**
- * What the user has already watched or favorited, in the two forms a
- * recommendation can collide with.
- */
-interface ExclusionIndex {
-    /** `type:exactNormalizedTitle` — the stored title as it normalizes */
-    readonly exact: ReadonlySet<string>;
-    /**
-     * `type:baseNormalizedTitle` → the trailing years stripped from the
-     * stored titles that produced it. Only titles that HAD a trailing
-     * year appear here, so the base tier is always year-gated.
-     */
-    readonly baseYears: ReadonlyMap<string, readonly number[]>;
-}
-
-/** Normalized keys for one candidate alias, both matching tiers */
-interface CandidateKeys {
-    readonly exact: string;
-    readonly base: string;
 }
 
 /**
@@ -222,6 +179,12 @@ export class DashboardRecommendationsService {
             return;
         }
 
+        // What is on screen is no longer the result of any completed
+        // load, so the saved key must stop describing it — otherwise
+        // restoring those exact inputs (un-favoriting the title again)
+        // would hit the equality guard and leave the rail as it is now.
+        this.loadedKey = null;
+
         if (kept.length < MIN_RECOMMENDATION_MATCHES) {
             this.items.set([]);
             this.seedTitles.set([]);
@@ -319,23 +282,18 @@ export class DashboardRecommendationsService {
                 if (!entry) {
                     continue;
                 }
-                // Title keys too (localized AND original alias): matching
-                // is title-based, so two distinct TMDB entries normalizing
-                // to one title would both claim the same catalog row and
-                // render as duplicate cards — and a watched title stored
-                // under its original language must still exclude its
-                // localized recommendation.
+                // Deduplicated by TMDB identity only. Same-titled
+                // remakes ("Dune" 1984 and 2021) are DIFFERENT films and
+                // must both reach the catalog matching — collapsing them
+                // here would let whichever arrived first fail the year
+                // gate on behalf of the one the library actually holds.
+                // Two candidates that end up on the same catalog row are
+                // collapsed after matching instead.
                 const idKey = `${entry.mediaType}:${entry.tmdbId}`;
-                const titleKeys = candidateTitleKeys(entry);
-                if (
-                    seen.has(idKey) ||
-                    titleKeys.some((key) => seen.has(key)) ||
-                    isExcludedCandidate(entry, excluded)
-                ) {
+                if (seen.has(idKey) || isExcludedCandidate(entry, excluded)) {
                     continue;
                 }
                 seen.add(idKey);
-                titleKeys.forEach((key) => seen.add(key));
                 merged.push(entry);
             }
         }
@@ -365,18 +323,20 @@ export class DashboardRecommendationsService {
      * would let a watched film exclude the same-named show.
      */
     private buildExclusionIndex(): ExclusionIndex {
-        const exact = new Set<string>();
+        const exact = new Map<string, (number | null)[]>();
         const baseYears = new Map<string, number[]>();
 
         const addTitle = (
             type: 'movie' | 'series',
-            title: string | undefined
+            title: string | undefined,
+            year: number | null
         ): void => {
             const keys = normalizeTitleKeys(title);
             if (!keys.exact) {
                 return;
             }
-            exact.add(`${type}:${keys.exact}`);
+            const exactKey = `${type}:${keys.exact}`;
+            exact.set(exactKey, [...(exact.get(exactKey) ?? []), year]);
             // Providers routinely store titles with a trailing release
             // year ("Inception 2010") whose exact key can never equal the
             // canonical TMDB title. Record the base + year so the merge
@@ -394,13 +354,19 @@ export class DashboardRecommendationsService {
             if (item.type !== 'movie' && item.type !== 'series') {
                 return;
             }
-            addTitle(item.type, item.title);
-
+            // The row's release year when anything states one — Stalker
+            // rows carry `info.releasedate`, others may embed it in the
+            // title. Recorded so a watched 1954 "Godzilla" cannot exclude
+            // the 2014 one; `null` keeps the conservative behaviour for
+            // rows that state no year at all.
             const [primary] = buildDashboardTmdbAttempts(item);
+            const year = primary?.year ?? null;
+
+            addTitle(item.type, item.title, year);
             if (primary) {
                 const type = primary.mediaType === 'tv' ? 'series' : 'movie';
-                addTitle(type, primary.title);
-                addTitle(type, primary.originalTitle);
+                addTitle(type, primary.title, year);
+                addTitle(type, primary.originalTitle, year);
             }
         };
 
@@ -429,12 +395,22 @@ export class DashboardRecommendationsService {
         const matches = await this.titleMatch.matchTitles(queryTitles);
         const grouped = groupMatchesByKey(matches);
 
+        // Title collisions are resolved HERE rather than before matching:
+        // two candidates that resolve to the same catalog row would render
+        // as duplicate cards opening the same item, while same-titled
+        // remakes resolve to different rows and both belong on the rail.
         const items: DashboardRecommendationItem[] = [];
+        const claimedRows = new Set<string>();
         for (const candidate of candidates) {
             const match = pickCatalogMatch(candidate, grouped);
             if (!match) {
                 continue;
             }
+            const rowKey = `${match.playlistId}:${match.type}:${match.xtreamId}`;
+            if (claimedRows.has(rowKey)) {
+                continue;
+            }
+            claimedRows.add(rowKey);
             items.push({ ...candidate, match });
             if (items.length === MAX_ITEMS) {
                 break;
@@ -442,160 +418,4 @@ export class DashboardRecommendationsService {
         }
         return items;
     }
-}
-
-/**
- * Both matching tiers for each of the candidate's aliases — localized
- * title first, original-title alias second.
- */
-function candidateKeySets(
-    candidate: RecommendationCandidate
-): CandidateKeys[] {
-    const type = candidate.mediaType === 'movie' ? 'movie' : 'series';
-    const toKeys = (title: string): CandidateKeys => {
-        const keys = normalizeTitleKeys(title);
-        return { exact: `${type}:${keys.exact}`, base: `${type}:${keys.base}` };
-    };
-
-    const sets = [toKeys(candidate.title)];
-    if (candidate.originalTitle) {
-        const alias = toKeys(candidate.originalTitle);
-        if (alias.exact !== sets[0].exact) {
-            sets.push(alias);
-        }
-    }
-    return sets;
-}
-
-/** Exact-tier keys only — used for dedupe and catalog-match lookup */
-function candidateTitleKeys(candidate: RecommendationCandidate): string[] {
-    return candidateKeySets(candidate).map((keys) => keys.exact);
-}
-
-/**
- * EVERY match per `type:exactNormalizedTitle`, in the order the worker
- * returned them.
- *
- * Deliberately not the shared `buildTitleMatchIndex`: that collapses to
- * one row per key before the candidate's year is known, so a catalog
- * holding both "Dune 1984" and "Dune 2021" keeps whichever arrived first
- * and a 2021 recommendation then fails the year check with the right row
- * already discarded. Keeping every row lets the year gate choose.
- */
-function groupMatchesByKey(
-    matches: readonly CatalogTitleMatch[]
-): Map<string, CatalogTitleMatch[]> {
-    const grouped = new Map<string, CatalogTitleMatch[]>();
-    for (const match of matches) {
-        const key = `${match.type}:${normalizeTitleKeys(match.queryTitle).exact}`;
-        grouped.set(key, [...(grouped.get(key) ?? []), match]);
-    }
-    return grouped;
-}
-
-/**
- * The catalog row this recommendation should link to, or null.
- *
- * Aliases are tried in order (localized title, then original-title), and
- * within one alias only year-compatible rows qualify — a localized title
- * can hit a same-named different-year row while the alias holds the
- * correct match, so a bad hit must not veto the good one. Among equally
- * compatible rows an exact-title match wins over a year-stripped one,
- * mirroring `buildTitleMatchIndex`'s own precedence.
- */
-function pickCatalogMatch(
-    candidate: RecommendationCandidate,
-    grouped: ReadonlyMap<string, CatalogTitleMatch[]>
-): CatalogTitleMatch | null {
-    for (const key of candidateTitleKeys(candidate)) {
-        const compatible = (grouped.get(key) ?? []).filter((row) =>
-            titleYearsCompatible(candidate.year, row.trailingYear)
-        );
-        if (compatible.length === 0) {
-            continue;
-        }
-        return (
-            compatible.find((row) => row.trailingYear === null) ??
-            compatible[0]
-        );
-    }
-    return null;
-}
-
-/**
- * Whether the user has already watched or favorited this recommendation.
- *
- * Two tiers, because a provider stores whatever the panel named the file.
- * The exact tier catches a stored title that normalizes to the canonical
- * one. The base tier catches the common `"Inception 2010"` shape, whose
- * exact key can never equal TMDB's `"Inception"` — but only when the
- * years agree, so a stored `"Blade Runner 2049"` does not swallow the
- * 1982 film. An unknown year on either side counts as agreeing
- * (`titleYearsCompatible`): recommending something already watched is the
- * worse failure of the two.
- */
-function isExcludedCandidate(
-    candidate: RecommendationCandidate,
-    excluded: ExclusionIndex
-): boolean {
-    return candidateKeySets(candidate).some(
-        ({ exact, base }) =>
-            excluded.exact.has(exact) ||
-            (excluded.baseYears.get(base) ?? []).some((year) =>
-                titleYearsCompatible(candidate.year, year)
-            )
-    );
-}
-
-/**
- * Identity of one load: the seed set, the watched/favorited exclusion
- * index, and the imported-playlist set. Including the exclusions means
- * favoriting a recommended title (or new watch history that does not
- * change the top seeds) still invalidates the latch and re-filters the
- * rail; including the catalog means imports and deletions re-run the
- * matching.
- */
-function buildLoadKey(
-    seeds: readonly DashboardTmdbLookupItem[],
-    excluded: ExclusionIndex,
-    catalogKey: string
-): string {
-    const exclusionKey = [
-        ...[...excluded.exact].sort(),
-        ...[...excluded.baseYears]
-            .map(([base, years]) => `${base}=${[...years].sort().join('/')}`)
-            .sort(),
-    ].join('|');
-    return `${catalogKey}@@${seeds
-        .map(dashboardTmdbLookupKey)
-        .join('||')}##${exclusionKey}`;
-}
-
-function toCandidates(
-    results: readonly TmdbSearchResult[],
-    mediaType: 'movie' | 'tv',
-    seedTitle: string
-): RecommendationCandidate[] {
-    return results
-        .map((result) => {
-            const title = result.title ?? result.name ?? '';
-            const original =
-                result.original_title ?? result.original_name ?? '';
-            const rating =
-                (result.vote_count ?? 0) > 0 && result.vote_average
-                    ? result.vote_average.toFixed(1)
-                    : null;
-            return {
-                tmdbId: result.id,
-                mediaType,
-                title,
-                originalTitle:
-                    original !== '' && original !== title ? original : null,
-                year: extractYear(result.release_date ?? result.first_air_date),
-                posterUrl: tmdbPosterUrl(result.poster_path),
-                rating,
-                seedTitle,
-            };
-        })
-        .filter((entry) => entry.tmdbId > 0 && entry.title !== '');
 }

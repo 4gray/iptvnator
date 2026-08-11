@@ -429,8 +429,8 @@ since shipped.)
   uses, including the Stalker hints and the movie→tv retry), and the
   `recommendations` list rides along in every cached details payload —
   seeds whose detail view was opened cost zero network. Per-seed lists are
-  interleaved round-robin, deduplicated by id AND normalized title,
-  stripped of anything already watched or favorited, and matched against
+  interleaved round-robin, deduplicated by TMDB id, stripped of anything
+  already watched or favorited, and matched against
   the imported libraries with ONE batched
   `CatalogTitleMatchService.matchTitles` request. The watched/favorited
   exclusion index is built through the same lookup-attempt builder the
@@ -444,7 +444,12 @@ since shipped.)
   show. On top of that the exclusion runs on two title tiers, because a
   provider stores whatever the panel named the file: the exact normalized
   title, plus a year-gated base tier for the common `"Inception 2010"`
-  shape whose exact key can never equal TMDB's `"Inception"`. The year gate is what keeps a stored
+  shape whose exact key can never equal TMDB's `"Inception"`. Both tiers
+  are year-gated the same way — the row's release year (Stalker's
+  `info.releasedate`, else a year read off the title) is recorded with
+  every key, so a watched 1954 `"Godzilla"` cannot exclude the 2014 one.
+  A row that states no year records `null` and keeps excluding
+  unconditionally. The year gate is what keeps a stored
   `"Blade Runner 2049"` from swallowing the 1982 film; an unknown year on
   either side counts as agreeing, since re-recommending something already
   watched is the worse failure. Matching and exclusion
@@ -460,7 +465,12 @@ since shipped.)
   in the catalog the wrong one can win that collapse, and the card is
   then dropped by the year check with the right row already discarded.
   Among year-compatible rows an exact-title match still wins over a
-  year-stripped one, mirroring the shared helper's precedence. Fewer than
+  year-stripped one, mirroring the shared helper's precedence. Title
+  collisions are resolved AFTER matching, by the catalog row a candidate
+  resolved to: same-titled remakes ("Dune" 1984 and 2021) are different
+  films that must both reach the matcher, while two candidates landing on
+  one row would otherwise render as duplicate cards opening the same
+  item. Fewer than
   `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
   the latch entirely, because an empty match result is indistinguishable
   from a transient worker failure (`matchTitles` maps failures to `[]`),

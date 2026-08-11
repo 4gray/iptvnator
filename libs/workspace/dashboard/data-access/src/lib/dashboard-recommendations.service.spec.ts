@@ -24,6 +24,19 @@ describe('DashboardRecommendationsService', () => {
         popularity: 50,
     });
 
+    // Distinct catalog rows per title: cards are deduplicated by the row
+    // they resolve to, so a shared id would collapse the whole rail.
+    const rowIds = new Map<string, number>();
+    const rowIdFor = (title: string): number => {
+        const existing = rowIds.get(title);
+        if (existing !== undefined) {
+            return existing;
+        }
+        const assigned = rowIds.size + 1;
+        rowIds.set(title, assigned);
+        return assigned;
+    };
+
     const match = (
         queryTitle: string,
         overrides: Partial<CatalogTitleMatch> = {}
@@ -32,7 +45,7 @@ describe('DashboardRecommendationsService', () => {
         playlistId: 'pl-1',
         playlistName: 'My Portal',
         categoryId: 7,
-        xtreamId: 42,
+        xtreamId: rowIdFor(queryTitle),
         type: 'movie',
         trailingYear: null,
         ...overrides,
@@ -588,6 +601,124 @@ describe('DashboardRecommendationsService', () => {
         expect(titles).not.toContain('Inception');
         // The rest survive — the failure is not a reason to blank them
         expect(titles).toHaveLength(recTitles.length - 1);
+    });
+
+    it('rebuilds after an offline filter once the inputs are restored', async () => {
+        const service = createService();
+
+        await service.load();
+        const full = service.items().length;
+
+        // Offline, and enough cards favorited to fall under the threshold
+        favorites = recTitles.slice(0, 3).map((title) => ({
+            title,
+            type: 'movie',
+        }));
+        enrichMovie.mockResolvedValue(null);
+        await service.load();
+        expect(service.items()).toEqual([]);
+
+        // Un-favoriting restores the exact inputs of the successful load —
+        // the saved key must not short-circuit the rebuild.
+        favorites = [];
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: recTitles.map((title, i) => rec(100 + i, title)),
+            },
+        });
+        await service.load();
+        expect(service.items()).toHaveLength(full);
+    });
+
+    it('keeps same-titled remakes apart through catalog matching', async () => {
+        // Two seeds recommend two different films sharing a title; only
+        // the 2021 one is in the library. Collapsing them before matching
+        // would let the 1984 entry fail the year gate on its behalf.
+        recentVod = [
+            { title: 'The Matrix', type: 'movie' },
+            { title: 'Blade Runner', type: 'movie' },
+        ];
+        recentAll = [...recentVod];
+        enrichMovie.mockImplementation(async (query: { title: string }) => ({
+            recommendations: {
+                results:
+                    query.title === 'The Matrix'
+                        ? [
+                              // The unplayable cut is interleaved FIRST —
+                              // that is the order in which collapsing by
+                              // title loses the playable one.
+                              rec(300, 'Dune', 1984),
+                              ...recTitles
+                                  .slice(0, 5)
+                                  .map((t, i) => rec(100 + i, t)),
+                          ]
+                        : [rec(301, 'Dune', 2021)],
+            },
+        }));
+        matchTitles.mockImplementation(async (titles: string[]) => {
+            const rows: CatalogTitleMatch[] = [];
+            for (const title of titles) {
+                // The library holds only the 2021 cut
+                rows.push(
+                    title === 'Dune'
+                        ? match(title, { trailingYear: 2021, xtreamId: 21 })
+                        : match(title)
+                );
+            }
+            return rows;
+        });
+        const service = createService();
+
+        await service.load();
+
+        const dune = service.items().filter((item) => item.title === 'Dune');
+        expect(dune).toHaveLength(1);
+        expect(dune[0].year).toBe(2021);
+    });
+
+    it('does not exclude a remake whose year disagrees with the watched one', async () => {
+        // A Stalker row states its release year, so a watched 1954
+        // "Godzilla" must not swallow the 2014 one.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Godzilla', 2014),
+                ],
+            },
+        });
+        recentAll = [
+            ...recentVod,
+            {
+                title: 'Godzilla',
+                type: 'movie',
+                stalker_item: {
+                    id: '9',
+                    category_id: 'vod',
+                    info: { name: 'Godzilla', releasedate: '1954-11-03' },
+                },
+            } as ActivityStub,
+        ];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).toContain(
+            'Godzilla'
+        );
+    });
+
+    it('still excludes a watched title whose year is unknown', async () => {
+        recentAll = [...recentVod, { title: 'Inception', type: 'movie' }];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).not.toContain(
+            'Inception'
+        );
     });
 
     it('retries on the next visit when no seed resolved', async () => {
