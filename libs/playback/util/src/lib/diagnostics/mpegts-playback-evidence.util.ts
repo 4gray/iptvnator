@@ -11,7 +11,7 @@ import {
     MpegTsPlaybackStage,
 } from './mpegts-playback-evidence.model';
 
-export const MPEGTS_DIAGNOSTIC_VERSION = '1.8.0';
+export const MPEGTS_DIAGNOSTIC_VERSION = '1.8.1';
 
 interface MpegTsPlaybackCause {
     readonly stage: MpegTsPlaybackStageValue;

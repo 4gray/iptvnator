@@ -115,7 +115,7 @@
         "hls.js": "1.6.16",
         "iptv-playlist-parser": "github:4gray/iptv-playlist-parser#v0.15.2-iptvnator.2",
         "marked": "18.0.7",
-        "mpegts.js": "1.8.0",
+        "mpegts.js": "1.8.1",
         "ms": "2.1.3",
         "ngx-indexed-db": "21.0.0",
         "ngx-skeleton-loader": "11.3.0",

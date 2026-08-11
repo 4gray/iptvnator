@@ -775,7 +775,7 @@ app as a real argument, so it is not an option.
 **Video Players**:
 
 - Built-in web players: HTML5+hls.js, Video.js, and ArtPlayer
-- mpegts.js `1.8.0` errors from all three built-in players cross one
+- mpegts.js `1.8.1` errors from all three built-in players cross one
   version-locked structured evidence boundary in `libs/playback/util`. It
   retains only exact public type/detail pairs, pair-derived stage/failure,
   terminal disposition, and a
