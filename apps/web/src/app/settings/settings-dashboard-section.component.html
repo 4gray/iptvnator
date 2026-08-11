@@ -177,5 +177,28 @@
                 ></mat-checkbox>
             </div>
         </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_TMDB_RECOMMENDATIONS'
+                            | translate
+                    }}
+                </h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_TMDB_RECOMMENDATIONS_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="tmdbRecommendations"
+                    data-test-id="toggle-dashboard-rail-tmdb-recommendations"
+                ></mat-checkbox>
+            </div>
+        </div>
     </div>
 </section>

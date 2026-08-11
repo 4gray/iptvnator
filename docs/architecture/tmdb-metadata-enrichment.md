@@ -401,9 +401,10 @@ never blocks or delays rendering of the detail view.
 
 ## Out of Scope (later phases)
 
-Similar/recommendations rails, actor cross-catalog search, trending
-dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
-(IndexedDB).
+Artwork upgrade for M3U VOD, persistent PWA cache (IndexedDB). (The
+similar rails, actor cross-catalog search, and the trending and
+recommendations dashboard rails from earlier versions of this list have
+since shipped.)
 
 ## Dashboard Integration
 
@@ -418,6 +419,28 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   (the rail is hidden in the PWA). The load fires only after the
   dashboard's own recent/favorites data is in, so it never competes for
   the worker at startup, and runs once per app session.
+- **Recommendations rail** ("Because you watched",
+  `dashboardRails.tmdbRecommendations` toggle): TMDB has no account-free
+  "recommendations for you" endpoint, so `DashboardRecommendationsService`
+  (`libs/workspace/dashboard/data-access`) seeds from the user's most
+  recently watched movies/series (up to 3 distinct seeds). Each seed
+  resolves through the enrichment facade using the shared
+  `dashboard-tmdb-lookup.util.ts` attempt builder (the same one the hero
+  uses, including the Stalker hints and the movie→tv retry), and the
+  `recommendations` list rides along in every cached details payload —
+  seeds whose detail view was opened cost zero network. Per-seed lists are
+  interleaved round-robin, deduplicated by id AND normalized title,
+  stripped of anything already watched or favorited, and matched against
+  the imported libraries with ONE batched
+  `CatalogTitleMatchService.matchTitles` request. Only matched,
+  year-compatible titles render (each card navigates to its detail view);
+  fewer than `MIN_RECOMMENDATION_MATCHES` (5) hides the rail. The rail
+  header names the seed ("Because you watched X") when exactly one seed
+  contributed, else falls back to the generic "Recommended for you". Loads
+  are keyed by the seed set — watching something new re-seeds on the next
+  dashboard visit; a load where no seed resolved (TMDB unreachable) does
+  not latch and retries instead. Same gating as trending: TMDB opt-in +
+  Electron DB worker, deferred behind the dashboard's own data.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
   backdrop (when the activity row has none), a rating badge and up to two

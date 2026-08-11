@@ -55,6 +55,8 @@ export function createSettingsForm(
             xtreamRecentlyAdded:
                 DEFAULT_DASHBOARD_RAILS_SETTINGS.xtreamRecentlyAdded,
             tmdbTrending: DEFAULT_DASHBOARD_RAILS_SETTINGS.tmdbTrending,
+            tmdbRecommendations:
+                DEFAULT_DASHBOARD_RAILS_SETTINGS.tmdbRecommendations,
         }),
         startupBehavior: StartupBehavior.FirstView,
         showExternalPlaybackBar: true,
