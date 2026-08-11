@@ -57,6 +57,7 @@ describe('DashboardRecommendationsService', () => {
     let recentAll: ActivityStub[];
     let favorites: ActivityStub[];
     let playlists: { _id: string }[];
+    let tmdbLanguage: string;
 
     function createService(
         options: { matchingAvailable?: boolean } = {}
@@ -65,7 +66,12 @@ describe('DashboardRecommendationsService', () => {
             providers: [
                 {
                     provide: TmdbEnrichmentService,
-                    useValue: { isEnabled, enrichMovie, enrichTv },
+                    useValue: {
+                        isEnabled,
+                        enrichMovie,
+                        enrichTv,
+                        language: () => tmdbLanguage,
+                    },
                 },
                 {
                     provide: CatalogTitleMatchService,
@@ -105,6 +111,7 @@ describe('DashboardRecommendationsService', () => {
         recentAll = [...recentVod];
         favorites = [];
         playlists = [{ _id: 'pl-1' }];
+        tmdbLanguage = 'en-US';
     });
 
     it('does nothing when TMDB is disabled', async () => {
@@ -253,6 +260,71 @@ describe('DashboardRecommendationsService', () => {
         expect(enrichMovie.mock.calls[1][0]).toEqual(
             expect.objectContaining({ title: 'Heat' })
         );
+    });
+
+    it('recovers a previously successful input set after a hidden interlude', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
+
+        // A transient below-threshold result under different inputs
+        favorites = [{ title: 'Inception', type: 'movie' }];
+        matchTitles.mockImplementationOnce(async (titles: string[]) =>
+            titles.slice(0, 4).map((title) => match(title))
+        );
+        await service.load();
+        expect(service.items()).toEqual([]);
+
+        // Returning to the original inputs must reload, not hit the guard
+        favorites = [];
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
+    });
+
+    it('reloads when the TMDB language changes', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(enrichMovie).toHaveBeenCalledTimes(1);
+
+        tmdbLanguage = 'ru-RU';
+        await service.load();
+        expect(enrichMovie).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to the alias match when the localized match is year-incompatible', async () => {
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    {
+                        ...rec(200, 'The Hunt', 2012),
+                        original_title: 'Jagten',
+                    },
+                ],
+            },
+        });
+        matchTitles.mockImplementation(async (titles: string[]) =>
+            titles.map((title) =>
+                match(title, {
+                    // The localized title hits a same-named 2020 row; the
+                    // original-title alias holds the correct 2012 match.
+                    trailingYear: title === 'The Hunt' ? 2020 : null,
+                })
+            )
+        );
+        const service = createService();
+
+        await service.load();
+
+        const hunt = service
+            .items()
+            .find((item) => item.title === 'The Hunt');
+        expect(hunt).toBeDefined();
+        expect(hunt?.match.queryTitle).toBe('Jagten');
     });
 
     it('re-runs the matching when the playlist set changes', async () => {

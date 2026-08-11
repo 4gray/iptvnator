@@ -114,7 +114,15 @@ export class DashboardRecommendationsService {
             return;
         }
         const excluded = this.excludedTitleKeys();
-        const loadKey = buildLoadKey(seeds, excluded, this.catalogKey());
+        // The language is part of the identity: TMDB payloads (and thus
+        // card titles) are localized, so a language change must reload —
+        // the service outlives the dashboard and would otherwise keep
+        // titles in the previous language all session.
+        const loadKey = `${this.enrichment.language()}//${buildLoadKey(
+            seeds,
+            excluded,
+            this.catalogKey()
+        )}`;
         if (loadKey === this.loadedKey) {
             return;
         }
@@ -150,8 +158,13 @@ export class DashboardRecommendationsService {
                     // (matchTitles maps failures to []), and re-running is
                     // cheap (cached enrichment + one batched worker call).
                     // Mirrors the trending rail's retry-on-empty semantics.
+                    // The PREVIOUS key must reset too: it described the
+                    // rail that was just cleared, and returning to those
+                    // exact inputs (say, un-favoriting again) would
+                    // otherwise hit the equality guard and stay empty.
                     this.items.set([]);
                     this.seedTitles.set([]);
+                    this.loadedKey = null;
                 }
             }
         } catch (error) {
@@ -307,14 +320,22 @@ export class DashboardRecommendationsService {
 
         const items: DashboardRecommendationItem[] = [];
         for (const candidate of candidates) {
+            // First alias whose match is ALSO year-compatible: a localized
+            // title can hit a same-named different-year row while the
+            // original-title alias holds the correct match — a bad first
+            // hit must not veto the good second one.
             const match =
                 candidateTitleKeys(candidate)
                     .map((key) => index.get(key))
-                    .find(Boolean) ?? null;
-            if (
-                !match ||
-                !titleYearsCompatible(candidate.year, match.trailingYear)
-            ) {
+                    .find(
+                        (found) =>
+                            found &&
+                            titleYearsCompatible(
+                                candidate.year,
+                                found.trailingYear
+                            )
+                    ) ?? null;
+            if (!match) {
                 continue;
             }
             items.push({ ...candidate, match });

@@ -497,6 +497,8 @@ export class WorkspaceDashboardRailsComponent {
             this.data.globalRecentVodItems();
             this.data.globalFavoriteItems();
             this.data.playlists();
+            // Language feeds the service's load key (localized payloads)
+            this.languageTick();
             untracked(() => void this.recommendationsService.load());
         });
     }
