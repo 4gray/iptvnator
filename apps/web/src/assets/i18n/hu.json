@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker-portál",
             "METHOD_STALKER_SUB": "MAC-cím és a portál URL-címe",
             "METHOD_TEXT_LABEL": "Nyers M3U-szöveg",
-            "METHOD_TEXT_SUB": "Egyszeri listákhoz, vagy ha csak szöveg áll rendelkezésére"
+            "METHOD_TEXT_SUB": "Egyszeri listákhoz, vagy ha csak szöveg áll rendelkezésére",
+            "METHOD_AUTO_LABEL": "Automatikus felismerés",
+            "METHOD_AUTO_SUB": "Illessze be a szolgáltató üzenetét"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Húzzon ide egy .m3u- vagy .m3u8-fájlt",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Szövegként importálva",
-        "PARSING_ERROR": "Hiba: a feldolgozás sikertelen; ez nem érvényes lejátszási lista:"
+        "PARSING_ERROR": "Hiba: a feldolgozás sikertelen; ez nem érvényes lejátszási lista:",
+        "AUTO_DETECT": {
+            "LABEL": "A szolgáltató üzenete",
+            "PLACEHOLDER": "Illesszen be mindent, amit a szolgáltató küldött — linkek, felhasználónév és jelszó, MAC-cím…",
+            "PRIVACY_HINT": "A felismerés helyben, az alkalmazásban történik; a beillesztett szöveg nem kerül elküldésre.",
+            "NO_MATCHES": "Még semmi sem felismerhető. Illessze be a teljes üzenetet a linkkel vagy a belépési adatokkal.",
+            "CONFIDENCE_HIGH": "Biztos találat",
+            "CONFIDENCE_MEDIUM": "Valószínű találat",
+            "CONFIDENCE_LOW": "Feltételezés",
+            "USE": "Űrlap kitöltése",
+            "M3U_TEXT_NOTE": "M3U-lejátszási listának tűnik — beillesztett szövegként lesz importálva."
+        }
     },
     "SETTINGS": {
         "TITLE": "Beállítások",

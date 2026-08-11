@@ -56,7 +56,10 @@
 // exist). Each card is self-describing — icon + label + one-line sub.
 .apd-method-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    // 6 methods (URL, file, Xtream, Stalker, text, auto-detect) — a 3×2
+    // grid keeps the cards wide enough for their subtitles; 5 columns left
+    // a lone orphan card on the second row.
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
     margin: 4px 0 16px;
 }
@@ -163,7 +166,7 @@
     line-height: 1.4;
 }
 
-// On narrow widths the 5-column grid wraps to 2 columns to stay legible.
+// On narrow widths the 3-column grid wraps to 2 columns to stay legible.
 // 480px keeps the dialog usable down to small modals; below that it stacks
 // fully.
 @media (max-width: 720px) {

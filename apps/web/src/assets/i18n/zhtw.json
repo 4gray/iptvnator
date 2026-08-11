@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker 入口網站",
             "METHOD_STALKER_SUB": "MAC 位址與入口網址",
             "METHOD_TEXT_LABEL": "M3U 原始文字",
-            "METHOD_TEXT_SUB": "適合一次性清單，或您只有文字內容時使用"
+            "METHOD_TEXT_SUB": "適合一次性清單，或您只有文字內容時使用",
+            "METHOD_AUTO_LABEL": "自動辨識",
+            "METHOD_AUTO_SUB": "貼上服務商傳來的訊息"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "在此處拖放檔案",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "以文字方式匯入",
-        "PARSING_ERROR": "錯誤：解析失敗，不是有效的播放清單："
+        "PARSING_ERROR": "錯誤：解析失敗，不是有效的播放清單：",
+        "AUTO_DETECT": {
+            "LABEL": "服務商傳來的訊息",
+            "PLACEHOLDER": "貼上服務商傳送的全部內容——連結、使用者名稱與密碼、MAC 位址等…",
+            "PRIVACY_HINT": "辨識在應用程式內本機完成；貼上的文字不會傳送到任何地方。",
+            "NO_MATCHES": "尚未辨識出任何內容。請貼上包含連結或憑證的完整訊息。",
+            "CONFIDENCE_HIGH": "確定匹配",
+            "CONFIDENCE_MEDIUM": "可能匹配",
+            "CONFIDENCE_LOW": "推測",
+            "USE": "填寫表單",
+            "M3U_TEXT_NOTE": "看起來是 M3U 播放清單——將作為貼上的文字匯入。"
+        }
     },
     "SETTINGS": {
         "TITLE": "設定",

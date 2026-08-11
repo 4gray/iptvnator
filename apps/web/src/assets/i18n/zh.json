@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker 门户",
             "METHOD_STALKER_SUB": "MAC 地址和门户 URL",
             "METHOD_TEXT_LABEL": "原始 m3u 文本",
-            "METHOD_TEXT_SUB": "用于一次性列表，或仅有文本时"
+            "METHOD_TEXT_SUB": "用于一次性列表，或仅有文本时",
+            "METHOD_AUTO_LABEL": "自动识别",
+            "METHOD_AUTO_SUB": "粘贴服务商发来的消息"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "将文件拖放到此处",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "以文本形式导入",
-        "PARSING_ERROR": "错误：解析失败，不是有效的播放列表："
+        "PARSING_ERROR": "错误：解析失败，不是有效的播放列表：",
+        "AUTO_DETECT": {
+            "LABEL": "服务商发来的消息",
+            "PLACEHOLDER": "粘贴服务商发送的全部内容——链接、用户名和密码、MAC 地址等…",
+            "PRIVACY_HINT": "识别在应用内本地完成；粘贴的文本不会被发送到任何地方。",
+            "NO_MATCHES": "尚未识别出任何内容。请粘贴包含链接或凭据的完整消息。",
+            "CONFIDENCE_HIGH": "确定匹配",
+            "CONFIDENCE_MEDIUM": "可能匹配",
+            "CONFIDENCE_LOW": "推测",
+            "USE": "填写表单",
+            "M3U_TEXT_NOTE": "看起来是 M3U 播放列表——将作为粘贴文本导入。"
+        }
     },
     "SETTINGS": {
         "TITLE": "设置",

@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker-portaal",
             "METHOD_STALKER_SUB": "MAC-adres en portal-URL",
             "METHOD_TEXT_LABEL": "Ruwe m3u-tekst",
-            "METHOD_TEXT_SUB": "Voor eenmalige lijsten of als je alleen tekst hebt"
+            "METHOD_TEXT_SUB": "Voor eenmalige lijsten of als je alleen tekst hebt",
+            "METHOD_AUTO_LABEL": "Automatisch detecteren",
+            "METHOD_AUTO_SUB": "Plak het bericht van je provider"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Sleep bestanden hierheen",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Geïmporteerd als tekst",
-        "PARSING_ERROR": "Fout: parsing mislukt, geen geldige afspeellijst:"
+        "PARSING_ERROR": "Fout: parsing mislukt, geen geldige afspeellijst:",
+        "AUTO_DETECT": {
+            "LABEL": "Bericht van je provider",
+            "PLACEHOLDER": "Plak alles wat je provider heeft gestuurd — links, gebruikersnaam en wachtwoord, MAC-adres…",
+            "PRIVACY_HINT": "Detectie gebeurt lokaal in de app; geplakte tekst wordt nergens naartoe gestuurd.",
+            "NO_MATCHES": "Nog niets herkend. Plak het volledige bericht met de link of inloggegevens.",
+            "CONFIDENCE_HIGH": "Zekere match",
+            "CONFIDENCE_MEDIUM": "Waarschijnlijke match",
+            "CONFIDENCE_LOW": "Gok",
+            "USE": "Formulier invullen",
+            "M3U_TEXT_NOTE": "Lijkt op een M3U-afspeellijst — deze wordt als geplakte tekst geïmporteerd."
+        }
     },
     "SETTINGS": {
         "TITLE": "Instellingen",

@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker-Portal",
             "METHOD_STALKER_SUB": "MAC-Adresse und Portal-URL",
             "METHOD_TEXT_LABEL": "M3U-Text",
-            "METHOD_TEXT_SUB": "Für einmalige Listen oder wenn Sie nur Text haben"
+            "METHOD_TEXT_SUB": "Für einmalige Listen oder wenn Sie nur Text haben",
+            "METHOD_AUTO_LABEL": "Automatisch erkennen",
+            "METHOD_AUTO_SUB": "Nachricht des Anbieters einfügen"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Ziehen Sie Dateien per Drag & Drop",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Als Text importiert",
-        "PARSING_ERROR": "Fehler: Parsen fehlgeschlagen, keine gültige Playlist:"
+        "PARSING_ERROR": "Fehler: Parsen fehlgeschlagen, keine gültige Playlist:",
+        "AUTO_DETECT": {
+            "LABEL": "Nachricht Ihres Anbieters",
+            "PLACEHOLDER": "Fügen Sie alles ein, was Ihr Anbieter geschickt hat — Links, Benutzername und Passwort, MAC-Adresse…",
+            "PRIVACY_HINT": "Die Erkennung läuft lokal in der App; der eingefügte Text wird nirgendwohin gesendet.",
+            "NO_MATCHES": "Noch nichts erkannt. Fügen Sie die vollständige Nachricht mit Link oder Zugangsdaten ein.",
+            "CONFIDENCE_HIGH": "Sichere Übereinstimmung",
+            "CONFIDENCE_MEDIUM": "Wahrscheinliche Übereinstimmung",
+            "CONFIDENCE_LOW": "Vermutung",
+            "USE": "Formular ausfüllen",
+            "M3U_TEXT_NOTE": "Sieht wie eine M3U-Playlist aus — sie wird als eingefügter Text importiert."
+        }
     },
     "SETTINGS": {
         "TITLE": "Einstellungen",

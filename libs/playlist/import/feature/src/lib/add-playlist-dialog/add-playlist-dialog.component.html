@@ -57,6 +57,11 @@
                 @case ('xtream') {
                     <app-xtream-code-import (addClicked)="closeDialog()" />
                 }
+                @case ('auto') {
+                    <app-auto-import
+                        (candidateSelected)="onCandidateSelected($event)"
+                    />
+                }
             }
         </div>
     </mat-dialog-content>
