@@ -61,9 +61,12 @@ const MAX_ITEMS = 18;
  * request keeps only titles that exist in an imported library.
  *
  * Requires the TMDB opt-in and the Electron DB worker — hidden in the PWA.
- * A load is keyed by the seed set, so watching something new re-seeds the
- * rail on the next dashboard visit; failed loads (TMDB unreachable) do not
- * latch and retry instead.
+ * A load is keyed by the seed set AND the watched/favorited exclusion set,
+ * so watching something new re-seeds the rail and favoriting a recommended
+ * title removes it on the next dashboard visit; failed loads (TMDB
+ * unreachable) do not latch and retry instead. A load requested while one
+ * is in flight is queued and re-run afterwards, so a mid-flight history
+ * change cannot strand a stale rail.
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardRecommendationsService {
@@ -76,22 +79,35 @@ export class DashboardRecommendationsService {
     readonly seedTitles = signal<readonly string[]>([]);
     readonly loading = signal(false);
 
-    private loadedSeedKey: string | null = null;
+    private loadedKey: string | null = null;
+    private rerunQueued = false;
 
     get isAvailable(): boolean {
         return this.enrichment.isEnabled() && this.titleMatch.isAvailable;
     }
 
     async load(): Promise<void> {
-        if (this.loading() || !this.isAvailable) {
+        if (!this.isAvailable) {
+            return;
+        }
+        if (this.loading()) {
+            // Re-run after the active load settles — its result may be for
+            // a seed/exclusion set that just went stale.
+            this.rerunQueued = true;
             return;
         }
         const seeds = this.selectSeeds();
         if (seeds.length === 0) {
+            // The service outlives the dashboard (root-provided), so a
+            // cleared watch history must clear the rail too.
+            this.items.set([]);
+            this.seedTitles.set([]);
+            this.loadedKey = null;
             return;
         }
-        const seedKey = seeds.map(dashboardTmdbLookupKey).join('||');
-        if (seedKey === this.loadedSeedKey) {
+        const excluded = this.excludedTitleKeys();
+        const loadKey = buildLoadKey(seeds, excluded);
+        if (loadKey === this.loadedKey) {
             return;
         }
 
@@ -102,32 +118,40 @@ export class DashboardRecommendationsService {
             );
             // No seed resolved: TMDB is likely unreachable or every lookup
             // missed. Do NOT latch — the next dashboard visit retries.
-            if (!perSeed.some((seed) => seed.resolved)) {
-                return;
+            if (perSeed.some((seed) => seed.resolved)) {
+                const candidates = this.mergeCandidates(
+                    perSeed.map((seed) => seed.entries),
+                    excluded
+                );
+                const matched = await this.attachMatches(candidates);
+                const items =
+                    matched.length >= MIN_RECOMMENDATION_MATCHES
+                        ? matched
+                        : [];
+
+                const contributed = new Set(
+                    items.map((item) => item.seedTitle)
+                );
+                this.items.set(items);
+                this.seedTitles.set(
+                    perSeed
+                        .map((seed) => seed.seedTitle)
+                        .filter((title) => contributed.has(title))
+                );
+                // Too few matches is a property of the library, not a
+                // transient failure — latch so the same inputs are not
+                // re-resolved on every dashboard visit.
+                this.loadedKey = loadKey;
             }
-
-            const candidates = this.mergeCandidates(
-                perSeed.map((seed) => seed.entries)
-            );
-            const matched = await this.attachMatches(candidates);
-            const items =
-                matched.length >= MIN_RECOMMENDATION_MATCHES ? matched : [];
-
-            const contributed = new Set(items.map((item) => item.seedTitle));
-            this.items.set(items);
-            this.seedTitles.set(
-                perSeed
-                    .map((seed) => seed.seedTitle)
-                    .filter((title) => contributed.has(title))
-            );
-            // Too few matches is a property of the library, not a transient
-            // failure — latch so the same seed set is not re-resolved on
-            // every dashboard visit.
-            this.loadedSeedKey = seedKey;
         } catch (error) {
             console.warn('Dashboard recommendations load failed:', error);
         } finally {
             this.loading.set(false);
+        }
+
+        if (this.rerunQueued) {
+            this.rerunQueued = false;
+            await this.load();
         }
     }
 
@@ -187,9 +211,9 @@ export class DashboardRecommendationsService {
      * watched or favorited.
      */
     private mergeCandidates(
-        lists: readonly RecommendationCandidate[][]
+        lists: readonly RecommendationCandidate[][],
+        excluded: ReadonlySet<string>
     ): RecommendationCandidate[] {
-        const excluded = this.excludedTitleKeys();
         const seen = new Set<string>();
         const merged: RecommendationCandidate[] = [];
         const longest = Math.max(0, ...lists.map((list) => list.length));
@@ -265,6 +289,21 @@ export class DashboardRecommendationsService {
 function candidateTitleKey(candidate: RecommendationCandidate): string {
     const type = candidate.mediaType === 'movie' ? 'movie' : 'series';
     return `${type}:${normalizeTitleKeys(candidate.title).exact}`;
+}
+
+/**
+ * Identity of one load: the seed set plus the watched/favorited exclusion
+ * set. Including the exclusions means favoriting a recommended title (or
+ * new watch history that does not change the top seeds) still invalidates
+ * the latch and re-filters the rail.
+ */
+function buildLoadKey(
+    seeds: readonly DashboardTmdbLookupItem[],
+    excluded: ReadonlySet<string>
+): string {
+    return `${seeds.map(dashboardTmdbLookupKey).join('||')}##${[...excluded]
+        .sort()
+        .join('|')}`;
 }
 
 function toCandidates(

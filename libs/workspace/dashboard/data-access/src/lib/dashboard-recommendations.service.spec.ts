@@ -193,6 +193,61 @@ describe('DashboardRecommendationsService', () => {
         expect(enrichMovie).toHaveBeenCalledTimes(2);
     });
 
+    it('clears the rail when the watch history empties', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
+
+        recentVod = [];
+        recentAll = [];
+        await service.load();
+
+        expect(service.items()).toEqual([]);
+        expect(service.seedTitles()).toEqual([]);
+    });
+
+    it('re-filters when a recommended title is favorited after a load', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(service.items().map((item) => item.title)).toContain(
+            'Inception'
+        );
+
+        favorites = [{ title: 'Inception', type: 'movie' }];
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).not.toContain(
+            'Inception'
+        );
+    });
+
+    it('runs a load queued while another was in flight', async () => {
+        let resolveFirst!: (value: unknown) => void;
+        enrichMovie.mockImplementationOnce(
+            () => new Promise((resolve) => (resolveFirst = resolve))
+        );
+        const service = createService();
+
+        const first = service.load();
+        recentVod = [{ title: 'Heat', type: 'movie' }];
+        recentAll = [...recentVod];
+        await service.load(); // dropped by the loading guard — must queue
+
+        resolveFirst({
+            recommendations: {
+                results: recTitles.map((title, i) => rec(100 + i, title)),
+            },
+        });
+        await first; // resolves only after the queued re-run completes
+
+        expect(enrichMovie).toHaveBeenCalledTimes(2);
+        expect(enrichMovie.mock.calls[1][0]).toEqual(
+            expect.objectContaining({ title: 'Heat' })
+        );
+    });
+
     it('retries on the next visit when no seed resolved', async () => {
         enrichMovie.mockResolvedValue(null);
         const service = createService();

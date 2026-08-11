@@ -437,10 +437,14 @@ since shipped.)
   fewer than `MIN_RECOMMENDATION_MATCHES` (5) hides the rail. The rail
   header names the seed ("Because you watched X") when exactly one seed
   contributed, else falls back to the generic "Recommended for you". Loads
-  are keyed by the seed set — watching something new re-seeds on the next
-  dashboard visit; a load where no seed resolved (TMDB unreachable) does
-  not latch and retries instead. Same gating as trending: TMDB opt-in +
-  Electron DB worker, deferred behind the dashboard's own data.
+  are keyed by the seed set AND the watched/favorited exclusion set —
+  watching something new re-seeds on the next dashboard visit and
+  favoriting a recommended title re-filters it out; a cleared watch
+  history clears the rail (the service is root-provided and outlives the
+  dashboard); a load requested while one is in flight is queued and
+  re-run afterwards; a load where no seed resolved (TMDB unreachable)
+  does not latch and retries instead. Same gating as trending: TMDB
+  opt-in + Electron DB worker, deferred behind the dashboard's own data.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
   backdrop (when the activity row has none), a rating badge and up to two
