@@ -445,14 +445,19 @@ since shipped.)
   provider stores whatever the panel named the file: the exact normalized
   title, plus a year-gated base tier for the common `"Inception 2010"`
   shape whose exact key can never equal TMDB's `"Inception"`. Both tiers
-  are year-gated the same way — the row's release year (Stalker's
-  `info.releasedate`, else a year read off the title) is recorded with
-  every key, so a watched 1954 `"Godzilla"` cannot exclude the 2014 one.
-  A row that states no year records `null` and keeps excluding
-  unconditionally. The year gate is what keeps a stored
-  `"Blade Runner 2049"` from swallowing the 1982 film; an unknown year on
-  either side counts as agreeing, since re-recommending something already
-  watched is the worse failure. Matching and exclusion
+  are year-gated, but from different sources. The exact tier uses only a
+  year the row STATES in a metadata field (Stalker's `info.releasedate`),
+  so a watched 1954 `"Godzilla"` cannot exclude the 2014 one — while
+  `"Blade Runner 2049"`, whose year belongs to the NAME, still excludes
+  itself. That follows `releaseTagYear`'s rule: on a whole-title match a
+  trailing number is part of the name and nothing can settle it, so an
+  inferred year must not veto the match. The base tier keeps using the
+  trailing year it stripped, which is a year suffix by construction, and
+  that gate is what keeps a stored `"Blade Runner 2049"` from swallowing
+  the 1982 `"Blade Runner"`. A row that states no year records `null` and
+  keeps excluding unconditionally; an unknown year on either side counts
+  as agreeing, since re-recommending something already watched is the
+  worse failure. Matching and exclusion
   work through BOTH the localized title and the TMDB original-title alias
   (cards always display the localized form) — catalogs frequently name
   items in their original language while the app language localizes the

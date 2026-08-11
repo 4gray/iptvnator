@@ -19,6 +19,7 @@ import {
     isExcludedCandidate,
     pickCatalogMatch,
     toCandidates,
+    trustedReleaseYear,
 } from './dashboard-recommendations.util';
 
 interface SeedRecommendations {
@@ -182,8 +183,17 @@ export class DashboardRecommendationsService {
      */
     private dropExcludedCards(excluded: ExclusionIndex): void {
         const current = this.items();
+        // A card whose playlist is gone would navigate to a dead route,
+        // and the failed refresh is no excuse for keeping it — this is
+        // the only path that can reach a deleted playlist without the
+        // catalog key rebuilding the rail from scratch.
+        const livePlaylists = new Set(
+            this.data.playlists().map((playlist) => playlist._id)
+        );
         const kept = current.filter(
-            (item) => !isExcludedCandidate(item, excluded)
+            (item) =>
+                livePlaylists.has(item.match.playlistId) &&
+                !isExcludedCandidate(item, excluded)
         );
         if (kept.length === current.length) {
             return;
@@ -364,13 +374,13 @@ export class DashboardRecommendationsService {
             if (item.type !== 'movie' && item.type !== 'series') {
                 return;
             }
-            // The row's release year when anything states one — Stalker
-            // rows carry `info.releasedate`, others may embed it in the
-            // title. Recorded so a watched 1954 "Godzilla" cannot exclude
-            // the 2014 one; `null` keeps the conservative behaviour for
-            // rows that state no year at all.
+            // Only a year the row STATES in a metadata field gates the
+            // exact tier, so a watched 1954 "Godzilla" cannot exclude the
+            // 2014 one — while "Blade Runner 2049", whose year is part of
+            // the name, still excludes itself. `null` keeps the
+            // conservative behaviour for rows that state no year.
+            const year = trustedReleaseYear(item);
             const [primary] = buildDashboardTmdbAttempts(item);
-            const year = primary?.year ?? null;
 
             addTitle(item.type, item.title, year);
             if (primary) {

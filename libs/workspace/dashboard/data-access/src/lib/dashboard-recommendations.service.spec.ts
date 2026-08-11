@@ -710,6 +710,48 @@ describe('DashboardRecommendationsService', () => {
         );
     });
 
+    it('excludes a watched title whose name ends in a year', async () => {
+        // "Blade Runner 2049" is a 2017 film; the 2049 belongs to the
+        // NAME, so it must not be read as a release year and used to
+        // reject the very title the user just watched.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Blade Runner 2049', 2017),
+                ],
+            },
+        });
+        recentAll = [
+            ...recentVod,
+            { title: 'Blade Runner 2049', type: 'movie' },
+        ];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).not.toContain(
+            'Blade Runner 2049'
+        );
+    });
+
+    it('drops a card whose playlist was deleted while offline', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(service.items().length).toBeGreaterThan(0);
+
+        // Playlist gone AND TMDB unreachable — the only path that reaches
+        // the retained cards without rebuilding them.
+        playlists = [];
+        enrichMovie.mockResolvedValue(null);
+        await service.load();
+
+        expect(service.items()).toEqual([]);
+    });
+
     it('still excludes a watched title whose year is unknown', async () => {
         recentAll = [...recentVod, { title: 'Inception', type: 'movie' }];
         const service = createService();

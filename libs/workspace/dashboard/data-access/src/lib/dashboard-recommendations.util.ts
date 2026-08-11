@@ -36,6 +36,30 @@ export interface DashboardRecommendationItem {
 export type RecommendationCandidate = Omit<DashboardRecommendationItem, 'match'>;
 
 /**
+ * The release year an activity row STATES in a metadata field, never one
+ * parsed out of its title.
+ *
+ * The exact tier compares whole normalized titles, so a trailing number
+ * there belongs to the NAME: "Blade Runner 2049" is not a 2049 film, and
+ * gating that key on a title-derived 2049 would fail to exclude the very
+ * film the user just watched (TMDB calls it 2017). Only Stalker rows
+ * carry a real date (`info.releasedate`); everything else yields `null`,
+ * which keeps the exact tier excluding unconditionally.
+ *
+ * The base tier is different by construction — its key exists only
+ * because a trailing year was stripped off — so it keeps using that year.
+ */
+export function trustedReleaseYear(
+    item: DashboardTmdbLookupItem
+): number | null {
+    const info = (
+        item.stalker_item as { info?: Record<string, unknown> } | undefined
+    )?.info;
+    const releaseDate = info?.['releasedate'];
+    return typeof releaseDate === 'string' ? extractYear(releaseDate) : null;
+}
+
+/**
  * What the user has already watched or favorited, in the two forms a
  * recommendation can collide with.
  */
