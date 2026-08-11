@@ -43,24 +43,12 @@ const QUALITY_TAGS = new Set([
 export const PROVIDER_PIPE_CLASS = '[|¦│┃❘∣⏐⎪︱︳丨｜]';
 
 /**
- * The alphabet a pipe-delimited tag may use: Latin or Cyrillic, either case
- * — the same set the language-prefix reader accepts, so the two files agree
- * on what a tag looks like. Every segment must still contain a letter, so a
- * numeric fragment is never read as one.
- *
- * Wider than the uppercase-Latin `SEG` below because it is only ever used
- * where a pipe is the separator. Nothing but a tag precedes a pipe: it is
- * not valid in a Windows filename and does not occur in real titles.
- */
-const PIPE_LETTER = 'A-Za-zА-Яа-яЁё';
-const PIPE_SEG = `(?=[0-9+]*[${PIPE_LETTER}])[${PIPE_LETTER}0-9+]`;
-
-/**
  * Wrapped tag at the very start of a provider title: "|DE| ARD",
- * "|MULTI| Fallout", "|РУС| Дюна".
+ * "|MULTI| Fallout". The lookahead requires a letter in the tag so a
+ * numeric fragment can never be treated as one.
  */
 const WRAPPED_TAG_PREFIX = new RegExp(
-    `^\\s*${PROVIDER_PIPE_CLASS}${PIPE_SEG}{2,5}${PROVIDER_PIPE_CLASS}\\s*`
+    `^\\s*${PROVIDER_PIPE_CLASS}(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}${PROVIDER_PIPE_CLASS}\\s*`
 );
 
 /**
@@ -78,23 +66,26 @@ const WRAPPED_TAG_PREFIX = new RegExp(
  *   - colon ("EN: "): 2–3 chars — longer acronyms are franchise titles
  *     ("NCIS: LA")
  *
- * The pipe branch takes the wider `PIPE_SEG` alphabet (Cyrillic as well as
- * Latin, either case) and does not require a space after the separator.
- * "РУС | Фильм", "ru| Movie" and "EN|Movie" otherwise keep their tag welded
- * to the title, so the tagged copy never matches the bare one and
- * multi-source cannot offer the film at all.
+ * The pipe branch alone does not require a space after the separator:
+ * "|FR|VO|Le dernier empereur" welds the tag to the title, and no real title
+ * begins with a short word immediately followed by a pipe.
  *
- * Neither widening is extended to dash and colon: those are ordinary title
- * punctuation, and the uppercase-Latin restriction plus the required space
- * are what keep "ОНО: Часть 2" and "Spider-Man" intact — the Cyrillic and
- * hyphenated cases of the "It: Chapter Two" hazard.
+ * The UPPERCASE-only restriction stays on every branch, pipe included. It is
+ * tempting to drop it there on the theory that nothing but a tag precedes a
+ * pipe — 1.27M real catalog titles say otherwise, and in two ways at once:
+ * "Akira | 1988" and "Coco | 2017" put the film's NAME before the pipe and
+ * the year after it, and Russian catalogs write "Момо | Momo",
+ * "Мумия (2026) | Lee Cronin's The Mummy" — the localized title, then the
+ * original. Case-insensitivity (or a Cyrillic alphabet) turns every one of
+ * those names into a "tag" and strips it; measured against that corpus it
+ * corrupted 349 keys and rescued none.
  */
 const SEG = '(?=[0-9+]*[A-Z])[A-Z0-9+]';
 const COMPOUND_TAG = `${SEG}{2,5}(?:-${SEG}{2,6}){1,2}`;
 const LANGUAGE_PREFIX = new RegExp(
     '^(?:' +
         `(?:${COMPOUND_TAG}|${SEG}{2,3})\\s*-\\s+` +
-        `|(?:${COMPOUND_TAG}|${PIPE_SEG}{2,5})\\s*${PROVIDER_PIPE_CLASS}\\s*` +
+        `|(?:${COMPOUND_TAG}|${SEG}{2,5})\\s*${PROVIDER_PIPE_CLASS}\\s*` +
         `|${SEG}{2,3}\\s*:\\s+` +
         ')'
 );

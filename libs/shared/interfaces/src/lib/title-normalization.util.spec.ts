@@ -113,24 +113,38 @@ describe('provider tag stripping', () => {
         );
     });
 
-    it('strips Cyrillic and lowercase tags before a pipe', () => {
-        // A pipe is a strong tag signal, so its branch takes the wider
-        // alphabet and needs no trailing space: without this the tagged copy
-        // and the bare one never match, and multi-source cannot offer the
-        // film at all.
-        expect(normalizeTitle('РУС | Дюна')).toBe('дюна');
-        expect(normalizeTitle('укр│ Дюна')).toBe('дюна');
-        expect(normalizeTitle('ru| Dune')).toBe('dune');
-        expect(normalizeTitle('EN|Dune')).toBe('dune');
-        expect(normalizeTitle('|РУС| Дюна')).toBe('дюна');
+    it('reads pipe lookalikes as the pipe they look like', () => {
+        // `│`, `¦` and `｜` are indistinguishable from `|` in a catalog, so
+        // the same tag must not survive in one playlist and vanish in
+        // another — the two copies would never match as the same film.
+        expect(normalizeTitle('EN │ Fallout')).toBe('fallout');
+        expect(normalizeTitle('DE ¦ Fallout')).toBe('fallout');
+        expect(normalizeTitle('MULTI｜Fallout')).toBe('fallout');
     });
 
-    it('keeps that widening away from dash and colon', () => {
-        // Where the separator is ordinary punctuation, an uppercase-Latin
-        // restriction is the only thing standing between a tag and a real
-        // title — "ОНО: Часть 2" is the Cyrillic "It: Chapter Two".
-        expect(normalizeTitle('ОНО: Часть 2')).toBe('оно часть 2');
-        expect(normalizeTitle('ОНО - Часть 2')).toBe('оно часть 2');
+    it('strips a pipe tag welded to the title', () => {
+        // "|FR|VO|Le dernier empereur" — the wrapped tag goes first, then
+        // "VO|" with no space after it.
+        expect(normalizeTitle('|FR|VO|Le dernier empereur')).toBe(
+            'le dernier empereur'
+        );
+        expect(normalizeTitle('EN|Fallout')).toBe('fallout');
+    });
+
+    it('keeps a name that only looks like a tag before a pipe', () => {
+        // Pins the UPPERCASE rule on the pipe branch. Relaxing it there is
+        // tempting — nothing but a tag precedes a pipe, surely — but measured
+        // against 1.27M real catalog titles a case-insensitive (or Cyrillic)
+        // pipe rule corrupted 349 keys and rescued none: "name | year" and
+        // the Russian "localized | original" convention both put the film's
+        // own name in the tag position.
+        // The base tier drops the trailing year, so the name is what must
+        // survive; the exact tier shows the whole string it came from.
+        expect(normalizeTitle('Akira | 1988')).toBe('akira');
+        expect(normalizeTitleKeys('Akira | 1988').exact).toBe('akira 1988');
+        expect(normalizeTitle('Coco | 2017')).toBe('coco');
+        expect(normalizeTitle('Момо | Momo')).toBe('момо momo');
+        expect(normalizeTitle('Мумия | The Mummy')).toBe('мумия the mummy');
     });
 
     it('keeps bare 4-5 char words before a spaced dash (real titles)', () => {
@@ -268,7 +282,6 @@ describe('provider tag stripping', () => {
         'EN │ Breaking Bad',
         'DE ¦ Breaking Bad',
         'FR｜Breaking Bad',
-        'en| Breaking Bad',
     ];
 
     it.each([

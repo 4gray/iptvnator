@@ -199,12 +199,22 @@ get the row excluded by the very filter meant to find it.
 Recognizing a prefix is only half the job: the same tag also has to be
 STRIPPED by `normalizeTitleKeys`, or the tagged copy and the bare one never
 match and the row is never discovered at all. Its leading-tag rule therefore
-shares this file's pipe set (`PROVIDER_PIPE_CLASS`) and, on the pipe branch
-only, takes the same Latin+Cyrillic any-case alphabet and needs no space
-after the separator — so "РУС | Дюна", "ru| Dune" and "EN|Dune" reach the key
-"dune". Dash and colon keep their uppercase-Latin, space-required form: those
-are ordinary title punctuation, and loosening them would amputate
-"ОНО: Часть 2" the way a case-insensitive rule amputates "It: Chapter Two".
+shares this file's pipe set (`PROVIDER_PIPE_CLASS`) and, on the pipe branch,
+needs no space after the separator — so "EN │ Fallout", "EN|Fallout" and
+"|FR|VO|Le dernier empereur" reach the same key as the bare title.
+
+It stops there, and the asymmetry with the reader above is the point. A wrong
+GUESS costs a junk option in a filter; a wrong STRIP corrupts a film's
+identity everywhere the key is used. Measured against 1.27M real catalog
+titles: making the pipe branch case-insensitive or Cyrillic corrupts 349 keys
+and rescues none, because "Akira | 1988" and "Момо | Momo" put the film's own
+name in the tag position; widening the dash branch to `–`/`—` amputates 14
+subtitled titles ("1918 – A Batalha de Kruty"); and Cyrillic before a dash
+does not occur at all. So normalization keeps its uppercase-Latin,
+space-required form everywhere except the pipe separator itself, and the
+reader is free to be permissive because the gate in front of its riskier
+forms — and the fact that a row only appears once it HAS matched — keeps a
+bad guess cosmetic.
 
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",
 "DE | Apple TV") and leave stream titles bare. Discovery aggregates every
