@@ -228,7 +228,7 @@ Key files:
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
-  source kind `shaka`. The DOM-free Shaka `5.2.2` diagnostic boundary lives in
+  source kind `shaka`. The DOM-free Shaka `5.2.4` diagnostic boundary lives in
   `libs/playback/util`; it version-locks public severity/category/code evidence,
   ignores recoverable error events,
   treats rejected loads as terminal lifecycle outcomes, preserves exact public

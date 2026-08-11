@@ -1,10 +1,10 @@
 /**
- * Public Shaka error values audited against the locked 5.2.2 runtime.
+ * Public Shaka error values audited against the locked 5.2.4 runtime.
  *
  * Keep the version assertion in the contract spec: a Shaka upgrade must stop
  * here for a new audit instead of silently accepting new error layouts.
  */
-export const SHAKA_DIAGNOSTIC_VERSION = 'v5.2.2';
+export const SHAKA_DIAGNOSTIC_VERSION = 'v5.2.4';
 
 export const SHAKA_ERROR_SEVERITY = {
     RECOVERABLE: 1,

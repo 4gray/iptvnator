@@ -920,7 +920,7 @@ app as a real argument, so it is not an option.
   ArtPlayer). Unsupported license types (Widevine/PlayReady — out of scope,
   need the castLabs Electron fork) surface a DRM playback diagnostic instead
   of crashing. ClearKey EME works in stock Electron. Engine:
-  `libs/ui/playback/src/lib/shaka-engine/`. Its DOM-free Shaka `5.2.2`
+  `libs/ui/playback/src/lib/shaka-engine/`. Its DOM-free Shaka `5.2.4`
   diagnostic boundary lives in `libs/playback/util`; it version-locks public
   severity/category/code evidence, ignores
   recoverable error events, treats rejected loads as terminal lifecycle

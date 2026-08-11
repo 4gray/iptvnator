@@ -155,8 +155,8 @@ importers:
         specifier: 6.0.0
         version: 6.0.0
       shaka-player:
-        specifier: 5.2.2
-        version: 5.2.2
+        specifier: 5.2.4
+        version: 5.2.4
       video.js:
         specifier: 8.23.9
         version: 8.23.9
@@ -10110,8 +10110,9 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shaka-player@5.2.2:
-    resolution: {integrity: sha512-1Z5Sxqz7nEAtvp4zlZKAHQSEq6cUlw5CKAdUxqmuMNeZgu23090VXMcEDdiSLU5qtMn1skFOzq+KKCVX71bHqw==}
+  shaka-player@5.2.4:
+    resolution: {integrity: sha512-vf81av2EIcb03jRpeeZBhrPT3PMyggXnZA9k4sxGBxpr/H6v0iEL6b51T2Kwz5YNrQG/yDYoadgBW+oW40LeoA==}
+    engines: {node: '>=18'}
 
   shallow-clone@3.0.1:
     resolution: {integrity: sha512-/6KqX+GVUdqPuPPd2LxDDxzX6CAbjJehAAOKlNpqqUpAqPM6HeL8f+o3a+JsyGjn2lv0WY8UsTgUJjU9Ok55NA==}
@@ -23149,7 +23150,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shaka-player@5.2.2: {}
+  shaka-player@5.2.4: {}
 
   shallow-clone@3.0.1:
     dependencies:
