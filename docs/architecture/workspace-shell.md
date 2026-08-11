@@ -292,18 +292,15 @@ Window decorations on Linux (shadows, corners):
 
 1. Hiding the title bar removes the window manager's decorations, so the
    shadow/rounded corners must come from client-side decorations (CSD).
-   Electron only draws CSD on native Wayland, and frameless-window CSD
-   (GTK drop shadow + extended resize boundaries, `hasShadow: true` by
-   default) requires **Electron >= 41** — the reason the dependency was
-   bumped from 39. Electron picks Wayland automatically on Wayland
-   sessions since 38.2.
-2. On X11 sessions frameless windows stay undecorated (square, no
-   shadow) — an upstream platform limitation shared by e.g. VS Code.
-3. Rounded corners for frameless Linux windows are not yet supported by
-   Electron (tracked upstream as planned work); Windows 11 keeps its DWM
-   rounded corners and shadow because the standard frame is retained.
+   Electron 43 enables rounded corners by default when the Linux desktop
+   environment supports CSD. GTK drop shadows and extended resize boundaries
+   remain environment-dependent; Electron selects native Wayland automatically
+   on Wayland sessions.
+2. Linux environments without CSD support can still show a square,
+   undecorated window. Windows 11 keeps its DWM rounded corners and shadow
+   because the standard frame is retained.
 
-Toolchain notes for the Electron 41 upgrade:
+Toolchain notes for the Electron 43 baseline:
 
 1. `better-sqlite3` remains pinned exactly so native dependency updates happen
    deliberately with database-worker, packaging, and Electron E2E validation.
@@ -326,6 +323,11 @@ Toolchain notes for the Electron 41 upgrade:
    Those dependencies require standalone PRs so their dedicated package,
    worker, playback, and diagnostic-contract validation cannot be hidden by an
    unrelated grouped update.
+4. Electron 42 and newer download their development binary on the first
+   Electron command instead of during package `postinstall`, so `electron`
+   must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local
+   `pnpm run serve:backend` can include a one-time download; use `pnpm exec
+   electron --version` to prewarm it before an offline run.
 
 Known caveats:
 

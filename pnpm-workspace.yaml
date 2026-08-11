@@ -7,5 +7,4 @@ ignoredBuiltDependencies:
   - unrs-resolver
 
 onlyBuiltDependencies:
-  - electron
   - nx
