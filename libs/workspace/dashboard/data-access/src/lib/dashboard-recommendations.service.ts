@@ -307,27 +307,68 @@ export class DashboardRecommendationsService {
         return merged;
     }
 
+    /**
+     * What the user has already watched or favorited, keyed the way a
+     * recommendation will be looked up.
+     *
+     * An activity row is indexed under more than its display title,
+     * because two things about it can disagree with TMDB:
+     *
+     * - its TYPE is a routing verdict, not a media type. A Stalker
+     *   embedded-VOD series routes into the VOD section and is stored as
+     *   `'movie'`, while TMDB knows it as a show — so the show's
+     *   recommendation would look up `series:` and sail past a
+     *   `movie:`-only entry. The lookup builder already resolves the
+     *   media type the detail view enriched under; that verdict is
+     *   indexed alongside the routing one.
+     * - its TITLE may be the original-language one (`info.o_name`) while
+     *   the app requests TMDB in another language, so the candidate
+     *   carries a translated title and no shared key.
+     *
+     * Only the PRIMARY attempt is indexed. The builder's second attempt
+     * is a fallback guess for rows that state nothing, and indexing it
+     * would let a watched film exclude the same-named show.
+     */
     private buildExclusionIndex(): ExclusionIndex {
         const exact = new Set<string>();
         const baseYears = new Map<string, number[]>();
-        const add = (item: { type: string; title: string }): void => {
-            if (item.type !== 'movie' && item.type !== 'series') {
+
+        const addTitle = (
+            type: 'movie' | 'series',
+            title: string | undefined
+        ): void => {
+            const keys = normalizeTitleKeys(title);
+            if (!keys.exact) {
                 return;
             }
-            const keys = normalizeTitleKeys(item.title);
-            exact.add(`${item.type}:${keys.exact}`);
+            exact.add(`${type}:${keys.exact}`);
             // Providers routinely store titles with a trailing release
             // year ("Inception 2010") whose exact key can never equal the
             // canonical TMDB title. Record the base + year so the merge
             // can exclude the canonical form when the years agree.
             if (keys.trailingYear !== null) {
-                const baseKey = `${item.type}:${keys.base}`;
+                const baseKey = `${type}:${keys.base}`;
                 baseYears.set(baseKey, [
                     ...(baseYears.get(baseKey) ?? []),
                     keys.trailingYear,
                 ]);
             }
         };
+
+        const add = (item: DashboardTmdbLookupItem): void => {
+            if (item.type !== 'movie' && item.type !== 'series') {
+                return;
+            }
+            addTitle(item.type, item.title);
+
+            const [primary] = buildDashboardTmdbAttempts(item);
+            if (primary) {
+                const type = primary.mediaType === 'tv' ? 'series' : 'movie';
+                addTitle(type, primary.title);
+                addTitle(type, primary.originalTitle);
+            }
+        };
+
         this.data.globalRecentItems().forEach(add);
         this.data.globalFavoriteItems().forEach(add);
         return { exact, baseYears };

@@ -433,10 +433,18 @@ since shipped.)
   stripped of anything already watched or favorited, and matched against
   the imported libraries with ONE batched
   `CatalogTitleMatchService.matchTitles` request. The watched/favorited
-  exclusion runs on two tiers, because a provider stores whatever the
-  panel named the file: the exact normalized title, plus a year-gated
-  base tier for the common `"Inception 2010"` shape whose exact key can
-  never equal TMDB's `"Inception"`. The year gate is what keeps a stored
+  exclusion index is built through the same lookup-attempt builder the
+  seeds use, so an activity row is indexed under more than its display
+  title: under the media type the detail view enriched with (a Stalker
+  embedded-VOD series routes as `'movie'` but is a `tv` show to TMDB, and
+  a `series:` recommendation would sail past a `movie:`-only entry) and
+  under its stored original-language title (`info.o_name`). Only the
+  builder's PRIMARY attempt is indexed — its second attempt is a fallback
+  guess, and indexing it would let a watched film exclude the same-named
+  show. On top of that the exclusion runs on two title tiers, because a
+  provider stores whatever the panel named the file: the exact normalized
+  title, plus a year-gated base tier for the common `"Inception 2010"`
+  shape whose exact key can never equal TMDB's `"Inception"`. The year gate is what keeps a stored
   `"Blade Runner 2049"` from swallowing the 1982 film; an unknown year on
   either side counts as agreeing, since re-recommending something already
   watched is the worse failure. Matching and exclusion

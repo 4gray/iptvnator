@@ -8,6 +8,7 @@ import { DashboardDataService } from './dashboard-data.service';
 import { DashboardRecommendationsService } from './dashboard-recommendations.service';
 
 interface ActivityStub {
+    stalker_item?: unknown;
     title: string;
     type: string;
 }
@@ -58,6 +59,30 @@ describe('DashboardRecommendationsService', () => {
     let favorites: ActivityStub[];
     let playlists: { _id: string }[];
     let tmdbLanguage: string;
+
+    /**
+     * Switch the fixture to a series seed, so the candidates it produces
+     * are `tv`-typed. Exclusion is keyed by media type, so a `movie`-typed
+     * candidate could never prove anything about the `series:` keys.
+     */
+    function seedTvRecommendations(extraTitles: readonly string[]): void {
+        recentVod = [{ title: 'The Boys', type: 'series' }];
+        recentAll = [...recentVod];
+        enrichMovie.mockResolvedValue(null);
+        enrichTv.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles.slice(0, 5).map((title, i) => rec(100 + i, title)),
+                    ...extraTitles.map((title, i) => rec(200 + i, title)),
+                ],
+            },
+        });
+        // The catalog rows a tv candidate can match are series rows —
+        // buildTitleMatchIndex keys them by the match's own type.
+        matchTitles.mockImplementation(async (titles: string[]) =>
+            titles.map((title) => match(title, { type: 'series' }))
+        );
+    }
 
     function createService(
         options: { matchingAvailable?: boolean } = {}
@@ -175,6 +200,86 @@ describe('DashboardRecommendationsService', () => {
         expect(titles).not.toContain('Inception');
         expect(titles).not.toContain('Interstellar');
         expect(titles).toContain('Tenet');
+    });
+
+    it('excludes a watched Stalker embedded-VOD series from the tv rail', async () => {
+        // The activity row routes into VOD and is stored as 'movie',
+        // while TMDB (and the recommendation) knows it as a show — so the
+        // exclusion must be indexed under the media type the lookup
+        // builder resolved, not the routing one.
+        seedTvRecommendations(['Kholod']);
+        recentAll = [
+            ...recentVod,
+            {
+                title: 'Kholod',
+                type: 'movie',
+                stalker_item: {
+                    id: '17573',
+                    category_id: 'vclub',
+                    series: [1, 2, 3],
+                    info: { name: 'Kholod' },
+                },
+            } as ActivityStub,
+        ];
+        const service = createService();
+
+        await service.load();
+
+        const tvTitles = service
+            .items()
+            .filter((item) => item.mediaType === 'tv')
+            .map((item) => item.title);
+        // Guard: the rail really is carrying tv candidates here, so the
+        // assertion below cannot pass on an empty list.
+        expect(tvTitles.length).toBeGreaterThan(0);
+        expect(tvTitles).not.toContain('Kholod');
+    });
+
+    it('excludes a watched Stalker item through its stored original title', async () => {
+        // Watched entry stored in the original language; the app now
+        // requests TMDB in another one, so the candidate is translated.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Inception'),
+                ],
+            },
+        });
+        recentAll = [
+            ...recentVod,
+            {
+                title: 'Начало',
+                type: 'movie',
+                stalker_item: {
+                    id: '42',
+                    category_id: 'vod',
+                    info: { name: 'Начало', o_name: 'Inception' },
+                },
+            } as ActivityStub,
+        ];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).not.toContain(
+            'Inception'
+        );
+    });
+
+    it('does not let a watched film exclude the same-named show', async () => {
+        // A plain 'movie' row states nothing about being a series, so the
+        // lookup builder's tv retry is a guess — indexing it would make a
+        // watched film swallow the unrelated show of the same name.
+        seedTvRecommendations(['Fargo']);
+        recentAll = [...recentVod, { title: 'Fargo', type: 'movie' }];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).toContain('Fargo');
     });
 
     it('excludes a watched title stored with a trailing release year', async () => {
