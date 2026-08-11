@@ -21,21 +21,6 @@ import type { VodMultiSourceMovie } from './vod-multi-source-identity';
  * not fire on a route-to-alternative switch, which is the commonest one there
  * is.
  */
-/**
- * The route row's category-derived language: what the one category the route
- * arrived through states, if that is a language. Alternatives read this off
- * every category the DB knows; the route only knows the visible one. Shared
- * with the host's refresh path so the two cannot drift — the category loads
- * late on cold/direct routes and arrives without changing the movie key.
- */
-export function routeCategoryLanguage(
-    movie: VodMultiSourceMovie
-): string | null {
-    return unambiguousCategoryLanguage(
-        movie.categoryName ? [movie.categoryName] : null
-    );
-}
-
 export function currentSourceRow(
     movie: VodMultiSourceMovie
 ): VodSourceCandidate {
@@ -52,4 +37,19 @@ export function currentSourceRow(
     };
 
     return movie.metadata ? applyApiMetadata(row, movie.metadata) : row;
+}
+
+/**
+ * The route row's category-derived language: what the one category the route
+ * arrived through states, if that is a language. Alternatives read this off
+ * every category the DB knows; the route only knows the visible one. Shared
+ * with the host's refresh path so the two cannot drift — the category loads
+ * late on cold/direct routes and arrives without changing the movie key.
+ */
+export function routeCategoryLanguage(
+    movie: VodMultiSourceMovie
+): string | null {
+    return unambiguousCategoryLanguage(
+        movie.categoryName ? [movie.categoryName] : null
+    );
 }
