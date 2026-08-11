@@ -20,11 +20,13 @@ import { PROVIDER_PIPE_CLASS } from './title-normalization.util';
  *   rip tags — "[HD] Dune", "NEW - Dune" — which would not only pollute the
  *   select but, since a title prefix outranks the category language, mask a
  *   real one and get the row excluded by the very filter meant to find it.
- * - Category names are noisiest: "NEW | 2024", "TOP | 250" and "VIP | Cinema"
- *   are everyday category shapes, and `new`, `top` and `hot` are even real
- *   ISO 639-3 codes, so a prefix read off a category always passes
- *   `isKnownLanguageTag`. Empty beats wrong: an unrecognized tag yields no
- *   language rather than a wrong filter option.
+ * - Category names are noisiest, so a prefix read off a category always
+ *   passes `isKnownLanguageTag`. Measured on a real catalog, the gate is what
+ *   keeps "VOD" (5,245 movies), "KIDS" (1,010), "SHOW" and "WWE" out of a
+ *   list of LANGUAGES; "NEW | 2024" and "TOP | 250" are everyday shapes too,
+ *   and `new`, `top` and `hot` are even assigned ISO 639-3 codes — which is
+ *   why the gate is curated rather than a registry lookup. Empty beats wrong:
+ *   an unrecognized tag yields no language rather than a wrong filter option.
  */
 
 /**

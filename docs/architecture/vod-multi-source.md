@@ -223,11 +223,13 @@ per `(playlist_id, xtream_id)` in both query tiers — `char(31)` because the
 default `,` appears inside real category names), and
 `unambiguousCategoryLanguage` reduces them: categories without a recognized
 language prefix abstain, all prefixed ones must agree, and a conflict yields
-nothing. Category prefixes must additionally pass `isKnownLanguageTag`,
-because categories routinely start with "NEW |", "TOP |" or "VIP |" — and
-`new`, `top` and `hot` are even assigned ISO 639-3 codes, which is why the
-gate is an `Intl.DisplayNames` check for two-letter codes plus a curated list
-for longer tags rather than a registry lookup. Only the pipe title form stays
+nothing. Category prefixes must additionally pass `isKnownLanguageTag`.
+Measured on a real catalog, that gate is what keeps "VOD" (5,245 movies),
+"KIDS" (1,010), "SHOW" and "WWE" out of a list of LANGUAGES; "NEW |",
+"TOP |" and "VIP |" are everyday shapes too, and `new`, `top` and `hot` are
+even assigned ISO 639-3 codes — which is why the gate is an
+`Intl.DisplayNames` check for two-letter codes plus a curated list for
+longer tags rather than a registry lookup. Only the pipe title form stays
 permissive: a tag before a pipe in a movie title is overwhelmingly a
 language, and tightening the legacy form would drop filter options that work
 today. The route's own row reads the one category the route arrived through

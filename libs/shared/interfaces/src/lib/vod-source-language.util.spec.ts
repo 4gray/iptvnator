@@ -95,6 +95,14 @@ describe('isKnownLanguageTag', () => {
         expect(isKnownLanguageTag('MULTI')).toBe(true);
     });
 
+    it('rejects the content-type prefixes categories actually use', () => {
+        // The four the gate turns away most often on a real catalog; without
+        // it the language select offers "VOD" and "KIDS".
+        for (const tag of ['VOD', 'KIDS', 'SHOW', 'WWE']) {
+            expect(isKnownLanguageTag(tag)).toBe(false);
+        }
+    });
+
     it('rejects everyday category words that are real ISO 639-3 codes', () => {
         // `new`, `top` and `hot` are assigned in ISO 639-3, which is exactly
         // why validation is curated instead of registry-driven.
