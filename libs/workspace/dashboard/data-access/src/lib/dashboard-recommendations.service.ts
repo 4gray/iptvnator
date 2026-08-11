@@ -24,6 +24,14 @@ export interface DashboardRecommendationItem {
     tmdbId: number;
     mediaType: 'movie' | 'tv';
     title: string;
+    /**
+     * TMDB original title when it differs from the localized one — a
+     * matching/exclusion alias, never displayed. Catalogs frequently name
+     * an item in its original language while the app language localizes
+     * the TMDB title, so matching on the localized form alone would hide
+     * available recommendations.
+     */
+    originalTitle: string | null;
     year: number | null;
     posterUrl: string | null;
     /** vote_average rounded to one decimal, null without votes */
@@ -106,7 +114,7 @@ export class DashboardRecommendationsService {
             return;
         }
         const excluded = this.excludedTitleKeys();
-        const loadKey = buildLoadKey(seeds, excluded);
+        const loadKey = buildLoadKey(seeds, excluded, this.catalogKey());
         if (loadKey === this.loadedKey) {
             return;
         }
@@ -124,24 +132,27 @@ export class DashboardRecommendationsService {
                     excluded
                 );
                 const matched = await this.attachMatches(candidates);
-                const items =
-                    matched.length >= MIN_RECOMMENDATION_MATCHES
-                        ? matched
-                        : [];
-
-                const contributed = new Set(
-                    items.map((item) => item.seedTitle)
-                );
-                this.items.set(items);
-                this.seedTitles.set(
-                    perSeed
-                        .map((seed) => seed.seedTitle)
-                        .filter((title) => contributed.has(title))
-                );
-                // Too few matches is a property of the library, not a
-                // transient failure — latch so the same inputs are not
-                // re-resolved on every dashboard visit.
-                this.loadedKey = loadKey;
+                if (matched.length >= MIN_RECOMMENDATION_MATCHES) {
+                    const contributed = new Set(
+                        matched.map((item) => item.seedTitle)
+                    );
+                    this.items.set(matched);
+                    this.seedTitles.set(
+                        perSeed
+                            .map((seed) => seed.seedTitle)
+                            .filter((title) => contributed.has(title))
+                    );
+                    this.loadedKey = loadKey;
+                } else {
+                    // Below the threshold the rail is hidden — and NOT
+                    // latched: an empty match result is indistinguishable
+                    // from a transient worker failure at this layer
+                    // (matchTitles maps failures to []), and re-running is
+                    // cheap (cached enrichment + one batched worker call).
+                    // Mirrors the trending rail's retry-on-empty semantics.
+                    this.items.set([]);
+                    this.seedTitles.set([]);
+                }
             }
         } catch (error) {
             console.warn('Dashboard recommendations load failed:', error);
@@ -153,6 +164,22 @@ export class DashboardRecommendationsService {
             this.rerunQueued = false;
             await this.load();
         }
+    }
+
+    /**
+     * Identity of the imported-playlist set. Included in the load key so
+     * importing or deleting a playlist re-runs the catalog matching —
+     * without it a deleted playlist would leave cards linking nowhere and
+     * a new import would stay invisible until the seeds changed. A
+     * refreshed playlist keeps its id and is NOT detected (parity with
+     * the trending rail's once-per-session load).
+     */
+    private catalogKey(): string {
+        return this.data
+            .playlists()
+            .map((playlist) => playlist._id)
+            .sort()
+            .join(',');
     }
 
     /** Most recent distinct watched VOD/series usable as TMDB lookups */
@@ -223,20 +250,24 @@ export class DashboardRecommendationsService {
                 if (!entry) {
                     continue;
                 }
-                // Title key too: matching is title-based, so two distinct
-                // TMDB entries normalizing to one title would both claim
-                // the same catalog row and render as duplicate cards.
+                // Title keys too (localized AND original alias): matching
+                // is title-based, so two distinct TMDB entries normalizing
+                // to one title would both claim the same catalog row and
+                // render as duplicate cards — and a watched title stored
+                // under its original language must still exclude its
+                // localized recommendation.
                 const idKey = `${entry.mediaType}:${entry.tmdbId}`;
-                const titleKey = candidateTitleKey(entry);
+                const titleKeys = candidateTitleKeys(entry);
                 if (
                     seen.has(idKey) ||
-                    seen.has(titleKey) ||
-                    excluded.has(titleKey)
+                    titleKeys.some(
+                        (key) => seen.has(key) || excluded.has(key)
+                    )
                 ) {
                     continue;
                 }
                 seen.add(idKey);
-                seen.add(titleKey);
+                titleKeys.forEach((key) => seen.add(key));
                 merged.push(entry);
             }
         }
@@ -263,14 +294,23 @@ export class DashboardRecommendationsService {
         if (candidates.length === 0) {
             return [];
         }
+        // Both aliases go into the ONE batched request; the index lookup
+        // below prefers the localized form.
         const matches = await this.titleMatch.matchTitles(
-            candidates.map((candidate) => candidate.title)
+            candidates.flatMap((candidate) =>
+                candidate.originalTitle
+                    ? [candidate.title, candidate.originalTitle]
+                    : [candidate.title]
+            )
         );
         const index = buildTitleMatchIndex(matches);
 
         const items: DashboardRecommendationItem[] = [];
         for (const candidate of candidates) {
-            const match = index.get(candidateTitleKey(candidate)) ?? null;
+            const match =
+                candidateTitleKeys(candidate)
+                    .map((key) => index.get(key))
+                    .find(Boolean) ?? null;
             if (
                 !match ||
                 !titleYearsCompatible(candidate.year, match.trailingYear)
@@ -286,24 +326,34 @@ export class DashboardRecommendationsService {
     }
 }
 
-function candidateTitleKey(candidate: RecommendationCandidate): string {
+/** Localized title key first, original-title alias key second */
+function candidateTitleKeys(candidate: RecommendationCandidate): string[] {
     const type = candidate.mediaType === 'movie' ? 'movie' : 'series';
-    return `${type}:${normalizeTitleKeys(candidate.title).exact}`;
+    const keys = [`${type}:${normalizeTitleKeys(candidate.title).exact}`];
+    if (candidate.originalTitle) {
+        const aliasKey = `${type}:${normalizeTitleKeys(candidate.originalTitle).exact}`;
+        if (aliasKey !== keys[0]) {
+            keys.push(aliasKey);
+        }
+    }
+    return keys;
 }
 
 /**
- * Identity of one load: the seed set plus the watched/favorited exclusion
- * set. Including the exclusions means favoriting a recommended title (or
- * new watch history that does not change the top seeds) still invalidates
- * the latch and re-filters the rail.
+ * Identity of one load: the seed set, the watched/favorited exclusion set,
+ * and the imported-playlist set. Including the exclusions means favoriting
+ * a recommended title (or new watch history that does not change the top
+ * seeds) still invalidates the latch and re-filters the rail; including
+ * the catalog means imports and deletions re-run the matching.
  */
 function buildLoadKey(
     seeds: readonly DashboardTmdbLookupItem[],
-    excluded: ReadonlySet<string>
+    excluded: ReadonlySet<string>,
+    catalogKey: string
 ): string {
-    return `${seeds.map(dashboardTmdbLookupKey).join('||')}##${[...excluded]
-        .sort()
-        .join('|')}`;
+    return `${catalogKey}@@${seeds
+        .map(dashboardTmdbLookupKey)
+        .join('||')}##${[...excluded].sort().join('|')}`;
 }
 
 function toCandidates(
@@ -314,6 +364,8 @@ function toCandidates(
     return results
         .map((result) => {
             const title = result.title ?? result.name ?? '';
+            const original =
+                result.original_title ?? result.original_name ?? '';
             const rating =
                 (result.vote_count ?? 0) > 0 && result.vote_average
                     ? result.vote_average.toFixed(1)
@@ -322,6 +374,8 @@ function toCandidates(
                 tmdbId: result.id,
                 mediaType,
                 title,
+                originalTitle:
+                    original !== '' && original !== title ? original : null,
                 year: extractYear(result.release_date ?? result.first_air_date),
                 posterUrl: tmdbPosterUrl(result.poster_path),
                 rating,

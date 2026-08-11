@@ -432,15 +432,24 @@ since shipped.)
   interleaved round-robin, deduplicated by id AND normalized title,
   stripped of anything already watched or favorited, and matched against
   the imported libraries with ONE batched
-  `CatalogTitleMatchService.matchTitles` request. Only matched,
-  year-compatible titles render (each card navigates to its detail view);
-  fewer than `MIN_RECOMMENDATION_MATCHES` (5) hides the rail. The rail
-  header names the seed ("Because you watched X") when exactly one seed
-  contributed, else falls back to the generic "Recommended for you". Loads
-  are keyed by the seed set AND the watched/favorited exclusion set —
-  watching something new re-seeds on the next dashboard visit and
-  favoriting a recommended title re-filters it out; a cleared watch
-  history clears the rail (the service is root-provided and outlives the
+  `CatalogTitleMatchService.matchTitles` request. Matching and exclusion
+  work through BOTH the localized title and the TMDB original-title alias
+  (cards always display the localized form) — catalogs frequently name
+  items in their original language while the app language localizes the
+  TMDB titles. Only matched, year-compatible titles render (each card
+  navigates to its detail view); fewer than
+  `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and does NOT latch,
+  because an empty match result is indistinguishable from a transient
+  worker failure (`matchTitles` maps failures to `[]`) and re-running is
+  cheap (mirrors trending's retry-on-empty). The rail header names the
+  seed ("Because you watched X") when exactly one seed contributed, else
+  falls back to the generic "Recommended for you". Successful loads are
+  keyed by the seed set, the watched/favorited exclusion set AND the
+  imported-playlist id set — watching something new re-seeds on the next
+  dashboard visit, favoriting a recommended title re-filters it out, and
+  importing/deleting a playlist re-runs the matching (a refresh keeps its
+  id and is not detected, parity with trending); a cleared watch history
+  clears the rail (the service is root-provided and outlives the
   dashboard); a load requested while one is in flight is queued and
   re-run afterwards; a load where no seed resolved (TMDB unreachable)
   does not latch and retries instead. Same gating as trending: TMDB

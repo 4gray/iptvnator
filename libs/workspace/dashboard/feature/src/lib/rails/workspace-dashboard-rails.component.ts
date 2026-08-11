@@ -482,10 +482,11 @@ export class WorkspaceDashboardRailsComponent {
         });
 
         // Recommendations rail: same gating as trending, plus tracked
-        // reads of the seed source AND the favorites (both feed the
-        // exclusion set) so a newly watched or newly favorited title
-        // re-runs the load — the service keys loads by seed + exclusion
-        // set and skips no-ops.
+        // reads of the seed source, the favorites (both feed the
+        // exclusion set) and the playlist set (feeds the catalog key) so
+        // a newly watched/favorited title or an imported/deleted playlist
+        // re-runs the load — the service keys loads by seed + exclusion +
+        // catalog set and skips no-ops.
         effect(() => {
             if (
                 !this.dashboardRails().tmdbRecommendations ||
@@ -495,6 +496,7 @@ export class WorkspaceDashboardRailsComponent {
             }
             this.data.globalRecentVodItems();
             this.data.globalFavoriteItems();
+            this.data.playlists();
             untracked(() => void this.recommendationsService.load());
         });
     }

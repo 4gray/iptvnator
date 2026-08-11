@@ -56,6 +56,7 @@ describe('DashboardRecommendationsService', () => {
     let recentVod: ActivityStub[];
     let recentAll: ActivityStub[];
     let favorites: ActivityStub[];
+    let playlists: { _id: string }[];
 
     function createService(
         options: { matchingAvailable?: boolean } = {}
@@ -79,6 +80,7 @@ describe('DashboardRecommendationsService', () => {
                         globalRecentVodItems: () => recentVod,
                         globalRecentItems: () => recentAll,
                         globalFavoriteItems: () => favorites,
+                        playlists: () => playlists,
                     },
                 },
             ],
@@ -102,6 +104,7 @@ describe('DashboardRecommendationsService', () => {
         recentVod = [{ title: 'The Matrix', type: 'movie' }];
         recentAll = [...recentVod];
         favorites = [];
+        playlists = [{ _id: 'pl-1' }];
     });
 
     it('does nothing when TMDB is disabled', async () => {
@@ -133,16 +136,20 @@ describe('DashboardRecommendationsService', () => {
         expect(service.loading()).toBe(false);
     });
 
-    it('hides the rail below the minimum match count', async () => {
-        matchTitles.mockImplementation(async (titles: string[]) =>
+    it('hides the rail below the minimum match count without latching', async () => {
+        matchTitles.mockImplementationOnce(async (titles: string[]) =>
             titles.slice(0, 4).map((title) => match(title))
         );
         const service = createService();
 
         await service.load();
-
         expect(service.items()).toEqual([]);
         expect(service.seedTitles()).toEqual([]);
+
+        // A transient matcher failure surfaces as an empty result — the
+        // next visit must retry instead of hiding the rail all session.
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
     });
 
     it('excludes titles the user already watched or favorited', async () => {
@@ -246,6 +253,54 @@ describe('DashboardRecommendationsService', () => {
         expect(enrichMovie.mock.calls[1][0]).toEqual(
             expect.objectContaining({ title: 'Heat' })
         );
+    });
+
+    it('re-runs the matching when the playlist set changes', async () => {
+        const service = createService();
+
+        await service.load();
+        expect(matchTitles).toHaveBeenCalledTimes(1);
+
+        playlists = [{ _id: 'pl-1' }, { _id: 'pl-2' }];
+        await service.load();
+        expect(matchTitles).toHaveBeenCalledTimes(2);
+    });
+
+    it('matches and excludes through the original-title alias', async () => {
+        // App language localizes TMDB titles; the catalog and the stored
+        // watch history speak the original language.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    {
+                        ...rec(200, 'Начало'),
+                        original_title: 'Inception 2',
+                    },
+                    {
+                        ...rec(201, 'Слышь, смотрел?'),
+                        original_title: 'Dunkirk 2',
+                    },
+                ],
+            },
+        });
+        matchTitles.mockImplementation(async (titles: string[]) =>
+            titles
+                .filter((title) => /^[A-Za-z]/.test(title))
+                .map((title) => match(title))
+        );
+        recentAll = [...recentVod, { title: 'Dunkirk 2', type: 'movie' }];
+        const service = createService();
+
+        await service.load();
+
+        const titles = service.items().map((item) => item.title);
+        // Matched via its original title, displayed localized
+        expect(titles).toContain('Начало');
+        // Excluded because its original title was already watched
+        expect(titles).not.toContain('Слышь, смотрел?');
     });
 
     it('retries on the next visit when no seed resolved', async () => {
