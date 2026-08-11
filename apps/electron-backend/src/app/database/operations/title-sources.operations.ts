@@ -345,13 +345,24 @@ export async function findTitleSources(
     // One playlist can list the same film in several categories; the user
     // thinks of that as one source.
     const seen = new Set<string>();
-    // Every category the stream sits in, merged across the rows that carry
-    // it. The FTS tier already joined them into one row, so this is a no-op
-    // there; the scan tier returns a row per category and must not group (see
-    // `scanCandidateQuery`), so this is where its names come together. Rows
-    // the confirmation later rejects still contribute — a differently titled
-    // sibling row is the same stream, and its category says the same thing
-    // about the language.
+    // Every category the stream sits in AMONG THE ROWS THE QUERY MATCHED,
+    // merged. The FTS tier already joined those into one row, so this is a
+    // no-op there; the scan tier returns a row per category and must not
+    // group (see `scanCandidateQuery`), so this is where its names come
+    // together. Rows the confirmation later rejects still contribute — a
+    // differently titled sibling row is the same stream, and its category
+    // says the same thing about the language.
+    //
+    // A sibling row whose title did NOT match is invisible here, so a stream
+    // listed under a localized title in another category can look
+    // unanimous when it is not. That is deliberate. The field is a guess
+    // feeding a chip and a browse filter — ranking and failover cannot reach
+    // it — and completing it costs real latency: measured on a 3.9 GB
+    // catalog, resolving every category through a correlated subquery takes
+    // the discovery query from 0.74 s to 2.0 s, and a second bounded lookup
+    // for the same 60 streams takes 19.7 s. A detail page pays that on every
+    // open, to correct a cosmetic guess in a shape that occurs 0 times in
+    // 2.7M rows.
     const categoryNames = new Map<string, string[]>();
     for (const row of rows) {
         const key = `${row.playlist_id}:${row.xtream_id}`;

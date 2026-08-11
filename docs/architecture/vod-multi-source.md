@@ -227,7 +227,18 @@ the scan tier must NOT group. `content` is unique per
 rows whose titles need not agree; grouping would let SQLite keep an arbitrary
 one and the normalized confirmation would then reject a stream that a sibling
 row would have matched. The scan therefore returns a row per category and the
-names are merged per stream in TypeScript. Either way
+names are merged per stream in TypeScript.
+
+Either tier only ever sees the categories of rows the query MATCHED, so a
+stream also listed under a localized title in another category can look
+unanimous when it is not. Deliberate: the field is a guess feeding a chip and
+a browse filter, and completing it is expensive — on a 3.9 GB catalog,
+resolving every category through a correlated subquery takes discovery from
+0.74 s to 2.0 s (a cost every detail-page open pays), and a second bounded
+lookup for the same 60 streams takes 19.7 s, to correct a cosmetic guess in a
+shape that occurs 0 times in 2.7M rows.
+
+Either way
 `unambiguousCategoryLanguage` reduces them: categories without a recognized
 language prefix abstain, all prefixed ones must agree, and a conflict yields
 nothing. Category prefixes must additionally pass `isKnownLanguageTag`.
