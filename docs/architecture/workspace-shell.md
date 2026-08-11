@@ -324,6 +324,11 @@ Toolchain notes for the Electron 41 upgrade:
    carries the v26 backport that fully extracts the Snap template's `.tar.7z`
    payload; 26.15.0–26.15.6 can
    produce a Snap that is missing `desktop-init.sh`. CI already runs Node 22.
+4. Dependabot keeps Electron, native database, packaging, EPG parser, and
+   version-locked Shaka/mpegts updates out of the shared npm minor/patch group.
+   Those dependencies require standalone PRs so their dedicated package,
+   worker, playback, and diagnostic-contract validation cannot be hidden by an
+   unrelated grouped update.
 
 Known caveats:
 
