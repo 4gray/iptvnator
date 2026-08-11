@@ -86,6 +86,53 @@ function labeledPattern(labels: string, value = DEFAULT_VALUE): RegExp {
 
 const isHexIdentity = (value: string) => HEX_IDENTITY_PATTERN.test(value);
 
+/**
+ * Folds decorative Unicode "font" alphabets that NFKC deliberately leaves
+ * alone — squared (🄰), negative circled (🅐), negative squared (🅰) and
+ * regional-indicator (🇦) capitals, plus the dingbat circled digits (➀ ❶ ➌)
+ * and ⓿ — back to the ASCII they depict. NFKC already handles the math
+ * alphabets (`𝚄𝚂𝙴𝚁`) and plain circled letters (Ⓐ); these blocks carry no
+ * compatibility decomposition because Unicode treats them as symbols, but in
+ * a reseller message `🅟🅐🅢🅢➤` is just PASS in a costume. Callers run this
+ * AFTER `normalize('NFKC')`, and the label matchers below then see plain
+ * ASCII.
+ */
+export function foldDecorativeAlphabets(text: string): string {
+    let result = '';
+    for (const char of text) {
+        result +=
+            foldDecorativeCodePoint(char.codePointAt(0) as number) ?? char;
+    }
+    return result;
+}
+
+const DECORATIVE_LATIN_RANGES: Array<[number, number]> = [
+    [0x1f130, 0x1f149], // 🄰 squared A–Z
+    [0x1f150, 0x1f169], // 🅐 negative circled A–Z
+    [0x1f170, 0x1f189], // 🅰 negative squared A–Z
+    [0x1f1e6, 0x1f1ff], // 🇦 regional indicator A–Z
+];
+
+const DECORATIVE_DIGIT_RANGES: Array<[number, number]> = [
+    [0x2776, 0x277e], // ❶ negative circled 1–9
+    [0x2780, 0x2788], // ➀ circled sans-serif 1–9
+    [0x278a, 0x2792], // ➊ negative circled sans-serif 1–9
+];
+
+function foldDecorativeCodePoint(code: number): string | null {
+    for (const [start, end] of DECORATIVE_LATIN_RANGES) {
+        if (code >= start && code <= end) {
+            return String.fromCharCode(0x41 + (code - start));
+        }
+    }
+    for (const [start, end] of DECORATIVE_DIGIT_RANGES) {
+        if (code >= start && code <= end) {
+            return String.fromCharCode(0x31 + (code - start));
+        }
+    }
+    return code === 0x24ff ? '0' : null; // ⓿
+}
+
 // Order matters only for readability — each matcher targets its own field and
 // the numbered variants ("device id 2") are structured so the unnumbered
 // pattern cannot swallow them (its optional `1` never matches a literal `2`,
@@ -118,15 +165,19 @@ const FIELD_MATCHERS: FieldMatcher[] = [
     },
     {
         field: 'serialNumber',
+        // `s[\s._/-]?n` covers SN, S/N, S.N and the spaced "S N" handouts use.
         pattern: labeledPattern(
-            String.raw`serial[\s_-]*(?:number|no)?|s\/n|sn|серийный(?:[\s_-]*номер)?`
+            String.raw`serial[\s_-]*(?:number|no)?|s[\s._/-]?n|серийный(?:[\s_-]*номер)?`
         ),
         validate: (value) => value.length <= 64,
     },
     {
         field: 'macAddress',
+        // Turkish panels label it "MAC ADRESİ" — the trailing İ/ı/i is listed
+        // in a class because JS case-insensitive matching does not fold the
+        // Turkish dotted/dotless I to ASCII `i`.
         pattern: labeledPattern(
-            String.raw`mac(?:[\s_-]*address)?|мак(?:[\s_-]*адрес)?`,
+            String.raw`mac(?:[\s_-]*(?:address|adres[iİıI]?))?|мак(?:[\s_-]*адрес)?`,
             String.raw`[0-9A-Fa-f:. -]{12,23}`
         ),
         validate: (value) => normalizeStalkerMacAddress(value) !== null,
@@ -139,7 +190,15 @@ const FIELD_MATCHERS: FieldMatcher[] = [
     },
     {
         field: 'password',
-        pattern: labeledPattern(String.raw`pass[\s_-]*word|pass|pwd|пароль`),
+        // "ADULT PASS" / "PARENTAL PASS" is the parental-control PIN, not the
+        // account password — the variable-length lookbehinds skip those
+        // occurrences and let the engine find an unqualified PASS elsewhere.
+        pattern: new RegExp(
+            `${LABEL_LOOKBEHIND}(?<!adult[\\s_-]{0,4})(?<!parent(?:al)?[\\s_-]{0,4})` +
+                String.raw`(?:pass[\s_-]*word|pass|pwd|пароль)` +
+                `${LABEL_SEPARATOR}(${DEFAULT_VALUE})`,
+            'iu'
+        ),
     },
     {
         field: 'host',
@@ -210,6 +269,15 @@ function classifyUrl(raw: string, parsed: URL): UrlRole {
     return 'generic';
 }
 
+/** "DEVICE ID=> 1&2 <hex>" — the 1&2 marker may sit before or after the separator. */
+const DUAL_DEVICE_ID_PATTERN = new RegExp(
+    LABEL_LOOKBEHIND +
+        String.raw`device[\s_-]*ids?` +
+        `(?:[\\s_-]*1\\s*[&/+]\\s*2${LABEL_SEPARATOR}|${LABEL_SEPARATOR}1\\s*[&/+]\\s*2\\s+)` +
+        String.raw`([0-9A-Fa-f]{16,64})\b`,
+    'iu'
+);
+
 export function extractLabeledFields(
     text: string,
     urls: DetectedUrl[]
@@ -226,6 +294,14 @@ export function extractLabeledFields(
     const spans = urlSpans(text, urls);
     const masked = maskSpans(text, spans);
     const fields: LabeledFields = {};
+    // "DEVICE ID=> 1&2 <hex>" (or "DEVICE ID 1&2: <hex>") hands one value to
+    // both slots; the per-field matchers below cannot express that, and their
+    // hex validation would otherwise discard the line entirely.
+    const dual = DUAL_DEVICE_ID_PATTERN.exec(masked);
+    if (dual) {
+        fields.deviceId1 = dual[1];
+        fields.deviceId2 = dual[1];
+    }
     for (const { field, pattern, validate } of FIELD_MATCHERS) {
         if (fields[field] !== undefined) {
             continue;

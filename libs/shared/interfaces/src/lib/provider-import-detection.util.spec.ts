@@ -165,6 +165,28 @@ describe('detectProviderImportCandidates', () => {
             }
         );
 
+        it('folds negative-circled font labels (🅤🅢🅔🅡 / 🅟🅐🅢🅢) and reads the get.php line', () => {
+            // Verbatim reseller message: negative-circled capitals NFKC does
+            // not fold, ➤➤ separators, and a "🅜➌🅤 🅛🅘🅢🅣" (M3U LIST) get.php
+            // line whose query is the authoritative credential source.
+            const candidates = detectProviderImportCandidates(
+                [
+                    '╭● 🅤🅡🅛 ➤➤ http://raztv.online:80',
+                    '├● 🅤🅢🅔🅡 ➤➤ 94U19T3EAQ68DAP',
+                    '├● 🅟🅐🅢🅢 ➤➤ 6uU3DX7OP5',
+                    '╰● 🅜➌🅤 🅛🅘🅢🅣 ➤➤ http://raztv.online:80/get.php?username=94U19T3EAQ68DAP&password=6uU3DX7OP5&type=m3u_plus',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0]).toMatchObject({
+                serverUrl: 'http://raztv.online',
+                username: '94U19T3EAQ68DAP',
+                password: '6uU3DX7OP5',
+            });
+        });
+
         it('does not read a hyphenated word as a labeled value', () => {
             expect(
                 detectProviderImportCandidates(
@@ -329,6 +351,56 @@ describe('detectProviderImportCandidates', () => {
                 '00:1A:79:11:11:11',
                 '00:1A:79:22:22:22',
             ]);
+        });
+
+        it('reads a dual "DEVICE ID=> 1&2 <hex>" line into both device slots and "S N" as serial', () => {
+            const deviceHex =
+                'FCE5A3B00FA5E2B9207E23FC205536314200BEE0FB2FCF0608FB97B6C7337E7F';
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://tv.saartv.cc/stalker_portal/c',
+                    'MAC=> 00:1A:79:00:E3:C9',
+                    'EXP=> 2030-01-13',
+                    'MAX => 10000',
+                    'ADULT PASS=> 7700',
+                    'S N=> F2DD20855EE0C',
+                    `DEVICE ID=> 1&2 ${deviceHex}`,
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(1);
+            expect(stalker[0]).toMatchObject({
+                portalUrl: 'http://tv.saartv.cc/stalker_portal/c',
+                macAddress: '00:1A:79:00:E3:C9',
+                serialNumber: 'F2DD20855EE0C',
+                deviceId1: deviceHex,
+                deviceId2: deviceHex,
+            });
+            // The parental-control PIN is not the account password.
+            expect(stalker[0].password).toBeUndefined();
+        });
+
+        it('reads a Turkish-labeled decorated portal message', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    '⚙️➤System : MediaHack Pro v7.7 (MAC)',
+                    '🔌➤Portal Type : Stalker / XUI (/c/)',
+                    '✅➤Tarama Zamanı: 2026-03-05 13:28:23',
+                    '🌍➤Portal : http://b1.jinbox.nl:80/c/',
+                    '🆔➤MAC ADRESİ: 00:1A:79:B4:EB:EB',
+                    '📆➤Son Tarih : Süresiz',
+                    '🖥➤Plan : MAG/MAC',
+                    '🔊➤ɢᴏʀᴜɴᴛᴜ: Var 👍',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(1);
+            expect(stalker[0]).toMatchObject({
+                portalUrl: 'http://b1.jinbox.nl:80/c/',
+                macAddress: '00:1A:79:B4:EB:EB',
+            });
         });
 
         it('gives labeled credentials to the stalker candidate, not a competing xtream guess', () => {

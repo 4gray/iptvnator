@@ -3,6 +3,7 @@ import {
     extractLabeledFields,
     extractMacAddresses,
     extractUrls,
+    foldDecorativeAlphabets,
     LabeledFields,
     labeledHostUrl,
 } from './provider-import-scan.util';
@@ -91,8 +92,12 @@ export function detectProviderImportCandidates(
     }
 
     // All scanning runs on one consistently normalized string so label
-    // positions, URL spans and masking agree with each other.
-    const normalized = raw.normalize('NFKC');
+    // positions, URL spans and masking agree with each other. NFKC folds the
+    // math alphabets; the extra pass folds the squared/negative-circled/
+    // regional-indicator "font" letters and circled digits NFKC leaves alone.
+    // Both only touch decorative glyphs — ASCII credentials and URLs, hence
+    // every emitted value, pass through unchanged.
+    const normalized = foldDecorativeAlphabets(raw.normalize('NFKC'));
     const urls = extractUrls(normalized);
     const labeled = extractLabeledFields(normalized, urls);
     const macs = extractMacAddresses(normalized, labeled.macAddress);
