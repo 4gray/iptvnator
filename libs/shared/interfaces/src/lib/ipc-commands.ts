@@ -107,6 +107,10 @@ export const DELETE_ALL_PLAYLISTS = 'DELETE_ALL_PLAYLISTS';
 // Remote Control
 export const REMOTE_CONTROL_CHANGE_CHANNEL = 'REMOTE_CONTROL_CHANGE_CHANNEL';
 
+// Display sleep: while a built-in video player is playing, the renderer asks
+// the main process to hold a powerSaveBlocker so the screen stays awake
+export const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
+
 // Window controls (custom title bar on Windows/Linux)
 export const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
 export const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
