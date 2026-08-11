@@ -122,8 +122,8 @@ importers:
         specifier: 6.8.9
         version: 6.8.9
       epg-parser:
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: ^0.5.0
+        version: 0.5.0
       fix-path:
         specifier: 5.0.0
         version: 5.0.0
@@ -6049,6 +6049,9 @@ packages:
   date-fns@4.4.0:
     resolution: {integrity: sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==}
 
+  dayjs@1.11.21:
+    resolution: {integrity: sha512-98IT+HOahAisibz/yjKbzuOBwYcjJ7BCLPzARyHiyEBmRz4fatF+KPJszEHXsGYjUG234aH/cOjW1wwTbKUZlA==}
+
   debug@2.6.9:
     resolution: {integrity: sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==}
     peerDependencies:
@@ -6487,8 +6490,8 @@ packages:
     resolution: {integrity: sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q==}
     engines: {node: '>=18'}
 
-  epg-parser@0.1.6:
-    resolution: {integrity: sha512-g6AxKOvs0E4bTGPdIUh8/FDKdrVjbf4DVK0jIFuChDt7wBRJmMVyqbLeS8NApf6M2wpCRLBpIenXOCS88w0Rqw==}
+  epg-parser@0.5.0:
+    resolution: {integrity: sha512-NK9vSev/KkCVcKilJd35PmB9tP4+tN45dhcsSxHagVoUTINh8KLZ1yvgtoPDVYr0IaSPJXIIIZWcu1JPjS5HMw==}
 
   err-code@2.0.3:
     resolution: {integrity: sha512-2bmlRpNKBxT/CRmPOlyISQpNj+qSeYvcym/uT0Jx2bMOlKLtSy1ZmLuVxSEKKyor/N5yhvp/ZiG1oE3DEYMSFA==}
@@ -8090,6 +8093,9 @@ packages:
 
   lodash.escaperegexp@4.1.2:
     resolution: {integrity: sha512-TM9YBvyC84ZxE3rgfefxUWiQKLilstD6k7PTGt6wfbtXF8ixIJLOL3VYyV/z+ZiPLsVxAsKAFVwWlWeb2Y8Yyw==}
+
+  lodash.groupby@4.6.0:
+    resolution: {integrity: sha512-5dcWxm23+VAoz+awKmBaiBvzox8+RqMgFhi7UvX9DHZr2HdxHXM/Wrf8cfKpsW37RNrvtPn6hSwNqurSILbmJw==}
 
   lodash.isequal@4.5.0:
     resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
@@ -17976,6 +17982,8 @@ snapshots:
 
   date-fns@4.4.0: {}
 
+  dayjs@1.11.21: {}
+
   debug@2.6.9:
     dependencies:
       ms: 2.0.0
@@ -18311,8 +18319,10 @@ snapshots:
 
   environment@1.1.0: {}
 
-  epg-parser@0.1.6:
+  epg-parser@0.5.0:
     dependencies:
+      dayjs: 1.11.21
+      lodash.groupby: 4.6.0
       xml-js: 1.6.11
 
   err-code@2.0.3: {}
@@ -20551,6 +20561,8 @@ snapshots:
   lodash.debounce@4.0.8: {}
 
   lodash.escaperegexp@4.1.2: {}
+
+  lodash.groupby@4.6.0: {}
 
   lodash.isequal@4.5.0: {}
 
@@ -24671,7 +24683,7 @@ snapshots:
 
   xml-js@1.6.11:
     dependencies:
-      sax: 1.6.0
+      sax: 1.6.1
 
   xml-name-validator@5.0.0: {}
 

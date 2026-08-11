@@ -210,6 +210,87 @@ https://stream.example/news.m3u8`);
         );
     });
 
+    it('parses XMLTV metadata into the current EPG shape', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse(`<?xml version="1.0"?>
+<tv source-info-name="Fixture Guide">
+  <channel id="news">
+    <display-name lang="en">News</display-name>
+    <icon src="https://example.test/news.png" width="100" height="50" />
+    <url system="homepage">https://example.test/news</url>
+  </channel>
+  <programme start="20260811010000 +0000" stop="20260811020000 +0000" channel="news">
+    <title lang="en">Morning News</title>
+    <desc lang="en">Headlines</desc>
+    <icon src="https://example.test/program.png" />
+  </programme>
+</tv>`);
+
+        await withServer(
+            createWebBackendApp({
+                clientOrigins: ['http://localhost:4200'],
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'https://provider.example/guide.xml'
+                );
+                const response = await fetch(
+                    `${baseUrl}/parse-xml?targetId=${targetId}`,
+                    { headers: { Origin: 'http://localhost:4200' } }
+                );
+                const body = (await response.json()) as Record<string, unknown>;
+
+                expect(response.status).toBe(200);
+                expect(body).toMatchObject({
+                    sourceInfoName: 'Fixture Guide',
+                    channels: [
+                        {
+                            id: 'news',
+                            displayName: [{ lang: 'en', value: 'News' }],
+                            icon: [
+                                {
+                                    src: 'https://example.test/news.png',
+                                    width: '100',
+                                    height: '50',
+                                },
+                            ],
+                            url: [
+                                {
+                                    system: 'homepage',
+                                    value: 'https://example.test/news',
+                                },
+                            ],
+                        },
+                    ],
+                    programs: [
+                        {
+                            channel: 'news',
+                            start: '2026-08-11T01:00:00.000Z',
+                            stop: '2026-08-11T02:00:00.000Z',
+                            title: [{ lang: 'en', value: 'Morning News' }],
+                            desc: [{ lang: 'en', value: 'Headlines' }],
+                            icon: [
+                                {
+                                    src: 'https://example.test/program.png',
+                                },
+                            ],
+                        },
+                    ],
+                });
+                expect(httpClient.requests).toEqual([
+                    {
+                        headers: undefined,
+                        params: undefined,
+                        url: 'https://provider.example/guide.xml',
+                    },
+                ]);
+            }
+        );
+    });
+
     it('extracts KODIPROP ClearKey DRM on the /parse URL-import path', async () => {
         const httpClient = new StubHttpClient();
         const kid = '00112233445566778899aabbccddeeff';
