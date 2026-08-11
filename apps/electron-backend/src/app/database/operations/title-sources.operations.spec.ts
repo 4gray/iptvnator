@@ -75,6 +75,28 @@ describe('title-sources.operations', () => {
             expect(compiledQuery(fts.all).sql).toContain('LIMIT');
         });
 
+        it('aggregates visible category names on both query paths', async () => {
+            // The renderer reads a language prefix off category names
+            // ("EN | Netflix"), so both paths must return them — grouped per
+            // (playlist, stream) and joined with char(31), because the
+            // default `,` appears inside real category names.
+            const scan = createDbMock([]);
+            await findTitleSources(scan.db, { title: 'It' });
+            const scanQuery = compiledQuery(scan.all);
+            expect(scanQuery.sql).toContain('group_concat(cat.name, char(31))');
+            expect(scanQuery.sql).toContain(
+                'GROUP BY cat.playlist_id, c.xtream_id'
+            );
+
+            const fts = createDbMock([]);
+            await findTitleSources(fts.db, { title: 'Dune' });
+            const ftsQuery = compiledQuery(fts.all);
+            expect(ftsQuery.sql).toContain('group_concat(cat.name, char(31))');
+            expect(ftsQuery.sql).toContain(
+                'GROUP BY cat.playlist_id, c.xtream_id'
+            );
+        });
+
         it('can still find a short non-ASCII title', async () => {
             // SQLite's LOWER() is ASCII-only, so folding "Он" to "он" never
             // happened and the film stayed invisible in the Sources chip.

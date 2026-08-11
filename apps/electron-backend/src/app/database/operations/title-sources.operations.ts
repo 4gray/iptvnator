@@ -35,6 +35,37 @@ interface TitleSourceRow {
     category_xtream_id: number;
     playlist_id: string;
     playlist_name: string;
+    /** `group_concat` of every visible category name, `\u001f`-separated. */
+    category_names: string | null;
+}
+
+/**
+ * The separator for aggregated category names. `group_concat`'s default `,`
+ * appears in real category names ("Action, Adventure"), so splitting on it
+ * would shred them; the ASCII unit separator cannot. Written as `char(31)` in
+ * SQL and `\u001f` in the split.
+ */
+const CATEGORY_NAME_SEPARATOR = '\u001f';
+
+/**
+ * Aggregated category names back into a list. Duplicates are dropped here
+ * rather than with `DISTINCT` in SQL, because SQLite refuses a custom
+ * separator on a DISTINCT aggregate — and duplicate names change nothing for
+ * a reader that only compares language prefixes.
+ */
+function splitCategoryNames(aggregated: string | null): string[] {
+    if (!aggregated) {
+        return [];
+    }
+
+    const names: string[] = [];
+    for (const raw of aggregated.split(CATEGORY_NAME_SEPARATOR)) {
+        const name = raw.trim();
+        if (name && !names.includes(name)) {
+            names.push(name);
+        }
+    }
+    return names;
 }
 
 export interface FindTitleSourcesRequest {
@@ -197,6 +228,10 @@ function scanCandidateQuery(
         ),
         sql` AND `
     );
+    // Grouped like the FTS path: one row per (playlist, stream), with every
+    // visible category name aggregated onto it so the renderer can read a
+    // language prefix off categories ("EN | Netflix"). The hidden filter
+    // above keeps hidden categories out of that aggregate too.
     return sql`
         SELECT
             c.id AS content_id,
@@ -205,7 +240,8 @@ function scanCandidateQuery(
             c.poster_url AS poster_url,
             cat.xtream_id AS category_xtream_id,
             cat.playlist_id AS playlist_id,
-            p.name AS playlist_name
+            p.name AS playlist_name,
+            group_concat(cat.name, char(31)) AS category_names
         FROM content AS c
         INNER JOIN categories AS cat ON c.category_id = cat.id
         INNER JOIN playlists AS p ON cat.playlist_id = p.id
@@ -214,6 +250,7 @@ function scanCandidateQuery(
         AND p.type = 'xtream'
         AND ${wordMatches}
         ${excludePlaylist}
+        GROUP BY cat.playlist_id, c.xtream_id
         ORDER BY LENGTH(c.title), c.title
     `;
 }
@@ -236,7 +273,8 @@ function ftsCandidateQuery(matchQuery: string, excludePlaylist: SQL) {
             c.poster_url AS poster_url,
             cat.xtream_id AS category_xtream_id,
             cat.playlist_id AS playlist_id,
-            p.name AS playlist_name
+            p.name AS playlist_name,
+            group_concat(cat.name, char(31)) AS category_names
         FROM content_title_fts
         INNER JOIN content AS c ON c.id = content_title_fts.rowid
         INNER JOIN categories AS cat ON c.category_id = cat.id
@@ -357,6 +395,7 @@ export async function findTitleSources(
             posterUrl: row.poster_url,
             matchConfidence: exactMatch ? 'exact' : 'fuzzy',
             year: rowYear,
+            categoryNames: splitCategoryNames(row.category_names),
         });
     }
 

@@ -29,12 +29,17 @@ export interface VodMultiSourceMovie {
      * would restart the search for no gain.
      */
     metadata?: ProviderVodMetadata;
+    /**
+     * Name of the category the route arrived through ("EN | Netflix"), so the
+     * route's own row can carry a category-derived language like discovered
+     * alternatives do. Outside the movie key for the same reason as
+     * `metadata`: it describes presentation, not which film this is.
+     */
+    categoryName?: string | null;
 }
 
 type CatalogItem =
-    | (Partial<XtreamVodStream> & { title?: string })
-    | null
-    | undefined;
+    (Partial<XtreamVodStream> & { title?: string }) | null | undefined;
 
 /**
  * Resolve the movie identity, or null while it is not yet knowable.
@@ -52,6 +57,8 @@ export function resolveVodMultiSourceMovie(input: {
     catalogItem: CatalogItem;
     /** From `movie_data`, which sits beside `info` rather than inside it. */
     containerExtension?: string | null;
+    /** Name of the category the route arrived through, when known. */
+    categoryName?: string | null;
 }): VodMultiSourceMovie | null {
     const { playlistId, vodId, vodInfo, catalogItem } = input;
 
@@ -79,6 +86,7 @@ export function resolveVodMultiSourceMovie(input: {
         // supplies the real one.
         year: extractYear(vodInfo?.releasedate) ?? releaseTagYear(title),
         tmdbId: vodInfo?.tmdb_id,
+        categoryName: input.categoryName ?? null,
         // Only once `get_vod_info` has landed. Before that the row simply
         // states nothing, which is the honest reading of "not known yet".
         metadata: vodInfo

@@ -30,10 +30,13 @@ function source(
 }
 
 describe('titleLanguagePrefix', () => {
+    // The full parsing matrix lives with the util in shared/interfaces;
+    // this asserts the re-export still reads the classic pipe form.
     it('reads the uppercase prefix before a pipe', () => {
         expect(titleLanguagePrefix('EN| Night of the Living Dead')).toBe('EN');
         expect(titleLanguagePrefix('ALB |Some Movie')).toBe('ALB');
         expect(titleLanguagePrefix('  ru| Ночь')).toBe('RU');
+        expect(titleLanguagePrefix('РУС | Фильм')).toBe('РУС');
     });
 
     it('rejects titles whose pipe is not a language marker', () => {
@@ -56,6 +59,15 @@ describe('collectLanguagePrefixes', () => {
         ]);
         expect(prefixes).toEqual(['EN', 'RU']);
     });
+
+    it('includes the category-derived language of untagged titles', () => {
+        const prefixes = collectLanguagePrefixes([
+            source({ rawTitle: 'Plain title', categoryLanguage: 'DE' }),
+            // The title prefix outranks a conflicting category language.
+            source({ rawTitle: 'EN| Movie', categoryLanguage: 'RU' }),
+        ]);
+        expect(prefixes).toEqual(['DE', 'EN']);
+    });
 });
 
 describe('qualityPixels', () => {
@@ -71,9 +83,9 @@ describe('qualityPixels', () => {
 describe('sourceMatchesFilters', () => {
     it('passes everything with no filters active', () => {
         expect(hasActiveVodSourceFilters(EMPTY_VOD_SOURCE_FILTERS)).toBe(false);
-        expect(
-            sourceMatchesFilters(source(), EMPTY_VOD_SOURCE_FILTERS)
-        ).toBe(true);
+        expect(sourceMatchesFilters(source(), EMPTY_VOD_SOURCE_FILTERS)).toBe(
+            true
+        );
     });
 
     it('available keeps only probe-verified sources', () => {
@@ -129,6 +141,23 @@ describe('sourceMatchesFilters', () => {
         ).toBe(false);
     });
 
+    it('language falls back to the category-derived language', () => {
+        const filters = { ...EMPTY_VOD_SOURCE_FILTERS, language: 'EN' };
+        expect(
+            sourceMatchesFilters(
+                source({ rawTitle: 'Movie', categoryLanguage: 'EN' }),
+                filters
+            )
+        ).toBe(true);
+        // A title prefix always outranks the category.
+        expect(
+            sourceMatchesFilters(
+                source({ rawTitle: 'RU| Movie', categoryLanguage: 'EN' }),
+                filters
+            )
+        ).toBe(false);
+    });
+
     it('filters compose with AND', () => {
         const filters = {
             availableOnly: true,
@@ -158,8 +187,8 @@ describe('noChecksRunYet', () => {
         expect(
             noChecksRunYet([source(), source({ probe: { status: 'probing' } })])
         ).toBe(false);
-        expect(
-            noChecksRunYet([source({ probe: { status: 'fail' } })])
-        ).toBe(false);
+        expect(noChecksRunYet([source({ probe: { status: 'fail' } })])).toBe(
+            false
+        );
     });
 });

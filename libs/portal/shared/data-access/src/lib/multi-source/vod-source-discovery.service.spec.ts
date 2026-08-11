@@ -68,3 +68,46 @@ describe('VodSourceDiscoveryService — failure logging', () => {
             .join('\n');
     }
 });
+
+describe('VodSourceDiscoveryService — candidate mapping', () => {
+    afterEach(() => {
+        delete (window as { electron?: unknown }).electron;
+    });
+
+    it('derives the category language, leaving conflicts and noise empty', async () => {
+        (window as { electron?: unknown }).electron = {
+            dbFindTitleSources: jest
+                .fn()
+                .mockResolvedValue([
+                    row(1, ['EN | Netflix', 'EN | Action']),
+                    row(2, ['EN | Netflix', 'DE | Cinema']),
+                    row(3, ['TOP | 250']),
+                    row(4, undefined),
+                ]),
+        };
+        const service = new VodSourceDiscoveryService();
+
+        const result = await service.discover({
+            title: 'Dune',
+            currentPlaylistId: 'playlist-0',
+        });
+
+        expect(result.sources.map((source) => source.categoryLanguage)).toEqual(
+            ['EN', null, null, null]
+        );
+    });
+
+    function row(id: number, categoryNames: string[] | undefined) {
+        return {
+            playlistId: `playlist-${id}`,
+            playlistName: `Portal ${id}`,
+            categoryId: id,
+            xtreamId: 100 + id,
+            title: 'Dune',
+            posterUrl: null,
+            matchConfidence: 'exact' as const,
+            year: null,
+            categoryNames,
+        };
+    }
+});

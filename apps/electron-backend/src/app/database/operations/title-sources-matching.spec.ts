@@ -26,7 +26,28 @@ describe('title-sources.operations — confirmation and scoping', () => {
                     posterUrl: 'https://cdn.example.com/dune.jpg',
                     matchConfidence: 'exact',
                     year: null,
+                    categoryNames: [],
                 },
+            ]);
+        });
+
+        it('splits aggregated category names on the unit separator', async () => {
+            // `group_concat`'s default `,` appears in real category names, so
+            // the queries aggregate with char(31) and the split must read
+            // exactly that — a comma inside a name stays part of the name.
+            const { db } = createDbMock([
+                {
+                    ...duneRow,
+                    category_names:
+                        'EN | Netflix\u001fAction, Adventure\u001fEN | Netflix',
+                },
+            ]);
+
+            const matches = await findTitleSources(db, { title: 'Dune' });
+
+            expect(matches[0].categoryNames).toEqual([
+                'EN | Netflix',
+                'Action, Adventure',
             ]);
         });
 
@@ -162,7 +183,9 @@ describe('title-sources.operations — confirmation and scoping', () => {
 
                 expect(
                     `${requested} confirms ${matches.length} of ${rows.length}`
-                ).toBe(`${requested} confirms ${rows.length} of ${rows.length}`);
+                ).toBe(
+                    `${requested} confirms ${rows.length} of ${rows.length}`
+                );
             }
         });
 

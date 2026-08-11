@@ -156,9 +156,8 @@ fit contract:
 The chip row composes with the host search (AND): **All (N)** resets the chip
 filters and states the total copy count, **Available** keeps only sources
 whose probe verified them, **HD+** keeps sources whose quality tag reads
-1080p or better, and the language select is built from the `EN|`-style
-prefixes actually present in the raw titles. Two of these encode a decision
-worth writing down:
+1080p or better, and the language select is built from the languages actually
+present in the list. Two of these encode a decision worth writing down:
 
 - "Available" is strict: only `probe.status === 'ok'` passes. An unchecked
   source must never pass a filter with that name — and because checks are
@@ -174,14 +173,50 @@ worth writing down:
 When search or filters reduce the list, a muted "X of N" counter appears, and
 groups with no matching copy disappear entirely.
 
+### Where a row's language comes from
+
+The language the select and the copy chips read is `vodSourceLanguage`
+(`libs/shared/interfaces/src/lib/vod-source-language.util.ts`): the stream
+title's own prefix when it has one, else the language the stream's categories
+agree on. Both are parsed guesses — they feed browsing only, and neither
+ranking, failover nor the dub warning can reach them (`factualOnly` and
+`audioDiffersFactually` read other fields entirely).
+
+`titleLanguagePrefix` accepts the three shapes panels actually write: a 2–4
+letter Latin or Cyrillic tag (plus the five-letter `MULTI` marker) before a
+pipe **or any of its Unicode lookalikes** (`¦`, `│`, `｜`, …— visually
+identical to `|`, invisible to a literal match), a bracketed tag at the very
+start (`[EN] Movie`), and an ALL-uppercase tag before a **spaced** dash
+(`EN - Movie`). The dash form is stricter on purpose: dashes are ordinary
+title punctuation, and "Up - the movie" or "X-Men" must not read as a
+language.
+
+The category path exists because many panels tag the CATEGORY ("EN | Netflix",
+"DE | Apple TV") and leave stream titles bare. Discovery aggregates every
+visible category name a stream sits in (`group_concat(cat.name, char(31))`
+per `(playlist_id, xtream_id)` in both query tiers — `char(31)` because the
+default `,` appears inside real category names), and
+`unambiguousCategoryLanguage` reduces them: categories without a recognized
+language prefix abstain, all prefixed ones must agree, and a conflict yields
+nothing. Category prefixes must additionally pass `isKnownLanguageTag`,
+because categories routinely start with "NEW |", "TOP |" or "VIP |" — and
+`new`, `top` and `hot` are even assigned ISO 639-3 codes, which is why the
+gate is an `Intl.DisplayNames` check for two-letter codes plus a curated list
+for longer tags rather than a registry lookup. Title prefixes stay permissive:
+a tag in front of a movie title is overwhelmingly a language, and tightening
+there would drop working filter options. The route's own row reads the one
+category the route arrived through (`VodMultiSourceMovie.categoryName`),
+which is the visible one.
+
 ### The popover: copy rows
 
 Expanding "N copies in this playlist" lists EVERY copy of the group —
 including the one the parent row already shows — as compact
 `app-vod-source-copy-row`s indented under the parent's text column. The
 playlist's name and monogram are not repeated: the primary text is the
-provider's own raw stream title (mono), with the parsed `EN|`/`RU|` language
-prefix promoted to a chip before it. The tag row shows only values that
+provider's own raw stream title (mono), with the copy's parsed language
+(`vodSourceLanguage` — title prefix first, category fallback) promoted to a
+chip before it. The tag row shows only values that
 DIFFER from the parent's copy (identical container/codec are omitted), so
 what distinguishes a copy is the only thing on the line; the copy identical
 to the parent shows a muted "same as above" note instead. The fuzzy-match

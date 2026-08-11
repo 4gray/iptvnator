@@ -52,6 +52,7 @@ export * from './lib/stalker-account-info-dialog-data.interface';
 export * from './lib/title-normalization.util';
 export * from './lib/tmdb.interface';
 export * from './lib/vod-source.interface';
+export * from './lib/vod-source-language.util';
 export * from './lib/vod-source-match-key.util';
 export * from './lib/xtream-account-info-dialog-data.interface';
 export * from './lib/xtream-category.interface';

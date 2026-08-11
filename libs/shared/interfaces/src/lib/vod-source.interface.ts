@@ -90,6 +90,12 @@ export interface VodSourceCandidateRow {
     posterUrl: string | null;
     matchConfidence: VodSourceMatchConfidence;
     year: number | null;
+    /**
+     * Names of every visible category this stream sits in within its
+     * playlist. Carried so the renderer can read a language prefix off them
+     * ("EN | Netflix") when the stream title itself states none.
+     */
+    categoryNames?: string[];
 }
 
 /**
@@ -132,6 +138,15 @@ export interface VodSourceCandidate {
      * the dub change".
      */
     audioLanguage?: VodSourceField;
+    /**
+     * Language read off the stream's category names ("EN | Netflix"), when
+     * every prefixed category agrees (`unambiguousCategoryLanguage`). A
+     * guess by nature — it stands in for a missing title prefix in the
+     * browse filter and chips, and is never read by ranking, failover or
+     * the dub warning (`factualOnly` and `audioDiffersFactually` cannot
+     * reach it).
+     */
+    categoryLanguage?: string | null;
 
     /** ISO timestamp of the last failed playback attempt, if any. */
     lastFailedAt?: string;

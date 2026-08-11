@@ -1,5 +1,8 @@
 import { applyApiMetadata } from '@iptvnator/portal/shared/data-access';
-import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
+import {
+    unambiguousCategoryLanguage,
+    type VodSourceCandidate,
+} from '@iptvnator/shared/interfaces';
 import type { VodMultiSourceMovie } from './vod-multi-source-identity';
 
 /**
@@ -30,6 +33,11 @@ export function currentSourceRow(
         rawTitle: movie.title,
         matchConfidence: 'exact',
         year: movie.year ?? null,
+        // Alternatives read this off every category the DB knows; the route
+        // only knows the one it arrived through, which is the visible one.
+        categoryLanguage: unambiguousCategoryLanguage(
+            movie.categoryName ? [movie.categoryName] : null
+        ),
     };
 
     return movie.metadata ? applyApiMetadata(row, movie.metadata) : row;

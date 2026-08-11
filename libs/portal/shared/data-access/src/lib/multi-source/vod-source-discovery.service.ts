@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import type {
-    VodSourceCandidate,
-    VodSourceCandidateRow,
-    VodSourceMatchKind,
+import {
+    unambiguousCategoryLanguage,
+    type VodSourceCandidate,
+    type VodSourceCandidateRow,
+    type VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { parseTitleMetadata } from './vod-source-metadata.util';
@@ -99,5 +100,8 @@ function toCandidate(row: VodSourceCandidateRow): VodSourceCandidate {
         quality: parsed.quality,
         codec: parsed.codec,
         audio: parsed.audio,
+        // A guess like everything else here: the language the stream's
+        // categories agree on, standing in when the title has no prefix.
+        categoryLanguage: unambiguousCategoryLanguage(row.categoryNames),
     };
 }

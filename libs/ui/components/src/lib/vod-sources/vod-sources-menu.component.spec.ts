@@ -403,6 +403,34 @@ describe('VodSourcesMenuComponent', () => {
             expect(rowNames()).toEqual(['Russian Portal']);
         });
 
+        it('offers a category-derived language when the title has no prefix', () => {
+            render([
+                createSource({
+                    id: 'a:xtream:1',
+                    playlistId: 'a',
+                    playlistName: 'German Portal',
+                    rawTitle: 'Der Film (2021)',
+                    categoryLanguage: 'DE',
+                }),
+                createSource({
+                    id: 'b:xtream:2',
+                    playlistId: 'b',
+                    playlistName: 'Bare Portal',
+                    rawTitle: 'Der Film',
+                }),
+            ]);
+
+            const select = fixture.debugElement.query(
+                By.css('.sources-menu__lang')
+            );
+            expect(select.nativeElement.textContent).toContain('DE');
+
+            fixture.componentInstance.setLanguageFilter('DE');
+            fixture.detectChanges();
+
+            expect(rowNames()).toEqual(['German Portal']);
+        });
+
         it('the All chip resets every filter and restores the full list', () => {
             render([
                 createSource({
