@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API-sleutel (optioneel)",
         "TMDB_API_KEY_DESCRIPTION": "Gebruik je eigen TMDB API-sleutel in plaats van de ingebouwde",
         "TMDB_GET_KEY_HINT": "Vraag een gratis API-sleutel aan op themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "Films in M3U-afspeellijsten herkennen",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "Afspeellijstitems die op filmbestanden lijken, openen in de filmdetailweergave met TMDB-metadata in plaats van het EPG-paneel.",
         "TMDB_TEST_BUTTON": "Sleutel controleren",
         "TMDB_TEST_SUCCESS": "De sleutel werkt — TMDB heeft succesvol gereageerd",
         "TMDB_TEST_FAILED": "Controle mislukt — TMDB heeft de sleutel geweigerd of is niet bereikbaar",

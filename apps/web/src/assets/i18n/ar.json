@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "مفتاح TMDB API (اختياري)",
         "TMDB_API_KEY_DESCRIPTION": "استخدم مفتاح TMDB API الخاص بك بدلاً من المفتاح المدمج",
         "TMDB_GET_KEY_HINT": "احصل على مفتاح API مجاني على themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "التعرّف على الأفلام في قوائم تشغيل M3U",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "عناصر قائمة التشغيل التي تبدو كملفات أفلام تُفتح في صفحة تفاصيل الفيلم مع بيانات TMDB الوصفية بدلاً من لوحة دليل البرامج.",
         "TMDB_TEST_BUTTON": "التحقق من المفتاح",
         "TMDB_TEST_SUCCESS": "المفتاح يعمل — استجاب TMDB بنجاح",
         "TMDB_TEST_FAILED": "فشل التحقق — رفض TMDB المفتاح أو تعذر الوصول إليه",

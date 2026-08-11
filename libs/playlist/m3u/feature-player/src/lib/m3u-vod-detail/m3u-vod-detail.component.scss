@@ -1,0 +1,26 @@
+@use '../../../../../../ui/styles/detail-view' as detail-view;
+
+@include detail-view.base();
+
+:host {
+    display: block;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+app-portal-detail-shell {
+    display: block;
+    height: 100%;
+}
+
+// The M3U player page has no route to go "back" to — the channel sidebar
+// next to the detail IS the navigation — so the hero's back arrow would
+// dead-end. Hidden here instead of a shell option: this host is the only
+// consumer without a parent route. `:host` scoping is load-bearing — a bare
+// `::ng-deep` would leak the rule globally and hide the portals' back arrow.
+:host ::ng-deep .hero__back-button {
+    display: none;
+}

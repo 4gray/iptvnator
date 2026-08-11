@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "API-ключ TMDB (необязательно)",
         "TMDB_API_KEY_DESCRIPTION": "Использовать собственный API-ключ TMDB вместо встроенного",
         "TMDB_GET_KEY_HINT": "Получите бесплатный API-ключ на themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "Распознавать фильмы в плейлистах M3U",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "Элементы плейлиста, похожие на файлы фильмов, открываются на странице деталей фильма с метаданными TMDB вместо панели телепрограммы.",
         "TMDB_TEST_BUTTON": "Проверить ключ",
         "TMDB_TEST_SUCCESS": "Ключ работает — TMDB успешно ответил",
         "TMDB_TEST_FAILED": "Проверка не удалась — TMDB отклонил ключ или недоступен",

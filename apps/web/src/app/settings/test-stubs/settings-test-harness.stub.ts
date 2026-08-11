@@ -87,6 +87,7 @@ export const DEFAULT_SETTINGS = {
     playerAmbientMode: false,
     playerUpNextRail: true,
     vodAutoFailover: false,
+    m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,

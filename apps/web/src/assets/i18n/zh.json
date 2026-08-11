@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API 密钥（可选）",
         "TMDB_API_KEY_DESCRIPTION": "使用您自己的 TMDB API 密钥替代内置密钥",
         "TMDB_GET_KEY_HINT": "在 themoviedb.org 获取免费的 API 密钥",
+        "TMDB_M3U_VOD_DETAILS": "识别 M3U 播放列表中的电影",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "疑似电影文件的播放列表条目会在包含 TMDB 元数据的电影详情视图中打开，而不是 EPG 面板。",
         "TMDB_TEST_BUTTON": "检查密钥",
         "TMDB_TEST_SUCCESS": "密钥有效 — TMDB 响应成功",
         "TMDB_TEST_FAILED": "检查失败 — TMDB 拒绝了该密钥或无法访问",

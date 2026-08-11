@@ -29,6 +29,7 @@ import {
     extractDrmFromRaw,
     isDashChannel,
     isDashStreamUrl,
+    isLikelyM3uMovie,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -103,6 +104,7 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -119,6 +121,7 @@ import {
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
 const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
@@ -137,6 +140,7 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
         CommonModule,
         EpgListViewComponent,
         EpgTimelineComponent,
+        M3uVodDetailComponent,
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
@@ -162,6 +166,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService
@@ -212,6 +217,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             ? VideoPlayer.ArtPlayer
             : VideoPlayer.Html5Player
     );
+    /**
+     * The active channel is a movie FILE (URL-shape heuristic) and the user
+     * has TMDB enrichment plus the recognition toggle on — the content area
+     * shows the VOD detail experience instead of the player + EPG zone.
+     * Synchronous on purpose: the layout is chosen at activation, and the
+     * TMDB lookup inside the detail host only patches metadata afterwards.
+     */
+    readonly showMovieDetail = computed(() => {
+        const channel = this.activeChannel();
+        return (
+            !!channel &&
+            this.settingsStore.m3uVodDetails?.() !== false &&
+            this.tmdbEnrichment.isEnabled() &&
+            isLikelyM3uMovie(channel)
+        );
+    });
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
@@ -599,7 +620,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             untracked(() => {
                 const remoteControl = this.remoteControlBridge;
                 const activeChannel = this.activeChannel();
-                if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
+                if (
+                    !remoteControl?.updateRemoteControlStatus ||
+                    !activeChannel
+                ) {
                     return;
                 }
 
@@ -666,7 +690,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             const currentEpgProgram = epgProgram as
-                EpgProgram | null | undefined;
+                | EpgProgram
+                | null
+                | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );
@@ -1142,7 +1168,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         // after Shaka's browser-support preflight fails — the DASH-forced
         // inline player is not audible then, so this check must precede the
         // DASH shortcut.
-        if (isLiveExternalPlayerSession(this.externalPlayback.activeSession())) {
+        if (
+            isLiveExternalPlayerSession(this.externalPlayback.activeSession())
+        ) {
             return false;
         }
 
@@ -1152,8 +1180,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
         const player = this.playerSettings.player;
         return (
-            !this.isExternalPlayer(player) &&
-            player !== VideoPlayer.EmbeddedMpv
+            !this.isExternalPlayer(player) && player !== VideoPlayer.EmbeddedMpv
         );
     }
 

@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API key (optional)",
         "TMDB_API_KEY_DESCRIPTION": "Use your own TMDB API key instead of the built-in one",
         "TMDB_GET_KEY_HINT": "Get a free API key on themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "Recognize movies in M3U playlists",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "Playlist entries that look like movie files open in the movie detail view with TMDB metadata instead of the program guide panel.",
         "TMDB_TEST_BUTTON": "Check key",
         "TMDB_TEST_SUCCESS": "The key works — TMDB responded successfully",
         "TMDB_TEST_FAILED": "Check failed — TMDB rejected the key or is unreachable",

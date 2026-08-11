@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API 키 (선택 사항)",
         "TMDB_API_KEY_DESCRIPTION": "기본 제공 키 대신 자신의 TMDB API 키를 사용합니다",
         "TMDB_GET_KEY_HINT": "themoviedb.org에서 무료 API 키 받기",
+        "TMDB_M3U_VOD_DETAILS": "M3U 재생목록에서 영화 인식",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "영화 파일로 보이는 재생목록 항목은 EPG 패널 대신 TMDB 메타데이터가 포함된 영화 상세 보기로 열립니다.",
         "TMDB_TEST_BUTTON": "키 확인",
         "TMDB_TEST_SUCCESS": "키가 작동합니다 — TMDB가 정상적으로 응답했습니다",
         "TMDB_TEST_FAILED": "확인에 실패했습니다 — TMDB가 키를 거부했거나 연결할 수 없습니다",

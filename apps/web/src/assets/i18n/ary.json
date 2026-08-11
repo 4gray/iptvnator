@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "مفتاح TMDB API (اختياري)",
         "TMDB_API_KEY_DESCRIPTION": "استعمل مفتاح TMDB API ديالك بلاصة المفتاح المدمج",
         "TMDB_GET_KEY_HINT": "جيب مفتاح API مجاني من themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "التعرف على الأفلام فقوائم M3U",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "العناصر ديال القائمة اللي كيبانو بحال ملفات أفلام كيتفتحو فصفحة تفاصيل الفيلم مع ميتاداتا TMDB بلاصة لوحة دليل البرامج.",
         "TMDB_TEST_BUTTON": "تأكد من المفتاح",
         "TMDB_TEST_SUCCESS": "المفتاح خدام — TMDB جاوب مزيان",
         "TMDB_TEST_FAILED": "التحقق ما نجحش — TMDB رفض المفتاح ولا ما يمكنش الوصول ليه",

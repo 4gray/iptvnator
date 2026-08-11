@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API anahtarı (isteğe bağlı)",
         "TMDB_API_KEY_DESCRIPTION": "Yerleşik anahtar yerine kendi TMDB API anahtarınızı kullanın",
         "TMDB_GET_KEY_HINT": "themoviedb.org üzerinden ücretsiz API anahtarı alın",
+        "TMDB_M3U_VOD_DETAILS": "M3U oynatma listelerindeki filmleri tanı",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "Film dosyasına benzeyen oynatma listesi öğeleri, EPG paneli yerine TMDB meta verileriyle film ayrıntı görünümünde açılır.",
         "TMDB_TEST_BUTTON": "Anahtarı kontrol et",
         "TMDB_TEST_SUCCESS": "Anahtar çalışıyor — TMDB başarıyla yanıt verdi",
         "TMDB_TEST_FAILED": "Kontrol başarısız — TMDB anahtarı reddetti veya erişilemiyor",

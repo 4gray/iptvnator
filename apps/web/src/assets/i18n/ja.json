@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API キー（任意）",
         "TMDB_API_KEY_DESCRIPTION": "内蔵のキーの代わりに独自の TMDB API キーを使用します",
         "TMDB_GET_KEY_HINT": "themoviedb.org で無料の API キーを取得",
+        "TMDB_M3U_VOD_DETAILS": "M3U プレイリスト内の映画を認識",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "映画ファイルと思われるプレイリスト項目は、EPG パネルの代わりに TMDB メタデータ付きの映画詳細画面で開きます。",
         "TMDB_TEST_BUTTON": "キーを確認",
         "TMDB_TEST_SUCCESS": "キーは有効です — TMDB が正常に応答しました",
         "TMDB_TEST_FAILED": "確認に失敗しました — TMDB がキーを拒否したか、接続できません",

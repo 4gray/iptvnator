@@ -15,6 +15,7 @@ describe('SettingsTmdbSectionComponent', () => {
 
     const createForm = () =>
         new FormGroup({
+            m3uVodDetails: new FormControl(true),
             tmdb: new FormGroup({
                 enabled: new FormControl(true),
                 apiKey: new FormControl(''),
@@ -84,6 +85,47 @@ describe('SettingsTmdbSectionComponent', () => {
         fixture = TestBed.createComponent(SettingsTmdbSectionComponent);
         fixture.componentRef.setInput('form', createForm());
         fixture.detectChanges();
+    });
+
+    it('offers the M3U movie-recognition toggle while TMDB is enabled', async () => {
+        await settle();
+
+        const checkbox = queryByTestId('tmdb-m3u-vod-details');
+        expect(checkbox).not.toBeNull();
+
+        (checkbox?.querySelector('input') as HTMLInputElement).click();
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.m3uVodDetailsControl?.value).toBe(
+            false
+        );
+    });
+
+    it('hides the M3U toggle when TMDB is disabled', async () => {
+        await settle();
+
+        fixture.componentInstance.form().get('tmdb.enabled')?.setValue(false);
+        fixture.detectChanges();
+
+        expect(queryByTestId('tmdb-m3u-vod-details')).toBeNull();
+    });
+
+    it('hides the M3U toggle row when the host form lacks the control', async () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(SettingsTmdbSectionComponent);
+        fixture.componentRef.setInput(
+            'form',
+            new FormGroup({
+                tmdb: new FormGroup({
+                    enabled: new FormControl(true),
+                    apiKey: new FormControl(''),
+                }),
+            })
+        );
+        fixture.detectChanges();
+        await settle();
+
+        expect(queryByTestId('tmdb-m3u-vod-details')).toBeNull();
     });
 
     it('sizes the cache as soon as the section page opens', async () => {

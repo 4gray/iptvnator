@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API 金鑰（選填）",
         "TMDB_API_KEY_DESCRIPTION": "使用您自己的 TMDB API 金鑰，而非內建金鑰",
         "TMDB_GET_KEY_HINT": "在 themoviedb.org 取得免費的 API 金鑰",
+        "TMDB_M3U_VOD_DETAILS": "辨識 M3U 播放清單中的電影",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "看似電影檔案的播放清單項目會在包含 TMDB 中繼資料的電影詳細資訊頁面中開啟，而非 EPG 面板。",
         "TMDB_TEST_BUTTON": "檢查金鑰",
         "TMDB_TEST_SUCCESS": "金鑰有效 — TMDB 回應成功",
         "TMDB_TEST_FAILED": "檢查失敗 — TMDB 拒絕該金鑰或無法連線",

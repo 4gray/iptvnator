@@ -1,8 +1,4 @@
-<section
-    class="settings-group"
-    id="tmdb"
-    [formGroup]="form()"
->
+<section class="settings-group" id="tmdb" [formGroup]="form()">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>movie</mat-icon>
@@ -96,6 +92,30 @@
                     </div>
                 </div>
             </div>
+        }
+
+        @if (form().value.tmdb?.enabled === true) {
+            @if (m3uVodDetailsControl; as m3uVodDetails) {
+                <div class="setting-item">
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{ 'SETTINGS.TMDB_M3U_VOD_DETAILS' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.TMDB_M3U_VOD_DETAILS_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-checkbox
+                            [formControl]="m3uVodDetails"
+                            data-test-id="tmdb-m3u-vod-details"
+                        ></mat-checkbox>
+                    </div>
+                </div>
+            }
         }
 
         <div class="setting-item">

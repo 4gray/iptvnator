@@ -64,113 +64,132 @@
         </button>
     }
     @if (activeChannel(); as activeChannel) {
-        @if (
-            activeChannel.radio === 'true' ||
-            shouldShowInlinePlayer(activeChannel)
-        ) {
-            <div class="video-player">
-                @if (activeChannel.radio === 'true') {
-                    <app-audio-player
-                        [url]="activeChannel.url"
-                        [icon]="activeChannel?.tvg?.logo!"
-                        [channelName]="displayChannelName()"
-                        [volume]="volume()"
-                        (volumeChange)="onInlineVolumeChange($event)"
-                    />
-                } @else {
-                    <app-web-player-view
-                        [playbackSessionKey]="playbackSessionKey()"
-                        [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
-                        [title]="inlinePlayerTitle()"
-                        [playback]="embeddedPlayback()"
-                        [playerOverride]="
-                            activeChannelIsDash()
-                                ? dashPlayerOverride()
-                                : (playerSettings.player ?? null)
-                        "
-                        [volume]="volume()"
-                        (externalFallbackRequested)="
-                            handleExternalFallbackRequest($event)
-                        "
-                    />
-                }
-            </div>
-        }
-
-        @if (supportsEpg && activeChannel.radio !== 'true') {
-            @let canCollapseEpgPanel = shouldShowInlinePlayer(activeChannel);
-            <div
-                class="epg"
-                [class.epg--inline]="canCollapseEpgPanel"
-                [class.epg--list]="epgViewMode() === 'list'"
-                [class.epg-collapsed]="
-                    canCollapseEpgPanel && isLiveEpgPanelCollapsed()
+        @if (showMovieDetail()) {
+            <app-m3u-vod-detail
+                [channel]="activeChannel"
+                [playback]="embeddedPlayback()"
+                [playbackSessionKey]="playbackSessionKey()"
+                [inlinePlayerAvailable]="shouldShowInlinePlayer(activeChannel)"
+                (externalFallbackRequested)="
+                    handleExternalFallbackRequest($event)
                 "
-            >
-                <div class="epg-content">
-                    @if (epgViewMode() === 'list') {
-                        <app-epg-list-view
-                            [programs]="epgPrograms()"
-                            [channelName]="timelineChannelName()"
-                            [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="
-                                archivePlaybackAvailable()
-                            "
-                            [archiveDays]="epgArchiveDays()"
-                            [activeProgram]="activeEpgProgramOrNull()"
-                            [isLivePlayback]="!showReturnToLive()"
-                            [selectedDate]="selectedLiveEpgDate()"
-                            [collapsed]="
-                                canCollapseEpgPanel && isLiveEpgPanelCollapsed()
-                            "
-                            [summary]="liveEpgPanelSummary()"
-                            [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
-                            [emptyReason]="liveEpgEmptyReason()"
-                            (programActivated)="
-                                onTimelineProgramActivated($event)
-                            "
-                            (returnToLive)="returnToLivePlayback()"
-                            (selectedDateChange)="
-                                onLiveEpgSelectedDateChange($event)
-                            "
-                            (collapsedChange)="
-                                onLiveEpgPanelCollapsedChange($event)
-                            "
-                            (openEpgSettings)="openEpgSettings()"
+            />
+        } @else {
+            @if (
+                activeChannel.radio === 'true' ||
+                shouldShowInlinePlayer(activeChannel)
+            ) {
+                <div class="video-player">
+                    @if (activeChannel.radio === 'true') {
+                        <app-audio-player
+                            [url]="activeChannel.url"
+                            [icon]="activeChannel?.tvg?.logo!"
+                            [channelName]="displayChannelName()"
+                            [volume]="volume()"
+                            (volumeChange)="onInlineVolumeChange($event)"
                         />
                     } @else {
-                        <app-epg-timeline
-                            [programs]="epgPrograms()"
-                            [channelName]="timelineChannelName()"
-                            [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="
-                                archivePlaybackAvailable()
+                        <app-web-player-view
+                            [playbackSessionKey]="playbackSessionKey()"
+                            [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
+                            [title]="inlinePlayerTitle()"
+                            [playback]="embeddedPlayback()"
+                            [playerOverride]="
+                                activeChannelIsDash()
+                                    ? dashPlayerOverride()
+                                    : (playerSettings.player ?? null)
                             "
-                            [archiveDays]="epgArchiveDays()"
-                            [activeProgram]="activeEpgProgramOrNull()"
-                            [isLivePlayback]="!showReturnToLive()"
-                            [selectedDate]="selectedLiveEpgDate()"
-                            [collapsed]="
-                                canCollapseEpgPanel && isLiveEpgPanelCollapsed()
+                            [volume]="volume()"
+                            (externalFallbackRequested)="
+                                handleExternalFallbackRequest($event)
                             "
-                            [summary]="liveEpgPanelSummary()"
-                            [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
-                            [emptyReason]="liveEpgEmptyReason()"
-                            (programActivated)="
-                                onTimelineProgramActivated($event)
-                            "
-                            (returnToLive)="returnToLivePlayback()"
-                            (selectedDateChange)="
-                                onLiveEpgSelectedDateChange($event)
-                            "
-                            (collapsedChange)="
-                                onLiveEpgPanelCollapsedChange($event)
-                            "
-                            (openEpgSettings)="openEpgSettings()"
                         />
                     }
                 </div>
-            </div>
+            }
+
+            @if (supportsEpg && activeChannel.radio !== 'true') {
+                @let canCollapseEpgPanel =
+                    shouldShowInlinePlayer(activeChannel);
+                <div
+                    class="epg"
+                    [class.epg--inline]="canCollapseEpgPanel"
+                    [class.epg--list]="epgViewMode() === 'list'"
+                    [class.epg-collapsed]="
+                        canCollapseEpgPanel && isLiveEpgPanelCollapsed()
+                    "
+                >
+                    <div class="epg-content">
+                        @if (epgViewMode() === 'list') {
+                            <app-epg-list-view
+                                [programs]="epgPrograms()"
+                                [channelName]="timelineChannelName()"
+                                [channelLogo]="timelineChannelLogo()"
+                                [archivePlaybackAvailable]="
+                                    archivePlaybackAvailable()
+                                "
+                                [archiveDays]="epgArchiveDays()"
+                                [activeProgram]="activeEpgProgramOrNull()"
+                                [isLivePlayback]="!showReturnToLive()"
+                                [selectedDate]="selectedLiveEpgDate()"
+                                [collapsed]="
+                                    canCollapseEpgPanel &&
+                                    isLiveEpgPanelCollapsed()
+                                "
+                                [summary]="liveEpgPanelSummary()"
+                                [summaryLabelKey]="
+                                    liveEpgPanelSummaryLabelKey()
+                                "
+                                [emptyReason]="liveEpgEmptyReason()"
+                                (programActivated)="
+                                    onTimelineProgramActivated($event)
+                                "
+                                (returnToLive)="returnToLivePlayback()"
+                                (selectedDateChange)="
+                                    onLiveEpgSelectedDateChange($event)
+                                "
+                                (collapsedChange)="
+                                    onLiveEpgPanelCollapsedChange($event)
+                                "
+                                (openEpgSettings)="openEpgSettings()"
+                            />
+                        } @else {
+                            <app-epg-timeline
+                                [programs]="epgPrograms()"
+                                [channelName]="timelineChannelName()"
+                                [channelLogo]="timelineChannelLogo()"
+                                [archivePlaybackAvailable]="
+                                    archivePlaybackAvailable()
+                                "
+                                [archiveDays]="epgArchiveDays()"
+                                [activeProgram]="activeEpgProgramOrNull()"
+                                [isLivePlayback]="!showReturnToLive()"
+                                [selectedDate]="selectedLiveEpgDate()"
+                                [collapsed]="
+                                    canCollapseEpgPanel &&
+                                    isLiveEpgPanelCollapsed()
+                                "
+                                [summary]="liveEpgPanelSummary()"
+                                [summaryLabelKey]="
+                                    liveEpgPanelSummaryLabelKey()
+                                "
+                                [emptyReason]="liveEpgEmptyReason()"
+                                (programActivated)="
+                                    onTimelineProgramActivated($event)
+                                "
+                                (returnToLive)="returnToLivePlayback()"
+                                (selectedDateChange)="
+                                    onLiveEpgSelectedDateChange($event)
+                                "
+                                (collapsedChange)="
+                                    onLiveEpgPanelCollapsedChange($event)
+                                "
+                                (openEpgSettings)="openEpgSettings()"
+                            />
+                        }
+                    </div>
+                </div>
+            }
         }
 
         @if (showChannelNumberOverlay) {

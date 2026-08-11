@@ -485,6 +485,21 @@ Key radio behavior:
 - Keyboard: ArrowUp/Down adjusts volume by 5%, M toggles mute
 - Component: `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
 
+**M3U Movie Recognition** (VOD detail instead of the EPG zone): an M3U entry
+recognized as a movie FILE swaps the player + EPG area for the portals'
+two-state VOD detail shell fed by TMDB, watch-first (activation still plays
+immediately; Esc reveals the Browse hero). Detection is synchronous URL-shape
+heuristics — movie container extension (`mkv`/`mp4`/…, never `ts`/`m3u8`/`mpd`)
+or an Xtream-style `/movie|movies|vod/` path segment; radio, DASH, `/series/`
+paths and episode-marker names (`S01E02`, "2 серия") fail toward the live
+layout (`isLikelyM3uMovie` in `libs/shared/m3u-utils`). Gated on TMDB
+enrichment being enabled AND `Settings.m3uVodDetails` (default on; checkbox in
+Settings → Metadata (TMDB)). Host: `m3u-vod-detail/` in
+`libs/playlist/m3u/feature-player` (shell + `PortalInlinePlayerComponent`,
+parent's `embeddedPlayback()` with `isLive: false`); external MPV/VLC users
+keep Browse. See "Movie Recognition (VOD Detail View)" in
+`docs/architecture/m3u-playlist-module.md`.
+
 Channel List Component Structure (parent coordinator pattern):
 
 ```
@@ -1241,6 +1256,7 @@ engine` (restart required) or
 **TMDB Metadata Enrichment** (opt-in):
 
 - Enriches Xtream and Stalker VOD/series detail views with TMDB data (plot, cast with avatar chips, director, genres, rating, artwork, YouTube trailers) via a field-level merge — the provider stays authoritative for stream data and any field TMDB can't fill; Cyrillic titles are searched with `ru-RU` so exact-title matching works
+- The M3U player consumes it too: entries recognized as movie files open in the VOD detail shell fed purely by `enrichMovie` (no provider payload to merge); the extra `Settings.m3uVodDetails` toggle (default on) sits in the TMDB settings section — see "M3U Movie Recognition" above
 - "Similar" rail in ALL detail views: TMDB recommendations matched against the provider catalog by normalized title, two-tier — exact form first, year-stripped fallback gated on year compatibility (`libs/portal/xtream/feature/src/lib/tmdb-similar.util.ts`, `normalizeTitleKeys`); cross-portal matches from other imported Xtream playlists supplement the Xtream rail and fully power the Stalker rail (`CrossPortalSimilarService` in `libs/services`, batched `DB_MATCH_TITLES`, Electron only); detail components re-initialize on route param changes since the router reuses them for detail→detail navigation
 - Season/episode enrichment: opening a season lazily fetches `/tv/{id}/season/{n}` and overlays real episode names, overviews and stills via `mergeEpisodesWithTmdb` (Xtream: `XtreamStore.enrichSelectedSerialSeason`; Stalker: overlay in the series view's `mappedSeasons`); for single-season provider slices whose title carries an explicit season marker ("The Mandalorian (2 season)", "s02", "2 сезон"), the marker overrides the provider's renumbered season (`resolveEnrichmentSeasonNumber` in `libs/shared/interfaces/src/lib/season-marker.util.ts`)
 - Dashboard: opt-in "Trending this week" rail (weekly TMDB trending matched against imported Xtream playlists via one batched `DB_MATCH_TITLES` request; Electron-only, `dashboardRails.tmdbTrending` toggle) and hero TMDB extras (backdrop fallback, rating + genre badges, memoized per lookup identity; series heroes show the tracked S/E badge from playback positions) — `DashboardTrendingService` in `libs/workspace/dashboard/data-access`, `DashboardHeroTmdbService` in `libs/workspace/dashboard/feature`; both load async after first paint. The hero lookup must carry the same identity the detail view used, not just the display title — `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads title/original title/year/tmdb id off a stored Stalker entry; a `movie` verdict retries as `tv` without the id (the default answer earns a retry, and an id is valid only for its own media type), while a `tv` verdict — reached only on positive series evidence — gets no retry back to `movie`. Stalker items never reach the `content` table, so their backdrop rides in the stored entry (`info.tmdb_backdrop`) rather than `content.backdrop_url`, and the activity mappers surface it as `backdrop_url`
