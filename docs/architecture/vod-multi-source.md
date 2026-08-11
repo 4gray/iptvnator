@@ -217,10 +217,17 @@ forms — and the fact that a row only appears once it HAS matched — keeps a
 bad guess cosmetic.
 
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",
-"DE | Apple TV") and leave stream titles bare. Discovery aggregates every
-visible category name a stream sits in (`group_concat(cat.name, char(31))`
-per `(playlist_id, xtream_id)` in both query tiers — `char(31)` because the
-default `,` appears inside real category names), and
+"DE | Apple TV") and leave stream titles bare. Discovery returns every visible
+category name a stream sits in, and the two query tiers get there
+differently: the FTS tier already groups per `(playlist_id, xtream_id)` for
+its window, so it joins them with `group_concat(cat.name, char(31))` —
+`char(31)` because the default `,` appears inside real category names — while
+the scan tier must NOT group. `content` is unique per
+`(category, type, stream)`, so one stream in several categories is several
+rows whose titles need not agree; grouping would let SQLite keep an arbitrary
+one and the normalized confirmation would then reject a stream that a sibling
+row would have matched. The scan therefore returns a row per category and the
+names are merged per stream in TypeScript. Either way
 `unambiguousCategoryLanguage` reduces them: categories without a recognized
 language prefix abstain, all prefixed ones must agree, and a conflict yields
 nothing. Category prefixes must additionally pass `isKnownLanguageTag`.

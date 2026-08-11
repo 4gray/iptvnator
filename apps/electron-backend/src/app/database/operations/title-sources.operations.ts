@@ -35,7 +35,12 @@ interface TitleSourceRow {
     category_xtream_id: number;
     playlist_id: string;
     playlist_name: string;
-    /** `group_concat` of every visible category name, `\u001f`-separated. */
+    /**
+     * Visible category names for this row: `group_concat`-joined on the FTS
+     * tier, which returns one row per stream, and a single name on the scan
+     * tier, which returns one row per category. Both are read through
+     * `splitCategoryNames`, and the caller merges them per stream.
+     */
     category_names: string | null;
 }
 
@@ -228,10 +233,15 @@ function scanCandidateQuery(
         ),
         sql` AND `
     );
-    // Grouped like the FTS path: one row per (playlist, stream), with every
-    // visible category name aggregated onto it so the renderer can read a
-    // language prefix off categories ("EN | Netflix"). The hidden filter
-    // above keeps hidden categories out of that aggregate too.
+    // Deliberately NOT grouped, unlike the FTS tier. `content` is unique per
+    // (category, type, stream), so one stream sitting in several categories
+    // is several rows and nothing forces their titles to agree. Grouping
+    // would hand SQLite a free choice of which title to keep, and the
+    // normalized confirmation below would then reject the whole stream on a
+    // title that a sibling row would have matched — the source vanishes.
+    // The FTS tier can afford the grouping because its window makes it
+    // necessary; this tier takes no window at all, so it keeps every row and
+    // merges their category names afterwards.
     return sql`
         SELECT
             c.id AS content_id,
@@ -241,7 +251,7 @@ function scanCandidateQuery(
             cat.xtream_id AS category_xtream_id,
             cat.playlist_id AS playlist_id,
             p.name AS playlist_name,
-            group_concat(cat.name, char(31)) AS category_names
+            cat.name AS category_names
         FROM content AS c
         INNER JOIN categories AS cat ON c.category_id = cat.id
         INNER JOIN playlists AS p ON cat.playlist_id = p.id
@@ -250,7 +260,6 @@ function scanCandidateQuery(
         AND p.type = 'xtream'
         AND ${wordMatches}
         ${excludePlaylist}
-        GROUP BY cat.playlist_id, c.xtream_id
         ORDER BY LENGTH(c.title), c.title
     `;
 }
@@ -336,6 +345,24 @@ export async function findTitleSources(
     // One playlist can list the same film in several categories; the user
     // thinks of that as one source.
     const seen = new Set<string>();
+    // Every category the stream sits in, merged across the rows that carry
+    // it. The FTS tier already joined them into one row, so this is a no-op
+    // there; the scan tier returns a row per category and must not group (see
+    // `scanCandidateQuery`), so this is where its names come together. Rows
+    // the confirmation later rejects still contribute — a differently titled
+    // sibling row is the same stream, and its category says the same thing
+    // about the language.
+    const categoryNames = new Map<string, string[]>();
+    for (const row of rows) {
+        const key = `${row.playlist_id}:${row.xtream_id}`;
+        const names = categoryNames.get(key) ?? [];
+        for (const name of splitCategoryNames(row.category_names)) {
+            if (!names.includes(name)) {
+                names.push(name);
+            }
+        }
+        categoryNames.set(key, names);
+    }
 
     for (const row of rows) {
         // SQL already excluded these; this keeps the guarantee a property of
@@ -395,7 +422,7 @@ export async function findTitleSources(
             posterUrl: row.poster_url,
             matchConfidence: exactMatch ? 'exact' : 'fuzzy',
             year: rowYear,
-            categoryNames: splitCategoryNames(row.category_names),
+            categoryNames: categoryNames.get(dedupeKey) ?? [],
         });
     }
 

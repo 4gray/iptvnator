@@ -75,22 +75,23 @@ describe('title-sources.operations', () => {
             expect(compiledQuery(fts.all).sql).toContain('LIMIT');
         });
 
-        it('aggregates visible category names on both query paths', async () => {
+        it('returns category names without grouping the scan tier', async () => {
             // The renderer reads a language prefix off category names
-            // ("EN | Netflix"), so both paths must return them — grouped per
-            // (playlist, stream) and joined with char(31), because the
-            // default `,` appears inside real category names.
+            // ("EN | Netflix"), so both tiers must return them — but only the
+            // FTS tier may GROUP: `content` is unique per (category, type,
+            // stream), so grouping the scan would let SQLite keep an
+            // arbitrary row's title and reject a stream a sibling row would
+            // have confirmed.
             const scan = createDbMock([]);
             await findTitleSources(scan.db, { title: 'It' });
             const scanQuery = compiledQuery(scan.all);
-            expect(scanQuery.sql).toContain('group_concat(cat.name, char(31))');
-            expect(scanQuery.sql).toContain(
-                'GROUP BY cat.playlist_id, c.xtream_id'
-            );
+            expect(scanQuery.sql).toContain('cat.name AS category_names');
+            expect(scanQuery.sql).not.toContain('GROUP BY');
 
             const fts = createDbMock([]);
             await findTitleSources(fts.db, { title: 'Dune' });
             const ftsQuery = compiledQuery(fts.all);
+            // char(31): `group_concat`'s default `,` occurs inside real names.
             expect(ftsQuery.sql).toContain('group_concat(cat.name, char(31))');
             expect(ftsQuery.sql).toContain(
                 'GROUP BY cat.playlist_id, c.xtream_id'
