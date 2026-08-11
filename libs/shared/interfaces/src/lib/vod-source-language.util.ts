@@ -1,3 +1,5 @@
+import { PROVIDER_PIPE_CLASS } from './title-normalization.util';
+
 /**
  * Language prefixes for VOD multi-source rows.
  *
@@ -26,11 +28,11 @@
  */
 
 /**
- * The pipe and its display lookalikes. Panels routinely decorate with
- * `¦`, `│` or fullwidth bars that are visually identical to `|` but fail a
- * literal match — the user sees "EN | Movie" either way.
+ * The pipe and its display lookalikes, shared with title normalization so
+ * that what counts as a tag separator here is exactly what counts as one
+ * when two copies are matched as the same film.
  */
-const PIPE = '[|¦│┃❘∣⏐⎪︱︳丨｜]';
+const PIPE = PROVIDER_PIPE_CLASS;
 
 /**
  * A candidate language token: 2–4 letters of ONE script, or the `MULTI`
@@ -43,8 +45,16 @@ const TOKEN = '(?:[A-Za-z]{2,4}|[А-Яа-яЁё]{2,4}|[Mm][Uu][Ll][Tt][Ii])';
 /** `EN| Movie`, `ru │ Фильм`, `MULTI ¦ Movie` — any case before a pipe. */
 const PIPE_FORM = new RegExp(`^\\s*(${TOKEN})\\s*${PIPE}`);
 
-/** `[EN] Movie`, `(RU) Фильм` — a bracketed tag at the very start. */
-const BRACKET_FORM = new RegExp(`^\\s*[[(]\\s*(${TOKEN})\\s*[\\])]`);
+/**
+ * `[EN] Movie`, `(RU) Фильм` — a bracketed tag at the very start.
+ *
+ * The two bracket styles are separate alternatives rather than one class of
+ * openers and one of closers: the latter pairs them independently, so a
+ * malformed `[EN)` would be read as a tag.
+ */
+const BRACKET_FORM = new RegExp(
+    `^\\s*(?:\\[\\s*(${TOKEN})\\s*\\]|\\(\\s*(${TOKEN})\\s*\\))`
+);
 
 /**
  * `EN - Movie` — dash-separated, and deliberately stricter than the pipe
@@ -73,15 +83,24 @@ export function titleLanguagePrefix(
 ): string | null {
     const title = rawTitle ?? '';
 
-    const pipe = PIPE_FORM.exec(title);
+    const pipe = capturedTag(PIPE_FORM.exec(title));
     if (pipe) {
-        return pipe[1].toUpperCase();
+        return pipe.toUpperCase();
     }
 
-    const gated = BRACKET_FORM.exec(title) ?? DASH_FORM.exec(title);
-    return gated && isKnownLanguageTag(gated[1])
-        ? gated[1].toUpperCase()
-        : null;
+    const gated =
+        capturedTag(BRACKET_FORM.exec(title)) ??
+        capturedTag(DASH_FORM.exec(title));
+    return gated && isKnownLanguageTag(gated) ? gated.toUpperCase() : null;
+}
+
+/**
+ * The tag out of whichever alternative matched. Read positionally rather
+ * than as group 1, because a form with several alternatives (brackets) has
+ * one group per alternative and only one of them is filled.
+ */
+function capturedTag(match: RegExpExecArray | null): string | null {
+    return match?.slice(1).find((group) => group !== undefined) ?? null;
 }
 
 /**

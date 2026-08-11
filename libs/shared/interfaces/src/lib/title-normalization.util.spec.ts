@@ -100,12 +100,8 @@ describe('provider tag stripping', () => {
     it('strips long and compound leading tags', () => {
         expect(normalizeTitle('EXYU| Fallout')).toBe('fallout');
         expect(normalizeTitle('MULTI| Breaking Bad')).toBe('breaking bad');
-        expect(normalizeTitle('4K-DE - The Pitt (2025) (US)')).toBe(
-            'the pitt'
-        );
-        expect(normalizeTitle('AR-SUBS - Fallout (2024) (US)')).toBe(
-            'fallout'
-        );
+        expect(normalizeTitle('4K-DE - The Pitt (2025) (US)')).toBe('the pitt');
+        expect(normalizeTitle('AR-SUBS - Fallout (2024) (US)')).toBe('fallout');
         expect(normalizeTitle('4K-OSN+ - The Last of Us (2023)')).toBe(
             'the last of us'
         );
@@ -115,6 +111,26 @@ describe('provider tag stripping', () => {
         expect(normalizeTitle('1917 - Behind the Lines')).toBe(
             '1917 behind the lines'
         );
+    });
+
+    it('strips Cyrillic and lowercase tags before a pipe', () => {
+        // A pipe is a strong tag signal, so its branch takes the wider
+        // alphabet and needs no trailing space: without this the tagged copy
+        // and the bare one never match, and multi-source cannot offer the
+        // film at all.
+        expect(normalizeTitle('РУС | Дюна')).toBe('дюна');
+        expect(normalizeTitle('укр│ Дюна')).toBe('дюна');
+        expect(normalizeTitle('ru| Dune')).toBe('dune');
+        expect(normalizeTitle('EN|Dune')).toBe('dune');
+        expect(normalizeTitle('|РУС| Дюна')).toBe('дюна');
+    });
+
+    it('keeps that widening away from dash and colon', () => {
+        // Where the separator is ordinary punctuation, an uppercase-Latin
+        // restriction is the only thing standing between a tag and a real
+        // title — "ОНО: Часть 2" is the Cyrillic "It: Chapter Two".
+        expect(normalizeTitle('ОНО: Часть 2')).toBe('оно часть 2');
+        expect(normalizeTitle('ОНО - Часть 2')).toBe('оно часть 2');
     });
 
     it('keeps bare 4-5 char words before a spaced dash (real titles)', () => {
@@ -170,40 +186,89 @@ describe('provider tag stripping', () => {
     });
 
     const pittCorpus = [
-        'The Pitt (2025)_sub', 'The Pitt (2025)-it', 'The Pitt (2025)',
-        'The Pitt (Hindi)', 'The Pitt (2025) 4K', 'The Pitt (2025) DE',
-        'The Pitt (2025) ES', 'The Pitt (2025) FR', 'The Pitt (2025)_eng',
-        'The Pitt [MULTI-SUB]', 'The Pitt (2025) (4K DV)', 'GR - The Pitt',
-        '4K-DE - The Pitt (2025) (US)', '4K-TR - The Pitt (2025) (US)',
-        'AR-SUBS - The Pitt (2025) (US)', 'DE - The Pitt (2025) (US)',
-        'ALB| The Pitt', 'EXYU| The Pitt', '|ALB| The Pitt', '|DE| The Pitt',
+        'The Pitt (2025)_sub',
+        'The Pitt (2025)-it',
+        'The Pitt (2025)',
+        'The Pitt (Hindi)',
+        'The Pitt (2025) 4K',
+        'The Pitt (2025) DE',
+        'The Pitt (2025) ES',
+        'The Pitt (2025) FR',
+        'The Pitt (2025)_eng',
+        'The Pitt [MULTI-SUB]',
+        'The Pitt (2025) (4K DV)',
+        'GR - The Pitt',
+        '4K-DE - The Pitt (2025) (US)',
+        '4K-TR - The Pitt (2025) (US)',
+        'AR-SUBS - The Pitt (2025) (US)',
+        'DE - The Pitt (2025) (US)',
+        'ALB| The Pitt',
+        'EXYU| The Pitt',
+        '|ALB| The Pitt',
+        '|DE| The Pitt',
     ];
 
     const falloutCorpus = [
-        'Fallout', 'DE - Fallout (2024)', 'Fallout (2024) - 4K',
-        'Fallout (2024) FR-EN', 'Fallout (2024) Multi', 'Fallout (2024)_fr',
-        'Fallout_esp', 'Fallout (4K)', '4K-AMZ - Fallout (2024) (US)',
-        'AL - Fallout (2024)', 'AMZ - Fallout (2024) (US)',
-        'AR-DE - Fallout (US)', 'LA - Fallout', 'EN| Fallout - 4K',
-        'MULTI| Fallout - 4K', 'Fallout ( مدبلج )', 'Fallout (Telugu)',
-        '|EN| Fallout - 4K', '|MULTI| Fallout', '|TR| Fallout',
+        'Fallout',
+        'DE - Fallout (2024)',
+        'Fallout (2024) - 4K',
+        'Fallout (2024) FR-EN',
+        'Fallout (2024) Multi',
+        'Fallout (2024)_fr',
+        'Fallout_esp',
+        'Fallout (4K)',
+        '4K-AMZ - Fallout (2024) (US)',
+        'AL - Fallout (2024)',
+        'AMZ - Fallout (2024) (US)',
+        'AR-DE - Fallout (US)',
+        'LA - Fallout',
+        'EN| Fallout - 4K',
+        'MULTI| Fallout - 4K',
+        'Fallout ( مدبلج )',
+        'Fallout (Telugu)',
+        '|EN| Fallout - 4K',
+        '|MULTI| Fallout',
+        '|TR| Fallout',
     ];
 
     const lastOfUsCorpus = [
-        'The Last of Us', 'The Last Of Us', 'The Last of Us (2023) 4K',
-        'The Last of Us (2023) AF', 'The Last of Us_tr',
-        'The Last of Us--esp', 'The Last of Us-DE', 'The Last of Us-esp',
-        'The Last of Us [L]', 'The Last of Us ( HD )',
-        '4K-OSN+ - The Last of Us (2023)', 'IS - The Last of Us (2023) (US)',
-        'RU - The Last of Us', 'ALB| The Last of Us',
+        'The Last of Us',
+        'The Last Of Us',
+        'The Last of Us (2023) 4K',
+        'The Last of Us (2023) AF',
+        'The Last of Us_tr',
+        'The Last of Us--esp',
+        'The Last of Us-DE',
+        'The Last of Us-esp',
+        'The Last of Us [L]',
+        'The Last of Us ( HD )',
+        '4K-OSN+ - The Last of Us (2023)',
+        'IS - The Last of Us (2023) (US)',
+        'RU - The Last of Us',
+        'ALB| The Last of Us',
     ];
 
     const breakingBadCorpus = [
-        'Breaking Bad', 'Breaking Bad (2008)_fr', 'Breaking Bad (US)_msub',
-        'Breaking Bad_it', 'Breaking Bad-DE', 'Breaking Bad-eng',
-        'Breaking Bad ( عائلي )', 'Breaking Bad (Pure)',
-        'Breaking Bad - Multi', 'Breaking Bad ES', 'AR-DE - Breaking Bad',
-        'EN| Breaking Bad SUB', 'MULTI| Breaking Bad', 'AR| Breaking Bad',
+        'Breaking Bad',
+        'Breaking Bad (2008)_fr',
+        'Breaking Bad (US)_msub',
+        'Breaking Bad_it',
+        'Breaking Bad-DE',
+        'Breaking Bad-eng',
+        'Breaking Bad ( عائلي )',
+        'Breaking Bad (Pure)',
+        'Breaking Bad - Multi',
+        'Breaking Bad ES',
+        'AR-DE - Breaking Bad',
+        'EN| Breaking Bad SUB',
+        'MULTI| Breaking Bad',
+        'AR| Breaking Bad',
+        // Pipe lookalikes and a lowercase tag: identical on screen to the
+        // forms above, so they have to reach the same key.
+        'EN │ Breaking Bad',
+        'DE ¦ Breaking Bad',
+        'FR｜Breaking Bad',
+        'en| Breaking Bad',
     ];
 
     it.each([

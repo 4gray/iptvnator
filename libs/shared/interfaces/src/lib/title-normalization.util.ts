@@ -30,11 +30,38 @@ const QUALITY_TAGS = new Set([
 ]);
 
 /**
- * Wrapped tag at the very start of a provider title: "|DE| ARD",
- * "|MULTI| Fallout". The lookahead requires a letter in the tag so a
- * numeric fragment can never be treated as one.
+ * The pipe and the display lookalikes providers use interchangeably with it
+ * (`¦`, `│`, fullwidth `｜`, …). They are visually identical to `|` in a
+ * catalog, so a rule that reads only U+007C leaves the same tag stripped in
+ * one playlist and welded to the title in another — and the two copies then
+ * never match as the same film.
+ *
+ * Exported because `vod-source-language.util.ts` reads the same separator to
+ * decide a row's language: one set, so the "is this a tag" answer cannot
+ * differ between matching and display.
  */
-const WRAPPED_TAG_PREFIX = /^\s*\|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}\|\s*/;
+export const PROVIDER_PIPE_CLASS = '[|¦│┃❘∣⏐⎪︱︳丨｜]';
+
+/**
+ * The alphabet a pipe-delimited tag may use: Latin or Cyrillic, either case
+ * — the same set the language-prefix reader accepts, so the two files agree
+ * on what a tag looks like. Every segment must still contain a letter, so a
+ * numeric fragment is never read as one.
+ *
+ * Wider than the uppercase-Latin `SEG` below because it is only ever used
+ * where a pipe is the separator. Nothing but a tag precedes a pipe: it is
+ * not valid in a Windows filename and does not occur in real titles.
+ */
+const PIPE_LETTER = 'A-Za-zА-Яа-яЁё';
+const PIPE_SEG = `(?=[0-9+]*[${PIPE_LETTER}])[${PIPE_LETTER}0-9+]`;
+
+/**
+ * Wrapped tag at the very start of a provider title: "|DE| ARD",
+ * "|MULTI| Fallout", "|РУС| Дюна".
+ */
+const WRAPPED_TAG_PREFIX = new RegExp(
+    `^\\s*${PROVIDER_PIPE_CLASS}${PIPE_SEG}{2,5}${PROVIDER_PIPE_CLASS}\\s*`
+);
 
 /**
  * Leading channel/language prefix like "EN - ", "DE| ", "FR: ", including
@@ -50,13 +77,24 @@ const WRAPPED_TAG_PREFIX = /^\s*\|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}\|\s*/;
  *   - pipe ("EXYU| "): compound OR 2–5 chars — a pipe is a strong tag signal
  *   - colon ("EN: "): 2–3 chars — longer acronyms are franchise titles
  *     ("NCIS: LA")
+ *
+ * The pipe branch takes the wider `PIPE_SEG` alphabet (Cyrillic as well as
+ * Latin, either case) and does not require a space after the separator.
+ * "РУС | Фильм", "ru| Movie" and "EN|Movie" otherwise keep their tag welded
+ * to the title, so the tagged copy never matches the bare one and
+ * multi-source cannot offer the film at all.
+ *
+ * Neither widening is extended to dash and colon: those are ordinary title
+ * punctuation, and the uppercase-Latin restriction plus the required space
+ * are what keep "ОНО: Часть 2" and "Spider-Man" intact — the Cyrillic and
+ * hyphenated cases of the "It: Chapter Two" hazard.
  */
 const SEG = '(?=[0-9+]*[A-Z])[A-Z0-9+]';
 const COMPOUND_TAG = `${SEG}{2,5}(?:-${SEG}{2,6}){1,2}`;
 const LANGUAGE_PREFIX = new RegExp(
     '^(?:' +
         `(?:${COMPOUND_TAG}|${SEG}{2,3})\\s*-\\s+` +
-        `|(?:${COMPOUND_TAG}|${SEG}{2,5})\\s*\\|\\s+` +
+        `|(?:${COMPOUND_TAG}|${PIPE_SEG}{2,5})\\s*${PROVIDER_PIPE_CLASS}\\s*` +
         `|${SEG}{2,3}\\s*:\\s+` +
         ')'
 );
@@ -69,10 +107,48 @@ const LANGUAGE_PREFIX = new RegExp(
  * suffixes ("NCIS: LA"). US/USA/UK/LA are deliberately absent.
  */
 const TRAILING_TAG_VOCABULARY = new Set([
-    'AF', 'AL', 'ALB', 'AR', 'BY', 'DE', 'DUB', 'EN', 'ENG', 'ES', 'ESP',
-    'EXYU', 'FR', 'FRA', 'GE', 'GR', 'HU', 'IN', 'IR', 'IS', 'IT', 'ITA',
-    'KA', 'KU', 'LAT', 'ML', 'MSUB', 'MULTI', 'NL', 'PL', 'PT', 'RO', 'RU',
-    'SC', 'SE', 'SUB', 'SUBS', 'SW', 'TA', 'TL', 'TR', 'TUR',
+    'AF',
+    'AL',
+    'ALB',
+    'AR',
+    'BY',
+    'DE',
+    'DUB',
+    'EN',
+    'ENG',
+    'ES',
+    'ESP',
+    'EXYU',
+    'FR',
+    'FRA',
+    'GE',
+    'GR',
+    'HU',
+    'IN',
+    'IR',
+    'IS',
+    'IT',
+    'ITA',
+    'KA',
+    'KU',
+    'LAT',
+    'ML',
+    'MSUB',
+    'MULTI',
+    'NL',
+    'PL',
+    'PT',
+    'RO',
+    'RU',
+    'SC',
+    'SE',
+    'SUB',
+    'SUBS',
+    'SW',
+    'TA',
+    'TL',
+    'TR',
+    'TUR',
 ]);
 
 /**

@@ -30,6 +30,12 @@ describe('titleLanguagePrefix', () => {
         expect(titleLanguagePrefix('Movie [EN]')).toBeNull();
     });
 
+    it('requires the brackets to pair', () => {
+        // Openers and closers matched independently would accept these.
+        expect(titleLanguagePrefix('[EN) Movie')).toBeNull();
+        expect(titleLanguagePrefix('(DE] Film')).toBeNull();
+    });
+
     it('reads an uppercase tag before a spaced dash, and only that form', () => {
         expect(titleLanguagePrefix('EN - Movie')).toBe('EN');
         expect(titleLanguagePrefix('РУС - Фильм')).toBe('РУС');

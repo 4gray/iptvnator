@@ -196,6 +196,16 @@ at its word, while a bracket or dash match must ALSO pass
 language, a fabricated one would mask a real category-derived language and
 get the row excluded by the very filter meant to find it.
 
+Recognizing a prefix is only half the job: the same tag also has to be
+STRIPPED by `normalizeTitleKeys`, or the tagged copy and the bare one never
+match and the row is never discovered at all. Its leading-tag rule therefore
+shares this file's pipe set (`PROVIDER_PIPE_CLASS`) and, on the pipe branch
+only, takes the same Latin+Cyrillic any-case alphabet and needs no space
+after the separator — so "РУС | Дюна", "ru| Dune" and "EN|Dune" reach the key
+"dune". Dash and colon keep their uppercase-Latin, space-required form: those
+are ordinary title punctuation, and loosening them would amputate
+"ОНО: Часть 2" the way a case-insensitive rule amputates "It: Chapter Two".
+
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",
 "DE | Apple TV") and leave stream titles bare. Discovery aggregates every
 visible category name a stream sits in (`group_concat(cat.name, char(31))`
