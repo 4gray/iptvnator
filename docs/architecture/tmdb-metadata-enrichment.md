@@ -304,10 +304,11 @@ Filmography has two scopes:
 
 ### Resolving a batched match
 
-All three `DB_MATCH_TITLES` consumers — the Trending rail, the
-cross-portal "Similar" rail and the actor page's "All portals" scope —
-turn the worker's flat result list into one row through the same pair of
-helpers in `libs/services/src/lib/catalog-title-match.service.ts`:
+Every `DB_MATCH_TITLES` consumer — the Trending rail, the "Because you
+watched" recommendations rail, the cross-portal "Similar" rail and the
+actor page's "All portals" scope — turns the worker's flat result list
+into one row through the same pair of helpers in
+`libs/services/src/lib/catalog-title-match.service.ts`:
 
 ```ts
 const grouped = groupTitleMatchesByKey(matches);
@@ -325,10 +326,11 @@ already discarded — rendering a movie the user owns as unavailable.
 `pickTitleMatch` ranks the year-compatible rows by evidence: a row whose
 stripped year IS the lookup's year wins, then an untagged row (the only
 tier reachable when the lookup year is unknown), then anything else
-compatible. `titles` accepts aliases most-trusted-first for callers that
-also know an original-language title; ranking spans all aliases at once,
-so a weak hit under the first alias cannot veto a strong one under the
-second, and alias order only breaks ties inside a tier.
+compatible. `titles` accepts aliases most-trusted-first; ranking spans all
+aliases at once, so a weak hit under the first alias cannot veto a strong
+one under the second, and alias order only breaks ties inside a tier. The
+recommendations rail is the one caller that passes two — TMDB's localized
+title plus `original_title` — via `candidateLookup()`; the rest pass one.
 
 Multi-source VOD discovery deliberately does NOT use these
 (`operations/title-sources.operations.ts`): there every copy in every
