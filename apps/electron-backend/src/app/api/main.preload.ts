@@ -24,6 +24,7 @@ import {
     toXtreamPreloadPerformanceTargetMethod,
 } from './xtream-preload-performance-capture';
 import type {
+    ContentMetadataPatch,
     DownloadMetadataSnapshot,
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -897,11 +898,14 @@ const electronApi: ElectronBridgeApi = {
             playlistId,
             contentType
         ),
-    dbSetContentBackdropIfMissing: (contentId: number, backdropUrl?: string) =>
+    dbSetContentMetadataIfMissing: (
+        contentId: number,
+        patch?: ContentMetadataPatch
+    ) =>
         ipcRenderer.invoke(
-            'DB_SET_CONTENT_BACKDROP_IF_MISSING',
+            'DB_SET_CONTENT_METADATA_IF_MISSING',
             contentId,
-            backdropUrl
+            patch
         ),
     dbDeleteAllPlaylists: (operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS', operationId),

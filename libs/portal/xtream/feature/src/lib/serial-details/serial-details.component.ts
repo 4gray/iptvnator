@@ -24,7 +24,11 @@ import {
     SeasonContainerPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    xtreamContentMetadataKey,
+    xtreamDetailContentMetadata,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     buildUpNextRailItems,
     type PlaybackFallbackRequest,
@@ -134,7 +138,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         });
     /** `playlistId:categoryId:serialId` of the last initialized view */
     private readonly lastInitKey = signal<string | null>(null);
-    private readonly backdropBackfillKey = signal<string | null>(null);
+    private readonly metadataBackfillKey = signal<string | null>(null);
 
     /**
      * Reactive route params: the component is reused when navigating
@@ -296,28 +300,30 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             const playlistId = this.currentPlaylistId();
             const selectedItem = this.selectedItem();
             const xtreamId = Number(selectedItem?.series_id ?? 0);
-            const backdropUrl = selectedItem?.info?.backdrop_path?.[0]?.trim();
+            const patch = xtreamDetailContentMetadata(selectedItem?.info);
 
             if (
                 !playlistId ||
                 !Number.isFinite(xtreamId) ||
                 xtreamId <= 0 ||
-                !backdropUrl
+                !patch
             ) {
                 return;
             }
 
-            const backfillKey = `${playlistId}:${xtreamId}:${backdropUrl}`;
-            if (this.backdropBackfillKey() === backfillKey) {
+            // Re-runs as enrichment fills the id in, so the key covers the
+            // whole patch rather than just the backdrop.
+            const backfillKey = `${playlistId}:${xtreamId}:${xtreamContentMetadataKey(patch)}`;
+            if (this.metadataBackfillKey() === backfillKey) {
                 return;
             }
 
-            this.backdropBackfillKey.set(backfillKey);
-            void this.xtreamStore.backfillContentBackdrop({
+            this.metadataBackfillKey.set(backfillKey);
+            void this.xtreamStore.backfillContentMetadata({
                 xtreamId,
                 contentType: 'series',
                 playlist: this.xtreamStore.currentPlaylist,
-                backdropUrl,
+                patch,
             });
         });
     }

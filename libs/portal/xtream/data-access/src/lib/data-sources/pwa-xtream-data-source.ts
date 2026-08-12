@@ -1,5 +1,6 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import {
+    ContentMetadataPatch,
     Playlist,
     PlaybackPositionData,
     XtreamPendingRestoreState,
@@ -1165,13 +1166,22 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return null;
     }
 
-    async setContentBackdropIfMissing(
+    /**
+     * Only the backdrop is retained here. The identity fields exist to spare
+     * a later reader from rebuilding a weaker TMDB query than the detail view
+     * used, and that reader is the dashboard reading a persisted `content`
+     * row — which the PWA has no equivalent of. Its catalog lives in a
+     * session-scoped cache that is rebuilt from the API on every load, so a
+     * stored id would never outlive the detail view that resolved it. PWA
+     * lookups stay on the documented title-only fallback.
+     */
+    async setContentMetadataIfMissing(
         contentId: number,
         playlistId: string,
-        backdropUrl: string
+        patch: ContentMetadataPatch
     ): Promise<void> {
         const normalizedContentId = this.normalizeStoredId(contentId);
-        const normalizedBackdropUrl = backdropUrl.trim();
+        const normalizedBackdropUrl = patch.backdropUrl?.trim();
         if (normalizedContentId == null || !normalizedBackdropUrl) {
             return;
         }

@@ -162,11 +162,24 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { xtreamId: 42, playlistId, contentType: 'movie' },
     },
     {
-        operation: 'DB_SET_CONTENT_BACKDROP_IF_MISSING',
-        args: [12, 'https://image.example/backdrop.jpg'],
+        operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
+        args: [
+            12,
+            {
+                backdropUrl: 'https://image.example/backdrop.jpg',
+                tmdbId: 603,
+                releaseYear: 1999,
+                originalTitle: 'The Matrix',
+            },
+        ],
         payload: {
             contentId: 12,
-            backdropUrl: 'https://image.example/backdrop.jpg',
+            patch: {
+                backdropUrl: 'https://image.example/backdrop.jpg',
+                tmdbId: 603,
+                releaseYear: 1999,
+                originalTitle: 'The Matrix',
+            },
         },
     },
     {

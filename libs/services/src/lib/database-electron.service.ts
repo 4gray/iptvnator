@@ -4,7 +4,9 @@
  */
 
 import { Injectable } from '@angular/core';
+import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
+    ContentMetadataPatch,
     GlobalSearchPaginationOptions,
     GlobalSearchResult,
     GlobalSearchResultSource,
@@ -32,6 +34,11 @@ export interface XtreamContent {
     added: string;
     poster_url: string;
     backdrop_url?: string | null;
+    // Identity a detail view recorded on the row; absent until one has been
+    // opened. See ContentMetadataPatch in @iptvnator/shared/interfaces.
+    tmdb_id?: number | null;
+    release_year?: number | null;
+    original_title?: string | null;
     epg_channel_id?: string | null;
     tv_archive?: number | null;
     tv_archive_duration?: number | null;
@@ -837,30 +844,31 @@ export class DatabaseService {
     }
 
     /**
-     * Persist a backdrop URL onto an Xtream content row without touching
-     * recently viewed ordering or timestamps.
+     * Persist what a detail view learned onto an Xtream content row — the
+     * backdrop, and the identity that lets the dashboard repeat this view's
+     * TMDB lookup — without touching recently viewed ordering or timestamps.
      */
-    async setContentBackdropIfMissing(
+    async setContentMetadataIfMissing(
         contentId: number,
-        backdropUrl?: string
+        patch?: ContentMetadataPatch
     ): Promise<boolean> {
-        const normalizedBackdropUrl = backdropUrl?.trim();
-        if (!normalizedBackdropUrl) {
+        const normalized = normalizeContentMetadataPatch(patch);
+        if (!normalized) {
             return true;
         }
 
-        if (!window.electron?.dbSetContentBackdropIfMissing) {
+        if (!window.electron?.dbSetContentMetadataIfMissing) {
             return true;
         }
 
         try {
-            await window.electron.dbSetContentBackdropIfMissing(
+            await window.electron.dbSetContentMetadataIfMissing(
                 contentId,
-                normalizedBackdropUrl
+                normalized
             );
             return true;
         } catch (error) {
-            console.error('Error backfilling content backdrop:', error);
+            console.error('Error backfilling content metadata:', error);
             return false;
         }
     }

@@ -197,6 +197,7 @@ export async function configureVodDetailsRouteTestBed(
                     toggleFavorite: stubs.toggleFavorite,
                     constructVodStreamUrl: stubs.constructVodStreamUrl,
                     addRecentItem: stubs.addRecentItem,
+                    backfillContentMetadata: jest.fn(),
                     cancelDetailsRequest: stubs.cancelDetailsRequest,
                     vodStreamsPlaylistId: stubs.vodStreamsPlaylistId,
                     vodCategoriesPlaylistId: stubs.vodCategoriesPlaylistId,

@@ -563,6 +563,8 @@ since shipped.)
     `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads
     `info.name`, `info.o_name`, `info.releasedate` and `info.tmdb_id` off the
     stored entry, mirroring `enrichStalkerSelectionWithTmdb` field for field.
+    Xtream rows carry them on the `content` row instead — see
+    [Identity on Xtream content rows](#identity-on-xtream-content-rows).
     A `'movie'` verdict gets a second attempt under `'tv'` — `'movie'` is what
     every row falls back to when nothing says otherwise, and an embedded-VOD
     series is a `'movie'` activity row but a show on TMDB. That retry **drops
@@ -575,6 +577,56 @@ since shipped.)
     Note the id in a stored Stalker entry is not a provider claim. Stalker
     portals never send one; its only source is a match this app already made
     and gated.
+
+### Identity on Xtream content rows
+
+An Xtream activity row (recently viewed, favorites) is built from its
+`content` row, and the catalog endpoints that create those rows carry only a
+title and a poster. So a dashboard lookup used to be rebuilt from the display
+title alone, while the detail view had searched with the original title, the
+release date and often a TMDB id.
+
+Three `content` columns close that gap — `tmdb_id`, `release_year`,
+`original_title`, alongside the existing `backdrop_url`. The detail views
+back-fill them from what is on screen
+(`xtreamDetailContentMetadata` in `libs/portal/xtream/data-access`) through
+`XtreamStore.backfillContentMetadata` →
+`DB_SET_CONTENT_METADATA_IF_MISSING` →
+`persistContentMetadataIfMissing`. The activity SELECTs project them,
+`dashboard-mappers.ts` puts them on `PortalActivityItem`, and
+`buildDashboardTmdbAttempts` reads them back.
+
+Contracts worth keeping:
+
+- **Per-column, never overwrite.** Enrichment supplies the pieces at
+  different times — the release date and original title arrive with the
+  provider's detail response, the id only once enrichment resolves one (and
+  never, with enrichment off). A row-level "already populated" guard would
+  let whichever piece landed first block all the others forever.
+- **`release_year` is the year the PROVIDER stated**, never one read out of
+  the title. Readers already apply that fallback themselves, so an absent
+  column means "the provider gave no date" rather than "nobody looked" — and
+  a title year like "2001: A Space Odyssey" can never be frozen into the row
+  as that film's release year.
+- **The id is stored unvetted.** Every consumer reaches TMDB through
+  `TmdbEnrichmentService`, whose `detailsForProviderId` runs
+  `assessProviderId` and lets the title search take over when the years
+  contradict. Vetting on write would record one verdict permanently where
+  the shared gate re-decides per lookup.
+- **No media-type column.** For Xtream the catalog files movies and series
+  apart, so `content.type` already is the media type. Stalker needs one
+  because its embedded-VOD series are stored as movies — hence the field on
+  `StalkerItemTmdbHints` and not here.
+- **Both sides validate through `normalizeContentMetadataPatch`**
+  (`libs/shared/interfaces`), so a legacy row, a row whose detail page has
+  never been opened, and a provider's `"0"` all collapse to the same thing:
+  no identity, and the title-only fallback.
+
+Not covered: rows whose detail page has never been opened, playlists
+refreshed after this landed (the columns are re-learned on the next detail
+open, same as `backdrop_url`), and the PWA — its catalog is a session-scoped
+cache rebuilt from the API on every load, so a stored id would never outlive
+the detail view that resolved it. All of them keep the title-only path.
 
 ### Stalker backdrops on activity rows
 

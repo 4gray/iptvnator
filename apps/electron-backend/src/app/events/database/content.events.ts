@@ -9,6 +9,7 @@ import {
     requestWorkerWithEvents,
 } from './worker-events.utils';
 import type {
+    ContentMetadataPatch,
     GlobalSearchPaginationOptions,
     GlobalSearchResultSource,
 } from '@iptvnator/shared/interfaces';
@@ -96,10 +97,10 @@ handleWorkerRequest(
 );
 
 handleWorkerRequest(
-    'DB_SET_CONTENT_BACKDROP_IF_MISSING',
-    (contentId: number, backdropUrl?: string) => ({
+    'DB_SET_CONTENT_METADATA_IF_MISSING',
+    (contentId: number, patch?: ContentMetadataPatch) => ({
         contentId,
-        backdropUrl,
+        patch,
     })
 );
 

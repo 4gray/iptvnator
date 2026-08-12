@@ -26,7 +26,7 @@ describe('withRecentItems', () => {
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
-        setContentBackdropIfMissing: jest.Mock;
+        setContentMetadataIfMissing: jest.Mock;
     };
     let dataSource: {
         addRecentItem: jest.Mock;
@@ -34,7 +34,7 @@ describe('withRecentItems', () => {
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
-        setContentBackdropIfMissing: jest.Mock;
+        setContentMetadataIfMissing: jest.Mock;
     };
     let playlistsService: {
         clearPlaylistRecentlyViewed: jest.Mock;
@@ -64,7 +64,7 @@ describe('withRecentItems', () => {
                 },
             ]),
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
-            setContentBackdropIfMissing: jest.fn().mockResolvedValue(undefined),
+            setContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
         };
         dataSource = {
             addRecentItem: jest.fn().mockResolvedValue(undefined),
@@ -83,7 +83,7 @@ describe('withRecentItems', () => {
                 },
             ]),
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
-            setContentBackdropIfMissing: jest.fn().mockResolvedValue(undefined),
+            setContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
         };
         playlistsService = {
             clearPlaylistRecentlyViewed: jest
@@ -236,11 +236,13 @@ describe('withRecentItems', () => {
             xtream_id: 290,
         });
 
-        await store.backfillContentBackdrop({
+        await store.backfillContentMetadata({
             xtreamId: 290,
             contentType: 'series',
             playlist: signal({ id: 'playlist-1' }),
-            backdropUrl: ' https://example.com/krypton-backdrop.png ',
+            patch: {
+                backdropUrl: ' https://example.com/krypton-backdrop.png ',
+            },
         });
 
         expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
@@ -248,15 +250,15 @@ describe('withRecentItems', () => {
             'playlist-1',
             'series'
         );
-        expect(dataSource.setContentBackdropIfMissing).toHaveBeenCalledWith(
+        expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
             3941697,
             'playlist-1',
-            'https://example.com/krypton-backdrop.png'
+            { backdropUrl: 'https://example.com/krypton-backdrop.png' }
         );
         expect(dataSource.addRecentItem).not.toHaveBeenCalled();
         expect(databaseService.getContentByXtreamId).not.toHaveBeenCalled();
         expect(
-            databaseService.setContentBackdropIfMissing
+            databaseService.setContentMetadataIfMissing
         ).not.toHaveBeenCalled();
     });
 
