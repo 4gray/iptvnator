@@ -311,4 +311,51 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
 
         expect(component.showMovieDetail()).toBe(true);
     });
+
+    describe('volume handed to each new player', () => {
+        afterEach(() => localStorage.removeItem('volume'));
+
+        it('re-reads the shared volume bus on every channel change', () => {
+            localStorage.setItem('volume', '0.4');
+            syncStoreState(movieChannel);
+            fixture.detectChanges();
+            expect(component.volume()).toBe(0.4);
+
+            // The engines persist straight to localStorage and never call
+            // back, so a volume set inside the player is only visible there.
+            localStorage.setItem('volume', '0.15');
+            syncStoreState(liveChannel);
+            fixture.detectChanges();
+
+            expect(component.volume()).toBe(0.15);
+        });
+
+        it.each(['not-a-number', '', '  ', '5', '-1'])(
+            'falls back to full volume for the stored value %p',
+            (stored) => {
+                localStorage.setItem('volume', stored);
+                syncStoreState(movieChannel);
+                fixture.detectChanges();
+
+                expect(component.volume()).toBe(1);
+            }
+        );
+
+        it('falls back to full volume when nothing is stored yet', () => {
+            localStorage.removeItem('volume');
+            syncStoreState(movieChannel);
+            fixture.detectChanges();
+
+            // `Number(null)` is 0 — a first run must not start muted.
+            expect(component.volume()).toBe(1);
+        });
+
+        it('keeps a stored silence', () => {
+            localStorage.setItem('volume', '0');
+            syncStoreState(movieChannel);
+            fixture.detectChanges();
+
+            expect(component.volume()).toBe(0);
+        });
+    });
 });

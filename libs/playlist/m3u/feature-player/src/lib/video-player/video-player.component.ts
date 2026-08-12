@@ -11,6 +11,7 @@ import {
     computed,
     effect,
     inject,
+    linkedSignal,
     signal,
     untracked,
 } from '@angular/core';
@@ -130,6 +131,23 @@ const M3U_GROUPS_SIDEBAR_STORAGE_KEY = 'm3u-groups-sidebar-width';
 const M3U_SIDEBAR_MIN_WIDTH = 200;
 const M3U_SIDEBAR_MAX_WIDTH = 600;
 const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
+
+/**
+ * Shared `volume` bus the player engines and the audio player persist to.
+ *
+ * The empty cases must be rejected BEFORE `Number()` sees them: it maps both
+ * `null` (nothing stored yet) and `''` to 0, which would silently start every
+ * first-run playback muted.
+ */
+function readStoredVolume(): number {
+    const stored = localStorage.getItem('volume')?.trim();
+    if (!stored) {
+        return 1;
+    }
+
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 1;
+}
 
 @Component({
     selector: 'app-video-player',
@@ -456,15 +474,25 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     showChannelNumberOverlay = false;
     private channelNumberTimeout?: number;
 
-    readonly volume = signal(1);
+    /**
+     * Volume handed to each new player instance, re-read from the shared
+     * `volume` localStorage bus on every channel change.
+     *
+     * The bus is what the engines actually write to (they persist on
+     * `volumechange` and never call back into this component), and every
+     * channel switch mints a new source revision, which recreates the engine
+     * component and re-reads this input. A plain constructor snapshot
+     * therefore snapped playback back to the volume the page was opened
+     * with as soon as the user zapped after adjusting it in the player.
+     * Remote-control writes still `set()` this signal directly and store the
+     * same value, so re-reading the bus per channel agrees with them.
+     */
+    readonly volume = linkedSignal({
+        source: () => this.activeChannel()?.id ?? null,
+        computation: () => readStoredVolume(),
+    });
 
     constructor() {
-        // Initialize volume from localStorage in constructor
-        const savedVolume = localStorage.getItem('volume');
-        if (savedVolume !== null) {
-            this.volume.set(Number(savedVolume));
-        }
-
         // React to settings changes
         effect(() => {
             this.playerSettings = {
