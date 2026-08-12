@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import {
+    DataService,
     DatabaseService,
     PlaybackPositionRuntimeBridgeService,
     PlaylistsService,
@@ -96,6 +97,7 @@ function configureStore(
                 useValue: { isEnabled: jest.fn(() => false) },
             },
             { provide: XtreamPendingRestoreService, useValue: {} },
+            { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
             { provide: XtreamUrlService, useValue: {} },
             { provide: XtreamXmltvFallbackService, useValue: {} },
             { provide: PORTAL_PLAYER, useValue: {} },

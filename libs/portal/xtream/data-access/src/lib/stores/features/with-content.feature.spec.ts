@@ -1,13 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import {
-    DatabaseService,
-    XtreamPendingRestoreService,
-} from '@iptvnator/services';
-import { XTREAM_DATA_SOURCE } from '../../data-sources/xtream-data-source.interface';
-import { XtreamApiService } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import {
     createAbortError,
+    createContentTestProviders,
     createContentTestStore,
     createDeferred,
     createPendingRestoreServiceMock,
@@ -60,6 +55,7 @@ describe('withContent import state', () => {
     let pendingRestoreService: ReturnType<
         typeof createPendingRestoreServiceMock
     >;
+    let dataService: { sendIpcEvent: jest.Mock };
 
     beforeEach(() => {
         localStorage.clear();
@@ -95,28 +91,19 @@ describe('withContent import state', () => {
             cancelSession: jest.fn().mockResolvedValue(true),
         };
         pendingRestoreService = createPendingRestoreServiceMock();
+        dataService = {
+            sendIpcEvent: jest.fn().mockResolvedValue({ success: true }),
+        };
         checkPortalStatusMock = jest.fn().mockResolvedValue('active');
 
         TestBed.configureTestingModule({
-            providers: [
-                TestContentStore,
-                {
-                    provide: XTREAM_DATA_SOURCE,
-                    useValue: dataSource,
-                },
-                {
-                    provide: DatabaseService,
-                    useValue: databaseService,
-                },
-                {
-                    provide: XtreamApiService,
-                    useValue: xtreamApiService,
-                },
-                {
-                    provide: XtreamPendingRestoreService,
-                    useValue: pendingRestoreService,
-                },
-            ],
+            providers: createContentTestProviders(TestContentStore, {
+                dataSource,
+                databaseService,
+                xtreamApiService,
+                pendingRestoreService,
+                dataService,
+            }),
         });
 
         store = TestBed.inject(TestContentStore);

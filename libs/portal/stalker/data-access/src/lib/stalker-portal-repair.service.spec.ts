@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { PlaylistsService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    buildHostConnectivityFastFailMessage,
+} from '@iptvnator/shared/interfaces';
 import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
 import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
@@ -226,6 +229,22 @@ describe('StalkerPortalRepairService', () => {
             expect(service.shouldAttemptRepair(MISCLASSIFIED, { js: [] })).toBe(
                 false
             );
+        });
+
+        it('never triggers on the connectivity guard refusing a dead host', () => {
+            // Repair means "re-probe every candidate endpoint". Doing that
+            // because the host stopped answering would spend a full discovery
+            // run on a host we already know is not there.
+            expect(
+                service.shouldAttemptRepair(
+                    MISCLASSIFIED,
+                    new Error(
+                        buildHostConnectivityFastFailMessage(
+                            'portal.example:8080'
+                        )
+                    )
+                )
+            ).toBe(false);
         });
 
         it('never triggers for playlists without portal coordinates', () => {

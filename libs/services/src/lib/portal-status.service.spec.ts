@@ -4,6 +4,7 @@ import {
     createEnvironmentInjector,
     runInInjectionContext,
 } from '@angular/core';
+import { CONNECTIVITY_GUARD_RESET } from '@iptvnator/shared/interfaces';
 import { DataService } from './data.service';
 import { PortalStatusService } from './portal-status.service';
 
@@ -251,5 +252,57 @@ describe('PortalStatusService', () => {
         await expect(
             service.checkPortalStatus('https://example.com', 'user', 'pass')
         ).resolves.toBe('active');
+    });
+
+    describe('host connectivity guard', () => {
+        beforeEach(() => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                payload: { user_info: { auth: 1, status: 'Active' } },
+            });
+        });
+
+        it('clears the guard first when the user asked to test the connection', async () => {
+            // Otherwise "Test Connection" on a panel that just came back would
+            // report it unavailable without contacting it at all.
+            await service.checkPortalStatusDetails(
+                'http://example.com',
+                'user',
+                'pass',
+                { skipCache: true }
+            );
+
+            expect(dataService.sendIpcEvent.mock.calls[0]).toEqual([
+                CONNECTIVITY_GUARD_RESET,
+                { url: 'http://example.com' },
+            ]);
+        });
+
+        it('leaves the guard alone for passive background checks', async () => {
+            await service.checkPortalStatusDetails(
+                'http://example.com',
+                'user',
+                'pass'
+            );
+
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalledWith(
+                CONNECTIVITY_GUARD_RESET,
+                expect.anything()
+            );
+        });
+
+        it('still runs the check when clearing the guard fails', async () => {
+            dataService.sendIpcEvent.mockRejectedValueOnce(
+                new Error('IPC unavailable')
+            );
+
+            await expect(
+                service.checkPortalStatusDetails(
+                    'http://example.com',
+                    'user',
+                    'pass',
+                    { skipCache: true }
+                )
+            ).resolves.toMatchObject({ status: 'active' });
+        });
     });
 });

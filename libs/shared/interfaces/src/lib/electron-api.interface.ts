@@ -283,6 +283,13 @@ export interface ElectronBridgeStalkerRequestPayload {
     token?: string;
     serialNumber?: string;
     requestId?: string;
+    /**
+     * Endpoint-discovery probes only: exempt this request from the main
+     * process' per-host connectivity guard. Discovery walks several candidate
+     * paths on one host and expects most of them to fail, so its failures must
+     * neither count towards the guard nor be fast-failed by it.
+     */
+    skipConnectionGuard?: boolean;
 }
 
 export interface ElectronBridgeXtreamRequestPayload {
@@ -774,6 +781,11 @@ export interface ElectronBridgeApi {
     stalkerRequest: (
         payload: ElectronBridgeStalkerRequestPayload
     ) => Promise<Record<string, unknown>>;
+    /**
+     * Forgets the connection failures recorded for the host `url` points at, so
+     * the next request contacts it for real instead of being fast-failed.
+     */
+    resetHostConnectivityGuard: (url: string) => Promise<ElectronBridgeResult>;
     xtreamRequest: (
         payload: ElectronBridgeXtreamRequestPayload
     ) => Promise<ElectronBridgeXtreamResponse>;

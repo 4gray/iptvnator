@@ -1,3 +1,4 @@
+import { buildHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerEndpointCandidates,
     classifyStalkerProbeResponse,
@@ -5,6 +6,7 @@ import {
     isStalkerAuthFailureBody,
     isStalkerAuthFailureMessage,
     isStalkerAuthFailureResponse,
+    isStalkerProbeTimeout,
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
 } from './stalker-portal-discovery.utils';
@@ -364,6 +366,39 @@ describe('getStalkerRequestErrorStatus', () => {
         expect(getStalkerRequestErrorStatus(new Error('boom'))).toBeUndefined();
         expect(getStalkerRequestErrorStatus(undefined)).toBeUndefined();
         expect(getStalkerRequestErrorStatus({ status: '404' })).toBeUndefined();
+    });
+});
+
+describe('host connectivity guard fast-fail message', () => {
+    // The main process refuses requests to a host that stopped answering, and
+    // only the message survives `ipcRenderer.invoke`. These assertions are the
+    // contract: the wording must land in the "connection-level failure" slot,
+    // because that is what a tripped guard actually means. Any other reading
+    // has a consequence — a parsed status makes discovery walk every candidate
+    // and can fire lazy repair against a host we just declared dead; timeout
+    // wording loses the abort-early semantics; an auth phrase fires repair too.
+    const message = buildHostConnectivityFastFailMessage('portal.example:8080');
+    const ipcWrapped = new Error(
+        `Error invoking remote method 'STALKER_REQUEST': ${message}`
+    );
+
+    it('carries no HTTP status, bare or IPC-wrapped', () => {
+        expect(getStalkerRequestErrorStatus(new Error(message))).toBeUndefined();
+        expect(getStalkerRequestErrorStatus(ipcWrapped)).toBeUndefined();
+    });
+
+    it('does not read as a timeout', () => {
+        expect(isStalkerProbeTimeout(new Error(message))).toBe(false);
+        expect(isStalkerProbeTimeout(ipcWrapped)).toBe(false);
+    });
+
+    it('does not read as an authorization failure', () => {
+        expect(isStalkerAuthFailureMessage(message)).toBe(false);
+        expect(isStalkerAuthFailureMessage(ipcWrapped.message)).toBe(false);
+    });
+
+    it('names the host so the snackbar it reaches says something useful', () => {
+        expect(message).toContain('portal.example:8080');
     });
 });
 

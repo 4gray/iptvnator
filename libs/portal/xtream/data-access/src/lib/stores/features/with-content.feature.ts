@@ -18,9 +18,11 @@ import {
 } from '@iptvnator/shared/logging';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    DataService,
     DatabaseService,
     DbOperationEvent,
     isDbAbortError,
+    resetHostConnectivityGuard,
     XtreamPendingRestoreService,
     XtreamImportStatus,
 } from '@iptvnator/services';
@@ -217,6 +219,7 @@ export function withContent() {
 
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            const dataService = inject(DataService);
             const databaseService = inject(DatabaseService);
             const pendingRestoreService = inject(XtreamPendingRestoreService);
             const xtreamApiService = inject(XtreamApiService);
@@ -957,8 +960,7 @@ export function withContent() {
                                             pendingState,
                                             {
                                                 onEvent: trackImportEvent,
-                                                operationId:
-                                                    restoreOperationId,
+                                                operationId: restoreOperationId,
                                             }
                                         );
                                         throwIfImportCancelled(importSessionId);
@@ -1102,7 +1104,8 @@ export function withContent() {
                                 'live',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: publishTypedImportPhase('live'),
+                                    onPhaseChange:
+                                        publishTypedImportPhase('live'),
                                 }
                             ),
                             dataSource.getCategories(
@@ -1111,7 +1114,8 @@ export function withContent() {
                                 'vod',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: publishTypedImportPhase('vod'),
+                                    onPhaseChange:
+                                        publishTypedImportPhase('vod'),
                                 }
                             ),
                             dataSource.getCategories(
@@ -1120,7 +1124,8 @@ export function withContent() {
                                 'series',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: publishTypedImportPhase('series'),
+                                    onPhaseChange:
+                                        publishTypedImportPhase('series'),
                                 }
                             ),
                         ]);
@@ -1278,7 +1283,8 @@ export function withContent() {
                                 operationId: seriesOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: publishTypedImportPhase('series'),
+                                onPhaseChange:
+                                    publishTypedImportPhase('series'),
                             }
                         )) as XtreamSerieItem[];
                         throwIfImportCancelled(options?.importSessionId);
@@ -1368,6 +1374,16 @@ export function withContent() {
                 },
 
                 async retryContentInitialization(): Promise<void> {
+                    // FIRST, before the status check below: that check is the
+                    // one request a tripped connectivity guard would fast-fail,
+                    // and its 'unavailable' verdict returns early — so a reset
+                    // placed any later would never run and this button would
+                    // silently do nothing for the guard's whole window.
+                    await resetHostConnectivityGuard(
+                        dataService,
+                        getCredentialsFromStore()?.credentials.serverUrl
+                    );
+
                     const portalStatus =
                         (await getPortalStore().checkPortalStatus?.()) ??
                         getPortalStore().portalStatus?.() ??

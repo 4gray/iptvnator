@@ -1,5 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { DataService } from '@iptvnator/services';
+import {
+    CONNECTIVITY_GUARD_RESET,
+    STALKER_REQUEST,
+} from '@iptvnator/shared/interfaces';
 import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
 import { StalkerSessionService } from './stalker-session.service';
 
@@ -23,7 +27,13 @@ describe('StalkerPortalDiscoveryService', () => {
     function mockProbes(
         handlers: Record<string, { resolve?: unknown; reject?: unknown }>
     ): void {
-        sendIpcEvent.mockImplementation((_event, payload) => {
+        sendIpcEvent.mockImplementation((event, payload) => {
+            // Discovery clears the main process' connectivity guard first; the
+            // real handler answers with the outcome of that reset.
+            if (event === CONNECTIVITY_GUARD_RESET) {
+                return Promise.resolve({ success: true });
+            }
+
             const { url } = payload as { url: string };
             const handler = handlers[url];
             if (!handler) {
@@ -34,6 +44,13 @@ describe('StalkerPortalDiscoveryService', () => {
             }
             return Promise.resolve(handler.resolve);
         });
+    }
+
+    /** The portal requests only, excluding the guard reset discovery sends. */
+    function probeCalls(): unknown[][] {
+        return sendIpcEvent.mock.calls.filter(
+            ([event]) => event === STALKER_REQUEST
+        );
     }
 
     beforeEach(() => {
@@ -66,7 +83,64 @@ describe('StalkerPortalDiscoveryService', () => {
         });
         expect(authenticate).not.toHaveBeenCalled();
         // The winning candidate ends discovery — no further probes.
-        expect(sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(probeCalls()).toHaveLength(1);
+    });
+
+    describe('host connectivity guard', () => {
+        it('clears the guard before probing, so an edited address is never refused', async () => {
+            // Import, an edited connection and lazy repair all come through
+            // here, and each is a deliberate "talk to this portal".
+            mockProbes({
+                'http://panel.example/portal.php': {
+                    resolve: { js: [{ id: '1', title: 'News' }] },
+                },
+            });
+
+            await service.discover('http://panel.example/c', MAC);
+
+            expect(sendIpcEvent.mock.calls[0]).toEqual([
+                CONNECTIVITY_GUARD_RESET,
+                { url: 'http://panel.example/c' },
+            ]);
+        });
+
+        it('exempts every probe from the guard', async () => {
+            // Candidates that do not exist fail BY DESIGN; counting those would
+            // let the guard declare a slow-but-alive host unreachable.
+            mockProbes({
+                'http://ministra.example/portal.php': {
+                    reject: { message: 'HTTP Error: Not Found', status: 404 },
+                },
+                'http://ministra.example/server/load.php': {
+                    resolve: { js: [{ id: '1', title: 'News' }] },
+                },
+            });
+
+            await service.discover('http://ministra.example/c', MAC);
+
+            expect(probeCalls()).toHaveLength(2);
+            for (const [, payload] of probeCalls()) {
+                expect(payload).toMatchObject({ skipConnectionGuard: true });
+            }
+        });
+
+        it('probes anyway when clearing the guard fails', async () => {
+            mockProbes({
+                'http://panel.example/portal.php': {
+                    resolve: { js: [{ id: '1', title: 'News' }] },
+                },
+            });
+            sendIpcEvent.mockImplementationOnce(() =>
+                Promise.reject(new Error('IPC unavailable'))
+            );
+
+            const outcome = await service.discover(
+                'http://panel.example/c',
+                MAC
+            );
+
+            expect(outcome).toMatchObject({ status: 'resolved' });
+        });
     });
 
     it('falls through a 404 portal.php to server/load.php and classifies by handshake', async () => {
@@ -126,7 +200,7 @@ describe('StalkerPortalDiscoveryService', () => {
             portalUrl: 'http://ministra.example/server/load.php',
             isFullStalkerPortal: true,
         });
-        expect(sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(probeCalls()).toHaveLength(1);
     });
 
     it('classifies a token-enforcing portal.php panel as a full portal', async () => {
@@ -287,7 +361,7 @@ describe('StalkerPortalDiscoveryService', () => {
         const outcome = await service.discover('http://down.example/c', MAC);
 
         expect(outcome).toEqual({ status: 'unreachable' });
-        expect(sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(probeCalls()).toHaveLength(1);
     });
 
     it('keeps probing past a candidate timeout — one handler can hang while siblings work', async () => {
@@ -374,13 +448,16 @@ describe('StalkerPortalDiscoveryService', () => {
             );
 
             const discovery = service.discover('http://slow.example/c', MAC);
-            // Let the probe resolve so the auth attempt actually starts.
-            await Promise.resolve();
-            await Promise.resolve();
-            await Promise.resolve();
+            // Let the guard reset and the probe resolve so the auth attempt
+            // actually starts.
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
 
             jest.advanceTimersByTime(65_000);
-            await Promise.resolve();
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
 
             // The abandoned attempt is cancelled, so its get_profile never
             // goes out to adopt the MAC's token behind a later candidate.

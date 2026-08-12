@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { DataService } from '@iptvnator/services';
+import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
 import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -152,6 +152,11 @@ export class StalkerPortalDiscoveryService {
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
+
+        // Discovery runs on import, on an edited connection and on lazy
+        // repair — every one of them is a deliberate "talk to this portal"
+        // and must not inherit a refusal recorded for the previous address.
+        await resetHostConnectivityGuard(this.dataService, rawUrl);
 
         for (const candidate of candidates) {
             let probeResponse: unknown;
@@ -352,6 +357,11 @@ export class StalkerPortalDiscoveryService {
                     // Probing absent endpoints fails BY DESIGN — the
                     // transport services skip their error snackbar for us.
                     silent: true,
+                    // For the same reason these failures must not feed the
+                    // main process' connectivity guard: several candidates on
+                    // one host are expected to fail, and treating that as "the
+                    // host is dead" would abandon a slow-but-alive portal.
+                    skipConnectionGuard: true,
                 })
             ),
             PROBE_TIMEOUT_MS

@@ -100,6 +100,14 @@ export const STALKER_REQUEST = 'STALKER_REQUEST';
 export const STALKER_RESPONSE = 'STALKER_RESPONSE';
 export const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
 
+/**
+ * Forgets the main process' recorded connection failures for a portal host, so
+ * the next request contacts it for real. Sent whenever the user asks for a
+ * fresh attempt (portal retry, "test connection") or hands over a possibly
+ * different portal (endpoint discovery on import, edit, or lazy repair).
+ */
+export const CONNECTIVITY_GUARD_RESET = 'CONNECTIVITY_GUARD_RESET';
+
 // Settings
 export const SETTINGS_UPDATE = 'SETTINGS_UPDATE';
 export const DELETE_ALL_PLAYLISTS = 'DELETE_ALL_PLAYLISTS';
