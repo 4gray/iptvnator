@@ -102,6 +102,93 @@ describe('getUnifiedCollectionDetailNavigation', () => {
         });
     });
 
+    it('keeps a lazy Ministra VOD is_series item on the VOD route', () => {
+        // extractStalkerItemType() reports `series` for the is_series flag, but
+        // the lazy season/episode fetch only runs in the VOD catalog.
+        expect(
+            getUnifiedCollectionDetailNavigation({
+                uid: 'stalker::stalker-1::vod-77',
+                name: 'Lazy VOD Series',
+                contentType: 'series',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'vod-77',
+                categoryId: '12',
+                stalkerItem: {
+                    id: 'vod-77',
+                    title: 'Lazy VOD Series',
+                    category_id: '12',
+                    is_series: '1',
+                } as never,
+            })?.link
+        ).toEqual(['/workspace', 'stalker', 'stalker-1', 'vod', '12']);
+    });
+
+    it('keeps an embedded series[] snapshot on the VOD route', () => {
+        expect(
+            getUnifiedCollectionDetailNavigation({
+                uid: 'stalker::stalker-1::vod-88',
+                name: 'Embedded Series',
+                contentType: 'series',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'vod-88',
+                categoryId: '12',
+                stalkerItem: {
+                    id: 'vod-88',
+                    title: 'Embedded Series',
+                    category_id: '12',
+                    series: [1, 2, 3],
+                } as never,
+            })?.link
+        ).toEqual(['/workspace', 'stalker', 'stalker-1', 'vod', '12']);
+    });
+
+    it('normalizes the virtual series category for a VOD-catalog item', () => {
+        // Persisted from the series view, so it carries category_id 'series'
+        // while still belonging to the VOD catalog.
+        expect(
+            getUnifiedCollectionDetailNavigation({
+                uid: 'stalker::stalker-1::vod-99',
+                name: 'Lazy VOD Series',
+                contentType: 'series',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'vod-99',
+                categoryId: 'series',
+                stalkerItem: {
+                    id: 'vod-99',
+                    title: 'Lazy VOD Series',
+                    category_id: 'series',
+                    is_series: true,
+                } as never,
+            })?.link
+        ).toEqual(['/workspace', 'stalker', 'stalker-1', 'vod', 'vod']);
+    });
+
+    it('still routes a regular Stalker series to the series catalog', () => {
+        expect(
+            getUnifiedCollectionDetailNavigation({
+                uid: 'stalker::stalker-1::series-9',
+                name: 'Regular Series',
+                contentType: 'series',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'series-9',
+                categoryId: '44',
+                stalkerItem: {
+                    id: 'series-9',
+                    title: 'Regular Series',
+                    category_id: '44',
+                } as never,
+            })?.link
+        ).toEqual(['/workspace', 'stalker', 'stalker-1', 'series', '44']);
+    });
+
     it('carries stalkerReturnTo when a returnTo option is passed', () => {
         const navigation = getUnifiedCollectionDetailNavigation(
             {
