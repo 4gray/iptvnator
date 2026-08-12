@@ -1,4 +1,5 @@
 import { AxiosError } from 'axios';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { formatPortalRequestError } from './portal-request-error.util';
 
 describe('formatPortalRequestError', () => {
@@ -86,13 +87,29 @@ describe('formatPortalRequestError', () => {
         expect(formatted.message).toBe('boom');
     });
 
-    it('falls back to the raw string when the URL cannot be parsed', () => {
+    it('withholds the URL entirely when it cannot be parsed', () => {
         const formatted = formatPortalRequestError(
             new Error('fail'),
             'not-a-url'
         );
 
         expect(formatted.host).toBe('unknown');
-        expect(formatted.pathname).toBe('not-a-url');
+        expect(formatted.pathname).toBe('[unparseable-url]');
+    });
+
+    // A malformed URL is exactly where redaction cannot help: the guard in
+    // stalker.events.ts rejects credentialed portal URLs before the request
+    // URL is built, so the raw playlist value reaches this formatter, and
+    // redactSensitiveData passes an unparseable URL through verbatim.
+    it('does not leak credentials of an unparseable credentialed URL', () => {
+        const formatted = formatPortalRequestError(
+            new Error('blocked by url guard'),
+            'http://user:sup3rsecret@',
+            'get_genres'
+        );
+
+        expect(
+            JSON.stringify(redactSensitiveData(formatted))
+        ).not.toContain('sup3rsecret');
     });
 });
