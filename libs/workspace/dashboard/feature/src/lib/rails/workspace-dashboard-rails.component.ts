@@ -43,6 +43,8 @@ import {
     DashboardDataService,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
+    DashboardRecommendationItem,
+    DashboardRecommendationsService,
     DashboardSourceExpiryService,
     DashboardTrendingItem,
     DashboardTrendingService,
@@ -126,6 +128,7 @@ export class WorkspaceDashboardRailsComponent {
     private readonly heroTmdb = inject(DashboardHeroTmdbService);
     private readonly sourceExpiry = inject(DashboardSourceExpiryService);
     readonly trendingService = inject(DashboardTrendingService);
+    readonly recommendationsService = inject(DashboardRecommendationsService);
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
     readonly ready = this.data.dashboardReady;
@@ -343,6 +346,28 @@ export class WorkspaceDashboardRailsComponent {
             .map((item) => this.toTrendingCard(item));
     });
 
+    readonly recommendationCards = computed<DashboardRailCard[]>(() => {
+        if (!this.recommendationsService.isAvailable) {
+            return [];
+        }
+        return this.recommendationsService
+            .items()
+            .map((item) => this.toRecommendationCard(item));
+    });
+
+    readonly recommendationsRailLabel = computed<string>(() => {
+        this.languageTick();
+        const seeds = this.recommendationsService.seedTitles();
+        // A single contributing seed earns the honest Netflix-style header;
+        // a mixed rail falls back to the generic one.
+        return seeds.length === 1
+            ? this.translate.instant(
+                  'WORKSPACE.DASHBOARD.TMDB_RECOMMENDED_BECAUSE',
+                  { title: seeds[0] }
+              )
+            : this.t('WORKSPACE.DASHBOARD.TMDB_RECOMMENDED');
+    });
+
     // Minute heartbeat for the expiry badges: resolveSourceExpiryBadge reads
     // the wall clock, so without a reactive tick a dashboard left open would
     // never cross a day-countdown or expiration boundary. interval() emits
@@ -454,6 +479,27 @@ export class WorkspaceDashboardRailsComponent {
                 return;
             }
             untracked(() => void this.trendingService.load());
+        });
+
+        // Recommendations rail: same gating as trending, plus tracked
+        // reads of the seed source, the favorites (both feed the
+        // exclusion set) and the playlist set (feeds the catalog key) so
+        // a newly watched/favorited title or an imported/deleted playlist
+        // re-runs the load — the service keys loads by seed + exclusion +
+        // catalog set and skips no-ops.
+        effect(() => {
+            if (
+                !this.dashboardRails().tmdbRecommendations ||
+                !this.data.globalFavoritesLoaded()
+            ) {
+                return;
+            }
+            this.data.globalRecentVodItems();
+            this.data.globalFavoriteItems();
+            this.data.playlists();
+            // Language feeds the service's load key (localized payloads)
+            this.languageTick();
+            untracked(() => void this.recommendationsService.load());
         });
     }
 
@@ -627,6 +673,33 @@ export class WorkspaceDashboardRailsComponent {
                   ]
                 : ['/workspace/search'],
             ...(item.match ? {} : { queryParams: { q: item.title } }),
+        };
+    }
+
+    private toRecommendationCard(
+        item: DashboardRecommendationItem
+    ): DashboardRailCard {
+        const subtitle = [
+            item.year !== null ? String(item.year) : null,
+            item.rating ? `★ ${item.rating}` : null,
+            item.match.playlistName,
+        ]
+            .filter((value): value is string => Boolean(value))
+            .join(' · ');
+        return {
+            id: `rec-${item.mediaType}-${item.tmdbId}`,
+            title: item.title,
+            subtitle,
+            imageUrl: item.posterUrl ?? undefined,
+            icon: item.mediaType === 'movie' ? 'movie' : 'video_library',
+            contentType: item.mediaType === 'movie' ? 'movie' : 'series',
+            link: [
+                '/workspace/xtreams',
+                item.match.playlistId,
+                item.match.type === 'movie' ? 'vod' : 'series',
+                String(item.match.categoryId),
+                String(item.match.xtreamId),
+            ],
         };
     }
 

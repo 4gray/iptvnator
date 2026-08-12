@@ -79,6 +79,7 @@ export const DEFAULT_DASHBOARD_RAILS = {
     recentSources: true,
     xtreamRecentlyAdded: true,
     tmdbTrending: true,
+    tmdbRecommendations: true,
 };
 
 export const DEFAULT_SETTINGS = {

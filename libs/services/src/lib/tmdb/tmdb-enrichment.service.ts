@@ -53,6 +53,15 @@ export class TmdbEnrichmentService {
         return this.runtime.isEnabled();
     }
 
+    /**
+     * Effective TMDB language ("en-US"). Exposed so consumers that cache
+     * derived results (e.g. the dashboard recommendations rail) can key
+     * them by the language the payloads were localized in.
+     */
+    language(): string {
+        return this.runtime.language();
+    }
+
     async enrichMovie(
         query: TmdbEnrichmentQuery
     ): Promise<TmdbMovieDetails | null> {

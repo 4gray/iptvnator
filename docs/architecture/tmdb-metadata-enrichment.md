@@ -401,9 +401,10 @@ never blocks or delays rendering of the detail view.
 
 ## Out of Scope (later phases)
 
-Similar/recommendations rails, actor cross-catalog search, trending
-dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
-(IndexedDB).
+Artwork upgrade for M3U VOD, persistent PWA cache (IndexedDB). (The
+similar rails, actor cross-catalog search, and the trending and
+recommendations dashboard rails from earlier versions of this list have
+since shipped.)
 
 ## Dashboard Integration
 
@@ -418,6 +419,97 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   (the rail is hidden in the PWA). The load fires only after the
   dashboard's own recent/favorites data is in, so it never competes for
   the worker at startup, and runs once per app session.
+- **Recommendations rail** ("Because you watched",
+  `dashboardRails.tmdbRecommendations` toggle): TMDB has no account-free
+  "recommendations for you" endpoint, so `DashboardRecommendationsService`
+  (`libs/workspace/dashboard/data-access`) seeds from the user's most
+  recently watched movies/series (up to 3 distinct seeds). Each seed
+  resolves through the enrichment facade using the shared
+  `dashboard-tmdb-lookup.util.ts` attempt builder (the same one the hero
+  uses, including the Stalker hints and the movie→tv retry), and the
+  `recommendations` list rides along in every cached details payload —
+  seeds whose detail view was opened cost zero network. Per-seed lists are
+  interleaved round-robin, deduplicated by TMDB id, stripped of anything
+  already watched or favorited, and matched against
+  the imported libraries with ONE batched
+  `CatalogTitleMatchService.matchTitles` request. The watched/favorited
+  exclusion index is built through the same lookup-attempt builder the
+  seeds use, so an activity row is indexed under more than its display
+  title: under the media type the detail view enriched with (a Stalker
+  embedded-VOD series routes as `'movie'` but is a `tv` show to TMDB, and
+  a `series:` recommendation would sail past a `movie:`-only entry) and
+  under its stored original-language title (`info.o_name`). That resolved
+  media type REPLACES the routing one rather than joining it — keeping
+  both would make the watched show exclude an unrelated film of the same
+  name; a row the builder cannot classify keeps its routing type, the
+  only thing then known. Only the builder's PRIMARY attempt is indexed —
+  its second attempt is a fallback guess, and indexing it would let a
+  watched film exclude the same-named show. On top of that the exclusion runs on two title tiers, because a
+  provider stores whatever the panel named the file: the exact normalized
+  title, plus a year-gated base tier for the common `"Inception 2010"`
+  shape whose exact key can never equal TMDB's `"Inception"`. Both tiers
+  are year-gated, but from different sources. The exact tier uses only a
+  year the row STATES in a metadata field (Stalker's `info.releasedate`),
+  so a watched 1954 `"Godzilla"` cannot exclude the 2014 one — while
+  `"Blade Runner 2049"`, whose year belongs to the NAME, still excludes
+  itself. That follows `releaseTagYear`'s rule: on a whole-title match a
+  trailing number is part of the name and nothing can settle it, so an
+  inferred year must not veto the match. The base tier keeps using the
+  trailing year it stripped, which is a year suffix by construction, and
+  that gate is what keeps a stored `"Blade Runner 2049"` from swallowing
+  the 1982 `"Blade Runner"`. A row that states no year records `null` and
+  keeps excluding unconditionally; an unknown year on either side counts
+  as agreeing, since re-recommending something already watched is the
+  worse failure. Matching and exclusion
+  work through BOTH the localized title and the TMDB original-title alias
+  (cards always display the localized form) — catalogs frequently name
+  items in their original language while the app language localizes the
+  TMDB titles; a year-incompatible first-alias match does not veto a
+  year-compatible match under the other alias. Only matched,
+  year-compatible titles render (each card navigates to its detail view).
+  The rail groups the worker's rows per key itself instead of reusing
+  `buildTitleMatchIndex`, which collapses to one row per key before the
+  candidate's year is known — with both `"Dune 1984"` and `"Dune 2021"`
+  in the catalog the wrong one can win that collapse, and the card is
+  then dropped by the year check with the right row already discarded.
+  Year-compatible rows from every alias form one pool ranked by
+  EVIDENCE, not by which alias found them: a row whose stripped year IS
+  the candidate's wins — positive evidence for that exact film — then an
+  untagged row (the shared helper's precedence, and the only tier
+  reachable when the candidate's year is unknown), then anything else
+  compatible. Alias order survives only as the tiebreaker inside a tier,
+  so an ambiguous untagged row under the localized title cannot outrank a
+  year-tagged row the original-title alias found. Title
+  collisions are resolved AFTER matching, by the catalog row a candidate
+  resolved to: same-titled remakes ("Dune" 1984 and 2021) are different
+  films that must both reach the matcher, while two candidates landing on
+  one row would otherwise render as duplicate cards opening the same
+  item. Fewer than
+  `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
+  the latch entirely, because an empty match result is indistinguishable
+  from a transient worker failure (`matchTitles` maps failures to `[]`),
+  re-running is cheap (mirrors trending's retry-on-empty), and a
+  previously successful input set must be reloadable after a hidden
+  interlude. The rail header names the seed ("Because you watched X")
+  when exactly one seed contributed, else falls back to the generic
+  "Recommended for you". A load latches only once EVERY seed answered —
+  a seed that did not resolve may have failed transiently, and latching
+  on its behalf would drop its recommendations for the session; a seed
+  that has no TMDB match never resolves either, so that user's rail
+  re-runs each visit, which is bounded work (cached enrichment misses
+  plus one batched worker call). Latched loads are keyed by the TMDB language
+  (payloads are localized; the facade exposes `language()` for this), the
+  seed set, the watched/favorited exclusion set AND the imported-playlist
+  id set — watching something new re-seeds on the next dashboard visit,
+  favoriting a recommended title re-filters it out, a language change
+  re-localizes the cards, and importing/deleting a playlist re-runs the
+  matching (a refresh keeps its id and is not detected, parity with
+  trending); a cleared watch history
+  clears the rail (the service is root-provided and outlives the
+  dashboard); a load requested while one is in flight is queued and
+  re-run afterwards; a load where no seed resolved (TMDB unreachable)
+  does not latch and retries instead. Same gating as trending: TMDB
+  opt-in + Electron DB worker, deferred behind the dashboard's own data.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
   backdrop (when the activity row has none), a rating badge and up to two

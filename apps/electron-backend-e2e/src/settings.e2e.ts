@@ -597,6 +597,8 @@ test.describe('Electron Settings', () => {
                 'toggle-dashboard-rail-favorite-movies-and-series',
                 'toggle-dashboard-rail-recent-sources',
                 'toggle-dashboard-rail-xtream-recently-added',
+                'toggle-dashboard-rail-tmdb-trending',
+                'toggle-dashboard-rail-tmdb-recommendations',
             ]) {
                 await expect(
                     firstLaunch.mainWindow
@@ -670,6 +672,42 @@ test.describe('Electron Settings', () => {
                     exact: true,
                 })
             ).toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    // The TMDB recommendations rail itself needs the TMDB opt-in, live
+    // TMDB data and catalog matches, so its rendering is covered by unit
+    // tests rather than here. What IS deterministic — and what a form
+    // regression would silently break — is that its toggle persists.
+    test('@settings @dashboard @electron persists the TMDB recommendations rail toggle across a restart', async ({
+        dataDir,
+    }) => {
+        let app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'dashboard');
+
+            const toggle = app.mainWindow
+                .getByTestId('toggle-dashboard-rail-tmdb-recommendations')
+                .locator('input[type="checkbox"]');
+            await expect(toggle).toBeChecked();
+            await toggle.uncheck();
+            await saveSettings(app.mainWindow);
+        } finally {
+            app = await restartElectronApp(app, dataDir);
+        }
+
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'dashboard');
+            await expect(
+                app.mainWindow
+                    .getByTestId('toggle-dashboard-rail-tmdb-recommendations')
+                    .locator('input[type="checkbox"]')
+            ).not.toBeChecked();
         } finally {
             await closeElectronApp(app);
         }

@@ -355,6 +355,35 @@
             </section>
         }
 
+        <!-- TMDB recommendations rail ("Because you watched"; opt-in; Electron only) -->
+        @if (
+            dashboardRails().tmdbRecommendations &&
+            recommendationCards().length > 0
+        ) {
+            <lib-dashboard-rail
+                [label]="recommendationsRailLabel()"
+                [items]="recommendationCards()"
+                [totalCount]="recommendationCards().length"
+                [testId]="'dashboard-tmdb-recommendations-rail'"
+            />
+        } @else if (
+            dashboardRails().tmdbRecommendations &&
+            recommendationsService.loading()
+        ) {
+            <section
+                class="rails-page__skeleton-rail"
+                aria-hidden="true"
+                aria-busy="true"
+            >
+                <div class="rails-page__skeleton-header"></div>
+                <div class="rails-page__skeleton-track">
+                    @for (slot of skeletonSlots; track slot) {
+                        <div class="rails-page__skeleton-card"></div>
+                    }
+                </div>
+            </section>
+        }
+
         <!-- TMDB trending rail (opt-in; Electron only — needs title matching) -->
         @if (dashboardRails().tmdbTrending && trendingCards().length > 0) {
             <lib-dashboard-rail

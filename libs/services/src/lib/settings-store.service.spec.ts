@@ -24,6 +24,7 @@ const expectedDashboardRails = (
     recentSources: true,
     xtreamRecentlyAdded: true,
     tmdbTrending: true,
+    tmdbRecommendations: true,
     ...overrides,
 });
 
