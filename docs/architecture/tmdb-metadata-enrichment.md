@@ -494,31 +494,20 @@ since shipped.)
   the 1982 `"Blade Runner"`. A row that states no year records `null` and
   keeps excluding unconditionally; an unknown year on either side counts
   as agreeing, since re-recommending something already watched is the
-  worse failure. Matching and exclusion
-  work through BOTH the localized title and the TMDB original-title alias
-  (cards always display the localized form) — catalogs frequently name
-  items in their original language while the app language localizes the
-  TMDB titles; a year-incompatible first-alias match does not veto a
-  year-compatible match under the other alias. Only matched,
-  year-compatible titles render (each card navigates to its detail view).
-  The rail groups the worker's rows per key itself instead of reusing
-  `buildTitleMatchIndex`, which collapses to one row per key before the
-  candidate's year is known — with both `"Dune 1984"` and `"Dune 2021"`
-  in the catalog the wrong one can win that collapse, and the card is
-  then dropped by the year check with the right row already discarded.
-  Year-compatible rows from every alias form one pool ranked by
-  EVIDENCE, not by which alias found them: a row whose stripped year IS
-  the candidate's wins — positive evidence for that exact film — then an
-  untagged row (the shared helper's precedence, and the only tier
-  reachable when the candidate's year is unknown), then anything else
-  compatible. Alias order survives only as the tiebreaker inside a tier,
-  so an ambiguous untagged row under the localized title cannot outrank a
-  year-tagged row the original-title alias found. Title
-  collisions are resolved AFTER matching, by the catalog row a candidate
-  resolved to: same-titled remakes ("Dune" 1984 and 2021) are different
-  films that must both reach the matcher, while two candidates landing on
-  one row would otherwise render as duplicate cards opening the same
-  item. Fewer than
+  worse failure. Exclusion works through BOTH the localized title and
+  the TMDB original-title alias (cards always display the localized
+  form) — catalogs frequently name items in their original language
+  while the app language localizes the TMDB titles.
+
+  Catalog matching itself is the shared pair described under
+  "Resolving a batched match": this rail is the caller that passes two
+  aliases, via `candidateLookup()`. Only matched, year-compatible titles
+  render, each card navigating to its detail view. What stays local to
+  the rail is what happens AFTER a row is picked — title collisions are
+  resolved by the catalog row a candidate resolved to, since same-titled
+  remakes ("Dune" 1984 and 2021) are different films that must both
+  reach the matcher, while two candidates landing on one row would
+  render as duplicate cards opening the same item. Fewer than
   `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
   the latch entirely, because an empty match result is indistinguishable
   from a transient worker failure (`matchTitles` maps failures to `[]`),

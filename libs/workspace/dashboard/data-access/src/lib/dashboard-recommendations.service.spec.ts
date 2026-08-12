@@ -92,7 +92,7 @@ describe('DashboardRecommendationsService', () => {
             },
         });
         // The catalog rows a tv candidate can match are series rows —
-        // buildTitleMatchIndex keys them by the match's own type.
+        // groupTitleMatchesByKey keys them by the match's own type.
         matchTitles.mockImplementation(async (titles: string[]) =>
             titles.map((title) => match(title, { type: 'series' }))
         );
