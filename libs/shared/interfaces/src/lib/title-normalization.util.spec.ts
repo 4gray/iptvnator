@@ -298,6 +298,77 @@ describe('provider tag stripping', () => {
         }
     );
 
+    describe("leading tag vs. the film's own name", () => {
+        // "IT - 65 (2023)" and "AKA - 2023" are the same shape: 2-5 uppercase
+        // characters, a separator, digits. Only the token's MEANING separates
+        // the Italian copy of the film "65" from the film "AKA" followed by
+        // its year, so the strip is vocabulary-gated whenever nothing but
+        // digits would survive it.
+
+        it('keeps a name that only looks like a tag before its year', () => {
+            // Measured on the live catalog: these all normalized to a bare
+            // year, so AKA/BDE/BRO/OUT/WIL/IF shared the single key "2023"
+            // and were offered to each other as alternative sources.
+            expect(normalizeTitle('AKA - 2023')).toBe('aka');
+            expect(normalizeTitle('AKA | 2023')).toBe('aka');
+            expect(normalizeTitle('IO - 2019')).toBe('io');
+            expect(normalizeTitle('ARQ - 2016')).toBe('arq');
+            expect(normalizeTitle('UFO - 2012')).toBe('ufo');
+            expect(normalizeTitle('LBJ - 2017')).toBe('lbj');
+            expect(normalizeTitle('EO - 2022')).toBe('eo');
+            expect(normalizeTitle('BDE - 2023')).toBe('bde');
+            expect(normalizeTitle('VFW - 2019 (4K HDR)')).toBe('vfw');
+            expect(normalizeTitleKeys('AKA - 2023').exact).toBe('aka 2023');
+        });
+
+        it('still strips real tags before a numeric film title', () => {
+            // The opposite shape, and the reason a shape-only guard was
+            // rejected: here the tag is real and the film's NAME is numeric.
+            expect(normalizeTitle('IT - 65 (2023)')).toBe('65');
+            expect(normalizeTitle('|FR|VO| 300 (2007)')).toBe('300');
+            expect(normalizeTitle('|FR|VO| 1922')).toBe('1922');
+            expect(normalizeTitle('OSN - 1917 - 2019')).toBe('1917');
+            expect(normalizeTitle('EN - 42 - 2013')).toBe('42');
+            expect(normalizeTitle('NRC - 7500 (2019)')).toBe('7500');
+            expect(normalizeTitle('EXYU| 3022')).toBe('3022');
+        });
+
+        it('strips streaming-provider tags before numeric series titles', () => {
+            // Found only in the series catalog: a movie-only vocabulary
+            // dropped these copies of 1923/1883/24/99 out of their groups.
+            expect(normalizeTitle('AMZ - 99 (2024)')).toBe('99');
+            expect(normalizeTitle('D+ - 24 (2001) (US)')).toBe('24');
+            expect(normalizeTitle('D+ - 9-1-1 (2018) (US)')).toBe('9 1 1');
+            expect(normalizeTitle('P+ - 1883 (2021)')).toBe('1883');
+        });
+
+        it('reads a compound tag by its head, so names survive', () => {
+            // "4K-<lang>" pairings are open-ended, so the head carries the
+            // meaning — and it is also what tells a compound tag apart from
+            // a hyphenated name.
+            expect(normalizeTitle('4K-FR - 1992 (2024)')).toBe('1992');
+            expect(normalizeTitle('AR-SUBS - 180 (2026)')).toBe('180');
+            expect(normalizeTitle('SO-IN - 65 (2023)')).toBe('65');
+            expect(normalizeTitle('INU-OH - 2022')).toBe('inu oh');
+            expect(normalizeTitle('PC-4L - 2020')).toBe('pc 4l');
+        });
+
+        it('leaves the wrapped-pipe form ungated', () => {
+            // A film name is never wrapped in pipes on both sides: all 174
+            // letterless cases in the catalog were genuine tags.
+            expect(normalizeTitle('|EN| 65')).toBe('65');
+            expect(normalizeTitle('|DE| 2067')).toBe('2067');
+        });
+
+        it('no longer normalizes a title down to a degenerate key', () => {
+            // Both used to collapse into piles of unrelated junk — "" with 72
+            // other members, and "2" with everything named after a numeral.
+            expect(normalizeTitle('DSP: (2022)')).toBe('dsp');
+            expect(normalizeTitle('HIT: 2 (2022)')).toBe('hit 2');
+            expect(normalizeTitle('EGO - (Erkeğe Güven Olmaz)')).toBe('ego');
+        });
+    });
+
     it('keeps localized subtitles (indistinguishable from real ones)', () => {
         expect(normalizeTitle('Breaking Bad: A Química do Mal')).toBe(
             'breaking bad a quimica do mal'

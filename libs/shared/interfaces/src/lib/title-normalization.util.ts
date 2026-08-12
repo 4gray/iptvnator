@@ -150,6 +150,145 @@ const TRAILING_TAG_VOCABULARY = new Set([
  */
 const WEAK_JOIN_EXCLUSIONS = new Set(['IN']);
 
+/**
+ * Language/region/provider codes observed in the LEADING position that the
+ * trailing vocabulary has no reason to carry — a provider brands the front
+ * of a title ("NRC - Sonic the Hedgehog", "TOP - When the Light Breaks"),
+ * never the end of one.
+ *
+ * A separate set, because the same token answers the question differently at
+ * each end. `LA` is the clearest case: it is a real prefix tag (590 tagged
+ * titles) and it is already, deliberately, kept OUT of the trailing set —
+ * where it ends 71 real titles ("Desastre LA", "Detroit NY LA"). Merging the
+ * two lists would amputate those, plus "Les EX" and "Half CA", to rescue
+ * three.
+ *
+ * Every entry is one the catalog proves, and only those: each prefixes
+ * hundreds to thousands of ordinary lettered titles (NF 10544, EX 8177,
+ * NRC 4961, TM 3538, AMZ 966, D+ 892, BL 826, LA 590, OSN 499, KD 467,
+ * P+ 42 …). Opaque provider codes are in for the same reason the obvious
+ * language codes are — what matters is that the catalog uses them as tags,
+ * not that a reader can name them.
+ *
+ * Nothing is added on the theory that it "looks like a streaming service":
+ * MAX and HULU would fit that theory, and "MAX - 2015" is a film. A tag
+ * this list has not heard of costs one unmatched copy; a film name wrongly
+ * listed here corrupts that film's identity everywhere.
+ */
+const PREFIX_ONLY_TAG_VOCABULARY = new Set([
+    'AMZ',
+    'BG',
+    'BL',
+    'BN',
+    'BR',
+    'CA',
+    'CH',
+    'CN',
+    'D+',
+    'DK',
+    'EU',
+    'EX',
+    'ID',
+    'IL',
+    'ISR',
+    'JP',
+    'KD',
+    'KN',
+    'KO',
+    'LA',
+    'LT',
+    'MA',
+    'MY',
+    'NF',
+    'NRC',
+    'OSN',
+    'P+',
+    'PH',
+    'PK',
+    'QC',
+    'QFR',
+    'SO',
+    'SOM',
+    'STH',
+    'TG',
+    'TH',
+    'TM',
+    'TOD',
+    'TOP',
+    'VO',
+    'VP',
+]);
+
+/**
+ * A leading token is provider metadata when either vocabulary knows it, or —
+ * for compounds — when its FIRST segment does ("4K-FR", "AR-SUBS", "IN-KN",
+ * "SO-EN"). Compound tags are open-ended (every panel invents its own
+ * "4K-<lang>" pairing), so enumerating them would go stale against the next
+ * catalog; the head is what carries the meaning. That head rule is also what
+ * separates a compound tag from a hyphenated NAME: "INU-OH - 2022" and
+ * "PC-4L - 2020" are films, and neither "INU" nor "PC" is a known tag.
+ */
+function isKnownPrefixTag(token: string): boolean {
+    const upper = token.toUpperCase();
+    const isKnown = (value: string) =>
+        TRAILING_TAG_VOCABULARY.has(value) ||
+        PREFIX_ONLY_TAG_VOCABULARY.has(value) ||
+        QUALITY_TAGS.has(value.toLowerCase());
+
+    if (isKnown(upper)) {
+        return true;
+    }
+
+    const head = upper.split('-')[0];
+    return head !== upper && isKnown(head);
+}
+
+/**
+ * Separator the matched prefix ends with, plus any padding around it. Built
+ * by alternation rather than by splicing `PROVIDER_PIPE_CLASS` open, so the
+ * pipe set stays a black box its owner can reshape.
+ */
+const PREFIX_SEPARATOR_TAIL = new RegExp(
+    `(?:[\\s\\-:]|${PROVIDER_PIPE_CLASS})+$`,
+    'u'
+);
+
+const HAS_LETTER = /\p{L}/u;
+
+/**
+ * Strip a leading provider tag — but never one that is the film's own NAME.
+ *
+ * The two shapes are structurally identical: "IT - 65 (2023)" is the Italian
+ * copy of the film "65", while "AKA - 2023" is the film "AKA" followed by its
+ * year. Both are 2–5 uppercase characters, a dash, and digits, so only the
+ * token's MEANING can separate them — hence the vocabulary gate.
+ *
+ * It applies to the letterless case alone. Whenever a word survives the strip
+ * the tag reading is safe ("XX - Some Title" cannot be a title plus a year),
+ * and gating that path too would strand every genuine tag the vocabulary has
+ * not heard of. Refusing here costs a missed cross-playlist match; stripping
+ * wrongly leaves the year as the whole key ("AKA - 2023" → "2023"), which
+ * collides with every other film tagged that year — measured on the live
+ * catalog,
+ * AKA/BDE/BRO/OUT/WIL/IF all collapsed onto the single key "2023" and were
+ * offered to each other as alternative sources. A miss beats a wrong match,
+ * so the unknown token keeps its title.
+ */
+function stripLeadingTag(value: string): string {
+    const match = value.match(LANGUAGE_PREFIX);
+    if (!match) {
+        return value;
+    }
+
+    const remainder = value.replace(LANGUAGE_PREFIX, '');
+    if (HAS_LETTER.test(remainder)) {
+        return remainder;
+    }
+
+    const token = match[0].replace(PREFIX_SEPARATOR_TAIL, '');
+    return isKnownPrefixTag(token) ? remainder : value;
+}
+
 const DOUBLE_DASH_SUFFIX = /[-–]{2}[A-Za-z]{2,5}\s*$/;
 const UNDERSCORE_SUFFIX = /_([A-Za-z]{2,5})\s*$/;
 const JOINED_DASH_SUFFIX = /-([A-Za-z]{2,5})\s*$/;
@@ -285,12 +424,13 @@ export function normalizeTitleKeys(
     }
 
     const cleaned = stripTrailingTags(
-        raw
-            .replace(WRAPPED_TAG_PREFIX, '')
-            // Inner classes exclude the opening delimiter too, so runaway
-            // inputs like "[[[[[..." backtrack linearly (CodeQL js/polynomial-redos)
-            .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
-            .replace(LANGUAGE_PREFIX, '')
+        stripLeadingTag(
+            raw
+                .replace(WRAPPED_TAG_PREFIX, '')
+                // Inner classes exclude the opening delimiter too, so runaway
+                // inputs like "[[[[[..." backtrack linearly (CodeQL js/polynomial-redos)
+                .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
+        )
     )
         .normalize('NFD')
         .replace(/[\u0300-\u036F]/g, '')
