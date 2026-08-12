@@ -335,6 +335,21 @@ describe('HostConnectivityGuard', () => {
             expect(retry.trial).toBe(true);
         });
 
+        it('lets only the request holding the slot release it', () => {
+            // A trial can outlive its own 45 s window: the validated-redirect
+            // transport gives each of up to five hops its own 30 s budget. Once
+            // a replacement has been admitted, the abandoned request's late
+            // report must not hand the slot to a third request.
+            const abandoned = expectAllowed();
+            advance(TRIAL_TIMEOUT_MS);
+            const replacement = expectAllowed();
+            expect(replacement.trial).toBe(true);
+
+            guard.reportInconclusive(abandoned);
+
+            expectBlocked();
+        });
+
         it('recovers when a trial never reports back', () => {
             expectAllowed();
             expectBlocked();

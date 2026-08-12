@@ -70,8 +70,14 @@ Two more rules exist because of specific failure modes:
   behind settle right after they press Retry and re-open the breaker underneath
   the very retry that cleared it.
 
-A half-open trial that never reports back expires after 45 s (above the longest
-request timeout), so a leaked token cannot leave the breaker open forever.
+A half-open trial that never reports back expires after 45 s, so a leaked token
+cannot leave the breaker open forever. That expiry is why the slot has an
+identity: a trial can genuinely outlive its window — `requestWithValidatedRedirects`
+gives each of up to five redirect hops its own 30 s budget — and once a
+replacement has been admitted, the abandoned request's late report must not free
+the replacement's slot and let a third request through. `trial: true` alone
+cannot tell the two apart, so the token carries the slot id it owns; an
+abandoned trial's failure is still counted as ordinary evidence.
 
 ## The fast-fail error is a renderer contract
 

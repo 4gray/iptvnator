@@ -98,6 +98,16 @@ export interface HostRequestToken {
     readonly startedAt: number;
     /** Whether this request is the single probe allowed while half-open. */
     readonly trial: boolean;
+    /**
+     * Which half-open slot this request holds, when it holds one.
+     *
+     * A trial can outlive its own window — `requestWithValidatedRedirects`
+     * gives each of up to five redirect hops its own 30 s budget — and once a
+     * replacement has been admitted, the abandoned request must not be able to
+     * free the replacement's slot. `trial: true` alone cannot tell the two
+     * apart, so the owner is identified explicitly.
+     */
+    readonly trialId: number;
 }
 
 export type HostConnectivityCheck =
@@ -112,6 +122,8 @@ interface HostState {
     lastFailureAt: number;
     openUntil: number;
     trialStartedAt: number | null;
+    /** Monotonic id of the half-open slot; see `HostRequestToken.trialId`. */
+    trialId: number;
     epoch: number;
     lastTouchedAt: number;
 }
@@ -200,7 +212,13 @@ export class HostConnectivityGuard {
         if (isHostConnectivityGuardDisabled()) {
             return {
                 allowed: true,
-                token: { endpoint, epoch: 0, startedAt: now, trial: false },
+                token: {
+                    endpoint,
+                    epoch: 0,
+                    startedAt: now,
+                    trial: false,
+                    trialId: 0,
+                },
             };
         }
 
@@ -222,12 +240,19 @@ export class HostConnectivityGuard {
                 return { allowed: false, retryAfterMs: 0 };
             }
             state.trialStartedAt = now;
+            state.trialId += 1;
             trial = true;
         }
 
         return {
             allowed: true,
-            token: { endpoint, epoch: state.epoch, startedAt: now, trial },
+            token: {
+                endpoint,
+                epoch: state.epoch,
+                startedAt: now,
+                trial,
+                trialId: trial ? state.trialId : 0,
+            },
         };
     }
 
@@ -263,8 +288,11 @@ export class HostConnectivityGuard {
             return;
         }
 
-        const wasTrial = token.trial && state.trialStartedAt !== null;
-        if (token.trial) {
+        // Only the request that still holds the slot ends the half-open state.
+        // An abandoned trial's late failure is ordinary evidence — it goes
+        // through the streak rules below and leaves the replacement alone.
+        const wasTrial = this.ownsTrial(state, token);
+        if (wasTrial) {
             state.trialStartedAt = null;
         }
         state.lastTouchedAt = now;
@@ -344,6 +372,7 @@ export class HostConnectivityGuard {
             epoch: this.states.get(endpoint)?.epoch ?? 0,
             startedAt: this.now(),
             trial: false,
+            trialId: 0,
         };
     }
 
@@ -352,8 +381,18 @@ export class HostConnectivityGuard {
         this.states.clear();
     }
 
+    /** Whether `token` still holds the current half-open slot. */
+    private ownsTrial(state: HostState, token: HostRequestToken): boolean {
+        return (
+            token.trial &&
+            state.trialStartedAt !== null &&
+            state.epoch === token.epoch &&
+            state.trialId === token.trialId
+        );
+    }
+
     private releaseTrial(state: HostState, token: HostRequestToken): void {
-        if (token.trial && state.epoch === token.epoch) {
+        if (this.ownsTrial(state, token)) {
             state.trialStartedAt = null;
         }
     }
@@ -370,6 +409,7 @@ export class HostConnectivityGuard {
             lastFailureAt: 0,
             openUntil: 0,
             trialStartedAt: null,
+            trialId: 0,
             epoch: 0,
             lastTouchedAt: now,
         };
