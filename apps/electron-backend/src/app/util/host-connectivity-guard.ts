@@ -508,14 +508,62 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
 }
 
 /**
- * The endpoint a failed request was actually talking to, when the error says.
+ * The URL a failed request was actually talking to, when the error says.
  *
- * Redirects are followed hop by hop, each with its own config, so a timeout on
- * a hop that lives on another origin carries THAT origin's URL.
+ * Redirects are followed hop by hop, each with its own config, so a failure on
+ * a later hop carries THAT hop's URL rather than the one we asked for.
  */
-function failedEndpointOf(error: unknown): string | null {
+function failedRequestUrlOf(error: unknown): string | null {
     const url = (error as { config?: { url?: unknown } } | null)?.config?.url;
-    return typeof url === 'string' ? portalEndpointKeyOf(url) : null;
+    return typeof url === 'string' ? url : null;
+}
+
+function normalizedUrlOrNull(url: string): string | null {
+    try {
+        return new URL(url).toString();
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Whether the failure happened on a hop the guarded endpoint redirected us to.
+ *
+ * Reaching any later hop proves the guarded endpoint answered: the first hop is
+ * always the URL we asked for, and only a redirect status advances the chain.
+ * That holds for a same-origin redirect too, so comparing the whole URL — not
+ * just its origin — is what catches `/player_api.php` → `/slow/player_api.php`.
+ *
+ * Requires positive evidence: anything unparseable or unknown returns false and
+ * the failure is counted as usual, because guessing "redirect" here would stop
+ * the guard from ever tripping.
+ */
+function failedAfterRedirect(
+    error: unknown,
+    token: HostRequestToken,
+    requestUrl: string | undefined
+): boolean {
+    const failedUrl = failedRequestUrlOf(error);
+    if (!failedUrl) {
+        return false;
+    }
+
+    const failedEndpoint = portalEndpointKeyOf(failedUrl);
+    if (failedEndpoint && failedEndpoint !== token.endpoint) {
+        return true;
+    }
+
+    if (!requestUrl) {
+        return false;
+    }
+
+    const failedNormalized = normalizedUrlOrNull(failedUrl);
+    const requestedNormalized = normalizedUrlOrNull(requestUrl);
+    return (
+        failedNormalized !== null &&
+        requestedNormalized !== null &&
+        failedNormalized !== requestedNormalized
+    );
 }
 
 /**
@@ -529,7 +577,7 @@ function failedEndpointOf(error: unknown): string | null {
 export function reportGuardedHostFailure(
     token: HostRequestToken | null,
     error: unknown,
-    options: { countFailures?: boolean } = {}
+    options: { countFailures?: boolean; requestUrl?: string } = {}
 ): void {
     if (!token) {
         return;
@@ -543,15 +591,12 @@ export function reportGuardedHostFailure(
                 break;
             }
 
-            const failedEndpoint = failedEndpointOf(error);
-            if (failedEndpoint && failedEndpoint !== token.endpoint) {
-                // A redirect hop on a different origin failed. Reaching that
-                // hop PROVES the guarded endpoint answered — the first hop is
-                // always the guarded endpoint, and only a redirect status moves
-                // the chain along — so this clears its record like any other
-                // response rather than merely declining to count it. The
-                // failing hop is not guarded (it has no token of its own), so
-                // such a chain keeps costing a full timeout.
+            if (failedAfterRedirect(error, token, options.requestUrl)) {
+                // The guarded endpoint answered with a redirect, so this clears
+                // its record like any other response rather than merely
+                // declining to count the downstream failure. The failing hop is
+                // not guarded (it has no token of its own), so such a chain
+                // keeps costing a full timeout — a documented gap.
                 guard.reportSuccess(token);
                 break;
             }

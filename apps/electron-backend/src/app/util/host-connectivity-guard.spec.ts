@@ -514,7 +514,10 @@ describe('reportGuardedHostFailure', () => {
     const attempt = (error: unknown): void => {
         reportGuardedHostFailure(
             beginGuardedHostRequest(URL_ON_ENDPOINT),
-            error
+            error,
+            // The handlers pass the URL they asked for; a failure on any other
+            // URL means a redirect answered first.
+            { requestUrl: URL_ON_ENDPOINT }
         );
     };
 
@@ -526,6 +529,24 @@ describe('reportGuardedHostFailure', () => {
     afterEach(() => {
         consoleWarnSpy.mockRestore();
         resetHostConnectivityGuardForTests();
+    });
+
+    it('does not charge a same-origin redirect hop to the guarded endpoint', () => {
+        // `/player_api.php` -> 302 -> `/slow/player_api.php` on the same origin:
+        // the origin answered, so its record must clear even though the failing
+        // URL shares its origin. Otherwise two such requests fast-fail every
+        // other call to a portal that answers.
+        const sameOriginHop = () =>
+            Object.assign(new Error('timeout of 30000ms exceeded'), {
+                code: 'ETIMEDOUT',
+                config: { url: `${ENDPOINT}/slow/player_api.php` },
+            });
+
+        attempt(sameOriginHop());
+        attempt(sameOriginHop());
+        attempt(sameOriginHop());
+
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).not.toThrow();
     });
 
     it('does not charge a redirect hop on another origin to the guarded endpoint', () => {

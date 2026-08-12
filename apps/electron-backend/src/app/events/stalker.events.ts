@@ -216,6 +216,7 @@ ipcMain.handle(
             // what would let the breaker open mid-discovery.
             reportGuardedHostFailure(guardToken, error, {
                 countFailures: countsTowardsGuard,
+                requestUrl: debugRequest?.url as string | undefined,
             });
 
             console.error(

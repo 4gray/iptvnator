@@ -49,17 +49,27 @@ mid-transfer happens on hosts that are very much alive. Cancelled requests
 about reachability and only release the half-open slot.
 
 **A failure is only charged to the endpoint that produced it.** Redirects are
-followed hop by hop, each with its own config, so a timeout on a hop that lives
-on another origin carries that origin's URL in `error.config.url`. Reaching such
-a hop _proves_ the guarded endpoint answered — the first hop is always the
-guarded endpoint, and only a redirect status moves the chain along — so it
-CLEARS the guarded endpoint's record, exactly like any other response. Merely
-declining to count it would leave an earlier direct failure standing, and a
-single later timeout would then fast-fail an endpoint that answered in between.
-A failure that names no endpoint at all is still counted: absence of a config
-must not become an excuse to ignore evidence. Known gap: the failing hop is not
-guarded either (it has no token of its own), so a permanently broken redirect
-chain keeps costing a full timeout.
+followed hop by hop, each with its own config, so a failure on a later hop
+carries that hop's URL in `error.config.url`. Reaching any later hop _proves_ the
+guarded endpoint answered — the first hop is always the URL we asked for, and
+only a redirect status advances the chain — so it CLEARS the guarded endpoint's
+record, exactly like any other response. Merely declining to count it would leave
+an earlier direct failure standing, and a single later timeout would then
+fast-fail an endpoint that answered in between.
+
+The comparison is against the whole request URL, not just its origin: a
+same-origin redirect (`/player_api.php` → `/slow/player_api.php`) proves the
+endpoint answered just as much as a cross-origin one, and charging it would
+fast-fail every OTHER call to a portal that answers. Both handlers therefore pass
+the URL they asked for. It requires positive evidence — anything unparseable or
+unknown counts the failure as usual, because guessing "redirect" here would stop
+the guard from ever tripping — and a failure that names no URL at all is still
+counted. Round-tripping through `URL` is identity for both handlers' URL shapes
+(including Stalker's hand-encoded `cmd`), and `requestWithValidatedRedirects`
+normalizes hop 1 the same way, so the comparison is exact.
+
+Known gap: the failing hop is not guarded either (it has no token of its own),
+so a permanently broken redirect chain keeps costing a full timeout.
 
 **The key is the origin, not the host.** `URL.host` omits a default port, so
 `http://panel.example` and `https://panel.example` would share one record —

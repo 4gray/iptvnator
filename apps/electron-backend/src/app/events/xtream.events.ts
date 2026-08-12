@@ -215,7 +215,9 @@ ipcMain.handle(
                 throw error;
             }
 
-            reportGuardedHostFailure(guardToken, error);
+            reportGuardedHostFailure(guardToken, error, {
+                requestUrl: requestUrlForLog,
+            });
 
             if (!payload.suppressErrorLog) {
                 console.error(
