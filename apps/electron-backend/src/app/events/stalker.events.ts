@@ -16,6 +16,7 @@ import {
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
+import { formatPortalRequestError } from './portal-request-error.util';
 import { assertRemoteUrlAllowed } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
@@ -50,6 +51,7 @@ ipcMain.handle(
     ) => {
         const startedAt = Date.now();
         let debugRequest: Record<string, unknown> | undefined;
+        let requestUrlForLog = payload.url;
         try {
             const { url, macAddress, params, token, serialNumber, requestId } =
                 payload;
@@ -66,6 +68,7 @@ ipcMain.handle(
             await assertRemoteUrlAllowed(url, { allowPrivateNetworks: true });
 
             const fullUrl = buildStalkerRequestUrl(url, requestParams);
+            requestUrlForLog = fullUrl;
 
             // Determine timeout based on action type
             // create_link requests can take longer as server generates stream URL
@@ -97,11 +100,6 @@ ipcMain.handle(
 
             // Check if response is successful
             if (response.status >= 400) {
-                console.error(
-                    '[StalkerEvents] HTTP Error:',
-                    response.status,
-                    response.statusText
-                );
                 // The numeric code must live in the MESSAGE: ipcRenderer
                 // strips custom properties from rejected values, and the
                 // renderer's endpoint discovery needs to tell a 404 (probe
@@ -177,8 +175,14 @@ ipcMain.handle(
             }
 
             console.error(
-                '[StalkerEvents] Request error:',
-                redactSensitiveData(error)
+                '[STALKER_REQUEST] Failed',
+                redactSensitiveData(
+                    formatPortalRequestError(
+                        error,
+                        requestUrlForLog,
+                        String(payload.params?.action ?? 'unknown')
+                    )
+                )
             );
 
             // Format error response
