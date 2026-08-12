@@ -8,7 +8,7 @@ import {
 /** Everything a dashboard TMDB lookup reads off an activity row */
 export type DashboardTmdbLookupItem = Pick<
     PortalActivityItem,
-    'title' | 'type' | 'stalker_item'
+    'title' | 'type' | 'stalker_item' | 'source'
 >;
 
 /**
@@ -36,13 +36,18 @@ export interface DashboardTmdbAttempt {
  * single exact title match, which common titles never satisfy, and the miss
  * is cached under a lookup key the detail view's hit can never be found at.
  *
- * A `'movie'` verdict gets a second attempt under `'tv'`, because
- * `'movie'` is what every row falls back to when nothing says otherwise
- * — an embedded-VOD ("vclub") series is a `'movie'` activity row, and a
- * lazily-loaded Ministra item can be stored before its series marker is
- * known. The retry drops the id (`/movie/<tv id>` resolves to an
- * unrelated film), so a wrong default costs one negatively-cached search
- * rather than another title's metadata.
+ * A `'movie'` verdict gets a second attempt under `'tv'`, because for a
+ * Stalker row `'movie'` is what everything falls back to when nothing
+ * says otherwise — an embedded-VOD ("vclub") series is a `'movie'`
+ * activity row, and a lazily-loaded Ministra item can be stored before
+ * its series marker is known. The retry drops the id (`/movie/<tv id>`
+ * resolves to an unrelated film), so a wrong default costs one
+ * negatively-cached search rather than another title's metadata.
+ *
+ * An Xtream row gets NO such retry: its type comes from the imported
+ * catalog, which files movies and series separately, so `'movie'` there
+ * is evidence rather than a default. Retrying would let a same-titled
+ * show answer for a film — the mirror of the `'tv'` rule below.
  *
  * `'tv'` gets no such retry. It is only ever reached on positive
  * evidence — a series category, an `is_series` flag, or a non-empty
@@ -80,7 +85,10 @@ export function buildDashboardTmdbAttempts(
         year,
     };
 
-    return mediaType === 'movie'
+    // The Xtream catalog files movies and series apart, so its verdict is
+    // not the "nothing said otherwise" default the retry exists for.
+    const catalogClassified = item.source === 'xtream';
+    return mediaType === 'movie' && !catalogClassified
         ? [primary, { ...primary, mediaType: 'tv', tmdbId: undefined }]
         : [primary];
 }

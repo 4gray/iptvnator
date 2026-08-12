@@ -8,6 +8,7 @@ import { DashboardDataService } from './dashboard-data.service';
 import { DashboardRecommendationsService } from './dashboard-recommendations.service';
 
 interface ActivityStub {
+    source?: string;
     stalker_item?: unknown;
     title: string;
     type: string;
@@ -150,6 +151,21 @@ describe('DashboardRecommendationsService', () => {
         favorites = [];
         playlists = [{ _id: 'pl-1' }];
         tmdbLanguage = 'en-US';
+    });
+
+    it('does not retry an Xtream movie seed as a series', async () => {
+        // The Xtream catalog files movies and series apart, so 'movie'
+        // is evidence — a same-titled show must not answer for the film.
+        recentVod = [
+            { title: 'Fargo', type: 'movie', source: 'xtream' } as ActivityStub,
+        ];
+        recentAll = [...recentVod];
+        enrichMovie.mockResolvedValue(null);
+        const service = createService();
+
+        await service.load();
+
+        expect(enrichTv).not.toHaveBeenCalled();
     });
 
     it('does nothing when TMDB is disabled', async () => {
