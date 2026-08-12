@@ -174,6 +174,36 @@ describe('StalkerEvents host connectivity guard', () => {
             expect(axiosMock).toHaveBeenCalledTimes(4);
         });
 
+        it('clear the record on a 5xx too, not just a body', async () => {
+            // 5xx rejects with a response attached. The probe's failure must not
+            // count, but the response still proves the origin answered —
+            // dropping it is what lets the breaker open mid-discovery.
+            const serverError = () =>
+                Object.assign(
+                    new Error('Request failed with status code 502'),
+                    {
+                        code: 'ERR_BAD_RESPONSE',
+                        response: { status: 502, statusText: 'Bad Gateway' },
+                    }
+                );
+            axiosMock
+                .mockRejectedValue(connectionRefused())
+                .mockRejectedValueOnce(connectionRefused())
+                .mockRejectedValueOnce(serverError())
+                .mockRejectedValueOnce(connectionRefused());
+
+            await expect(request()).rejects.toBeDefined();
+            await expect(
+                request({ skipConnectionGuard: true })
+            ).rejects.toBeDefined();
+            await expect(request()).rejects.toThrow('ECONNREFUSED');
+
+            // The probe's 5xx reset the streak, so the failure above is the
+            // first of a new one and this request still goes out.
+            await expect(request()).rejects.toThrow('ECONNREFUSED');
+            expect(axiosMock).toHaveBeenCalledTimes(4);
+        });
+
         it('still clear the record when a candidate answers', async () => {
             // Authentication against auth-gated candidates is NOT exempt, so
             // without this the breaker could open in the middle of discovery.

@@ -143,7 +143,12 @@ Reporting successes is equally load-bearing: `confirmFullPortal` runs the full
 non-exempt authentication flow against auth-gated candidates, so without it two
 hung handshakes could open the breaker mid-discovery and the next authenticate
 would fast-fail into the "host unreachable" slot — abandoning a portal that
-works.
+works. "Success" here means any observed response, including one attached to a
+rejection: `validateStatus` lets 4xx through but rejects 5xx with
+`error.response` set, and a 5xx proves the origin answered just as well as a
+body does. That is why the exempt path reports through
+`reportGuardedHostFailure(token, error, { countFailures: false })` rather than
+skipping the report.
 
 ## Explicit reset
 
@@ -182,6 +187,10 @@ Call sites:
 - Both account-info dialogs' Retry buttons (`AccountInfoComponent.reload()` for
   Xtream, `StalkerAccountInfoComponent.reload()` for Stalker). Their automatic
   load on open goes through a private `load()` that does not reset.
+- `PlaylistRefreshActionService.refreshXtream()` — before anything destructive.
+  This one deletes the cached catalog and then forces a route bootstrap whose
+  status request an open guard would fast-fail, leaving the user with no catalog
+  at all until the cooldown expires.
 - `PortalStatusService.checkPortalStatusDetails` when `skipCache` is set — the
   user-initiated "Test Connection".
 

@@ -518,17 +518,31 @@ function failedEndpointOf(error: unknown): string | null {
     return typeof url === 'string' ? portalEndpointKeyOf(url) : null;
 }
 
+/**
+ * Records what a failed request proved about its endpoint.
+ *
+ * `countFailures: false` is for requests exempt from the guard (endpoint
+ * discovery): their failures are expected and must not count, but an error that
+ * still carries an HTTP response proves the origin answered, and dropping that
+ * is what would let the breaker open in the middle of discovery.
+ */
 export function reportGuardedHostFailure(
     token: HostRequestToken | null,
-    error: unknown
+    error: unknown,
+    options: { countFailures?: boolean } = {}
 ): void {
     if (!token) {
         return;
     }
 
     const guard = getHostConnectivityGuard();
+    const countFailures = options.countFailures ?? true;
     switch (classifyHostRequestFailure(error)) {
         case 'host-level': {
+            if (!countFailures) {
+                break;
+            }
+
             const failedEndpoint = failedEndpointOf(error);
             if (failedEndpoint && failedEndpoint !== token.endpoint) {
                 // A redirect hop on a different origin failed. Reaching that

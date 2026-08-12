@@ -17,6 +17,7 @@ import {
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    CONNECTIVITY_GUARD_RESET,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     PLAYLIST_UPDATE,
     Playlist,
@@ -686,6 +687,51 @@ describe('PlaylistRefreshActionService', () => {
                 refreshEpg: true,
                 operationId: 'playlist-refresh-op',
             })
+        );
+    });
+
+    it('clears the connectivity guard before deleting the cached Xtream catalog', async () => {
+        // This refresh deletes the catalog and then forces a route bootstrap
+        // whose status request an open guard would fast-fail — leaving the user
+        // with no catalog at all until the cooldown expires.
+        const item = {
+            _id: 'xtream-guard',
+            title: 'Guarded Xtream',
+            serverUrl: 'http://panel.example:8080',
+            username: 'user',
+            password: 'secret',
+            macAddress: undefined,
+            portalUrl: undefined,
+        } as unknown as PlaylistMeta;
+        let confirmPromise: Promise<void> | undefined;
+        const order: string[] = [];
+        dataService.sendIpcEvent.mockImplementation((event: string) => {
+            order.push(`ipc:${event}`);
+            return Promise.resolve({ success: true });
+        });
+        databaseService.deleteXtreamPlaylistContent.mockImplementation(() => {
+            order.push('deleteXtreamPlaylistContent');
+            return Promise.resolve({
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                sourcePins: [],
+            });
+        });
+        dialogService.openConfirmDialog.mockImplementation(
+            ({ onConfirm }: { onConfirm?: () => Promise<void> }) => {
+                confirmPromise = onConfirm?.();
+            }
+        );
+
+        service.refresh(item);
+        await confirmPromise;
+
+        expect(order[0]).toBe(`ipc:${CONNECTIVITY_GUARD_RESET}`);
+        expect(order).toContain('deleteXtreamPlaylistContent');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            CONNECTIVITY_GUARD_RESET,
+            { url: item.serverUrl }
         );
     });
 });

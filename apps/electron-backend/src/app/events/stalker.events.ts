@@ -211,9 +211,12 @@ ipcMain.handle(
                 throw error;
             }
 
-            if (countsTowardsGuard) {
-                reportGuardedHostFailure(guardToken, error);
-            }
+            // Exempt probes never count failures, but an error carrying an
+            // HTTP response still proves the origin answered — dropping that is
+            // what would let the breaker open mid-discovery.
+            reportGuardedHostFailure(guardToken, error, {
+                countFailures: countsTowardsGuard,
+            });
 
             console.error(
                 '[STALKER_REQUEST] Failed',
