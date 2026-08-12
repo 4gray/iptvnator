@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "浏览所有电影",
         "BROWSE_ALL_SERIES": "浏览所有剧集",
         "BROWSE_ALL_LIVE": "浏览所有直播电视",
+        "VIEW_IN_PORTAL": "在门户中查看",
+        "VIEW_IN_PORTAL_TOOLTIP": "在{{name}}中打开",
         "SIDEBAR": {
             "MAIN": "主页",
             "MOVIES": "电影",

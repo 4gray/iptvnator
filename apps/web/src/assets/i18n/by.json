@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "Прагледзець усе фільмы",
         "BROWSE_ALL_SERIES": "Прагледзець усе серыялы",
         "BROWSE_ALL_LIVE": "Прагледзець увесь прамы эфір",
+        "VIEW_IN_PORTAL": "Паказаць у партале",
+        "VIEW_IN_PORTAL_TOOLTIP": "Адкрыць у {{name}}",
         "SIDEBAR": {
             "MAIN": "Галоўная",
             "MOVIES": "Фільмы",

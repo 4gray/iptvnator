@@ -22,6 +22,7 @@ import {
     DetailTagsTemplateDirective,
     DialogService,
     PortalDetailShellComponent,
+    ViewInPortalActionComponent,
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
@@ -116,6 +117,7 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
         MatTooltip,
         NgTemplateOutlet,
         PortalDetailShellComponent,
+        ViewInPortalActionComponent,
         SafePipe,
         SlicePipe,
         TranslateModule,

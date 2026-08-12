@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "Tüm filmlere göz at",
         "BROWSE_ALL_SERIES": "Tüm dizilere göz at",
         "BROWSE_ALL_LIVE": "Tüm canlı TV'ye göz at",
+        "VIEW_IN_PORTAL": "Portalda görüntüle",
+        "VIEW_IN_PORTAL_TOOLTIP": "{{name}} içinde aç",
         "SIDEBAR": {
             "MAIN": "Ana Menü",
             "MOVIES": "Filmler",

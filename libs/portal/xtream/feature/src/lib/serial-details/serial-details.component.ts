@@ -19,6 +19,7 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     PortalDetailShellComponent,
+    ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
@@ -79,6 +80,7 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
         DetailTagsTemplateDirective,
         MatIcon,
         PortalDetailShellComponent,
+        ViewInPortalActionComponent,
         PortalInlinePlayerComponent,
         SeasonContainerComponent,
         SlicePipe,
