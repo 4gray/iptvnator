@@ -1,4 +1,8 @@
-import type { VodSourceDescriptor } from '@iptvnator/shared/interfaces';
+import {
+    titleLanguagePrefix,
+    vodSourceLanguage,
+    type VodSourceDescriptor,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Filter logic for the sources popover's chip row.
@@ -6,14 +10,20 @@ import type { VodSourceDescriptor } from '@iptvnator/shared/interfaces';
  * Pure functions over descriptors so the menu component stays a thin view and
  * the composition rules (filters AND each other and the host search) can be
  * tested without a fixture.
+ *
+ * The language a row filters on is `vodSourceLanguage`: the stream title's
+ * own prefix ("EN| Movie") when it has one, else the language its categories
+ * unambiguously carry ("EN | Netflix") — both parsed guesses, both browse-only.
  */
+
+export { titleLanguagePrefix, vodSourceLanguage };
 
 export interface VodSourceFilterState {
     /** Keep only copies whose probe verified them reachable. */
     availableOnly: boolean;
     /** Keep only copies whose stated quality is 1080p or better. */
     hdOnly: boolean;
-    /** Keep only copies carrying this title language prefix; null = all. */
+    /** Keep only copies carrying this language (title or category); null = all. */
     language: string | null;
 }
 
@@ -29,28 +39,13 @@ export function hasActiveVodSourceFilters(
     return filters.availableOnly || filters.hdOnly || filters.language !== null;
 }
 
-/**
- * `EN| Night of the Living Dead` → `EN`.
- *
- * Providers prefix the raw stream title with a short uppercase language tag
- * before a pipe; that convention is the only language signal most panels
- * emit. Anything longer than four letters is a title that happens to contain
- * a pipe, not a language.
- */
-export function titleLanguagePrefix(
-    rawTitle: string | null | undefined
-): string | null {
-    const match = /^\s*([A-Za-z]{2,4})\s*\|/.exec(rawTitle ?? '');
-    return match ? match[1].toUpperCase() : null;
-}
-
-/** Every language prefix present in the list, in first-seen order. */
+/** Every language present in the list, in first-seen order. */
 export function collectLanguagePrefixes(
     sources: readonly VodSourceDescriptor[]
 ): string[] {
     const languages: string[] = [];
     for (const source of sources) {
-        const language = titleLanguagePrefix(source.rawTitle);
+        const language = vodSourceLanguage(source);
         if (language && !languages.includes(language)) {
             languages.push(language);
         }
@@ -93,7 +88,7 @@ export function sourceMatchesFilters(
 
     if (
         filters.language !== null &&
-        titleLanguagePrefix(source.rawTitle) !== filters.language
+        vodSourceLanguage(source) !== filters.language
     ) {
         return false;
     }

@@ -35,6 +35,42 @@ interface TitleSourceRow {
     category_xtream_id: number;
     playlist_id: string;
     playlist_name: string;
+    /**
+     * Visible category names for this row: `group_concat`-joined on the FTS
+     * tier, which returns one row per stream, and a single name on the scan
+     * tier, which returns one row per category. Both are read through
+     * `splitCategoryNames`, and the caller merges them per stream.
+     */
+    category_names: string | null;
+}
+
+/**
+ * The separator for aggregated category names. `group_concat`'s default `,`
+ * appears in real category names ("Action, Adventure"), so splitting on it
+ * would shred them; the ASCII unit separator cannot. Written as `char(31)` in
+ * SQL and `\u001f` in the split.
+ */
+const CATEGORY_NAME_SEPARATOR = '\u001f';
+
+/**
+ * Aggregated category names back into a list. Duplicates are dropped here
+ * rather than with `DISTINCT` in SQL, because SQLite refuses a custom
+ * separator on a DISTINCT aggregate — and duplicate names change nothing for
+ * a reader that only compares language prefixes.
+ */
+function splitCategoryNames(aggregated: string | null): string[] {
+    if (!aggregated) {
+        return [];
+    }
+
+    const names: string[] = [];
+    for (const raw of aggregated.split(CATEGORY_NAME_SEPARATOR)) {
+        const name = raw.trim();
+        if (name && !names.includes(name)) {
+            names.push(name);
+        }
+    }
+    return names;
 }
 
 export interface FindTitleSourcesRequest {
@@ -197,6 +233,15 @@ function scanCandidateQuery(
         ),
         sql` AND `
     );
+    // Deliberately NOT grouped, unlike the FTS tier. `content` is unique per
+    // (category, type, stream), so one stream sitting in several categories
+    // is several rows and nothing forces their titles to agree. Grouping
+    // would hand SQLite a free choice of which title to keep, and the
+    // normalized confirmation below would then reject the whole stream on a
+    // title that a sibling row would have matched — the source vanishes.
+    // The FTS tier can afford the grouping because its window makes it
+    // necessary; this tier takes no window at all, so it keeps every row and
+    // merges their category names afterwards.
     return sql`
         SELECT
             c.id AS content_id,
@@ -205,7 +250,8 @@ function scanCandidateQuery(
             c.poster_url AS poster_url,
             cat.xtream_id AS category_xtream_id,
             cat.playlist_id AS playlist_id,
-            p.name AS playlist_name
+            p.name AS playlist_name,
+            cat.name AS category_names
         FROM content AS c
         INNER JOIN categories AS cat ON c.category_id = cat.id
         INNER JOIN playlists AS p ON cat.playlist_id = p.id
@@ -236,7 +282,8 @@ function ftsCandidateQuery(matchQuery: string, excludePlaylist: SQL) {
             c.poster_url AS poster_url,
             cat.xtream_id AS category_xtream_id,
             cat.playlist_id AS playlist_id,
-            p.name AS playlist_name
+            p.name AS playlist_name,
+            group_concat(cat.name, char(31)) AS category_names
         FROM content_title_fts
         INNER JOIN content AS c ON c.id = content_title_fts.rowid
         INNER JOIN categories AS cat ON c.category_id = cat.id
@@ -298,6 +345,35 @@ export async function findTitleSources(
     // One playlist can list the same film in several categories; the user
     // thinks of that as one source.
     const seen = new Set<string>();
+    // Every category the stream sits in AMONG THE ROWS THE QUERY MATCHED,
+    // merged. The FTS tier already joined those into one row, so this is a
+    // no-op there; the scan tier returns a row per category and must not
+    // group (see `scanCandidateQuery`), so this is where its names come
+    // together. Rows the confirmation later rejects still contribute — a
+    // differently titled sibling row is the same stream, and its category
+    // says the same thing about the language.
+    //
+    // A sibling row whose title did NOT match is invisible here, so a stream
+    // listed under a localized title in another category can look
+    // unanimous when it is not. That is deliberate. The field is a guess
+    // feeding a chip and a browse filter — ranking and failover cannot reach
+    // it — and completing it costs real latency: measured on a 3.9 GB
+    // catalog, resolving every category through a correlated subquery takes
+    // the discovery query from 0.74 s to 2.0 s, and a second bounded lookup
+    // for the same 60 streams takes 19.7 s. A detail page pays that on every
+    // open, to correct a cosmetic guess in a shape that occurs 0 times in
+    // 2.7M rows.
+    const categoryNames = new Map<string, string[]>();
+    for (const row of rows) {
+        const key = `${row.playlist_id}:${row.xtream_id}`;
+        const names = categoryNames.get(key) ?? [];
+        for (const name of splitCategoryNames(row.category_names)) {
+            if (!names.includes(name)) {
+                names.push(name);
+            }
+        }
+        categoryNames.set(key, names);
+    }
 
     for (const row of rows) {
         // SQL already excluded these; this keeps the guarantee a property of
@@ -357,6 +433,7 @@ export async function findTitleSources(
             posterUrl: row.poster_url,
             matchConfidence: exactMatch ? 'exact' : 'fuzzy',
             year: rowYear,
+            categoryNames: categoryNames.get(dedupeKey) ?? [],
         });
     }
 

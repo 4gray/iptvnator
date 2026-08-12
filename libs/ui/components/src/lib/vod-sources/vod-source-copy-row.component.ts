@@ -9,7 +9,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VodSourceDescriptor } from '@iptvnator/shared/interfaces';
-import { titleLanguagePrefix } from './vod-source-filtering.util';
+import { vodSourceLanguage } from './vod-source-filtering.util';
 import { VodSourceTagListComponent } from './vod-source-tag-list.component';
 import { buildVodSourceCopyTags } from './vod-source-tags';
 
@@ -39,9 +39,7 @@ export class VodSourceCopyRowComponent {
     readonly playRequested = output<string>();
     readonly checkRequested = output<string>();
 
-    readonly language = computed(() =>
-        titleLanguagePrefix(this.source().rawTitle)
-    );
+    readonly language = computed(() => vodSourceLanguage(this.source()));
 
     readonly title = computed(
         () => this.source().rawTitle || `#${this.source().contentId}`

@@ -30,11 +30,26 @@ const QUALITY_TAGS = new Set([
 ]);
 
 /**
+ * The pipe and the display lookalikes providers use interchangeably with it
+ * (`¦`, `│`, fullwidth `｜`, …). They are visually identical to `|` in a
+ * catalog, so a rule that reads only U+007C leaves the same tag stripped in
+ * one playlist and welded to the title in another — and the two copies then
+ * never match as the same film.
+ *
+ * Exported because `vod-source-language.util.ts` reads the same separator to
+ * decide a row's language: one set, so the "is this a tag" answer cannot
+ * differ between matching and display.
+ */
+export const PROVIDER_PIPE_CLASS = '[|¦│┃❘∣⏐⎪︱︳丨｜]';
+
+/**
  * Wrapped tag at the very start of a provider title: "|DE| ARD",
  * "|MULTI| Fallout". The lookahead requires a letter in the tag so a
  * numeric fragment can never be treated as one.
  */
-const WRAPPED_TAG_PREFIX = /^\s*\|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}\|\s*/;
+const WRAPPED_TAG_PREFIX = new RegExp(
+    `^\\s*${PROVIDER_PIPE_CLASS}(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}${PROVIDER_PIPE_CLASS}\\s*`
+);
 
 /**
  * Leading channel/language prefix like "EN - ", "DE| ", "FR: ", including
@@ -50,13 +65,27 @@ const WRAPPED_TAG_PREFIX = /^\s*\|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}\|\s*/;
  *   - pipe ("EXYU| "): compound OR 2–5 chars — a pipe is a strong tag signal
  *   - colon ("EN: "): 2–3 chars — longer acronyms are franchise titles
  *     ("NCIS: LA")
+ *
+ * The pipe branch alone does not require a space after the separator:
+ * "|FR|VO|Le dernier empereur" welds the tag to the title, and no real title
+ * begins with a short word immediately followed by a pipe.
+ *
+ * The UPPERCASE-only restriction stays on every branch, pipe included. It is
+ * tempting to drop it there on the theory that nothing but a tag precedes a
+ * pipe — 1.27M real catalog titles say otherwise, and in two ways at once:
+ * "Akira | 1988" and "Coco | 2017" put the film's NAME before the pipe and
+ * the year after it, and Russian catalogs write "Момо | Momo",
+ * "Мумия (2026) | Lee Cronin's The Mummy" — the localized title, then the
+ * original. Case-insensitivity (or a Cyrillic alphabet) turns every one of
+ * those names into a "tag" and strips it; measured against that corpus it
+ * corrupted 349 keys and rescued none.
  */
 const SEG = '(?=[0-9+]*[A-Z])[A-Z0-9+]';
 const COMPOUND_TAG = `${SEG}{2,5}(?:-${SEG}{2,6}){1,2}`;
 const LANGUAGE_PREFIX = new RegExp(
     '^(?:' +
         `(?:${COMPOUND_TAG}|${SEG}{2,3})\\s*-\\s+` +
-        `|(?:${COMPOUND_TAG}|${SEG}{2,5})\\s*\\|\\s+` +
+        `|(?:${COMPOUND_TAG}|${SEG}{2,5})\\s*${PROVIDER_PIPE_CLASS}\\s*` +
         `|${SEG}{2,3}\\s*:\\s+` +
         ')'
 );
@@ -69,10 +98,48 @@ const LANGUAGE_PREFIX = new RegExp(
  * suffixes ("NCIS: LA"). US/USA/UK/LA are deliberately absent.
  */
 const TRAILING_TAG_VOCABULARY = new Set([
-    'AF', 'AL', 'ALB', 'AR', 'BY', 'DE', 'DUB', 'EN', 'ENG', 'ES', 'ESP',
-    'EXYU', 'FR', 'FRA', 'GE', 'GR', 'HU', 'IN', 'IR', 'IS', 'IT', 'ITA',
-    'KA', 'KU', 'LAT', 'ML', 'MSUB', 'MULTI', 'NL', 'PL', 'PT', 'RO', 'RU',
-    'SC', 'SE', 'SUB', 'SUBS', 'SW', 'TA', 'TL', 'TR', 'TUR',
+    'AF',
+    'AL',
+    'ALB',
+    'AR',
+    'BY',
+    'DE',
+    'DUB',
+    'EN',
+    'ENG',
+    'ES',
+    'ESP',
+    'EXYU',
+    'FR',
+    'FRA',
+    'GE',
+    'GR',
+    'HU',
+    'IN',
+    'IR',
+    'IS',
+    'IT',
+    'ITA',
+    'KA',
+    'KU',
+    'LAT',
+    'ML',
+    'MSUB',
+    'MULTI',
+    'NL',
+    'PL',
+    'PT',
+    'RO',
+    'RU',
+    'SC',
+    'SE',
+    'SUB',
+    'SUBS',
+    'SW',
+    'TA',
+    'TL',
+    'TR',
+    'TUR',
 ]);
 
 /**

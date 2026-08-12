@@ -85,6 +85,33 @@ describe('currentSourceRow', () => {
         expect(audioDiffersFactually(row, alternative('ru'))).toBe(false);
     });
 
+    it('reads the language off the route category, title prefix first', () => {
+        const viaCategory = resolveVodMultiSourceMovie({
+            ...MOVIE,
+            vodInfo: null,
+            categoryName: 'EN | Netflix',
+        });
+        expect(currentSourceRow(viaCategory as never).categoryLanguage).toBe(
+            'EN'
+        );
+
+        // A category prefix that is not a language stays out entirely.
+        const viaNoise = resolveVodMultiSourceMovie({
+            ...MOVIE,
+            vodInfo: null,
+            categoryName: 'TOP | 250',
+        });
+        expect(currentSourceRow(viaNoise as never).categoryLanguage).toBeNull();
+
+        const withoutCategory = resolveVodMultiSourceMovie({
+            ...MOVIE,
+            vodInfo: null,
+        });
+        expect(
+            currentSourceRow(withoutCategory as never).categoryLanguage
+        ).toBeNull();
+    });
+
     it('does not call a codec change a dub change', () => {
         const movie = resolveVodMultiSourceMovie({
             ...MOVIE,
