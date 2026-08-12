@@ -85,25 +85,35 @@ export function buildDashboardTmdbAttempts(
         year,
     };
 
-    // The Xtream catalog files movies and series apart, so its verdict is
-    // not the "nothing said otherwise" default the retry exists for.
-    const catalogClassified = item.source === 'xtream';
-    return mediaType === 'movie' && !catalogClassified
+    // The retry is for a `'movie'` that nothing confirmed. Two things
+    // confirm one: the Xtream catalog, which files movies and series
+    // apart, and a stored Stalker `tmdb_id`, which is never a provider
+    // claim — its only source is a match this app already gated, under
+    // this very media type. Retrying either would let a same-titled show
+    // answer for a film.
+    const confirmedMovie = item.source === 'xtream' || primary.tmdbId != null;
+    return mediaType === 'movie' && !confirmedMovie
         ? [primary, { ...primary, mediaType: 'tv', tmdbId: undefined }]
         : [primary];
 }
 
 /**
  * Identity of the lookup for an item — memo keys, and the staleness guard
- * callers compare against while a request is in flight. Derived from the
- * primary attempt so caller-side keys can never disagree about what "the
- * same item" means.
+ * callers compare against while a request is in flight.
+ *
+ * The WHOLE attempt sequence is the identity, not just the primary one:
+ * two rows can share a title, year and id yet differ in whether a `tv`
+ * fallback follows, and callers cache results under this key. The hero's
+ * root-level memo would otherwise hand a Stalker row's `tv` answer to an
+ * Xtream movie, and `selectSeeds()` would collapse two seeds that do not
+ * perform the same lookup.
  */
 export function dashboardTmdbLookupKey(item: DashboardTmdbLookupItem): string {
-    const [primary] = buildDashboardTmdbAttempts(item);
+    const attempts = buildDashboardTmdbAttempts(item);
+    const [primary] = attempts;
     return primary
         ? [
-              primary.mediaType,
+              attempts.map((attempt) => attempt.mediaType).join('>'),
               primary.title,
               primary.originalTitle ?? '',
               primary.year ?? '',
