@@ -27,6 +27,9 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz',
+            mirrors: Object.freeze([
+                'https://downloads.sourceforge.net/project/freetype/freetype2/2.13.3/freetype-2.13.3.tar.xz',
+            ]),
             expectedSha256:
                 '0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289',
             license: 'FreeType License (FTL)',
@@ -67,6 +70,9 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.16.0.tar.xz',
+            mirrors: Object.freeze([
+                'https://ftp.osuosl.org/pub/blfs/conglomeration/fontconfig/fontconfig-2.16.0.tar.xz',
+            ]),
             expectedSha256:
                 '6a33dc555cc9ba8b10caf7695878ef134eeb36d0af366041f639b1da9b6ed220',
             license: 'MIT',
@@ -127,6 +133,9 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.1.1/downloads/libdisplay-info-0.1.1.tar.xz',
+            mirrors: Object.freeze([
+                'https://ftp.osuosl.org/pub/blfs/conglomeration/libdisplay-info/libdisplay-info-0.1.1.tar.xz',
+            ]),
             expectedSha256:
                 '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
             license: 'MIT',

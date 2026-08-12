@@ -80,7 +80,7 @@ jobs:
                       echo 'meson=1.7.2'
                   } > "${RUNNER_TEMP}/linux-runtime-toolchain.txt"
                   TOOLCHAIN_SHA256="$(sha256sum "${RUNNER_TEMP}/linux-runtime-toolchain.txt" | cut -d ' ' -f 1)"
-                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/linux-source-archive-contract.cjs', 'tools/embedded-mpv/stage-runtime.mjs', 'tools/packaging/prepare-linux-runtime-source-snapshot.cjs') }}"
+                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/download-pinned-source.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/linux-source-archive-contract.cjs', 'tools/embedded-mpv/stage-runtime.mjs', 'tools/packaging/prepare-linux-runtime-source-snapshot.cjs') }}"
                   echo "toolchain-sha256=${TOOLCHAIN_SHA256}" >> "${GITHUB_OUTPUT}"
                   echo "key=linux-frame-copy-runtime-v5-ubuntu-22.04-${TOOLCHAIN_SHA256}-${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
 
@@ -197,6 +197,7 @@ jobs:
                   cp \
                       tools/embedded-mpv/build-linux-runtime.cjs \
                       tools/embedded-mpv/build-linux-runtime.mjs \
+                      tools/embedded-mpv/download-pinned-source.mjs \
                       tools/embedded-mpv/generate-linux-runtime-notices.cjs \
                       tools/embedded-mpv/linux-runtime-manifest.cjs \
                       tools/embedded-mpv/linux-source-archive-contract.cjs \

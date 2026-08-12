@@ -854,6 +854,7 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     const toolingFiles = [
         ['embedded-mpv', 'build-linux-runtime.cjs'],
         ['embedded-mpv', 'build-linux-runtime.mjs'],
+        ['embedded-mpv', 'download-pinned-source.mjs'],
         ['embedded-mpv', 'generate-linux-runtime-notices.cjs'],
         ['embedded-mpv', 'linux-runtime-manifest.cjs'],
         ['embedded-mpv', 'linux-source-archive-contract.cjs'],

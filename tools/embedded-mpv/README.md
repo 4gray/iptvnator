@@ -99,6 +99,20 @@ patchelf, and `readelf`.
 It builds into an owned staging directory and publishes atomically, so it will
 not delete or overwrite an arbitrary destination.
 
+The Linux builder acquires its archives through the same
+`downloadPinnedSource` helper, so a pin whose primary host is unavailable
+falls through to its pinned `mirrors` before the build fails; every candidate
+is verified against the pinned SHA-256, and a mismatch is discarded rather
+than used. FreeType, Fontconfig, and libdisplay-info carry mirrors because
+their primary hosts are single points of failure — freedesktop.org in
+particular answers GitHub runners with HTTP 418 under load. Unlike the macOS
+manifest, the Linux manifest keeps `sourceUrl` at the canonical pinned value
+even when a mirror served the bytes: notice generation and the Snap
+publication boundary compare that field against the immutable pin. A used
+mirror is reported in the build log instead. `download-pinned-source.mjs` is
+part of the released source-archive tooling set and of the Linux runtime
+cache key.
+
 The pinned Linux source stack currently includes FFmpeg 8.1, mpv 0.41.0,
 libplacebo 7.360.1, libass 0.17.3, FreeType 2.13.3, FriBidi 1.0.16,
 HarfBuzz 8.5.0, Expat 2.8.2, Fontconfig 2.16.0, OpenSSL 3.5.7, hwdata
