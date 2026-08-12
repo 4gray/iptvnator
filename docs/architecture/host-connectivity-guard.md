@@ -197,10 +197,14 @@ Call sites:
 - Both account-info dialogs' Retry buttons (`AccountInfoComponent.reload()` for
   Xtream, `StalkerAccountInfoComponent.reload()` for Stalker). Their automatic
   load on open goes through a private `load()` that does not reset.
-- `PlaylistRefreshActionService.refreshXtream()` — before anything destructive.
-  This one deletes the cached catalog and then forces a route bootstrap whose
-  status request an open guard would fast-fail, leaving the user with no catalog
-  at all until the cooldown expires.
+- The destructive Xtream refresh — before anything is deleted. It removes the
+  cached catalog and then bootstraps a re-import whose status request an open
+  guard would fast-fail, leaving the user with no catalog at all until the
+  cooldown expires. There are **two independent implementations** of this flow
+  and both need the reset: `PlaylistRefreshActionService.refreshXtream()` and
+  `RecentPlaylistsComponent.refreshXtreamPlaylist()` (the Workspace sources
+  page). They are near-duplicates of each other, which is exactly why the second
+  one was missed first time round.
 - `PortalStatusService.checkPortalStatusDetails` when `skipCache` is set — the
   user-initiated "Test Connection".
 
