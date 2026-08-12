@@ -4,14 +4,18 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { of, throwError } from 'rxjs';
 import { StalkerAccountInfoService } from '@iptvnator/portal/stalker/data-access';
-import { PlaylistsService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    CONNECTIVITY_GUARD_RESET,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { StalkerAccountInfoComponent } from './stalker-account-info.component';
 
 describe('StalkerAccountInfoComponent', () => {
     let fixture: ComponentFixture<StalkerAccountInfoComponent>;
     let component: StalkerAccountInfoComponent;
     let accountInfoService: { fetchAccountInfo: jest.Mock };
+    let dataService: { sendIpcEvent: jest.Mock };
     let playlistsService: { getPlaylist: jest.Mock };
 
     const playlist = {
@@ -48,6 +52,7 @@ describe('StalkerAccountInfoComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
+                { provide: DataService, useValue: dataService },
                 { provide: MAT_DIALOG_DATA, useValue: { playlist } },
                 {
                     provide: StalkerAccountInfoService,
@@ -70,6 +75,9 @@ describe('StalkerAccountInfoComponent', () => {
     beforeEach(() => {
         accountInfoService = {
             fetchAccountInfo: jest.fn().mockResolvedValue(freshSnapshot),
+        };
+        dataService = {
+            sendIpcEvent: jest.fn().mockResolvedValue({ success: true }),
         };
         playlistsService = {
             getPlaylist: jest.fn().mockReturnValue(of(null)),
@@ -208,6 +216,10 @@ describe('StalkerAccountInfoComponent', () => {
             ],
             providers: [
                 {
+                    provide: DataService,
+                    useValue: { sendIpcEvent: jest.fn() },
+                },
+                {
                     provide: MAT_DIALOG_DATA,
                     useValue: {
                         playlist: {
@@ -255,5 +267,26 @@ describe('StalkerAccountInfoComponent', () => {
                 .accountDetails()
                 .find((row) => row.labelKey === 'STALKER.ACCOUNT_INFO.STATUS')
         ).toBeUndefined();
+    });
+
+    it('clears the connectivity guard before the Retry button re-reads the profile', async () => {
+        // The profile request is exactly what a tripped guard fast-fails, so a
+        // reset placed after it would leave Retry doing nothing for 30 seconds.
+        // Opening the dialog deliberately does not reset.
+        await createComponent();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        accountInfoService.fetchAccountInfo.mockClear();
+
+        await component.reload();
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            CONNECTIVITY_GUARD_RESET,
+            { url: playlist.portalUrl }
+        );
+        expect(
+            dataService.sendIpcEvent.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+            accountInfoService.fetchAccountInfo.mock.invocationCallOrder[0]
+        );
     });
 });

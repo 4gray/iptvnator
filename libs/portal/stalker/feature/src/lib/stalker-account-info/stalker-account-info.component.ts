@@ -17,7 +17,11 @@ import {
     StalkerAccountSnapshot,
 } from '@iptvnator/portal/stalker/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    resetHostConnectivityGuard,
+} from '@iptvnator/services';
 import {
     PlaylistMeta,
     type StalkerAccountInfoDialogData,
@@ -56,6 +60,7 @@ export class StalkerAccountInfoComponent {
         MAT_DIALOG_DATA
     );
     private readonly accountInfoService = inject(StalkerAccountInfoService);
+    private readonly dataService = inject(DataService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly logger = createLogger('StalkerAccountInfo');
 
@@ -222,7 +227,17 @@ export class StalkerAccountInfoComponent {
         void this.load();
     }
 
+    /**
+     * The template's Retry button. Clears the connectivity guard first, for the
+     * same reason as every other explicit retry: the profile request is what a
+     * tripped guard fast-fails. Opening the dialog does not reset — only a user
+     * action means "contact this host now".
+     */
     async reload(): Promise<void> {
+        await resetHostConnectivityGuard(
+            this.dataService,
+            this.playlist?.portalUrl
+        );
         await this.load();
     }
 

@@ -19,6 +19,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { DataService, PlaylistsService } from '@iptvnator/services';
+import { CONNECTIVITY_GUARD_RESET } from '@iptvnator/shared/interfaces';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { StalkerSearchComponent } from './stalker-search.component';
 
@@ -41,6 +42,12 @@ class StubStalkerInlineDetailComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly inlinePlayback = input<unknown>(null);
     readonly inlinePlaybackClosed = output<void>();
+}
+
+async function flushMicrotasks(): Promise<void> {
+    for (let index = 0; index < 4; index += 1) {
+        await Promise.resolve();
+    }
 }
 
 describe('StalkerSearchComponent playback session key', () => {
@@ -274,6 +281,7 @@ describe('StalkerSearchComponent playback session key', () => {
 
 describe('StalkerSearchComponent result paging', () => {
     let component: StalkerSearchComponent;
+    let dataService: { sendIpcEvent: jest.Mock };
     const activePlaylist = signal({
         _id: 'playlist|one',
         title: 'Search portal',
@@ -289,6 +297,9 @@ describe('StalkerSearchComponent result paging', () => {
     }
 
     beforeEach(() => {
+        dataService = {
+            sendIpcEvent: jest.fn().mockResolvedValue({ success: true }),
+        };
         activePlaylist.set({
             _id: 'playlist|one',
             title: 'Search portal',
@@ -309,7 +320,7 @@ describe('StalkerSearchComponent result paging', () => {
                     },
                 },
                 { provide: Location, useValue: { back: jest.fn() } },
-                { provide: DataService, useValue: {} },
+                { provide: DataService, useValue: dataService },
                 {
                     provide: PlaylistContextFacade,
                     useValue: { activePlaylist },
@@ -406,7 +417,7 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchHasMore()).toBe(false);
     });
 
-    it('keeps accumulated pages on a failed append and retries the SAME page', () => {
+    it('keeps accumulated pages on a failed append and retries the SAME page', async () => {
         component.applySearchPageSuccess(1, searchItems('page1', 3), 6);
         expect(component.searchHasMore()).toBe(true);
 
@@ -429,8 +440,19 @@ describe('StalkerSearchComponent result paging', () => {
         const pageBefore = component.searchPage();
         component.loadMoreSearchResults();
         expect(component.searchPage()).toBe(pageBefore);
+        // Cleared synchronously, so a second near-end cannot re-enter the retry
+        // while the connectivity-guard reset is still in flight.
         expect(component.searchAppendError()).toBe(false);
+
+        // The reload itself waits for that reset: a tripped guard would
+        // otherwise fast-fail this retry without contacting the portal.
+        expect(reload).not.toHaveBeenCalled();
+        await flushMicrotasks();
         expect(reload).toHaveBeenCalledTimes(1);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            CONNECTIVITY_GUARD_RESET,
+            { url: activePlaylist().portalUrl }
+        );
 
         // With the error cleared, the following near-end advances normally.
         component.loadMoreSearchResults();
@@ -514,11 +536,7 @@ describe('StalkerSearchComponent result paging', () => {
             configurable: true,
             value: { isLoading: () => false, reload: jest.fn(() => true) },
         });
-        component.applySearchPageSuccess(
-            1,
-            searchItems('portalA', 3),
-            6
-        );
+        component.applySearchPageSuccess(1, searchItems('portalA', 3), 6);
         component.loadMoreSearchResults();
         expect(component.searchPage()).toBe(2);
 

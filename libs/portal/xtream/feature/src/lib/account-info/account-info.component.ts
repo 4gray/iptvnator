@@ -16,6 +16,10 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    DataService,
+    resetHostConnectivityGuard,
+} from '@iptvnator/services';
+import {
     resolveXtreamPortalStatus,
     type XtreamAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
@@ -54,6 +58,7 @@ export class AccountInfoComponent {
         inject<XtreamAccountInfoDialogData | null>(MAT_DIALOG_DATA, {
             optional: true,
         }) ?? {};
+    private readonly dataService = inject(DataService);
     private readonly xtreamApiService = inject(XtreamApiService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly logger = createLogger('XtreamAccountInfo');
@@ -217,10 +222,25 @@ export class AccountInfoComponent {
     ]);
 
     constructor() {
-        void this.reload();
+        void this.load();
     }
 
+    /**
+     * The template's Retry button. Clears the main process' connectivity guard
+     * first: the account request is exactly what a tripped guard fast-fails, so
+     * without this the button would do nothing for the guard's whole window.
+     * The automatic first load deliberately does not reset — only an explicit
+     * user action means "contact this host now".
+     */
     async reload(): Promise<void> {
+        await resetHostConnectivityGuard(
+            this.dataService,
+            this.currentPlaylist()?.serverUrl
+        );
+        await this.load();
+    }
+
+    private async load(): Promise<void> {
         const playlist = this.currentPlaylist();
 
         if (!playlist?.serverUrl || !playlist.username || !playlist.password) {

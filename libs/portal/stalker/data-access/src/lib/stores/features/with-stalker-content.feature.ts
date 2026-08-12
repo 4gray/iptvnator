@@ -868,11 +868,14 @@ export function withStalkerContent() {
                  * without a request and appear to do nothing for 30 seconds.
                  */
                 async retryContentPage(): Promise<void> {
+                    // Clear the flag synchronously, before the await: otherwise
+                    // this stays re-enterable and the next `nearEnd` event
+                    // fires a second retry.
+                    patchState(store, { appendError: null });
                     await resetHostConnectivityGuard(
                         dataService,
                         storeContext.currentPlaylist()?.portalUrl
                     );
-                    patchState(store, { appendError: null });
                     storeContext.getContentResource.reload();
                 },
                 async refreshItvChannels(): Promise<void> {

@@ -129,23 +129,46 @@ derivation is enough: both `normalizeXtreamServerUrl` and
 origin a request ends up using is always the origin of the URL stored on the
 playlist.
 
+**The rule: every user-driven retry or refresh that issues portal requests must
+reset the guard before its first request.** The failures that opened the breaker
+are usually the very ones the user is retrying, so a reset placed after the
+request — or missing — makes the affordance do nothing until the window expires.
+Automatic and first-load paths deliberately do NOT reset: only a user action
+means "contact this host now", and clearing evidence the guard just collected
+would defeat it.
+
 Call sites:
 
 - `retryContentInitialization` (`with-content.feature.ts`) — the Xtream
   content-gate Retry button. The reset is the **first** awaited statement, before
   the portal status check: a tripped guard fast-fails that check, its
   `unavailable` verdict returns early, and a reset placed any later would never
-  run — the button would silently do nothing for the whole window.
+  run.
 - `StalkerPortalDiscoveryService.discover()` — one site covering import, the Edit
   dialog and lazy repair, which also guarantees a freshly edited address never
   inherits a refusal recorded for the previous one.
 - `retryContentPage` (`with-stalker-content.feature.ts`) — the Stalker grid
-  tail's append retry, for the same reason: two failed appends are exactly what
-  opens the breaker, so the reset precedes the resource reload.
+  tail's append retry.
+- `StalkerSearchComponent`'s search-page retry — the search results have their
+  own append error and retry, separate from the catalog's.
+- `StalkerItvCacheService.refresh()` — the Live TV refresh button, on the same
+  path that already clears the cache's own error cooldown. This also covers
+  `refreshChannels()` in the live layout.
+- Both account-info dialogs' Retry buttons (`AccountInfoComponent.reload()` for
+  Xtream, `StalkerAccountInfoComponent.reload()` for Stalker). Their automatic
+  load on open goes through a private `load()` that does not reset.
 - `PortalStatusService.checkPortalStatusDetails` when `skipCache` is set — the
   user-initiated "Test Connection".
 
-All four go through `resetHostConnectivityGuard()`
+Two retry paths deliberately have no reset: Xtream's `retryAppend()` is a no-op
+because in-memory appends cannot fail, and the guard's own half-open trial is not
+a user action.
+
+Where a retry clears a UI error flag, that flag is cleared **synchronously**
+before awaiting the reset — otherwise the retry branch stays re-enterable and
+the next `nearEnd` event fires a second retry.
+
+They all go through `resetHostConnectivityGuard()`
 (`libs/services/src/lib/host-connectivity-reset.ts`), which holds the one rule
 they share: the reset is best effort, because the guard only ever _delays_ a
 request and a failed reset must not block the action that asked for it. In the
