@@ -48,6 +48,16 @@ mid-transfer happens on hosts that are very much alive. Cancelled requests
 (`ERR_CANCELED`) and SSRF-policy refusals are `inconclusive` — they say nothing
 about reachability and only release the half-open slot.
 
+**A failure is only charged to the endpoint that produced it.** Redirects are
+followed hop by hop, each with its own config, so a timeout on a hop that lives
+on another origin carries that origin's URL in `error.config.url`. The guarded
+endpoint answered — it produced the redirect — so charging the downstream
+failure to it would eventually fast-fail a working redirector. Known gap: the
+failing hop is not guarded either (it has no token of its own), so such a chain
+keeps costing a full timeout; a failure that names no endpoint at all is still
+counted, because absence of a config must not become an excuse to ignore
+evidence.
+
 **The key is the origin, not the host.** `URL.host` omits a default port, so
 `http://panel.example` and `https://panel.example` would share one record —
 two genuinely different endpoints, and a panel whose TLS listener is broken
@@ -103,6 +113,15 @@ ECONNREFUSED/ENOTFOUND: discovery stops probing and reports the host
 unreachable, `shouldAttemptRepair` returns false, and the message reaches error
 snackbars verbatim — which is why it reads like a sentence and names the
 endpoint.
+
+**The endpoint in that sentence is user data, so the marker outranks the
+heuristics.** A portal at `https://authorization.example` would otherwise make
+its own fast-fail message match the broad auth phrase set and send an
+unreachable host into lazy portal repair. `isStalkerAuthFailureMessage` and
+`isStalkerProbeTimeout` therefore both return false for a message
+`isHostConnectivityFastFailMessage` recognises, before their phrase matching
+runs. (`getStalkerRequestErrorStatus` needs no such guard: `HTTP Error <code>`
+contains a space, which a hostname cannot.)
 `stalker-portal-discovery.utils.spec.ts` pins all three properties for the bare
 and the IPC-wrapped form.
 

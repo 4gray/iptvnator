@@ -401,6 +401,26 @@ describe('host connectivity guard fast-fail message', () => {
         expect(isStalkerAuthFailureMessage(ipcWrapped.message)).toBe(false);
     });
 
+    it('survives an endpoint whose hostname reads like a classifier keyword', () => {
+        // The endpoint is interpolated user data: a portal at
+        // `https://authorization.example` would otherwise match the broad auth
+        // phrase set and send an unreachable host into lazy portal repair.
+        const keywordHost = buildHostConnectivityFastFailMessage(
+            'https://authorization.example'
+        );
+
+        expect(isStalkerAuthFailureMessage(keywordHost)).toBe(false);
+        expect(isStalkerProbeTimeout(new Error(keywordHost))).toBe(false);
+        expect(
+            getStalkerRequestErrorStatus(new Error(keywordHost))
+        ).toBeUndefined();
+
+        const unauthorizedHost = buildHostConnectivityFastFailMessage(
+            'http://unauthorized.example:8080'
+        );
+        expect(isStalkerAuthFailureMessage(unauthorizedHost)).toBe(false);
+    });
+
     it('names the endpoint so the snackbar it reaches says something useful', () => {
         // Scheme included: the same panel can be imported over both HTTP and
         // HTTPS, and the user needs to know which one was skipped.

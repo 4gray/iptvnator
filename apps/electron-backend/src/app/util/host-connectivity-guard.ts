@@ -498,6 +498,17 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
     }
 }
 
+/**
+ * The endpoint a failed request was actually talking to, when the error says.
+ *
+ * Redirects are followed hop by hop, each with its own config, so a timeout on
+ * a hop that lives on another origin carries THAT origin's URL.
+ */
+function failedEndpointOf(error: unknown): string | null {
+    const url = (error as { config?: { url?: unknown } } | null)?.config?.url;
+    return typeof url === 'string' ? portalEndpointKeyOf(url) : null;
+}
+
 export function reportGuardedHostFailure(
     token: HostRequestToken | null,
     error: unknown
@@ -508,9 +519,20 @@ export function reportGuardedHostFailure(
 
     const guard = getHostConnectivityGuard();
     switch (classifyHostRequestFailure(error)) {
-        case 'host-level':
+        case 'host-level': {
+            const failedEndpoint = failedEndpointOf(error);
+            if (failedEndpoint && failedEndpoint !== token.endpoint) {
+                // A redirect hop on a different origin failed. The guarded
+                // endpoint answered — it produced the redirect — so counting
+                // this against it would eventually fast-fail a working
+                // redirector. The failing hop is not guarded (it has no token
+                // of its own), so such a chain keeps costing a full timeout.
+                guard.reportInconclusive(token);
+                break;
+            }
             guard.reportFailure(token);
             break;
+        }
         case 'responded':
             guard.reportSuccess(token);
             break;

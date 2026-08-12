@@ -6,8 +6,11 @@ import {
     HostConnectivityGuard,
     HostConnectivityGuardError,
     HostRequestToken,
+    beginGuardedHostRequest,
     classifyHostRequestFailure,
     portalEndpointKeyOf,
+    reportGuardedHostFailure,
+    resetHostConnectivityGuardForTests,
 } from './host-connectivity-guard';
 
 const HOST = 'http://portal.example.com:8080';
@@ -466,5 +469,76 @@ describe('HostConnectivityGuard', () => {
 
             expect(guard.check(HOST).allowed).toBe(true);
         });
+    });
+});
+
+describe('reportGuardedHostFailure', () => {
+    const ENDPOINT = 'http://panel.example.com:8080';
+    const URL_ON_ENDPOINT = `${ENDPOINT}/player_api.php`;
+    let consoleWarnSpy: jest.SpyInstance;
+
+    const hopFailure = () =>
+        Object.assign(new Error('timeout of 30000ms exceeded'), {
+            code: 'ETIMEDOUT',
+            // A redirect hop lives on another origin and carries its own URL.
+            config: { url: 'http://cdn.example.com/player_api.php' },
+        });
+
+    const ownFailure = () =>
+        Object.assign(new Error('connect ECONNREFUSED'), {
+            code: 'ECONNREFUSED',
+            config: { url: URL_ON_ENDPOINT },
+        });
+
+    const attempt = (error: unknown): void => {
+        reportGuardedHostFailure(
+            beginGuardedHostRequest(URL_ON_ENDPOINT),
+            error
+        );
+    };
+
+    beforeEach(() => {
+        resetHostConnectivityGuardForTests();
+        consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    });
+
+    afterEach(() => {
+        consoleWarnSpy.mockRestore();
+        resetHostConnectivityGuardForTests();
+    });
+
+    it('does not charge a redirect hop on another origin to the guarded endpoint', () => {
+        // The guarded endpoint answered — it produced the redirect — so
+        // charging the downstream timeout to it would eventually fast-fail a
+        // working redirector.
+        attempt(hopFailure());
+        attempt(hopFailure());
+        attempt(hopFailure());
+
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).not.toThrow();
+    });
+
+    it('still counts a failure the guarded endpoint itself produced', () => {
+        attempt(ownFailure());
+        attempt(ownFailure());
+
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).toThrow(
+            HostConnectivityGuardError
+        );
+    });
+
+    it('counts a failure that names no endpoint at all', () => {
+        // Not every transport error carries a config; absence must not become
+        // an excuse to ignore the evidence.
+        attempt(
+            Object.assign(new Error('socket hang up'), { code: 'ENOTFOUND' })
+        );
+        attempt(
+            Object.assign(new Error('socket hang up'), { code: 'ENOTFOUND' })
+        );
+
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).toThrow(
+            HostConnectivityGuardError
+        );
     });
 });
