@@ -309,16 +309,25 @@ export class HostConnectivityGuard {
         // loading fans out several requests at once, and one hiccup failing all
         // of them is one piece of evidence, not a trip. A request that started
         // at or after that moment is a genuine new attempt.
+        let counted = false;
         if (
             state.consecutiveFailures === 0 ||
             token.startedAt >= state.lastFailureAt
         ) {
             state.consecutiveFailures += 1;
             state.lastFailureAt = now;
+            counted = true;
         }
 
-        // A failed trial goes straight back to open: the host had its chance.
-        if (wasTrial || state.consecutiveFailures >= FAILURE_THRESHOLD) {
+        // Only a failure this report actually counted may trip the threshold.
+        // A sibling arriving after the window elapsed would otherwise open a
+        // fresh one off the existing count, pushing the half-open trial past
+        // the intended cooldown. A failed trial still goes straight back to
+        // open: the host had its chance.
+        if (
+            wasTrial ||
+            (counted && state.consecutiveFailures >= FAILURE_THRESHOLD)
+        ) {
             const wasOpen = state.openUntil > now;
             state.openUntil = now + OPEN_DURATION_MS;
             if (!wasOpen) {
@@ -522,12 +531,14 @@ export function reportGuardedHostFailure(
         case 'host-level': {
             const failedEndpoint = failedEndpointOf(error);
             if (failedEndpoint && failedEndpoint !== token.endpoint) {
-                // A redirect hop on a different origin failed. The guarded
-                // endpoint answered — it produced the redirect — so counting
-                // this against it would eventually fast-fail a working
-                // redirector. The failing hop is not guarded (it has no token
-                // of its own), so such a chain keeps costing a full timeout.
-                guard.reportInconclusive(token);
+                // A redirect hop on a different origin failed. Reaching that
+                // hop PROVES the guarded endpoint answered — the first hop is
+                // always the guarded endpoint, and only a redirect status moves
+                // the chain along — so this clears its record like any other
+                // response rather than merely declining to count it. The
+                // failing hop is not guarded (it has no token of its own), so
+                // such a chain keeps costing a full timeout.
+                guard.reportSuccess(token);
                 break;
             }
             guard.reportFailure(token);

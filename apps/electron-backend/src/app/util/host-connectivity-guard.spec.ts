@@ -244,6 +244,27 @@ describe('HostConnectivityGuard', () => {
         expect(opened).toEqual([HOST]);
     });
 
+    it('does not re-open on a sibling that settles after the window elapsed', () => {
+        // A and B start together; A plus a later request open the breaker. B is
+        // explicitly not counted as a strike, so it must not start a fresh
+        // 30-second window either — that would push the half-open trial past
+        // the intended cooldown.
+        const sibling = expectAllowed();
+        const first = expectAllowed();
+        advance(30_000);
+        guard.reportFailure(first);
+        failRequest(30_000);
+        expectBlocked();
+        expect(opened).toEqual([HOST]);
+
+        advance(OPEN_DURATION_MS);
+        guard.reportFailure(sibling);
+
+        const trial = expectAllowed();
+        expect(trial.trial).toBe(true);
+        expect(opened).toEqual([HOST]);
+    });
+
     it('does not accumulate failures further apart than the streak window', () => {
         failRequest(0);
         advance(FAILURE_WINDOW_MS + 1);
@@ -514,6 +535,18 @@ describe('reportGuardedHostFailure', () => {
         attempt(hopFailure());
         attempt(hopFailure());
         attempt(hopFailure());
+
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).not.toThrow();
+    });
+
+    it('treats a reached redirect hop as proof the guarded endpoint answered', () => {
+        // Reaching a hop on another origin means the guarded endpoint returned a
+        // redirect, so its streak resets like after any other response —
+        // otherwise a single later timeout becomes the second strike against an
+        // endpoint that answered in between.
+        attempt(ownFailure());
+        attempt(hopFailure());
+        attempt(ownFailure());
 
         expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).not.toThrow();
     });

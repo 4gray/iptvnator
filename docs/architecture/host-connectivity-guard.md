@@ -50,13 +50,16 @@ about reachability and only release the half-open slot.
 
 **A failure is only charged to the endpoint that produced it.** Redirects are
 followed hop by hop, each with its own config, so a timeout on a hop that lives
-on another origin carries that origin's URL in `error.config.url`. The guarded
-endpoint answered — it produced the redirect — so charging the downstream
-failure to it would eventually fast-fail a working redirector. Known gap: the
-failing hop is not guarded either (it has no token of its own), so such a chain
-keeps costing a full timeout; a failure that names no endpoint at all is still
-counted, because absence of a config must not become an excuse to ignore
-evidence.
+on another origin carries that origin's URL in `error.config.url`. Reaching such
+a hop _proves_ the guarded endpoint answered — the first hop is always the
+guarded endpoint, and only a redirect status moves the chain along — so it
+CLEARS the guarded endpoint's record, exactly like any other response. Merely
+declining to count it would leave an earlier direct failure standing, and a
+single later timeout would then fast-fail an endpoint that answered in between.
+A failure that names no endpoint at all is still counted: absence of a config
+must not become an excuse to ignore evidence. Known gap: the failing hop is not
+guarded either (it has no token of its own), so a permanently broken redirect
+chain keeps costing a full timeout.
 
 **The key is the origin, not the host.** `URL.host` omits a default port, so
 `http://panel.example` and `https://panel.example` would share one record —
@@ -73,7 +76,10 @@ Two more rules exist because of specific failure modes:
   evidence, not a trip. A failure counts only if its request started at or after
   the moment the previous failure was recorded. Timestamps are millisecond
   coarse, so this only separates siblings once a request actually took time —
-  which is precisely the expensive case worth protecting.
+  which is precisely the expensive case worth protecting. Only a failure that
+  was actually counted may trip the threshold: a sibling settling after the open
+  window elapsed would otherwise start a fresh one off the existing count and
+  push the half-open trial past the intended cooldown.
 - **A reset invalidates reports already in flight.** `reset()` bumps a per-host
   epoch instead of deleting the record, and a failure reported under an older
   epoch is discarded. Without that, the 30-second stragglers a user was waiting
