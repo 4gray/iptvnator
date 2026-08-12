@@ -472,11 +472,14 @@ since shipped.)
   candidate's year is known — with both `"Dune 1984"` and `"Dune 2021"`
   in the catalog the wrong one can win that collapse, and the card is
   then dropped by the year check with the right row already discarded.
-  Among year-compatible rows a row whose stripped year IS the
-  candidate's wins — positive evidence for that exact film — then an
+  Year-compatible rows from every alias form one pool ranked by
+  EVIDENCE, not by which alias found them: a row whose stripped year IS
+  the candidate's wins — positive evidence for that exact film — then an
   untagged row (the shared helper's precedence, and the only tier
   reachable when the candidate's year is unknown), then anything else
-  compatible. Title
+  compatible. Alias order survives only as the tiebreaker inside a tier,
+  so an ambiguous untagged row under the localized title cannot outrank a
+  year-tagged row the original-title alias found. Title
   collisions are resolved AFTER matching, by the catalog row a candidate
   resolved to: same-titled remakes ("Dune" 1984 and 2021) are different
   films that must both reach the matcher, while two candidates landing on

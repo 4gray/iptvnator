@@ -333,6 +333,51 @@ describe('DashboardRecommendationsService', () => {
         expect(dune?.match.xtreamId).toBe(2021);
     });
 
+    it('prefers a year-tagged alias row over an untagged localized one', async () => {
+        // "The Hunt" is ambiguous (2012 and 2020 films share it); the
+        // original-title alias holds a row tagged with the candidate's
+        // own year, which is the stronger evidence whichever alias it
+        // came from.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    {
+                        ...rec(200, 'The Hunt', 2012),
+                        original_title: 'Jagten',
+                    },
+                ],
+            },
+        });
+        matchTitles.mockImplementation(async (titles: string[]) => {
+            const rows: CatalogTitleMatch[] = [];
+            for (const title of titles) {
+                if (title === 'The Hunt') {
+                    rows.push(
+                        match(title, { trailingYear: null, xtreamId: 999 })
+                    );
+                } else if (title === 'Jagten') {
+                    rows.push(
+                        match(title, { trailingYear: 2012, xtreamId: 2012 })
+                    );
+                } else {
+                    rows.push(match(title));
+                }
+            }
+            return rows;
+        });
+        const service = createService();
+
+        await service.load();
+
+        const hunt = service
+            .items()
+            .find((item) => item.title === 'The Hunt');
+        expect(hunt?.match.xtreamId).toBe(2012);
+    });
+
     it('excludes a watched Stalker item through its stored original title', async () => {
         // Watched entry stored in the original language; the app now
         // requests TMDB in another one, so the candidate is translated.

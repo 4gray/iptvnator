@@ -137,40 +137,46 @@ export function groupMatchesByKey(
  * The catalog row this recommendation should link to, or null.
  *
  * Aliases are tried in order (localized title, then original-title), and
- * within one alias only year-compatible rows qualify — a localized title
- * can hit a same-named different-year row while the alias holds the
- * correct match, so a bad hit must not veto the good one.
+ * only year-compatible rows qualify — a localized title can hit a
+ * same-named different-year row while the alias holds the correct match,
+ * so a bad hit must not veto the good one.
  *
- * Among compatible rows, a row whose stripped year IS the candidate's
- * wins: that is positive evidence for this exact film, while a row with
- * no year is merely not contradicting one ("Dune" could be either cut, so
- * linking a 2021 recommendation to it when "Dune 2021" also exists throws
- * the better evidence away). Untagged rows come next — mirroring
+ * Ranking is by EVIDENCE, across every alias at once. A row whose
+ * stripped year IS the candidate's wins: that is positive evidence for
+ * this exact film, while a row with no year is merely not contradicting
+ * one ("Dune" could be either cut, so linking a 2021 recommendation to it
+ * when "Dune 2021" also exists throws the better evidence away — and that
+ * holds whichever alias found which). Untagged rows come next — mirroring
  * `buildTitleMatchIndex`'s precedence, and the only tier reachable when
  * the candidate's own year is unknown — then anything else compatible.
+ * Alias order survives only as the tiebreaker inside a tier.
  */
 export function pickCatalogMatch(
     candidate: RecommendationCandidate,
     grouped: ReadonlyMap<string, CatalogTitleMatch[]>
 ): CatalogTitleMatch | null {
+    // Every alias contributes to one pool, ranked by evidence rather than
+    // by which alias found it: an untagged row under the localized title
+    // must not outrank a row the original-title alias found carrying the
+    // candidate's own year. Rows enter in alias order, so `find` still
+    // breaks ties the old way — localized first.
+    const compatible: CatalogTitleMatch[] = [];
     for (const key of candidateTitleKeys(candidate)) {
-        const compatible = (grouped.get(key) ?? []).filter((row) =>
-            titleYearsCompatible(candidate.year, row.trailingYear)
-        );
-        if (compatible.length === 0) {
-            continue;
+        for (const row of grouped.get(key) ?? []) {
+            if (titleYearsCompatible(candidate.year, row.trailingYear)) {
+                compatible.push(row);
+            }
         }
-        return (
-            (candidate.year !== null
-                ? compatible.find(
-                      (row) => row.trailingYear === candidate.year
-                  )
-                : undefined) ??
-            compatible.find((row) => row.trailingYear === null) ??
-            compatible[0]
-        );
     }
-    return null;
+
+    return (
+        (candidate.year !== null
+            ? compatible.find((row) => row.trailingYear === candidate.year)
+            : undefined) ??
+        compatible.find((row) => row.trailingYear === null) ??
+        compatible[0] ??
+        null
+    );
 }
 
 /**
