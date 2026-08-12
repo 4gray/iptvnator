@@ -302,6 +302,38 @@ Filmography has two scopes:
   This also works from Stalker actor pages — the one place the Stalker
   catalog limitation is lifted.
 
+### Resolving a batched match
+
+All three `DB_MATCH_TITLES` consumers — the Trending rail, the
+cross-portal "Similar" rail and the actor page's "All portals" scope —
+turn the worker's flat result list into one row through the same pair of
+helpers in `libs/services/src/lib/catalog-title-match.service.ts`:
+
+```ts
+const grouped = groupTitleMatchesByKey(matches);
+const match = pickTitleMatch({ type, titles: [title], year }, grouped);
+```
+
+`groupTitleMatchesByKey` keeps **every** row per
+`type:exactNormalizedTitle`. Collapsing to one row per key is the trap
+this replaced: the year that separates same-titled rows belongs to the
+LOOKUP, which the grouping cannot see, so a catalog holding both
+"Dune 1984" and "Dune 2021" kept whichever the worker returned first and
+the other lookup then failed its own year check with the right row
+already discarded — rendering a movie the user owns as unavailable.
+
+`pickTitleMatch` ranks the year-compatible rows by evidence: a row whose
+stripped year IS the lookup's year wins, then an untagged row (the only
+tier reachable when the lookup year is unknown), then anything else
+compatible. `titles` accepts aliases most-trusted-first for callers that
+also know an original-language title; ranking spans all aliases at once,
+so a weak hit under the first alias cannot veto a strong one under the
+second, and alias order only breaks ties inside a tier.
+
+Multi-source VOD discovery deliberately does NOT use these
+(`operations/title-sources.operations.ts`): there every copy in every
+playlist is a distinct selectable source, not a single best answer.
+
 ## Cache
 
 Single table with several row kinds discriminated by the `lookup_key`
