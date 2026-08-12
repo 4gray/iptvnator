@@ -486,9 +486,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      * with as soon as the user zapped after adjusting it in the player.
      * Remote-control writes still `set()` this signal directly and store the
      * same value, so re-reading the bus per channel agrees with them.
+     *
+     * The source is the whole channel, not a derived key: `linkedSignal`
+     * re-runs its computation whenever the source EXPRESSION invalidates —
+     * the derived value's equality does not gate it (`producerRecomputeValue`
+     * calls `computation()` right after re-evaluating `source()`). Selecting
+     * the channel is therefore the trigger, which is exactly the intent, and
+     * nothing here depends on ids being distinct — `createChannel` falls back
+     * to the URL, so one stream listed in two groups shares an id. A re-read
+     * is one idempotent localStorage hit, so an extra one costs nothing.
      */
     readonly volume = linkedSignal({
-        source: () => this.activeChannel()?.id ?? null,
+        source: () => this.activeChannel(),
         computation: () => readStoredVolume(),
     });
 

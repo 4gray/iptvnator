@@ -357,5 +357,22 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
 
             expect(component.volume()).toBe(0);
         });
+
+        it('re-reads even when the next entry shares the previous id', () => {
+            // `createChannel` falls back to the URL for the id, so one stream
+            // listed under two groups yields two entries with the same id.
+            // Pins the user-visible guarantee independently of what the
+            // linkedSignal source happens to derive.
+            localStorage.setItem('volume', '0.8');
+            syncStoreState(movieChannel);
+            fixture.detectChanges();
+            expect(component.volume()).toBe(0.8);
+
+            localStorage.setItem('volume', '0.2');
+            syncStoreState({ ...movieChannel, group: { title: 'New' } });
+            fixture.detectChanges();
+
+            expect(component.volume()).toBe(0.2);
+        });
     });
 });
