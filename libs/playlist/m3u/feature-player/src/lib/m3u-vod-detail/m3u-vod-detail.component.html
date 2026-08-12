@@ -90,6 +90,7 @@
             detail-player
             [playbackSessionKey]="playbackSessionKey()"
             [playback]="playback"
+            [volume]="volume()"
             (closed)="closeInlinePlayback()"
             (externalFallbackRequested)="externalFallbackRequested.emit($event)"
         />

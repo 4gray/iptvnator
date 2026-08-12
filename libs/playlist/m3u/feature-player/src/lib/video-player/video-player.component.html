@@ -70,6 +70,7 @@
                 [playback]="embeddedPlayback()"
                 [playbackSessionKey]="playbackSessionKey()"
                 [inlinePlayerAvailable]="shouldShowInlinePlayer(activeChannel)"
+                [volume]="volume()"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "

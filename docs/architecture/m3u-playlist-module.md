@@ -1097,9 +1097,17 @@ Known accepted cost: "Star Wars: Episode 1" is skipped.
   hero, Play re-enters watch. The hero back arrow is hidden (the channel
   sidebar next to the detail IS the navigation).
 - The parent passes its already-built `embeddedPlayback()`
-  (`ResolvedPortalPlayback` with headers/EXTVLCOPT resolved); the host
-  overrides `isLive: false` (seek bar/VOD semantics) and stamps the resolved
-  title/poster into the player chrome.
+  (`ResolvedPortalPlayback` with headers/EXTVLCOPT resolved) plus its shared
+  persisted `volume()`; the host only overrides `isLive: false` (seek
+  bar/VOD semantics). The payload's OBJECT IDENTITY is the player's
+  source-application key (`createWebPlayerApplicationState` mints a new
+  source revision for any new payload), so it must never depend on TMDB
+  signals — folding the resolved title/poster in there restarted the movie
+  the moment enrichment landed. Metadata lives in the hero/About
+  presentation only.
+- `PortalInlinePlayerComponent` gained an optional `volume` input
+  (default `1`) for this host: the M3U player owns a persisted volume shared
+  across its channels, while the portals keep the engines' own default.
 - `M3uVodMetadataService` (component-provided) calls
   `TmdbEnrichmentService.enrichMovie({ title: channel.name, year:
 releaseTagYear(channel.name) })` — the resolver already normalizes titles

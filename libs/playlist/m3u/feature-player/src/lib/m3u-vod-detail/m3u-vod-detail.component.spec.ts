@@ -1,5 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { Channel, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -43,6 +44,7 @@ class StubPortalDetailShellComponent {
 class StubPortalInlinePlayerComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly playback = input<ResolvedPortalPlayback | null>(null);
+    readonly volume = input(1);
     readonly closed = output<void>();
     readonly externalFallbackRequested = output<unknown>();
 }
@@ -95,6 +97,7 @@ describe('M3uVodDetailComponent', () => {
         channel: Channel;
         playback?: ResolvedPortalPlayback | null;
         inlinePlayerAvailable?: boolean;
+        volume?: number;
     }) => {
         fixture = TestBed.createComponent(M3uVodDetailComponent);
         fixture.componentRef.setInput('channel', inputs.channel);
@@ -106,9 +109,17 @@ describe('M3uVodDetailComponent', () => {
                 inputs.inlinePlayerAvailable
             );
         }
+        if (inputs.volume !== undefined) {
+            fixture.componentRef.setInput('volume', inputs.volume);
+        }
         fixture.detectChanges();
         await flush();
     };
+
+    const inlinePlayerStub = () =>
+        fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        )?.componentInstance as StubPortalInlinePlayerComponent | undefined;
 
     beforeEach(async () => {
         enrichMovie = jest.fn().mockResolvedValue(null);
@@ -157,13 +168,48 @@ describe('M3uVodDetailComponent', () => {
         ).not.toBeNull();
     });
 
-    it('plays with VOD semantics and provider identity before TMDB answers', async () => {
+    it('plays with VOD semantics and the parent payload', async () => {
         await create({ channel: channel(), playback: playback() });
 
         const inline = fixture.componentInstance.inlinePlayback();
         expect(inline?.isLive).toBe(false);
+        expect(inline?.streamUrl).toBe('http://host/movie/user/pass/1.mkv');
         expect(inline?.title).toBe('Dune (2021) 1080p');
-        expect(inline?.thumbnail).toBe('http://logo/dune.png');
+    });
+
+    it("forwards the host's persisted volume to the player", async () => {
+        await create({
+            channel: channel(),
+            playback: playback(),
+            volume: 0.35,
+        });
+
+        expect(inlinePlayerStub()?.volume()).toBe(0.35);
+    });
+
+    it('keeps the playback payload identical when TMDB metadata lands', async () => {
+        // Payload identity is the player's source-application key: a new
+        // object recreates the player and restarts the movie. Enrichment must
+        // never reach it — only the presentation around it.
+        let resolveEnrichment!: (details: unknown) => void;
+        enrichMovie.mockReturnValue(
+            new Promise((resolve) => {
+                resolveEnrichment = resolve;
+            })
+        );
+        await create({ channel: channel(), playback: playback() });
+
+        const before = fixture.componentInstance.inlinePlayback();
+        resolveEnrichment({
+            id: 42,
+            title: 'Dune',
+            poster_path: '/p.jpg',
+            backdrop_path: '/b.jpg',
+        });
+        await flush();
+
+        expect(fixture.componentInstance.title()).toBe('Dune');
+        expect(fixture.componentInstance.inlinePlayback()).toBe(before);
     });
 
     it('patches the view when the TMDB match lands', async () => {
@@ -198,8 +244,6 @@ describe('M3uVodDetailComponent', () => {
             'Timothée Chalamet',
         ]);
         expect(component.directors()).toBe('Denis Villeneuve');
-        // The player chrome follows the resolved identity
-        expect(component.inlinePlayback()?.title).toBe('Dune');
     });
 
     it('keeps the provider presentation when TMDB has no match', async () => {
@@ -211,6 +255,22 @@ describe('M3uVodDetailComponent', () => {
         expect(component.posterUrl()).toBe('http://logo/dune.png');
         expect(component.backdropUrl()).toBeUndefined();
         expect(component.playbackActive()).toBe(true);
+    });
+
+    it('restarts the payload identity when zapping to another movie', async () => {
+        await create({ channel: channel(), playback: playback() });
+        const first = fixture.componentInstance.inlinePlayback();
+
+        fixture.componentRef.setInput(
+            'playback',
+            playback({ streamUrl: 'http://host/movie/user/pass/2.mkv' })
+        );
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.inlinePlayback()).not.toBe(first);
+        expect(fixture.componentInstance.inlinePlayback()?.streamUrl).toBe(
+            'http://host/movie/user/pass/2.mkv'
+        );
     });
 
     it('close reveals browse with a Play action; Play re-enters watch', async () => {

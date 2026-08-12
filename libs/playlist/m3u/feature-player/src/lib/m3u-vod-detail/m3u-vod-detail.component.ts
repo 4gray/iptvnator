@@ -66,6 +66,8 @@ export class M3uVodDetailComponent {
     readonly playbackSessionKey = input.required<string>();
     /** Parent's `shouldShowInlinePlayer` verdict — false for MPV/VLC users. */
     readonly inlinePlayerAvailable = input(true);
+    /** M3U's shared persisted volume (localStorage `volume`). */
+    readonly volume = input(1);
 
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 
@@ -135,23 +137,24 @@ export class M3uVodDetailComponent {
             .join(', ')
     );
 
+    /**
+     * The playback payload handed to the player. Its OBJECT IDENTITY is the
+     * source-application key downstream (`createWebPlayerApplicationState`
+     * mints a new source revision for any new payload, which recreates the
+     * player and re-applies the source), so it must depend on the parent's
+     * payload alone. Reading TMDB signals here would restart the movie a
+     * couple of seconds in, the moment enrichment resolves — metadata belongs
+     * in the About/hero presentation, never in the source identity.
+     *
+     * The parent built the payload for a LIVE channel; the recognized movie
+     * only flips to VOD semantics (seek bar, duration).
+     */
     readonly inlinePlayback = computed<ResolvedPortalPlayback | null>(() => {
         if (!this.inlinePlayerAvailable() || this.playerDismissed()) {
             return null;
         }
         const playback = this.playback();
-        if (!playback) {
-            return null;
-        }
-        // The parent built this payload for a LIVE channel; the recognized
-        // movie plays with VOD semantics (seek bar, duration) and wears the
-        // resolved title/poster in the player chrome.
-        return {
-            ...playback,
-            isLive: false,
-            title: this.title(),
-            thumbnail: this.posterUrl() ?? playback.thumbnail,
-        };
+        return playback ? { ...playback, isLive: false } : null;
     });
     readonly playbackActive = computed(() => this.inlinePlayback() !== null);
     readonly canPlayInline = computed(

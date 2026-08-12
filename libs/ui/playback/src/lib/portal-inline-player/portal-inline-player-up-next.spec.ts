@@ -23,6 +23,7 @@ class StubWebPlayerViewComponent {
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
     readonly playback = input<unknown>(null);
+    readonly volume = input(1);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly alternativeSources = input<unknown[]>([]);
