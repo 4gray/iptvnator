@@ -438,10 +438,13 @@ since shipped.)
   title: under the media type the detail view enriched with (a Stalker
   embedded-VOD series routes as `'movie'` but is a `tv` show to TMDB, and
   a `series:` recommendation would sail past a `movie:`-only entry) and
-  under its stored original-language title (`info.o_name`). Only the
-  builder's PRIMARY attempt is indexed — its second attempt is a fallback
-  guess, and indexing it would let a watched film exclude the same-named
-  show. On top of that the exclusion runs on two title tiers, because a
+  under its stored original-language title (`info.o_name`). That resolved
+  media type REPLACES the routing one rather than joining it — keeping
+  both would make the watched show exclude an unrelated film of the same
+  name; a row the builder cannot classify keeps its routing type, the
+  only thing then known. Only the builder's PRIMARY attempt is indexed —
+  its second attempt is a fallback guess, and indexing it would let a
+  watched film exclude the same-named show. On top of that the exclusion runs on two title tiers, because a
   provider stores whatever the panel named the file: the exact normalized
   title, plus a year-gated base tier for the common `"Inception 2010"`
   shape whose exact key can never equal TMDB's `"Inception"`. Both tiers
@@ -469,8 +472,11 @@ since shipped.)
   candidate's year is known — with both `"Dune 1984"` and `"Dune 2021"`
   in the catalog the wrong one can win that collapse, and the card is
   then dropped by the year check with the right row already discarded.
-  Among year-compatible rows an exact-title match still wins over a
-  year-stripped one, mirroring the shared helper's precedence. Title
+  Among year-compatible rows a row whose stripped year IS the
+  candidate's wins — positive evidence for that exact film — then an
+  untagged row (the shared helper's precedence, and the only tier
+  reachable when the candidate's year is unknown), then anything else
+  compatible. Title
   collisions are resolved AFTER matching, by the catalog row a candidate
   resolved to: same-titled remakes ("Dune" 1984 and 2021) are different
   films that must both reach the matcher, while two candidates landing on

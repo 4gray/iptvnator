@@ -381,10 +381,20 @@ export class DashboardRecommendationsService {
             // conservative behaviour for rows that state no year.
             const year = trustedReleaseYear(item);
             const [primary] = buildDashboardTmdbAttempts(item);
+            // The resolved media type REPLACES the routing one rather
+            // than joining it: a Stalker embedded-VOD series routes as
+            // 'movie' on positive series evidence, and keeping that key
+            // would make the watched show exclude an unrelated film of
+            // the same name. Rows the builder cannot classify at all keep
+            // their routing type, which is then the only thing known.
+            const type = primary
+                ? primary.mediaType === 'tv'
+                    ? 'series'
+                    : 'movie'
+                : item.type;
 
-            addTitle(item.type, item.title, year);
+            addTitle(type, item.title, year);
             if (primary) {
-                const type = primary.mediaType === 'tv' ? 'series' : 'movie';
                 addTitle(type, primary.title, year);
                 addTitle(type, primary.originalTitle, year);
             }

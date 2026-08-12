@@ -139,9 +139,15 @@ export function groupMatchesByKey(
  * Aliases are tried in order (localized title, then original-title), and
  * within one alias only year-compatible rows qualify — a localized title
  * can hit a same-named different-year row while the alias holds the
- * correct match, so a bad hit must not veto the good one. Among equally
- * compatible rows an exact-title match wins over a year-stripped one,
- * mirroring `buildTitleMatchIndex`'s own precedence.
+ * correct match, so a bad hit must not veto the good one.
+ *
+ * Among compatible rows, a row whose stripped year IS the candidate's
+ * wins: that is positive evidence for this exact film, while a row with
+ * no year is merely not contradicting one ("Dune" could be either cut, so
+ * linking a 2021 recommendation to it when "Dune 2021" also exists throws
+ * the better evidence away). Untagged rows come next — mirroring
+ * `buildTitleMatchIndex`'s precedence, and the only tier reachable when
+ * the candidate's own year is unknown — then anything else compatible.
  */
 export function pickCatalogMatch(
     candidate: RecommendationCandidate,
@@ -155,6 +161,11 @@ export function pickCatalogMatch(
             continue;
         }
         return (
+            (candidate.year !== null
+                ? compatible.find(
+                      (row) => row.trailingYear === candidate.year
+                  )
+                : undefined) ??
             compatible.find((row) => row.trailingYear === null) ??
             compatible[0]
         );

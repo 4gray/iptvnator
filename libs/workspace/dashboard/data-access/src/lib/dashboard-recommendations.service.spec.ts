@@ -248,6 +248,75 @@ describe('DashboardRecommendationsService', () => {
         expect(tvTitles).not.toContain('Kholod');
     });
 
+    it('does not let a watched vclub series exclude a same-named film', async () => {
+        // The series routes as 'movie' but is positively identified as a
+        // show, so the routing key must not survive and swallow an
+        // unrelated movie of the same name.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Kholod'),
+                ],
+            },
+        });
+        recentAll = [
+            ...recentVod,
+            {
+                title: 'Kholod',
+                type: 'movie',
+                stalker_item: {
+                    id: '17573',
+                    category_id: 'vclub',
+                    series: [1, 2, 3],
+                    info: { name: 'Kholod' },
+                },
+            } as ActivityStub,
+        ];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).toContain('Kholod');
+    });
+
+    it('links a known-year recommendation to the year-tagged catalog row', async () => {
+        // An untagged "Dune" row could be either cut; "Dune 2021" is
+        // positive evidence for this exact film.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Dune', 2021),
+                ],
+            },
+        });
+        matchTitles.mockImplementation(async (titles: string[]) => {
+            const rows: CatalogTitleMatch[] = [];
+            for (const title of titles) {
+                if (title === 'Dune') {
+                    rows.push(
+                        match(title, { trailingYear: null, xtreamId: 1984 }),
+                        match(title, { trailingYear: 2021, xtreamId: 2021 })
+                    );
+                } else {
+                    rows.push(match(title));
+                }
+            }
+            return rows;
+        });
+        const service = createService();
+
+        await service.load();
+
+        const dune = service.items().find((item) => item.title === 'Dune');
+        expect(dune?.match.xtreamId).toBe(2021);
+    });
+
     it('excludes a watched Stalker item through its stored original title', async () => {
         // Watched entry stored in the original language; the app now
         // requests TMDB in another one, so the candidate is translated.
