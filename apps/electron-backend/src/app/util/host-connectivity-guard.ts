@@ -76,12 +76,13 @@ const HOST_LEVEL_FAILURE_CODES = new Set([
  * endpoint answered".
  */
 export class HostConnectivityGuardError extends Error {
-    readonly host: string;
+    /** Scheme, host and port — see {@link portalEndpointKeyOf}. */
+    readonly endpoint: string;
 
-    constructor(host: string) {
-        super(buildHostConnectivityFastFailMessage(host));
+    constructor(endpoint: string) {
+        super(buildHostConnectivityFastFailMessage(endpoint));
         this.name = 'HostConnectivityGuardError';
-        this.host = host;
+        this.endpoint = endpoint;
     }
 }
 
@@ -91,7 +92,8 @@ export class HostConnectivityGuardError extends Error {
  * or a parallel sibling cannot be mistaken for fresh evidence.
  */
 export interface HostRequestToken {
-    readonly host: string;
+    /** Scheme, host and port — see {@link portalEndpointKeyOf}. */
+    readonly endpoint: string;
     readonly epoch: number;
     readonly startedAt: number;
     /** Whether this request is the single probe allowed while half-open. */
@@ -116,7 +118,7 @@ interface HostState {
 
 export interface HostConnectivityGuardOptions {
     now?: () => number;
-    onOpen?: (host: string) => void;
+    onOpen?: (endpoint: string) => void;
 }
 
 /**
@@ -154,10 +156,23 @@ export function classifyHostRequestFailure(error: unknown): HostRequestOutcome {
     return 'inconclusive';
 }
 
-/** Extracts the guard key (host and port) from a request URL. */
-export function hostKeyOf(url: string): string | null {
+/**
+ * The guard key for a request URL: its ORIGIN, i.e. scheme, host and port.
+ *
+ * Not `URL.host`, which omits a default port and therefore gives
+ * `http://panel.example` and `https://panel.example` the same key — two
+ * genuinely different endpoints, and a panel whose TLS listener is broken while
+ * plain HTTP works is a routine IPTV setup. Sharing one record there would let
+ * the dead one fast-fail the working one without ever contacting it.
+ *
+ * `URL.origin` also leaves out any `user:pass@` userinfo, so no credential
+ * reaches the key or the log line.
+ */
+export function portalEndpointKeyOf(url: string): string | null {
     try {
-        return new URL(url).host || null;
+        const origin = new URL(url).origin;
+        // Opaque origins serialize as "null" and are not a usable key.
+        return origin && origin !== 'null' ? origin : null;
     } catch {
         return null;
     }
@@ -166,7 +181,7 @@ export function hostKeyOf(url: string): string | null {
 export class HostConnectivityGuard {
     private readonly states = new Map<string, HostState>();
     private readonly now: () => number;
-    private readonly onOpen?: (host: string) => void;
+    private readonly onOpen?: (endpoint: string) => void;
 
     constructor(options: HostConnectivityGuardOptions = {}) {
         this.now = options.now ?? (() => Date.now());
@@ -174,22 +189,22 @@ export class HostConnectivityGuard {
     }
 
     /**
-     * Whether a request to `host` may go out, and the token to report with.
+     * Whether a request to `endpoint` may go out, and the token to report with.
      *
      * Fast-fails while the breaker is open, and while a half-open trial is
      * still in flight — the point of the trial is that a screenful of requests
      * does not all hang again to learn the same thing.
      */
-    check(host: string): HostConnectivityCheck {
+    check(endpoint: string): HostConnectivityCheck {
         const now = this.now();
         if (isHostConnectivityGuardDisabled()) {
             return {
                 allowed: true,
-                token: { host, epoch: 0, startedAt: now, trial: false },
+                token: { endpoint, epoch: 0, startedAt: now, trial: false },
             };
         }
 
-        const state = this.ensureState(host, now);
+        const state = this.ensureState(endpoint, now);
         state.lastTouchedAt = now;
 
         if (state.openUntil > now) {
@@ -212,7 +227,7 @@ export class HostConnectivityGuard {
 
         return {
             allowed: true,
-            token: { host, epoch: state.epoch, startedAt: now, trial },
+            token: { endpoint, epoch: state.epoch, startedAt: now, trial },
         };
     }
 
@@ -221,7 +236,7 @@ export class HostConnectivityGuard {
      * whichever attempt it belonged to — a reachable host is a reachable host.
      */
     reportSuccess(token: HostRequestToken): void {
-        const state = this.states.get(token.host);
+        const state = this.states.get(token.endpoint);
         if (!state || isHostConnectivityGuardDisabled()) {
             return;
         }
@@ -235,7 +250,7 @@ export class HostConnectivityGuard {
 
     /** The host did not answer at all. */
     reportFailure(token: HostRequestToken): void {
-        const state = this.states.get(token.host);
+        const state = this.states.get(token.endpoint);
         if (!state || isHostConnectivityGuardDisabled()) {
             return;
         }
@@ -279,7 +294,7 @@ export class HostConnectivityGuard {
             const wasOpen = state.openUntil > now;
             state.openUntil = now + OPEN_DURATION_MS;
             if (!wasOpen) {
-                this.onOpen?.(token.host);
+                this.onOpen?.(token.endpoint);
             }
         }
     }
@@ -289,7 +304,7 @@ export class HostConnectivityGuard {
      * releases the half-open slot, so the next request can be the trial.
      */
     reportInconclusive(token: HostRequestToken): void {
-        const state = this.states.get(token.host);
+        const state = this.states.get(token.endpoint);
         if (!state || isHostConnectivityGuardDisabled()) {
             return;
         }
@@ -299,13 +314,13 @@ export class HostConnectivityGuard {
     }
 
     /**
-     * Forgets everything recorded for `host`, and invalidates the reports of
+     * Forgets everything recorded for `endpoint`, and invalidates the reports of
      * requests already in flight. Called when the user asks for a real attempt
      * or when the URL may now point somewhere else.
      */
-    reset(host: string): void {
+    reset(endpoint: string): void {
         const now = this.now();
-        const state = this.ensureState(host, now);
+        const state = this.ensureState(endpoint, now);
         state.consecutiveFailures = 0;
         state.lastFailureAt = 0;
         state.openUntil = 0;
@@ -323,10 +338,10 @@ export class HostConnectivityGuard {
      * slow-but-alive portal unreachable. It does not take the half-open slot
      * either — a probe is not the trial the guard is waiting for.
      */
-    observe(host: string): HostRequestToken {
+    observe(endpoint: string): HostRequestToken {
         return {
-            host,
-            epoch: this.states.get(host)?.epoch ?? 0,
+            endpoint,
+            epoch: this.states.get(endpoint)?.epoch ?? 0,
             startedAt: this.now(),
             trial: false,
         };
@@ -343,8 +358,8 @@ export class HostConnectivityGuard {
         }
     }
 
-    private ensureState(host: string, now: number): HostState {
-        const existing = this.states.get(host);
+    private ensureState(endpoint: string, now: number): HostState {
+        const existing = this.states.get(endpoint);
         if (existing) {
             return existing;
         }
@@ -358,18 +373,18 @@ export class HostConnectivityGuard {
             epoch: 0,
             lastTouchedAt: now,
         };
-        this.states.set(host, state);
+        this.states.set(endpoint, state);
         return state;
     }
 
     private prune(now: number): void {
-        for (const [host, state] of this.states) {
+        for (const [endpoint, state] of this.states) {
             if (
                 now - state.lastTouchedAt > IDLE_TTL_MS &&
                 state.openUntil <= now &&
                 state.trialStartedAt === null
             ) {
-                this.states.delete(host);
+                this.states.delete(endpoint);
             }
         }
 
@@ -391,9 +406,9 @@ let sharedGuard: HostConnectivityGuard | null = null;
 export function getHostConnectivityGuard(): HostConnectivityGuard {
     if (!sharedGuard) {
         sharedGuard = new HostConnectivityGuard({
-            onOpen: (host) =>
+            onOpen: (endpoint) =>
                 console.warn(
-                    `[HostConnectivityGuard] ${host} is not answering; skipping requests to it for ${
+                    `[HostConnectivityGuard] ${endpoint} is not answering; skipping requests to it for ${
                         OPEN_DURATION_MS / 1000
                     }s`
                 ),
@@ -412,18 +427,18 @@ export function resetHostConnectivityGuardForTests(): void {
  *
  * Throws {@link HostConnectivityGuardError} instead of letting the request hang
  * again while the breaker is open. Returns `null` for a URL with no usable
- * host — there is nothing to track then, and refusing the request over that
+ * origin — there is nothing to track then, and refusing the request over that
  * would be worse than letting the transport report the real problem.
  */
 export function beginGuardedHostRequest(url: string): HostRequestToken | null {
-    const host = hostKeyOf(url);
-    if (!host) {
+    const endpoint = portalEndpointKeyOf(url);
+    if (!endpoint) {
         return null;
     }
 
-    const check = getHostConnectivityGuard().check(host);
+    const check = getHostConnectivityGuard().check(endpoint);
     if (!check.allowed) {
-        throw new HostConnectivityGuardError(host);
+        throw new HostConnectivityGuardError(endpoint);
     }
 
     return check.token;
@@ -433,13 +448,11 @@ export function beginGuardedHostRequest(url: string): HostRequestToken | null {
 export function observeGuardedHostRequest(
     url: string
 ): HostRequestToken | null {
-    const host = hostKeyOf(url);
-    return host ? getHostConnectivityGuard().observe(host) : null;
+    const endpoint = portalEndpointKeyOf(url);
+    return endpoint ? getHostConnectivityGuard().observe(endpoint) : null;
 }
 
-export function reportGuardedHostSuccess(
-    token: HostRequestToken | null
-): void {
+export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
     if (token) {
         getHostConnectivityGuard().reportSuccess(token);
     }
@@ -467,13 +480,13 @@ export function reportGuardedHostFailure(
     }
 }
 
-/** Forgets the recorded failures for the host `url` points at. */
+/** Forgets the recorded failures for the endpoint `url` points at. */
 export function resetGuardedHost(url: string): boolean {
-    const host = hostKeyOf(url);
-    if (!host) {
+    const endpoint = portalEndpointKeyOf(url);
+    if (!endpoint) {
         return false;
     }
 
-    getHostConnectivityGuard().reset(host);
+    getHostConnectivityGuard().reset(endpoint);
     return true;
 }

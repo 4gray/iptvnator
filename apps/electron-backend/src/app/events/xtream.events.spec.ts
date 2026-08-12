@@ -284,7 +284,7 @@ describe('XtreamEvents session cancellation', () => {
 describe('XtreamEvents host connectivity guard', () => {
     const GUARD_DISABLED_ENV = 'IPTVNATOR_DISABLE_CONNECTIVITY_GUARD';
     const SERVER_URL = 'http://dead-panel.example.com:8080';
-    const SERVER_HOST = 'dead-panel.example.com:8080';
+    const SERVER_ENDPOINT = 'http://dead-panel.example.com:8080';
     let consoleErrorSpy: jest.SpyInstance;
     let consoleWarnSpy: jest.SpyInstance;
     let requestHandler: (...args: unknown[]) => unknown;
@@ -349,7 +349,7 @@ describe('XtreamEvents host connectivity guard', () => {
         expect(axiosMock).toHaveBeenCalledTimes(2);
 
         await expect(request()).rejects.toThrow(
-            buildHostConnectivityFastFailMessage(SERVER_HOST)
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
         );
         // The whole point: no third 30-second wait.
         expect(axiosMock).toHaveBeenCalledTimes(2);
@@ -427,7 +427,7 @@ describe('XtreamEvents host connectivity guard', () => {
         await expect(request()).rejects.toBeDefined();
         await expect(request()).rejects.toBeDefined();
         await expect(request()).rejects.toThrow(
-            buildHostConnectivityFastFailMessage(SERVER_HOST)
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
         );
 
         await expect(resetHandler({}, { url: SERVER_URL })).resolves.toEqual({

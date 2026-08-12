@@ -7,10 +7,10 @@ import {
     HostConnectivityGuardError,
     HostRequestToken,
     classifyHostRequestFailure,
-    hostKeyOf,
+    portalEndpointKeyOf,
 } from './host-connectivity-guard';
 
-const HOST = 'portal.example.com:8080';
+const HOST = 'http://portal.example.com:8080';
 const GUARD_DISABLED_ENV = 'IPTVNATOR_DISABLE_CONNECTIVITY_GUARD';
 const OPEN_DURATION_MS = 30_000;
 const FAILURE_WINDOW_MS = 120_000;
@@ -71,18 +71,36 @@ describe('classifyHostRequestFailure', () => {
     });
 });
 
-describe('hostKeyOf', () => {
+describe('portalEndpointKeyOf', () => {
     it('keys on host and port so two panels on one machine stay separate', () => {
-        expect(hostKeyOf('http://example.com:8080/player_api.php')).toBe(
-            'example.com:8080'
+        expect(
+            portalEndpointKeyOf('http://example.com:8080/player_api.php')
+        ).toBe('http://example.com:8080');
+        expect(
+            portalEndpointKeyOf('http://example.com:9090/player_api.php')
+        ).toBe('http://example.com:9090');
+    });
+
+    it('separates HTTP from HTTPS on their default ports', () => {
+        // `URL.host` omits a default port, so both would collapse onto
+        // `example.com` — and a panel whose TLS listener is broken while plain
+        // HTTP works is a routine IPTV setup.
+        expect(portalEndpointKeyOf('http://example.com/player_api.php')).toBe(
+            'http://example.com'
         );
-        expect(hostKeyOf('http://example.com:9090/player_api.php')).toBe(
-            'example.com:9090'
+        expect(portalEndpointKeyOf('https://example.com/player_api.php')).toBe(
+            'https://example.com'
+        );
+    });
+
+    it('leaves URL credentials out of the key', () => {
+        expect(portalEndpointKeyOf('http://user:pass@example.com/c')).toBe(
+            'http://example.com'
         );
     });
 
     it('returns null for an unparseable URL instead of throwing', () => {
-        expect(hostKeyOf('not a url')).toBeNull();
+        expect(portalEndpointKeyOf('not a url')).toBeNull();
     });
 });
 
@@ -91,12 +109,12 @@ describe('HostConnectivityGuardError', () => {
         const error = new HostConnectivityGuardError(HOST);
 
         expect(error).toBeInstanceOf(Error);
-        expect(error.message).toBe(
-            buildHostConnectivityFastFailMessage(HOST)
-        );
+        expect(error.message).toBe(buildHostConnectivityFastFailMessage(HOST));
         // getStalkerRequestErrorStatus reads `status` first; a number there
         // would read as "the endpoint answered".
-        expect((error as unknown as { status?: unknown }).status).toBeUndefined();
+        expect(
+            (error as unknown as { status?: unknown }).status
+        ).toBeUndefined();
         expect(isHostConnectivityFastFailMessage(error.message)).toBe(true);
     });
 });
@@ -179,7 +197,19 @@ describe('HostConnectivityGuard', () => {
         failRequest(30_000);
         failRequest(30_000);
 
-        expect(guard.check('other.example.com').allowed).toBe(true);
+        expect(guard.check('http://other.example.com').allowed).toBe(true);
+    });
+
+    it('keeps the same host on another scheme reachable', () => {
+        // Regression: keying by `URL.host` dropped the default port, so a dead
+        // HTTPS panel fast-failed the working HTTP one on the same machine.
+        failRequest(30_000);
+        failRequest(30_000);
+        expectBlocked();
+
+        expect(guard.check('https://portal.example.com:8080').allowed).toBe(
+            true
+        );
     });
 
     it('counts a parallel fan-out that fails together as one failure', () => {
@@ -368,7 +398,7 @@ describe('HostConnectivityGuard', () => {
         it('forgets idle records instead of growing without bound', () => {
             for (let index = 0; index < 300; index += 1) {
                 advance(1);
-                guard.check(`host-${index}.example.com`);
+                guard.check(`http://host-${index}.example.com`);
             }
 
             // The cap held, and a fresh host is still allowed through.
@@ -381,7 +411,7 @@ describe('HostConnectivityGuard', () => {
             expectBlocked();
 
             advance(1);
-            guard.check('noise.example.com');
+            guard.check('http://noise.example.com');
 
             expectBlocked();
         });

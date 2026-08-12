@@ -9,7 +9,7 @@ import {
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from '@iptvnator/services';
+import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
 import {
     StalkerCategoryItem,
     StalkerContentItem,
@@ -197,9 +197,7 @@ function buildEmptyContentPatch(
  * Portals can shift items between pages while the list is being appended —
  * a duplicate id would render the same card twice and break `track` hints.
  */
-function dedupeContentById(
-    items: StalkerContentItem[]
-): StalkerContentItem[] {
+function dedupeContentById(items: StalkerContentItem[]): StalkerContentItem[] {
     const seenIds = new Set<string>();
     return items.filter((item) => {
         const id =
@@ -848,50 +846,59 @@ export function withStalkerContent() {
             const storeContext = store as typeof store &
                 StalkerContentResourceStoreContract;
             const itvCache = inject(StalkerItvCacheService);
+            const dataService = inject(DataService);
 
             return {
-            /**
-             * Kicks off the full ITV channel list load as soon as the Live TV
-             * section is entered (instead of waiting for the first category
-             * click), so the all-channels view and category count badges are
-             * available immediately. Safe to call repeatedly — the cache
-             * de-duplicates in-flight loads and memoizes unsupported portals.
-             */
-            preloadItvChannels(): void {
-                void itvCache.ensureLoaded(storeContext.currentPlaylist());
-            },
-            /**
-             * Re-runs the content loader with unchanged params — the retry
-             * for a failed append page.
-             */
-            retryContentPage(): void {
-                patchState(store, { appendError: null });
-                storeContext.getContentResource.reload();
-            },
-            async refreshItvChannels(): Promise<void> {
-                await itvCache.refresh(storeContext.currentPlaylist());
-            },
-            setCategories(
-                type: StalkerContentType,
-                categories: StalkerCategoryItem[]
-            ) {
-                patchState(store, buildCategoryPatch(type, categories));
-            },
-            resetCategories() {
-                patchState(store, {
-                    vodCategories: [],
-                    seriesCategories: [],
-                    itvCategories: [],
-                    radioCategories: [],
-                    categoryError: null,
-                });
-            },
-            setItvChannels(channels: StalkerItvChannel[]) {
-                patchState(store, { itvChannels: channels });
-            },
-            setRadioChannels(channels: StalkerItvChannel[]) {
-                patchState(store, { radioChannels: channels });
-            },
+                /**
+                 * Kicks off the full ITV channel list load as soon as the Live TV
+                 * section is entered (instead of waiting for the first category
+                 * click), so the all-channels view and category count badges are
+                 * available immediately. Safe to call repeatedly — the cache
+                 * de-duplicates in-flight loads and memoizes unsupported portals.
+                 */
+                preloadItvChannels(): void {
+                    void itvCache.ensureLoaded(storeContext.currentPlaylist());
+                },
+                /**
+                 * Re-runs the content loader with unchanged params — the retry
+                 * for a failed append page.
+                 *
+                 * The guard reset comes FIRST: two failed appends are exactly what
+                 * opens the breaker, so without it this button would fast-fail
+                 * without a request and appear to do nothing for 30 seconds.
+                 */
+                async retryContentPage(): Promise<void> {
+                    await resetHostConnectivityGuard(
+                        dataService,
+                        storeContext.currentPlaylist()?.portalUrl
+                    );
+                    patchState(store, { appendError: null });
+                    storeContext.getContentResource.reload();
+                },
+                async refreshItvChannels(): Promise<void> {
+                    await itvCache.refresh(storeContext.currentPlaylist());
+                },
+                setCategories(
+                    type: StalkerContentType,
+                    categories: StalkerCategoryItem[]
+                ) {
+                    patchState(store, buildCategoryPatch(type, categories));
+                },
+                resetCategories() {
+                    patchState(store, {
+                        vodCategories: [],
+                        seriesCategories: [],
+                        itvCategories: [],
+                        radioCategories: [],
+                        categoryError: null,
+                    });
+                },
+                setItvChannels(channels: StalkerItvChannel[]) {
+                    patchState(store, { itvChannels: channels });
+                },
+                setRadioChannels(channels: StalkerItvChannel[]) {
+                    patchState(store, { radioChannels: channels });
+                },
             };
         })
     );

@@ -32,7 +32,7 @@ jest.mock('../services/stalker-playback-context.service', () => ({
 }));
 
 const PORTAL_URL = 'http://dead-portal.example.com:8080/portal.php';
-const PORTAL_HOST = 'dead-portal.example.com:8080';
+const PORTAL_ENDPOINT = 'http://dead-portal.example.com:8080';
 const MAC_ADDRESS = '00:1A:79:AA:BB:CC';
 
 describe('StalkerEvents host connectivity guard', () => {
@@ -91,7 +91,7 @@ describe('StalkerEvents host connectivity guard', () => {
         expect(axiosMock).toHaveBeenCalledTimes(2);
 
         await expect(request()).rejects.toThrow(
-            buildHostConnectivityFastFailMessage(PORTAL_HOST)
+            buildHostConnectivityFastFailMessage(PORTAL_ENDPOINT)
         );
         // The whole point: no third 15-second wait.
         expect(axiosMock).toHaveBeenCalledTimes(2);
@@ -146,7 +146,7 @@ describe('StalkerEvents host connectivity guard', () => {
             await expect(request()).rejects.toBeDefined();
             await expect(request()).rejects.toBeDefined();
             await expect(request()).rejects.toThrow(
-                buildHostConnectivityFastFailMessage(PORTAL_HOST)
+                buildHostConnectivityFastFailMessage(PORTAL_ENDPOINT)
             );
 
             await expect(

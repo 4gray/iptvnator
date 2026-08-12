@@ -240,7 +240,7 @@ describe('StalkerPortalRepairService', () => {
                     MISCLASSIFIED,
                     new Error(
                         buildHostConnectivityFastFailMessage(
-                            'portal.example:8080'
+                            'http://portal.example:8080'
                         )
                     )
                 )

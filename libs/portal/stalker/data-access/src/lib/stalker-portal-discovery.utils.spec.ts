@@ -377,13 +377,17 @@ describe('host connectivity guard fast-fail message', () => {
     // has a consequence — a parsed status makes discovery walk every candidate
     // and can fire lazy repair against a host we just declared dead; timeout
     // wording loses the abort-early semantics; an auth phrase fires repair too.
-    const message = buildHostConnectivityFastFailMessage('portal.example:8080');
+    const message = buildHostConnectivityFastFailMessage(
+        'http://portal.example:8080'
+    );
     const ipcWrapped = new Error(
         `Error invoking remote method 'STALKER_REQUEST': ${message}`
     );
 
     it('carries no HTTP status, bare or IPC-wrapped', () => {
-        expect(getStalkerRequestErrorStatus(new Error(message))).toBeUndefined();
+        expect(
+            getStalkerRequestErrorStatus(new Error(message))
+        ).toBeUndefined();
         expect(getStalkerRequestErrorStatus(ipcWrapped)).toBeUndefined();
     });
 
@@ -397,8 +401,10 @@ describe('host connectivity guard fast-fail message', () => {
         expect(isStalkerAuthFailureMessage(ipcWrapped.message)).toBe(false);
     });
 
-    it('names the host so the snackbar it reaches says something useful', () => {
-        expect(message).toContain('portal.example:8080');
+    it('names the endpoint so the snackbar it reaches says something useful', () => {
+        // Scheme included: the same panel can be imported over both HTTP and
+        // HTTPS, and the user needs to know which one was skipped.
+        expect(message).toContain('http://portal.example:8080');
     });
 });
 

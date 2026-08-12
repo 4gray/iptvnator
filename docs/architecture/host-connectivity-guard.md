@@ -16,7 +16,7 @@ again.
 `apps/electron-backend/src/app/util/host-connectivity-guard.ts` — a pure module
 (no Electron imports) wired into both IPC handlers.
 
-The handlers are the choke point that sees *all* traffic to a host. The
+The handlers are the choke point that sees _all_ traffic to a host. The
 renderer's `executeStalkerRequest` is not: it has four documented bypasses
 (auth, endpoint discovery, account info, the row-less stream resolver), and that
 is exactly the traffic that hits dead hosts.
@@ -32,14 +32,14 @@ library and be shared with `web-backend` when that gap is closed.
 Being wrong here means refusing to talk to a portal that works, so every rule
 errs towards contacting the host:
 
-| | |
-| --- | --- |
-| Trip | 2 consecutive host-level failures within an inclusive 120 s window |
-| Open for | 30 s (`OPEN_DURATION_MS`), matching the repo's other cooldowns |
-| Half-open | exactly ONE trial request; the rest keep fast-failing until it settles |
-| Reset | any HTTP response — 200, 404, even 502 — the host answered |
-| Key | `URL.host`, so hostname **and** port (two panels on one machine stay separate) |
-| Kill switch | `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` (read per call) |
+|             |                                                                        |
+| ----------- | ---------------------------------------------------------------------- |
+| Trip        | 2 consecutive host-level failures within an inclusive 120 s window     |
+| Open for    | 30 s (`OPEN_DURATION_MS`), matching the repo's other cooldowns         |
+| Half-open   | exactly ONE trial request; the rest keep fast-failing until it settles |
+| Reset       | any HTTP response — 200, 404, even 502 — the host answered             |
+| Key         | `URL.origin` — scheme, host **and** port (see below)                   |
+| Kill switch | `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` (read per call)               |
 
 **Host-level failure** means an error with no HTTP response whose code is one of
 `ETIMEDOUT`, `ECONNABORTED`, `ENOTFOUND`, `EAI_AGAIN`, `ECONNREFUSED`,
@@ -48,7 +48,15 @@ mid-transfer happens on hosts that are very much alive. Cancelled requests
 (`ERR_CANCELED`) and SSRF-policy refusals are `inconclusive` — they say nothing
 about reachability and only release the half-open slot.
 
-Two rules exist because of specific failure modes:
+**The key is the origin, not the host.** `URL.host` omits a default port, so
+`http://panel.example` and `https://panel.example` would share one record —
+two genuinely different endpoints, and a panel whose TLS listener is broken
+while plain HTTP works is a routine IPTV setup. Sharing state there would let
+the dead one fast-fail the working one without ever contacting it.
+`URL.origin` also leaves out any `user:pass@` userinfo, so no credential
+reaches the key or the log line.
+
+Two more rules exist because of specific failure modes:
 
 - **Siblings are not a streak.** Catalog initialization fans out three category
   requests at once; one network hiccup failing all three is one piece of
@@ -73,20 +81,22 @@ classification. It carries no `status` property, because
 `getStalkerRequestErrorStatus` reads that field first.
 
 The message comes from `buildHostConnectivityFastFailMessage()` in
-`libs/shared/interfaces/src/lib/host-connectivity.util.ts`, and its wording is
-load-bearing — the Stalker renderer classifies transport failures purely from
-message text:
+`libs/shared/interfaces/src/lib/host-connectivity.util.ts`. It names the full
+endpoint, scheme included, so a user who imported the same panel over both HTTP
+and HTTPS can tell which one was skipped. Its wording is load-bearing — the
+Stalker renderer classifies transport failures purely from message text:
 
-| Must not contain | Otherwise |
-| --- | --- |
-| `HTTP Error <code>` | reads as "endpoint absent, probe the next candidate"; 404/401/403 also fire lazy portal repair against a host we just declared dead |
-| `timed out`, `timeout of Nms`, `ETIMEDOUT` | discovery walks every candidate instead of aborting early |
-| `authorization`, `unauthorized`, `access denied`, `invalid token`, `auth failed`, `handshake failed` | fires lazy portal repair (a bare `authorization` matches) |
+| Must not contain                                                                                     | Otherwise                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `HTTP Error <code>`                                                                                  | reads as "endpoint absent, probe the next candidate"; 404/401/403 also fire lazy portal repair against a host we just declared dead |
+| `timed out`, `timeout of Nms`, `ETIMEDOUT`                                                           | discovery walks every candidate instead of aborting early                                                                           |
+| `authorization`, `unauthorized`, `access denied`, `invalid token`, `auth failed`, `handshake failed` | fires lazy portal repair (a bare `authorization` matches)                                                                           |
 
 What remains is the "connection-level failure" slot the renderer already has for
 ECONNREFUSED/ENOTFOUND: discovery stops probing and reports the host
 unreachable, `shouldAttemptRepair` returns false, and the message reaches error
-snackbars verbatim — which is why it reads like a sentence and names the host.
+snackbars verbatim — which is why it reads like a sentence and names the
+endpoint.
 `stalker-portal-discovery.utils.spec.ts` pins all three properties for the bare
 and the IPC-wrapped form.
 
@@ -107,12 +117,11 @@ works.
 ## Explicit reset
 
 `CONNECTIVITY_GUARD_RESET` (`{ url }`) is handled by
-`apps/electron-backend/src/app/events/connectivity-guard.events.ts`. Both
-`normalizeXtreamServerUrl` and `buildStalkerRequestUrl` rebuild their request URL
-from `URL.origin`, so the host a request ends up using is always the host of the
-URL stored on the playlist and a single key derivation is correct. `URL.host`
-also excludes any `user:pass@` userinfo, so no credential reaches the key or the
-log.
+`apps/electron-backend/src/app/events/connectivity-guard.events.ts`. One key
+derivation is enough: both `normalizeXtreamServerUrl` and
+`buildStalkerRequestUrl` rebuild their request URL from `URL.origin`, so the
+origin a request ends up using is always the origin of the URL stored on the
+playlist.
 
 Call sites:
 
@@ -124,12 +133,15 @@ Call sites:
 - `StalkerPortalDiscoveryService.discover()` — one site covering import, the Edit
   dialog and lazy repair, which also guarantees a freshly edited address never
   inherits a refusal recorded for the previous one.
+- `retryContentPage` (`with-stalker-content.feature.ts`) — the Stalker grid
+  tail's append retry, for the same reason: two failed appends are exactly what
+  opens the breaker, so the reset precedes the resource reload.
 - `PortalStatusService.checkPortalStatusDetails` when `skipCache` is set — the
   user-initiated "Test Connection".
 
-All three go through `resetHostConnectivityGuard()`
+All four go through `resetHostConnectivityGuard()`
 (`libs/services/src/lib/host-connectivity-reset.ts`), which holds the one rule
-they share: the reset is best effort, because the guard only ever *delays* a
+they share: the reset is best effort, because the guard only ever _delays_ a
 request and a failed reset must not block the action that asked for it. In the
 PWA the channel is unknown and `sendIpcEvent` no-ops, which is correct —
 nothing there records per-host failures yet.

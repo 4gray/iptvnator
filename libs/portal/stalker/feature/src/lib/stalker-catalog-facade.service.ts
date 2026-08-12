@@ -205,7 +205,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     }
 
     retryAppend(): void {
-        this.stalkerStore.retryContentPage();
+        void this.stalkerStore.retryContentPage();
     }
 
     saveScrollPosition(scrollTop: number): void {

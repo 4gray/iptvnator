@@ -22,9 +22,14 @@
  * has for ECONNREFUSED/ENOTFOUND: discovery stops probing and reports the
  * host unreachable, which is exactly what a tripped guard means. The message
  * also reaches error snackbars verbatim, so it has to read like a sentence.
+ *
+ * `endpoint` is the request origin (scheme, host and port), not a bare host: a
+ * user with the same panel imported over both HTTP and HTTPS needs to see which
+ * of the two was skipped. A scheme is safe here — none of the forbidden
+ * substrings above can appear in one.
  */
-export function buildHostConnectivityFastFailMessage(host: string): string {
-    return `Portal host ${host} is not responding; skipped after repeated connection failures`;
+export function buildHostConnectivityFastFailMessage(endpoint: string): string {
+    return `Portal ${endpoint} is not responding; skipped after repeated connection failures`;
 }
 
 const FAST_FAIL_MESSAGE_PATTERN =
