@@ -2,6 +2,7 @@ import { UnifiedCollectionItem } from '../collection/unified-collection-item.int
 import {
     getStalkerReturnByHistoryState,
     getUnifiedCollectionDetailNavigation,
+    isStalkerReturnByHistoryFor,
 } from './collection-detail-portal-navigation';
 
 describe('getUnifiedCollectionDetailNavigation', () => {
@@ -220,7 +221,7 @@ describe('getUnifiedCollectionDetailNavigation', () => {
         );
     });
 
-    it('marks a returnTo handoff as returnable through history', () => {
+    it('binds the history-return marker to the handed-off item', () => {
         const navigation = getUnifiedCollectionDetailNavigation(
             {
                 uid: 'stalker::stalker-1::movie-5',
@@ -234,7 +235,23 @@ describe('getUnifiedCollectionDetailNavigation', () => {
             { returnTo: '/workspace/global-recent' }
         );
 
-        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(true);
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
+            'movie-5'
+        );
+        expect(isStalkerReturnByHistoryFor(navigation?.state, 'movie-5')).toBe(
+            true
+        );
+        // A lazy episode id keeps its parent identity.
+        expect(
+            isStalkerReturnByHistoryFor(navigation?.state, 'movie-5:12')
+        ).toBe(true);
+        // Any other title on the same history entry is a stale match.
+        expect(isStalkerReturnByHistoryFor(navigation?.state, 'movie-9')).toBe(
+            false
+        );
+        expect(isStalkerReturnByHistoryFor(navigation?.state, undefined)).toBe(
+            false
+        );
     });
 
     it('does not mark the handoff when no returnTo is supplied', () => {
@@ -248,21 +265,24 @@ describe('getUnifiedCollectionDetailNavigation', () => {
             stalkerId: 'movie-5',
         });
 
-        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(false);
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBeNull();
     });
 
     it('does not treat other navigation state as history-returnable', () => {
-        expect(getStalkerReturnByHistoryState(null)).toBe(false);
-        expect(getStalkerReturnByHistoryState(undefined)).toBe(false);
+        expect(getStalkerReturnByHistoryState(null)).toBeNull();
+        expect(getStalkerReturnByHistoryState(undefined)).toBeNull();
         expect(
             getStalkerReturnByHistoryState({
                 stalkerReturnTo: '/workspace/dashboard',
             })
-        ).toBe(false);
-        // Only an exact boolean true opts in.
+        ).toBeNull();
+        // A non-string or blank marker carries no identity to bind to.
         expect(
-            getStalkerReturnByHistoryState({ stalkerReturnByHistory: 'yes' })
-        ).toBe(false);
+            getStalkerReturnByHistoryState({ stalkerReturnByHistory: true })
+        ).toBeNull();
+        expect(
+            getStalkerReturnByHistoryState({ stalkerReturnByHistory: '   ' })
+        ).toBeNull();
     });
 
     it('returns null for live and m3u items', () => {

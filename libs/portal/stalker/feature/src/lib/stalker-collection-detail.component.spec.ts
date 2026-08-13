@@ -621,7 +621,9 @@ describe('StalkerCollectionDetailComponent', () => {
                     stalkerReturnTo: '/workspace/global-favorites',
                     // The portal detail's back affordance steps back through
                     // history so the collection keeps its tab and open detail.
-                    stalkerReturnByHistory: true,
+                    // Bound to the handed-off item so a later title on the
+                    // same history entry does not inherit it.
+                    stalkerReturnByHistory: 'series-9',
                 },
             }
         );

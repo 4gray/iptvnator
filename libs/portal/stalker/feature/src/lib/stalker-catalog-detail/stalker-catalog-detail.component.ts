@@ -14,6 +14,7 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     getStalkerReturnByHistoryState,
     getStalkerReturnToState,
+    isStalkerReturnByHistoryFor,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -229,15 +230,24 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     onVodBack(): void {
         const historyState = window.history.state;
         const returnTo = getStalkerReturnToState(historyState);
-        const returnByHistory = getStalkerReturnByHistoryState(historyState);
+        const returnMarker = getStalkerReturnByHistoryState(historyState);
+        const returnsHere = isStalkerReturnByHistoryFor(
+            historyState,
+            this.selectedItem()?.id
+        );
         this.closeInlinePlayer();
         this.catalog.clearSelectedItem();
 
-        // A collection handoff is exactly one entry back, and the collection's
-        // tab/scope/inline-detail live only on that entry — re-navigating would
-        // drop them and leave this page one browser Back away.
-        if (returnByHistory) {
-            this.location.back();
+        if (returnMarker) {
+            // A collection handoff is exactly one entry back, and the
+            // collection's tab/scope/inline-detail live only on that entry —
+            // re-navigating would drop them and leave this page one browser
+            // Back away. The keys outlive the handoff though, so honour them
+            // only for the title the handoff actually opened; for any later
+            // title on this entry, back just closes it.
+            if (returnsHere) {
+                this.location.back();
+            }
             return;
         }
 

@@ -59,8 +59,14 @@ Related:
   detail live only in `window.history.state` (`collectionViewState` /
   `openCollectionDetailItem`); re-navigating starts a stateless entry, which
   reopened the collection on its default `live` tab and left the portal page
-  one browser Back away. The flag is set only by this builder and only
-  alongside `returnTo`, so the dashboard handoff and every other
+  one browser Back away. The marker carries the handed-off item's identity
+  rather than a bare `true`, because `openStalkerItem` is consumed on arrival
+  while the return keys stay on the entry and a Stalker detail opens in place
+  without pushing one: after Back + browser Forward the same entry can host a
+  different title, and that title's back affordance must close it rather than
+  exit to the collection. A marker that does not match the open item is stale
+  and suppresses the whole return contract. It is set only by this builder and
+  only alongside `returnTo`, so the dashboard handoff and every other
   `stalkerReturnTo` caller keeps its re-navigating behaviour.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.

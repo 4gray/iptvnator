@@ -20,11 +20,13 @@ describe('StalkerSeriesViewComponent back navigation', () => {
     const locationMock = { back: jest.fn() };
     const clearSelectedItem = jest.fn();
     const originalHistoryState = window.history.state;
+    const selectedItem = signal<{ id: string } | null>({ id: '42' });
 
     beforeEach(async () => {
         routerMock.navigateByUrl.mockReset();
         locationMock.back.mockReset();
         clearSelectedItem.mockReset();
+        selectedItem.set({ id: '42' });
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -32,7 +34,7 @@ describe('StalkerSeriesViewComponent back navigation', () => {
                 {
                     provide: StalkerStore,
                     useValue: {
-                        selectedItem: signal(null),
+                        selectedItem,
                         selectedContentType: signal('series'),
                         currentPlaylist: signal({
                             _id: 'stalker|playlist',
@@ -116,7 +118,7 @@ describe('StalkerSeriesViewComponent back navigation', () => {
         window.history.replaceState(
             {
                 stalkerReturnTo: '/workspace/global-favorites',
-                stalkerReturnByHistory: true,
+                stalkerReturnByHistory: '42',
             },
             ''
         );
@@ -149,5 +151,24 @@ describe('StalkerSeriesViewComponent back navigation', () => {
 
         expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
         expect(locationMock.back).not.toHaveBeenCalled();
+    });
+
+    it('ignores a marker left over from an earlier handoff on this entry', () => {
+        // The return keys outlive the handoff, and a Stalker detail opens in
+        // place — so a later title on the same entry must just close.
+        selectedItem.set({ id: '77' });
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+
+        fixture.componentInstance.goBack();
+
+        expect(locationMock.back).not.toHaveBeenCalled();
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+        expect(clearSelectedItem).toHaveBeenCalled();
     });
 });

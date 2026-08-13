@@ -1265,7 +1265,12 @@ engine` (restart required) or
   active tab, scope and open inline detail live only in `window.history.state`
   (`collectionViewState` / `openCollectionDetailItem`), so re-navigating would
   reopen it on the default `live` tab and leave the portal page one browser
-  Back away. Only this builder sets the flag, so the dashboard handoff and any
+  Back away. The marker carries the handed-off item's identity, not a bare
+  `true`: `openStalkerItem` is consumed on arrival while the return keys stay
+  on the entry, and a Stalker detail opens in place without pushing one — so
+  after Back + browser Forward the same entry can host a different title, whose
+  back affordance must just close it. A stale marker suppresses the whole
+  return contract. Only this builder sets it, so the dashboard handoff and any
   other `stalkerReturnTo` caller keeps re-navigating.
 - Unlike the download handoff this bridge does NOT pass
   `detailPresentation: 'provider-only'` — the item exists in the provider

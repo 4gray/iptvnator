@@ -334,7 +334,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         window.history.replaceState(
             {
                 stalkerReturnTo: '/workspace/global-favorites',
-                stalkerReturnByHistory: true,
+                stalkerReturnByHistory: '42',
             },
             ''
         );
@@ -369,5 +369,28 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
 
         expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
         expect(locationMock.back).not.toHaveBeenCalled();
+    });
+
+    it('ignores a marker left over from an earlier handoff on this entry', () => {
+        // The return keys outlive the handoff, and a Stalker detail opens in
+        // place — so a later title on the same entry must just close.
+        selectedItem.set({
+            id: '77',
+            cmd: '/media/77',
+            info: { name: 'A later title' },
+        });
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).not.toHaveBeenCalled();
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
     });
 });
