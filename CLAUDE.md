@@ -1274,11 +1274,13 @@ engine` (restart required) or
   browser Forward cannot replay them for a reopened title. Leaving with the
   browser's own Back runs no affordance, so `CategoryContentViewComponent`
   also retires the contract whenever it lands on the entry with no handoff
-  item and no open detail. The identity is
+  item and no open detail. That retirement is gated on the marker, so a plain
+  `stalkerReturnTo` caller such as the dashboard handoff is unaffected. The identity is
   restricted to what `buildStalkerSelectedVodItem()` preserves (`id ??
-stream_id`); it drops `series_id`/`movie_id`, so a row identified only by
-  those gets no marker at all and the handoff falls back to re-navigating
-  rather than comparing against an identity the opened detail cannot report.
+stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
+  resolved id onto the handoff state item when the raw row carries neither —
+  those rows then get the same history return instead of degrading to a
+  re-navigation that resets the collection's tab.
   Only this builder sets the marker, so the
   dashboard handoff and any other `stalkerReturnTo` caller keeps
   re-navigating.

@@ -255,11 +255,12 @@ describe('getUnifiedCollectionDetailNavigation', () => {
         );
     });
 
-    it('omits the marker when the item id cannot survive normalization', () => {
+    it('pins a usable id so an alternate-id row still gets history return', () => {
         // buildStalkerSelectedVodItem() derives `id` from `id ?? stream_id`,
-        // so a movie_id-only row would compare against an empty identity.
-        // Without a marker the handoff falls back to re-navigating, which
-        // still works — rather than stranding the back affordance.
+        // so a movie_id-only row would open with an empty identity and the
+        // marker would have nothing to bind to. Pinning the resolved id keeps
+        // these rows on the history return instead of degrading to a
+        // re-navigation that resets the collection's tab.
         const navigation = getUnifiedCollectionDetailNavigation(
             {
                 uid: 'stalker::stalker-1::movie-5',
@@ -277,11 +278,37 @@ describe('getUnifiedCollectionDetailNavigation', () => {
             { returnTo: '/workspace/global-recent' }
         );
 
-        expect(getStalkerReturnByHistoryState(navigation?.state)).toBeNull();
-        expect(navigation?.state).toEqual(
-            expect.objectContaining({
-                stalkerReturnTo: '/workspace/global-recent',
-            })
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
+            'movie-5'
+        );
+        expect(navigation?.state?.['openStalkerItem']).toEqual(
+            expect.objectContaining({ id: 'movie-5', movie_id: 'movie-5' })
+        );
+    });
+
+    it('leaves an existing id on the state item untouched', () => {
+        const navigation = getUnifiedCollectionDetailNavigation(
+            {
+                uid: 'stalker::stalker-1::movie-5',
+                name: 'Movie Five',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'movie-5',
+                stalkerItem: {
+                    id: 'raw-id',
+                    title: 'Movie Five',
+                } as never,
+            },
+            { returnTo: '/workspace/global-recent' }
+        );
+
+        expect(navigation?.state?.['openStalkerItem']).toEqual(
+            expect.objectContaining({ id: 'raw-id' })
+        );
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
+            'raw-id'
         );
     });
 
@@ -357,8 +384,9 @@ describe('resolveStalkerBackNavigation', () => {
         expect(
             resolveStalkerBackNavigation(handoff, { stream_id: 'movie-5' })
         ).toEqual({ kind: 'history-back' });
-        // series_id/movie_id do not survive normalization, so a marker is
-        // never bound to them (see the builder spec) and nothing can match.
+        // series_id/movie_id do not survive normalization, so the builder
+        // pins a usable `id` instead of binding to them; a selection that
+        // still reports only movie_id cannot match.
         expect(
             resolveStalkerBackNavigation(handoff, { movie_id: 'movie-5' })
         ).toEqual({ kind: 'none' });

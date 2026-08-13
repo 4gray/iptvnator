@@ -394,6 +394,24 @@ describe('CategoryContentViewComponent', () => {
         expect(window.history.state).toEqual({ preserved: 'value' });
     });
 
+    it('leaves a plain stalkerReturnTo handoff alone', async () => {
+        // The dashboard handoff sets no history-back marker and keeps its
+        // pre-existing re-navigating behaviour.
+        catalog.provider = 'stalker';
+        window.history.replaceState(
+            { stalkerReturnTo: '/workspace/dashboard' },
+            '',
+            window.location.href
+        );
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(window.history.state).toEqual({
+            stalkerReturnTo: '/workspace/dashboard',
+        });
+    });
+
     it('keeps the return marker while the handoff detail is being opened', async () => {
         const item = { id: '42', category_id: 'vod' };
         catalog.provider = 'stalker';

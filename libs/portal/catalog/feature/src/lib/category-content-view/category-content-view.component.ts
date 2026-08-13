@@ -28,6 +28,7 @@ import {
     clearNavigationStateKeys,
     consumeStalkerReturnMarker,
     getOpenStalkerItemState,
+    getStalkerReturnByHistoryState,
     isProviderOnlyDetailState,
     normalizeStalkerHandoffIdentity,
     PortalCatalogFacade,
@@ -341,7 +342,13 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             // detail open means the handoff is over — any title opened from
             // the list now is a fresh selection whose Back must close it
             // rather than exit to the collection.
-            if (!this.selectedItem()) {
+            // Scoped to collection handoffs, which are the only ones that
+            // set the history-back marker: a plain `stalkerReturnTo` caller
+            // (the dashboard) keeps its existing re-navigating behaviour.
+            if (
+                !this.selectedItem() &&
+                getStalkerReturnByHistoryState(window.history.state)
+            ) {
                 consumeStalkerReturnMarker();
             }
             return;

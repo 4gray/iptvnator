@@ -180,27 +180,37 @@ export function getUnifiedCollectionDetailNavigation(
 
         const returnTo = options?.returnTo ?? null;
         const stalkerId = item.stalkerId ?? lastUidSegment(item.uid) ?? '';
+        const stateItem = buildStalkerStateItem(stalkerItem, {
+            id: stalkerId,
+            title: item.name,
+            type,
+            category_id: categoryId,
+            poster_url: item.posterUrl ?? item.logo ?? undefined,
+        });
+
+        // `buildStalkerStateItem()` keeps the raw row as-is, and
+        // `buildStalkerSelectedVodItem()` later derives `id` from
+        // `id ?? stream_id` only. A row carrying just `movie_id`/`series_id`
+        // would therefore open with an empty identity — nothing the marker
+        // could bind to. Pin the resolved id so those rows get the same
+        // history return as every other one instead of degrading to a
+        // re-navigation that resets the collection's tab.
+        if (!stalkerHandoffIdentityOf(stateItem)) {
+            const resolvedId = normalizeStalkerHandoffIdentity(stalkerId);
+            if (resolvedId) {
+                stateItem['id'] = resolvedId;
+            }
+        }
+
         const target = buildStalkerDetailNavigationTarget({
             playlistId: item.playlistId,
             type,
             categoryId,
-            item: buildStalkerStateItem(stalkerItem, {
-                id: stalkerId,
-                title: item.name,
-                type,
-                category_id: categoryId,
-                poster_url: item.posterUrl ?? item.logo ?? undefined,
-            }),
+            item: stateItem,
             returnTo,
         });
 
-        // Bind the marker to the identity the opened detail will actually
-        // report. A row identified only by `movie_id`/`series_id` normalizes
-        // to an empty id, so no marker is set and the handoff simply falls
-        // back to re-navigating via `stalkerReturnTo`.
-        const handoffIdentity = stalkerItem
-            ? stalkerHandoffIdentityOf(stalkerItem)
-            : normalizeStalkerHandoffIdentity(stalkerId);
+        const handoffIdentity = stalkerHandoffIdentityOf(stateItem);
 
         return returnTo && handoffIdentity
             ? {
