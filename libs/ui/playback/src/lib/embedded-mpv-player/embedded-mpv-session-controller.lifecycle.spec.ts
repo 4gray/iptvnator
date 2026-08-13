@@ -27,6 +27,9 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         });
 
     beforeEach(() => {
+        // See `waitFor`: the startup chain is drained on a virtual clock so a
+        // loaded machine cannot change the outcome.
+        jest.useFakeTimers();
         electron = {
             platform: 'darwin',
             getEmbeddedMpvSupport: jest
@@ -167,7 +170,6 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
     it('flags a stalled session after 30s of loading and clears it on playback', async () => {
         const controller = TestBed.inject(EmbeddedMpvSessionController);
-        jest.useFakeTimers();
 
         controller.session.set(createSession({ status: 'loading' }));
         TestBed.tick();
@@ -243,8 +245,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
         teardown();
         resolveLoad?.();
-        await Promise.resolve();
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await flush();
 
         expect(electron.attachEmbeddedMpvFrameView).not.toHaveBeenCalled();
         expect(controller.session()).toBeNull();
@@ -288,8 +289,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             'requestAnimationFrame'
         );
         resolveAttach?.(true);
-        await Promise.resolve();
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await flush();
 
         expect(requestAnimationFrame).not.toHaveBeenCalled();
         expect(controller.session()).toBeNull();
@@ -377,17 +377,36 @@ function createSession(
     };
 }
 
+async function drainRound(): Promise<void> {
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1);
+}
+
+/**
+ * Settle the controller's async startup chain on the fake clock, bounded by
+ * drain rounds rather than wall-clock time — under parallel Jest workers a
+ * real-timer deadline expired before the chain settled and failed at random.
+ *
+ * One millisecond per round, never zero: `waitForStartupPaint` nests rAF
+ * inside rAF, and a zero-delay timer scheduled from inside a timer callback is
+ * clamped to the next millisecond, so a 0ms advance strands the inner hop.
+ */
 async function waitFor(
     condition: () => boolean,
     description: string
 ): Promise<void> {
-    const deadline = Date.now() + 1_000;
-    while (Date.now() < deadline) {
+    for (let round = 0; round < 100; round += 1) {
         if (condition()) {
             return;
         }
-        await Promise.resolve();
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await drainRound();
     }
     throw new Error(`Timed out waiting for ${description}`);
+}
+
+/** Settle everything pending where there is no condition to poll for. */
+async function flush(): Promise<void> {
+    for (let round = 0; round < 5; round += 1) {
+        await drainRound();
+    }
 }
