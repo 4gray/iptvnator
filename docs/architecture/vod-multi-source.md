@@ -216,6 +216,50 @@ reader is free to be permissive because the gate in front of its riskier
 forms — and the fact that a row only appears once it HAS matched — keeps a
 bad guess cosmetic.
 
+The one case where the shape genuinely cannot decide is a strip that would
+leave **no real word behind**. "IT - 65 (2023)" is the Italian copy of the film
+"65"; "AKA - 2023" is the film "AKA" and its year. Same shape, opposite
+readings, so the leading token is tested against a vocabulary instead —
+`TRAILING_TAG_VOCABULARY` plus a prefix-only list (`NF`, `EX`, `NRC`, `AMZ`,
+`D+`, `P+`, `OSN`, `VO`, …), with a compound read by its HEAD so the
+open-ended `4K-<lang>` family works and "INU-OH"/"PC-4L" — real film names —
+do not. Unknown token, wordless remainder: the title is kept whole. That
+direction is chosen deliberately, because a refused strip costs one unmatched
+copy while a wrong one produced a bare-year key; on the live catalog
+AKA/BDE/BRO/OUT/WIL/IF all collapsed onto `"2023"` and were offered to each
+other as alternative sources. Gating the case where a word DOES survive was
+rejected for the mirror reason: it would strand every genuine tag the
+vocabulary has not heard of.
+
+"No real word" is decided by running the REST OF THE PIPELINE on the stripped
+form and looking at what comes out — never by re-implementing what the later
+stages remove. That is the load-bearing part of the design: every stage drops
+something, so a guard that predicts them is a list to keep in sync, and each
+omission is a silent collapse:
+
+| title               | dropped by         | would key as |
+| ------------------- | ------------------ | ------------ |
+| `\|TA\| RRR - HEVC` | quality tag        | `""`         |
+| `CAT - Multi ENG`   | trailing tag       | `""`         |
+| `IF - 2024_sub`     | underscore tag     | `2024`       |
+| `AKA --xyz`         | double-dash suffix | `""`         |
+| `CAT - 2022 S01`    | season marker      | `2022`       |
+
+All five fall out of one question asked of the real output, and a stage added
+later is covered for free. The season check deliberately uses
+`SEASON_SUFFIX_PATTERN` directly rather than `stripSeason`, whose
+"never return empty" fallback would report a lone season marker as a surviving
+word. A tag word sitting next to a real one is still part of the title
+("EN - Sub Zero" → `sub zero`).
+
+The vocabulary is evidence, not intuition. Each entry prefixes hundreds to
+thousands of ordinary lettered titles in the real catalog; nothing is added
+because it "looks like a streaming service" (MAX and HULU would qualify, and
+"MAX - 2015" is a film). Deriving it from movies alone missed `AMZ`, `D+` and
+`P+`, which broke Paramount+/Disney+ copies of the numeric series 1923, 1883,
+24 and 9-1-1 — so validate any change over movies AND series: 83 keys fixed,
+0 corrupted across 1,616,111 titles.
+
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",
 "DE | Apple TV") and leave stream titles bare. Discovery returns every visible
 category name a stream sits in, and the two query tiers get there

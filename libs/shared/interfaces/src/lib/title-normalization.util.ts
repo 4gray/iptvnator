@@ -150,6 +150,175 @@ const TRAILING_TAG_VOCABULARY = new Set([
  */
 const WEAK_JOIN_EXCLUSIONS = new Set(['IN']);
 
+/**
+ * Language/region/provider codes observed in the LEADING position that the
+ * trailing vocabulary has no reason to carry — a provider brands the front
+ * of a title ("NRC - Sonic the Hedgehog", "TOP - When the Light Breaks"),
+ * never the end of one.
+ *
+ * A separate set, because the same token answers the question differently at
+ * each end. `LA` is the clearest case: it is a real prefix tag (590 tagged
+ * titles) and it is already, deliberately, kept OUT of the trailing set —
+ * where it ends 71 real titles ("Desastre LA", "Detroit NY LA"). Merging the
+ * two lists would amputate those, plus "Les EX" and "Half CA", to rescue
+ * three.
+ *
+ * Every entry is one the catalog proves, and only those: each prefixes
+ * hundreds to thousands of ordinary lettered titles (NF 10544, EX 8177,
+ * NRC 4961, TM 3538, AMZ 966, D+ 892, BL 826, LA 590, OSN 499, KD 467,
+ * P+ 42 …). Opaque provider codes are in for the same reason the obvious
+ * language codes are — what matters is that the catalog uses them as tags,
+ * not that a reader can name them.
+ *
+ * Nothing is added on the theory that it "looks like a streaming service":
+ * MAX and HULU would fit that theory, and "MAX - 2015" is a film. A tag
+ * this list has not heard of costs one unmatched copy; a film name wrongly
+ * listed here corrupts that film's identity everywhere.
+ */
+const PREFIX_ONLY_TAG_VOCABULARY = new Set([
+    'AMZ',
+    'BG',
+    'BL',
+    'BN',
+    'BR',
+    'CA',
+    'CH',
+    'CN',
+    'D+',
+    'DK',
+    'EU',
+    'EX',
+    'ID',
+    'IL',
+    'ISR',
+    'JP',
+    'KD',
+    'KN',
+    'KO',
+    'LA',
+    'LT',
+    'MA',
+    'MY',
+    'NF',
+    'NRC',
+    'OSN',
+    'P+',
+    'PH',
+    'PK',
+    'QC',
+    'QFR',
+    'SO',
+    'SOM',
+    'STH',
+    'TG',
+    'TH',
+    'TM',
+    'TOD',
+    'TOP',
+    'VO',
+    'VP',
+]);
+
+/**
+ * A leading token is provider metadata when either vocabulary knows it, or —
+ * for compounds — when its FIRST segment does ("4K-FR", "AR-SUBS", "IN-KN",
+ * "SO-EN"). Compound tags are open-ended (every panel invents its own
+ * "4K-<lang>" pairing), so enumerating them would go stale against the next
+ * catalog; the head is what carries the meaning. That head rule is also what
+ * separates a compound tag from a hyphenated NAME: "INU-OH - 2022" and
+ * "PC-4L - 2020" are films, and neither "INU" nor "PC" is a known tag.
+ */
+function isKnownPrefixTag(token: string): boolean {
+    const upper = token.toUpperCase();
+    const isKnown = (value: string) =>
+        TRAILING_TAG_VOCABULARY.has(value) ||
+        PREFIX_ONLY_TAG_VOCABULARY.has(value) ||
+        QUALITY_TAGS.has(value.toLowerCase());
+
+    if (isKnown(upper)) {
+        return true;
+    }
+
+    const head = upper.split('-')[0];
+    return head !== upper && isKnown(head);
+}
+
+/**
+ * Separator the matched prefix ends with, plus any padding around it. Built
+ * by alternation rather than by splicing `PROVIDER_PIPE_CLASS` open, so the
+ * pipe set stays a black box its owner can reshape.
+ */
+const PREFIX_SEPARATOR_TAIL = new RegExp(
+    `(?:[\\s\\-:]|${PROVIDER_PIPE_CLASS})+$`,
+    'u'
+);
+
+const HAS_LETTER = /\p{L}/u;
+
+/**
+ * Whether any WORD survives the strip. A quality tag or a trailing language
+ * tag does not count, because the pipeline drops both a few lines later —
+ * testing the raw remainder instead lets them smuggle the strip through, and
+ * the title then normalizes to a key it was never entitled to:
+ *
+ *   "|TA| RRR - HEVC"  the suffix IS the remainder → the EMPTY key
+ *   "IF - 2024_sub"    "sub" reads as a word → the bare-year key "2024"
+ *
+ * Both are the identity collapse this guard exists to prevent — the first
+ * one broader than a bare year, the second exactly it.
+ *
+ * Diacritics are not folded first on purpose: every tag in both sets is
+ * ASCII, so an accented token is meaningful either way.
+ */
+/**
+ * Decide the leading provider tag — but never strip one that is the film's
+ * own NAME.
+ *
+ * The two shapes are structurally identical: "IT - 65 (2023)" is the Italian
+ * copy of the film "65", while "AKA - 2023" is the film "AKA" followed by its
+ * year. Both are 2–5 uppercase characters, a dash, and digits, so only the
+ * token's MEANING can separate them — hence the vocabulary gate.
+ *
+ * The gate applies only when the strip would leave no real WORD behind, and
+ * "no real word" is decided by running the REST OF THE PIPELINE and looking
+ * at what actually comes out. That is the whole point of the design: every
+ * later stage removes something, so any guard that re-implements their rules
+ * is a list to keep in sync, and each omission is a silent bug —
+ *
+ *   "|TA| RRR - HEVC"     quality tag        → the EMPTY key
+ *   "IF - 2024_sub"       underscore tag     → the bare year "2024"
+ *   "CAT - 2022 S01"      season marker      → the bare year "2022"
+ *   "AKA --xyz"           double-dash suffix → the EMPTY key
+ *
+ * All four are the identity collapse this guard exists to prevent, and all
+ * four fall out of one question asked of the real output. A stage added later
+ * is covered for free.
+ *
+ * Whenever a word does survive, the tag reading is safe ("XX - Some Title"
+ * cannot be a title plus a year), and gating that path too would strand every
+ * genuine tag the vocabulary has not heard of. Refusing costs a missed
+ * cross-playlist match; stripping wrongly collapses the identity — measured
+ * on the live catalog, AKA/BDE/BRO/OUT/WIL/IF all landed on the single key
+ * "2023" and were offered to each other as alternative sources. A miss beats
+ * a wrong match, so an unknown token keeps its title.
+ */
+function normalizeAfterLeadingTag(value: string): string {
+    const match = value.match(LANGUAGE_PREFIX);
+    if (!match) {
+        return normalizeRest(value);
+    }
+
+    const stripped = normalizeRest(value.replace(LANGUAGE_PREFIX, ''));
+    // Deliberately not `stripSeason`: its "never return empty" fallback would
+    // report a lone season marker as a surviving word.
+    if (HAS_LETTER.test(stripped.replace(SEASON_SUFFIX_PATTERN, ''))) {
+        return stripped;
+    }
+
+    const token = match[0].replace(PREFIX_SEPARATOR_TAIL, '');
+    return isKnownPrefixTag(token) ? stripped : normalizeRest(value);
+}
+
 const DOUBLE_DASH_SUFFIX = /[-–]{2}[A-Za-z]{2,5}\s*$/;
 const UNDERSCORE_SUFFIX = /_([A-Za-z]{2,5})\s*$/;
 const JOINED_DASH_SUFFIX = /-([A-Za-z]{2,5})\s*$/;
@@ -262,6 +431,46 @@ const SEASON_SUFFIX_PATTERN = new RegExp(
 );
 
 /**
+ * Everything the pipeline does AFTER the leading-tag decision: trailing
+ * tags, diacritics, case, sigma folding, punctuation, quality tags.
+ *
+ * Factored out so `normalizeAfterLeadingTag` can ask what a strip would
+ * actually produce instead of predicting it. Cheap enough to run twice,
+ * because the second run only happens for a title whose stripped form came
+ * out with no word in it at all.
+ */
+function normalizeRest(value: string): string {
+    return (
+        stripTrailingTags(value)
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '')
+            .toLowerCase()
+            // Greek Σ has two lowercase forms and `toLowerCase` picks by
+            // position: "ΑΣ" becomes "ας" while an already-lowercase "ασ"
+            // stays medial, so the same word reaches this line spelled two
+            // ways. Both SQL tiers fold them together — SQLite's trigram
+            // tokenizer does it natively, and the scan's GLOB classes do it in
+            // `caseInsensitiveGlobPattern` — so without this the candidate is
+            // admitted by the query and then thrown away by the confirmation.
+            // Folding to the medial form is what Unicode case folding does.
+            .replace(/ς/g, 'σ')
+            .replace(/[^\p{L}\p{N}]+/gu, ' ')
+            .split(' ')
+            .filter((token) => token !== '' && !QUALITY_TAGS.has(token))
+            .join(' ')
+            .trim()
+    );
+}
+
+/**
+ * Portal series list titles carry season suffixes ("The Boys s05"); TMDB
+ * knows only the show title. Never returns empty — a title that is nothing
+ * but a season marker keeps it.
+ */
+const stripSeason = (value: string) =>
+    value.replace(SEASON_SUFFIX_PATTERN, '').trim() || value;
+
+/**
  * A provider title normalized on two tiers. Trailing years on provider
  * titles are ambiguous — usually a release tag ("The Matrix 1999") but
  * sometimes part of the title itself ("Blade Runner 2049") — so matching
@@ -284,36 +493,13 @@ export function normalizeTitleKeys(
         return { exact: '', base: '', trailingYear: null };
     }
 
-    const cleaned = stripTrailingTags(
+    const cleaned = normalizeAfterLeadingTag(
         raw
             .replace(WRAPPED_TAG_PREFIX, '')
             // Inner classes exclude the opening delimiter too, so runaway
             // inputs like "[[[[[..." backtrack linearly (CodeQL js/polynomial-redos)
             .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
-            .replace(LANGUAGE_PREFIX, '')
-    )
-        .normalize('NFD')
-        .replace(/[\u0300-\u036F]/g, '')
-        .toLowerCase()
-        // Greek \u03A3 has two lowercase forms and `toLowerCase` picks by position:
-        // "\u0391\u03A3" becomes "\u03B1\u03C2" while an already-lowercase "\u03B1\u03C3" stays medial, so
-        // the same word reaches this line spelled two ways. Both SQL tiers
-        // fold them together \u2014 SQLite's trigram tokenizer does it natively,
-        // and the scan's GLOB classes do it in `caseInsensitiveGlobPattern` \u2014
-        // so without this the candidate is admitted by the query and then
-        // thrown away by the confirmation. Folding to the medial form is what
-        // Unicode case folding does.
-        .replace(/\u03C2/g, '\u03C3')
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .split(' ')
-        .filter((token) => token !== '' && !QUALITY_TAGS.has(token))
-        .join(' ')
-        .trim();
-
-    // Portal series list titles carry season suffixes ("The Boys s05");
-    // TMDB knows only the show title.
-    const stripSeason = (value: string) =>
-        value.replace(SEASON_SUFFIX_PATTERN, '').trim() || value;
+    );
 
     const exact = stripSeason(cleaned);
 
