@@ -1257,7 +1257,33 @@ engine` (restart required) or
   a `/series` route leaves the detail unable to load episodes. The virtual
   `series` category is normalized to `vod` the same way
   `resolveStalkerCollectionSelectedCategory()` does. Stalker also carries
-  `stalkerReturnTo`.
+  `stalkerReturnTo` plus
+  `stalkerReturnByHistory`, and the portal detail's back affordance
+  (`StalkerCatalogDetailComponent.onVodBack()`,
+  `StalkerSeriesViewComponent.goBack()`) honours the latter by stepping back
+  one history entry instead of calling `navigateByUrl()`. The collection's
+  active tab, scope and open inline detail live only in `window.history.state`
+  (`collectionViewState` / `openCollectionDetailItem`), so re-navigating would
+  reopen it on the default `live` tab and leave the portal page one browser
+  Back away. The marker carries the handed-off item's identity, not a bare
+  `true`: `openStalkerItem` is consumed on arrival while the return keys stay
+  on the entry, and a Stalker detail opens in place without pushing one — so
+  after Back + browser Forward the same entry can host a different title, whose
+  back affordance must just close it. A stale marker suppresses the whole
+  return contract, and honouring it retires both keys from the entry so a
+  browser Forward cannot replay them for a reopened title. Leaving with the
+  browser's own Back runs no affordance, so `CategoryContentViewComponent`
+  also retires the contract whenever it lands on the entry with no handoff
+  item and no open detail. That retirement is gated on the marker, so a plain
+  `stalkerReturnTo` caller such as the dashboard handoff is unaffected. The identity is
+  restricted to what `buildStalkerSelectedVodItem()` preserves (`id ??
+stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
+  resolved id onto the handoff state item when the raw row carries neither —
+  those rows then get the same history return instead of degrading to a
+  re-navigation that resets the collection's tab.
+  Only this builder sets the marker, so the
+  dashboard handoff and any other `stalkerReturnTo` caller keeps
+  re-navigating.
 - Unlike the download handoff this bridge does NOT pass
   `detailPresentation: 'provider-only'` — the item exists in the provider
   catalog, so the full normal detail (downloads included) is wanted.

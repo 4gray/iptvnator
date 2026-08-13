@@ -53,7 +53,36 @@ Related:
   download handoff it does NOT pass `detailPresentation: 'provider-only'` — the
   item exists in the provider catalog and the full normal detail is desired.
   The Stalker handoff carries `stalkerReturnTo` so the portal detail's back
-  affordance returns to the originating collection.
+  affordance returns to the originating collection, plus
+  `stalkerReturnByHistory` so that return is a single history step rather than
+  a fresh `navigateByUrl()`. The collection's active tab, scope and open inline
+  detail live only in `window.history.state` (`collectionViewState` /
+  `openCollectionDetailItem`); re-navigating starts a stateless entry, which
+  reopened the collection on its default `live` tab and left the portal page
+  one browser Back away. The marker carries the handed-off item's identity
+  rather than a bare `true`, because `openStalkerItem` is consumed on arrival
+  while the return keys stay on the entry and a Stalker detail opens in place
+  without pushing one: after Back + browser Forward the same entry can host a
+  different title, and that title's back affordance must close it rather than
+  exit to the collection. A marker that does not match the open item is stale
+  and suppresses the whole return contract. Honouring it retires both return
+  keys from the entry, so the handoff is genuinely one-shot: a browser Forward
+  onto the same entry cannot replay it for a title reopened from the catalog.
+  Leaving via the browser's own Back runs no affordance at all, so
+  `CategoryContentViewComponent` retires the contract as well whenever it
+  lands on the entry with no handoff item and no detail open — the handoff is
+  over, and anything opened from the list afterwards is a fresh selection. It
+  is gated on the marker's presence, so a plain `stalkerReturnTo` caller such
+  as the dashboard handoff keeps its existing behaviour untouched.
+  The identity is restricted to the fields `buildStalkerSelectedVodItem()`
+  preserves (`id ?? stream_id`) — it drops `series_id`/`movie_id`, so binding
+  to the wider `extractStalkerItemId()` set would compare against an identity
+  the opened detail can no longer report and silently strand the affordance.
+  A row identified only by those alternate fields would open with an empty
+  identity, so the builder pins the resolved id onto the handoff state item
+  and those rows keep the history return as well. The marker is set only by this
+  builder and only alongside `returnTo`, so the dashboard handoff and every
+  other `stalkerReturnTo` caller keeps its re-navigating behaviour.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 

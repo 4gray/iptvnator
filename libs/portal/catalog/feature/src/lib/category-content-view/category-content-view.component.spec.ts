@@ -373,6 +373,72 @@ describe('CategoryContentViewComponent', () => {
         expect(window.history.state).toEqual({ preserved: 'value' });
     });
 
+    it('retires a return marker that outlived its handoff item', async () => {
+        // Leaving the entry with the browser's own Back never runs a back
+        // affordance, so nothing retired the contract; a Forward replay lands
+        // here with the marker but no handoff item and no open detail.
+        catalog.provider = 'stalker';
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+                preserved: 'value',
+            },
+            '',
+            window.location.href
+        );
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(window.history.state).toEqual({ preserved: 'value' });
+    });
+
+    it('leaves a plain stalkerReturnTo handoff alone', async () => {
+        // The dashboard handoff sets no history-back marker and keeps its
+        // pre-existing re-navigating behaviour.
+        catalog.provider = 'stalker';
+        window.history.replaceState(
+            { stalkerReturnTo: '/workspace/dashboard' },
+            '',
+            window.location.href
+        );
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(window.history.state).toEqual({
+            stalkerReturnTo: '/workspace/dashboard',
+        });
+    });
+
+    it('keeps the return marker while the handoff detail is being opened', async () => {
+        const item = { id: '42', category_id: 'vod' };
+        catalog.provider = 'stalker';
+        catalog.selectItem.mockImplementation((selected) => {
+            selectedItem.set(selected);
+            return null;
+        });
+        window.history.replaceState(
+            {
+                openStalkerItem: item,
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            '',
+            window.location.href
+        );
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // The contract must survive arrival — the back affordance consumes it.
+        expect(window.history.state).toEqual({
+            stalkerReturnTo: '/workspace/global-favorites',
+            stalkerReturnByHistory: '42',
+        });
+    });
+
     it('does not retain the consumed provider-only presentation across identity, regular-open, or route changes', async () => {
         const item = { id: '42', category_id: 'vod' };
         catalog.provider = 'stalker';
@@ -500,9 +566,7 @@ describe('CategoryContentViewComponent', () => {
 
             infiniteFixture.detectChanges();
 
-            expect(catalog.consumeSavedScrollPosition).toHaveBeenCalledTimes(
-                1
-            );
+            expect(catalog.consumeSavedScrollPosition).toHaveBeenCalledTimes(1);
 
             const grid = infiniteFixture.nativeElement.querySelector(
                 'app-grid-list'

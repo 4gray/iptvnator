@@ -1,5 +1,10 @@
 import { UnifiedCollectionItem } from '../collection/unified-collection-item.interface';
-import { getUnifiedCollectionDetailNavigation } from './collection-detail-portal-navigation';
+import {
+    getStalkerReturnByHistoryState,
+    getUnifiedCollectionDetailNavigation,
+    isStalkerReturnByHistoryFor,
+    resolveStalkerBackNavigation,
+} from './collection-detail-portal-navigation';
 
 describe('getUnifiedCollectionDetailNavigation', () => {
     const xtreamMovie: UnifiedCollectionItem = {
@@ -217,6 +222,127 @@ describe('getUnifiedCollectionDetailNavigation', () => {
         );
     });
 
+    it('binds the history-return marker to the handed-off item', () => {
+        const navigation = getUnifiedCollectionDetailNavigation(
+            {
+                uid: 'stalker::stalker-1::movie-5',
+                name: 'Movie Five',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'movie-5',
+            },
+            { returnTo: '/workspace/global-recent' }
+        );
+
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
+            'movie-5'
+        );
+        expect(
+            isStalkerReturnByHistoryFor(navigation?.state, { id: 'movie-5' })
+        ).toBe(true);
+        // A lazy episode id keeps its parent identity.
+        expect(
+            isStalkerReturnByHistoryFor(navigation?.state, { id: 'movie-5:12' })
+        ).toBe(true);
+        // Any other title on the same history entry is a stale match.
+        expect(
+            isStalkerReturnByHistoryFor(navigation?.state, { id: 'movie-9' })
+        ).toBe(false);
+        expect(isStalkerReturnByHistoryFor(navigation?.state, undefined)).toBe(
+            false
+        );
+    });
+
+    it('pins a usable id so an alternate-id row still gets history return', () => {
+        // buildStalkerSelectedVodItem() derives `id` from `id ?? stream_id`,
+        // so a movie_id-only row would open with an empty identity and the
+        // marker would have nothing to bind to. Pinning the resolved id keeps
+        // these rows on the history return instead of degrading to a
+        // re-navigation that resets the collection's tab.
+        const navigation = getUnifiedCollectionDetailNavigation(
+            {
+                uid: 'stalker::stalker-1::movie-5',
+                name: 'Movie Five',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'movie-5',
+                stalkerItem: {
+                    movie_id: 'movie-5',
+                    title: 'Movie Five',
+                } as never,
+            },
+            { returnTo: '/workspace/global-recent' }
+        );
+
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
+            'movie-5'
+        );
+        expect(navigation?.state?.['openStalkerItem']).toEqual(
+            expect.objectContaining({ id: 'movie-5', movie_id: 'movie-5' })
+        );
+    });
+
+    it('leaves an existing id on the state item untouched', () => {
+        const navigation = getUnifiedCollectionDetailNavigation(
+            {
+                uid: 'stalker::stalker-1::movie-5',
+                name: 'Movie Five',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'movie-5',
+                stalkerItem: {
+                    id: 'raw-id',
+                    title: 'Movie Five',
+                } as never,
+            },
+            { returnTo: '/workspace/global-recent' }
+        );
+
+        expect(navigation?.state?.['openStalkerItem']).toEqual(
+            expect.objectContaining({ id: 'raw-id' })
+        );
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
+            'raw-id'
+        );
+    });
+
+    it('does not mark the handoff when no returnTo is supplied', () => {
+        const navigation = getUnifiedCollectionDetailNavigation({
+            uid: 'stalker::stalker-1::movie-5',
+            name: 'Movie Five',
+            contentType: 'movie',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker Playlist',
+            stalkerId: 'movie-5',
+        });
+
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBeNull();
+    });
+
+    it('does not treat other navigation state as history-returnable', () => {
+        expect(getStalkerReturnByHistoryState(null)).toBeNull();
+        expect(getStalkerReturnByHistoryState(undefined)).toBeNull();
+        expect(
+            getStalkerReturnByHistoryState({
+                stalkerReturnTo: '/workspace/dashboard',
+            })
+        ).toBeNull();
+        // A non-string or blank marker carries no identity to bind to.
+        expect(
+            getStalkerReturnByHistoryState({ stalkerReturnByHistory: true })
+        ).toBeNull();
+        expect(
+            getStalkerReturnByHistoryState({ stalkerReturnByHistory: '   ' })
+        ).toBeNull();
+    });
+
     it('returns null for live and m3u items', () => {
         expect(
             getUnifiedCollectionDetailNavigation({
@@ -234,5 +360,64 @@ describe('getUnifiedCollectionDetailNavigation', () => {
                 playlistName: 'M3U Playlist',
             })
         ).toBeNull();
+    });
+});
+
+describe('resolveStalkerBackNavigation', () => {
+    const handoff = {
+        stalkerReturnTo: '/workspace/global-favorites',
+        stalkerReturnByHistory: 'movie-5',
+    };
+
+    it('steps back for the title its marker was bound to', () => {
+        expect(
+            resolveStalkerBackNavigation(handoff, { id: 'movie-5' })
+        ).toEqual({ kind: 'history-back' });
+        expect(
+            resolveStalkerBackNavigation(handoff, { id: 'movie-5:3' })
+        ).toEqual({ kind: 'history-back' });
+    });
+
+    it('matches the id shape buildStalkerSelectedVodItem() produces', () => {
+        // That normalizer derives `id` from `id ?? stream_id` only, so those
+        // are the sole fields the opened detail can still report.
+        expect(
+            resolveStalkerBackNavigation(handoff, { stream_id: 'movie-5' })
+        ).toEqual({ kind: 'history-back' });
+        // series_id/movie_id do not survive normalization, so the builder
+        // pins a usable `id` instead of binding to them; a selection that
+        // still reports only movie_id cannot match.
+        expect(
+            resolveStalkerBackNavigation(handoff, { movie_id: 'movie-5' })
+        ).toEqual({ kind: 'none' });
+    });
+
+    it('suppresses the whole contract for a stale marker', () => {
+        // Gating only the history step would let the equally stale
+        // `stalkerReturnTo` re-navigate and produce the same unexpected exit.
+        expect(
+            resolveStalkerBackNavigation(handoff, { id: 'movie-9' })
+        ).toEqual({ kind: 'none' });
+        expect(resolveStalkerBackNavigation(handoff, undefined)).toEqual({
+            kind: 'none',
+        });
+    });
+
+    it('re-navigates for a plain returnTo handoff', () => {
+        expect(
+            resolveStalkerBackNavigation(
+                { stalkerReturnTo: '/workspace/dashboard' },
+                { id: 'movie-5' }
+            )
+        ).toEqual({ kind: 'navigate', url: '/workspace/dashboard' });
+    });
+
+    it('does nothing without any return target', () => {
+        expect(resolveStalkerBackNavigation({}, { id: 'movie-5' })).toEqual({
+            kind: 'none',
+        });
+        expect(resolveStalkerBackNavigation(null, { id: 'movie-5' })).toEqual({
+            kind: 'none',
+        });
     });
 });

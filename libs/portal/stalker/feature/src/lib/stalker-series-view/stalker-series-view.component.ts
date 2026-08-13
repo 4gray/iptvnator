@@ -9,6 +9,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -39,7 +40,8 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
-    getStalkerReturnToState,
+    consumeStalkerReturnMarker,
+    resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
@@ -160,6 +162,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     };
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -839,13 +842,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     goBack() {
-        const returnTo = getStalkerReturnToState(window.history.state);
+        const back = resolveStalkerBackNavigation(
+            window.history.state,
+            this.stalkerStore.selectedItem()
+        );
+        // Closing the detail is unconditional: a `none` decision (no return
+        // target, or a marker left by an earlier handoff) still returns the
+        // user to the category list — it only suppresses the navigation.
         this.closeInlinePlayer();
         this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();
 
-        if (returnTo) {
-            void this.router.navigateByUrl(returnTo);
+        if (back.kind === 'history-back') {
+            // One-shot: retire the contract so a browser Forward onto this
+            // entry cannot replay it for a freshly opened title.
+            consumeStalkerReturnMarker();
+            this.location.back();
+        } else if (back.kind === 'navigate') {
+            void this.router.navigateByUrl(back.url);
         }
     }
 

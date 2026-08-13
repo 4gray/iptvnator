@@ -26,8 +26,11 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import {
     clearNavigationStateKeys,
+    consumeStalkerReturnMarker,
     getOpenStalkerItemState,
+    getStalkerReturnByHistoryState,
     isProviderOnlyDetailState,
+    normalizeStalkerHandoffIdentity,
     PortalCatalogFacade,
     OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
@@ -333,6 +336,21 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
         const item = getOpenStalkerItemState(window.history.state);
         if (!item) {
+            // The handoff item is gone, but its return contract can still sit
+            // on this entry: leaving with the browser's own Back never runs a
+            // back affordance, so nothing retired it. Landing here with no
+            // detail open means the handoff is over — any title opened from
+            // the list now is a fresh selection whose Back must close it
+            // rather than exit to the collection.
+            // Scoped to collection handoffs, which are the only ones that
+            // set the history-back marker: a plain `stalkerReturnTo` caller
+            // (the dashboard) keeps its existing re-navigating behaviour.
+            if (
+                !this.selectedItem() &&
+                getStalkerReturnByHistoryState(window.history.state)
+            ) {
+                consumeStalkerReturnMarker();
+            }
             return;
         }
 
@@ -359,10 +377,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     ): string | null {
         const rawId =
             item?.id ?? item?.series_id ?? item?.movie_id ?? item?.stream_id;
-        const normalized = String(rawId ?? '')
-            .trim()
-            .split(':')[0]
-            ?.trim();
-        return normalized || null;
+        // Shared with the return-marker binding in
+        // `resolveStalkerBackNavigation()` so the two cannot drift apart.
+        return normalizeStalkerHandoffIdentity(rawId) || null;
     }
 }

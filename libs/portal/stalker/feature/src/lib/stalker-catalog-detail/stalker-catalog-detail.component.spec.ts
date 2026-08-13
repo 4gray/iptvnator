@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -16,6 +17,7 @@ import {
 } from '@iptvnator/services';
 import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { EMPTY, of } from 'rxjs';
+import { buildStalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerCatalogDetailComponent } from './stalker-catalog-detail.component';
@@ -68,6 +70,9 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const contentType = signal<'vod' | 'series'>('vod');
     const catalogPlaylist = signal({ id: 'stalker-1' });
     const snackBar = { open: jest.fn() };
+    const routerMock = { navigateByUrl: jest.fn() };
+    const locationMock = { back: jest.fn() };
+    const originalHistoryState = window.history.state;
     const selectedItem = signal<unknown>({
         id: '42',
         cmd: '/media/42',
@@ -85,6 +90,8 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         catalogPlaylist.set({ id: 'stalker-1' });
         snackBar.open.mockReset();
+        routerMock.navigateByUrl.mockReset();
+        locationMock.back.mockReset();
 
         await TestBed.configureTestingModule({
             imports: [StalkerCatalogDetailComponent],
@@ -123,7 +130,8 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                     useValue: { getPortalFavorites: jest.fn(() => of([])) },
                 },
                 { provide: DownloadsService, useValue: {} },
-                { provide: Router, useValue: { navigateByUrl: jest.fn() } },
+                { provide: Router, useValue: routerMock },
+                { provide: Location, useValue: locationMock },
                 { provide: MatSnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
@@ -153,6 +161,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
 
     afterEach(() => {
         fixture.destroy();
+        window.history.replaceState(originalHistoryState, '');
     });
 
     it('passes provider-only mode to the matching regular VOD', async () => {
@@ -318,5 +327,111 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         await fixture.whenStable();
 
         expect(fixture.componentInstance.inlinePlayback()).toBe(playback);
+    });
+
+    it('steps back through history for a collection handoff', () => {
+        // The collection's tab, scope and open inline detail live only on the
+        // previous history entry; re-navigating would drop them.
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('still re-navigates for a plain stalkerReturnTo handoff', () => {
+        window.history.replaceState(
+            { stalkerReturnTo: '/workspace/dashboard' },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(routerMock.navigateByUrl).toHaveBeenCalledWith(
+            '/workspace/dashboard'
+        );
+        expect(locationMock.back).not.toHaveBeenCalled();
+    });
+
+    it('does not navigate when no return target is present', () => {
+        window.history.replaceState({}, '');
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+        expect(locationMock.back).not.toHaveBeenCalled();
+    });
+
+    it('retires the return contract so a forward-replay cannot fire it again', () => {
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+        expect(window.history.state?.stalkerReturnByHistory).toBeUndefined();
+        expect(window.history.state?.stalkerReturnTo).toBeUndefined();
+    });
+
+    it('matches a selection whose id came from stream_id', () => {
+        // buildStalkerSelectedVodItem() derives `id` from `id ?? stream_id`,
+        // so that is the only shape the opened detail can report here.
+        selectedItem.set(
+            buildStalkerSelectedVodItem({
+                stream_id: '42',
+                cmd: '/media/42',
+            } as never)
+        );
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a marker left over from an earlier handoff on this entry', () => {
+        // The return keys outlive the handoff, and a Stalker detail opens in
+        // place — so a later title on the same entry must just close.
+        selectedItem.set({
+            id: '77',
+            cmd: '/media/77',
+            info: { name: 'A later title' },
+        });
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).not.toHaveBeenCalled();
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
     });
 });

@@ -7,11 +7,13 @@ import {
     input,
     signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
-    getStalkerReturnToState,
+    consumeStalkerReturnMarker,
+    resolveStalkerBackNavigation,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -71,6 +73,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         PlaybackPositionRuntimeBridgeService
     );
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
@@ -224,12 +227,23 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     }
 
     onVodBack(): void {
-        const returnTo = getStalkerReturnToState(window.history.state);
+        const back = resolveStalkerBackNavigation(
+            window.history.state,
+            this.selectedItem()
+        );
+        // Closing the detail is unconditional: a `none` decision (no return
+        // target, or a marker left by an earlier handoff) still returns the
+        // user to the category list — it only suppresses the navigation.
         this.closeInlinePlayer();
         this.catalog.clearSelectedItem();
 
-        if (returnTo) {
-            void this.router.navigateByUrl(returnTo);
+        if (back.kind === 'history-back') {
+            // One-shot: retire the contract so a browser Forward onto this
+            // entry cannot replay it for a freshly opened title.
+            consumeStalkerReturnMarker();
+            this.location.back();
+        } else if (back.kind === 'navigate') {
+            void this.router.navigateByUrl(back.url);
         }
     }
 

@@ -3,12 +3,137 @@ import {
     buildStalkerDetailNavigationTarget,
     buildStalkerStateItem,
     buildXtreamNavigationTarget,
+    clearNavigationStateKeys,
+    getStalkerReturnToState,
+    STALKER_RETURN_TO_STATE_KEY,
     WorkspaceNavigationTarget,
 } from './workspace-portal-navigation';
 import {
     isStalkerSeriesFlag,
     StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
+
+/**
+ * Marks a Stalker handoff whose origin is exactly one history entry back, so
+ * the portal detail's back affordance can step through history instead of
+ * re-navigating to `stalkerReturnTo`.
+ *
+ * The collection page keeps its active tab, scope and open inline detail only
+ * in `window.history.state` (`collectionViewState` / `openCollectionDetailItem`).
+ * `navigateByUrl()` starts a fresh entry without them, so the collection would
+ * come back on its default `live` tab and leave the portal page one browser
+ * Back away. Only this builder sets the marker, and only when it also supplies
+ * `returnTo`, so every other `stalkerReturnTo` caller keeps re-navigating.
+ *
+ * The value is the handed-off item's identity rather than a bare `true`:
+ * `openStalkerItem` is consumed on arrival, but the return keys stay on the
+ * history entry, and a Stalker detail opens in place without pushing one. So
+ * after a Back + browser Forward the same entry can host a *different* title,
+ * and an unbound marker would send that title's back affordance out to the
+ * collection instead of closing it. Binding scopes the whole return contract
+ * to the one title the handoff opened.
+ */
+export const STALKER_RETURN_BY_HISTORY_STATE_KEY = 'stalkerReturnByHistory';
+
+/**
+ * Reads the marker above off a history/navigation state record, returning the
+ * item identity it is bound to, or `null` when absent/malformed.
+ */
+export function getStalkerReturnByHistoryState(state: unknown): string | null {
+    if (!state || typeof state !== 'object') {
+        return null;
+    }
+
+    const raw = (state as Record<string, unknown>)[
+        STALKER_RETURN_BY_HISTORY_STATE_KEY
+    ];
+
+    return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+/**
+ * Normalizes a Stalker item id for marker comparison. Mirrors the catalog
+ * view's own `stalkerItemIdentity()`: a lazy episode id carries a `parent:child`
+ * suffix, and only the parent identifies the opened title.
+ */
+export function normalizeStalkerHandoffIdentity(value: unknown): string {
+    // `split` always yields at least one element, so the first is a string.
+    return String(value ?? '')
+        .trim()
+        .split(':')[0]
+        .trim();
+}
+
+/**
+ * Identity of a Stalker item for marker comparison, restricted to the fields
+ * that survive `buildStalkerSelectedVodItem()` — it derives `id` from
+ * `id ?? stream_id` and drops `series_id`/`movie_id`. Comparing against the
+ * wider `extractStalkerItemId()` set would read an identity the opened detail
+ * can no longer produce, so the marker would never match and the back
+ * affordance would silently do nothing.
+ */
+export function stalkerHandoffIdentityOf(item: unknown): string {
+    const raw = (item ?? {}) as Record<string, unknown>;
+
+    return normalizeStalkerHandoffIdentity(raw['id'] ?? raw['stream_id']);
+}
+
+/**
+ * True when the history entry's return marker belongs to the currently opened
+ * item. A marker left over from an earlier handoff on the same entry is stale
+ * and must not drive the back affordance.
+ */
+export function isStalkerReturnByHistoryFor(
+    state: unknown,
+    selectedItem: unknown
+): boolean {
+    const marker = getStalkerReturnByHistoryState(state);
+    const identity = stalkerHandoffIdentityOf(selectedItem);
+
+    return Boolean(marker && identity && marker === identity);
+}
+
+/**
+ * Retires the return contract from the current history entry. The handoff is
+ * one-shot: without this, browser Forward reopens the portal entry with the
+ * marker intact, and reopening the same title from the catalog would send its
+ * back affordance out to the collection instead of just closing it.
+ */
+export function consumeStalkerReturnMarker(): void {
+    clearNavigationStateKeys([
+        STALKER_RETURN_BY_HISTORY_STATE_KEY,
+        STALKER_RETURN_TO_STATE_KEY,
+    ]);
+}
+
+/**
+ * What a Stalker detail's back affordance should do, given the current history
+ * entry and the title it currently shows. Both back handlers share this so the
+ * marker/`returnTo` precedence cannot drift between them.
+ */
+export type StalkerBackNavigation =
+    | { kind: 'history-back' }
+    | { kind: 'navigate'; url: string }
+    | { kind: 'none' };
+
+export function resolveStalkerBackNavigation(
+    state: unknown,
+    selectedItem: unknown
+): StalkerBackNavigation {
+    // A collection handoff is exactly one entry back, and the collection's
+    // tab/scope/inline-detail live only on that entry — re-navigating would
+    // drop them and leave the portal page one browser Back away. The keys
+    // outlive the handoff though, so a marker bound to another title is stale
+    // and must suppress the whole contract: back then just closes the detail.
+    if (getStalkerReturnByHistoryState(state)) {
+        return isStalkerReturnByHistoryFor(state, selectedItem)
+            ? { kind: 'history-back' }
+            : { kind: 'none' };
+    }
+
+    const returnTo = getStalkerReturnToState(state);
+    return returnTo ? { kind: 'navigate', url: returnTo } : { kind: 'none' };
+}
 
 /**
  * Builds the portal-detail target for a collection item, or `null` when no
@@ -52,19 +177,49 @@ export function getUnifiedCollectionDetailNavigation(
             type
         );
 
-        return buildStalkerDetailNavigationTarget({
+        const returnTo = options?.returnTo ?? null;
+        const stalkerId = item.stalkerId ?? lastUidSegment(item.uid) ?? '';
+        const stateItem = buildStalkerStateItem(stalkerItem, {
+            id: stalkerId,
+            title: item.name,
+            type,
+            category_id: categoryId,
+            poster_url: item.posterUrl ?? item.logo ?? undefined,
+        });
+
+        // `buildStalkerStateItem()` keeps the raw row as-is, and
+        // `buildStalkerSelectedVodItem()` later derives `id` from
+        // `id ?? stream_id` only. A row carrying just `movie_id`/`series_id`
+        // would therefore open with an empty identity — nothing the marker
+        // could bind to. Pin the resolved id so those rows get the same
+        // history return as every other one instead of degrading to a
+        // re-navigation that resets the collection's tab.
+        if (!stalkerHandoffIdentityOf(stateItem)) {
+            const resolvedId = normalizeStalkerHandoffIdentity(stalkerId);
+            if (resolvedId) {
+                stateItem['id'] = resolvedId;
+            }
+        }
+
+        const target = buildStalkerDetailNavigationTarget({
             playlistId: item.playlistId,
             type,
             categoryId,
-            item: buildStalkerStateItem(stalkerItem, {
-                id: item.stalkerId ?? lastUidSegment(item.uid) ?? '',
-                title: item.name,
-                type,
-                category_id: categoryId,
-                poster_url: item.posterUrl ?? item.logo ?? undefined,
-            }),
-            returnTo: options?.returnTo ?? null,
+            item: stateItem,
+            returnTo,
         });
+
+        const handoffIdentity = stalkerHandoffIdentityOf(stateItem);
+
+        return returnTo && handoffIdentity
+            ? {
+                  ...target,
+                  state: {
+                      ...(target.state ?? {}),
+                      [STALKER_RETURN_BY_HISTORY_STATE_KEY]: handoffIdentity,
+                  },
+              }
+            : target;
     }
 
     return null;
