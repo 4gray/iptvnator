@@ -71,8 +71,9 @@ export function getUnifiedCollectionDetailNavigation(
 }
 
 /**
- * Mirrors `StalkerCollectionDetailComponent.resolveDetailMode()`: only a
- * regular `/series` item belongs in the series catalog. Embedded `series[]`
+ * Mirrors `resolveStalkerCollectionDetailMode()` in
+ * `libs/portal/stalker/feature/src/lib/stalker-collection-detail-mode.ts`:
+ * only a regular `/series` item belongs in the series catalog. Embedded `series[]`
  * snapshots and lazy Ministra VOD `is_series` items normalize to `series` in
  * `extractStalkerItemType()` but must stay in the VOD catalog — the lazy
  * season/episode fetch in `StalkerCatalogFacadeService.selectItem()` is gated
@@ -97,7 +98,8 @@ function resolveStalkerDetailType(
 }
 
 /**
- * Mirrors `StalkerCollectionDetailComponent.resolveSelectedCategory()`: a
+ * Mirrors `resolveStalkerCollectionSelectedCategory()` in
+ * `libs/portal/stalker/feature/src/lib/stalker-collection-detail-mode.ts`: a
  * VOD-catalog item persisted from the series view carries the virtual
  * `series` category, which would otherwise form a `/vod/series` route.
  */

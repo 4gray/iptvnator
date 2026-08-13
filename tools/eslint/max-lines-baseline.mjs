@@ -41,7 +41,6 @@ export const maxLinesBaseline = [
     'libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-content.feature.ts',
     'libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-epg.feature.ts',
     'libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-player.feature.ts',
-    'libs/portal/stalker/feature/src/lib/stalker-collection-detail.component.ts',
     'libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts',
     'libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts',
     'libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts',

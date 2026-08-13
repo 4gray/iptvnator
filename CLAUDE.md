@@ -1247,15 +1247,17 @@ engine` (restart required) or
   section-only route: an Xtream item without a resolvable category and positive
   item id keeps the action hidden rather than promising a jump to the title and
   landing in a list.
-- Stalker section resolution mirrors
-  `StalkerCollectionDetailComponent.resolveDetailMode()` and must not be
+- Stalker section resolution mirrors `resolveStalkerCollectionDetailMode()`
+  (`libs/portal/stalker/feature/src/lib/stalker-collection-detail-mode.ts`) and
+  must not be
   simplified to `item.contentType`: `extractStalkerItemType()` reports `series`
   for embedded `series[]` snapshots and lazy Ministra VOD `is_series` items, but
   both belong in the VOD catalog — the lazy season/episode fetch in
   `StalkerCatalogFacadeService.selectItem()` is gated on the VOD content type, so
   a `/series` route leaves the detail unable to load episodes. The virtual
   `series` category is normalized to `vod` the same way
-  `resolveSelectedCategory()` does. Stalker also carries `stalkerReturnTo`.
+  `resolveStalkerCollectionSelectedCategory()` does. Stalker also carries
+  `stalkerReturnTo`.
 - Unlike the download handoff this bridge does NOT pass
   `detailPresentation: 'provider-only'` — the item exists in the provider
   catalog, so the full normal detail (downloads included) is wanted.
