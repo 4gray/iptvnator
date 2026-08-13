@@ -17,7 +17,11 @@ import {
     tmdbPosterUrl,
     topCast,
 } from '@iptvnator/services';
-import { Channel, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import {
+    Channel,
+    ResolvedPortalPlayback,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
@@ -68,6 +72,12 @@ export class M3uVodDetailComponent {
     readonly inlinePlayerAvailable = input(true);
     /** M3U's shared persisted volume (localStorage `volume`). */
     readonly volume = input(1);
+    /**
+     * Engine the parent already resolved from settings. Without it the shared
+     * player waits for its own asynchronous settings read and mounts Video.js
+     * meanwhile, then swaps — the live layout passes the same value.
+     */
+    readonly playerOverride = input<VideoPlayer | null>(null);
 
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     /**

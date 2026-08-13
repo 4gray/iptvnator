@@ -91,6 +91,7 @@
             [playbackSessionKey]="playbackSessionKey()"
             [playback]="playback"
             [volume]="volume()"
+            [playerOverride]="playerOverride()"
             (closed)="closeInlinePlayback()"
             (externalFallbackRequested)="externalFallbackRequested.emit($event)"
         />

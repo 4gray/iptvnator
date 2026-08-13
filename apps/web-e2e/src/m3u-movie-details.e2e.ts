@@ -145,12 +145,45 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     await enableTmdb(page);
     await importPlaylist(page);
 
+    // Record every engine that is ever attached. A polling assertion cannot
+    // see the defect this guards: mounting Video.js first and correcting to
+    // the saved engine a tick later leaves the same final DOM.
+    await page.evaluate(() => {
+        const seen = new Set<string>();
+        (window as unknown as { __enginesSeen: Set<string> }).__enginesSeen =
+            seen;
+        const record = () => {
+            for (const selector of [
+                'app-vjs-player',
+                'app-html-video-player',
+            ]) {
+                if (document.querySelector(selector)) {
+                    seen.add(selector);
+                }
+            }
+        };
+        record();
+        new MutationObserver(record).observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    });
+
     // Watch-first: activating the entry plays immediately inside the detail
     // shell, with no EPG zone in sight.
     await sidebarEntry(page, 'Dune (2021) 1080p').click();
     await expect(detail(page)).toBeVisible();
     await expect(inlineVideo(page)).toBeVisible();
     await expect(page.locator('app-epg-timeline')).toHaveCount(0);
+    // The engine is part of the application token, so the saved player must
+    // mount FIRST TIME — a late correction swaps the player mid-playback.
+    await expect(detail(page).locator('app-html-video-player')).toHaveCount(1);
+    expect(
+        await page.evaluate(() => [
+            ...(window as unknown as { __enginesSeen: Set<string> })
+                .__enginesSeen,
+        ])
+    ).toEqual(['app-html-video-player']);
 
     // Metadata patches the mounted view asynchronously. The shell stamps the
     // host templates into BOTH the hero and the watch-state About block, so

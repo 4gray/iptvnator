@@ -45,6 +45,7 @@ class StubPortalInlinePlayerComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly volume = input(1);
+    readonly playerOverride = input<unknown>(null);
     readonly closed = output<void>();
     readonly externalFallbackRequested = output<unknown>();
 }
@@ -185,6 +186,14 @@ describe('M3uVodDetailComponent', () => {
         });
 
         expect(inlinePlayerStub()?.volume()).toBe(0.35);
+    });
+
+    it('forwards the resolved engine so the player never mounts a wrong one', async () => {
+        await create({ channel: channel(), playback: playback() });
+        fixture.componentRef.setInput('playerOverride', 'html5');
+        fixture.detectChanges();
+
+        expect(inlinePlayerStub()?.playerOverride()).toBe('html5');
     });
 
     it('keeps the playback payload identical when TMDB metadata lands', async () => {
