@@ -6,13 +6,10 @@ import {
     XtreamPortalStatusResponseLike,
 } from '@iptvnator/shared/interfaces';
 import { DataService } from './data.service';
+import { resetHostConnectivityGuard } from './host-connectivity-reset';
 
 export type PortalStatus =
-    | 'active'
-    | 'inactive'
-    | 'expired'
-    | 'unavailable'
-    | 'checking';
+    'active' | 'inactive' | 'expired' | 'unavailable' | 'checking';
 
 /**
  * Status plus the parsed account expiration from the same round-trip the
@@ -135,6 +132,14 @@ export class PortalStatusService {
             if (pending) {
                 return pending;
             }
+        } else {
+            // Skipping the cache means the user asked to test this portal
+            // right now, so the main process must forget any connection
+            // failures it recorded for the host and contact it for real.
+            await resetHostConnectivityGuard(
+                this.dataService,
+                connection.serverUrl
+            );
         }
 
         const request = this.fetchPortalStatus(

@@ -3,7 +3,11 @@ import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
-import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    CONNECTIVITY_GUARD_RESET,
+    PlaylistMeta,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { StalkerItvChannel } from '../../models';
 import { StalkerItvCacheService } from '../../stalker-itv-cache.service';
 import { StalkerSessionService } from '../../stalker-session.service';
@@ -107,7 +111,9 @@ async function waitForCondition(
  * Controllable stand-in for StalkerItvCacheService so the legacy paged flow
  * can be tested in isolation and the cache-served flow deterministically.
  */
-function createItvCacheMock(initialChannels: StalkerItvChannel[] | null = null) {
+function createItvCacheMock(
+    initialChannels: StalkerItvChannel[] | null = null
+) {
     const version = signal(0);
     let channels = initialChannels;
 
@@ -395,9 +401,11 @@ describe('withStalkerContent failure states', () => {
         store.setPage(1);
         await waitForCondition(() => store.getPaginatedContent().length === 3);
 
-        expect(
-            store.getPaginatedContent().map((item) => item.name)
-        ).toEqual(['Movie page 1', 'Shared Movie', 'Movie page 2']);
+        expect(store.getPaginatedContent().map((item) => item.name)).toEqual([
+            'Movie page 1',
+            'Shared Movie',
+            'Movie page 2',
+        ]);
         expect(store.hasMoreContent()).toBe(false);
     });
 
@@ -492,19 +500,27 @@ describe('withStalkerContent failure states', () => {
         );
 
         // The failed append left page 1 on screen, not the empty state.
-        expect(
-            store.getPaginatedContent().map((item) => item.name)
-        ).toEqual(['Movie page 1']);
+        expect(store.getPaginatedContent().map((item) => item.name)).toEqual([
+            'Movie page 1',
+        ]);
         expect(store.contentError()).toBeNull();
 
         failPageTwo = false;
-        store.retryContentPage();
+        dataService.sendIpcEvent.mockClear();
+        await store.retryContentPage();
         await waitForCondition(() => store.getPaginatedContent().length === 2);
 
+        // Two failed appends are exactly what opens the main process'
+        // connectivity guard, so the retry has to clear it FIRST — otherwise
+        // this button fast-fails without a request and looks broken.
+        const [firstChannel] = dataService.sendIpcEvent.mock.calls[0];
+        expect(firstChannel).toBe(CONNECTIVITY_GUARD_RESET);
+
         expect(store.hasContentAppendError()).toBe(false);
-        expect(
-            store.getPaginatedContent().map((item) => item.name)
-        ).toEqual(['Movie page 1', 'Movie page 2']);
+        expect(store.getPaginatedContent().map((item) => item.name)).toEqual([
+            'Movie page 1',
+            'Movie page 2',
+        ]);
     });
 
     it('falls back to a synthetic all-radio category when radio categories are unavailable', async () => {
@@ -650,7 +666,12 @@ describe('withStalkerContent failure states', () => {
 describe('withStalkerContent full ITV channel list cache', () => {
     const CACHED_CHANNELS: StalkerItvChannel[] = [
         { id: '1', cmd: 'ffrt http://x/1', name: 'News One', tv_genre_id: '5' },
-        { id: '2', cmd: 'ffrt http://x/2', name: 'Sports HD', tv_genre_id: '9' },
+        {
+            id: '2',
+            cmd: 'ffrt http://x/2',
+            name: 'Sports HD',
+            tv_genre_id: '9',
+        },
         { id: '3', cmd: 'ffrt http://x/3', name: 'News Two', tv_genre_id: '5' },
     ];
 

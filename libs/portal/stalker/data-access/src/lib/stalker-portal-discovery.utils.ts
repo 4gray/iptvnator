@@ -9,7 +9,10 @@
  * it responds, instead of guessing from the URL shape (#850, #686, #755).
  */
 
-import { isStalkerAuthFailureResponse } from '@iptvnator/shared/interfaces';
+import {
+    isHostConnectivityFastFailMessage,
+    isStalkerAuthFailureResponse,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Candidate API endpoints for a pasted portal URL, in probe order.
@@ -199,6 +202,13 @@ export function isStalkerProbeTimeout(error: unknown): boolean {
     }
 
     const message = String((error as { message?: unknown }).message ?? '');
+    // The connectivity guard's refusal names the portal endpoint, and a
+    // hostname is user data. A guard refusal is a connection-level failure, so
+    // it must not be read as one candidate hanging while its siblings answer.
+    if (isHostConnectivityFastFailMessage(message)) {
+        return false;
+    }
+
     return /timed out|timeout of \d+\s*ms|ETIMEDOUT/i.test(message);
 }
 

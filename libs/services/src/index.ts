@@ -1,6 +1,7 @@
 export * from './lib/catalog-title-match.service';
 export * from './lib/cross-portal-similar.service';
 export * from './lib/data.service';
+export * from './lib/host-connectivity-reset';
 export * from './lib/database-electron.service';
 export * from './lib/downloads.service';
 export * from './lib/playback-position-runtime-bridge.service';

@@ -1,3 +1,4 @@
+import { buildHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerEndpointCandidates,
     classifyStalkerProbeResponse,
@@ -5,6 +6,7 @@ import {
     isStalkerAuthFailureBody,
     isStalkerAuthFailureMessage,
     isStalkerAuthFailureResponse,
+    isStalkerProbeTimeout,
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
 } from './stalker-portal-discovery.utils';
@@ -364,6 +366,65 @@ describe('getStalkerRequestErrorStatus', () => {
         expect(getStalkerRequestErrorStatus(new Error('boom'))).toBeUndefined();
         expect(getStalkerRequestErrorStatus(undefined)).toBeUndefined();
         expect(getStalkerRequestErrorStatus({ status: '404' })).toBeUndefined();
+    });
+});
+
+describe('host connectivity guard fast-fail message', () => {
+    // The main process refuses requests to a host that stopped answering, and
+    // only the message survives `ipcRenderer.invoke`. These assertions are the
+    // contract: the wording must land in the "connection-level failure" slot,
+    // because that is what a tripped guard actually means. Any other reading
+    // has a consequence — a parsed status makes discovery walk every candidate
+    // and can fire lazy repair against a host we just declared dead; timeout
+    // wording loses the abort-early semantics; an auth phrase fires repair too.
+    const message = buildHostConnectivityFastFailMessage(
+        'http://portal.example:8080'
+    );
+    const ipcWrapped = new Error(
+        `Error invoking remote method 'STALKER_REQUEST': ${message}`
+    );
+
+    it('carries no HTTP status, bare or IPC-wrapped', () => {
+        expect(
+            getStalkerRequestErrorStatus(new Error(message))
+        ).toBeUndefined();
+        expect(getStalkerRequestErrorStatus(ipcWrapped)).toBeUndefined();
+    });
+
+    it('does not read as a timeout', () => {
+        expect(isStalkerProbeTimeout(new Error(message))).toBe(false);
+        expect(isStalkerProbeTimeout(ipcWrapped)).toBe(false);
+    });
+
+    it('does not read as an authorization failure', () => {
+        expect(isStalkerAuthFailureMessage(message)).toBe(false);
+        expect(isStalkerAuthFailureMessage(ipcWrapped.message)).toBe(false);
+    });
+
+    it('survives an endpoint whose hostname reads like a classifier keyword', () => {
+        // The endpoint is interpolated user data: a portal at
+        // `https://authorization.example` would otherwise match the broad auth
+        // phrase set and send an unreachable host into lazy portal repair.
+        const keywordHost = buildHostConnectivityFastFailMessage(
+            'https://authorization.example'
+        );
+
+        expect(isStalkerAuthFailureMessage(keywordHost)).toBe(false);
+        expect(isStalkerProbeTimeout(new Error(keywordHost))).toBe(false);
+        expect(
+            getStalkerRequestErrorStatus(new Error(keywordHost))
+        ).toBeUndefined();
+
+        const unauthorizedHost = buildHostConnectivityFastFailMessage(
+            'http://unauthorized.example:8080'
+        );
+        expect(isStalkerAuthFailureMessage(unauthorizedHost)).toBe(false);
+    });
+
+    it('names the endpoint so the snackbar it reaches says something useful', () => {
+        // Scheme included: the same panel can be imported over both HTTP and
+        // HTTPS, and the user needs to know which one was skipped.
+        expect(message).toContain('http://portal.example:8080');
     });
 });
 

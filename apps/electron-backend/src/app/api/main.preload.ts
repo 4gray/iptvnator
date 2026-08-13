@@ -682,7 +682,10 @@ const electronApi: ElectronBridgeApi = {
         token?: string;
         serialNumber?: string;
         requestId?: string;
+        skipConnectionGuard?: boolean;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
+    resetHostConnectivityGuard: (url: string) =>
+        ipcRenderer.invoke('CONNECTIVITY_GUARD_RESET', { url }),
     xtreamRequest: (payload: {
         url: string;
         params: Record<string, string>;

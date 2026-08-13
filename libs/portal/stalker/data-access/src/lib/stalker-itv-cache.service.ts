@@ -1,6 +1,9 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from '@iptvnator/services';
+import {
+    DataService,
+    resetHostConnectivityGuard,
+} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerItvChannel } from './models';
 import {
@@ -131,6 +134,14 @@ export class StalkerItvCacheService {
         if (pending) {
             return pending;
         }
+
+        // Same reason this clears its own error cooldown: the user asked for
+        // fresh channels, so a host the main process gave up on must be
+        // contacted for real rather than fast-failed.
+        await resetHostConnectivityGuard(
+            this.requestDeps.dataService,
+            playlist.portalUrl
+        );
 
         this.unsupportedKeys.delete(key);
         this.errorCooldownUntil.delete(key);

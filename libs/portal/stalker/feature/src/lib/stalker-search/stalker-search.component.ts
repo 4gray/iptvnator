@@ -22,7 +22,11 @@ import {
     StalkerPortalRepairService,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    resetHostConnectivityGuard,
+} from '@iptvnator/services';
 import {
     PlaybackPositionData,
     ResolvedPortalPlayback,
@@ -404,12 +408,28 @@ export class StalkerSearchComponent {
 
         if (this.searchAppendError()) {
             // Retry the SAME page — advancing would permanently omit it.
-            this.searchAppendError.set(false);
-            this.searchResultsResource.reload();
+            void this.retrySearchPage();
             return;
         }
 
         this.searchPage.update((page) => page + 1);
+    }
+
+    /**
+     * Two failed search pages are exactly what opens the main process'
+     * connectivity guard, so the reset has to precede the reload — otherwise
+     * this retry fast-fails without contacting a portal that may have
+     * recovered, and keeps repeating the same error until the window expires.
+     */
+    private async retrySearchPage(): Promise<void> {
+        // Clear the flag synchronously: awaiting first would leave this branch
+        // re-enterable, and the next `nearEnd` event would fire a second retry.
+        this.searchAppendError.set(false);
+        await resetHostConnectivityGuard(
+            this.dataService,
+            this.currentPlaylist()?.portalUrl
+        );
+        this.searchResultsResource.reload();
     }
 
     readonly isSelectedVodFavorite = signal<boolean>(false);

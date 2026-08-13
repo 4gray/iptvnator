@@ -11,6 +11,7 @@ import {
     isDbAbortError,
     PlaybackPositionService,
     PlaylistRefreshService,
+    resetHostConnectivityGuard,
     RuntimeCapabilitiesService,
     SettingsStore,
     XtreamPendingRestoreService,
@@ -124,6 +125,16 @@ export class PlaylistRefreshActionService {
                 });
 
                 try {
+                    // Before anything destructive: this refresh deletes the
+                    // cached catalog and then forces a route bootstrap whose
+                    // status request would be fast-failed by an open
+                    // connectivity guard, leaving the user with no catalog at
+                    // all until the cooldown expires.
+                    await resetHostConnectivityGuard(
+                        this.dataService,
+                        item.serverUrl
+                    );
+
                     this.snackBar.open(
                         this.translate.instant(
                             'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'

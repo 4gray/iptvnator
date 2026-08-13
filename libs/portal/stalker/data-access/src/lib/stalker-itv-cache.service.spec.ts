@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { DataService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    CONNECTIVITY_GUARD_RESET,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { StalkerItvCacheService } from './stalker-itv-cache.service';
 import { StalkerSessionService } from './stalker-session.service';
 
@@ -50,7 +53,9 @@ function pageOf(items: unknown[], totalItems: number, pageSize = 14) {
     };
 }
 
-const UNSUPPORTED_ACTION = { js: { error: 'Unknown action: get_all_channels' } };
+const UNSUPPORTED_ACTION = {
+    js: { error: 'Unknown action: get_all_channels' },
+};
 
 // Depth 10: executeStalkerRequest routes through an extra async hop for
 // the portal-repair pipeline, so page transitions settle a tick later.
@@ -66,7 +71,12 @@ describe('StalkerItvCacheService', () => {
 
     function mockRequests(handlers: RequestHandlers): void {
         sendIpcEvent.mockImplementation(
-            async (_event: unknown, payload: unknown) => {
+            async (event: unknown, payload: unknown) => {
+                // An explicit refresh clears the main process' connectivity
+                // guard first; that call carries no `params`.
+                if (event === CONNECTIVITY_GUARD_RESET) {
+                    return { success: true };
+                }
                 const params = (payload as { params: StalkerParams }).params;
                 if (params['action'] === 'get_all_channels') {
                     if (!handlers.allChannels) {
@@ -282,6 +292,22 @@ describe('StalkerItvCacheService', () => {
         }
     });
 
+    it('a refresh clears the connectivity guard before contacting the portal', async () => {
+        // Same reason it bypasses the local cooldown: the user asked for fresh
+        // channels, so a host the main process gave up on has to be contacted
+        // for real instead of fast-failed.
+        mockRequests({
+            allChannels: () => pageOf([channel('1', 'News One', '5')], 1),
+        });
+
+        await service.refresh(PLAYLIST);
+
+        expect(sendIpcEvent.mock.calls[0][0]).toBe(CONNECTIVITY_GUARD_RESET);
+        expect(sendIpcEvent.mock.calls[0][1]).toEqual({
+            url: PLAYLIST.portalUrl,
+        });
+    });
+
     it('a refresh bypasses the error cooldown', async () => {
         const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(2_000_000);
         try {
@@ -307,10 +333,7 @@ describe('StalkerItvCacheService', () => {
     it('deduplicates channels returned across crawl pages (portal ignoring the page param)', async () => {
         const samePage = () =>
             pageOf(
-                [
-                    channel('1', 'News One', '5'),
-                    channel('2', 'Sports HD', '9'),
-                ],
+                [channel('1', 'News One', '5'), channel('2', 'Sports HD', '9')],
                 // Portal claims many items but returns the same two regardless
                 // of `p`.
                 280
@@ -341,9 +364,10 @@ describe('StalkerItvCacheService', () => {
 
         await service.ensureLoaded(PLAYLIST);
 
-        expect(
-            service.getChannels(PLAYLIST)?.map((c) => c.id)
-        ).toEqual(['1', '2']);
+        expect(service.getChannels(PLAYLIST)?.map((c) => c.id)).toEqual([
+            '1',
+            '2',
+        ]);
     });
 
     it('deduplicates concurrent load requests', async () => {
