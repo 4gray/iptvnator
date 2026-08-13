@@ -12,9 +12,9 @@ import { By } from '@angular/platform-browser';
 import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
-import { of, Subject } from 'rxjs';
+import { of } from 'rxjs';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { ErrorDetails, ErrorTypes } from 'hls.js';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
 import {
@@ -119,6 +119,7 @@ describe('WebPlayerViewComponent', () => {
     let component: WebPlayerViewComponentInstance;
     const storageMap = {
         get: jest.fn(() => of({ player: VideoPlayer.VideoJs })),
+        set: jest.fn(() => of(undefined)),
     };
     let runtimeCapabilities: { supportsManagedExternalPlayers: boolean };
 
@@ -591,19 +592,7 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('renders embedded MPV before settings storage emits', () => {
-        fixture.destroy();
-
-        const pendingSettings = new Subject<unknown>();
-        storageMap.get.mockReturnValue(pendingSettings.asObservable());
-        fixture = TestBed.createComponent(WebPlayerViewComponent);
-        fixture.componentRef.setInput('playbackSessionKey', 'test-session');
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput(
-            'streamUrl',
-            'https://example.com/archive/movie.mkv'
-        );
-        fixture.componentRef.setInput('title', 'Example Movie');
+    it('renders embedded MPV with an empty recording folder fallback', () => {
         fixture.componentRef.setInput(
             'playerOverride',
             VideoPlayer.EmbeddedMpv
@@ -615,6 +604,124 @@ describe('WebPlayerViewComponent', () => {
             By.directive(StubEmbeddedMpvPlayerComponent)
         ).componentInstance as StubEmbeddedMpvPlayerComponent;
         expect(player.recordingFolder()).toBe('');
+    });
+
+    describe('saved player changes', () => {
+        // The selected engine must come from the live SettingsStore signal.
+        // It used to come from a one-shot StorageMap snapshot taken at mount,
+        // so a saved player change (settings page, command palette) never
+        // reached an already-mounted Xtream/Stalker player.
+        it('switches the mounted engine when the saved player changes', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).not.toBeNull();
+
+            await TestBed.inject(SettingsStore).updateSettings({
+                player: VideoPlayer.Html5Player,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).toBeNull();
+            expect(
+                fixture.debugElement.query(
+                    By.directive(StubHtmlVideoPlayerComponent)
+                )
+            ).not.toBeNull();
+        });
+
+        it('mounts the engine saved in the settings store on first render', async () => {
+            const settingsStore = TestBed.inject(SettingsStore);
+            await settingsStore.loadSettings();
+            await settingsStore.updateSettings({
+                player: VideoPlayer.ArtPlayer,
+            });
+
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubArtPlayerComponent))
+            ).not.toBeNull();
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).toBeNull();
+        });
+
+        it('retains the mounted engine when the saved player becomes MPV/VLC', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).not.toBeNull();
+
+            // The view can neither render nor launch an external player, so
+            // the switch must not blank the viewport; it applies when the
+            // host starts the next playback.
+            await TestBed.inject(SettingsStore).updateSettings({
+                player: VideoPlayer.MPV,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).not.toBeNull();
+
+            // A later inline choice still applies live.
+            await TestBed.inject(SettingsStore).updateSettings({
+                player: VideoPlayer.Html5Player,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).toBeNull();
+            expect(
+                fixture.debugElement.query(
+                    By.directive(StubHtmlVideoPlayerComponent)
+                )
+            ).not.toBeNull();
+        });
+
+        it('keeps an explicit playerOverride ahead of the saved player', async () => {
+            fixture.componentRef.setInput(
+                'playerOverride',
+                VideoPlayer.ArtPlayer
+            );
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            await TestBed.inject(SettingsStore).updateSettings({
+                player: VideoPlayer.Html5Player,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubArtPlayerComponent))
+            ).not.toBeNull();
+            expect(
+                fixture.debugElement.query(
+                    By.directive(StubHtmlVideoPlayerComponent)
+                )
+            ).toBeNull();
+        });
     });
 
     it('suppresses browser diagnostics while embedded MPV is selected', () => {

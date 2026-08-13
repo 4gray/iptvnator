@@ -534,6 +534,139 @@ test('@xtream minimal scenario — reduced item count', async ({ request }) => {
     expect(streams.length).toBe(10);
 });
 
+// ---------------------------------------------------------------------------
+// Player engine selection on the live route
+//
+// The Xtream live layout mounts app-web-player-view WITHOUT a playerOverride,
+// so the engine must track the saved player setting live. Regression guarded:
+// the engine used to come from a one-shot storage snapshot taken at mount, so
+// a command-palette switch confirmed via snackbar and persisted the setting
+// while the mounted player silently kept the previous engine.
+// ---------------------------------------------------------------------------
+
+async function openLiveChannel(page: Page): Promise<void> {
+    await page.goto(page.url().replace(/\/vod.*$/, '/live'));
+
+    // On the live root the category click updates store state without
+    // navigating; the channel sidebar appearing is the completion signal.
+    const firstCategory = page
+        .locator('.context-panel .category-item')
+        .first();
+    await expect(firstCategory).toBeVisible();
+    await firstCategory.click();
+
+    const channel = page
+        .locator('app-live-stream-layout [data-test-id="channel-item"]')
+        .first();
+    await expect(channel).toBeVisible();
+    await channel.click();
+}
+
+test('@xtream command palette player switch reaches the mounted live player', async ({
+    page,
+}) => {
+    await addXtreamPortal(page);
+    await openLiveChannel(page);
+
+    const playerView = page.locator('app-web-player-view');
+    await expect(playerView.locator('app-vjs-player')).toBeVisible({
+        timeout: 15_000,
+    });
+
+    // Tag the mounted layout so the final assertion proves the switch reached
+    // the EXISTING player instead of surviving through a layout remount.
+    await page.locator('app-live-stream-layout').evaluate((el) => {
+        (el as HTMLElement & { __e2eSameMount?: boolean }).__e2eSameMount =
+            true;
+    });
+
+    await page.keyboard.press('Control+k');
+    const palette = page.locator('.workspace-command-palette-overlay');
+    await expect(palette).toBeVisible();
+    await palette.locator('input[type="search"]').fill('html5');
+    await palette
+        .getByRole('button', { name: 'Switch player to HTML5 video player' })
+        .click();
+
+    await expect(playerView.locator('app-html-video-player')).toBeVisible({
+        timeout: 15_000,
+    });
+    await expect(playerView.locator('app-vjs-player')).toHaveCount(0);
+    expect(
+        await page
+            .locator('app-live-stream-layout')
+            .evaluate(
+                (el) =>
+                    (el as HTMLElement & { __e2eSameMount?: boolean })
+                        .__e2eSameMount
+            )
+    ).toBe(true);
+});
+
+test('@xtream the saved engine mounts the live player first time — no default-engine flash', async ({
+    page,
+}) => {
+    // Persist HTML5 as the saved player before any player ever mounts.
+    await page.goto('/workspace/settings/playback');
+    await page.locator('[data-test-id="select-video-player"]').click();
+    await page
+        .getByRole('option', { name: 'HTML5 video player', exact: true })
+        .click();
+    const saveButton = page.getByRole('button', { name: 'Save changes' });
+    await saveButton.click();
+    await expect(saveButton).toBeHidden();
+
+    await page.goto('/');
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/live'));
+    const firstCategory = page
+        .locator('.context-panel .category-item')
+        .first();
+    await expect(firstCategory).toBeVisible();
+    await firstCategory.click();
+
+    // Record every engine that is ever attached. A polling assertion cannot
+    // see the defect this guards: mounting Video.js first and correcting to
+    // the saved engine once the async settings read lands leaves the same
+    // final DOM.
+    await page.evaluate(() => {
+        const seen = new Set<string>();
+        (window as unknown as { __enginesSeen: Set<string> }).__enginesSeen =
+            seen;
+        const record = () => {
+            for (const selector of [
+                'app-vjs-player',
+                'app-html-video-player',
+            ]) {
+                if (document.querySelector(selector)) {
+                    seen.add(selector);
+                }
+            }
+        };
+        record();
+        new MutationObserver(record).observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    });
+
+    const channel = page
+        .locator('app-live-stream-layout [data-test-id="channel-item"]')
+        .first();
+    await expect(channel).toBeVisible();
+    await channel.click();
+
+    await expect(
+        page.locator('app-web-player-view app-html-video-player')
+    ).toBeVisible({ timeout: 15_000 });
+    expect(
+        await page.evaluate(() => [
+            ...(window as unknown as { __enginesSeen: Set<string> })
+                .__enginesSeen,
+        ])
+    ).toEqual(['app-html-video-player']);
+});
+
 type XtreamLiveStream = {
     category_id: string;
     name: string;
