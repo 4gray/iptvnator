@@ -33,14 +33,11 @@ import {
     DataService,
     DbOperationEvent,
     isDbAbortError,
-    PlaybackPositionService,
     PlaylistDeleteActionService,
     PlaylistRefreshService,
-    resetHostConnectivityGuard,
     RuntimeCapabilitiesService,
     SortBy,
     SortService,
-    XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import {
     PLAYLIST_UPDATE,
@@ -52,6 +49,10 @@ import {
     RENDERER_PERFORMANCE_PHASE,
 } from '@iptvnator/shared/logging';
 
+import {
+    XtreamRefreshFlowService,
+    type XtreamRefreshProgressReporter,
+} from '../xtream-refresh-flow.service';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import type { PlaylistType } from '../add-playlist-menu/playlist-type';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
@@ -83,7 +84,6 @@ export class RecentPlaylistsComponent {
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly dataService = inject(DataService);
-    private readonly playbackPositionService = inject(PlaybackPositionService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
@@ -93,9 +93,7 @@ export class RecentPlaylistsComponent {
     private readonly translate = inject(TranslateService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
-    private readonly pendingRestoreService = inject(
-        XtreamPendingRestoreService
-    );
+    private readonly xtreamRefreshFlow = inject(XtreamRefreshFlowService);
 
     readonly sidebarMode = input(false);
     readonly searchQueryInput = input<string>('');
@@ -341,124 +339,34 @@ export class RecentPlaylistsComponent {
      * Refresh Xtream playlist by deleting all data and re-importing from remote
      * @param item Xtream playlist to refresh
      */
-    async refreshXtreamPlaylist(item: PlaylistMeta) {
+    refreshXtreamPlaylist(item: PlaylistMeta): void {
         if (this.isDeletePending(item._id) || this.isRefreshPending(item._id)) {
             return;
         }
 
-        this.dialogService.openConfirmDialog({
-            title: this.translate.instant(
-                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.TITLE'
-            ),
-            message: this.translate.instant(
-                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'
-            ),
-            width: '400px',
-            onConfirm: async () => {
-                if (
-                    this.isDeletePending(item._id) ||
-                    this.isRefreshPending(item._id)
-                ) {
-                    return;
-                }
-
-                this.setPendingRefresh(item._id, true);
-                const operationId =
-                    this.databaseService.createOperationId('xtream-refresh');
-
-                try {
-                    // Before anything destructive, and for the same reason as
-                    // the shared refresh action: this deletes the cached catalog
-                    // and then navigates to re-import it, and an open
-                    // connectivity guard would fast-fail that bootstrap — the
-                    // user would be left with no catalog at all.
-                    await resetHostConnectivityGuard(
-                        this.dataService,
-                        item.serverUrl
-                    );
-
-                    // Show immediate feedback — deletion can take several seconds
-                    // for large playlists.
-                    this.snackBar.open(
-                        this.translate.instant(
-                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
-                        ),
-                        undefined,
-                        { duration: 2000 }
-                    );
-
-                    // Delete content/categories and update the timestamp in
-                    // parallel — both operations are fully independent.
-                    const updateDate = Date.now();
-                    const [restoreState, playbackPositions] = await Promise.all(
-                        [
-                            this.databaseService.deleteXtreamPlaylistContent(
-                                item._id,
-                                {
-                                    operationId,
-                                    onEvent: (workerEvent) =>
-                                        this.updateBusyOperation(
-                                            item._id,
-                                            workerEvent
-                                        ),
-                                }
-                            ),
-                            this.playbackPositionService.getAllPlaybackPositions(
-                                item._id
-                            ),
-                            this.databaseService.updateXtreamPlaylistDetails({
-                                id: item._id,
-                                updateDate,
-                            }),
-                        ]
-                    );
-
-                    if (
-                        !this.pendingRestoreService.set(item._id, {
-                            ...restoreState,
-                            playbackPositions,
-                        })
-                    ) {
-                        throw new Error(
-                            `Parking pending restore state for "${item._id}" failed.`
-                        );
-                    }
-
-                    // Update the timestamp in NgRx / IndexedDB
-                    measureRendererPerformancePhase(
-                        RENDERER_PERFORMANCE_PHASE.XTREAM_REFRESH_META,
-                        () =>
-                            this.store.dispatch(
-                                PlaylistActions.updatePlaylistMeta({
-                                    playlist: { ...item, updateDate },
-                                })
-                            ),
-                        () => ({ items: 1 })
-                    );
-
-                    // Navigate to the playlist to trigger re-import
-                    this.router.navigate(['/workspace', 'xtreams', item._id]);
-                } catch (error) {
-                    if (!isDbAbortError(error)) {
-                        console.error(
-                            'Error refreshing Xtream playlist:',
-                            error
-                        );
-                        this.snackBar.open(
-                            this.translate.instant(
-                                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
-                            ),
-                            undefined,
-                            { duration: 3000 }
-                        );
-                    }
-                } finally {
-                    this.clearBusyOperation(item._id);
-                    this.setPendingRefresh(item._id, false);
-                }
-            },
-        });
+        this.xtreamRefreshFlow.confirmAndRefresh(
+            item,
+            this.xtreamRefreshReporter
+        );
     }
+
+    /**
+     * Reports the shared destructive refresh into this page's per-row busy
+     * indicators, which are keyed by playlist and shared with deletion — hence
+     * the same `updateBusyOperation`/`clearBusyOperation` pair used there.
+     */
+    private readonly xtreamRefreshReporter: XtreamRefreshProgressReporter = {
+        isBusy: (playlistId) =>
+            this.isDeletePending(playlistId) ||
+            this.isRefreshPending(playlistId),
+        begin: ({ playlistId }) => this.setPendingRefresh(playlistId, true),
+        report: ({ playlistId }, event) =>
+            this.updateBusyOperation(playlistId, event),
+        end: ({ playlistId }) => {
+            this.clearBusyOperation(playlistId);
+            this.setPendingRefresh(playlistId, false);
+        },
+    };
 
     private async refreshM3uPlaylist(item: PlaylistMeta): Promise<void> {
         if (this.isDeletePending(item._id) || this.isRefreshPending(item._id)) {

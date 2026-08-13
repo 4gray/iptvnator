@@ -418,6 +418,12 @@ describe('RecentPlaylistsComponent busy state', () => {
             }>;
         }>();
         let confirmPromise: Promise<void> | undefined;
+        // The shared flow awaits the connectivity-guard reset before it starts
+        // deleting, so the delete is several ticks away and counting them is
+        // fragile. The mock fires onEvent synchronously and the component
+        // applies it synchronously, so resolving this deferred inside the mock
+        // is a deterministic "the busy row has been updated" signal.
+        const workerEventDelivered = createDeferred<void>();
 
         dialogService.openConfirmDialog.mockImplementation(
             ({ onConfirm }: { onConfirm?: () => Promise<void> }) => {
@@ -441,16 +447,14 @@ describe('RecentPlaylistsComponent busy state', () => {
                     current: 1,
                     total: 4,
                 });
+                workerEventDelivered.resolve();
+
                 return refresh.promise;
             }
         );
 
         component.refreshXtreamPlaylist(item);
-        // The refresh clears the connectivity guard before it starts deleting,
-        // so drain the microtask queue rather than counting exact ticks.
-        for (let index = 0; index < 6; index += 1) {
-            await Promise.resolve();
-        }
+        await workerEventDelivered.promise;
 
         expect(component.isRefreshPending(item._id)).toBe(true);
         expect(component.getBusyMessage(item)).toBe(
