@@ -7,6 +7,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { parseWorkspaceShellRoute } from '@iptvnator/workspace/shell/util';
 import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
 import {
+    getRoutePath,
     getRouteQueryParam,
     syncSearchQueryParam,
 } from './helpers/workspace-shell-route-utils';
@@ -22,6 +23,7 @@ export class WorkspaceShellSearchSyncService {
 
     private searchDebounceTimeoutId: ReturnType<typeof setTimeout> | null =
         null;
+    private lastSyncedUrl: string | null = null;
 
     readonly searchQuery = signal('');
     readonly appliedSearchQuery = signal('');
@@ -127,12 +129,30 @@ export class WorkspaceShellSearchSyncService {
     }
 
     private syncSearchFromUrl(url: string): void {
-        if (parseWorkspaceShellRoute(url).usesQuerySearch) {
-            this.setSearchState(getRouteQueryParam(this.router, url, 'q'));
+        const previousUrl = this.lastSyncedUrl;
+        this.lastSyncedUrl = url;
+
+        const nextTerm = parseWorkspaceShellRoute(url).usesQuerySearch
+            ? getRouteQueryParam(this.router, url, 'q')
+            : '';
+
+        // A navigation that stays on the same page and carries the term we
+        // already applied brings no search intent of its own: it is either an
+        // unrelated query param the page wrote (a filter chip, a refresh bump)
+        // or the router echoing back our own `q`. Syncing anyway would cancel
+        // the pending debounce and reset the box to the applied term, silently
+        // eating everything typed since — including the whole word, when the
+        // first keystroke has not been applied yet.
+        if (
+            this.searchDebounceTimeoutId !== null &&
+            previousUrl !== null &&
+            getRoutePath(url) === getRoutePath(previousUrl) &&
+            nextTerm === this.appliedSearchQuery()
+        ) {
             return;
         }
 
-        this.setSearchState('');
+        this.setSearchState(nextTerm);
     }
 
     private scheduleSearchApply(value: string): void {
