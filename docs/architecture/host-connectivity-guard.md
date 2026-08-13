@@ -1,15 +1,22 @@
 # Host Connectivity Guard
 
-Per-host circuit breaker for portal requests in the Electron main process.
+Per-host circuit breaker for portal requests, in both processes that make them:
+the Electron main process and the self-hosted web backend.
 
 ## The problem
 
 Every request to an unreachable portal costs its full axios timeout — 30 s for
-`XTREAM_REQUEST`, 15 s for `STALKER_REQUEST` (30 s for `create_link`). Browsing a
+`XTREAM_REQUEST`, 15 s for `STALKER_REQUEST` (30 s for `create_link`), and the
+same budgets on the web backend's `/xtream` and `/stalker` routes. Browsing a
 dead portal's catalog issues dozens of those back to back, which shows up as
-30-second spinners and a main-process log full of identical failures. Once a host
-has refused to answer twice in a row there is nothing left to learn from waiting
-again.
+30-second spinners and a log full of identical failures. Once a host has refused
+to answer twice in a row there is nothing left to learn from waiting again.
+
+The web backend had a worse version of the same problem first: its proxy routes
+passed no `timeout` at all, so a provider that accepted a connection and then
+went silent held the request until the OS gave up on the TCP connection. A
+breaker is only useful once _not answering_ is bounded, which is why the timeouts
+and the breaker landed there together.
 
 ## Where it lives
 
