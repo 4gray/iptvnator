@@ -1,5 +1,4 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -9,12 +8,9 @@ import {
     DatabaseService,
     type DbOperationEvent,
     isDbAbortError,
-    PlaybackPositionService,
     PlaylistRefreshService,
-    resetHostConnectivityGuard,
     RuntimeCapabilitiesService,
     SettingsStore,
-    XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -24,11 +20,11 @@ import {
     PLAYLIST_UPDATE,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import {
-    measureRendererPerformancePhase,
-    RENDERER_PERFORMANCE_PHASE,
-} from '@iptvnator/shared/logging';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    XtreamRefreshFlowService,
+    type XtreamRefreshProgressReporter,
+} from './xtream-refresh-flow.service';
 
 export interface XtreamRefreshPreparationState {
     playlistId: string;
@@ -40,21 +36,17 @@ export interface XtreamRefreshPreparationState {
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistRefreshActionService {
-    private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
-    private readonly playbackPositionService = inject(PlaybackPositionService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly playlistContext = inject(PlaylistContextFacade);
-    private readonly pendingRestoreService = inject(
-        XtreamPendingRestoreService
-    );
+    private readonly xtreamRefreshFlow = inject(XtreamRefreshFlowService);
 
     private readonly refreshPreparationState =
         signal<XtreamRefreshPreparationState | null>(null);
@@ -102,121 +94,40 @@ export class PlaylistRefreshActionService {
     }
 
     private refreshXtream(item: PlaylistMeta): void {
-        this.dialogService.openConfirmDialog({
-            title: this.translate.instant(
-                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.TITLE'
-            ),
-            message: this.translate.instant(
-                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'
-            ),
-            width: '400px',
-            onConfirm: async () => {
-                if (this.isRefreshing()) {
-                    return;
-                }
-
-                this.isRefreshing.set(true);
-                const operationId =
-                    this.databaseService.createOperationId('xtream-refresh');
-                this.refreshPreparationState.set({
-                    playlistId: item._id,
-                    operationId,
-                    phase: 'collecting-user-data',
-                });
-
-                try {
-                    // Before anything destructive: this refresh deletes the
-                    // cached catalog and then forces a route bootstrap whose
-                    // status request would be fast-failed by an open
-                    // connectivity guard, leaving the user with no catalog at
-                    // all until the cooldown expires.
-                    await resetHostConnectivityGuard(
-                        this.dataService,
-                        item.serverUrl
-                    );
-
-                    this.snackBar.open(
-                        this.translate.instant(
-                            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.STARTED'
-                        ),
-                        undefined,
-                        { duration: 2000 }
-                    );
-                    await this.waitForRefreshPreparationPaint();
-
-                    const updateDate = Date.now();
-                    const [restoreState, playbackPositions] = await Promise.all(
-                        [
-                            this.databaseService.deleteXtreamPlaylistContent(
-                                item._id,
-                                {
-                                    operationId,
-                                    onEvent: (event) =>
-                                        this.updateRefreshPreparationFromEvent(
-                                            item._id,
-                                            operationId,
-                                            event
-                                        ),
-                                }
-                            ),
-                            this.playbackPositionService.getAllPlaybackPositions(
-                                item._id
-                            ),
-                            this.databaseService.updateXtreamPlaylistDetails({
-                                id: item._id,
-                                updateDate,
-                            }),
-                        ]
-                    );
-
-                    if (
-                        !this.pendingRestoreService.set(item._id, {
-                            ...restoreState,
-                            playbackPositions,
-                        })
-                    ) {
-                        throw new Error(
-                            `Parking pending restore state for "${item._id}" failed.`
-                        );
-                    }
-
-                    measureRendererPerformancePhase(
-                        RENDERER_PERFORMANCE_PHASE.XTREAM_REFRESH_META,
-                        () =>
-                            this.store.dispatch(
-                                PlaylistActions.updatePlaylistMeta({
-                                    playlist: { ...item, updateDate },
-                                })
-                            ),
-                        () => ({ items: 1 })
-                    );
-
-                    await this.router.navigate([
-                        '/workspace',
-                        'xtreams',
-                        item._id,
-                    ]);
-                } catch (error) {
-                    if (!isDbAbortError(error)) {
-                        console.error(
-                            'Error refreshing Xtream playlist:',
-                            error
-                        );
-                        this.snackBar.open(
-                            this.translate.instant(
-                                'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.ERROR'
-                            ),
-                            undefined,
-                            { duration: 3000 }
-                        );
-                    }
-                } finally {
-                    this.clearRefreshPreparation(operationId);
-                    this.isRefreshing.set(false);
-                }
-            },
-        });
+        this.xtreamRefreshFlow.confirmAndRefresh(
+            item,
+            this.xtreamRefreshReporter
+        );
     }
+
+    /**
+     * Reports the shared destructive refresh as one global preparation state:
+     * this action has no row to attach progress to, so the flow is either
+     * refreshing or it is not. Events are scoped to their operation, since a
+     * cancelled run's worker can still emit after the next one has started.
+     */
+    private readonly xtreamRefreshReporter: XtreamRefreshProgressReporter = {
+        isBusy: () => this.isRefreshing(),
+        begin: ({ playlistId, operationId }) => {
+            this.isRefreshing.set(true);
+            this.refreshPreparationState.set({
+                playlistId,
+                operationId,
+                phase: 'collecting-user-data',
+            });
+        },
+        report: ({ playlistId, operationId }, event) =>
+            this.updateRefreshPreparationFromEvent(
+                playlistId,
+                operationId,
+                event
+            ),
+        end: ({ operationId }) => {
+            this.clearRefreshPreparation(operationId);
+            this.isRefreshing.set(false);
+        },
+        waitForVisibleProgress: () => this.waitForRefreshPreparationPaint(),
+    };
 
     private async refreshM3u(item: PlaylistMeta): Promise<void> {
         const isActiveM3uRoute =
