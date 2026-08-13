@@ -76,6 +76,25 @@ interface ProviderUrlPolicy {
 interface ProviderUrlError {
     readonly message: string;
     readonly status: number;
+    /**
+     * The DNS failure behind a "could not be resolved" refusal, when that is
+     * what this is. Internal only — {@link providerUrlErrorBody} strips it,
+     * because the client is told the same thing it always was.
+     *
+     * A name that does not resolve is evidence about reachability, exactly like
+     * the `ENOTFOUND` the transport would have raised a moment later. Without
+     * it, a host whose DNS died is refused by the policy on every request and
+     * the breaker never opens, so each call keeps paying for the lookup.
+     */
+    readonly lookupError?: unknown;
+}
+
+/** The client-facing half of a {@link ProviderUrlError}. */
+function providerUrlErrorBody(error: ProviderUrlError): {
+    message: string;
+    status: number;
+} {
+    return { message: error.message, status: error.status };
 }
 
 type ProviderTargetRegistry = Map<string, URL>;
@@ -156,7 +175,7 @@ export function createWebBackendApp(
 
             const result = await validateProviderUrl(rawUrl, providerUrlPolicy);
             if ('message' in result) {
-                res.status(result.status).json(result);
+                res.status(result.status).json(providerUrlErrorBody(result));
                 return;
             }
 
@@ -287,11 +306,24 @@ export function createWebBackendApp(
                 );
             if (providerUrlError) {
                 // Admitted, then abandoned before any request went out. A
-                // policy refusal is not evidence about the host, but the
-                // half-open slot it reserved has to go back.
-                releaseProviderRequest(hostGuard, guardToken);
+                // policy refusal — private address, bad scheme — says nothing
+                // about reachability, so it only hands the half-open slot back.
+                // A name that would not resolve is different: that IS the host
+                // failing to answer, and counting it is what lets the breaker
+                // stop paying for the same dead lookup on every request.
+                if (providerUrlError.lookupError !== undefined) {
+                    reportProviderRequestFailure(
+                        hostGuard,
+                        guardToken,
+                        providerUrlError.lookupError
+                    );
+                } else {
+                    releaseProviderRequest(hostGuard, guardToken);
+                }
                 guardToken = null;
-                res.status(providerUrlError.status).json(providerUrlError);
+                res.status(providerUrlError.status).json(
+                    providerUrlErrorBody(providerUrlError)
+                );
                 return;
             }
 
@@ -494,10 +526,11 @@ async function validateProviderUrl(
         let addresses: readonly string[];
         try {
             addresses = await policy.resolveHostname(hostname);
-        } catch {
+        } catch (lookupError) {
             return {
                 message: 'Provider URL host could not be resolved',
                 status: 400,
+                lookupError,
             };
         }
 

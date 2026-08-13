@@ -430,6 +430,66 @@ describe('web backend host connectivity guard', () => {
         );
     });
 
+    it('counts a hostname that stops resolving, and never leaks the lookup error', async () => {
+        // A name that will not resolve is the host failing to answer, the same
+        // as the ENOTFOUND the transport would have raised a moment later.
+        // Releasing it as a policy refusal left the breaker permanently shut
+        // and every request paying for the same dead lookup.
+        const httpClient = new StubHttpClient();
+        const { guard } = createTestGuard();
+        let resolvable = true;
+        const resolveHostname = async () => {
+            if (!resolvable) {
+                throw Object.assign(new Error('getaddrinfo ENOTFOUND'), {
+                    code: 'ENOTFOUND',
+                });
+            }
+            return ['93.184.216.34'];
+        };
+
+        await withServer(
+            createWebBackendApp({
+                hostGuard: guard,
+                httpClient,
+                resolveHostname,
+            }),
+            async (baseUrl) => {
+                // Registering the target resolves the name too, so do it while
+                // DNS still answers — then let the name die.
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
+                resolvable = false;
+
+                const call = () =>
+                    fetch(
+                        `${baseUrl}/xtream?targetId=${targetId}&username=demo&action=get_account_info`
+                    );
+
+                const first = await call();
+                expect(first.status).toBe(400);
+                // The DNS error is internal: the client sees what it always saw.
+                await expect(first.json()).resolves.toEqual({
+                    message: 'Provider URL host could not be resolved',
+                    status: 400,
+                });
+
+                await call();
+                const refused = await call();
+
+                // Two counted lookup failures opened the breaker, so the third
+                // is refused outright instead of resolving again.
+                expect(refused.status).toBe(200);
+                const body = (await refused.json()) as { message: string };
+                expect(isHostConnectivityFastFailMessage(body.message)).toBe(
+                    true
+                );
+                expect(httpClient.requests).toHaveLength(0);
+            }
+        );
+    });
+
     it('does not fast-fail a provider whose redirect destination is dead', async () => {
         // The shape this route actually produces, verified against axios
         // 1.19.0: follow-redirects walks the chain inside one `get()`, so
