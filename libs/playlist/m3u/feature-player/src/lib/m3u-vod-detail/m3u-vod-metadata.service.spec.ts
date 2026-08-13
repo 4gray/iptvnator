@@ -45,7 +45,7 @@ describe('M3uVodMetadataService', () => {
 
         await flush();
         expect(service.state()).toEqual({
-            channelId: 'ch1',
+            lookupKey: 'ch1\u0000Dune (2021) 1080p',
             status: 'matched',
             details,
         });
@@ -106,15 +106,29 @@ describe('M3uVodMetadataService', () => {
         first.resolve({ id: 1, title: 'Dune' });
         await flush();
         expect(service.state().status).toBe('loading');
-        expect(service.state().channelId).toBe('ch2');
+        expect(service.state().lookupKey).toContain('ch2');
 
         second.resolve({ id: 2, title: 'Alien' });
         await flush();
         expect(service.state()).toEqual({
-            channelId: 'ch2',
+            lookupKey: 'ch2\u0000Alien',
             status: 'matched',
             details: { id: 2, title: 'Alien' },
         });
+    });
+
+    it('re-requests when a shared id carries a different title', async () => {
+        // `createChannel` falls back to the URL for a missing id, so two
+        // entries pointing at one stream can share one — the lookup identity
+        // is the id AND the title the request is actually built from.
+        enrichMovie.mockResolvedValue({ id: 1, title: 'Dune' });
+        service.load({ id: 'same-id', name: 'Dune' });
+        await flush();
+
+        service.load({ id: 'same-id', name: 'Alien' });
+
+        expect(enrichMovie).toHaveBeenCalledTimes(2);
+        expect(service.state().status).toBe('loading');
     });
 
     it('does not re-request the channel the state already tracks', async () => {
@@ -144,7 +158,7 @@ describe('M3uVodMetadataService', () => {
         service.reset();
 
         expect(service.state()).toEqual({
-            channelId: null,
+            lookupKey: null,
             status: 'idle',
             details: null,
         });
