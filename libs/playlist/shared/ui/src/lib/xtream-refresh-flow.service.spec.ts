@@ -168,6 +168,69 @@ describe('XtreamRefreshFlowService', () => {
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it('serializes destructive runs for one playlist across entry points', async () => {
+        const item = createPlaylistMeta();
+        const confirms: Array<Promise<void> | undefined> = [];
+        let deleteStarted!: () => void;
+        const deleteHasStarted = new Promise<void>((resolve) => {
+            deleteStarted = resolve;
+        });
+        let releaseDelete!: (state: unknown) => void;
+        const deleteSettles = new Promise((resolve) => {
+            releaseDelete = resolve;
+        });
+
+        databaseService.deleteXtreamPlaylistContent.mockImplementation(() => {
+            order.push('delete');
+            deleteStarted();
+            return deleteSettles;
+        });
+        dialogService.openConfirmDialog.mockImplementation(
+            ({ onConfirm }: { onConfirm?: () => Promise<void> }) => {
+                confirms.push(onConfirm?.());
+            }
+        );
+
+        const header = createReporter();
+        const sourcesRow = createReporter();
+
+        service.confirmAndRefresh(item, header.reporter);
+        await deleteHasStarted;
+
+        // The row's reporter honestly reports "not busy": it tracks its own id
+        // set and never saw the header action start. Only the flow can refuse
+        // this, and it must refuse before the guard reset — a second run would
+        // park an already-emptied catalog over the first run's snapshot.
+        service.confirmAndRefresh(item, sourcesRow.reporter);
+        await Promise.resolve();
+
+        expect(sourcesRow.calls).toEqual([]);
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).toHaveBeenCalledTimes(1);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+
+        releaseDelete({
+            success: true,
+            favorites: [],
+            recentlyViewed: [],
+            hiddenCategories: [],
+        });
+        await Promise.all(confirms);
+
+        expect(header.calls).toEqual(['begin', 'end']);
+
+        // The block lifts with the run: a refresh that already finished must
+        // not strand the playlist.
+        service.confirmAndRefresh(item, sourcesRow.reporter);
+        await confirms[confirms.length - 1];
+
+        expect(sourcesRow.calls).toEqual(['begin', 'end']);
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).toHaveBeenCalledTimes(2);
+    });
+
     it('marks the run busy before the guard reset and any destructive work', async () => {
         const { reporter, runs } = createReporter({
             begin: (run) => {

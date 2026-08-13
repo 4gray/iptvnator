@@ -81,6 +81,19 @@ export class XtreamRefreshFlowService {
     );
 
     /**
+     * Playlists with a destructive run in flight, across every entry point.
+     *
+     * A reporter only ever knows its own: the header action tracks one global
+     * flag, the sources row tracks its own id set, and neither disables the
+     * other's button. Both can therefore be confirmed for the same playlist
+     * inside the delete window, and the second run would collect an
+     * already-emptied catalog and park it over the first run's snapshot —
+     * losing favorites, history, hidden categories and playback positions on
+     * re-import. This service is the only place that sees both.
+     */
+    private readonly activeRefreshPlaylistIds = new Set<string>();
+
+    /**
      * Asks for confirmation, then deletes and re-imports the playlist. Callers
      * keep their own entry-point guard (a disabled button, a pending row) —
      * this only re-checks `reporter.isBusy()` once the dialog is confirmed.
@@ -105,7 +118,10 @@ export class XtreamRefreshFlowService {
         item: PlaylistMeta,
         reporter: XtreamRefreshProgressReporter
     ): Promise<void> {
-        if (reporter.isBusy(item._id)) {
+        if (
+            this.activeRefreshPlaylistIds.has(item._id) ||
+            reporter.isBusy(item._id)
+        ) {
             return;
         }
 
@@ -113,6 +129,7 @@ export class XtreamRefreshFlowService {
             this.databaseService.createOperationId('xtream-refresh');
         const run: XtreamRefreshRun = { playlistId: item._id, operationId };
         reporter.begin(run);
+        this.activeRefreshPlaylistIds.add(item._id);
 
         try {
             // Before anything destructive: this deletes the cached catalog and
@@ -186,6 +203,7 @@ export class XtreamRefreshFlowService {
                 );
             }
         } finally {
+            this.activeRefreshPlaylistIds.delete(item._id);
             reporter.end(run);
         }
     }
