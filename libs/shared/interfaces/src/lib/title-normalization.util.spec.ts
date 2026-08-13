@@ -353,6 +353,22 @@ describe('provider tag stripping', () => {
             expect(normalizeTitle('PC-4L - 2020')).toBe('pc 4l');
         });
 
+        it('asks the real pipeline what survives, not a list of its rules', () => {
+            // Every later stage removes something, so a guard that predicts
+            // them is a list to keep in sync. These are one case per stage,
+            // and all of them fall out of running the pipeline and looking:
+            expect(normalizeTitle('|TA| RRR - HEVC')).toBe('rrr'); // quality
+            expect(normalizeTitle('CAT - Multi ENG')).toBe('cat'); // trailing
+            expect(normalizeTitle('IF - 2024_sub')).toBe('if'); // underscore
+            expect(normalizeTitle('AKA --xyz')).toBe('aka'); // double dash
+            expect(normalizeTitle('CAT - 2022 S01')).toBe('cat 2022'); // season
+            // …while a known tag before a numeric title still strips on every
+            // one of those paths.
+            expect(normalizeTitle('P+ - 1923 S01')).toBe('1923');
+            expect(normalizeTitle('IT - 65 s01')).toBe('65');
+            expect(normalizeTitle('EX - 1917 (2019) 4K')).toBe('1917');
+        });
+
         it('does not let a quality suffix smuggle the strip through', () => {
             // The suffix has letters only until QUALITY_TAGS removes them, so
             // testing the raw remainder would strip the name and normalize

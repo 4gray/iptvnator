@@ -231,13 +231,26 @@ other as alternative sources. Gating the case where a word DOES survive was
 rejected for the mirror reason: it would strand every genuine tag the
 vocabulary has not heard of.
 
-"Wordless" is measured after BOTH quality tags and trailing language tags are
-discounted, never on the raw remainder. The pipeline drops both a few lines
-later, so counting them lets a suffix smuggle the strip through: "|TA| RRR -
-HEVC" is nothing but its suffix and lands on the EMPTY key, while
-"IF - 2024_sub" reads "sub" as a word and lands on the bare-year key "2024" —
-the very collapse this guard exists to prevent. A tag word sitting next to a
-real one is still part of the title ("EN - Sub Zero" → `sub zero`).
+"No real word" is decided by running the REST OF THE PIPELINE on the stripped
+form and looking at what comes out — never by re-implementing what the later
+stages remove. That is the load-bearing part of the design: every stage drops
+something, so a guard that predicts them is a list to keep in sync, and each
+omission is a silent collapse:
+
+| title               | dropped by         | would key as |
+| ------------------- | ------------------ | ------------ |
+| `\|TA\| RRR - HEVC` | quality tag        | `""`         |
+| `CAT - Multi ENG`   | trailing tag       | `""`         |
+| `IF - 2024_sub`     | underscore tag     | `2024`       |
+| `AKA --xyz`         | double-dash suffix | `""`         |
+| `CAT - 2022 S01`    | season marker      | `2022`       |
+
+All five fall out of one question asked of the real output, and a stage added
+later is covered for free. The season check deliberately uses
+`SEASON_SUFFIX_PATTERN` directly rather than `stripSeason`, whose
+"never return empty" fallback would report a lone season marker as a surviving
+word. A tag word sitting next to a real one is still part of the title
+("EN - Sub Zero" → `sub zero`).
 
 The vocabulary is evidence, not intuition. Each entry prefixes hundreds to
 thousands of ordinary lettered titles in the real catalog; nothing is added
