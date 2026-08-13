@@ -256,14 +256,19 @@ const PREFIX_SEPARATOR_TAIL = new RegExp(
 const HAS_LETTER = /\p{L}/u;
 
 /**
- * Whether any WORD survives the strip — quality tags do not count, because
- * the pipeline drops them a few lines later. Testing the raw remainder
- * instead lets an unbracketed quality suffix smuggle the strip through:
- * "|TA| RRR - HEVC" and "CAT - Multi" have letters right up until
- * `QUALITY_TAGS` removes them, and the title then normalizes to the empty
- * key — the same identity collapse this guard exists to prevent, only worse
- * than a bare year. Diacritics are not folded first on purpose: every
- * quality tag is ASCII, so an accented token is meaningful either way.
+ * Whether any WORD survives the strip. A quality tag or a trailing language
+ * tag does not count, because the pipeline drops both a few lines later —
+ * testing the raw remainder instead lets them smuggle the strip through, and
+ * the title then normalizes to a key it was never entitled to:
+ *
+ *   "|TA| RRR - HEVC"  the suffix IS the remainder → the EMPTY key
+ *   "IF - 2024_sub"    "sub" reads as a word → the bare-year key "2024"
+ *
+ * Both are the identity collapse this guard exists to prevent — the first
+ * one broader than a bare year, the second exactly it.
+ *
+ * Diacritics are not folded first on purpose: every tag in both sets is
+ * ASCII, so an accented token is meaningful either way.
  */
 function hasMeaningfulLetter(value: string): boolean {
     // Walked in place rather than lowercased/split into an array: this runs
@@ -275,7 +280,11 @@ function hasMeaningfulLetter(value: string): boolean {
     let match: RegExpExecArray | null;
     while ((match = word.exec(value)) !== null) {
         const token = match[0];
-        if (HAS_LETTER.test(token) && !QUALITY_TAGS.has(token.toLowerCase())) {
+        if (
+            HAS_LETTER.test(token) &&
+            !QUALITY_TAGS.has(token.toLowerCase()) &&
+            !TRAILING_TAG_VOCABULARY.has(token.toUpperCase())
+        ) {
             return true;
         }
     }

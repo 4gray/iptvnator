@@ -231,19 +231,20 @@ other as alternative sources. Gating the case where a word DOES survive was
 rejected for the mirror reason: it would strand every genuine tag the
 vocabulary has not heard of.
 
-"Wordless" is measured after quality tags are discounted, not on the raw
-remainder. They are dropped a few lines later anyway, so counting them lets an
-unbracketed suffix smuggle the strip through — "|TA| RRR - HEVC" and
-"CAT - Multi" carry letters right up until `QUALITY_TAGS` removes them, and
-the title then normalizes to the EMPTY key, which is the same identity
-collapse as a bare year only broader.
+"Wordless" is measured after BOTH quality tags and trailing language tags are
+discounted, never on the raw remainder. The pipeline drops both a few lines
+later, so counting them lets a suffix smuggle the strip through: "|TA| RRR -
+HEVC" is nothing but its suffix and lands on the EMPTY key, while
+"IF - 2024_sub" reads "sub" as a word and lands on the bare-year key "2024" —
+the very collapse this guard exists to prevent. A tag word sitting next to a
+real one is still part of the title ("EN - Sub Zero" → `sub zero`).
 
 The vocabulary is evidence, not intuition. Each entry prefixes hundreds to
 thousands of ordinary lettered titles in the real catalog; nothing is added
 because it "looks like a streaming service" (MAX and HULU would qualify, and
 "MAX - 2015" is a film). Deriving it from movies alone missed `AMZ`, `D+` and
 `P+`, which broke Paramount+/Disney+ copies of the numeric series 1923, 1883,
-24 and 9-1-1 — so validate any change over movies AND series: 80 keys fixed,
+24 and 9-1-1 — so validate any change over movies AND series: 83 keys fixed,
 0 corrupted across 1,616,111 titles.
 
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",

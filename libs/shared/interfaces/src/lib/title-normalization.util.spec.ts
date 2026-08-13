@@ -362,6 +362,16 @@ describe('provider tag stripping', () => {
             expect(normalizeTitle('CAT - Multi')).toBe('cat');
             expect(normalizeTitle('RRR - 2022 - 4K')).toBe('rrr');
             expect(normalizeTitle('VFW - 2019 UHD')).toBe('vfw');
+            // A TRAILING language tag is dropped a few lines later too, so it
+            // is no more a word than a quality tag is. Real catalog titles:
+            // "sub" made the remainder look meaningful and the key came out
+            // as the bare year this whole guard exists to prevent.
+            expect(normalizeTitle('IF - 2024_sub')).toBe('if');
+            expect(normalizeTitle('O2 - 2024_sub')).toBe('o2');
+            expect(normalizeTitle('UFO - 2022_sub')).toBe('ufo');
+            expect(normalizeTitle('CAT - Multi ENG')).toBe('cat');
+            // …but a tag word next to a real one is just part of the title.
+            expect(normalizeTitle('EN - Sub Zero')).toBe('sub zero');
             // …and a real tag before a numeric title still strips, because it
             // now goes through the vocabulary instead of the raw-letter test.
             expect(normalizeTitle('EX - 1917 (2019) 4K')).toBe('1917');
