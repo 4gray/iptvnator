@@ -199,11 +199,19 @@ describe('XtreamRefreshFlowService', () => {
 
         // The row's reporter honestly reports "not busy": it tracks its own id
         // set and never saw the header action start. Only the flow can refuse
-        // this, and it must refuse before the guard reset — a second run would
-        // park an already-emptied catalog over the first run's snapshot.
+        // this, and it would park an already-emptied catalog over the first
+        // run's snapshot.
+        const observedBeforeSecondConfirm = [...order];
         service.confirmAndRefresh(item, sourcesRow.reporter);
         await Promise.resolve();
 
+        // Rejected before the connectivity-guard reset, not merely before the
+        // delete: the reset is what re-opens the host after the failures that
+        // led here, so a second one inside the first run's window would clear
+        // evidence on behalf of a run that is not allowed to proceed. The
+        // refused call must therefore add nothing at all.
+        expect(order).toEqual(observedBeforeSecondConfirm);
+        expect(order).toEqual([`ipc:${CONNECTIVITY_GUARD_RESET}`, 'delete']);
         expect(sourcesRow.calls).toEqual([]);
         expect(
             databaseService.deleteXtreamPlaylistContent
