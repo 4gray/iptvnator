@@ -489,9 +489,27 @@ function failedRequestUrlOf(error: unknown): string | null {
     return typeof url === 'string' ? url : null;
 }
 
+/**
+ * Origin and path only — deliberately without the query string.
+ *
+ * The baseline a caller can supply is the URL it handed the transport, but the
+ * transport is free to add to the query before sending: the web backend passes
+ * Xtream credentials through axios' `params`, so a request for
+ * `…/player_api.php` goes out as `…/player_api.php?username=…&action=…`.
+ * Comparing whole URLs then reports a redirect for every ordinary failure,
+ * which credits the endpoint instead of counting it and stops the breaker from
+ * ever opening.
+ *
+ * Dropping the query keeps what the comparison is actually for — an endpoint
+ * that answered and sent us somewhere else, including the same-origin
+ * `/player_api.php` → `/slow/player_api.php` case — and gives up only a
+ * redirect that changes nothing but the query. That one is then counted as an
+ * ordinary failure, which is the safe direction to be wrong in.
+ */
 function normalizedUrlOrNull(url: string): string | null {
     try {
-        return new URL(url).toString();
+        const parsed = new URL(url);
+        return `${parsed.origin}${parsed.pathname}`;
     } catch {
         return null;
     }

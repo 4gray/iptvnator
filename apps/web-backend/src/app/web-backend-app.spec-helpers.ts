@@ -76,7 +76,18 @@ export class StubHttpClient implements WebBackendHttpClient {
         }
 
         if (response.error) {
-            throw response.error;
+            // Shaped like a real axios rejection, because the guard reads these
+            // fields to tell a redirect hop from the endpoint we asked for. A
+            // bare Error here hid a bug where every ordinary /xtream failure
+            // looked like a redirect — axios appends `params` to the sent URL,
+            // so `_currentUrl` carries a query the caller's baseline does not.
+            const error = response.error as Error & {
+                config?: { url: string };
+                request?: { _currentUrl: string };
+            };
+            error.config ??= { url };
+            error.request ??= { _currentUrl: withQuery(url, options.params) };
+            throw error;
         }
 
         if (response.status) {
@@ -92,6 +103,19 @@ export class StubHttpClient implements WebBackendHttpClient {
 
         return { data: response.data as T };
     }
+}
+
+/** How axios renders `params` into the URL it actually sends. */
+function withQuery(
+    url: string,
+    params: Record<string, string> | undefined
+): string {
+    const entries = Object.entries(params ?? {});
+    if (entries.length === 0) {
+        return url;
+    }
+    const query = new URLSearchParams(entries).toString();
+    return url.includes('?') ? `${url}&${query}` : `${url}?${query}`;
 }
 
 export const resolvePublicHost = async () => ['93.184.216.34'];
