@@ -255,6 +255,36 @@ describe('getUnifiedCollectionDetailNavigation', () => {
         );
     });
 
+    it('omits the marker when the item id cannot survive normalization', () => {
+        // buildStalkerSelectedVodItem() derives `id` from `id ?? stream_id`,
+        // so a movie_id-only row would compare against an empty identity.
+        // Without a marker the handoff falls back to re-navigating, which
+        // still works — rather than stranding the back affordance.
+        const navigation = getUnifiedCollectionDetailNavigation(
+            {
+                uid: 'stalker::stalker-1::movie-5',
+                name: 'Movie Five',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'movie-5',
+                stalkerItem: {
+                    movie_id: 'movie-5',
+                    title: 'Movie Five',
+                } as never,
+            },
+            { returnTo: '/workspace/global-recent' }
+        );
+
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBeNull();
+        expect(navigation?.state).toEqual(
+            expect.objectContaining({
+                stalkerReturnTo: '/workspace/global-recent',
+            })
+        );
+    });
+
     it('does not mark the handoff when no returnTo is supplied', () => {
         const navigation = getUnifiedCollectionDetailNavigation({
             uid: 'stalker::stalker-1::movie-5',
@@ -321,19 +351,17 @@ describe('resolveStalkerBackNavigation', () => {
         ).toEqual({ kind: 'history-back' });
     });
 
-    it('matches a row identified only by movie_id or series_id', () => {
-        // The marker comes from extractStalkerItemId(), which reads
-        // id ?? stream_id ?? series_id ?? movie_id — reading `id` alone here
-        // left the comparison blank and stranded the back affordance.
-        expect(
-            resolveStalkerBackNavigation(handoff, { movie_id: 'movie-5' })
-        ).toEqual({ kind: 'history-back' });
-        expect(
-            resolveStalkerBackNavigation(handoff, { series_id: 'movie-5' })
-        ).toEqual({ kind: 'history-back' });
+    it('matches the id shape buildStalkerSelectedVodItem() produces', () => {
+        // That normalizer derives `id` from `id ?? stream_id` only, so those
+        // are the sole fields the opened detail can still report.
         expect(
             resolveStalkerBackNavigation(handoff, { stream_id: 'movie-5' })
         ).toEqual({ kind: 'history-back' });
+        // series_id/movie_id do not survive normalization, so a marker is
+        // never bound to them (see the builder spec) and nothing can match.
+        expect(
+            resolveStalkerBackNavigation(handoff, { movie_id: 'movie-5' })
+        ).toEqual({ kind: 'none' });
     });
 
     it('suppresses the whole contract for a stale marker', () => {

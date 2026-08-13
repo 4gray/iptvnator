@@ -66,17 +66,17 @@ export function normalizeStalkerHandoffIdentity(value: unknown): string {
 }
 
 /**
- * Identity of a Stalker item for marker comparison. The field order mirrors
- * `extractStalkerItemId()`, which is what produced the marker: a collection row
- * may carry only `movie_id`/`series_id`, and reading `id` alone would leave the
- * comparison blank and silently strand the back affordance.
+ * Identity of a Stalker item for marker comparison, restricted to the fields
+ * that survive `buildStalkerSelectedVodItem()` — it derives `id` from
+ * `id ?? stream_id` and drops `series_id`/`movie_id`. Comparing against the
+ * wider `extractStalkerItemId()` set would read an identity the opened detail
+ * can no longer produce, so the marker would never match and the back
+ * affordance would silently do nothing.
  */
 export function stalkerHandoffIdentityOf(item: unknown): string {
     const raw = (item ?? {}) as Record<string, unknown>;
 
-    return normalizeStalkerHandoffIdentity(
-        raw['id'] ?? raw['stream_id'] ?? raw['series_id'] ?? raw['movie_id']
-    );
+    return normalizeStalkerHandoffIdentity(raw['id'] ?? raw['stream_id']);
 }
 
 /**
@@ -194,7 +194,13 @@ export function getUnifiedCollectionDetailNavigation(
             returnTo,
         });
 
-        const handoffIdentity = normalizeStalkerHandoffIdentity(stalkerId);
+        // Bind the marker to the identity the opened detail will actually
+        // report. A row identified only by `movie_id`/`series_id` normalizes
+        // to an empty id, so no marker is set and the handoff simply falls
+        // back to re-navigating via `stalkerReturnTo`.
+        const handoffIdentity = stalkerItem
+            ? stalkerHandoffIdentityOf(stalkerItem)
+            : normalizeStalkerHandoffIdentity(stalkerId);
 
         return returnTo && handoffIdentity
             ? {

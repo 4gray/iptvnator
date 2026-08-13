@@ -68,9 +68,12 @@ Related:
   and suppresses the whole return contract. Honouring it retires both return
   keys from the entry, so the handoff is genuinely one-shot: a browser Forward
   onto the same entry cannot replay it for a title reopened from the catalog.
-  The comparison identity follows `extractStalkerItemId()`'s field order
-  (`id ?? stream_id ?? series_id ?? movie_id`), since a collection row may be
-  identified only by `movie_id`/`series_id`. The marker is set only by this
+  The identity is restricted to the fields `buildStalkerSelectedVodItem()`
+  preserves (`id ?? stream_id`) — it drops `series_id`/`movie_id`, so binding
+  to the wider `extractStalkerItemId()` set would compare against an identity
+  the opened detail can no longer report and silently strand the affordance.
+  A row identified only by those alternate fields therefore carries no marker
+  and falls back to re-navigating. The marker is set only by this
   builder and only alongside `returnTo`, so the dashboard handoff and every
   other `stalkerReturnTo` caller keeps its re-navigating behaviour.
 - Do not force both portals into the same browse/detail behavior unless the full

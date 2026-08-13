@@ -9,7 +9,10 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    buildStalkerSelectedVodItem,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -171,8 +174,10 @@ describe('StalkerSeriesViewComponent back navigation', () => {
         expect(window.history.state?.stalkerReturnTo).toBeUndefined();
     });
 
-    it('matches a selection identified only by series_id', () => {
-        selectedItem.set({ series_id: '42' } as never);
+    it('matches a selection whose id came from stream_id', () => {
+        selectedItem.set(
+            buildStalkerSelectedVodItem({ stream_id: '42' } as never) as never
+        );
         window.history.replaceState(
             {
                 stalkerReturnTo: '/workspace/global-favorites',

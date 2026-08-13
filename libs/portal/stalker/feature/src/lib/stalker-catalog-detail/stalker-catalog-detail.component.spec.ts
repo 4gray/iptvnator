@@ -17,6 +17,7 @@ import {
 } from '@iptvnator/services';
 import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { EMPTY, of } from 'rxjs';
+import { buildStalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerCatalogDetailComponent } from './stalker-catalog-detail.component';
@@ -388,14 +389,15 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         expect(window.history.state?.stalkerReturnTo).toBeUndefined();
     });
 
-    it('matches a selection identified only by movie_id', () => {
-        // The marker comes from extractStalkerItemId(), which also reads
-        // movie_id/series_id; comparing against `id` alone stranded back.
-        selectedItem.set({
-            movie_id: '42',
-            cmd: '/media/42',
-            info: { name: 'Portal movie' },
-        });
+    it('matches a selection whose id came from stream_id', () => {
+        // buildStalkerSelectedVodItem() derives `id` from `id ?? stream_id`,
+        // so that is the only shape the opened detail can report here.
+        selectedItem.set(
+            buildStalkerSelectedVodItem({
+                stream_id: '42',
+                cmd: '/media/42',
+            } as never)
+        );
         window.history.replaceState(
             {
                 stalkerReturnTo: '/workspace/global-favorites',

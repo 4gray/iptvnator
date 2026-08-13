@@ -1271,10 +1271,12 @@ engine` (restart required) or
   after Back + browser Forward the same entry can host a different title, whose
   back affordance must just close it. A stale marker suppresses the whole
   return contract, and honouring it retires both keys from the entry so a
-  browser Forward cannot replay them for a reopened title. The comparison
-  identity follows `extractStalkerItemId()`'s field order
-  (`id ?? stream_id ?? series_id ?? movie_id`) — a collection row may carry
-  only `movie_id`/`series_id`. Only this builder sets the marker, so the
+  browser Forward cannot replay them for a reopened title. The identity is
+  restricted to what `buildStalkerSelectedVodItem()` preserves (`id ??
+stream_id`); it drops `series_id`/`movie_id`, so a row identified only by
+  those gets no marker at all and the handoff falls back to re-navigating
+  rather than comparing against an identity the opened detail cannot report.
+  Only this builder sets the marker, so the
   dashboard handoff and any other `stalkerReturnTo` caller keeps
   re-navigating.
 - Unlike the download handoff this bridge does NOT pass
