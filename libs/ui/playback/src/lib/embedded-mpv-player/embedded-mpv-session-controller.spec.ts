@@ -24,6 +24,10 @@ describe('EmbeddedMpvSessionController', () => {
     let testingModuleDestroyed: boolean;
 
     beforeEach(() => {
+        // Fake timers before anything else: the controller's startup chain is
+        // driven from here (see `waitFor`), and the rAF shim below defers
+        // through `setTimeout`, so it has to resolve to the faked one.
+        jest.useFakeTimers();
         testingModuleDestroyed = false;
         sessionUpdate = null;
         unsubscribeSessionUpdate = jest.fn();
@@ -98,6 +102,9 @@ describe('EmbeddedMpvSessionController', () => {
             TestBed.resetTestingModule();
         }
         delete (window as unknown as { electron?: unknown }).electron;
+        // After teardown has cancelled the controller's timers, so the stalled
+        // tracker's 30s timeout never leaks into the real timer queue.
+        jest.useRealTimers();
         jest.restoreAllMocks();
     });
 
@@ -218,7 +225,7 @@ describe('EmbeddedMpvSessionController', () => {
         controller.session.set(newer);
 
         rejectPrepare?.(new Error('native module missing'));
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await flush();
 
         expect(controller.session()).toBe(newer);
         expect(controller.sessionId()).toBe('mpv-2');
@@ -363,19 +370,54 @@ function createSession(
     };
 }
 
+/**
+ * Advance the fake clock by one drain round: flush pending microtasks (the IPC
+ * promises the startup chain awaits), then run every timer now due — which is
+ * how the rAF shim's continuations get to run.
+ *
+ * One millisecond, never zero: a zero-delay timer scheduled from *inside* a
+ * timer callback is clamped to the next millisecond, and `waitForStartupPaint`
+ * nests exactly that way (rAF inside rAF). Advancing by 0 fires the outer hop
+ * and strands the inner one forever.
+ */
+async function drainRound(): Promise<void> {
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1);
+}
+
+/**
+ * Settle the controller's async startup chain, then assert.
+ *
+ * The bound is a number of drain rounds, not elapsed wall-clock time. Polling
+ * real timers against a `Date.now()` deadline made these specs load-sensitive:
+ * under parallel Jest workers the budget expired before the chain settled, so
+ * a different pair of tests failed on each run. With the clock virtual, how
+ * busy the machine is no longer changes the outcome — the rounds only ever
+ * advance when this loop says so.
+ */
 async function waitFor(
     condition: () => boolean,
     description: string
 ): Promise<void> {
-    const deadline = Date.now() + 1_000;
-
-    while (Date.now() < deadline) {
+    // Generous next to the ~4 rounds the longest chain needs, while still
+    // failing fast (and reporting `description`) if it never settles.
+    for (let round = 0; round < 100; round += 1) {
         if (condition()) {
             return;
         }
-        await Promise.resolve();
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await drainRound();
     }
 
     throw new Error(`Timed out waiting for ${description}`);
+}
+
+/**
+ * Settle everything pending with no condition to poll for — used by the
+ * negative assertions, where the point is that a late continuation runs and
+ * still changes nothing.
+ */
+async function flush(): Promise<void> {
+    for (let round = 0; round < 5; round += 1) {
+        await drainRound();
+    }
 }

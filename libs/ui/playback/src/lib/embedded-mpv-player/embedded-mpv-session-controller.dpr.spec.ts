@@ -50,6 +50,9 @@ describe('EmbeddedMpvSessionController devicePixelRatio watch', () => {
     let mediaQueries: FakeMediaQueryList[];
 
     beforeEach(() => {
+        // See `waitFor`: the startup chain is drained on a virtual clock so a
+        // loaded machine cannot change the outcome.
+        jest.useFakeTimers();
         electron = {
             platform: 'win32',
             getEmbeddedMpvSupport: jest
@@ -110,6 +113,7 @@ describe('EmbeddedMpvSessionController devicePixelRatio watch', () => {
         TestBed.resetTestingModule();
         delete (window as unknown as { electron?: unknown }).electron;
         delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+        jest.useRealTimers();
         jest.restoreAllMocks();
     });
 
@@ -197,17 +201,25 @@ function createSession(): EmbeddedMpvSession {
     };
 }
 
+/**
+ * Settle the controller's async startup chain on the fake clock, bounded by
+ * drain rounds rather than wall-clock time — under parallel Jest workers a
+ * real-timer deadline expired before the chain settled and failed at random.
+ *
+ * One millisecond per round, never zero: `waitForStartupPaint` nests rAF
+ * inside rAF, and a zero-delay timer scheduled from inside a timer callback is
+ * clamped to the next millisecond, so a 0ms advance strands the inner hop.
+ */
 async function waitFor(
     condition: () => boolean,
     description: string
 ): Promise<void> {
-    const deadline = Date.now() + 1_000;
-    while (Date.now() < deadline) {
+    for (let round = 0; round < 100; round += 1) {
         if (condition()) {
             return;
         }
         await Promise.resolve();
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await jest.advanceTimersByTimeAsync(1);
     }
     throw new Error(`Timed out waiting for ${description}`);
 }
