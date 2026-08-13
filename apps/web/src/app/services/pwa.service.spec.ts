@@ -354,6 +354,46 @@ describe('PwaService', () => {
         }
     });
 
+    it('gives up on a reset the backend never answers', async () => {
+        // Every caller awaits the reset BEFORE the request it is clearing the
+        // way for, and `fetch` has no timeout of its own — so a backend that
+        // accepts the POST and goes quiet would leave Retry doing nothing at
+        // all, which is the failure this whole change exists to stop.
+        jest.useFakeTimers();
+        const globalWithFetch = globalThis as { fetch?: typeof fetch };
+        let capturedSignal: AbortSignal | undefined;
+        globalWithFetch.fetch = jest.fn((_url: unknown, init: RequestInit) => {
+            capturedSignal = init.signal ?? undefined;
+            // Never settles on its own; only the abort can end this.
+            return new Promise<Response>((_resolve, reject) => {
+                init.signal?.addEventListener('abort', () =>
+                    reject(new DOMException('Aborted', 'AbortError'))
+                );
+            });
+        }) as unknown as typeof fetch;
+
+        try {
+            const request = service.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                url: 'http://portal.example:8080/portal.php',
+            }) as Promise<unknown>;
+            const outcome = request.then(
+                () => 'resolved',
+                (error: unknown) => (error as Error).name
+            );
+
+            expect(capturedSignal).toBeDefined();
+            expect(capturedSignal?.aborted).toBe(false);
+
+            jest.advanceTimersByTime(5_000);
+
+            await expect(outcome).resolves.toBe('AbortError');
+            expect(capturedSignal?.aborted).toBe(true);
+        } finally {
+            jest.useRealTimers();
+            delete globalWithFetch.fetch;
+        }
+    });
+
     it('asks the backend to forget a host when the connectivity guard is reset', async () => {
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,

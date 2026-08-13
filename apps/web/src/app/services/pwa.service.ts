@@ -37,6 +37,16 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { getRuntimeBackendUrl } from './runtime-config';
 
+/**
+ * How long to wait for the backend to forget a host before giving up.
+ *
+ * This talks to the user's own backend, not a provider, so it should answer
+ * immediately; the bound exists so a stuck one cannot hold up the retry that
+ * asked for the reset. Short on purpose — the reset is best effort, and the
+ * caller's own request reports the real state either way.
+ */
+const CONNECTIVITY_GUARD_RESET_TIMEOUT_MS = 5_000;
+
 interface PwaXtreamResponse {
     readonly payload?: unknown;
     readonly status?: number;
@@ -172,20 +182,37 @@ export class PwaService extends DataService {
             return { reset: false };
         }
 
-        const response = await fetch(
-            `${this.corsProxyUrl}/connectivity-guard/reset`,
-            {
-                body: JSON.stringify({ url: payload.url }),
-                headers: { 'content-type': 'application/json' },
-                method: 'POST',
-            }
+        // Bounded, because every caller awaits this BEFORE issuing the request
+        // it is clearing the way for. `fetch` has no timeout of its own, so a
+        // backend or reverse proxy that accepts the POST and then goes quiet
+        // would leave Retry doing nothing at all — the failure this whole
+        // change exists to stop, reintroduced one layer up. The abort rejects,
+        // `resetHostConnectivityGuard` swallows it, and the caller proceeds.
+        const controller = new AbortController();
+        const abortTimer = setTimeout(
+            () => controller.abort(),
+            CONNECTIVITY_GUARD_RESET_TIMEOUT_MS
         );
 
-        if (!response.ok) {
-            return { reset: false };
-        }
+        try {
+            const response = await fetch(
+                `${this.corsProxyUrl}/connectivity-guard/reset`,
+                {
+                    body: JSON.stringify({ url: payload.url }),
+                    headers: { 'content-type': 'application/json' },
+                    method: 'POST',
+                    signal: controller.signal,
+                }
+            );
 
-        return (await response.json()) as { reset: boolean };
+            if (!response.ok) {
+                return { reset: false };
+            }
+
+            return (await response.json()) as { reset: boolean };
+        } finally {
+            clearTimeout(abortTimer);
+        }
     }
 
     refreshPlaylist(payload?: Partial<Playlist & { id: string }>) {
