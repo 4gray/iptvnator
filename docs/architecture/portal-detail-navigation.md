@@ -53,7 +53,15 @@ Related:
   download handoff it does NOT pass `detailPresentation: 'provider-only'` — the
   item exists in the provider catalog and the full normal detail is desired.
   The Stalker handoff carries `stalkerReturnTo` so the portal detail's back
-  affordance returns to the originating collection.
+  affordance returns to the originating collection, plus
+  `stalkerReturnByHistory` so that return is a single history step rather than
+  a fresh `navigateByUrl()`. The collection's active tab, scope and open inline
+  detail live only in `window.history.state` (`collectionViewState` /
+  `openCollectionDetailItem`); re-navigating starts a stateless entry, which
+  reopened the collection on its default `live` tab and left the portal page
+  one browser Back away. The flag is set only by this builder and only
+  alongside `returnTo`, so the dashboard handoff and every other
+  `stalkerReturnTo` caller keeps its re-navigating behaviour.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 

@@ -1257,7 +1257,16 @@ engine` (restart required) or
   a `/series` route leaves the detail unable to load episodes. The virtual
   `series` category is normalized to `vod` the same way
   `resolveStalkerCollectionSelectedCategory()` does. Stalker also carries
-  `stalkerReturnTo`.
+  `stalkerReturnTo` plus
+  `stalkerReturnByHistory`, and the portal detail's back affordance
+  (`StalkerCatalogDetailComponent.onVodBack()`,
+  `StalkerSeriesViewComponent.goBack()`) honours the latter by stepping back
+  one history entry instead of calling `navigateByUrl()`. The collection's
+  active tab, scope and open inline detail live only in `window.history.state`
+  (`collectionViewState` / `openCollectionDetailItem`), so re-navigating would
+  reopen it on the default `live` tab and leave the portal page one browser
+  Back away. Only this builder sets the flag, so the dashboard handoff and any
+  other `stalkerReturnTo` caller keeps re-navigating.
 - Unlike the download handoff this bridge does NOT pass
   `detailPresentation: 'provider-only'` — the item exists in the provider
   catalog, so the full normal detail (downloads included) is wanted.

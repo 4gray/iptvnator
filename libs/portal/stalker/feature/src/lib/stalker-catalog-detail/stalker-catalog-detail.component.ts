@@ -7,10 +7,12 @@ import {
     input,
     signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
+    getStalkerReturnByHistoryState,
     getStalkerReturnToState,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -71,6 +73,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         PlaybackPositionRuntimeBridgeService
     );
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
@@ -224,9 +227,19 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     }
 
     onVodBack(): void {
-        const returnTo = getStalkerReturnToState(window.history.state);
+        const historyState = window.history.state;
+        const returnTo = getStalkerReturnToState(historyState);
+        const returnByHistory = getStalkerReturnByHistoryState(historyState);
         this.closeInlinePlayer();
         this.catalog.clearSelectedItem();
+
+        // A collection handoff is exactly one entry back, and the collection's
+        // tab/scope/inline-detail live only on that entry — re-navigating would
+        // drop them and leave this page one browser Back away.
+        if (returnByHistory) {
+            this.location.back();
+            return;
+        }
 
         if (returnTo) {
             void this.router.navigateByUrl(returnTo);

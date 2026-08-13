@@ -11,6 +11,35 @@ import {
 } from '@iptvnator/shared/interfaces';
 
 /**
+ * Marks a Stalker handoff whose origin is exactly one history entry back, so
+ * the portal detail's back affordance can step through history instead of
+ * re-navigating to `stalkerReturnTo`.
+ *
+ * The collection page keeps its active tab, scope and open inline detail only
+ * in `window.history.state` (`collectionViewState` / `openCollectionDetailItem`).
+ * `navigateByUrl()` starts a fresh entry without them, so the collection would
+ * come back on its default `live` tab and leave the portal page one browser
+ * Back away. Only this builder sets the flag, and only when it also supplies
+ * `returnTo`, so every other `stalkerReturnTo` caller keeps re-navigating.
+ */
+export const STALKER_RETURN_BY_HISTORY_STATE_KEY = 'stalkerReturnByHistory';
+
+/**
+ * Reads the flag above off a history/navigation state record.
+ */
+export function getStalkerReturnByHistoryState(state: unknown): boolean {
+    if (!state || typeof state !== 'object') {
+        return false;
+    }
+
+    return (
+        (state as Record<string, unknown>)[
+            STALKER_RETURN_BY_HISTORY_STATE_KEY
+        ] === true
+    );
+}
+
+/**
  * Builds the portal-detail target for a collection item, or `null` when no
  * exact detail route can be formed. Unlike `getUnifiedCollectionNavigation`
  * this never degrades to a category- or section-only route: the caller shows
@@ -52,7 +81,8 @@ export function getUnifiedCollectionDetailNavigation(
             type
         );
 
-        return buildStalkerDetailNavigationTarget({
+        const returnTo = options?.returnTo ?? null;
+        const target = buildStalkerDetailNavigationTarget({
             playlistId: item.playlistId,
             type,
             categoryId,
@@ -63,8 +93,18 @@ export function getUnifiedCollectionDetailNavigation(
                 category_id: categoryId,
                 poster_url: item.posterUrl ?? item.logo ?? undefined,
             }),
-            returnTo: options?.returnTo ?? null,
+            returnTo,
         });
+
+        return returnTo
+            ? {
+                  ...target,
+                  state: {
+                      ...(target.state ?? {}),
+                      [STALKER_RETURN_BY_HISTORY_STATE_KEY]: true,
+                  },
+              }
+            : target;
     }
 
     return null;

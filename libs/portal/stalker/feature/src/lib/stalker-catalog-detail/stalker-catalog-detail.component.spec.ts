@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -68,6 +69,9 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const contentType = signal<'vod' | 'series'>('vod');
     const catalogPlaylist = signal({ id: 'stalker-1' });
     const snackBar = { open: jest.fn() };
+    const routerMock = { navigateByUrl: jest.fn() };
+    const locationMock = { back: jest.fn() };
+    const originalHistoryState = window.history.state;
     const selectedItem = signal<unknown>({
         id: '42',
         cmd: '/media/42',
@@ -85,6 +89,8 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         catalogPlaylist.set({ id: 'stalker-1' });
         snackBar.open.mockReset();
+        routerMock.navigateByUrl.mockReset();
+        locationMock.back.mockReset();
 
         await TestBed.configureTestingModule({
             imports: [StalkerCatalogDetailComponent],
@@ -123,7 +129,8 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                     useValue: { getPortalFavorites: jest.fn(() => of([])) },
                 },
                 { provide: DownloadsService, useValue: {} },
-                { provide: Router, useValue: { navigateByUrl: jest.fn() } },
+                { provide: Router, useValue: routerMock },
+                { provide: Location, useValue: locationMock },
                 { provide: MatSnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
@@ -153,6 +160,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
 
     afterEach(() => {
         fixture.destroy();
+        window.history.replaceState(originalHistoryState, '');
     });
 
     it('passes provider-only mode to the matching regular VOD', async () => {
@@ -318,5 +326,48 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         await fixture.whenStable();
 
         expect(fixture.componentInstance.inlinePlayback()).toBe(playback);
+    });
+
+    it('steps back through history for a collection handoff', () => {
+        // The collection's tab, scope and open inline detail live only on the
+        // previous history entry; re-navigating would drop them.
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: true,
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('still re-navigates for a plain stalkerReturnTo handoff', () => {
+        window.history.replaceState(
+            { stalkerReturnTo: '/workspace/dashboard' },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(routerMock.navigateByUrl).toHaveBeenCalledWith(
+            '/workspace/dashboard'
+        );
+        expect(locationMock.back).not.toHaveBeenCalled();
+    });
+
+    it('does not navigate when no return target is present', () => {
+        window.history.replaceState({}, '');
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+        expect(locationMock.back).not.toHaveBeenCalled();
     });
 });

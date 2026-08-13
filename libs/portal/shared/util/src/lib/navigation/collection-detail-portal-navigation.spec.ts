@@ -1,5 +1,8 @@
 import { UnifiedCollectionItem } from '../collection/unified-collection-item.interface';
-import { getUnifiedCollectionDetailNavigation } from './collection-detail-portal-navigation';
+import {
+    getStalkerReturnByHistoryState,
+    getUnifiedCollectionDetailNavigation,
+} from './collection-detail-portal-navigation';
 
 describe('getUnifiedCollectionDetailNavigation', () => {
     const xtreamMovie: UnifiedCollectionItem = {
@@ -215,6 +218,51 @@ describe('getUnifiedCollectionDetailNavigation', () => {
                 stalkerReturnTo: '/workspace/global-recent',
             })
         );
+    });
+
+    it('marks a returnTo handoff as returnable through history', () => {
+        const navigation = getUnifiedCollectionDetailNavigation(
+            {
+                uid: 'stalker::stalker-1::movie-5',
+                name: 'Movie Five',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker Playlist',
+                stalkerId: 'movie-5',
+            },
+            { returnTo: '/workspace/global-recent' }
+        );
+
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(true);
+    });
+
+    it('does not mark the handoff when no returnTo is supplied', () => {
+        const navigation = getUnifiedCollectionDetailNavigation({
+            uid: 'stalker::stalker-1::movie-5',
+            name: 'Movie Five',
+            contentType: 'movie',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker Playlist',
+            stalkerId: 'movie-5',
+        });
+
+        expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(false);
+    });
+
+    it('does not treat other navigation state as history-returnable', () => {
+        expect(getStalkerReturnByHistoryState(null)).toBe(false);
+        expect(getStalkerReturnByHistoryState(undefined)).toBe(false);
+        expect(
+            getStalkerReturnByHistoryState({
+                stalkerReturnTo: '/workspace/dashboard',
+            })
+        ).toBe(false);
+        // Only an exact boolean true opts in.
+        expect(
+            getStalkerReturnByHistoryState({ stalkerReturnByHistory: 'yes' })
+        ).toBe(false);
     });
 
     it('returns null for live and m3u items', () => {

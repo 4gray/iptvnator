@@ -9,6 +9,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -39,6 +40,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
+    getStalkerReturnByHistoryState,
     getStalkerReturnToState,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -160,6 +162,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     };
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -839,10 +842,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     goBack() {
-        const returnTo = getStalkerReturnToState(window.history.state);
+        const historyState = window.history.state;
+        const returnTo = getStalkerReturnToState(historyState);
+        const returnByHistory = getStalkerReturnByHistoryState(historyState);
         this.closeInlinePlayer();
         this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();
+
+        // A collection handoff is exactly one entry back, and the collection's
+        // tab/scope/inline-detail live only on that entry — re-navigating would
+        // drop them and leave this page one browser Back away.
+        if (returnByHistory) {
+            this.location.back();
+            return;
+        }
 
         if (returnTo) {
             void this.router.navigateByUrl(returnTo);
