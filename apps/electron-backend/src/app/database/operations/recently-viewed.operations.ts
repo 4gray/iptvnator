@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
-import { persistContentBackdropIfMissing } from './content-backdrop.operations';
+import { persistContentMetadataIfMissing } from './content-metadata.operations';
 
 export async function getRecentlyViewed(db: AppDatabase) {
     return db
@@ -13,6 +13,9 @@ export async function getRecentlyViewed(db: AppDatabase) {
             added: schema.content.added,
             poster_url: schema.content.posterUrl,
             backdrop_url: schema.content.backdropUrl,
+            tmdb_id: schema.content.tmdbId,
+            release_year: schema.content.releaseYear,
+            original_title: schema.content.originalTitle,
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
             tv_archive: schema.content.tvArchive,
@@ -58,6 +61,9 @@ export async function getRecentItems(
             added: schema.content.added,
             poster_url: schema.content.posterUrl,
             backdrop_url: schema.content.backdropUrl,
+            tmdb_id: schema.content.tmdbId,
+            release_year: schema.content.releaseYear,
+            original_title: schema.content.originalTitle,
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
             tv_archive: schema.content.tvArchive,
@@ -108,7 +114,9 @@ export async function addRecentItem(
         });
     }
 
-    await persistContentBackdropIfMissing(db, contentId, options?.backdropUrl);
+    await persistContentMetadataIfMissing(db, contentId, {
+        backdropUrl: options?.backdropUrl,
+    });
 
     return { success: true };
 }

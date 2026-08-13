@@ -218,7 +218,7 @@ describe('SerialDetailsComponent', () => {
                         toggleFavorite: jest.fn(),
                         constructEpisodeStreamUrl,
                         addRecentItem,
-                        backfillContentBackdrop: jest.fn(),
+                        backfillContentMetadata: jest.fn(),
                     },
                 },
                 {

@@ -10,6 +10,8 @@ import { firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     buildPlaylistRecentItems,
+    ContentMetadataPatch,
+    normalizeContentMetadataPatch,
     Playlist,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
@@ -137,25 +139,25 @@ export const withRecentItems = function () {
                         )
                     )
                 ),
-                async backfillContentBackdrop({
+                async backfillContentMetadata({
                     xtreamId,
                     contentType,
                     playlist,
-                    backdropUrl,
+                    patch,
                 }: {
                     xtreamId: number | string;
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string } | null | undefined>;
-                    backdropUrl?: string;
+                    patch: ContentMetadataPatch;
                 }): Promise<void> {
                     const playlistId = playlist()?.id;
                     const normalizedXtreamId = Number(xtreamId);
-                    const normalizedBackdropUrl = backdropUrl?.trim();
+                    const normalized = normalizeContentMetadataPatch(patch);
                     if (
                         !playlistId ||
                         !Number.isFinite(normalizedXtreamId) ||
                         normalizedXtreamId <= 0 ||
-                        !normalizedBackdropUrl
+                        !normalized
                     ) {
                         return;
                     }
@@ -169,10 +171,10 @@ export const withRecentItems = function () {
                         return;
                     }
 
-                    await dataSource.setContentBackdropIfMissing(
+                    await dataSource.setContentMetadataIfMissing(
                         content.id,
                         playlistId,
-                        normalizedBackdropUrl
+                        normalized
                     );
                 },
                 clearRecentItems: rxMethod<{ id: string }>(

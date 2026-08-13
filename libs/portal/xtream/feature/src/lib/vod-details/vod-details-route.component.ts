@@ -31,6 +31,7 @@ import {
     isProviderOnlyDetailState,
 } from '@iptvnator/portal/shared/util';
 import {
+    registerContentMetadataBackfill,
     resolveXtreamVodPlaybackSource,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -145,7 +146,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly logger = createLogger('VodDetailsRoute');
     /** `playlistId:vodId` of the last initialized detail view */
     private readonly lastInitKey = signal<string | null>(null);
-    private readonly backdropBackfillKey = signal<string | null>(null);
     readonly inlinePlayback = this.playback.inlinePlayback;
     readonly vodPlaybackPosition = this.playback.vodPlaybackPosition;
     /** The route copy's own row — what Resume acts on. */
@@ -447,33 +447,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.initializeVodDetails(playlistId, vodId);
         });
 
-        effect(() => {
-            const playlistId = this.xtreamStore.currentPlaylist()?.id;
-            const vodId = this.selectedVodId();
-            const backdropUrl =
-                this.selectedVodInfo()?.backdrop_path?.[0]?.trim();
-
-            if (
-                !playlistId ||
-                !Number.isFinite(vodId) ||
-                vodId <= 0 ||
-                !backdropUrl
-            ) {
-                return;
-            }
-
-            const backfillKey = `${playlistId}:${vodId}:${backdropUrl}`;
-            if (this.backdropBackfillKey() === backfillKey) {
-                return;
-            }
-
-            this.backdropBackfillKey.set(backfillKey);
-            void this.xtreamStore.backfillContentBackdrop({
-                xtreamId: vodId,
-                contentType: 'movie',
-                playlist: this.xtreamStore.currentPlaylist,
-                backdropUrl,
-            });
+        registerContentMetadataBackfill({
+            store: this.xtreamStore,
+            contentType: 'movie',
+            playlistId: () => this.xtreamStore.currentPlaylist()?.id,
+            xtreamId: () => this.selectedVodId(),
+            info: () => this.selectedVodInfo(),
         });
     }
 

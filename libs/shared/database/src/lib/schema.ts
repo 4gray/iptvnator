@@ -103,6 +103,12 @@ export const content = sqliteTable(
         added: text('added'),
         posterUrl: text('poster_url'),
         backdropUrl: text('backdrop_url'),
+        // Identity a detail view resolved for this item, so anything reading
+        // it later can repeat that lookup instead of re-deriving one from the
+        // display title. See ContentMetadataPatch in @iptvnator/shared/interfaces.
+        tmdbId: integer('tmdb_id'),
+        releaseYear: integer('release_year'),
+        originalTitle: text('original_title'),
         epgChannelId: text('epg_channel_id'),
         tvArchive: integer('tv_archive'),
         tvArchiveDuration: integer('tv_archive_duration'),

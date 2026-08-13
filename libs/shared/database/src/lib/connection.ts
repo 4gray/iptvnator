@@ -174,6 +174,9 @@ const CREATE_TABLE_STATEMENTS = [
       added TEXT,
       poster_url TEXT,
       backdrop_url TEXT,
+      tmdb_id INTEGER,
+      release_year INTEGER,
+      original_title TEXT,
       epg_channel_id TEXT,
       tv_archive INTEGER,
       tv_archive_duration INTEGER,
@@ -376,6 +379,11 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE content ADD COLUMN direct_source TEXT`,
     // v1.5.0 -> v1.6.0: Cinematic backdrop persisted on first detail fetch
     `ALTER TABLE content ADD COLUMN backdrop_url TEXT`,
+    // Identity resolved by a detail view, so activity rows can repeat that
+    // lookup instead of rebuilding a weaker one from the display title
+    `ALTER TABLE content ADD COLUMN tmdb_id INTEGER`,
+    `ALTER TABLE content ADD COLUMN release_year INTEGER`,
+    `ALTER TABLE content ADD COLUMN original_title TEXT`,
     // v1.7.1: Scope XMLTV programs to their source URL for playlist-local EPG lookup
     `ALTER TABLE epg_programs ADD COLUMN source_url TEXT`,
     // Pause/resume: entity validator (ETag/Last-Modified) sent as If-Range on resume

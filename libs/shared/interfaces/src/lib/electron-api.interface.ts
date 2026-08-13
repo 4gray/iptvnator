@@ -4,6 +4,7 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
 } from './embedded-mpv-session.interface';
+import { ContentMetadataPatch } from './content-metadata.interface';
 import { DownloadMetadataSnapshot } from './download-metadata.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
@@ -957,9 +958,9 @@ export interface ElectronBridgeApi {
         playlistId: string,
         contentType?: ElectronBridgePortalContentType
     ) => Promise<ElectronBridgeXtreamContent | null>;
-    dbSetContentBackdropIfMissing: (
+    dbSetContentMetadataIfMissing: (
         contentId: number,
-        backdropUrl?: string
+        patch?: ContentMetadataPatch
     ) => Promise<ElectronBridgeResult>;
     dbGetAppState: (key: string) => Promise<string | null>;
     dbSetAppState: (

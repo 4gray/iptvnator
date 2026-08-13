@@ -299,10 +299,16 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [42, playlistId, 'movie'],
     },
     {
-        method: 'dbSetContentBackdropIfMissing',
-        args: [12, 'https://image.example/backdrop.jpg'],
-        channel: 'DB_SET_CONTENT_BACKDROP_IF_MISSING',
-        forwardedArgs: [12, 'https://image.example/backdrop.jpg'],
+        method: 'dbSetContentMetadataIfMissing',
+        args: [
+            12,
+            { backdropUrl: 'https://image.example/backdrop.jpg', tmdbId: 603 },
+        ],
+        channel: 'DB_SET_CONTENT_METADATA_IF_MISSING',
+        forwardedArgs: [
+            12,
+            { backdropUrl: 'https://image.example/backdrop.jpg', tmdbId: 603 },
+        ],
     },
     {
         method: 'dbDeleteAllPlaylists',

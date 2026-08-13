@@ -128,6 +128,7 @@ export function mergeVodInfoWithTmdb(
         rating_imdb:
             info.rating_imdb || (rating !== null ? String(rating) : ''),
         releasedate: info.releasedate || (details.release_date ?? ''),
+        ...(info.releasedate ? {} : { tmdb_supplied_release_date: true }),
         country: info.country || country,
         movie_image: prefer(poster, info.movie_image),
         cover_big: prefer(poster, info.cover_big),
@@ -168,6 +169,7 @@ export function mergeSerieInfoWithTmdb(
         rating_5based:
             rating !== null ? Math.round(rating * 5) / 10 : info.rating_5based,
         releaseDate: info.releaseDate || (details.first_air_date ?? ''),
+        ...(info.releaseDate ? {} : { tmdb_supplied_release_date: true }),
         cover: prefer(poster, info.cover),
         backdrop_path: mergedBackdrops(details, info.backdrop_path),
         youtube_trailer: prefer(trailer, info.youtube_trailer),
@@ -228,6 +230,7 @@ export function mergeStalkerInfoWithTmdb(
         director: prefer(director, info.director),
         genre: prefer(genre, info.genre),
         releasedate: info.releasedate || (releaseDate ?? ''),
+        ...(info.releasedate ? {} : { tmdb_supplied_release_date: true }),
         movie_image: prefer(poster, info.movie_image),
         rating_imdb:
             info.rating_imdb || (rating !== null ? String(rating) : ''),

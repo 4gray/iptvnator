@@ -219,6 +219,22 @@ describe('mergeVodInfoWithTmdb', () => {
         expect(merged.country).toBe('United States');
     });
 
+    it('marks a release date it supplied itself', () => {
+        // The substitution above is silent, so afterwards nothing can tell who
+        // stated the date. Consumers that record it as a PROVIDER fact
+        // (`content.release_year`, `trustedReleaseYear`) read this marker.
+        const merged = mergeVodInfoWithTmdb(
+            providerVodInfo({ releasedate: '' }),
+            tmdbMovie
+        );
+        expect(merged.tmdb_supplied_release_date).toBe(true);
+    });
+
+    it('leaves the marker off when the provider stated the date', () => {
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), tmdbMovie);
+        expect(merged.tmdb_supplied_release_date).toBeUndefined();
+    });
+
     it('does not mutate the provider object', () => {
         const info = providerVodInfo();
         const snapshot = JSON.parse(JSON.stringify(info));

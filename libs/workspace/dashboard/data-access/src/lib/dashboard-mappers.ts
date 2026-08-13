@@ -6,9 +6,11 @@ import {
 import {
     PortalAddedItem,
     PlaylistMeta,
+    PortalActivityItem,
     PortalActivityType,
     PortalFavoriteItem,
     PortalRecentItem,
+    normalizeContentMetadataPatch,
     extractStalkerItemId,
     extractStalkerItemPoster,
     extractStalkerItemTitle,
@@ -31,6 +33,34 @@ export function getActivityTypeLabelKey(type: PortalActivityType): string {
 
 // ────── Xtream DB → ViewModel ──────
 
+/**
+ * The TMDB identity a detail view left on the `content` row, if any.
+ *
+ * Read through the same normalizer the write path uses, so a legacy row, a
+ * row whose detail page has never been opened, and a row carrying a value the
+ * provider fabricated all collapse to the same thing: absent fields, and a
+ * caller that falls back to the display title.
+ */
+function readContentTmdbIdentity(item: {
+    tmdb_id?: number | null;
+    release_year?: number | null;
+    original_title?: string | null;
+}): Pick<PortalActivityItem, 'tmdb_id' | 'release_year' | 'original_title'> {
+    const identity = normalizeContentMetadataPatch({
+        tmdbId: item.tmdb_id ?? undefined,
+        releaseYear: item.release_year ?? undefined,
+        originalTitle: item.original_title ?? undefined,
+    });
+
+    return identity
+        ? {
+              tmdb_id: identity.tmdbId,
+              release_year: identity.releaseYear,
+              original_title: identity.originalTitle,
+          }
+        : {};
+}
+
 export function mapDbFavoriteToItem(
     item: DbGlobalFavoriteItem
 ): PortalFavoriteItem {
@@ -45,6 +75,7 @@ export function mapDbFavoriteToItem(
         xtream_id: item.xtream_id,
         poster_url: item.poster_url,
         backdrop_url: item.backdrop_url ?? undefined,
+        ...readContentTmdbIdentity(item),
         source: 'xtream',
     };
 }
@@ -61,6 +92,7 @@ export function mapDbRecentToItem(item: DbGlobalRecentItem): PortalRecentItem {
         xtream_id: item.xtream_id,
         poster_url: item.poster_url,
         backdrop_url: item.backdrop_url ?? undefined,
+        ...readContentTmdbIdentity(item),
         source: 'xtream',
     };
 }

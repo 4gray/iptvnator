@@ -7,12 +7,12 @@ import {
 
 jest.mock('drizzle-orm', () => mockDrizzleOrmModule());
 
-jest.mock('./content-backdrop.operations', () => ({
-    persistContentBackdropIfMissing: jest.fn().mockResolvedValue(undefined),
+jest.mock('./content-metadata.operations', () => ({
+    persistContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
 }));
 
 import * as schema from '@iptvnator/shared/database/schema';
-import { persistContentBackdropIfMissing } from './content-backdrop.operations';
+import { persistContentMetadataIfMissing } from './content-metadata.operations';
 import {
     addRecentItem,
     clearPlaylistRecentItems,
@@ -26,7 +26,7 @@ import {
 describe('recently-viewed.operations', () => {
     beforeEach(() => {
         resetDrizzleMocks();
-        (persistContentBackdropIfMissing as jest.Mock).mockClear();
+        (persistContentMetadataIfMissing as jest.Mock).mockClear();
     });
 
     describe('reading recent items', () => {
@@ -98,10 +98,10 @@ describe('recently-viewed.operations', () => {
                 playlistId: 'playlist-1',
             });
             expect(update).not.toHaveBeenCalled();
-            expect(persistContentBackdropIfMissing).toHaveBeenCalledWith(
+            expect(persistContentMetadataIfMissing).toHaveBeenCalledWith(
                 db,
                 42,
-                'https://example.com/backdrop.jpg'
+                { backdropUrl: 'https://example.com/backdrop.jpg' }
             );
         });
 
@@ -128,10 +128,10 @@ describe('recently-viewed.operations', () => {
                 schema.recentlyViewed.playlistId,
                 'playlist-1'
             );
-            expect(persistContentBackdropIfMissing).toHaveBeenCalledWith(
+            expect(persistContentMetadataIfMissing).toHaveBeenCalledWith(
                 db,
                 42,
-                undefined
+                { backdropUrl: undefined }
             );
         });
     });

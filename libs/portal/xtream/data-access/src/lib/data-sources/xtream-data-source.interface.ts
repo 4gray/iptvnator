@@ -1,5 +1,6 @@
 import { InjectionToken } from '@angular/core';
 import {
+    ContentMetadataPatch,
     PlaybackPositionData,
     XtreamPendingRestoreState,
     XtreamCategory,
@@ -49,6 +50,9 @@ export interface XtreamContentItem {
     added: string;
     poster_url: string;
     backdrop_url?: string | null;
+    tmdb_id?: number | null;
+    release_year?: number | null;
+    original_title?: string | null;
     epg_channel_id?: string | null;
     tv_archive?: number | null;
     tv_archive_duration?: number | null;
@@ -361,13 +365,16 @@ export interface IXtreamDataSource {
     ): Promise<XtreamContentItem | null>;
 
     /**
-     * Persist a backdrop URL for an already-known content item without changing
-     * favorites or recent ordering.
+     * Persist what a detail view learned about an already-known content item —
+     * its backdrop, and the identity (TMDB id, release year, original title)
+     * that lets the dashboard repeat this view's lookup instead of rebuilding
+     * a weaker one from the display title. Never changes favorites or recent
+     * ordering, and never overwrites a column that already has a value.
      */
-    setContentBackdropIfMissing(
+    setContentMetadataIfMissing(
         contentId: number,
         playlistId: string,
-        backdropUrl: string
+        patch: ContentMetadataPatch
     ): Promise<void>;
 
     // =========================================================================

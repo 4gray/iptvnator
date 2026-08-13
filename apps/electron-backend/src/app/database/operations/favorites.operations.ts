@@ -7,7 +7,7 @@ import {
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
-import { persistContentBackdropIfMissing } from './content-backdrop.operations';
+import { persistContentMetadataIfMissing } from './content-metadata.operations';
 
 const DEFAULT_BATCH_SIZE = 100;
 
@@ -22,7 +22,9 @@ export async function addFavorite(
         playlistId,
     });
 
-    await persistContentBackdropIfMissing(db, contentId, options?.backdropUrl);
+    await persistContentMetadataIfMissing(db, contentId, {
+        backdropUrl: options?.backdropUrl,
+    });
 
     return { success: true };
 }
@@ -115,7 +117,12 @@ function selectGlobalFavoriteRows(
             added: schema.content.added,
             poster_url: schema.content.posterUrl,
             ...(options.includeBackdrop
-                ? { backdrop_url: schema.content.backdropUrl }
+                ? {
+                      backdrop_url: schema.content.backdropUrl,
+                      tmdb_id: schema.content.tmdbId,
+                      release_year: schema.content.releaseYear,
+                      original_title: schema.content.originalTitle,
+                  }
                 : {}),
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,

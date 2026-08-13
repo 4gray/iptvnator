@@ -92,15 +92,16 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 'movie'
             );
 
-            await harness.dataSource.setContentBackdropIfMissing(
+            const patch = { backdropUrl: 'https://example.com/backdrop.png' };
+            await harness.dataSource.setContentMetadataIfMissing(
                 1,
                 playlistId,
-                'https://example.com/backdrop.png'
+                patch
             );
             // playlistId is intentionally not forwarded for the Electron DB call
             expect(
-                harness.dbService.setContentBackdropIfMissing
-            ).toHaveBeenCalledWith(1, 'https://example.com/backdrop.png');
+                harness.dbService.setContentMetadataIfMissing
+            ).toHaveBeenCalledWith(1, patch);
         });
     });
 

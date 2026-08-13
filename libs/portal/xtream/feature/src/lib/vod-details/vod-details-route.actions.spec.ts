@@ -239,6 +239,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         toggleFavorite,
                         constructVodStreamUrl,
                         addRecentItem: jest.fn(),
+                        backfillContentMetadata: jest.fn(),
                     },
                 },
                 {

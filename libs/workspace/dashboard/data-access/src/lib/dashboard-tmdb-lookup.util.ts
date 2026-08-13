@@ -1,14 +1,22 @@
 import { extractYear } from '@iptvnator/services';
 import {
+    ContentMetadataPatch,
     PortalActivityItem,
     TmdbMediaType,
     extractStalkerItemTmdbHints,
+    normalizeContentMetadataPatch,
 } from '@iptvnator/shared/interfaces';
 
 /** Everything a dashboard TMDB lookup reads off an activity row */
 export type DashboardTmdbLookupItem = Pick<
     PortalActivityItem,
-    'title' | 'type' | 'stalker_item' | 'source'
+    | 'title'
+    | 'type'
+    | 'stalker_item'
+    | 'source'
+    | 'tmdb_id'
+    | 'release_year'
+    | 'original_title'
 >;
 
 /**
@@ -26,15 +34,38 @@ export interface DashboardTmdbAttempt {
 }
 
 /**
- * Ordered lookup attempts for one activity row. Stalker rows carry the
- * facts of the detail view's own enrichment, so they lead with those;
- * everything else can only offer the display title.
+ * The identity an Xtream detail view recorded on this item's `content` row.
+ *
+ * Validated on read with the same normalizer the write path uses: rows
+ * imported before these columns existed, and rows whose detail page has never
+ * been opened, hold nulls and must come back as "no identity" rather than as
+ * zeroes.
+ */
+function storedIdentity(
+    item: DashboardTmdbLookupItem
+): ContentMetadataPatch | null {
+    return normalizeContentMetadataPatch({
+        tmdbId: item.tmdb_id,
+        releaseYear: item.release_year,
+        originalTitle: item.original_title,
+    });
+}
+
+/**
+ * Ordered lookup attempts for one activity row. Both portal types carry the
+ * facts of the detail view's own enrichment and lead with those — Stalker
+ * inside its stored entry, Xtream on the `content` row the detail view
+ * backfilled. A row whose detail page has never been opened has neither, and
+ * falls back to the display title.
  *
  * The query is built to match what the detail view searched with, not just
  * what the card displays. A title alone is weaker identity than the detail
  * page had: without a year `pickConfidentMatch` falls back to requiring a
- * single exact title match, which common titles never satisfy, and the miss
- * is cached under a lookup key the detail view's hit can never be found at.
+ * single exact title match, which common titles never satisfy ("Inside Out"
+ * matches several films, so the gate returns nothing every time), and the
+ * miss is cached under a lookup key the detail view's hit can never be found
+ * at — the resolver keys the row on the FIRST search variant, which is the
+ * original title whenever one is known.
  *
  * A `'movie'` verdict gets a second attempt under `'tv'`, because for a
  * Stalker row `'movie'` is what everything falls back to when nothing
@@ -76,12 +107,20 @@ export function buildDashboardTmdbAttempts(
 
     const mediaType: TmdbMediaType =
         hints?.mediaType ?? (item.type === 'series' ? 'tv' : 'movie');
-    const year = hints?.year ?? extractYear(null, title);
+    // Only a `content` row can carry these, and only Xtream reaches that
+    // table — so a row holding them is an Xtream row whose detail page has
+    // been opened. Stalker states the same facts through `hints`, which wins
+    // because it is the entry this very item was built from.
+    const stored = hints ? null : storedIdentity(item);
+    // Never `stored.releaseYear ?? extractYear(...)` alone: an absent column
+    // means the PROVIDER stated no date, not that nobody looked, so the
+    // title-derived fallback still has to run behind it.
+    const year = hints?.year ?? stored?.releaseYear ?? extractYear(null, title);
     const primary: DashboardTmdbAttempt = {
         mediaType,
         title,
-        originalTitle: hints?.originalTitle,
-        tmdbId: hints?.tmdbId,
+        originalTitle: hints?.originalTitle ?? stored?.originalTitle,
+        tmdbId: hints?.tmdbId ?? stored?.tmdbId,
         year,
     };
 

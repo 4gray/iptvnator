@@ -4,6 +4,7 @@ import {
 } from './database.worker-connection';
 import { parentPort } from 'worker_threads';
 import type {
+    ContentMetadataPatch,
     VodSourcePin,
     XtreamBackupFavoriteItem,
     XtreamBackupRecentlyViewedItem,
@@ -44,7 +45,7 @@ import {
     saveContent,
     searchContent,
 } from '../database/operations/content.operations';
-import { setContentBackdropIfMissing } from '../database/operations/content-backdrop.operations';
+import { setContentMetadataIfMissing } from '../database/operations/content-metadata.operations';
 import {
     clearAllPlaybackPositions,
     clearPlaybackPosition,
@@ -557,15 +558,15 @@ async function executeRequest(
             );
         }
 
-        case 'DB_SET_CONTENT_BACKDROP_IF_MISSING': {
+        case 'DB_SET_CONTENT_METADATA_IF_MISSING': {
             const payload = message.payload as {
                 contentId: number;
-                backdropUrl?: string;
+                patch?: ContentMetadataPatch;
             };
-            return setContentBackdropIfMissing(
+            return setContentMetadataIfMissing(
                 db,
                 payload.contentId,
-                payload.backdropUrl
+                payload.patch
             );
         }
 

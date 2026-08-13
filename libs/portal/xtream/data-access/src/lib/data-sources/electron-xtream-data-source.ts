@@ -7,6 +7,7 @@ import {
     VodSourcePinService,
 } from '@iptvnator/services';
 import {
+    ContentMetadataPatch,
     PlaybackPositionData,
     PlaylistMeta,
     XtreamPendingRestoreState,
@@ -460,16 +461,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         );
     }
 
-    async setContentBackdropIfMissing(
+    async setContentMetadataIfMissing(
         contentId: number,
         playlistId: string,
-        backdropUrl: string
+        patch: ContentMetadataPatch
     ): Promise<void> {
         void playlistId;
-        await this.dbService.setContentBackdropIfMissing(
-            contentId,
-            backdropUrl
-        );
+        await this.dbService.setContentMetadataIfMissing(contentId, patch);
     }
 
     // =========================================================================

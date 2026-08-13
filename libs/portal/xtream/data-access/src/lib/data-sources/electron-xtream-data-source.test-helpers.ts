@@ -47,7 +47,7 @@ export function createDbServiceMock() {
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
         clearPlaylistRecentItems: jest.fn().mockResolvedValue(undefined),
         getContentByXtreamId: jest.fn().mockResolvedValue(null),
-        setContentBackdropIfMissing: jest.fn().mockResolvedValue(undefined),
+        setContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
         deleteXtreamPlaylistContent: jest.fn().mockResolvedValue({
             hiddenCategories: [],
             favorites: [],

@@ -291,6 +291,9 @@ describe('database schema statements', () => {
                 'ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT',
                 'ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0',
                 'ALTER TABLE content ADD COLUMN backdrop_url TEXT',
+                'ALTER TABLE content ADD COLUMN tmdb_id INTEGER',
+                'ALTER TABLE content ADD COLUMN release_year INTEGER',
+                'ALTER TABLE content ADD COLUMN original_title TEXT',
             ])
         );
         expect(columnMigrationStatements).toContain(
