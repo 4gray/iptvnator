@@ -11,6 +11,7 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
 import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
+import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
 
 const DOWNLOADS_URL = '/workspace/downloads';
@@ -19,28 +20,41 @@ describe('WorkspaceShellSearchSyncService', () => {
     let service: WorkspaceShellSearchSyncService;
     let routeState: WorkspaceShellRouteStateService;
     let events: Subject<NavigationEnd>;
+    let searchService: WorkspaceShellSearchService;
+    let trigger: 'imperative' | 'popstate';
     let router: {
         url: string;
         events: Subject<NavigationEnd>;
         navigate: jest.Mock;
         navigateByUrl: jest.Mock;
         parseUrl: jest.Mock;
+        lastSuccessfulNavigation: () => { trigger: string };
     };
 
-    /** Emits the NavigationEnd both shell services listen for. */
-    function navigateTo(url: string): void {
+    /**
+     * Emits the NavigationEnd both shell services listen for. `origin` mirrors
+     * `Navigation.trigger`: 'imperative' is the app navigating, 'popstate' is
+     * the user moving through browser history.
+     */
+    function navigateTo(
+        url: string,
+        origin: 'imperative' | 'popstate' = 'imperative'
+    ): void {
         router.url = url;
+        trigger = origin;
         events.next(new NavigationEnd(1, url, url));
     }
 
     beforeEach(() => {
         jest.useFakeTimers();
         events = new Subject<NavigationEnd>();
+        trigger = 'imperative';
         router = {
             url: DOWNLOADS_URL,
             events,
             navigate: jest.fn().mockResolvedValue(true),
             navigateByUrl: jest.fn().mockResolvedValue(true),
+            lastSuccessfulNavigation: () => ({ trigger }),
             parseUrl: jest.fn((url: string) => {
                 const parsed = new URL(url, 'http://localhost');
                 const queryParams: Record<string, string> = {};
@@ -55,6 +69,7 @@ describe('WorkspaceShellSearchSyncService', () => {
             providers: [
                 WorkspaceShellRouteStateService,
                 WorkspaceShellSearchSyncService,
+                WorkspaceShellSearchService,
                 { provide: Router, useValue: router },
                 {
                     provide: Store,
@@ -95,17 +110,23 @@ describe('WorkspaceShellSearchSyncService', () => {
                     useValue: {
                         setSearchTerm: jest.fn(),
                         setCategorySearchTerm: jest.fn(),
+                        getSelectedCategory: signal(null),
                     },
                 },
                 {
                     provide: StalkerStore,
-                    useValue: { setSearchPhrase: jest.fn() },
+                    useValue: {
+                        setSearchPhrase: jest.fn(),
+                        getSelectedCategoryName: signal(''),
+                        itvFullListActive: signal(false),
+                    },
                 },
             ],
         });
 
         routeState = TestBed.inject(WorkspaceShellRouteStateService);
         service = TestBed.inject(WorkspaceShellSearchSyncService);
+        searchService = TestBed.inject(WorkspaceShellSearchService);
     });
 
     afterEach(() => {
@@ -125,6 +146,13 @@ describe('WorkspaceShellSearchSyncService', () => {
 
         expect(service.appliedSearchQuery()).toBe('Beta Movie');
         expect(service.searchQuery()).toBe('Beta Movie');
+
+        // The term has to reach the URL — that is what the page reads back.
+        TestBed.flushEffects();
+        expect(router.navigateByUrl).toHaveBeenCalledWith(
+            `${DOWNLOADS_URL}?q=Beta+Movie`,
+            { replaceUrl: true }
+        );
     });
 
     it('does not roll typing back to the term its own q navigation echoes', () => {
@@ -166,6 +194,38 @@ describe('WorkspaceShellSearchSyncService', () => {
         jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
 
         expect(service.appliedSearchQuery()).toBe('Alpha');
+    });
+
+    it('lets browser history win over in-flight typing', () => {
+        // Back/forward is authoritative even when the entry restores the term
+        // already applied — only app-initiated navigations are treated as
+        // echoes worth ignoring.
+        service.onSearchInput('Beta');
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+        service.onSearchInput('Beta Movie');
+
+        navigateTo(`${DOWNLOADS_URL}?q=Beta`, 'popstate');
+
+        expect(service.searchQuery()).toBe('Beta');
+
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+        expect(service.appliedSearchQuery()).toBe('Beta');
+    });
+
+    it('does not let a pending keystroke reapply behind an Enter commit', () => {
+        // Enter commits the trimmed term immediately; the debounce still
+        // holding the untrimmed keystroke must not overwrite it afterwards.
+        service.onSearchInput('Beta Movie ');
+        searchService.onSearchEnter('Beta Movie ');
+
+        expect(service.appliedSearchQuery()).toBe('Beta Movie');
+
+        navigateTo(`${DOWNLOADS_URL}?q=Beta+Movie`);
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+        expect(service.appliedSearchQuery()).toBe('Beta Movie');
+        expect(service.searchQuery()).toBe('Beta Movie');
     });
 
     it('syncs the search box from the url when nothing is being typed', () => {
