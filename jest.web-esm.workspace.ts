@@ -13,6 +13,12 @@ export default {
     ...angularEsmPreset,
     rootDir: '.',
     roots: ['<rootDir>/apps/web', '<rootDir>/libs'],
+    // Jest's 5s default is thin for Angular component specs: TestBed compiles
+    // and instantiates a real component tree per test, and CI runners are far
+    // slower per-core than a dev machine. A starved worker then fails a test
+    // that is merely slow, with no defect behind it. Raised as headroom only —
+    // a spec that genuinely hangs still fails, just later.
+    testTimeout: 15_000,
     setupFilesAfterEnv: ['<rootDir>/apps/web/src/test-setup.ts'],
     resolver: nxPreset.resolver,
     moduleFileExtensions: Array.from(

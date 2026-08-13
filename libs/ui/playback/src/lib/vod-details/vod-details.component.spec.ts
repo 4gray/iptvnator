@@ -1,8 +1,21 @@
-import { signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    TranslateModule,
+    TranslatePipe,
+    TranslateService,
+} from '@ngx-translate/core';
+import { MatIcon } from '@angular/material/icon';
+import { SafePipe } from '@iptvnator/pipes';
+import {
+    DetailActionsTemplateDirective,
+    DetailMetaTemplateDirective,
+    DetailTagsTemplateDirective,
+    PortalDetailShellComponent,
+    ViewInPortalActionComponent,
+} from '@iptvnator/ui/components';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import {
     CrossPortalSimilarService,
@@ -22,6 +35,29 @@ jest.unstable_mockModule('video.js', () => ({
 jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
+
+/**
+ * Stand-in for the inline player. The real one imports
+ * `WebPlayerViewComponent`, which drags ArtPlayer, video.js and the
+ * embedded-MPV bridge into this suite and instantiates that whole tree on
+ * every `createComponent`. These specs only assert what the host *hands* the
+ * player, so mirroring the selector and the template's bindings is enough —
+ * and it keeps the per-test budget clear of Jest's timeout on slower CI
+ * hardware.
+ */
+@Component({
+    selector: 'app-portal-inline-player',
+    template: '<div data-test-id="stub-portal-inline-player"></div>',
+})
+class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input<string>('');
+    readonly playback = input<unknown>(null);
+    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly closed = output<void>();
+    readonly backClicked = output<void>();
+    readonly streamUrlCopied = output<void>();
+    readonly externalFallbackRequested = output<unknown>();
+}
 
 const STALKER_VOD: VodDetailsItem = createStalkerVodItem(
     {
@@ -250,7 +286,25 @@ describe('VodDetailsComponent offline playback', () => {
                     },
                 },
             ],
-        }).compileComponents();
+        })
+            .overrideComponent(VodDetailsComponent, {
+                // Same import list the component declares, with the inline
+                // player swapped for the stub above.
+                set: {
+                    imports: [
+                        DetailActionsTemplateDirective,
+                        DetailMetaTemplateDirective,
+                        DetailTagsTemplateDirective,
+                        MatIcon,
+                        PortalDetailShellComponent,
+                        ViewInPortalActionComponent,
+                        StubPortalInlinePlayerComponent,
+                        SafePipe,
+                        TranslatePipe,
+                    ],
+                },
+            })
+            .compileComponents();
 
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {
