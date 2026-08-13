@@ -209,6 +209,13 @@
                 "e2eTags": ["@electron", "@xtream", "@stalker", "@settings"]
             },
             {
+                "name": "shared-host-health",
+                "root": "libs/shared/host-health",
+                "sourceRoot": "libs/shared/host-health/src",
+                "validationCommand": "pnpm nx test shared-host-health",
+                "e2eTags": ["@xtream", "@stalker"]
+            },
+            {
                 "name": "m3u-utils",
                 "root": "libs/shared/m3u-utils",
                 "sourceRoot": "libs/shared/m3u-utils/src",
