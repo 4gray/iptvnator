@@ -273,6 +273,21 @@ describe('M3uVodDetailComponent', () => {
         );
     });
 
+    it('asks the host to refresh volume before remounting the player', async () => {
+        await create({ channel: channel(), playback: playback() });
+        const started = jest.fn();
+        fixture.componentInstance.playbackStarted.subscribe(started);
+
+        fixture.componentInstance.closeInlinePlayback();
+        fixture.detectChanges();
+        fixture.componentInstance.startPlayback();
+        fixture.detectChanges();
+
+        // Browse → Play remounts the engine without a channel change, and the
+        // engines only write their own volume to the shared bus.
+        expect(started).toHaveBeenCalledTimes(1);
+    });
+
     it('close reveals browse with a Play action; Play re-enters watch', async () => {
         await create({ channel: channel(), playback: playback() });
 

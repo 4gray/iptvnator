@@ -70,6 +70,14 @@ export class M3uVodDetailComponent {
     readonly volume = input(1);
 
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    /**
+     * A player is about to be mounted for the current channel. The host owns
+     * the persisted volume and re-reads it per channel, but Browse → Play
+     * remounts the engine without a channel change, and the engines only
+     * WRITE their own adjustments to the shared bus — so without this the
+     * remount would restore the volume from before the user touched it.
+     */
+    readonly playbackStarted = output<void>();
 
     /** Player closed by the user — Browse until Play or the next channel. */
     private readonly playerDismissed = signal(false);
@@ -166,6 +174,7 @@ export class M3uVodDetailComponent {
     }
 
     startPlayback(): void {
+        this.playbackStarted.emit();
         this.playerDismissed.set(false);
     }
 }

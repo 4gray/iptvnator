@@ -358,6 +358,20 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
             expect(component.volume()).toBe(0);
         });
 
+        it('refreshes from the bus when the detail host remounts the player', () => {
+            localStorage.setItem('volume', '0.9');
+            syncStoreState(movieChannel);
+            fixture.detectChanges();
+            expect(component.volume()).toBe(0.9);
+
+            // Engine-side change during playback, then Browse → Play on the
+            // SAME channel: no channel change, so only this call refreshes.
+            localStorage.setItem('volume', '0.25');
+            component.refreshVolumeFromBus();
+
+            expect(component.volume()).toBe(0.25);
+        });
+
         it('re-reads even when the next entry shares the previous id', () => {
             // `createChannel` falls back to the URL for the id, so one stream
             // listed under two groups yields two entries with the same id.

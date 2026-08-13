@@ -1153,6 +1153,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
+    /**
+     * Pull the latest volume off the shared bus before a player is mounted
+     * without a channel change (the movie detail's Browse → Play). The
+     * engines persist their adjustments there and never call back, so the
+     * remounted player would otherwise start at the pre-adjustment value.
+     */
+    refreshVolumeFromBus(): void {
+        this.volume.set(readStoredVolume());
+    }
+
     private setVolume(next: number): void {
         const clamped = Math.max(0, Math.min(1, Number(next.toFixed(2))));
         this.volume.set(clamped);

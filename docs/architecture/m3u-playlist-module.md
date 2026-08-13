@@ -1107,7 +1107,15 @@ Known accepted cost: "Star Wars: Episode 1" is skipped.
   presentation only.
 - `PortalInlinePlayerComponent` gained an optional `volume` input
   (default `1`) for this host: the M3U player owns a persisted volume shared
-  across its channels, while the portals keep the engines' own default.
+  across its channels, while the portals keep the engines' own default. The
+  parent re-reads that bus per channel AND on the host's `playbackStarted`
+  output, because Browse → Play remounts the engine without a channel change
+  and the engines only ever write to the bus.
+
+**Coverage:** `apps/web-e2e/src/m3u-movie-details.e2e.ts` drives the workflow
+against the real composition with a routed TMDB mock — recognition, async
+metadata, the live-channel fallback, and the volume the remount must keep.
+
 - `M3uVodMetadataService` (component-provided) calls
   `TmdbEnrichmentService.enrichMovie({ title: channel.name, year:
 releaseTagYear(channel.name) })` — the resolver already normalizes titles

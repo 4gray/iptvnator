@@ -71,6 +71,7 @@
                 [playbackSessionKey]="playbackSessionKey()"
                 [inlinePlayerAvailable]="shouldShowInlinePlayer(activeChannel)"
                 [volume]="volume()"
+                (playbackStarted)="refreshVolumeFromBus()"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "
