@@ -266,16 +266,20 @@ const HAS_LETTER = /\p{L}/u;
  * quality tag is ASCII, so an accented token is meaningful either way.
  */
 function hasMeaningfulLetter(value: string): boolean {
-    return value
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .split(' ')
-        .some(
-            (token) =>
-                token !== '' &&
-                HAS_LETTER.test(token) &&
-                !QUALITY_TAGS.has(token)
-        );
+    // Walked in place rather than lowercased/split into an array: this runs
+    // for every title carrying a leading tag, and the answer is settled by
+    // the first word in nearly all of them. The `g` regex is deliberately
+    // local — a hoisted one carries `lastIndex` between calls and the early
+    // return below would leave it mid-string for the next caller.
+    const word = /[\p{L}\p{N}]+/gu;
+    let match: RegExpExecArray | null;
+    while ((match = word.exec(value)) !== null) {
+        const token = match[0];
+        if (HAS_LETTER.test(token) && !QUALITY_TAGS.has(token.toLowerCase())) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
