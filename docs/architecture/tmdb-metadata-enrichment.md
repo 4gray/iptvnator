@@ -302,6 +302,40 @@ Filmography has two scopes:
   This also works from Stalker actor pages — the one place the Stalker
   catalog limitation is lifted.
 
+### Resolving a batched match
+
+Every `DB_MATCH_TITLES` consumer — the Trending rail, the "Because you
+watched" recommendations rail, the cross-portal "Similar" rail and the
+actor page's "All portals" scope — turns the worker's flat result list
+into one row through the same pair of helpers in
+`libs/services/src/lib/catalog-title-match.service.ts`:
+
+```ts
+const grouped = groupTitleMatchesByKey(matches);
+const match = pickTitleMatch({ type, titles: [title], year }, grouped);
+```
+
+`groupTitleMatchesByKey` keeps **every** row per
+`type:exactNormalizedTitle`. Collapsing to one row per key is the trap
+this replaced: the year that separates same-titled rows belongs to the
+LOOKUP, which the grouping cannot see, so a catalog holding both
+"Dune 1984" and "Dune 2021" kept whichever the worker returned first and
+the other lookup then failed its own year check with the right row
+already discarded — rendering a movie the user owns as unavailable.
+
+`pickTitleMatch` ranks the year-compatible rows by evidence: a row whose
+stripped year IS the lookup's year wins, then an untagged row (the only
+tier reachable when the lookup year is unknown), then anything else
+compatible. `titles` accepts aliases most-trusted-first; ranking spans all
+aliases at once, so a weak hit under the first alias cannot veto a strong
+one under the second, and alias order only breaks ties inside a tier. The
+recommendations rail is the one caller that passes two — TMDB's localized
+title plus `original_title` — via `candidateLookup()`; the rest pass one.
+
+Multi-source VOD discovery deliberately does NOT use these
+(`operations/title-sources.operations.ts`): there every copy in every
+playlist is a distinct selectable source, not a single best answer.
+
 ## Cache
 
 Single table with several row kinds discriminated by the `lookup_key`
@@ -460,31 +494,20 @@ since shipped.)
   the 1982 `"Blade Runner"`. A row that states no year records `null` and
   keeps excluding unconditionally; an unknown year on either side counts
   as agreeing, since re-recommending something already watched is the
-  worse failure. Matching and exclusion
-  work through BOTH the localized title and the TMDB original-title alias
-  (cards always display the localized form) — catalogs frequently name
-  items in their original language while the app language localizes the
-  TMDB titles; a year-incompatible first-alias match does not veto a
-  year-compatible match under the other alias. Only matched,
-  year-compatible titles render (each card navigates to its detail view).
-  The rail groups the worker's rows per key itself instead of reusing
-  `buildTitleMatchIndex`, which collapses to one row per key before the
-  candidate's year is known — with both `"Dune 1984"` and `"Dune 2021"`
-  in the catalog the wrong one can win that collapse, and the card is
-  then dropped by the year check with the right row already discarded.
-  Year-compatible rows from every alias form one pool ranked by
-  EVIDENCE, not by which alias found them: a row whose stripped year IS
-  the candidate's wins — positive evidence for that exact film — then an
-  untagged row (the shared helper's precedence, and the only tier
-  reachable when the candidate's year is unknown), then anything else
-  compatible. Alias order survives only as the tiebreaker inside a tier,
-  so an ambiguous untagged row under the localized title cannot outrank a
-  year-tagged row the original-title alias found. Title
-  collisions are resolved AFTER matching, by the catalog row a candidate
-  resolved to: same-titled remakes ("Dune" 1984 and 2021) are different
-  films that must both reach the matcher, while two candidates landing on
-  one row would otherwise render as duplicate cards opening the same
-  item. Fewer than
+  worse failure. Exclusion works through BOTH the localized title and
+  the TMDB original-title alias (cards always display the localized
+  form) — catalogs frequently name items in their original language
+  while the app language localizes the TMDB titles.
+
+  Catalog matching itself is the shared pair described under
+  "Resolving a batched match": this rail is the caller that passes two
+  aliases, via `candidateLookup()`. Only matched, year-compatible titles
+  render, each card navigating to its detail view. What stays local to
+  the rail is what happens AFTER a row is picked — title collisions are
+  resolved by the catalog row a candidate resolved to, since same-titled
+  remakes ("Dune" 1984 and 2021) are different films that must both
+  reach the matcher, while two candidates landing on one row would
+  render as duplicate cards opening the same item. Fewer than
   `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
   the latch entirely, because an empty match result is indistinguishable
   from a transient worker failure (`matchTitles` maps failures to `[]`),

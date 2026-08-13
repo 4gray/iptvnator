@@ -2,6 +2,8 @@ import { Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
+    groupTitleMatchesByKey,
+    pickTitleMatch,
 } from '@iptvnator/services';
 import { normalizeTitleKeys } from '@iptvnator/shared/interfaces';
 import { DashboardDataService } from './dashboard-data.service';
@@ -15,9 +17,8 @@ import {
     ExclusionIndex,
     RecommendationCandidate,
     buildLoadKey,
-    groupMatchesByKey,
+    candidateLookup,
     isExcludedCandidate,
-    pickCatalogMatch,
     toCandidates,
     trustedReleaseYear,
 } from './dashboard-recommendations.util';
@@ -423,7 +424,7 @@ export class DashboardRecommendationsService {
             }
         }
         const matches = await this.titleMatch.matchTitles(queryTitles);
-        const grouped = groupMatchesByKey(matches);
+        const grouped = groupTitleMatchesByKey(matches);
 
         // Title collisions are resolved HERE rather than before matching:
         // two candidates that resolve to the same catalog row would render
@@ -432,7 +433,7 @@ export class DashboardRecommendationsService {
         const items: DashboardRecommendationItem[] = [];
         const claimedRows = new Set<string>();
         for (const candidate of candidates) {
-            const match = pickCatalogMatch(candidate, grouped);
+            const match = pickTitleMatch(candidateLookup(candidate), grouped);
             if (!match) {
                 continue;
             }

@@ -1,5 +1,5 @@
 import { extractYear, tmdbPosterUrl } from '@iptvnator/services';
-import type { TmdbSearchResult } from '@iptvnator/services';
+import type { CatalogTitleLookup, TmdbSearchResult } from '@iptvnator/services';
 import {
     CatalogTitleMatch,
     normalizeTitleKeys,
@@ -33,7 +33,10 @@ export interface DashboardRecommendationItem {
     seedTitle: string;
 }
 
-export type RecommendationCandidate = Omit<DashboardRecommendationItem, 'match'>;
+export type RecommendationCandidate = Omit<
+    DashboardRecommendationItem,
+    'match'
+>;
 
 /**
  * The release year an activity row STATES in a metadata field, never one
@@ -88,9 +91,7 @@ interface CandidateKeys {
  * Both matching tiers for each of the candidate's aliases — localized
  * title first, original-title alias second.
  */
-function candidateKeySets(
-    candidate: RecommendationCandidate
-): CandidateKeys[] {
+function candidateKeySets(candidate: RecommendationCandidate): CandidateKeys[] {
     const type = candidate.mediaType === 'movie' ? 'movie' : 'series';
     const toKeys = (title: string): CandidateKeys => {
         const keys = normalizeTitleKeys(title);
@@ -107,76 +108,28 @@ function candidateKeySets(
     return sets;
 }
 
-/** Exact-tier keys only — used for dedupe and catalog-match lookup */
-function candidateTitleKeys(candidate: RecommendationCandidate): string[] {
-    return candidateKeySets(candidate).map((keys) => keys.exact);
-}
-
 /**
- * EVERY match per `type:exactNormalizedTitle`, in the order the worker
- * returned them.
+ * The candidate as a catalog lookup, localized title first and the
+ * original-title alias second.
  *
- * Deliberately not the shared `buildTitleMatchIndex`: that collapses to
- * one row per key before the candidate's year is known, so a catalog
- * holding both "Dune 1984" and "Dune 2021" keeps whichever arrived first
- * and a 2021 recommendation then fails the year check with the right row
- * already discarded. Keeping every row lets the year gate choose.
+ * The grouping and ranking themselves are the shared
+ * `groupTitleMatchesByKey()` / `pickTitleMatch()`
+ * (`@iptvnator/services`) — the Trending rail, the cross-portal Similar
+ * rail and the actor pages resolve a batched `DB_MATCH_TITLES` result the
+ * same way, and this rail is just the one that also carries an alias.
+ * `pickTitleMatch` folds aliases that normalize to one key, so passing
+ * both unconditionally is safe.
  */
-export function groupMatchesByKey(
-    matches: readonly CatalogTitleMatch[]
-): Map<string, CatalogTitleMatch[]> {
-    const grouped = new Map<string, CatalogTitleMatch[]>();
-    for (const match of matches) {
-        const key = `${match.type}:${normalizeTitleKeys(match.queryTitle).exact}`;
-        grouped.set(key, [...(grouped.get(key) ?? []), match]);
-    }
-    return grouped;
-}
-
-/**
- * The catalog row this recommendation should link to, or null.
- *
- * Aliases are tried in order (localized title, then original-title), and
- * only year-compatible rows qualify — a localized title can hit a
- * same-named different-year row while the alias holds the correct match,
- * so a bad hit must not veto the good one.
- *
- * Ranking is by EVIDENCE, across every alias at once. A row whose
- * stripped year IS the candidate's wins: that is positive evidence for
- * this exact film, while a row with no year is merely not contradicting
- * one ("Dune" could be either cut, so linking a 2021 recommendation to it
- * when "Dune 2021" also exists throws the better evidence away — and that
- * holds whichever alias found which). Untagged rows come next — mirroring
- * `buildTitleMatchIndex`'s precedence, and the only tier reachable when
- * the candidate's own year is unknown — then anything else compatible.
- * Alias order survives only as the tiebreaker inside a tier.
- */
-export function pickCatalogMatch(
-    candidate: RecommendationCandidate,
-    grouped: ReadonlyMap<string, CatalogTitleMatch[]>
-): CatalogTitleMatch | null {
-    // Every alias contributes to one pool, ranked by evidence rather than
-    // by which alias found it: an untagged row under the localized title
-    // must not outrank a row the original-title alias found carrying the
-    // candidate's own year. Rows enter in alias order, so `find` still
-    // breaks ties the old way — localized first.
-    const compatible: CatalogTitleMatch[] = [];
-    for (const key of candidateTitleKeys(candidate)) {
-        for (const row of grouped.get(key) ?? []) {
-            if (titleYearsCompatible(candidate.year, row.trailingYear)) {
-                compatible.push(row);
-            }
-        }
-    }
-
-    return (
-        (candidate.year !== null
-            ? compatible.find((row) => row.trailingYear === candidate.year)
-            : undefined) ??
-        compatible.find((row) => row.trailingYear === null) ??
-        compatible[0] ??
-        null
-    );
+export function candidateLookup(
+    candidate: RecommendationCandidate
+): CatalogTitleLookup {
+    return {
+        type: candidate.mediaType === 'movie' ? 'movie' : 'series',
+        titles: candidate.originalTitle
+            ? [candidate.title, candidate.originalTitle]
+            : [candidate.title],
+        year: candidate.year,
+    };
 }
 
 /**

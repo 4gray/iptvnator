@@ -14,15 +14,12 @@ import {
     ActorProfile,
     CatalogTitleMatchService,
     TmdbEnrichmentService,
-    buildTitleMatchIndex,
+    groupTitleMatchesByKey,
     mapPersonFilmography,
     mapPersonProfile,
+    pickTitleMatch,
 } from '@iptvnator/services';
-import {
-    CatalogTitleMatch,
-    normalizeTitleKeys,
-    titleYearsCompatible,
-} from '@iptvnator/shared/interfaces';
+import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import {
     ActorViewComponent,
     ActorViewItem,
@@ -75,7 +72,7 @@ export class StalkerActorRouteComponent {
     readonly isMatchingGlobal = signal(false);
     private readonly globalMatches = signal<CatalogTitleMatch[] | null>(null);
     private readonly globalIndex = computed(() =>
-        buildTitleMatchIndex(this.globalMatches() ?? [])
+        groupTitleMatchesByKey(this.globalMatches() ?? [])
     );
 
     readonly items = computed<ActorViewItem[]>(() => {
@@ -155,13 +152,14 @@ export class StalkerActorRouteComponent {
     private globalMatchFor(
         credit: ActorFilmographyCredit
     ): CatalogTitleMatch | null {
-        const type = credit.mediaType === 'movie' ? 'movie' : 'series';
-        const key = `${type}:${normalizeTitleKeys(credit.title).exact}`;
-        const match = this.globalIndex().get(key) ?? null;
-        return match &&
-            titleYearsCompatible(credit.year, match.trailingYear)
-            ? match
-            : null;
+        return pickTitleMatch(
+            {
+                type: credit.mediaType === 'movie' ? 'movie' : 'series',
+                titles: [credit.title],
+                year: credit.year,
+            },
+            this.globalIndex()
+        );
     }
 
     private async loadGlobalMatches(): Promise<void> {

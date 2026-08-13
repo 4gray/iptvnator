@@ -14,10 +14,10 @@ import {
  * VOD multi-source discovery: find the SAME movie in the user's other
  * playlists.
  *
- * Deliberately not built on `buildTitleMatchIndex()` — that helper keeps one
- * match per title key because the Similar rail only needs "does this exist
- * somewhere". Here every copy in every playlist is a distinct, selectable
- * source, so all of them are returned.
+ * Deliberately not built on `pickTitleMatch()` — that helper resolves a
+ * lookup to the ONE best row, because the Similar/trending/actor rails only
+ * need "where can I play this". Here every copy in every playlist is a
+ * distinct, selectable source, so all of them are returned.
  *
  * Scope is Xtream-only: Stalker items never reach the `content` table (they
  * would need a live authenticated portal search), and M3U playlists are stored
