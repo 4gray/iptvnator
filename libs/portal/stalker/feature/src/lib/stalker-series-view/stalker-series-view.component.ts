@@ -40,6 +40,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
+    consumeStalkerReturnMarker,
     resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -843,13 +844,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     goBack() {
         const back = resolveStalkerBackNavigation(
             window.history.state,
-            this.stalkerStore.selectedItem()?.id
+            this.stalkerStore.selectedItem()
         );
         this.closeInlinePlayer();
         this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();
 
         if (back.kind === 'history-back') {
+            // One-shot: retire the contract so a browser Forward onto this
+            // entry cannot replay it for a freshly opened title.
+            consumeStalkerReturnMarker();
             this.location.back();
         } else if (back.kind === 'navigate') {
             void this.router.navigateByUrl(back.url);

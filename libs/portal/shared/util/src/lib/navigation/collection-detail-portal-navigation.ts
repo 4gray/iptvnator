@@ -3,7 +3,9 @@ import {
     buildStalkerDetailNavigationTarget,
     buildStalkerStateItem,
     buildXtreamNavigationTarget,
+    clearNavigationStateKeys,
     getStalkerReturnToState,
+    STALKER_RETURN_TO_STATE_KEY,
     WorkspaceNavigationTarget,
 } from './workspace-portal-navigation';
 import {
@@ -64,18 +66,45 @@ export function normalizeStalkerHandoffIdentity(value: unknown): string {
 }
 
 /**
+ * Identity of a Stalker item for marker comparison. The field order mirrors
+ * `extractStalkerItemId()`, which is what produced the marker: a collection row
+ * may carry only `movie_id`/`series_id`, and reading `id` alone would leave the
+ * comparison blank and silently strand the back affordance.
+ */
+export function stalkerHandoffIdentityOf(item: unknown): string {
+    const raw = (item ?? {}) as Record<string, unknown>;
+
+    return normalizeStalkerHandoffIdentity(
+        raw['id'] ?? raw['stream_id'] ?? raw['series_id'] ?? raw['movie_id']
+    );
+}
+
+/**
  * True when the history entry's return marker belongs to the currently opened
  * item. A marker left over from an earlier handoff on the same entry is stale
  * and must not drive the back affordance.
  */
 export function isStalkerReturnByHistoryFor(
     state: unknown,
-    selectedItemId: unknown
+    selectedItem: unknown
 ): boolean {
     const marker = getStalkerReturnByHistoryState(state);
-    const identity = normalizeStalkerHandoffIdentity(selectedItemId);
+    const identity = stalkerHandoffIdentityOf(selectedItem);
 
     return Boolean(marker && identity && marker === identity);
+}
+
+/**
+ * Retires the return contract from the current history entry. The handoff is
+ * one-shot: without this, browser Forward reopens the portal entry with the
+ * marker intact, and reopening the same title from the catalog would send its
+ * back affordance out to the collection instead of just closing it.
+ */
+export function consumeStalkerReturnMarker(): void {
+    clearNavigationStateKeys([
+        STALKER_RETURN_BY_HISTORY_STATE_KEY,
+        STALKER_RETURN_TO_STATE_KEY,
+    ]);
 }
 
 /**
@@ -90,7 +119,7 @@ export type StalkerBackNavigation =
 
 export function resolveStalkerBackNavigation(
     state: unknown,
-    selectedItemId: unknown
+    selectedItem: unknown
 ): StalkerBackNavigation {
     // A collection handoff is exactly one entry back, and the collection's
     // tab/scope/inline-detail live only on that entry — re-navigating would
@@ -98,7 +127,7 @@ export function resolveStalkerBackNavigation(
     // outlive the handoff though, so a marker bound to another title is stale
     // and must suppress the whole contract: back then just closes the detail.
     if (getStalkerReturnByHistoryState(state)) {
-        return isStalkerReturnByHistoryFor(state, selectedItemId)
+        return isStalkerReturnByHistoryFor(state, selectedItem)
             ? { kind: 'history-back' }
             : { kind: 'none' };
     }

@@ -1270,8 +1270,13 @@ engine` (restart required) or
   on the entry, and a Stalker detail opens in place without pushing one — so
   after Back + browser Forward the same entry can host a different title, whose
   back affordance must just close it. A stale marker suppresses the whole
-  return contract. Only this builder sets it, so the dashboard handoff and any
-  other `stalkerReturnTo` caller keeps re-navigating.
+  return contract, and honouring it retires both keys from the entry so a
+  browser Forward cannot replay them for a reopened title. The comparison
+  identity follows `extractStalkerItemId()`'s field order
+  (`id ?? stream_id ?? series_id ?? movie_id`) — a collection row may carry
+  only `movie_id`/`series_id`. Only this builder sets the marker, so the
+  dashboard handoff and any other `stalkerReturnTo` caller keeps
+  re-navigating.
 - Unlike the download handoff this bridge does NOT pass
   `detailPresentation: 'provider-only'` — the item exists in the provider
   catalog, so the full normal detail (downloads included) is wanted.

@@ -20,7 +20,9 @@ describe('StalkerSeriesViewComponent back navigation', () => {
     const locationMock = { back: jest.fn() };
     const clearSelectedItem = jest.fn();
     const originalHistoryState = window.history.state;
-    const selectedItem = signal<{ id: string } | null>({ id: '42' });
+    const selectedItem = signal<Record<string, unknown> | null>({
+        id: '42',
+    });
 
     beforeEach(async () => {
         routerMock.navigateByUrl.mockReset();
@@ -151,6 +153,37 @@ describe('StalkerSeriesViewComponent back navigation', () => {
 
         expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
         expect(locationMock.back).not.toHaveBeenCalled();
+    });
+
+    it('retires the return contract so a forward-replay cannot fire it again', () => {
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+
+        fixture.componentInstance.goBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+        expect(window.history.state?.stalkerReturnByHistory).toBeUndefined();
+        expect(window.history.state?.stalkerReturnTo).toBeUndefined();
+    });
+
+    it('matches a selection identified only by series_id', () => {
+        selectedItem.set({ series_id: '42' } as never);
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+
+        fixture.componentInstance.goBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
     });
 
     it('ignores a marker left over from an earlier handoff on this entry', () => {

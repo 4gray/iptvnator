@@ -12,6 +12,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
+    consumeStalkerReturnMarker,
     resolveStalkerBackNavigation,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -228,12 +229,15 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     onVodBack(): void {
         const back = resolveStalkerBackNavigation(
             window.history.state,
-            this.selectedItem()?.id
+            this.selectedItem()
         );
         this.closeInlinePlayer();
         this.catalog.clearSelectedItem();
 
         if (back.kind === 'history-back') {
+            // One-shot: retire the contract so a browser Forward onto this
+            // entry cannot replay it for a freshly opened title.
+            consumeStalkerReturnMarker();
             this.location.back();
         } else if (back.kind === 'navigate') {
             void this.router.navigateByUrl(back.url);

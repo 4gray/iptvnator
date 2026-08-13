@@ -239,17 +239,17 @@ describe('getUnifiedCollectionDetailNavigation', () => {
         expect(getStalkerReturnByHistoryState(navigation?.state)).toBe(
             'movie-5'
         );
-        expect(isStalkerReturnByHistoryFor(navigation?.state, 'movie-5')).toBe(
-            true
-        );
+        expect(
+            isStalkerReturnByHistoryFor(navigation?.state, { id: 'movie-5' })
+        ).toBe(true);
         // A lazy episode id keeps its parent identity.
         expect(
-            isStalkerReturnByHistoryFor(navigation?.state, 'movie-5:12')
+            isStalkerReturnByHistoryFor(navigation?.state, { id: 'movie-5:12' })
         ).toBe(true);
         // Any other title on the same history entry is a stale match.
-        expect(isStalkerReturnByHistoryFor(navigation?.state, 'movie-9')).toBe(
-            false
-        );
+        expect(
+            isStalkerReturnByHistoryFor(navigation?.state, { id: 'movie-9' })
+        ).toBe(false);
         expect(isStalkerReturnByHistoryFor(navigation?.state, undefined)).toBe(
             false
         );
@@ -313,20 +313,35 @@ describe('resolveStalkerBackNavigation', () => {
     };
 
     it('steps back for the title its marker was bound to', () => {
-        expect(resolveStalkerBackNavigation(handoff, 'movie-5')).toEqual({
-            kind: 'history-back',
-        });
-        expect(resolveStalkerBackNavigation(handoff, 'movie-5:3')).toEqual({
-            kind: 'history-back',
-        });
+        expect(
+            resolveStalkerBackNavigation(handoff, { id: 'movie-5' })
+        ).toEqual({ kind: 'history-back' });
+        expect(
+            resolveStalkerBackNavigation(handoff, { id: 'movie-5:3' })
+        ).toEqual({ kind: 'history-back' });
+    });
+
+    it('matches a row identified only by movie_id or series_id', () => {
+        // The marker comes from extractStalkerItemId(), which reads
+        // id ?? stream_id ?? series_id ?? movie_id — reading `id` alone here
+        // left the comparison blank and stranded the back affordance.
+        expect(
+            resolveStalkerBackNavigation(handoff, { movie_id: 'movie-5' })
+        ).toEqual({ kind: 'history-back' });
+        expect(
+            resolveStalkerBackNavigation(handoff, { series_id: 'movie-5' })
+        ).toEqual({ kind: 'history-back' });
+        expect(
+            resolveStalkerBackNavigation(handoff, { stream_id: 'movie-5' })
+        ).toEqual({ kind: 'history-back' });
     });
 
     it('suppresses the whole contract for a stale marker', () => {
         // Gating only the history step would let the equally stale
         // `stalkerReturnTo` re-navigate and produce the same unexpected exit.
-        expect(resolveStalkerBackNavigation(handoff, 'movie-9')).toEqual({
-            kind: 'none',
-        });
+        expect(
+            resolveStalkerBackNavigation(handoff, { id: 'movie-9' })
+        ).toEqual({ kind: 'none' });
         expect(resolveStalkerBackNavigation(handoff, undefined)).toEqual({
             kind: 'none',
         });
@@ -336,16 +351,16 @@ describe('resolveStalkerBackNavigation', () => {
         expect(
             resolveStalkerBackNavigation(
                 { stalkerReturnTo: '/workspace/dashboard' },
-                'movie-5'
+                { id: 'movie-5' }
             )
         ).toEqual({ kind: 'navigate', url: '/workspace/dashboard' });
     });
 
     it('does nothing without any return target', () => {
-        expect(resolveStalkerBackNavigation({}, 'movie-5')).toEqual({
+        expect(resolveStalkerBackNavigation({}, { id: 'movie-5' })).toEqual({
             kind: 'none',
         });
-        expect(resolveStalkerBackNavigation(null, 'movie-5')).toEqual({
+        expect(resolveStalkerBackNavigation(null, { id: 'movie-5' })).toEqual({
             kind: 'none',
         });
     });

@@ -371,6 +371,45 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         expect(locationMock.back).not.toHaveBeenCalled();
     });
 
+    it('retires the return contract so a forward-replay cannot fire it again', () => {
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+        expect(window.history.state?.stalkerReturnByHistory).toBeUndefined();
+        expect(window.history.state?.stalkerReturnTo).toBeUndefined();
+    });
+
+    it('matches a selection identified only by movie_id', () => {
+        // The marker comes from extractStalkerItemId(), which also reads
+        // movie_id/series_id; comparing against `id` alone stranded back.
+        selectedItem.set({
+            movie_id: '42',
+            cmd: '/media/42',
+            info: { name: 'Portal movie' },
+        });
+        window.history.replaceState(
+            {
+                stalkerReturnTo: '/workspace/global-favorites',
+                stalkerReturnByHistory: '42',
+            },
+            ''
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.onVodBack();
+
+        expect(locationMock.back).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores a marker left over from an earlier handoff on this entry', () => {
         // The return keys outlive the handoff, and a Stalker detail opens in
         // place — so a later title on the same entry must just close.
