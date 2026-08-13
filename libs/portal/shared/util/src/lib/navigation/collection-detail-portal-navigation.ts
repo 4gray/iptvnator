@@ -57,12 +57,11 @@ export function getStalkerReturnByHistoryState(state: unknown): string | null {
  * suffix, and only the parent identifies the opened title.
  */
 export function normalizeStalkerHandoffIdentity(value: unknown): string {
-    return (
-        String(value ?? '')
-            .trim()
-            .split(':')[0]
-            ?.trim() ?? ''
-    );
+    // `split` always yields at least one element, so the first is a string.
+    return String(value ?? '')
+        .trim()
+        .split(':')[0]
+        .trim();
 }
 
 /**
