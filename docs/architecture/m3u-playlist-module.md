@@ -1062,6 +1062,76 @@ bypass Playwright interception) and
 `electron-backend-e2e:src/dash-clearkey.e2e.ts` (real ClearKey EME in
 Electron).
 
+## Movie Recognition (VOD Detail View)
+
+M3U playlists routinely mix live channels with movie FILES ("Movies"/"VOD"
+groups, Xtream-derived exports). A recognized movie swaps the player + EPG
+zone for the same two-state VOD detail shell the portals use, fed by TMDB
+metadata. Works in both Electron and the PWA.
+
+**Gate** (`VideoPlayerComponent.showMovieDetail`): the branch activates only
+when ALL hold — the URL-shape heuristic recognizes the channel, TMDB
+enrichment is enabled (`TmdbEnrichmentService.isEnabled()`), and
+`Settings.m3uVodDetails` is not `false` (default on; the checkbox lives in
+Settings → Metadata (TMDB) under the master toggle). The decision is
+**synchronous** — layout is chosen at activation; the async TMDB lookup only
+patches metadata into an already-mounted view, so a missed match never causes
+a layout jump.
+
+**Detection** (`isLikelyM3uMovie` in
+`libs/shared/m3u-utils/src/lib/m3u-vod-detection.util.ts`): a movie-file
+container extension (`mkv`, `mp4`, `avi`, … — deliberately NOT `ts`/`m3u8`/
+`m4s` which deliver live streams, and not `mpd` which has its own DASH path)
+OR an Xtream-style `/movie/`, `/movies/`, `/vod/` path segment. Exclusions
+fail toward today's live layout: `radio="true"`, DASH URLs, `/series/` paths,
+and names carrying an episode marker (`S01E02`, `1x02`, "2 серия",
+"Season 3" — the season word list is shared with the title normalizer).
+Known accepted cost: "Star Wars: Episode 1" is skipped.
+
+**Flow** (`m3u-vod-detail/` in `libs/playlist/m3u/feature-player`):
+
+- `M3uVodDetailComponent` hosts `PortalDetailShellComponent` +
+  `PortalInlinePlayerComponent`. **Watch-first**: clicking a channel keeps
+  M3U zapping semantics — playback starts immediately, the About block
+  renders below where the EPG zone would be; Escape/close reveals the Browse
+  hero, Play re-enters watch. The hero back arrow is hidden (the channel
+  sidebar next to the detail IS the navigation).
+- The parent passes its already-built `embeddedPlayback()`
+  (`ResolvedPortalPlayback` with headers/EXTVLCOPT resolved) plus its shared
+  persisted `volume()`; the host only overrides `isLive: false` (seek
+  bar/VOD semantics). The payload's OBJECT IDENTITY is the player's
+  source-application key (`createWebPlayerApplicationState` mints a new
+  source revision for any new payload), so it must never depend on TMDB
+  signals — folding the resolved title/poster in there restarted the movie
+  the moment enrichment landed. Metadata lives in the hero/About
+  presentation only.
+- `PortalInlinePlayerComponent` gained an optional `volume` input
+  (default `1`) for this host: the M3U player owns a persisted volume shared
+  across its channels, while the portals keep the engines' own default. The
+  parent re-reads that bus per channel AND on the host's `playbackStarted`
+  output, because Browse → Play remounts the engine without a channel change
+  and the engines only ever write to the bus.
+
+**Coverage:** `apps/web-e2e/src/m3u-movie-details.e2e.ts` drives the workflow
+against the real composition with a routed TMDB mock — recognition, async
+metadata, the live-channel fallback, and the volume the remount must keep.
+
+- `M3uVodMetadataService` (component-provided) calls
+  `TmdbEnrichmentService.enrichMovie({ title: channel.name, year:
+releaseTagYear(channel.name) })` — the resolver already normalizes titles
+  and caches verdicts; the service only adds the release-year hint and a
+  staleness guard keyed on `channel.id` so zapping mid-request drops the
+  stale resolution.
+- No TMDB match keeps the thin provider presentation (entry name + logo) in
+  the detail layout rather than jumping back to the EPG view.
+- External MPV/VLC users keep Browse: the m3u-state effects launch the
+  external player on activation exactly as before, and
+  `inlinePlayerAvailable=false` means the host never mounts an inline player.
+
+**Out of scope (v1)**: series episodes (detection skips them), playback
+position persistence for M3U movies, clickable cast chips (no
+`actor/:personId` route in the M3U tree), and downloads.
+
 ## Interfaces
 
 ### Channel Interface

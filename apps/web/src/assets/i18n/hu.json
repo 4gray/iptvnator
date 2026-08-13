@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "TMDB API-kulcs (nem kötelező)",
         "TMDB_API_KEY_DESCRIPTION": "A beépített helyett saját TMDB API-kulcs használata",
         "TMDB_GET_KEY_HINT": "Ingyenes API-kulcs igénylése a themoviedb.org webhelyen",
+        "TMDB_M3U_VOD_DETAILS": "Filmek felismerése az M3U lejátszási listákban",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "A filmfájlnak tűnő listaelemek a film adatlapján nyílnak meg TMDB-metaadatokkal az EPG panel helyett.",
         "TMDB_TEST_BUTTON": "Kulcs ellenőrzése",
         "TMDB_TEST_SUCCESS": "A kulcs működik – a TMDB sikeresen válaszolt",
         "TMDB_TEST_FAILED": "Az ellenőrzés sikertelen – a TMDB elutasította a kulcsot, vagy nem érhető el",

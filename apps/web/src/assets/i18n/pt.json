@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "Chave de API do TMDB (opcional)",
         "TMDB_API_KEY_DESCRIPTION": "Use sua própria chave de API do TMDB em vez da chave integrada",
         "TMDB_GET_KEY_HINT": "Obtenha uma chave de API gratuita em themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "Reconhecer filmes em playlists M3U",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "As entradas da playlist que parecem ficheiros de filmes abrem na vista de detalhes do filme com metadados do TMDB em vez do painel de EPG.",
         "TMDB_TEST_BUTTON": "Verificar chave",
         "TMDB_TEST_SUCCESS": "A chave funciona — o TMDB respondeu com sucesso",
         "TMDB_TEST_FAILED": "A verificação falhou — o TMDB rejeitou a chave ou está inacessível",

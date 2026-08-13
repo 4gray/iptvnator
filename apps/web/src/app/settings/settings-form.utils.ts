@@ -35,6 +35,7 @@ export function createSettingsForm(
         playerAmbientMode: false,
         playerUpNextRail: true,
         vodAutoFailover: false,
+        m3uVodDetails: true,
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
@@ -125,6 +126,7 @@ export function createSettingsFromFormValue(
         playerAmbientMode: value.playerAmbientMode ?? false,
         playerUpNextRail: value.playerUpNextRail ?? true,
         vodAutoFailover: value.vodAutoFailover ?? false,
+        m3uVodDetails: value.m3uVodDetails ?? true,
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,

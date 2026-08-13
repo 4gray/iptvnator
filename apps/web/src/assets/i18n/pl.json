@@ -264,6 +264,8 @@
         "TMDB_API_KEY": "Klucz API TMDB (opcjonalnie)",
         "TMDB_API_KEY_DESCRIPTION": "Użyj własnego klucza API TMDB zamiast wbudowanego",
         "TMDB_GET_KEY_HINT": "Uzyskaj bezpłatny klucz API na themoviedb.org",
+        "TMDB_M3U_VOD_DETAILS": "Rozpoznawaj filmy na playlistach M3U",
+        "TMDB_M3U_VOD_DETAILS_DESCRIPTION": "Pozycje playlisty wyglądające jak pliki filmowe otwierają się w widoku szczegółów filmu z metadanymi TMDB zamiast panelu EPG.",
         "TMDB_TEST_BUTTON": "Sprawdź klucz",
         "TMDB_TEST_SUCCESS": "Klucz działa — TMDB odpowiedziało poprawnie",
         "TMDB_TEST_FAILED": "Sprawdzenie nie powiodło się — TMDB odrzuciło klucz lub jest niedostępne",

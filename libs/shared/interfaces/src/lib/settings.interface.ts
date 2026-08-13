@@ -131,6 +131,14 @@ export interface Settings {
      * session, so this cannot loop.
      */
     vodAutoFailover?: boolean;
+    /**
+     * Present M3U entries recognized as movie files (by URL shape) in the
+     * VOD detail view with TMDB metadata instead of the EPG zone. On by
+     * default; missing values mean enabled. Only takes effect while TMDB
+     * enrichment itself is enabled — without it there is no metadata to
+     * show, so recognition never runs.
+     */
+    m3uVodDetails?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;

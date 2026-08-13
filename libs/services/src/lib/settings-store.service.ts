@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS: Settings = {
     playerAmbientMode: false,
     playerUpNextRail: true,
     vodAutoFailover: false,
+    m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -226,6 +227,9 @@ export const SettingsStore = signalStore(
                     vodAutoFailover:
                         store.vodAutoFailover?.() ??
                         DEFAULT_SETTINGS.vodAutoFailover,
+                    m3uVodDetails:
+                        store.m3uVodDetails?.() ??
+                        DEFAULT_SETTINGS.m3uVodDetails,
                     streamFormat: store.streamFormat(),
                     openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
                     language: store.language(),

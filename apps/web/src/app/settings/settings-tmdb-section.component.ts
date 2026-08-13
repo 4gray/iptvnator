@@ -5,7 +5,7 @@ import {
     signal,
     ViewEncapsulation,
 } from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -102,6 +102,18 @@ export class SettingsTmdbSectionComponent {
         return (this.form().value.tmdb?.apiKey ?? '').trim();
     }
 
+    /**
+     * The M3U movie-recognition toggle lives at the settings ROOT (it is a
+     * player-layout preference, not part of the persisted `tmdb` group this
+     * section's `formGroupName` wraps), so the template binds it via
+     * `[formControl]` instead of a group-relative `formControlName`.
+     * Nullable: the template hides the row for a form without the control.
+     */
+    get m3uVodDetailsControl(): FormControl | null {
+        const control = this.form().get('m3uVodDetails');
+        return control instanceof FormControl ? control : null;
+    }
+
     async testApiKey(): Promise<void> {
         const apiKey = this.enteredApiKey;
         if (!apiKey || this.keyTestState() === 'testing') {
@@ -152,5 +164,4 @@ export class SettingsTmdbSectionComponent {
         this.cacheError.set(stats === null);
         this.cacheStats.set(stats);
     }
-
 }

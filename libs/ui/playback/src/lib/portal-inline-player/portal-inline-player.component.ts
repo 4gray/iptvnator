@@ -72,6 +72,20 @@ export class PortalInlinePlayerComponent {
     readonly seriesTitle = input<string | null>(null);
     /** "Up Next" entries built by the series host; null for movies/live. */
     readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
+    /**
+     * Initial player volume. Only hosts that own a persisted volume pass it
+     * (the M3U player shares one across its channels); the portals keep the
+     * engines' own default, which is what this default preserves.
+     */
+    readonly volume = input(1);
+    /**
+     * Engine the host already resolved. `WebPlayerViewComponent` otherwise
+     * waits for its own asynchronous settings read and mounts Video.js
+     * meanwhile — and the engine is part of the application token, so that
+     * correction swaps the player under a running session. Hosts that hold
+     * the settings synchronously pass them; `null` keeps the old behaviour.
+     */
+    readonly playerOverride = input<VideoPlayer | null>(null);
     private readonly settingsStore = inject(SettingsStore);
     // Strip only live-channel titles — VOD/series titles ("Mission:
     // Impossible - Fallout") must never lose their leading segment.

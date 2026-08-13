@@ -11,6 +11,7 @@ import {
     computed,
     effect,
     inject,
+    linkedSignal,
     signal,
     untracked,
 } from '@angular/core';
@@ -29,6 +30,7 @@ import {
     extractDrmFromRaw,
     isDashChannel,
     isDashStreamUrl,
+    isLikelyM3uMovie,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -103,6 +105,7 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -119,6 +122,7 @@ import {
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
 const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
@@ -127,6 +131,23 @@ const M3U_GROUPS_SIDEBAR_STORAGE_KEY = 'm3u-groups-sidebar-width';
 const M3U_SIDEBAR_MIN_WIDTH = 200;
 const M3U_SIDEBAR_MAX_WIDTH = 600;
 const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
+
+/**
+ * Shared `volume` bus the player engines and the audio player persist to.
+ *
+ * The empty cases must be rejected BEFORE `Number()` sees them: it maps both
+ * `null` (nothing stored yet) and `''` to 0, which would silently start every
+ * first-run playback muted.
+ */
+function readStoredVolume(): number {
+    const stored = localStorage.getItem('volume')?.trim();
+    if (!stored) {
+        return 1;
+    }
+
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 1;
+}
 
 @Component({
     selector: 'app-video-player',
@@ -137,6 +158,7 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
         CommonModule,
         EpgListViewComponent,
         EpgTimelineComponent,
+        M3uVodDetailComponent,
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
@@ -162,6 +184,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService
@@ -212,6 +235,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             ? VideoPlayer.ArtPlayer
             : VideoPlayer.Html5Player
     );
+    /**
+     * The active channel is a movie FILE (URL-shape heuristic) and the user
+     * has TMDB enrichment plus the recognition toggle on — the content area
+     * shows the VOD detail experience instead of the player + EPG zone.
+     * Synchronous on purpose: the layout is chosen at activation, and the
+     * TMDB lookup inside the detail host only patches metadata afterwards.
+     */
+    readonly showMovieDetail = computed(() => {
+        const channel = this.activeChannel();
+        return (
+            !!channel &&
+            this.settingsStore.m3uVodDetails?.() !== false &&
+            this.tmdbEnrichment.isEnabled() &&
+            isLikelyM3uMovie(channel)
+        );
+    });
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
@@ -435,15 +474,34 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     showChannelNumberOverlay = false;
     private channelNumberTimeout?: number;
 
-    readonly volume = signal(1);
+    /**
+     * Volume handed to each new player instance, re-read from the shared
+     * `volume` localStorage bus on every channel change.
+     *
+     * The bus is what the engines actually write to (they persist on
+     * `volumechange` and never call back into this component), and every
+     * channel switch mints a new source revision, which recreates the engine
+     * component and re-reads this input. A plain constructor snapshot
+     * therefore snapped playback back to the volume the page was opened
+     * with as soon as the user zapped after adjusting it in the player.
+     * Remote-control writes still `set()` this signal directly and store the
+     * same value, so re-reading the bus per channel agrees with them.
+     *
+     * The source is the whole channel, not a derived key: `linkedSignal`
+     * re-runs its computation whenever the source EXPRESSION invalidates —
+     * the derived value's equality does not gate it (`producerRecomputeValue`
+     * calls `computation()` right after re-evaluating `source()`). Selecting
+     * the channel is therefore the trigger, which is exactly the intent, and
+     * nothing here depends on ids being distinct — `createChannel` falls back
+     * to the URL, so one stream listed in two groups shares an id. A re-read
+     * is one idempotent localStorage hit, so an extra one costs nothing.
+     */
+    readonly volume = linkedSignal({
+        source: () => this.activeChannel(),
+        computation: () => readStoredVolume(),
+    });
 
     constructor() {
-        // Initialize volume from localStorage in constructor
-        const savedVolume = localStorage.getItem('volume');
-        if (savedVolume !== null) {
-            this.volume.set(Number(savedVolume));
-        }
-
         // React to settings changes
         effect(() => {
             this.playerSettings = {
@@ -599,7 +657,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             untracked(() => {
                 const remoteControl = this.remoteControlBridge;
                 const activeChannel = this.activeChannel();
-                if (!remoteControl?.updateRemoteControlStatus || !activeChannel) {
+                if (
+                    !remoteControl?.updateRemoteControlStatus ||
+                    !activeChannel
+                ) {
                     return;
                 }
 
@@ -666,7 +727,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             const currentEpgProgram = epgProgram as
-                EpgProgram | null | undefined;
+                | EpgProgram
+                | null
+                | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );
@@ -1090,6 +1153,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
+    /**
+     * Pull the latest volume off the shared bus before a player is mounted
+     * without a channel change (the movie detail's Browse → Play). The
+     * engines persist their adjustments there and never call back, so the
+     * remounted player would otherwise start at the pre-adjustment value.
+     */
+    refreshVolumeFromBus(): void {
+        this.volume.set(readStoredVolume());
+    }
+
     private setVolume(next: number): void {
         const clamped = Math.max(0, Math.min(1, Number(next.toFixed(2))));
         this.volume.set(clamped);
@@ -1142,7 +1215,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         // after Shaka's browser-support preflight fails — the DASH-forced
         // inline player is not audible then, so this check must precede the
         // DASH shortcut.
-        if (isLiveExternalPlayerSession(this.externalPlayback.activeSession())) {
+        if (
+            isLiveExternalPlayerSession(this.externalPlayback.activeSession())
+        ) {
             return false;
         }
 
@@ -1152,8 +1227,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
         const player = this.playerSettings.player;
         return (
-            !this.isExternalPlayer(player) &&
-            player !== VideoPlayer.EmbeddedMpv
+            !this.isExternalPlayer(player) && player !== VideoPlayer.EmbeddedMpv
         );
     }
 

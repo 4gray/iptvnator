@@ -1,0 +1,99 @@
+<app-portal-detail-shell
+    [title]="title()"
+    [description]="overview()"
+    [posterUrl]="posterUrl()"
+    [backdropUrl]="backdropUrl()"
+    [playbackActive]="playbackActive()"
+    (closePlayerRequested)="closeInlinePlayback()"
+>
+    <ng-template appDetailTags>
+        @if (year()) {
+            <span class="details__tag">{{ year() }}</span>
+        }
+        @if (genres()) {
+            <span class="details__tag">{{ genres() }}</span>
+        }
+        @if (runtimeLabel()) {
+            <span class="details__tag">{{ runtimeLabel() }}</span>
+        }
+        @if (rating()) {
+            <span class="details__tag details__tag--rating">
+                ⭐ {{ rating() }}
+            </span>
+        }
+    </ng-template>
+
+    <ng-template appDetailMeta>
+        @if (cast().length) {
+            <div class="details__meta-item">
+                <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
+                <div class="details__cast-strip">
+                    @for (
+                        member of cast();
+                        track member.tmdbPersonId
+                            ? 'p' + member.tmdbPersonId
+                            : 'i' + $index
+                    ) {
+                        <span
+                            class="details__cast-chip"
+                            [title]="
+                                member.character
+                                    ? member.name + ' — ' + member.character
+                                    : member.name
+                            "
+                        >
+                            @if (member.profileUrl) {
+                                <img
+                                    class="details__cast-avatar"
+                                    [src]="member.profileUrl"
+                                    [alt]="member.name"
+                                    loading="lazy"
+                                />
+                            } @else {
+                                <span
+                                    class="details__cast-avatar details__cast-avatar--fallback"
+                                >
+                                    {{ member.name.charAt(0) }}
+                                </span>
+                            }
+                            <span class="details__cast-name">{{
+                                member.name
+                            }}</span>
+                        </span>
+                    }
+                </div>
+            </div>
+        }
+        @if (directors()) {
+            <div class="details__meta-item">
+                <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                <span class="value">{{ directors() }}</span>
+            </div>
+        }
+    </ng-template>
+
+    <ng-template appDetailActions>
+        @if (canPlayInline() && !playbackActive()) {
+            <button
+                class="play-btn"
+                data-test-id="m3u-vod-play"
+                (click)="startPlayback()"
+            >
+                <mat-icon>play_arrow</mat-icon>
+                {{ 'XTREAM.PLAY' | translate }}
+            </button>
+        }
+    </ng-template>
+
+    @if (inlinePlayback(); as playback) {
+        <app-portal-inline-player
+            detail-player
+            [playbackSessionKey]="playbackSessionKey()"
+            [playback]="playback"
+            [volume]="volume()"
+            [playerOverride]="playerOverride()"
+            (closed)="closeInlinePlayback()"
+            (externalFallbackRequested)="externalFallbackRequested.emit($event)"
+        />
+    }
+</app-portal-detail-shell>

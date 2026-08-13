@@ -17,6 +17,12 @@ Related:
   cast, director, genres, rating, artwork) via a **field-level merge** — the
   provider stays authoritative for stream-related data and for any field
   TMDB cannot fill.
+- The M3U player is a consumer too: an entry recognized as a movie file opens
+  in the VOD detail shell fed purely by an `enrichMovie` lookup (there is no
+  provider payload to merge into). Gated by the additional
+  `Settings.m3uVodDetails` toggle (default on) below the master switch; see
+  "Movie Recognition (VOD Detail View)" in
+  `docs/architecture/m3u-playlist-module.md`.
 - Enrichment is **opt-in** via `Settings > Metadata (TMDB)` because it sends
   movie/series titles to a third-party API. Default: disabled.
 - The detail view renders provider data **immediately**; enrichment runs
@@ -109,12 +115,13 @@ Wrong metadata is worse than no metadata, so id resolution is conservative:
       "chapter two"), so a name mismatch alone says more about our inputs
       than about the id.
 
-   A 404 is the one hard verdict: the id is recorded as dead
-   (`badProviderId:<id>` row), skipped next time, and the title search
-   takes over. Transient failures (auth, rate limit, 5xx, offline) neither
-   disable the id nor trigger a search — that request would hit the same
-   outage, and a title match that did come back would be weaker evidence
-   than the id already in hand.
+    A 404 is the one hard verdict: the id is recorded as dead
+    (`badProviderId:<id>` row), skipped next time, and the title search
+    takes over. Transient failures (auth, rate limit, 5xx, offline) neither
+    disable the id nor trigger a search — that request would hit the same
+    outage, and a title match that did come back would be weaker evidence
+    than the id already in hand.
+
 2. Otherwise `/search/movie` (or `/search/tv`) runs with the normalized
    title. Normalization strips bracketed tags, quality markers (`4K`,
    `1080p`, `MULTI`, …), leading language prefixes (`EN - `), diacritics,
@@ -407,7 +414,10 @@ supports CORS so the PWA calls the API directly).
 `Settings.tmdb?: { enabled: boolean; apiKey?: string }`
 (`libs/shared/interfaces/src/lib/tmdb.interface.ts`). The settings page has
 a "Metadata (TMDB)" section: enable toggle, optional API key override with a
-"check key" button (validates against `/configuration`), and a cache panel
+"check key" button (validates against `/configuration`), the M3U
+movie-recognition toggle (root-level `Settings.m3uVodDetails`, shown only
+while TMDB is enabled and bound via `[formControl]` because it is not part of
+the `tmdb` form group), and a cache panel
 showing the stored row count plus payload size with a button that drops the
 lot. Sizing is a full table scan, so it runs only once that section is the
 active one, and a failed read or clear says so instead of showing an empty
@@ -544,27 +554,27 @@ since shipped.)
   position (no TMDB involved); the watch-progress bar is limited to
   movie/series heroes.
 
-  The query is built to **match what the detail view searched with**, not
-  just what the card displays. A title alone is weaker identity than the
-  detail page had: without a year `pickConfidentMatch` requires a single
-  exact title match, which common titles never satisfy, and the miss lands
-  in the negative cache under a lookup key the detail view's hit can never
-  be found at. Stalker rows carry those facts —
-  `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads
-  `info.name`, `info.o_name`, `info.releasedate` and `info.tmdb_id` off the
-  stored entry, mirroring `enrichStalkerSelectionWithTmdb` field for field.
-  A `'movie'` verdict gets a second attempt under `'tv'` — `'movie'` is what
-  every row falls back to when nothing says otherwise, and an embedded-VOD
-  series is a `'movie'` activity row but a show on TMDB. That retry **drops
-  the id**, which is only ever valid for the media type it was resolved
-  under: `/movie/<tv id>` resolves to an unrelated film. A `'tv'` verdict
-  gets no retry — it is reached only on positive evidence (series category,
-  `is_series`, or a non-empty episode array), and the gate cannot tell an
-  adaptation sharing its show's name and year from the show itself.
+    The query is built to **match what the detail view searched with**, not
+    just what the card displays. A title alone is weaker identity than the
+    detail page had: without a year `pickConfidentMatch` requires a single
+    exact title match, which common titles never satisfy, and the miss lands
+    in the negative cache under a lookup key the detail view's hit can never
+    be found at. Stalker rows carry those facts —
+    `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads
+    `info.name`, `info.o_name`, `info.releasedate` and `info.tmdb_id` off the
+    stored entry, mirroring `enrichStalkerSelectionWithTmdb` field for field.
+    A `'movie'` verdict gets a second attempt under `'tv'` — `'movie'` is what
+    every row falls back to when nothing says otherwise, and an embedded-VOD
+    series is a `'movie'` activity row but a show on TMDB. That retry **drops
+    the id**, which is only ever valid for the media type it was resolved
+    under: `/movie/<tv id>` resolves to an unrelated film. A `'tv'` verdict
+    gets no retry — it is reached only on positive evidence (series category,
+    `is_series`, or a non-empty episode array), and the gate cannot tell an
+    adaptation sharing its show's name and year from the show itself.
 
-  Note the id in a stored Stalker entry is not a provider claim. Stalker
-  portals never send one; its only source is a match this app already made
-  and gated.
+    Note the id in a stored Stalker entry is not a provider claim. Stalker
+    portals never send one; its only source is a match this app already made
+    and gated.
 
 ### Stalker backdrops on activity rows
 
@@ -588,7 +598,7 @@ negative-match TTL.
 
 Only a **confirmed 404** is recorded. Transient failures (401, 429, 5xx,
 offline) leave no marker — they say nothing about the id. Neither does a
-title mismatch: that id exists and may be correct for a *different* item,
+title mismatch: that id exists and may be correct for a _different_ item,
 and since the row is keyed by id alone and shared across playlists,
 recording per-item mismatches here would deny the direct lookup to every
 other item that legitimately uses the same id.
