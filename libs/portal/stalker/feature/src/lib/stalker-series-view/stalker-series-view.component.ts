@@ -40,9 +40,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
-    getStalkerReturnByHistoryState,
-    getStalkerReturnToState,
-    isStalkerReturnByHistoryFor,
+    resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
@@ -843,32 +841,18 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     goBack() {
-        const historyState = window.history.state;
-        const returnTo = getStalkerReturnToState(historyState);
-        const returnMarker = getStalkerReturnByHistoryState(historyState);
-        const returnsHere = isStalkerReturnByHistoryFor(
-            historyState,
+        const back = resolveStalkerBackNavigation(
+            window.history.state,
             this.stalkerStore.selectedItem()?.id
         );
         this.closeInlinePlayer();
         this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();
 
-        if (returnMarker) {
-            // A collection handoff is exactly one entry back, and the
-            // collection's tab/scope/inline-detail live only on that entry —
-            // re-navigating would drop them and leave this page one browser
-            // Back away. The keys outlive the handoff though, so honour them
-            // only for the title the handoff actually opened; for any later
-            // title on this entry, back just closes it.
-            if (returnsHere) {
-                this.location.back();
-            }
-            return;
-        }
-
-        if (returnTo) {
-            void this.router.navigateByUrl(returnTo);
+        if (back.kind === 'history-back') {
+            this.location.back();
+        } else if (back.kind === 'navigate') {
+            void this.router.navigateByUrl(back.url);
         }
     }
 

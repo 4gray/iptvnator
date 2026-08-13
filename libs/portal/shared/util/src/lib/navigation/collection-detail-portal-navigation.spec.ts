@@ -3,6 +3,7 @@ import {
     getStalkerReturnByHistoryState,
     getUnifiedCollectionDetailNavigation,
     isStalkerReturnByHistoryFor,
+    resolveStalkerBackNavigation,
 } from './collection-detail-portal-navigation';
 
 describe('getUnifiedCollectionDetailNavigation', () => {
@@ -302,5 +303,50 @@ describe('getUnifiedCollectionDetailNavigation', () => {
                 playlistName: 'M3U Playlist',
             })
         ).toBeNull();
+    });
+});
+
+describe('resolveStalkerBackNavigation', () => {
+    const handoff = {
+        stalkerReturnTo: '/workspace/global-favorites',
+        stalkerReturnByHistory: 'movie-5',
+    };
+
+    it('steps back for the title its marker was bound to', () => {
+        expect(resolveStalkerBackNavigation(handoff, 'movie-5')).toEqual({
+            kind: 'history-back',
+        });
+        expect(resolveStalkerBackNavigation(handoff, 'movie-5:3')).toEqual({
+            kind: 'history-back',
+        });
+    });
+
+    it('suppresses the whole contract for a stale marker', () => {
+        // Gating only the history step would let the equally stale
+        // `stalkerReturnTo` re-navigate and produce the same unexpected exit.
+        expect(resolveStalkerBackNavigation(handoff, 'movie-9')).toEqual({
+            kind: 'none',
+        });
+        expect(resolveStalkerBackNavigation(handoff, undefined)).toEqual({
+            kind: 'none',
+        });
+    });
+
+    it('re-navigates for a plain returnTo handoff', () => {
+        expect(
+            resolveStalkerBackNavigation(
+                { stalkerReturnTo: '/workspace/dashboard' },
+                'movie-5'
+            )
+        ).toEqual({ kind: 'navigate', url: '/workspace/dashboard' });
+    });
+
+    it('does nothing without any return target', () => {
+        expect(resolveStalkerBackNavigation({}, 'movie-5')).toEqual({
+            kind: 'none',
+        });
+        expect(resolveStalkerBackNavigation(null, 'movie-5')).toEqual({
+            kind: 'none',
+        });
     });
 });

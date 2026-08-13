@@ -28,6 +28,7 @@ import {
     clearNavigationStateKeys,
     getOpenStalkerItemState,
     isProviderOnlyDetailState,
+    normalizeStalkerHandoffIdentity,
     PortalCatalogFacade,
     OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
@@ -359,10 +360,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     ): string | null {
         const rawId =
             item?.id ?? item?.series_id ?? item?.movie_id ?? item?.stream_id;
-        const normalized = String(rawId ?? '')
-            .trim()
-            .split(':')[0]
-            ?.trim();
-        return normalized || null;
+        // Shared with the return-marker binding in
+        // `resolveStalkerBackNavigation()` so the two cannot drift apart.
+        return normalizeStalkerHandoffIdentity(rawId) || null;
     }
 }

@@ -12,9 +12,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
-    getStalkerReturnByHistoryState,
-    getStalkerReturnToState,
-    isStalkerReturnByHistoryFor,
+    resolveStalkerBackNavigation,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -228,31 +226,17 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     }
 
     onVodBack(): void {
-        const historyState = window.history.state;
-        const returnTo = getStalkerReturnToState(historyState);
-        const returnMarker = getStalkerReturnByHistoryState(historyState);
-        const returnsHere = isStalkerReturnByHistoryFor(
-            historyState,
+        const back = resolveStalkerBackNavigation(
+            window.history.state,
             this.selectedItem()?.id
         );
         this.closeInlinePlayer();
         this.catalog.clearSelectedItem();
 
-        if (returnMarker) {
-            // A collection handoff is exactly one entry back, and the
-            // collection's tab/scope/inline-detail live only on that entry —
-            // re-navigating would drop them and leave this page one browser
-            // Back away. The keys outlive the handoff though, so honour them
-            // only for the title the handoff actually opened; for any later
-            // title on this entry, back just closes it.
-            if (returnsHere) {
-                this.location.back();
-            }
-            return;
-        }
-
-        if (returnTo) {
-            void this.router.navigateByUrl(returnTo);
+        if (back.kind === 'history-back') {
+            this.location.back();
+        } else if (back.kind === 'navigate') {
+            void this.router.navigateByUrl(back.url);
         }
     }
 

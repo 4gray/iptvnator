@@ -3,6 +3,7 @@ import {
     buildStalkerDetailNavigationTarget,
     buildStalkerStateItem,
     buildXtreamNavigationTarget,
+    getStalkerReturnToState,
     WorkspaceNavigationTarget,
 } from './workspace-portal-navigation';
 import {
@@ -75,6 +76,35 @@ export function isStalkerReturnByHistoryFor(
     const identity = normalizeStalkerHandoffIdentity(selectedItemId);
 
     return Boolean(marker && identity && marker === identity);
+}
+
+/**
+ * What a Stalker detail's back affordance should do, given the current history
+ * entry and the title it currently shows. Both back handlers share this so the
+ * marker/`returnTo` precedence cannot drift between them.
+ */
+export type StalkerBackNavigation =
+    | { kind: 'history-back' }
+    | { kind: 'navigate'; url: string }
+    | { kind: 'none' };
+
+export function resolveStalkerBackNavigation(
+    state: unknown,
+    selectedItemId: unknown
+): StalkerBackNavigation {
+    // A collection handoff is exactly one entry back, and the collection's
+    // tab/scope/inline-detail live only on that entry — re-navigating would
+    // drop them and leave the portal page one browser Back away. The keys
+    // outlive the handoff though, so a marker bound to another title is stale
+    // and must suppress the whole contract: back then just closes the detail.
+    if (getStalkerReturnByHistoryState(state)) {
+        return isStalkerReturnByHistoryFor(state, selectedItemId)
+            ? { kind: 'history-back' }
+            : { kind: 'none' };
+    }
+
+    const returnTo = getStalkerReturnToState(state);
+    return returnTo ? { kind: 'navigate', url: returnTo } : { kind: 'none' };
 }
 
 /**
