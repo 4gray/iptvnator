@@ -375,7 +375,10 @@ mounted `WebPlayerViewComponent` in place as a new playback application, and a
 first mount reads the already-loaded store value so the default engine never
 flashes before the saved one. Hosts that pass no `playerOverride` (the Xtream
 and Stalker live layouts, the portal inline detail player) rely on this live
-tracking.
+tracking. A saved switch to managed MPV/VLC is the one exception
+(`resolveRenderableWebPlayer`): the viewport can neither render nor launch an
+external player, so the mounted engine is retained and the external choice
+applies when the host starts the next playback.
 
 Video.js, HTML5, and ArtPlayer
 report native media errors, hls.js errors, Video.js/VHS errors, Shaka errors,

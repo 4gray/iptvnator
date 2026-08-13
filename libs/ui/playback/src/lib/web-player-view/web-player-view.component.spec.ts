@@ -656,6 +656,47 @@ describe('WebPlayerViewComponent', () => {
             ).toBeNull();
         });
 
+        it('retains the mounted engine when the saved player becomes MPV/VLC', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).not.toBeNull();
+
+            // The view can neither render nor launch an external player, so
+            // the switch must not blank the viewport; it applies when the
+            // host starts the next playback.
+            await TestBed.inject(SettingsStore).updateSettings({
+                player: VideoPlayer.MPV,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).not.toBeNull();
+
+            // A later inline choice still applies live.
+            await TestBed.inject(SettingsStore).updateSettings({
+                player: VideoPlayer.Html5Player,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            ).toBeNull();
+            expect(
+                fixture.debugElement.query(
+                    By.directive(StubHtmlVideoPlayerComponent)
+                )
+            ).not.toBeNull();
+        });
+
         it('keeps an explicit playerOverride ahead of the saved player', async () => {
             fixture.componentRef.setInput(
                 'playerOverride',

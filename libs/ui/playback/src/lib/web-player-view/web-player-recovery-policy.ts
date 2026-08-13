@@ -208,3 +208,19 @@ export function toInlinePlaybackPlayer(
             return null;
     }
 }
+
+/**
+ * Managed MPV/VLC cannot render inside the web player viewport and the view
+ * never launches them itself, so a mid-session saved-player switch to one
+ * retains whatever engine is already mounted — the external choice applies
+ * when the host starts the next playback. Every renderable player, including
+ * Embedded MPV, is applied directly.
+ */
+export function resolveRenderableWebPlayer(
+    configured: VideoPlayer,
+    previous?: { value: VideoPlayer }
+): VideoPlayer {
+    const external =
+        configured === VideoPlayer.MPV || configured === VideoPlayer.VLC;
+    return external && previous ? previous.value : configured;
+}

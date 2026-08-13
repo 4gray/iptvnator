@@ -6,6 +6,7 @@ import {
     effect,
     inject,
     input,
+    linkedSignal,
     output,
     signal,
     untracked,
@@ -55,6 +56,7 @@ import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import {
     createWebPlayerRecommendations,
     isPlaybackExternallyTransferable,
+    resolveRenderableWebPlayer,
     toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
@@ -143,14 +145,21 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     // Resolved from the live SettingsStore signal, not a mount-time storage
     // snapshot: a saved player change (settings page, command palette) must
-    // reach an already-mounted player without a remount.
+    // reach an already-mounted player without a remount. A saved managed
+    // MPV/VLC retains the mounted engine (resolveRenderableWebPlayer),
+    // because this view can neither render nor launch external players.
+    private readonly renderablePlayer = linkedSignal({
+        source: () =>
+            this.playerOverride() ??
+            this.settingsStore.player?.() ??
+            VideoPlayer.VideoJs,
+        computation: resolveRenderableWebPlayer,
+    });
     readonly selectedPlayer = computed<VideoPlayer>(() => {
         const temporary = this.recoverySession.temporaryPlayerOverride();
         return temporary
             ? toVideoPlayer(temporary)
-            : (this.playerOverride() ??
-                  this.settingsStore.player?.() ??
-                  VideoPlayer.VideoJs);
+            : this.renderablePlayer();
     });
     private readonly applicationState = createWebPlayerApplicationState({
         playback: this.playback,
