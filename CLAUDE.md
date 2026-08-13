@@ -1271,7 +1271,10 @@ engine` (restart required) or
   after Back + browser Forward the same entry can host a different title, whose
   back affordance must just close it. A stale marker suppresses the whole
   return contract, and honouring it retires both keys from the entry so a
-  browser Forward cannot replay them for a reopened title. The identity is
+  browser Forward cannot replay them for a reopened title. Leaving with the
+  browser's own Back runs no affordance, so `CategoryContentViewComponent`
+  also retires the contract whenever it lands on the entry with no handoff
+  item and no open detail. The identity is
   restricted to what `buildStalkerSelectedVodItem()` preserves (`id ??
 stream_id`); it drops `series_id`/`movie_id`, so a row identified only by
   those gets no marker at all and the handoff falls back to re-navigating

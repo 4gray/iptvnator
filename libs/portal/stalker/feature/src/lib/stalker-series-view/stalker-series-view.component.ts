@@ -846,6 +846,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             window.history.state,
             this.stalkerStore.selectedItem()
         );
+        // Closing the detail is unconditional: a `none` decision (no return
+        // target, or a marker left by an earlier handoff) still returns the
+        // user to the category list — it only suppresses the navigation.
         this.closeInlinePlayer();
         this.backClicked.emit();
         this.stalkerStore.clearSelectedItem();

@@ -26,6 +26,7 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import {
     clearNavigationStateKeys,
+    consumeStalkerReturnMarker,
     getOpenStalkerItemState,
     isProviderOnlyDetailState,
     normalizeStalkerHandoffIdentity,
@@ -334,6 +335,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
         const item = getOpenStalkerItemState(window.history.state);
         if (!item) {
+            // The handoff item is gone, but its return contract can still sit
+            // on this entry: leaving with the browser's own Back never runs a
+            // back affordance, so nothing retired it. Landing here with no
+            // detail open means the handoff is over — any title opened from
+            // the list now is a fresh selection whose Back must close it
+            // rather than exit to the collection.
+            if (!this.selectedItem()) {
+                consumeStalkerReturnMarker();
+            }
             return;
         }
 

@@ -68,6 +68,10 @@ Related:
   and suppresses the whole return contract. Honouring it retires both return
   keys from the entry, so the handoff is genuinely one-shot: a browser Forward
   onto the same entry cannot replay it for a title reopened from the catalog.
+  Leaving via the browser's own Back runs no affordance at all, so
+  `CategoryContentViewComponent` retires the contract as well whenever it
+  lands on the entry with no handoff item and no detail open — the handoff is
+  over, and anything opened from the list afterwards is a fresh selection.
   The identity is restricted to the fields `buildStalkerSelectedVodItem()`
   preserves (`id ?? stream_id`) — it drops `series_id`/`movie_id`, so binding
   to the wider `extractStalkerItemId()` set would compare against an identity
