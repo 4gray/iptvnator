@@ -162,6 +162,22 @@ Search is shell-owned and route-aware:
 7. Global search uses the header input as its primary input and writes the
    search phrase to the `q` query parameter, so history/back-forward behavior
    matches the rest of the workspace.
+8. The URL is authoritative for the search box only when it carries search
+   intent. `WorkspaceShellSearchSyncService` re-reads `q` on every
+   `NavigationEnd`, but an **app-initiated** navigation that stays on the same
+   page and carries the term already applied is ignored while input is still
+   debouncing — otherwise a page writing an unrelated query param (a downloads
+   filter chip, a refresh bump) or the router echoing back our own `q` would
+   cancel the pending debounce and reset the box, eating everything typed
+   since. Pages are free to write their own query params while the user types;
+   they must not assume the shell will re-apply the search afterwards.
+9. Browser history overrides that guard. The exemption is keyed on
+   `Navigation.trigger === 'imperative'`, so back/forward always re-applies
+   what the history entry carries, even mid-typing.
+10. Applying a term explicitly supersedes a queued one. `applySearchQuery()`
+    cancels any pending debounce, so the Enter key committing a trimmed term
+    cannot be overwritten a moment later by the untrimmed keystroke still
+    waiting behind it.
 
 Rail navigation is also shell-owned:
 

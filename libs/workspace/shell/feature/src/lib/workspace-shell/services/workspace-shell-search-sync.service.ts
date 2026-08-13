@@ -7,6 +7,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { parseWorkspaceShellRoute } from '@iptvnator/workspace/shell/util';
 import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
 import {
+    getRoutePath,
     getRouteQueryParam,
     syncSearchQueryParam,
 } from './helpers/workspace-shell-route-utils';
@@ -22,17 +23,13 @@ export class WorkspaceShellSearchSyncService {
 
     private searchDebounceTimeoutId: ReturnType<typeof setTimeout> | null =
         null;
+    private lastSyncedUrl: string | null = null;
 
     readonly searchQuery = signal('');
     readonly appliedSearchQuery = signal('');
 
     constructor() {
-        this.destroyRef.onDestroy(() => {
-            if (this.searchDebounceTimeoutId !== null) {
-                clearTimeout(this.searchDebounceTimeoutId);
-                this.searchDebounceTimeoutId = null;
-            }
-        });
+        this.destroyRef.onDestroy(() => this.cancelPendingSearchApply());
 
         this.router.events
             .pipe(
@@ -113,36 +110,66 @@ export class WorkspaceShellSearchSyncService {
     }
 
     setSearchState(value: string): void {
-        if (this.searchDebounceTimeoutId !== null) {
-            clearTimeout(this.searchDebounceTimeoutId);
-            this.searchDebounceTimeoutId = null;
-        }
-
+        this.cancelPendingSearchApply();
         this.searchQuery.set(value);
         this.appliedSearchQuery.set(value);
     }
 
+    /**
+     * Applies a term now. This supersedes a queued debounce — pressing Enter
+     * commits the trimmed term, and the keystroke that is still waiting must
+     * not reapply the untrimmed one behind it.
+     */
     applySearchQuery(value: string): void {
+        this.cancelPendingSearchApply();
         this.appliedSearchQuery.set(value);
     }
 
     private syncSearchFromUrl(url: string): void {
-        if (parseWorkspaceShellRoute(url).usesQuerySearch) {
-            this.setSearchState(getRouteQueryParam(this.router, url, 'q'));
+        const previousUrl = this.lastSyncedUrl;
+        this.lastSyncedUrl = url;
+
+        const nextTerm = parseWorkspaceShellRoute(url).usesQuerySearch
+            ? getRouteQueryParam(this.router, url, 'q')
+            : '';
+
+        // An app-initiated navigation that stays on the same page and carries
+        // the term we already applied brings no search intent of its own: it is
+        // either an unrelated query param the page wrote (a filter chip, a
+        // refresh bump) or the router echoing back our own `q`. Syncing anyway
+        // would cancel the pending debounce and reset the box to the applied
+        // term, silently eating everything typed since — including the whole
+        // word, when the first keystroke has not been applied yet.
+        //
+        // The trigger check keeps that narrow: history is always authoritative,
+        // so back/forward re-applies what the entry carries even mid-typing.
+        // `lastSuccessfulNavigation` is set immediately before `NavigationEnd`
+        // is emitted, so it describes the navigation being handled here.
+        if (
+            this.searchDebounceTimeoutId !== null &&
+            previousUrl !== null &&
+            getRoutePath(url) === getRoutePath(previousUrl) &&
+            nextTerm === this.appliedSearchQuery() &&
+            this.router.lastSuccessfulNavigation()?.trigger === 'imperative'
+        ) {
             return;
         }
 
-        this.setSearchState('');
+        this.setSearchState(nextTerm);
     }
 
     private scheduleSearchApply(value: string): void {
-        if (this.searchDebounceTimeoutId !== null) {
-            clearTimeout(this.searchDebounceTimeoutId);
-        }
-
+        this.cancelPendingSearchApply();
         this.searchDebounceTimeoutId = setTimeout(() => {
             this.searchDebounceTimeoutId = null;
             this.applySearchQuery(value);
         }, SEARCH_INPUT_DEBOUNCE_MS);
+    }
+
+    private cancelPendingSearchApply(): void {
+        if (this.searchDebounceTimeoutId !== null) {
+            clearTimeout(this.searchDebounceTimeoutId);
+            this.searchDebounceTimeoutId = null;
+        }
     }
 }

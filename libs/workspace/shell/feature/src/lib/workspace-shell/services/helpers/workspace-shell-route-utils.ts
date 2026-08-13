@@ -29,6 +29,14 @@ export function getRouteQueryParam(
     return typeof value === 'string' ? value : '';
 }
 
+/**
+ * The page part of a router URL, without query params or fragment — i.e. the
+ * identity of "which page am I on", as opposed to how it is parameterised.
+ */
+export function getRoutePath(url: string): string {
+    return url.split('?')[0].split('#')[0];
+}
+
 export function syncSearchQueryParam(
     router: Router,
     currentUrl: string,
@@ -40,7 +48,7 @@ export function syncSearchQueryParam(
         return false;
     }
 
-    const routePath = currentUrl.split('?')[0];
+    const routePath = getRoutePath(currentUrl);
     const queryParams = {
         ...router.parseUrl(currentUrl).queryParams,
     };
@@ -58,7 +66,7 @@ export function syncSearchQueryParam(
 }
 
 export function bumpRefreshQueryParam(router: Router, currentUrl: string): void {
-    const routePath = currentUrl.split('?')[0];
+    const routePath = getRoutePath(currentUrl);
     const queryParams = {
         ...router.parseUrl(currentUrl).queryParams,
         refresh: Date.now().toString(),
