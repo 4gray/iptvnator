@@ -200,11 +200,15 @@ Call sites:
 - The destructive Xtream refresh — before anything is deleted. It removes the
   cached catalog and then bootstraps a re-import whose status request an open
   guard would fast-fail, leaving the user with no catalog at all until the
-  cooldown expires. There are **two independent implementations** of this flow
-  and both need the reset: `PlaylistRefreshActionService.refreshXtream()` and
+  cooldown expires. The reset lives in `XtreamRefreshFlowService.runRefresh()`
+  (`libs/playlist/shared/ui`), which owns the whole flow for both of its entry
+  points: `PlaylistRefreshActionService.refreshXtream()` and
   `RecentPlaylistsComponent.refreshXtreamPlaylist()` (the Workspace sources
-  page). They are near-duplicates of each other, which is exactly why the second
-  one was missed first time round.
+  page). Those two used to be independent near-duplicates, which is exactly why
+  the second one was missed first time round; they now differ only in the
+  `XtreamRefreshProgressReporter` they hand over, and a reporter cannot reach
+  the reset. Keep it that way — a third entry point should pass a reporter, not
+  copy the sequence.
 - `PortalStatusService.checkPortalStatusDetails` when `skipCache` is set — the
   user-initiated "Test Connection".
 

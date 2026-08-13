@@ -5,3 +5,4 @@ export * from './lib/recent-playlists/playlist-info/stalker-playlist-connection-
 export * from './lib/recent-playlists/recent-playlists.component';
 export * from './lib/recent-playlists/empty-state/empty-state.component';
 export * from './lib/playlist-refresh-action.service';
+export * from './lib/xtream-refresh-flow.service';
