@@ -19,6 +19,7 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     PortalDetailShellComponent,
+    ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
@@ -125,6 +126,7 @@ interface StalkerSeriesPlaybackRequestContext {
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
         PortalDetailShellComponent,
+        ViewInPortalActionComponent,
         PortalInlinePlayerComponent,
         SafePipe,
         TranslatePipe,

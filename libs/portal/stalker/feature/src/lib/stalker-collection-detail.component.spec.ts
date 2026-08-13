@@ -2,8 +2,12 @@ import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import {
+    ContentHeroComponent,
+    VIEW_IN_PORTAL_HANDOFF,
+} from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -94,6 +98,7 @@ describe('StalkerCollectionDetailComponent', () => {
     };
     let snackBar: { open: jest.Mock };
     let playlistsService: { getPlaylistById: jest.Mock };
+    let routerNavigate: jest.Mock;
 
     const playlist = {
         _id: 'stalker-1',
@@ -152,12 +157,21 @@ describe('StalkerCollectionDetailComponent', () => {
             ),
         };
 
+        routerNavigate = jest.fn().mockResolvedValue(true);
+
         await TestBed.configureTestingModule({
             imports: [StalkerCollectionDetailComponent],
             providers: [
                 {
                     provide: StalkerStore,
                     useValue: stalkerStore,
+                },
+                {
+                    provide: Router,
+                    useValue: {
+                        navigate: routerNavigate,
+                        url: '/workspace/global-favorites',
+                    },
                 },
                 {
                     provide: PORTAL_PLAYER,
@@ -557,6 +571,56 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(playbackPositions.getPlaybackPosition).not.toHaveBeenCalled();
         expect(fixture.componentInstance.selectedVodPlaybackPosition()).toBe(
             null
+        );
+    });
+
+    it('provides itself as the view-in-portal handoff on its element injector', () => {
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'series',
+                categoryId: '44',
+                stalkerId: 'series-9',
+                name: 'Series Nine',
+            })
+        );
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.injector.get(VIEW_IN_PORTAL_HANDOFF)
+        ).toBe(fixture.componentInstance);
+        expect(fixture.componentInstance.viewInPortalAvailable()).toBe(true);
+        expect(fixture.componentInstance.viewInPortalPlaylistName()).toBe(
+            'Stalker Portal'
+        );
+    });
+
+    it('navigates to the portal category with openStalkerItem and return state', () => {
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'series',
+                categoryId: '44',
+                stalkerId: 'series-9',
+                name: 'Series Nine',
+            })
+        );
+        fixture.detectChanges();
+
+        fixture.componentInstance.openInPortal();
+
+        expect(routerNavigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', 'stalker-1', 'series', '44'],
+            {
+                state: {
+                    openStalkerItem: expect.objectContaining({
+                        id: 'series-9',
+                        category_id: '44',
+                        title: 'Series Nine',
+                    }),
+                    stalkerReturnTo: '/workspace/global-favorites',
+                },
+            }
         );
     });
 });

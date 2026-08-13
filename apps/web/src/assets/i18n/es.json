@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "Ver todas las películas",
         "BROWSE_ALL_SERIES": "Ver todas las series",
         "BROWSE_ALL_LIVE": "Ver toda la TV en vivo",
+        "VIEW_IN_PORTAL": "Ver en el portal",
+        "VIEW_IN_PORTAL_TOOLTIP": "Abrir en {{name}}",
         "SIDEBAR": {
             "MAIN": "Principal",
             "MOVIES": "Películas",

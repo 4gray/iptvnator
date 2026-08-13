@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "すべての映画を表示",
         "BROWSE_ALL_SERIES": "すべてのシリーズを表示",
         "BROWSE_ALL_LIVE": "すべてのライブTVを表示",
+        "VIEW_IN_PORTAL": "ポータルで表示",
+        "VIEW_IN_PORTAL_TOOLTIP": "{{name}}で開く",
         "SIDEBAR": {
             "MAIN": "メイン",
             "MOVIES": "映画",

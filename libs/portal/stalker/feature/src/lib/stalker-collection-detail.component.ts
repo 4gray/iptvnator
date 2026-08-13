@@ -3,6 +3,7 @@ import {
     Component,
     computed,
     effect,
+    forwardRef,
     inject,
     input,
     output,
@@ -10,11 +11,17 @@ import {
     untracked,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { PortalDetailShellComponent } from '@iptvnator/ui/components';
+import {
+    PortalDetailShellComponent,
+    VIEW_IN_PORTAL_HANDOFF,
+    ViewInPortalHandoff,
+} from '@iptvnator/ui/components';
 import {
     buildStalkerStateItem,
     createLogger,
+    getUnifiedCollectionDetailNavigation,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -103,6 +110,12 @@ interface StalkerCollectionPlaybackOwner {
         }
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [
+        {
+            provide: VIEW_IN_PORTAL_HANDOFF,
+            useExisting: forwardRef(() => StalkerCollectionDetailComponent),
+        },
+    ],
     styles: [
         `
             :host {
@@ -114,11 +127,12 @@ interface StalkerCollectionPlaybackOwner {
         `,
     ],
 })
-export class StalkerCollectionDetailComponent {
+export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     readonly item = input<UnifiedCollectionItem | null>(null);
     readonly closeRequested = output<void>();
 
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly router = inject(Router);
     private readonly stalkerStore = inject(StalkerStore);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
@@ -128,6 +142,28 @@ export class StalkerCollectionDetailComponent {
     private readonly logger = createLogger('StalkerCollectionDetail');
     private readonly originalState = this.captureStoreState();
     private readonly favoritesRefresh = createRefreshTrigger();
+
+    readonly viewInPortalAvailable = computed(() => {
+        const item = this.item();
+        return !!item && getUnifiedCollectionDetailNavigation(item) !== null;
+    });
+    readonly viewInPortalPlaylistName = computed(
+        () => this.item()?.playlistName ?? null
+    );
+
+    openInPortal(): void {
+        const item = this.item();
+        const navigation = item
+            ? getUnifiedCollectionDetailNavigation(item, {
+                  returnTo: this.router.url,
+              })
+            : null;
+        if (navigation) {
+            void this.router.navigate(navigation.link, {
+                state: navigation.state,
+            });
+        }
+    }
 
     readonly itemDetails = signal<StalkerSelectedVodItem | null>(null);
     readonly vodDetailsItem = signal<VodDetailsItem | null>(null);

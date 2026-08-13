@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "Bekijk alle films",
         "BROWSE_ALL_SERIES": "Bekijk alle series",
         "BROWSE_ALL_LIVE": "Bekijk alle live tv",
+        "VIEW_IN_PORTAL": "In portal bekijken",
+        "VIEW_IN_PORTAL_TOOLTIP": "Openen in {{name}}",
         "SIDEBAR": {
             "MAIN": "Hoofd",
             "MOVIES": "Films",

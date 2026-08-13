@@ -39,6 +39,21 @@ Related:
   the one-shot `detailPresentation: 'provider-only'` navigation state. The
   destination keeps provider playback and whatever catalog the normal provider
   host can resolve, but hides Offline/local/download presentation.
+- Inline collection details (global favorites/recent — which also receive the
+  dashboard hero and Continue Watching handoffs — plus a portal's own
+  favorites/recent tabs) expose the same bridge as a separate-row hero action.
+  The shared `app-view-in-portal-action` (`libs/ui/components`) renders only
+  when a host provides `VIEW_IN_PORTAL_HANDOFF`; the two collection-detail
+  wrappers (`xtream-collection-detail.component.ts`,
+  `stalker-collection-detail.component.ts`) are the only providers, so
+  router-mounted category details never show the button. Targets come from
+  `getUnifiedCollectionDetailNavigation()` (`libs/portal/shared/util`), which
+  never degrades to a category- or section-only route: an Xtream item without a
+  resolvable category and positive item id keeps the button hidden. Unlike the
+  download handoff it does NOT pass `detailPresentation: 'provider-only'` — the
+  item exists in the provider catalog and the full normal detail is desired.
+  The Stalker handoff carries `stalkerReturnTo` so the portal detail's back
+  affordance returns to the originating collection.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 

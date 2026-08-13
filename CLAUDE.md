@@ -1198,7 +1198,9 @@ engine` (restart required) or
   form a metadata-only target; unproven episode and legacy-movie handoffs stay
   unavailable. The normal detail uses one-shot `provider-only` presentation:
   it exposes provider content/playback it can resolve while hiding
-  Offline/local/download actions.
+  Offline/local/download actions. A second, independent `View in portal`
+  bridge exists for inline collection details — see **Collection Detail
+  Portal Handoff** below; it deliberately does NOT use `provider-only`.
 - Download rows and local files survive source deletion. The global offline
   library remains visible with no playlists; only provider handoff is disabled
   until the source exists again.
@@ -1207,6 +1209,41 @@ engine` (restart required) or
   redirect leaves an actionable missing-file state with Back and Retry.
 - Canonical contract: `docs/architecture/download-manager.md`; provider handoff:
   `docs/architecture/portal-detail-navigation.md`.
+
+**Collection Detail Portal Handoff** (`View in portal` for inline details):
+
+- Details opened outside portal category context — `/workspace/global-favorites`,
+  `/workspace/global-recent` (which also receive the dashboard hero, Continue
+  Watching and favorites-rail handoffs), and a portal's own `favorites`/`recent`
+  tabs — render full-width with no category sidebar. They expose a separate-row
+  hero action that jumps to the item inside its owning portal.
+- Visibility is DI-gated, never URL-sniffed: `app-view-in-portal-action`
+  (`libs/ui/components/src/lib/view-in-portal-action/`) renders only when a host
+  provides `VIEW_IN_PORTAL_HANDOFF`. The sole providers are
+  `XtreamCollectionDetailComponent` (through its dynamic detail injector) and
+  `StalkerCollectionDetailComponent` (component providers), which exist only in
+  collection contexts — so router-mounted category details need no opt-out. When
+  hidden the host must stay `display: none`, or its `flex: 0 0 100%` would claim
+  a phantom row in the hero action container.
+- Targets come from `getUnifiedCollectionDetailNavigation()`
+  (`libs/portal/shared/util/.../collection-detail-portal-navigation.ts`). Unlike
+  `getUnifiedCollectionNavigation` it NEVER degrades to a category- or
+  section-only route: an Xtream item without a resolvable category and positive
+  item id keeps the action hidden rather than promising a jump to the title and
+  landing in a list.
+- Stalker section resolution mirrors
+  `StalkerCollectionDetailComponent.resolveDetailMode()` and must not be
+  simplified to `item.contentType`: `extractStalkerItemType()` reports `series`
+  for embedded `series[]` snapshots and lazy Ministra VOD `is_series` items, but
+  both belong in the VOD catalog — the lazy season/episode fetch in
+  `StalkerCatalogFacadeService.selectItem()` is gated on the VOD content type, so
+  a `/series` route leaves the detail unable to load episodes. The virtual
+  `series` category is normalized to `vod` the same way
+  `resolveSelectedCategory()` does. Stalker also carries `stalkerReturnTo`.
+- Unlike the download handoff this bridge does NOT pass
+  `detailPresentation: 'provider-only'` — the item exists in the provider
+  catalog, so the full normal detail (downloads included) is wanted.
+- Contract: `docs/architecture/portal-detail-navigation.md`.
 
 **VOD/Series Detail Pages (two-state layout)**:
 

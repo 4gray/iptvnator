@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "تصفح جميع الأفلام",
         "BROWSE_ALL_SERIES": "تصفح جميع السلاسل",
         "BROWSE_ALL_LIVE": "تصفح جميع البث المباشر",
+        "VIEW_IN_PORTAL": "شوف فالبوابة",
+        "VIEW_IN_PORTAL_TOOLTIP": "افتح ف {{name}}",
         "SIDEBAR": {
             "MAIN": "الرئيسي",
             "MOVIES": "الأفلام",

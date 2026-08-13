@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "Összes film böngészése",
         "BROWSE_ALL_SERIES": "Összes sorozat böngészése",
         "BROWSE_ALL_LIVE": "Összes élő csatorna böngészése",
+        "VIEW_IN_PORTAL": "Megtekintés a portálon",
+        "VIEW_IN_PORTAL_TOOLTIP": "Megnyitás: {{name}}",
         "SIDEBAR": {
             "MAIN": "Főmenü",
             "MOVIES": "Filmek",

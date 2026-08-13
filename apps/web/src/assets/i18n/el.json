@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "Περιήγηση σε όλες τις ταινίες",
         "BROWSE_ALL_SERIES": "Περιήγηση σε όλες τις σειρές",
         "BROWSE_ALL_LIVE": "Περιήγηση σε όλη τη ζωντανή TV",
+        "VIEW_IN_PORTAL": "Προβολή στην πύλη",
+        "VIEW_IN_PORTAL_TOOLTIP": "Άνοιγμα σε {{name}}",
         "SIDEBAR": {
             "MAIN": "Κύριο",
             "MOVIES": "Ταινίες",

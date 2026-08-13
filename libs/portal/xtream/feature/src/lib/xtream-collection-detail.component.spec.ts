@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { VIEW_IN_PORTAL_HANDOFF } from '@iptvnator/ui/components';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
@@ -27,6 +28,7 @@ describe('XtreamCollectionDetailComponent', () => {
     let isLoadingDetails: ReturnType<typeof signal<boolean>>;
     let detailsError: ReturnType<typeof signal<string | null>>;
     let cancelDetailsRequest: jest.Mock;
+    let routerNavigate: jest.Mock;
 
     beforeEach(async () => {
         playlistId = signal('');
@@ -37,6 +39,7 @@ describe('XtreamCollectionDetailComponent', () => {
         isLoadingDetails = signal(false);
         detailsError = signal<string | null>(null);
         cancelDetailsRequest = jest.fn();
+        routerNavigate = jest.fn().mockResolvedValue(true);
 
         await TestBed.configureTestingModule({
             imports: [XtreamCollectionDetailComponent],
@@ -76,6 +79,13 @@ describe('XtreamCollectionDetailComponent', () => {
                         setDetailsError: jest.fn((value: string | null) =>
                             detailsError.set(value)
                         ),
+                    },
+                },
+                {
+                    provide: Router,
+                    useValue: {
+                        navigate: routerNavigate,
+                        url: '/workspace/global-recent',
                     },
                 },
                 {
@@ -166,5 +176,57 @@ describe('XtreamCollectionDetailComponent', () => {
         fixture.componentInstance.ngOnDestroy();
 
         expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('provides itself as the view-in-portal handoff to the inline detail', async () => {
+        fixture.componentRef.setInput('item', {
+            uid: 'xtream::xtream-1::movie:99',
+            name: 'Movie One',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream Portal',
+            xtreamId: 99,
+            categoryId: 42,
+        } satisfies UnifiedCollectionItem);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        expect(
+            fixture.componentInstance
+                .detailInjector()
+                ?.get(VIEW_IN_PORTAL_HANDOFF)
+        ).toBe(fixture.componentInstance);
+        expect(fixture.componentInstance.viewInPortalAvailable()).toBe(true);
+        expect(fixture.componentInstance.viewInPortalPlaylistName()).toBe(
+            'Xtream Portal'
+        );
+
+        fixture.componentInstance.openInPortal();
+        expect(routerNavigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', 'xtream-1', 'vod', '42', '99'],
+            { state: undefined }
+        );
+    });
+
+    it('reports the handoff unavailable when the item lacks a category', () => {
+        fixture.componentRef.setInput('item', {
+            uid: 'xtream::xtream-1::movie:99',
+            name: 'Movie One',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream Portal',
+            xtreamId: 99,
+        } satisfies UnifiedCollectionItem);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.viewInPortalAvailable()).toBe(false);
+
+        fixture.componentInstance.openInPortal();
+        expect(routerNavigate).not.toHaveBeenCalled();
     });
 });

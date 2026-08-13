@@ -4,17 +4,23 @@ import {
     Component,
     Injector,
     Type,
+    computed,
     effect,
     inject,
     input,
     signal,
     untracked,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { PortalDetailShellComponent } from '@iptvnator/ui/components';
+import { ActivatedRoute, Router } from '@angular/router';
+import {
+    PortalDetailShellComponent,
+    VIEW_IN_PORTAL_HANDOFF,
+    ViewInPortalHandoff,
+} from '@iptvnator/ui/components';
 import {
     SeriesResumeTarget,
     UnifiedCollectionItem,
+    getUnifiedCollectionDetailNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
@@ -64,13 +70,34 @@ interface XtreamCollectionStateSnapshot {
         `,
     ],
 })
-export class XtreamCollectionDetailComponent {
+export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
     readonly item = input<UnifiedCollectionItem | null>(null);
     readonly seriesResume = input<SeriesResumeTarget | null>(null);
 
     private readonly parentInjector = inject(Injector);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
+
+    readonly viewInPortalAvailable = computed(() => {
+        const item = this.item();
+        return !!item && getUnifiedCollectionDetailNavigation(item) !== null;
+    });
+    readonly viewInPortalPlaylistName = computed(
+        () => this.item()?.playlistName ?? null
+    );
+
+    openInPortal(): void {
+        const item = this.item();
+        const navigation = item
+            ? getUnifiedCollectionDetailNavigation(item)
+            : null;
+        if (navigation) {
+            void this.router.navigate(navigation.link, {
+                state: navigation.state,
+            });
+        }
+    }
     private readonly originalState = this.captureStoreState();
     readonly detailComponent = signal<Type<unknown> | null>(null);
     readonly detailInjector = signal<Injector | null>(null);
@@ -163,6 +190,10 @@ export class XtreamCollectionDetailComponent {
                     {
                         provide: XTREAM_SERIES_RESUME_TARGET,
                         useValue: this.seriesResume,
+                    },
+                    {
+                        provide: VIEW_IN_PORTAL_HANDOFF,
+                        useValue: this,
                     },
                 ],
                 parent: this.parentInjector,

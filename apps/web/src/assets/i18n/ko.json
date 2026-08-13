@@ -958,6 +958,8 @@
         "BROWSE_ALL_MOVIES": "모든 영화 둘러보기",
         "BROWSE_ALL_SERIES": "모든 시리즈 둘러보기",
         "BROWSE_ALL_LIVE": "모든 라이브 TV 둘러보기",
+        "VIEW_IN_PORTAL": "포털에서 보기",
+        "VIEW_IN_PORTAL_TOOLTIP": "{{name}}에서 열기",
         "SIDEBAR": {
             "MAIN": "메인",
             "MOVIES": "영화",
