@@ -41,7 +41,7 @@ interface ShakaEvidenceExports {
 const exportsUnderTest = shakaDiagnostics as ShakaEvidenceExports;
 
 describe('Shaka playback evidence', () => {
-    it('matches the installed public Shaka 5.2.2 error contract', () => {
+    it('matches the installed public Shaka 5.2.4 error contract', () => {
         const installed = getInstalledShakaContract();
 
         expect(exportsUnderTest.SHAKA_DIAGNOSTIC_VERSION).toBe(

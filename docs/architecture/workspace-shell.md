@@ -162,6 +162,22 @@ Search is shell-owned and route-aware:
 7. Global search uses the header input as its primary input and writes the
    search phrase to the `q` query parameter, so history/back-forward behavior
    matches the rest of the workspace.
+8. The URL is authoritative for the search box only when it carries search
+   intent. `WorkspaceShellSearchSyncService` re-reads `q` on every
+   `NavigationEnd`, but an **app-initiated** navigation that stays on the same
+   page and carries the term already applied is ignored while input is still
+   debouncing — otherwise a page writing an unrelated query param (a downloads
+   filter chip, a refresh bump) or the router echoing back our own `q` would
+   cancel the pending debounce and reset the box, eating everything typed
+   since. Pages are free to write their own query params while the user types;
+   they must not assume the shell will re-apply the search afterwards.
+9. Browser history overrides that guard. The exemption is keyed on
+   `Navigation.trigger === 'imperative'`, so back/forward always re-applies
+   what the history entry carries, even mid-typing.
+10. Applying a term explicitly supersedes a queued one. `applySearchQuery()`
+    cancels any pending debounce, so the Enter key committing a trimmed term
+    cannot be overwritten a moment later by the untrimmed keystroke still
+    waiting behind it.
 
 Rail navigation is also shell-owned:
 
@@ -292,31 +308,42 @@ Window decorations on Linux (shadows, corners):
 
 1. Hiding the title bar removes the window manager's decorations, so the
    shadow/rounded corners must come from client-side decorations (CSD).
-   Electron only draws CSD on native Wayland, and frameless-window CSD
-   (GTK drop shadow + extended resize boundaries, `hasShadow: true` by
-   default) requires **Electron >= 41** — the reason the dependency was
-   bumped from 39. Electron picks Wayland automatically on Wayland
-   sessions since 38.2.
-2. On X11 sessions frameless windows stay undecorated (square, no
-   shadow) — an upstream platform limitation shared by e.g. VS Code.
-3. Rounded corners for frameless Linux windows are not yet supported by
-   Electron (tracked upstream as planned work); Windows 11 keeps its DWM
-   rounded corners and shadow because the standard frame is retained.
+   Electron 43 enables rounded corners by default when the Linux desktop
+   environment supports CSD. GTK drop shadows and extended resize boundaries
+   remain environment-dependent; Electron selects native Wayland automatically
+   on Wayland sessions.
+2. Linux environments without CSD support can still show a square,
+   undecorated window. Windows 11 keeps its DWM rounded corners and shadow
+   because the standard frame is retained.
 
-Toolchain notes for the Electron 41 upgrade:
+Toolchain notes for the Electron 43 baseline:
 
-1. `better-sqlite3` is pinned to exactly `12.9.0` — the last release that
-   ships prebuilt binaries for BOTH Node 20 (ABI 115, used by Jest) and
-   Electron 41 (ABI 145, used at runtime). `12.10.0` dropped the Node 20
-   prebuilds, which forces a from-source build that fails on machines
-   without a C++ toolchain.
-2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
-   `@electron/rebuild` (via `electron-builder install-app-deps`) can map
-   Electron 41 to its ABI.
-3. Local development needs **Node >= 22.12**, declared in `engines`.
-   `electron-builder` 26.15.3 pulls `@electron/rebuild` 4, which sets that
-   floor, and the root `postinstall` runs `install-app-deps` on every
-   `pnpm install`. CI already runs Node 22.
+1. `better-sqlite3` remains pinned exactly so native dependency updates happen
+   deliberately with database-worker, packaging, and Electron E2E validation.
+   Version 13 uses Node-API and ships its supported platform binaries in the
+   package. It must not be listed in pnpm's `onlyBuiltDependencies`: forcing an
+   implicit `node-gyp rebuild` bypasses those binaries and makes installation
+   depend on the host compiler toolchain. The old `node-abi` override belonged
+   to v12's removed `prebuild-install` path and is no longer required.
+2. Local development supports **Node 22.13–22.x or Node >= 24**, declared in
+   `engines` as `^22.13.0 || >=24.0.0`.
+   The direct `@faker-js/faker` dependency and current lint tooling require
+   that floor. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
+   which requires Node 22.12 or newer, and the root `postinstall` runs
+   `install-app-deps` on every `pnpm install`. The 26.15.7 minimum also
+   carries the v26 backport that fully extracts the Snap template's `.tar.7z`
+   payload; 26.15.0–26.15.6 can
+   produce a Snap that is missing `desktop-init.sh`. CI already runs Node 22.
+3. Dependabot keeps Electron, native database, packaging, EPG parser, and
+   version-locked Shaka/mpegts updates out of the shared npm minor/patch group.
+   Those dependencies require standalone PRs so their dedicated package,
+   worker, playback, and diagnostic-contract validation cannot be hidden by an
+   unrelated grouped update.
+4. Electron 42 and newer download their development binary on the first
+   Electron command instead of during package `postinstall`, so `electron`
+   must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local
+   `pnpm run serve:backend` can include a one-time download; use `pnpm exec
+   electron --version` to prewarm it before an offline run.
 
 Known caveats:
 

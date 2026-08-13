@@ -26,7 +26,52 @@ describe('title-sources.operations — confirmation and scoping', () => {
                     posterUrl: 'https://cdn.example.com/dune.jpg',
                     matchConfidence: 'exact',
                     year: null,
+                    categoryNames: [],
                 },
+            ]);
+        });
+
+        it('keeps a stream whose sibling row carries a different title', async () => {
+            // `content` is unique per (category, type, stream), so one stream
+            // in two categories is two rows and nothing forces their titles to
+            // agree. The scan tier must therefore not GROUP: given a free
+            // choice SQLite can keep "Dune Part Two", the normalized
+            // confirmation rejects it, and the source disappears even though
+            // its sibling row says "Dune". "Up" routes to the scan tier.
+            const { db } = createDbMock([
+                { ...duneRow, title: 'Up Above', category_names: 'DE | Kino' },
+                { ...duneRow, title: 'Up', category_names: 'EN | Movies' },
+            ]);
+
+            const matches = await findTitleSources(db, { title: 'Up' });
+
+            expect(matches).toHaveLength(1);
+            expect(matches[0].title).toBe('Up');
+            // ...and the rejected sibling's category still describes the same
+            // stream, so its name is merged in rather than dropped.
+            expect(matches[0].categoryNames).toEqual([
+                'DE | Kino',
+                'EN | Movies',
+            ]);
+        });
+
+        it('splits aggregated category names on the unit separator', async () => {
+            // `group_concat`'s default `,` appears in real category names, so
+            // the queries aggregate with char(31) and the split must read
+            // exactly that — a comma inside a name stays part of the name.
+            const { db } = createDbMock([
+                {
+                    ...duneRow,
+                    category_names:
+                        'EN | Netflix\u001fAction, Adventure\u001fEN | Netflix',
+                },
+            ]);
+
+            const matches = await findTitleSources(db, { title: 'Dune' });
+
+            expect(matches[0].categoryNames).toEqual([
+                'EN | Netflix',
+                'Action, Adventure',
             ]);
         });
 
@@ -162,7 +207,9 @@ describe('title-sources.operations — confirmation and scoping', () => {
 
                 expect(
                     `${requested} confirms ${matches.length} of ${rows.length}`
-                ).toBe(`${requested} confirms ${rows.length} of ${rows.length}`);
+                ).toBe(
+                    `${requested} confirms ${rows.length} of ${rows.length}`
+                );
             }
         });
 

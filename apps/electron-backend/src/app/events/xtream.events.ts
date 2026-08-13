@@ -14,7 +14,15 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
+import { formatPortalRequestError } from './portal-request-error.util';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    HostConnectivityGuardError,
+    HostRequestToken,
+    beginGuardedHostRequest,
+    reportGuardedHostFailure,
+    reportGuardedHostSuccess,
+} from '../util/host-connectivity-guard';
 import {
     createXtreamMainPerformanceCaptureForRequest,
     createXtreamMeasuredTransformResponse,
@@ -25,52 +33,6 @@ export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
         return ipcMain;
     }
-}
-
-function formatXtreamError(
-    error: unknown,
-    requestUrl: string,
-    action?: string
-) {
-    let parsedUrl: URL | null = null;
-    try {
-        parsedUrl = new URL(requestUrl);
-    } catch {
-        parsedUrl = null;
-    }
-    const base = {
-        action,
-        host: parsedUrl?.host ?? 'unknown',
-        pathname: parsedUrl?.pathname ?? requestUrl,
-    };
-
-    if (axios.isAxiosError(error)) {
-        return {
-            ...base,
-            type: 'AxiosError',
-            code: error.code,
-            status: error.response?.status,
-            message: error.message,
-            syscall: (error as NodeJS.ErrnoException).syscall,
-            hostname: (error as any).hostname,
-        };
-    }
-
-    if (error && typeof error === 'object') {
-        const errObj = error as Record<string, unknown>;
-        return {
-            ...base,
-            type: 'ErrorObject',
-            status: errObj.status,
-            message: errObj.message,
-        };
-    }
-
-    return {
-        ...base,
-        type: 'UnknownError',
-        message: String(error),
-    };
 }
 
 function buildXtreamApiUrl(url: string, params: Record<string, string>): URL {
@@ -107,6 +69,7 @@ ipcMain.handle(
         );
         let activeRequestKey: string | null = null;
         let requestUrlForLog = payload.url;
+        let guardToken: HostRequestToken | null = null;
         try {
             const { url, params, requestId, sessionId } = payload;
 
@@ -114,6 +77,10 @@ ipcMain.handle(
             // Xtream API endpoint is always at /player_api.php
             const apiUrl = buildXtreamApiUrl(url, params);
             requestUrlForLog = apiUrl.toString();
+
+            // Browsing a dead portal would otherwise queue dozens of 30-second
+            // timeouts in a row. Throws once the host has stopped answering.
+            guardToken = beginGuardedHostRequest(requestUrlForLog);
 
             const controller = new AbortController();
             if (requestId || sessionId) {
@@ -159,6 +126,11 @@ ipcMain.handle(
                       config,
                       { allowPrivateNetworks: true }
                   );
+
+            // The host answered — whatever the status says, it is reachable.
+            reportGuardedHostSuccess(guardToken);
+            guardToken = null;
+
             // Check if response is successful
             if (response.status >= 400) {
                 throw {
@@ -236,11 +208,22 @@ ipcMain.handle(
                 emitPortalDebugEvent(debugEvent);
             }
 
+            if (error instanceof HostConnectivityGuardError) {
+                // The failures that tripped the guard were logged when they
+                // happened; a line per skipped request would be the very log
+                // spam the guard exists to stop.
+                throw error;
+            }
+
+            reportGuardedHostFailure(guardToken, error, {
+                requestUrl: requestUrlForLog,
+            });
+
             if (!payload.suppressErrorLog) {
                 console.error(
                     '[XTREAM_REQUEST] Failed',
                     redactSensitiveData(
-                        formatXtreamError(
+                        formatPortalRequestError(
                             error,
                             requestUrlForLog,
                             payload.params?.action

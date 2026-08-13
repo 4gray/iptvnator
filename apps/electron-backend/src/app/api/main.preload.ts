@@ -84,6 +84,7 @@ const WINDOW_SET_CLOSE_GUARD = 'WINDOW:SET_CLOSE_GUARD';
 const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
 const WINDOW_CANCEL_CLOSE = 'WINDOW:CANCEL_CLOSE';
 const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';
+const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
 
 const dbSaveContentProgressListeners = new Set<
     (
@@ -435,6 +436,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on(WINDOW_CLOSE_REQUESTED, handler);
         return () => ipcRenderer.off(WINDOW_CLOSE_REQUESTED, handler);
     },
+    setPlaybackKeepAwake: (active: boolean) =>
+        ipcRenderer.invoke(PLAYBACK_SET_KEEP_AWAKE, active === true),
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
@@ -679,7 +682,10 @@ const electronApi: ElectronBridgeApi = {
         token?: string;
         serialNumber?: string;
         requestId?: string;
+        skipConnectionGuard?: boolean;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
+    resetHostConnectivityGuard: (url: string) =>
+        ipcRenderer.invoke('CONNECTIVITY_GUARD_RESET', { url }),
     xtreamRequest: (payload: {
         url: string;
         params: Record<string, string>;

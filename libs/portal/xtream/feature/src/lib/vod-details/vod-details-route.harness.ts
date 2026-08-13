@@ -58,6 +58,7 @@ export function createVodDetailsRouteStubs() {
         addRecentItem: jest.fn(),
         cancelDetailsRequest: jest.fn(),
         vodStreamsPlaylistId: signal<string | null>(null),
+        vodCategoriesPlaylistId: signal<string | null>(null),
         downloadsAvailable: signal(false),
         downloads: signal([]),
         isDownloaded: jest.fn().mockReturnValue(false),
@@ -198,6 +199,7 @@ export async function configureVodDetailsRouteTestBed(
                     addRecentItem: stubs.addRecentItem,
                     cancelDetailsRequest: stubs.cancelDetailsRequest,
                     vodStreamsPlaylistId: stubs.vodStreamsPlaylistId,
+                    vodCategoriesPlaylistId: stubs.vodCategoriesPlaylistId,
                 },
             },
             {

@@ -16,8 +16,17 @@ import {
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
+import { formatPortalRequestError } from './portal-request-error.util';
 import { assertRemoteUrlAllowed } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    HostConnectivityGuardError,
+    HostRequestToken,
+    beginGuardedHostRequest,
+    observeGuardedHostRequest,
+    reportGuardedHostFailure,
+    reportGuardedHostSuccess,
+} from '../util/host-connectivity-guard';
 
 export default class StalkerEvents {
     static bootstrapStalkerEvents(): Electron.IpcMain {
@@ -46,10 +55,21 @@ ipcMain.handle(
             token?: string;
             serialNumber?: string;
             requestId?: string;
+            /**
+             * Set by endpoint discovery only. Its probes walk several candidate
+             * paths on one host and expect most of them to fail, so their
+             * failures must not count towards the connectivity guard — and they
+             * must not be fast-failed by it either, since discovery is how a
+             * portal gets reclassified in the first place.
+             */
+            skipConnectionGuard?: boolean;
         }
     ) => {
         const startedAt = Date.now();
         let debugRequest: Record<string, unknown> | undefined;
+        let requestUrlForLog = payload.url;
+        let guardToken: HostRequestToken | null = null;
+        const countsTowardsGuard = !payload.skipConnectionGuard;
         try {
             const { url, macAddress, params, token, serialNumber, requestId } =
                 payload;
@@ -66,6 +86,15 @@ ipcMain.handle(
             await assertRemoteUrlAllowed(url, { allowPrivateNetworks: true });
 
             const fullUrl = buildStalkerRequestUrl(url, requestParams);
+            requestUrlForLog = fullUrl;
+
+            // Navigating a dead portal would otherwise queue dozens of
+            // 15-second timeouts in a row. Exempt probes still report a
+            // success, so a candidate that answers clears whatever the other
+            // candidates' authentication attempts recorded.
+            guardToken = countsTowardsGuard
+                ? beginGuardedHostRequest(fullUrl)
+                : observeGuardedHostRequest(fullUrl);
 
             // Determine timeout based on action type
             // create_link requests can take longer as server generates stream URL
@@ -95,13 +124,12 @@ ipcMain.handle(
                     { allowPrivateNetworks: true }
                 );
 
+            // The host answered — whatever the status says, it is reachable.
+            reportGuardedHostSuccess(guardToken);
+            guardToken = null;
+
             // Check if response is successful
             if (response.status >= 400) {
-                console.error(
-                    '[StalkerEvents] HTTP Error:',
-                    response.status,
-                    response.statusText
-                );
                 // The numeric code must live in the MESSAGE: ipcRenderer
                 // strips custom properties from rejected values, and the
                 // renderer's endpoint discovery needs to tell a 404 (probe
@@ -176,9 +204,30 @@ ipcMain.handle(
                 emitPortalDebugEvent(debugEvent);
             }
 
+            if (error instanceof HostConnectivityGuardError) {
+                // The failures that tripped the guard were logged when they
+                // happened; a line per skipped request would be the very log
+                // spam the guard exists to stop.
+                throw error;
+            }
+
+            // Exempt probes never count failures, but an error carrying an
+            // HTTP response still proves the origin answered — dropping that is
+            // what would let the breaker open mid-discovery.
+            reportGuardedHostFailure(guardToken, error, {
+                countFailures: countsTowardsGuard,
+                requestUrl: requestUrlForLog,
+            });
+
             console.error(
-                '[StalkerEvents] Request error:',
-                redactSensitiveData(error)
+                '[STALKER_REQUEST] Failed',
+                redactSensitiveData(
+                    formatPortalRequestError(
+                        error,
+                        requestUrlForLog,
+                        String(payload.params?.action ?? 'unknown')
+                    )
+                )
             );
 
             // Format error response

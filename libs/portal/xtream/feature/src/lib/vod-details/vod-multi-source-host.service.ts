@@ -33,7 +33,10 @@ import {
 import type { VodMultiSourceSwitchNotice } from './vod-multi-source-notice';
 import { createVodSourceCounts } from './vod-multi-source-counts';
 import { createCheckQueue } from './vod-multi-source-check-queue';
-import { currentSourceRow } from './vod-multi-source-current-row';
+import {
+    currentSourceRow,
+    routeCategoryLanguage,
+} from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
     pinnedSourceAwaitingPlay,
@@ -194,37 +197,56 @@ export class VodMultiSourceHostService {
     }
 
     /**
-     * Overlay the provider's facts onto the route's own row, in place.
+     * Overlay what arrived late onto the route's own row, in place.
      *
-     * The row is built when discovery runs, which on a sparse panel happens
-     * before `get_vod_info` answers — and if that answer adds no year and no
-     * TMDB id, the movie key does not change, so nothing rebuilds the row and
-     * it keeps stating nothing. Every comparison against it is then one-sided:
-     * the dub warning in particular cannot fire at all.
+     * The row is built when discovery runs, and two things routinely land
+     * AFTER that without changing the movie key: the provider's facts (a
+     * sparse panel's `get_vod_info` adds no year and no TMDB id) and the
+     * route category (cold/direct routes load categories late). Nothing
+     * rebuilds the row for either, so both are refreshed here — otherwise
+     * the dub warning stays one-sided and the row's category-derived
+     * language never appears, letting the language filter hide the very
+     * source that is playing.
      *
      * Merged onto the existing row rather than rebuilt from the movie, so a
      * probe result already sitting on it survives.
+     *
+     * A same-key emission can also arrive while discovery is still in
+     * flight, before the route row exists to refresh. That is not lost,
+     * and the reason is the `findSource` call below: it reads the
+     * controller's sources SIGNAL inside the `bind()` effect, so the
+     * publish that finally creates the row re-runs the effect, which lands
+     * here again with the movie's latest reading. Wrapping this read in
+     * `untracked()` would silently break that redelivery — a session spec
+     * pins it.
      */
     private refreshRouteFacts(movie: VodMultiSourceMovie): void {
-        const facts = movie.metadata;
         const routeSourceId = this.routeSourceId;
-        if (!facts || !routeSourceId) {
-            return;
-        }
-
-        const factsKey = JSON.stringify(facts);
-        if (this.routeFactsKey === factsKey) {
-            return;
-        }
-
-        const existing = this.controller.findSource(routeSourceId);
+        const existing = routeSourceId
+            ? this.controller.findSource(routeSourceId)
+            : undefined;
         if (!existing) {
             return;
         }
 
-        this.routeFactsKey = factsKey;
-        this.controller.updateSource(applyApiMetadata(existing, facts));
-        this.publish();
+        let next = existing;
+
+        const categoryLanguage = routeCategoryLanguage(movie);
+        if ((existing.categoryLanguage ?? null) !== categoryLanguage) {
+            next = { ...next, categoryLanguage };
+        }
+
+        const facts = movie.metadata;
+        const factsKey = facts ? JSON.stringify(facts) : null;
+        if (facts && this.routeFactsKey !== factsKey) {
+            this.routeFactsKey = factsKey;
+            next = applyApiMetadata(next, facts);
+        }
+
+        if (next !== existing) {
+            this.controller.updateSource(next);
+            this.publish();
+        }
     }
 
     /**

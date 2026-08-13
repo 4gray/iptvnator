@@ -107,6 +107,24 @@ describe('DashboardTrendingService', () => {
         expect(service.items()[0].match).toBeNull();
     });
 
+    it('picks the year-compatible row when the catalog holds several', async () => {
+        // Two year-stripped rows share one key; the wrong one arrives
+        // first. Collapsing before the year check would discard the right
+        // one and render the card as "not in your library".
+        getTrendingWeek.mockResolvedValue([
+            entry({ title: 'Dune', year: 2021 }),
+        ]);
+        matchTitles.mockResolvedValue([
+            match({ queryTitle: 'Dune', trailingYear: 1984, xtreamId: 84 }),
+            match({ queryTitle: 'Dune', trailingYear: 2021, xtreamId: 21 }),
+        ]);
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items()[0].match?.xtreamId).toBe(21);
+    });
+
     it('loads only once per session after a successful load', async () => {
         const service = createService();
 

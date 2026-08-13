@@ -20,6 +20,7 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     PortalDetailShellComponent,
+    ViewInPortalActionComponent,
 } from '@iptvnator/ui/components';
 import { Router } from '@angular/router';
 import {
@@ -69,6 +70,7 @@ import { createVodDownloadState } from './vod-download-state.util';
         DetailTagsTemplateDirective,
         MatIcon,
         PortalDetailShellComponent,
+        ViewInPortalActionComponent,
         PortalInlinePlayerComponent,
         SafePipe,
         TranslatePipe,

@@ -21,7 +21,7 @@ const METADATA = createPlaybackSourceMetadata({
 });
 
 describe('mpegts.js playback evidence', () => {
-    it('locks the accepted public contract to mpegts.js 1.8.0', () => {
+    it('locks the accepted public contract to mpegts.js 1.8.1', () => {
         expect(mpegts.version).toBe(MPEGTS_DIAGNOSTIC_VERSION);
         expect(mpegts.ErrorTypes).toEqual({
             NETWORK_ERROR: MpegTsPlaybackEngineType.Network,

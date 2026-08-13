@@ -103,6 +103,36 @@ describe('DashboardHeroTmdbService', () => {
         expect(extras?.genres).toEqual(['Drama', 'Comedy']);
     });
 
+    it('does not retry a catalog-classified Xtream movie as TV', async () => {
+        // The Xtream catalog files movies and series apart, so 'movie'
+        // there is evidence rather than the ambiguous default.
+        enrichMovie.mockResolvedValue(null);
+        const service = createService();
+
+        await service.getExtras({
+            title: 'Fargo',
+            type: 'movie',
+            source: 'xtream',
+        } as DashboardHeroTmdbItem);
+
+        expect(enrichTv).not.toHaveBeenCalled();
+    });
+
+    it('keys the lookup by the whole attempt sequence', async () => {
+        // Same title/type/year, different retry policy: one falls back to
+        // tv, the other does not, so the memo must not treat them as one.
+        const service = createService();
+        const ambiguous = { title: 'Fargo', type: 'movie' } as const;
+        const catalogClassified = {
+            ...ambiguous,
+            source: 'xtream',
+        } as DashboardHeroTmdbItem;
+
+        expect(service.keyFor(ambiguous)).not.toBe(
+            service.keyFor(catalogClassified)
+        );
+    });
+
     it('does not retry a series-typed item as a movie', async () => {
         // 'movie' is the answer every row falls back to, so it earns a
         // retry; 'tv' is only reached on positive evidence and must not be
@@ -153,9 +183,11 @@ describe('DashboardHeroTmdbService', () => {
             expect(extras?.backdropUrl).toContain('/serial.jpg');
         });
 
-        it('never carries the id into the other media type', async () => {
-            // /movie/<tv id> resolves to an unrelated film whose details
-            // would then be shown as this item's — so the retry drops it.
+        it('uses a stored id for the lookup and stops retrying once it has one', async () => {
+            // A Stalker `info.tmdb_id` is never a provider claim — its only
+            // source is a match this app already gated, under this very
+            // media type — so 'movie' is no longer the ambiguous default
+            // the TV retry exists for.
             enrichMovie.mockResolvedValue(null);
             const service = createService();
 
@@ -164,8 +196,28 @@ describe('DashboardHeroTmdbService', () => {
             expect(enrichMovie).toHaveBeenCalledWith(
                 expect.objectContaining({ tmdbId: 603, year: 1999 })
             );
+            expect(enrichTv).not.toHaveBeenCalled();
+        });
+
+        it('retries an id-less entry as TV, carrying no id across', async () => {
+            // /movie/<tv id> resolves to an unrelated film, so the retry
+            // never carries one — the case that can still reach it is an
+            // entry whose media type nothing has confirmed.
+            enrichMovie.mockResolvedValue(null);
+            const service = createService();
+
+            await service.getExtras({
+                title: 'Холод',
+                type: 'movie',
+                stalker_item: {
+                    id: '77',
+                    category_id: 'vclub',
+                    info: { name: 'Холод', releasedate: '2026' },
+                },
+            } as unknown as DashboardHeroTmdbItem);
+
             expect(enrichTv).toHaveBeenCalledWith(
-                expect.objectContaining({ tmdbId: undefined, year: 1999 })
+                expect.objectContaining({ tmdbId: undefined, year: 2026 })
             );
         });
 

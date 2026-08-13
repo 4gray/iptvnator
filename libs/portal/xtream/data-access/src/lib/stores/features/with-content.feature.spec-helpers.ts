@@ -4,8 +4,17 @@ import {
     RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
     type RendererPerformancePhaseEvent,
 } from '@iptvnator/shared/logging';
-import { XtreamPendingRestoreSnapshot } from '@iptvnator/services';
-import { XtreamPlaylistData } from '../../data-sources/xtream-data-source.interface';
+import {
+    DataService,
+    DatabaseService,
+    XtreamPendingRestoreService,
+    XtreamPendingRestoreSnapshot,
+} from '@iptvnator/services';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamPlaylistData,
+} from '../../data-sources/xtream-data-source.interface';
+import { XtreamApiService } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import { withContent } from './with-content.feature';
 
@@ -48,10 +57,7 @@ export function createPendingRestoreServiceMock() {
         }
 
         const serializedState = JSON.stringify(state);
-        if (
-            !activeSnapshot ||
-            activeSerializedState !== serializedState
-        ) {
+        if (!activeSnapshot || activeSerializedState !== serializedState) {
             activeSnapshot = {
                 playlistId,
                 revision: ++nextRevision,
@@ -68,16 +74,13 @@ export function createPendingRestoreServiceMock() {
             expectedSnapshot: XtreamPendingRestoreSnapshot,
             apply: (state: XtreamPendingRestoreState) => Promise<void>
         ) => {
-            const currentSnapshot =
-                mock.getSnapshotOrThrow(playlistId);
+            const currentSnapshot = mock.getSnapshotOrThrow(playlistId);
             if (!currentSnapshot) {
                 return lastConsumedRevision === expectedSnapshot.revision
                     ? 'consumed'
                     : 'superseded';
             }
-            if (
-                currentSnapshot.revision !== expectedSnapshot.revision
-            ) {
+            if (currentSnapshot.revision !== expectedSnapshot.revision) {
                 return 'superseded';
             }
 
@@ -114,6 +117,34 @@ export function createContentTestStore(
         })),
         withContent()
     );
+}
+
+/**
+ * The provider list every `withContent` spec needs. Shared so the dependency
+ * set lives in one place: the feature injects all five, and a spec that omits
+ * one fails with a NullInjector error rather than a useful message.
+ */
+export function createContentTestProviders(
+    store: unknown,
+    mocks: {
+        dataSource: unknown;
+        databaseService: unknown;
+        xtreamApiService: unknown;
+        pendingRestoreService: unknown;
+        dataService: unknown;
+    }
+) {
+    return [
+        store,
+        { provide: XTREAM_DATA_SOURCE, useValue: mocks.dataSource },
+        { provide: DatabaseService, useValue: mocks.databaseService },
+        { provide: XtreamApiService, useValue: mocks.xtreamApiService },
+        {
+            provide: XtreamPendingRestoreService,
+            useValue: mocks.pendingRestoreService,
+        },
+        { provide: DataService, useValue: mocks.dataService },
+    ];
 }
 
 const performanceHookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);

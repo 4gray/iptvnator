@@ -98,6 +98,22 @@ describe('CrossPortalSimilarService', () => {
         expect(items[0].match.playlistId).toBe('other');
     });
 
+    it('picks the year-compatible copy when one playlist holds several', async () => {
+        matchTitles.mockResolvedValue([
+            match({ queryTitle: 'Dune', trailingYear: 1984, xtreamId: 84 }),
+            match({ queryTitle: 'Dune', trailingYear: 2021, xtreamId: 21 }),
+        ]);
+        const service = createService();
+
+        const items = await service.matchRecommendations(
+            [rec('Dune', 2021)],
+            'movie'
+        );
+
+        expect(items).toHaveLength(1);
+        expect(items[0].match.xtreamId).toBe(21);
+    });
+
     it('drops type mismatches and year-incompatible matches', async () => {
         matchTitles.mockResolvedValue([
             match({ type: 'series' }),

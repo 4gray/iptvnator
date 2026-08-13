@@ -22,6 +22,7 @@ import {
     DetailTagsTemplateDirective,
     DialogService,
     PortalDetailShellComponent,
+    ViewInPortalActionComponent,
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
@@ -116,6 +117,7 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
         MatTooltip,
         NgTemplateOutlet,
         PortalDetailShellComponent,
+        ViewInPortalActionComponent,
         SafePipe,
         SlicePipe,
         TranslateModule,
@@ -259,8 +261,15 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         );
     });
     /** Movie identity for multi-source discovery; null until a title exists */
-    private readonly multiSourceMovie = computed(() =>
-        resolveVodMultiSourceMovie({
+    private readonly multiSourceMovie = computed(() => {
+        // Electron stores categories under `name`, the live API under
+        // `category_name` — the same duality the fallback view reads.
+        const category = this.selectedCategory() as {
+            name?: string;
+            category_name?: string;
+        } | null;
+
+        return resolveVodMultiSourceMovie({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
             // `title` is the alias the Xtream data source actually writes
             // (createPlaylist maps name -> title), so reading only `name`
@@ -273,8 +282,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             catalogItem: this.selectedCatalogItem(),
             containerExtension:
                 this.selectedItem()?.movie_data?.container_extension,
-        })
-    );
+            categoryName: category?.name ?? category?.category_name ?? null,
+        });
+    });
     readonly selectedVodInfo = computed(() => {
         const item = this.selectedItem();
         return item && hasUsableXtreamVodMetadata(item)

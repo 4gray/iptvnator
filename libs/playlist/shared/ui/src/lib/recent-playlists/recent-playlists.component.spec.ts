@@ -26,7 +26,11 @@ import {
     SortOrder,
     SortService,
 } from '@iptvnator/services';
-import { PLAYLIST_UPDATE, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    CONNECTIVITY_GUARD_RESET,
+    PLAYLIST_UPDATE,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import {
     RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
     type RendererPerformancePhaseEvent,
@@ -442,7 +446,11 @@ describe('RecentPlaylistsComponent busy state', () => {
         );
 
         component.refreshXtreamPlaylist(item);
-        await Promise.resolve();
+        // The refresh clears the connectivity guard before it starts deleting,
+        // so drain the microtask queue rather than counting exact ticks.
+        for (let index = 0; index < 6; index += 1) {
+            await Promise.resolve();
+        }
 
         expect(component.isRefreshPending(item._id)).toBe(true);
         expect(component.getBusyMessage(item)).toBe(
@@ -674,6 +682,49 @@ describe('RecentPlaylistsComponent busy state', () => {
                 refreshEpg: true,
                 operationId: 'playlist-refresh-op',
             })
+        );
+    });
+
+    it('clears the connectivity guard before deleting the cached Xtream catalog', async () => {
+        // Second, independent implementation of the destructive refresh (the
+        // Workspace sources page). Same consequence as the shared action: the
+        // catalog is already gone by the time an open guard fast-fails the
+        // re-import bootstrap.
+        const item = {
+            _id: 'xtream-guard',
+            title: 'Guarded Xtream',
+            serverUrl: 'http://panel.example:8080',
+        } as PlaylistMeta;
+        const order: string[] = [];
+        let confirmPromise: Promise<void> | undefined;
+
+        dataService.sendIpcEvent.mockImplementation((event: string) => {
+            order.push(`ipc:${event}`);
+            return Promise.resolve({ success: true });
+        });
+        databaseService.deleteXtreamPlaylistContent.mockImplementation(() => {
+            order.push('deleteXtreamPlaylistContent');
+            return Promise.resolve({
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                sourcePins: [],
+            });
+        });
+        dialogService.openConfirmDialog.mockImplementation(
+            ({ onConfirm }: { onConfirm?: () => Promise<void> }) => {
+                confirmPromise = onConfirm?.();
+            }
+        );
+
+        component.refreshXtreamPlaylist(item);
+        await confirmPromise;
+
+        expect(order[0]).toBe(`ipc:${CONNECTIVITY_GUARD_RESET}`);
+        expect(order).toContain('deleteXtreamPlaylistContent');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            CONNECTIVITY_GUARD_RESET,
+            { url: item.serverUrl }
         );
     });
 });

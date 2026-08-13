@@ -840,6 +840,13 @@ are logged and never retried or escalated.
 
 ## Request Transport and `cmd` Encoding
 
+Requests to an unreachable portal are short-circuited by the main process' host
+connectivity guard rather than hanging their full 15/30 s timeout again. That
+guard's refusal is classified by the same message-text rules discovery uses (it
+lands in the "connection-level failure" slot below), and endpoint-discovery
+probes are exempt from it via `skipConnectionGuard` — see
+[`host-connectivity-guard.md`](./host-connectivity-guard.md).
+
 A real MAG/STB sends `cmd` unencoded: the portal's client JS concatenates raw
 `key=value` pairs, the browser URL layer escapes only what a URL cannot carry,
 and PHP's `$_GET` applies exactly one form-urldecode. The portal therefore sees

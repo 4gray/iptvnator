@@ -8,6 +8,8 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
+import { downloadPinnedSource } from './download-pinned-source.mjs';
+
 const require = createRequire(import.meta.url);
 const {
     BUILD_RECIPES,
@@ -39,7 +41,6 @@ const {
     resolveSystemPkgConfigDirs,
     runtimeLibraryNames,
     selectReachableRuntimeLibraryNames,
-    sha256Buffer,
     publishOwnedOutput,
     validateRuntimeDependencyClosure,
 } = require('./build-linux-runtime.cjs');
@@ -207,35 +208,37 @@ function sourcePathFor(packageId, sourceRoot) {
     return path.join(sourceRoot, packageId);
 }
 
-function sha256File(filePath) {
-    return sha256Buffer(fs.readFileSync(filePath));
+function sourceUrlsFor(sourcePackage) {
+    return [sourcePackage.sourceUrl, ...(sourcePackage.mirrors ?? [])];
 }
 
-function downloadArchive(sourcePackage, context) {
+export function downloadArchive(sourcePackage, context) {
     const archivePath = archivePathFor(sourcePackage, context.archiveRoot);
-    if (!fs.existsSync(archivePath)) {
-        const temporaryArchivePath = `${archivePath}.partial`;
-        fs.rmSync(temporaryArchivePath, { force: true });
-        context.run('curl', [
-            '--fail',
-            '--location',
-            '--retry',
-            '3',
-            '--retry-all-errors',
-            '--connect-timeout',
-            '30',
-            '--proto',
-            '=https',
-            '--tlsv1.2',
-            '--output',
-            temporaryArchivePath,
-            sourcePackage.sourceUrl,
-        ]);
-        fs.renameSync(temporaryArchivePath, archivePath);
-    }
-
-    const sourceSha256 = sha256File(archivePath);
+    const { sourceSha256, sourceUrl } = downloadPinnedSource({
+        archivePath,
+        expectedSha256: sourcePackage.expectedSha256,
+        urls: sourceUrlsFor(sourcePackage),
+        download: ({ destinationPath, url }) =>
+            context.run('curl', [
+                '--fail',
+                '--location',
+                '--retry',
+                '3',
+                '--retry-all-errors',
+                '--connect-timeout',
+                '30',
+                '--proto',
+                '=https',
+                '--tlsv1.2',
+                '--output',
+                destinationPath,
+                url,
+            ]),
+    });
     assertArchiveMatchesPin(sourcePackage, sourceSha256);
+    if (sourceUrl && sourceUrl !== sourcePackage.sourceUrl) {
+        log(`Downloaded ${sourcePackage.id} from pinned mirror ${sourceUrl}`);
+    }
     const packageSourcePath = sourcePathFor(
         sourcePackage.id,
         context.sourceRoot

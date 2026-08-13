@@ -2,12 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import {
     CatalogTitleMatch,
     TmdbRecommendation,
-    normalizeTitleKeys,
-    titleYearsCompatible,
 } from '@iptvnator/shared/interfaces';
 import {
     CatalogTitleMatchService,
-    buildTitleMatchIndex,
+    groupTitleMatchesByKey,
+    pickTitleMatch,
 } from './catalog-title-match.service';
 
 /** One TMDB recommendation found in an imported Xtream playlist */
@@ -48,9 +47,9 @@ export class CrossPortalSimilarService {
         const matches = await this.titleMatch.matchTitles(
             recommendations.map((recommendation) => recommendation.title)
         );
-        // Filter before indexing so a title also present in another
+        // Filter before grouping so a title also present in another
         // playlist survives the exclusion of the current one
-        const index = buildTitleMatchIndex(
+        const grouped = groupTitleMatchesByKey(
             matches.filter(
                 (match) =>
                     match.type === type &&
@@ -65,12 +64,15 @@ export class CrossPortalSimilarService {
             if (items.length >= limit) {
                 break;
             }
-            const key = `${type}:${normalizeTitleKeys(recommendation.title).exact}`;
-            const match = index.get(key);
-            if (
-                !match ||
-                !titleYearsCompatible(recommendation.year, match.trailingYear)
-            ) {
+            const match = pickTitleMatch(
+                {
+                    type,
+                    titles: [recommendation.title],
+                    year: recommendation.year,
+                },
+                grouped
+            );
+            if (!match) {
                 continue;
             }
             const dedupeKey = `${match.playlistId}:${match.type}:${match.xtreamId}`;

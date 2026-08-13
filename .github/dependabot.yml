@@ -1,8 +1,10 @@
 # Every Dependabot PR triggers the full pipeline (~15 jobs), so version
 # updates are batched weekly. Nx minor+patch updates use a dedicated group so
-# official packages move together; Nx majors are manual coordinated migrations,
-# and other minor+patch updates are grouped per ecosystem. Security updates are
-# separate and are not limited by this schedule; CI enforces complete Nx lockstep.
+# official packages move together; Nx majors are manual coordinated migrations.
+# Native packaging, parser, and version-locked playback dependencies stay in
+# standalone PRs; other minor+patch updates are grouped per ecosystem. Security
+# updates are separate and are not limited by this schedule; CI enforces complete
+# Nx lockstep.
 version: 2
 updates:
     - package-ecosystem: npm
@@ -36,8 +38,14 @@ updates:
           npm-minor-patch:
               applies-to: version-updates
               exclude-patterns:
+                  - better-sqlite3
+                  - electron
+                  - electron-builder
+                  - epg-parser
+                  - mpegts.js
                   - nx
                   - '@nx/*'
+                  - shaka-player
               update-types:
                   - minor
                   - patch

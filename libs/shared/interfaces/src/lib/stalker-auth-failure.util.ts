@@ -21,6 +21,8 @@
  * URL builders were centralised here. Two copies would drift.
  */
 
+import { isHostConnectivityFastFailMessage } from './host-connectivity.util';
+
 /** The exact plain-text bodies the stock middleware emits. */
 export const STALKER_AUTH_FAILURE_BODIES = [
     'Authorization failed.',
@@ -122,9 +124,19 @@ function isStalkerJsonAuthFailurePhrase(value: string): boolean {
  * arbitrary portal body, where the same breadth would false-positive.
  */
 export function isStalkerAuthFailureMessage(message: unknown): boolean {
-    return (
-        typeof message === 'string' && isStalkerJsonAuthFailurePhrase(message)
-    );
+    if (typeof message !== 'string') {
+        return false;
+    }
+
+    // The connectivity guard's refusal names the portal endpoint, and a
+    // hostname is user data: `https://authorization.example` would otherwise
+    // match the broad phrase set below and send an unreachable host into lazy
+    // portal repair. An explicit marker outranks a heuristic.
+    if (isHostConnectivityFastFailMessage(message)) {
+        return false;
+    }
+
+    return isStalkerJsonAuthFailurePhrase(message);
 }
 
 /**

@@ -2,13 +2,10 @@ import { Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
-    buildTitleMatchIndex,
+    groupTitleMatchesByKey,
+    pickTitleMatch,
 } from '@iptvnator/services';
-import {
-    CatalogTitleMatch,
-    normalizeTitleKeys,
-    titleYearsCompatible,
-} from '@iptvnator/shared/interfaces';
+import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import type { TmdbTrendingEntry } from '@iptvnator/services';
 
 /** One trending card: TMDB entry + optional library match for navigation */
@@ -58,12 +55,12 @@ export class DashboardTrendingService {
             const matches = await this.titleMatch.matchTitles(
                 entries.map((entry) => entry.title)
             );
-            const index = buildTitleMatchIndex(matches);
+            const grouped = groupTitleMatchesByKey(matches);
 
             this.items.set(
                 entries.map((entry) => ({
                     ...entry,
-                    match: this.matchFor(entry, index),
+                    match: this.matchFor(entry, grouped),
                 }))
             );
             this.loadedOnce = true;
@@ -76,13 +73,15 @@ export class DashboardTrendingService {
 
     private matchFor(
         entry: TmdbTrendingEntry,
-        index: ReadonlyMap<string, CatalogTitleMatch>
+        grouped: ReadonlyMap<string, CatalogTitleMatch[]>
     ): CatalogTitleMatch | null {
-        const type = entry.mediaType === 'movie' ? 'movie' : 'series';
-        const key = `${type}:${normalizeTitleKeys(entry.title).exact}`;
-        const match = index.get(key) ?? null;
-        return match && titleYearsCompatible(entry.year, match.trailingYear)
-            ? match
-            : null;
+        return pickTitleMatch(
+            {
+                type: entry.mediaType === 'movie' ? 'movie' : 'series',
+                titles: [entry.title],
+                year: entry.year,
+            },
+            grouped
+        );
     }
 }

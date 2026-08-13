@@ -96,6 +96,19 @@ const DEB_SYSTEM_PACKAGE_DEPENDENCIES = [
     'libgl1',
     'libgbm1',
 ];
+const SNAP_DESKTOP_RUNTIME_SCRIPTS = [
+    'desktop-init.sh',
+    'desktop-common.sh',
+    'desktop-gnome-specific.sh',
+];
+
+function writeSnapDesktopRuntimeScripts(root) {
+    for (const script of SNAP_DESKTOP_RUNTIME_SCRIPTS) {
+        const scriptPath = path.join(root, script);
+        fs.writeFileSync(scriptPath, '#!/bin/sh\n');
+        fs.chmodSync(scriptPath, 0o755);
+    }
+}
 
 test('uses the shared frozen runtime probe resource contract', async () => {
     assert.equal(
@@ -1239,6 +1252,7 @@ test('requires exact Snap graphics layouts and plugs used by the app', () => {
     const snapYamlPath = path.join(root, 'meta', 'snap.yaml');
     fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
     fs.mkdirSync(path.join(root, 'graphics'));
+    writeSnapDesktopRuntimeScripts(root);
 
     const validSnapYaml = [
         'name: iptvnator',
@@ -1274,6 +1288,24 @@ test('requires exact Snap graphics layouts and plugs used by the app', () => {
     try {
         fs.writeFileSync(snapYamlPath, validSnapYaml);
         assert.deepEqual(validateExtractedSnapMetadata(root), []);
+
+        for (const script of SNAP_DESKTOP_RUNTIME_SCRIPTS) {
+            const scriptPath = path.join(root, script);
+            fs.rmSync(scriptPath);
+            assert.match(
+                validateExtractedSnapMetadata(root).join('\n'),
+                new RegExp(`required desktop runtime script.*${script}`, 'i')
+            );
+            fs.writeFileSync(scriptPath, '#!/bin/sh\n');
+            fs.chmodSync(scriptPath, 0o755);
+        }
+
+        fs.chmodSync(path.join(root, 'desktop-init.sh'), 0o644);
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /desktop-init\.sh.*executable/i
+        );
+        fs.chmodSync(path.join(root, 'desktop-init.sh'), 0o755);
 
         fs.truncateSync(snapYamlPath, 256 * 1024 + 1);
         assert.match(
@@ -1675,6 +1707,7 @@ for (const [kind, mutate, expected] of [
         const snapYamlPath = path.join(root, 'meta', 'snap.yaml');
         fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
         fs.mkdirSync(path.join(root, 'graphics'));
+        writeSnapDesktopRuntimeScripts(root);
 
         try {
             fs.writeFileSync(snapYamlPath, SNAP_METADATA_WITH_LITERAL_HASHES);
@@ -1702,6 +1735,7 @@ test('artifact verification enforces Snap metadata for x64 and ARM payloads', ()
         fs.writeFileSync(artifactPath, 'fixture');
         fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
         fs.mkdirSync(path.join(fixture.root, 'graphics'));
+        writeSnapDesktopRuntimeScripts(fixture.root);
         fs.writeFileSync(
             snapYamlPath,
             [

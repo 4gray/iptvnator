@@ -8,6 +8,7 @@ import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     AutoUpdatePlaylistsResult,
+    CONNECTIVITY_GUARD_RESET,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
     normalizeHost,
@@ -166,6 +167,14 @@ export class ElectronService extends DataService {
             )) as T;
         }
 
+        if (type === CONNECTIVITY_GUARD_RESET) {
+            const { url } = payload as { url?: string };
+            if (url) {
+                await window.electron.resetHostConnectivityGuard(url);
+            }
+            return undefined as T;
+        }
+
         if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             try {
@@ -279,6 +288,8 @@ export class ElectronService extends DataService {
         serialNumber?: string;
         /** Endpoint-discovery probes expect failures; no error snackbar. */
         silent?: boolean;
+        /** Endpoint-discovery probes are exempt from the connectivity guard. */
+        skipConnectionGuard?: boolean;
     }) {
         const context = createPortalDebugRequestContext({
             provider: 'stalker',

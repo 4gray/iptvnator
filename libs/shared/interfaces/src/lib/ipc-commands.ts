@@ -100,12 +100,24 @@ export const STALKER_REQUEST = 'STALKER_REQUEST';
 export const STALKER_RESPONSE = 'STALKER_RESPONSE';
 export const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
 
+/**
+ * Forgets the main process' recorded connection failures for a portal host, so
+ * the next request contacts it for real. Sent whenever the user asks for a
+ * fresh attempt (portal retry, "test connection") or hands over a possibly
+ * different portal (endpoint discovery on import, edit, or lazy repair).
+ */
+export const CONNECTIVITY_GUARD_RESET = 'CONNECTIVITY_GUARD_RESET';
+
 // Settings
 export const SETTINGS_UPDATE = 'SETTINGS_UPDATE';
 export const DELETE_ALL_PLAYLISTS = 'DELETE_ALL_PLAYLISTS';
 
 // Remote Control
 export const REMOTE_CONTROL_CHANGE_CHANNEL = 'REMOTE_CONTROL_CHANGE_CHANNEL';
+
+// Display sleep: while a built-in video player is playing, the renderer asks
+// the main process to hold a powerSaveBlocker so the screen stays awake
+export const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
 
 // Window controls (custom title bar on Windows/Linux)
 export const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';

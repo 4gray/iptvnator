@@ -1,13 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import {
-    DatabaseService,
-    XtreamPendingRestoreService,
-} from '@iptvnator/services';
-import { XTREAM_DATA_SOURCE } from '../../data-sources/xtream-data-source.interface';
-import { XtreamApiService } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import {
     createAbortError,
+    createContentTestProviders,
     createContentTestStore,
     createDeferred,
     createPendingRestoreServiceMock,
@@ -87,25 +82,15 @@ describe('withContent loading-cached phase', () => {
         checkPortalStatusMock = jest.fn().mockResolvedValue('active');
 
         TestBed.configureTestingModule({
-            providers: [
-                TestContentStore,
-                {
-                    provide: XTREAM_DATA_SOURCE,
-                    useValue: dataSource,
+            providers: createContentTestProviders(TestContentStore, {
+                dataSource,
+                databaseService,
+                xtreamApiService: {
+                    cancelSession: jest.fn().mockResolvedValue(true),
                 },
-                {
-                    provide: DatabaseService,
-                    useValue: databaseService,
-                },
-                {
-                    provide: XtreamApiService,
-                    useValue: { cancelSession: jest.fn().mockResolvedValue(true) },
-                },
-                {
-                    provide: XtreamPendingRestoreService,
-                    useValue: createPendingRestoreServiceMock(),
-                },
-            ],
+                pendingRestoreService: createPendingRestoreServiceMock(),
+                dataService: { sendIpcEvent: jest.fn() },
+            }),
         });
 
         store = TestBed.inject(TestContentStore);

@@ -365,7 +365,11 @@ missing, non-directory, symlinked, non-empty, or incorrectly permissioned
 target. It also requires exactly the canonical provider-data layouts:
 `/usr/share/libdrm` binds from `$SNAP/graphics/libdrm`, and
 `/usr/share/drirc.d` symlinks to `$SNAP/graphics/drirc.d`. No additional or
-duplicate layout entry is accepted.
+duplicate layout entry is accepted. Static extraction verification also
+requires regular `desktop-init.sh`, `desktop-common.sh`, and
+`desktop-gnome-specific.sh` files at the Snap root, with `desktop-init.sh`
+executable, because Electron Builder's generated `command.sh` invokes that
+runtime before the application binary.
 
 Private shared memory gives the app a confined, snap-specific POSIX shm
 namespace rather than global cross-snap access. The packaging-only

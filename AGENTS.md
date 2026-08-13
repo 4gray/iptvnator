@@ -228,7 +228,7 @@ Key files:
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
-  source kind `shaka`. The DOM-free Shaka `5.2.2` diagnostic boundary lives in
+  source kind `shaka`. The DOM-free Shaka `5.2.4` diagnostic boundary lives in
   `libs/playback/util`; it version-locks public severity/category/code evidence,
   ignores recoverable error events,
   treats rejected loads as terminal lifecycle outcomes, preserves exact public
@@ -240,7 +240,7 @@ Key files:
   KODIPROP DRM still suppress it. See the CLAUDE.md "Video Players" feature
   entry and the "DASH + ClearKey Playback" section of
   `docs/architecture/m3u-playlist-module.md`.
-- mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
+- mpegts.js `1.8.1` errors from HTML5, Video.js, and ArtPlayer cross one
   version-locked structured evidence boundary in `libs/playback/util`. Only
   exact public type/detail pairs, pair-derived stage/failure, terminal
   disposition, and the validated HTTP 4xx/5xx status slot are retained; raw
@@ -446,6 +446,27 @@ Key files:
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 
+## Display Sleep During Playback
+
+- `PlaybackKeepAwakeService`
+  (`apps/web/src/app/services/playback-keep-awake.service.ts`) watches every
+  `<video>` via document-level capture listeners (media events don't bubble;
+  release listeners sit on the tracked element because Chromium's
+  removed-from-DOM pause never reaches the document) and, while any video is
+  playing and the document is visible (or the playing video is in
+  picture-in-picture — the PiP surface survives a minimized window), holds a
+  display-sleep lock.
+- Electron: a main-process `powerSaveBlocker` behind
+  `window.electron.setPlaybackKeepAwake`
+  (`apps/electron-backend/src/app/services/playback-keep-awake.service.ts`);
+  the renderer's vote is auto-cleared on renderer reload, crash
+  (`render-process-gone`), or destruction. PWA: the Screen Wake Lock API,
+  re-requested after browser auto-release; state changes masked by an
+  in-flight `request()` queue one re-evaluation on rejection.
+- Radio's `<audio>` deliberately never blocks display sleep. Embedded MPV
+  holds its own blocker in `EmbeddedMpvNativeService`; external MPV/VLC
+  inhibit the screensaver themselves.
+
 ## Linux Embedded MPV Packaging
 
 - Official Linux frame-copy artifacts are x64-only. AppImage, DEB, RPM,
@@ -496,7 +517,10 @@ Key files:
   `$SNAP/graphics/drirc.d`. The provider is external shared content, not part
   of IPTVnator's package size, source archive, or notices. Installed-Snap CI
   must prove controlled unavailable exit after disconnect, then reconnect and
-  prove success. The helper links `libGL.so.1` rather than `libOpenGL.so.0`.
+  prove success. Static artifact verification requires regular
+  `desktop-init.sh`, `desktop-common.sh`, and `desktop-gnome-specific.sh`
+  files at the Snap root, with `desktop-init.sh` executable. The helper links
+  `libGL.so.1` rather than `libOpenGL.so.0`.
 - The probe and playback helper share one sanitized loader environment:
   ambient audit, preload, library, graphics-driver, and shell-startup overrides
   are removed; the validated private closure wins; trusted Snap GL,

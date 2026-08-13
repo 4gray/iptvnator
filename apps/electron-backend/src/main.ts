@@ -32,6 +32,7 @@ import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import { bootstrapWindowCloseGuard } from './app/services/window-close-guard.service';
 import { registerStreamProbeHandlers } from './app/events/stream-probe';
+import { registerConnectivityGuardHandlers } from './app/events/connectivity-guard.events';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
 import {
@@ -163,6 +164,7 @@ export default class Main {
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
         registerStreamProbeHandlers();
+        registerConnectivityGuardHandlers();
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();

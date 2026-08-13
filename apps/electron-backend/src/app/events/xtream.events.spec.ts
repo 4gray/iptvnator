@@ -1,4 +1,8 @@
-import { XTREAM_CANCEL_SESSION } from '@iptvnator/shared/interfaces';
+import {
+    CONNECTIVITY_GUARD_RESET,
+    XTREAM_CANCEL_SESSION,
+    buildHostConnectivityFastFailMessage,
+} from '@iptvnator/shared/interfaces';
 
 const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
 const axiosMock = Object.assign(jest.fn(), {
@@ -274,5 +278,190 @@ describe('XtreamEvents session cancellation', () => {
         await expect(secondPromise).rejects.toMatchObject({
             name: 'AbortError',
         });
+    });
+});
+
+describe('XtreamEvents host connectivity guard', () => {
+    const GUARD_DISABLED_ENV = 'IPTVNATOR_DISABLE_CONNECTIVITY_GUARD';
+    const SERVER_URL = 'http://dead-panel.example.com:8080';
+    const SERVER_ENDPOINT = 'http://dead-panel.example.com:8080';
+    let consoleErrorSpy: jest.SpyInstance;
+    let consoleWarnSpy: jest.SpyInstance;
+    let requestHandler: (...args: unknown[]) => unknown;
+    let resetHandler: (...args: unknown[]) => unknown;
+
+    const timedOut = () =>
+        Object.assign(new Error('timeout of 30000ms exceeded'), {
+            code: 'ETIMEDOUT',
+        });
+
+    const request = (url = SERVER_URL) =>
+        requestHandler(
+            {},
+            {
+                url,
+                params: {
+                    action: 'get_live_categories',
+                    password: 'secret',
+                    username: 'user1',
+                },
+                suppressErrorLog: true,
+            }
+        ) as Promise<unknown>;
+
+    beforeEach(async () => {
+        jest.resetModules();
+        delete process.env[PERF_CAPTURE_ENV];
+        delete process.env[GUARD_DISABLED_ENV];
+        registeredHandlers.clear();
+        axiosMock.mockReset();
+        axiosMock.isAxiosError.mockReset();
+        axiosMock.isAxiosError.mockReturnValue(true);
+        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+        consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        await import('./xtream.events');
+        // Same fresh module registry as the handler above, so both talk to the
+        // same guard instance.
+        const guardEvents = await import('./connectivity-guard.events');
+        guardEvents.registerConnectivityGuardHandlers();
+        requestHandler = registeredHandlers.get('XTREAM_REQUEST') as (
+            ...args: unknown[]
+        ) => unknown;
+        resetHandler = registeredHandlers.get(CONNECTIVITY_GUARD_RESET) as (
+            ...args: unknown[]
+        ) => unknown;
+        expect(requestHandler).toBeDefined();
+        expect(resetHandler).toBeDefined();
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+        delete process.env[GUARD_DISABLED_ENV];
+    });
+
+    it('stops contacting a panel that timed out twice in a row', async () => {
+        axiosMock.mockRejectedValue(timedOut());
+
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+
+        await expect(request()).rejects.toThrow(
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+        );
+        // The whole point: no third 30-second wait.
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps other panels reachable', async () => {
+        axiosMock.mockRejectedValue(timedOut());
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+
+        // The normal axios path rejects with a plain object, not an Error —
+        // only the guard's own rejection is an Error instance.
+        await expect(
+            request('http://other-panel.example.com')
+        ).rejects.toMatchObject({ message: 'timeout of 30000ms exceeded' });
+        expect(axiosMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('treats a 5xx as proof the panel is alive', async () => {
+        const serverError = Object.assign(new Error('Request failed'), {
+            code: 'ERR_BAD_RESPONSE',
+            response: { status: 502, statusText: 'Bad Gateway', data: {} },
+        });
+        axiosMock
+            .mockRejectedValue(timedOut())
+            .mockRejectedValueOnce(timedOut())
+            .mockRejectedValueOnce(serverError);
+
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+
+        // Two timeouts happened, but the 502 between them broke the streak.
+        await expect(request()).rejects.toBeDefined();
+        expect(axiosMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('does not count a cancelled request against the panel', async () => {
+        const cancelled = Object.assign(new Error('canceled'), {
+            code: 'ERR_CANCELED',
+        });
+        axiosMock.mockRejectedValue(cancelled);
+
+        await expect(request()).rejects.toMatchObject({ status: 499 });
+        await expect(request()).rejects.toMatchObject({ status: 499 });
+        await expect(request()).rejects.toMatchObject({ status: 499 });
+
+        expect(axiosMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not log a line per skipped request', async () => {
+        // suppressErrorLog is set above, so assert on the unsuppressed path.
+        axiosMock.mockRejectedValue(timedOut());
+        const loud = () =>
+            requestHandler(
+                {},
+                {
+                    url: SERVER_URL,
+                    params: { action: 'get_vod_streams' },
+                }
+            ) as Promise<unknown>;
+
+        await expect(loud()).rejects.toBeDefined();
+        await expect(loud()).rejects.toBeDefined();
+        expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+        consoleErrorSpy.mockClear();
+
+        await expect(loud()).rejects.toBeDefined();
+
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('contacts the panel again once the guard is reset', async () => {
+        axiosMock.mockRejectedValue(timedOut());
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toThrow(
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+        );
+
+        await expect(resetHandler({}, { url: SERVER_URL })).resolves.toEqual({
+            success: true,
+        });
+
+        await expect(request()).rejects.toMatchObject({
+            message: 'timeout of 30000ms exceeded',
+        });
+        expect(axiosMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('reports a reset it could not apply instead of pretending it worked', async () => {
+        await expect(resetHandler({}, { url: 'not a url' })).resolves.toEqual({
+            success: false,
+        });
+        await expect(resetHandler({}, {})).resolves.toEqual({
+            success: false,
+        });
+        await expect(resetHandler({}, undefined)).resolves.toEqual({
+            success: false,
+        });
+    });
+
+    it('never blocks a request while the kill switch is set', async () => {
+        process.env[GUARD_DISABLED_ENV] = '1';
+        axiosMock.mockRejectedValue(timedOut());
+
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toMatchObject({
+            message: 'timeout of 30000ms exceeded',
+        });
+
+        expect(axiosMock).toHaveBeenCalledTimes(3);
     });
 });

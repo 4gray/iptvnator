@@ -183,6 +183,9 @@ test('pins the complete source stack and preserves dependency build order', () =
         sourceKind: 'archive',
         sourceUrl:
             'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.1.1/downloads/libdisplay-info-0.1.1.tar.xz',
+        mirrors: [
+            'https://ftp.osuosl.org/pub/blfs/conglomeration/libdisplay-info/libdisplay-info-0.1.1.tar.xz',
+        ],
         expectedSha256:
             '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
         license: 'MIT',
@@ -264,6 +267,100 @@ test('verifies source pins before archive extraction or git submodules', () => {
                 "['submodule', 'update', '--init', '--recursive', '--depth', '1']"
             )
     );
+});
+
+function createArchiveDownloadHarness(t, { archive, failingUrls = [] }) {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-linux-archive-')
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const archiveRoot = path.join(root, 'archives');
+    const sourceRoot = path.join(root, 'sources');
+    fs.mkdirSync(archiveRoot, { recursive: true });
+    fs.mkdirSync(sourceRoot, { recursive: true });
+    const attempts = [];
+    const extractions = [];
+    return {
+        attempts,
+        extractions,
+        archiveRoot,
+        context: {
+            archiveRoot,
+            sourceRoot,
+            run(command, args) {
+                if (command !== 'curl') {
+                    extractions.push(args);
+                    return;
+                }
+                const url = args.at(-1);
+                attempts.push({ url, args });
+                if (failingUrls.includes(url)) {
+                    throw new Error(`curl failed for ${url}`);
+                }
+                fs.writeFileSync(args[args.indexOf('--output') + 1], archive);
+            },
+        },
+    };
+}
+
+test('downloads a pinned archive from the next mirror when its host fails', async (t) => {
+    const { downloadArchive } = await import(pathToFileURL(builderScript).href);
+    const fontconfig = SOURCE_PACKAGES.find(({ id }) => id === 'fontconfig');
+    const archive = Buffer.from('fontconfig source archive');
+    const sourcePackage = {
+        ...fontconfig,
+        expectedSha256: crypto
+            .createHash('sha256')
+            .update(archive)
+            .digest('hex'),
+    };
+    const harness = createArchiveDownloadHarness(t, {
+        archive,
+        failingUrls: [fontconfig.sourceUrl],
+    });
+
+    const record = downloadArchive(sourcePackage, harness.context);
+
+    assert.deepEqual(
+        harness.attempts.map(({ url }) => url),
+        [fontconfig.sourceUrl, ...fontconfig.mirrors]
+    );
+    for (const { args } of harness.attempts) {
+        for (const flag of ['--proto', '=https', '--tlsv1.2', '--fail']) {
+            assert.ok(args.includes(flag), flag);
+        }
+    }
+    assert.equal(record.sourceSha256, sourcePackage.expectedSha256);
+    // The manifest, notices and Snap boundary all pin the canonical host, so a
+    // mirrored download must never rewrite the recorded source URL.
+    assert.equal(record.sourceUrl, fontconfig.sourceUrl);
+    assert.equal(harness.extractions.length, 1);
+    assert.deepEqual(
+        fs.readFileSync(
+            path.join(harness.archiveRoot, 'fontconfig-2.16.0.tar.xz')
+        ),
+        archive
+    );
+});
+
+test('refuses a mirror whose archive does not match the pinned digest', async (t) => {
+    const { downloadArchive } = await import(pathToFileURL(builderScript).href);
+    const fontconfig = SOURCE_PACKAGES.find(({ id }) => id === 'fontconfig');
+    const harness = createArchiveDownloadHarness(t, {
+        archive: Buffer.from('substituted archive'),
+        failingUrls: [fontconfig.sourceUrl],
+    });
+
+    assert.throws(
+        () => downloadArchive(fontconfig, harness.context),
+        /Unable to download a verified source archive[\s\S]*SHA-256 mismatch/
+    );
+    assert.deepEqual(
+        harness.attempts.map(({ url }) => url),
+        [fontconfig.sourceUrl, ...fontconfig.mirrors]
+    );
+    assert.deepEqual(harness.extractions, []);
+    assert.deepEqual(fs.readdirSync(harness.archiveRoot), []);
 });
 
 test('rejects source metadata that does not match the immutable pins', () => {
@@ -1505,6 +1602,14 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
                 sourcePackage.expectedSha256
             );
         }
+        // Notice generation and the Snap publication boundary compare the
+        // manifest against the immutable pin, so the mirror list must stay
+        // out of the manifest and sourceUrl must remain the canonical host.
+        assert.equal(
+            manifest.packages[sourcePackage.id].sourceUrl,
+            sourcePackage.sourceUrl
+        );
+        assert.equal(manifest.packages[sourcePackage.id].mirrors, undefined);
     }
     assert.equal(
         manifest.packages.libplacebo.sourceGitCommit,

@@ -72,6 +72,15 @@ const SOURCE_TOOLING_FILES = Object.freeze([
         ),
     },
     {
+        archivePath: 'tooling/download-pinned-source.mjs',
+        checkoutPath: path.join(
+            __dirname,
+            '..',
+            'embedded-mpv',
+            'download-pinned-source.mjs'
+        ),
+    },
+    {
         archivePath: 'tooling/generate-linux-runtime-notices.cjs',
         checkoutPath: path.join(
             __dirname,

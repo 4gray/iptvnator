@@ -36,6 +36,7 @@ import {
     PlaybackPositionService,
     PlaylistDeleteActionService,
     PlaylistRefreshService,
+    resetHostConnectivityGuard,
     RuntimeCapabilitiesService,
     SortBy,
     SortService,
@@ -366,6 +367,16 @@ export class RecentPlaylistsComponent {
                     this.databaseService.createOperationId('xtream-refresh');
 
                 try {
+                    // Before anything destructive, and for the same reason as
+                    // the shared refresh action: this deletes the cached catalog
+                    // and then navigates to re-import it, and an open
+                    // connectivity guard would fast-fail that bootstrap — the
+                    // user would be left with no catalog at all.
+                    await resetHostConnectivityGuard(
+                        this.dataService,
+                        item.serverUrl
+                    );
+
                     // Show immediate feedback — deletion can take several seconds
                     // for large playlists.
                     this.snackBar.open(

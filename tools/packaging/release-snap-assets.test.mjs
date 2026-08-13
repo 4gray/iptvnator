@@ -854,6 +854,7 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     const toolingFiles = [
         ['embedded-mpv', 'build-linux-runtime.cjs'],
         ['embedded-mpv', 'build-linux-runtime.mjs'],
+        ['embedded-mpv', 'download-pinned-source.mjs'],
         ['embedded-mpv', 'generate-linux-runtime-notices.cjs'],
         ['embedded-mpv', 'linux-runtime-manifest.cjs'],
         ['embedded-mpv', 'linux-source-archive-contract.cjs'],
@@ -1235,6 +1236,15 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     const graphicsRoot = path.join(snapSourceRoot, 'graphics');
     fs.mkdirSync(graphicsRoot, { mode: 0o755 });
     fs.chmodSync(graphicsRoot, 0o755);
+    for (const script of [
+        'desktop-init.sh',
+        'desktop-common.sh',
+        'desktop-gnome-specific.sh',
+    ]) {
+        const desktopScriptPath = path.join(snapSourceRoot, script);
+        fs.writeFileSync(desktopScriptPath, '#!/bin/sh\n');
+        fs.chmodSync(desktopScriptPath, 0o755);
+    }
     const asarSourceRoot = path.join(temporaryRoot, 'asar-source');
     const appAsarPath = path.join(appRoot, 'resources', 'app.asar');
     fs.mkdirSync(asarSourceRoot);

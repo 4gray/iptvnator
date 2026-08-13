@@ -1,8 +1,10 @@
 import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
+    PLAYBACK_SET_KEEP_AWAKE,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
+import { setPlaybackKeepAwake } from '../services/playback-keep-awake.service';
 import {
     MPV_PLAYER_PATH,
     store,
@@ -128,3 +130,7 @@ ipcMain.handle(
         return externalPlayerSessions.closeSession(sessionId);
     }
 );
+
+ipcMain.handle(PLAYBACK_SET_KEEP_AWAKE, (event, active: boolean) => {
+    setPlaybackKeepAwake(event.sender, active === true);
+});

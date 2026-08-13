@@ -30,6 +30,7 @@ import {
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
+import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service';
 import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 
@@ -62,6 +63,7 @@ export class AppComponent implements OnInit {
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
     private settingsStore = inject(SettingsStore);
+    private playbackKeepAwake = inject(PlaybackKeepAwakeService);
     private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
@@ -82,6 +84,10 @@ export class AppComponent implements OnInit {
         // queued there until the renderer subscribes. Start listening as early
         // as possible so a first-launch file is not delayed behind app init.
         this.playlistOpenRequests.start();
+
+        // Keep the display awake while a built-in player is playing video
+        // (Electron powerSaveBlocker / PWA Screen Wake Lock, issue #1095).
+        this.playbackKeepAwake.start();
 
         effect(() => {
             const size = this.settingsStore.coverSize?.() ?? 'medium';
