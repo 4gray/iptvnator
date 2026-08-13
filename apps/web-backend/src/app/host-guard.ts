@@ -193,14 +193,17 @@ export function reportProviderRequestFailure(
     const countFailures = options.countFailures ?? true;
     switch (classifyHostRequestFailure(error)) {
         case 'host-level':
-            if (!countFailures) {
+            // Redirect attribution is checked BEFORE the exemption, not after.
+            // A 3xx from the guarded endpoint is an answer, and an exempt probe
+            // observing one has to clear the record just as it does for any
+            // other response — otherwise an ordinary timeout, a probe that was
+            // redirected to a dead destination, and another ordinary timeout
+            // still read as two consecutive failures.
+            if (failedAfterRedirect(error, token, options.requestUrl)) {
+                guard.reportSuccess(token);
                 break;
             }
-            if (failedAfterRedirect(error, token, options.requestUrl)) {
-                // The guarded endpoint answered with a redirect, so this
-                // clears its record rather than merely declining to count the
-                // downstream failure.
-                guard.reportSuccess(token);
+            if (!countFailures) {
                 break;
             }
             guard.reportFailure(token);

@@ -465,6 +465,26 @@ export class HostConnectivityGuard {
  * a later hop carries THAT hop's URL rather than the one we asked for.
  */
 function failedRequestUrlOf(error: unknown): string | null {
+    // Two transports, two places to look, and only one of them is ever right.
+    //
+    // The Electron transport follows redirects itself with `maxRedirects: 0`,
+    // reissuing each hop as its own request, so the hop that failed is the
+    // error's `config.url`.
+    //
+    // The web backend uses axios' default transport, where follow-redirects
+    // walks the chain inside a single request. `config` is built once and never
+    // rewritten, so `config.url` stays the URL we asked for — comparing it
+    // against itself would find no redirect and charge a dead destination to
+    // the provider that answered. follow-redirects tracks the hop it is on as
+    // `request._currentUrl`, so that is read first; a transport that does not
+    // expose it falls through to `config.url`.
+    const currentUrl = (
+        error as { request?: { _currentUrl?: unknown } | null } | null
+    )?.request?._currentUrl;
+    if (typeof currentUrl === 'string') {
+        return currentUrl;
+    }
+
     const url = (error as { config?: { url?: unknown } } | null)?.config?.url;
     return typeof url === 'string' ? url : null;
 }

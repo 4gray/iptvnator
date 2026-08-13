@@ -7,6 +7,7 @@ import {
     HostConnectivityGuardError,
     HostRequestToken,
     classifyHostRequestFailure,
+    failedAfterRedirect,
     portalEndpointKeyOf,
 } from './host-connectivity-guard';
 
@@ -68,6 +69,53 @@ describe('classifyHostRequestFailure', () => {
         expect(classifyHostRequestFailure(timeoutError('ECONNRESET'))).toBe(
             'inconclusive'
         );
+    });
+});
+
+describe('failedAfterRedirect', () => {
+    // Two transports put the failed hop in two different places, and reading
+    // only one of them silently mis-attributes on the other.
+    const ENDPOINT = 'http://panel.example:8080';
+    const ASKED_FOR = `${ENDPOINT}/player_api.php`;
+    const token: HostRequestToken = {
+        endpoint: ENDPOINT,
+        epoch: 0,
+        startedAt: 0,
+        trial: false,
+        trialId: 0,
+    };
+
+    it('reads the hop from request._currentUrl when redirects were followed internally', () => {
+        // axios' default (follow-redirects) transport: `config` is built once
+        // and keeps the URL we asked for, whatever the chain did afterwards.
+        const error = {
+            code: 'ECONNREFUSED',
+            config: { url: ASKED_FOR },
+            request: { _currentUrl: 'http://cdn.dead.example/stream' },
+        };
+
+        expect(failedAfterRedirect(error, token, ASKED_FOR)).toBe(true);
+    });
+
+    it('falls back to config.url for a transport that reissues each hop', () => {
+        // The Electron transport uses `maxRedirects: 0` and follows redirects
+        // itself, so there is no `_currentUrl` and the hop is the config URL.
+        const error = {
+            code: 'ECONNREFUSED',
+            config: { url: 'http://cdn.dead.example/stream' },
+        };
+
+        expect(failedAfterRedirect(error, token, ASKED_FOR)).toBe(true);
+    });
+
+    it('reports no redirect when the request failed against the URL we asked for', () => {
+        const error = {
+            code: 'ECONNREFUSED',
+            config: { url: ASKED_FOR },
+            request: { _currentUrl: ASKED_FOR },
+        };
+
+        expect(failedAfterRedirect(error, token, ASKED_FOR)).toBe(false);
     });
 });
 

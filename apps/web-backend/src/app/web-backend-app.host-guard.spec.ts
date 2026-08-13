@@ -431,13 +431,17 @@ describe('web backend host connectivity guard', () => {
     });
 
     it('does not fast-fail a provider whose redirect destination is dead', async () => {
-        // axios follows redirects inside a single `get()`, so a failure can
-        // belong to a host we never admitted. The provider answered with a
-        // redirect every time, so it must stay reachable.
+        // The shape this route actually produces, verified against axios
+        // 1.19.0: follow-redirects walks the chain inside one `get()`, so
+        // `config` still holds the URL we asked for and only
+        // `request._currentUrl` names the hop that failed. Reading `config.url`
+        // alone would compare the original URL with itself, find no redirect,
+        // and charge the dead destination to the provider that answered.
         const redirectedFailure = () =>
             Object.assign(new Error('connect ECONNREFUSED'), {
                 code: 'ECONNREFUSED',
-                config: { url: 'http://cdn.dead.example/stream' },
+                config: { url: 'http://xtream.example/player_api.php' },
+                request: { _currentUrl: 'http://cdn.dead.example/stream' },
             });
         const httpClient = new StubHttpClient();
         httpClient.queueNetworkError(redirectedFailure());
