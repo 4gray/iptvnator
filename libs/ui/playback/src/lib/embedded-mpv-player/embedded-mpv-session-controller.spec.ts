@@ -391,9 +391,10 @@ async function drainRound(): Promise<void> {
  * The bound is a number of drain rounds, not elapsed wall-clock time. Polling
  * real timers against a `Date.now()` deadline made these specs load-sensitive:
  * under parallel Jest workers the budget expired before the chain settled, so
- * a different pair of tests failed on each run. With the clock virtual, how
- * busy the machine is no longer changes the outcome — the rounds only ever
- * advance when this loop says so.
+ * a different pair of tests failed on each run. With the clock virtual the
+ * spec imposes no deadline of its own — the rounds only ever advance when this
+ * loop says so — so settling stops being a race against the machine. Jest's
+ * own per-test timeout still applies, as it does to every spec.
  */
 async function waitFor(
     condition: () => boolean,
