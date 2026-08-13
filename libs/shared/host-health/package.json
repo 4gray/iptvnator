@@ -1,0 +1,12 @@
+{
+    "name": "@iptvnator/shared/host-health",
+    "version": "0.0.1",
+    "private": true,
+    "type": "commonjs",
+    "main": "./src/index.js",
+    "types": "./src/index.d.ts",
+    "dependencies": {
+        "@iptvnator/shared/interfaces": "0.0.1",
+        "tslib": "^2.3.0"
+    }
+}

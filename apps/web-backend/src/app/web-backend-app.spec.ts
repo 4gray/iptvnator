@@ -1,123 +1,11 @@
-import { AddressInfo } from 'node:net';
-import { Server } from 'node:http';
-import { STALKER_MAG_USER_AGENT } from '@iptvnator/shared/interfaces';
+import { createWebBackendApp } from './web-backend-app';
 import {
-    createWebBackendApp,
-    WebBackendHttpClient,
-    WebBackendHttpGetOptions,
-} from './web-backend-app';
-
-/** The transport-identity headers every portal-facing Stalker request carries. */
-const STALKER_IDENTITY_HEADERS = {
-    'User-Agent': STALKER_MAG_USER_AGENT,
-    'X-User-Agent': STALKER_MAG_USER_AGENT,
-    Accept: '*/*',
-    Connection: 'keep-alive',
-    'Accept-Language': 'en-US,en;q=0.9',
-};
-
-interface HttpRequest {
-    readonly headers?: Record<string, string>;
-    readonly params?: Record<string, string>;
-    readonly responseData: unknown;
-    readonly responseStatus?: number;
-    readonly url: string;
-}
-
-class StubHttpClient implements WebBackendHttpClient {
-    readonly requests: Omit<HttpRequest, 'responseData' | 'responseStatus'>[] =
-        [];
-    private readonly queuedResponses: Array<{
-        readonly data: unknown;
-        readonly error?: Error;
-        readonly status?: number;
-        readonly statusText?: string;
-    }> = [];
-
-    queueResponse(data: unknown): void {
-        this.queuedResponses.push({ data });
-    }
-
-    queueFailure(status: number, statusText = 'Provider failure'): void {
-        this.queuedResponses.push({ data: null, status, statusText });
-    }
-
-    queueNetworkFailure(message = 'connect ECONNREFUSED'): void {
-        this.queuedResponses.push({ data: null, error: new Error(message) });
-    }
-
-    queueNetworkError(error: Error): void {
-        this.queuedResponses.push({ data: null, error });
-    }
-
-    async get<T>(
-        url: string,
-        options: WebBackendHttpGetOptions = {}
-    ): Promise<{ data: T }> {
-        this.requests.push({
-            headers: options.headers,
-            params: options.params,
-            url,
-        });
-
-        const response = this.queuedResponses.shift();
-        if (!response) {
-            throw new Error(`No queued response for ${url}`);
-        }
-
-        if (response.error) {
-            throw response.error;
-        }
-
-        if (response.status) {
-            const error = new Error(response.statusText) as Error & {
-                response: { status: number; statusText: string };
-            };
-            error.response = {
-                status: response.status,
-                statusText: response.statusText ?? 'Provider failure',
-            };
-            throw error;
-        }
-
-        return { data: response.data as T };
-    }
-}
-
-const resolvePublicHost = async () => ['93.184.216.34'];
-
-async function registerProviderTarget(
-    baseUrl: string,
-    url: string
-): Promise<string> {
-    const response = await fetch(`${baseUrl}/provider-targets`, {
-        body: JSON.stringify({ url }),
-        headers: {
-            'content-type': 'application/json',
-        },
-        method: 'POST',
-    });
-    const body = (await response.json()) as { targetId: string };
-    return body.targetId;
-}
-
-async function withServer<T>(
-    app: ReturnType<typeof createWebBackendApp>,
-    callback: (baseUrl: string) => Promise<T>
-): Promise<T> {
-    const server = await new Promise<Server>((resolve) => {
-        const started = app.listen(0, '127.0.0.1', () => resolve(started));
-    });
-
-    try {
-        const address = server.address() as AddressInfo;
-        return await callback(`http://127.0.0.1:${address.port}`);
-    } finally {
-        await new Promise<void>((resolve, reject) => {
-            server.close((error) => (error ? reject(error) : resolve()));
-        });
-    }
-}
+    registerProviderTarget,
+    resolvePublicHost,
+    STALKER_IDENTITY_HEADERS,
+    StubHttpClient,
+    withServer,
+} from './web-backend-app.spec-helpers';
 
 describe('web backend app', () => {
     it('exposes a health endpoint', async () => {
@@ -203,6 +91,7 @@ https://stream.example/news.m3u8`);
                     {
                         headers: undefined,
                         params: undefined,
+                        timeout: 30000,
                         url: 'https://provider.example/list.m3u',
                     },
                 ]);
@@ -284,6 +173,7 @@ https://stream.example/news.m3u8`);
                     {
                         headers: undefined,
                         params: undefined,
+                        timeout: 30000,
                         url: 'https://provider.example/guide.xml',
                     },
                 ]);
@@ -400,6 +290,7 @@ https://stream.example/live.m3u8`);
                             password: 'secret',
                             username: 'demo',
                         },
+                        timeout: 30000,
                         url: 'http://xtream.example/player_api.php',
                     },
                 ]);
@@ -437,6 +328,7 @@ https://stream.example/live.m3u8`);
                             password: 'secret',
                             username: 'demo',
                         },
+                        timeout: 30000,
                         url: 'http://xtream.example/panel/player_api.php',
                     },
                 ]);
@@ -477,6 +369,7 @@ https://stream.example/live.m3u8`);
                             Cookie: 'mac=00:1A:79:00:00:01; stb_lang=en_US@rg=dezzzz; timezone=Europe/Berlin',
                         },
                         params: undefined,
+                        timeout: 15000,
                         url: 'http://stalker.example/portal.php?action=get_categories&type=vod&JsHttpRequest=1-xml',
                     },
                 ]);
@@ -630,6 +523,9 @@ https://stream.example/live.m3u8`);
                             Cookie: 'mac=00:1A:79:00:00:01; stb_lang=en_US@rg=dezzzz; timezone=Europe/Berlin',
                         },
                         params: undefined,
+                        // `create_link` takes the longer budget: the portal
+                        // mints a stream URL before it answers.
+                        timeout: 30000,
                         url:
                             'http://stalker.example/portal.php' +
                             '?action=create_link&type=itv' +

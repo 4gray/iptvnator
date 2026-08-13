@@ -1,31 +1,73 @@
 # Host Connectivity Guard
 
-Per-host circuit breaker for portal requests in the Electron main process.
+Per-host circuit breaker for portal requests, in both processes that make them:
+the Electron main process and the self-hosted web backend.
 
 ## The problem
 
 Every request to an unreachable portal costs its full axios timeout — 30 s for
-`XTREAM_REQUEST`, 15 s for `STALKER_REQUEST` (30 s for `create_link`). Browsing a
+`XTREAM_REQUEST`, 15 s for `STALKER_REQUEST` (30 s for `create_link`), and the
+same budgets on the web backend's `/xtream` and `/stalker` routes. Browsing a
 dead portal's catalog issues dozens of those back to back, which shows up as
-30-second spinners and a main-process log full of identical failures. Once a host
-has refused to answer twice in a row there is nothing left to learn from waiting
-again.
+30-second spinners and a log full of identical failures. Once a host has refused
+to answer twice in a row there is nothing left to learn from waiting again.
+
+The web backend had a worse version of the same problem first: its proxy routes
+passed no `timeout` at all, so a provider that accepted a connection and then
+went silent held the request until the OS gave up on the TCP connection. A
+breaker is only useful once _not answering_ is bounded, which is why the timeouts
+and the breaker landed there together.
 
 ## Where it lives
 
-`apps/electron-backend/src/app/util/host-connectivity-guard.ts` — a pure module
-(no Electron imports) wired into both IPC handlers.
+`libs/shared/host-health` (`@iptvnator/shared/host-health`, tagged
+`scope:shared` / `domain:shared-runtime` / `type:util`) — the breaker class, the
+failure classification and the redirect-attribution helpers, with no transport,
+logger or process singleton of its own. The owning app supplies the clock and
+decides how many guards exist.
 
-The handlers are the choke point that sees _all_ traffic to a host. The
-renderer's `executeStalkerRequest` is not: it has four documented bypasses
-(auth, endpoint discovery, account info, the row-less stream resolver), and that
-is exactly the traffic that hits dead hosts.
+Each runtime owns its instance:
 
-**The PWA is deliberately not covered yet.** `apps/web-backend` sets no
-per-request timeout at all, so a dead host there hangs on OS-level TCP timeouts
-rather than a 15/30 s budget — a timeout-driven breaker would rarely trip. The
-guard is written dependency-free so it can move into a `domain:shared-runtime`
-library and be shared with `web-backend` when that gap is closed.
+- **Electron** — `apps/electron-backend/src/app/util/host-connectivity-guard.ts`
+  holds one guard for the whole process, wired into both IPC handlers. The
+  handlers are the choke point that sees _all_ traffic to a host. The renderer's
+  `executeStalkerRequest` is not: it has four documented bypasses (auth,
+  endpoint discovery, account info, the row-less stream resolver), and that is
+  exactly the traffic that hits dead hosts.
+- **PWA** — `apps/web-backend/src/app/host-guard.ts` guards the `/xtream` and
+  `/stalker` proxy routes. The guard instance is injected through
+  `WebBackendAppOptions.hostGuard`, alongside `now` and `guid`, so specs drive
+  it with a clock they own.
+
+### Request timeouts are the precondition
+
+A breaker keyed on "the endpoint did not answer" is only useful once _not
+answering_ is bounded. `apps/web-backend` originally passed no `timeout` at all,
+so a silent host hung on OS-level TCP timeouts. Both runtimes now use the same
+budgets: Xtream 30 s, Stalker 15 s (30 s for `create_link`, which mints a stream
+URL before answering), playlist and XMLTV downloads 30 s.
+
+Those numbers are safe for large downloads. On axios' default
+(follow-redirects) transport `timeout` is **not** a wall-clock deadline for the
+whole response: it bounds the time to response headers and then continues as the
+socket's inactivity timeout for the body. A multi-megabyte XMLTV file that keeps
+delivering bytes is never cut off mid-transfer — only a stalled one is.
+
+### Scope: portal calls only
+
+Both runtimes guard the portal API paths and nothing else. Playlist and XMLTV
+downloads (`/parse`, `/parse-xml`, and their Electron equivalents) get the
+timeouts but not the breaker, deliberately:
+
+- The problem being solved is a catalog fan-out — dozens of requests to one
+  endpoint back to back. A download is a single request.
+- A download is usually the direct result of the user asking for it (the
+  add-playlist dialog sends `PLAYLIST_PARSE_BY_URL`). Refusing an immediate
+  retry is a regression, not a protection, and there is no natural reset site on
+  that path the way portal Retry has one.
+- A large XMLTV transfer can legitimately run for minutes — the timeout is
+  idle-based, see above — which outlives the 45 s half-open trial expiry and
+  would let a second trial in behind the first.
 
 ## Rules
 
@@ -48,25 +90,41 @@ mid-transfer happens on hosts that are very much alive. Cancelled requests
 (`ERR_CANCELED`) and SSRF-policy refusals are `inconclusive` — they say nothing
 about reachability and only release the half-open slot.
 
-**A failure is only charged to the endpoint that produced it.** Redirects are
-followed hop by hop, each with its own config, so a failure on a later hop
-carries that hop's URL in `error.config.url`. Reaching any later hop _proves_ the
-guarded endpoint answered — the first hop is always the URL we asked for, and
-only a redirect status advances the chain — so it CLEARS the guarded endpoint's
-record, exactly like any other response. Merely declining to count it would leave
-an earlier direct failure standing, and a single later timeout would then
-fast-fail an endpoint that answered in between.
+**A failure is only charged to the endpoint that produced it.** Reaching any
+later hop _proves_ the guarded endpoint answered — the first hop is always the
+URL we asked for, and only a redirect status advances the chain — so a failure
+there CLEARS the guarded endpoint's record, exactly like any other response.
+Merely declining to count it would leave an earlier direct failure standing, and
+a single later timeout would then fast-fail an endpoint that answered in between.
+Every caller passes the URL it asked for as the baseline.
 
-The comparison is against the whole request URL, not just its origin: a
-same-origin redirect (`/player_api.php` → `/slow/player_api.php`) proves the
-endpoint answered just as much as a cross-origin one, and charging it would
-fast-fail every OTHER call to a portal that answers. Both handlers therefore pass
-the URL they asked for. It requires positive evidence — anything unparseable or
-unknown counts the failure as usual, because guessing "redirect" here would stop
-the guard from ever tripping — and a failure that names no URL at all is still
-counted. Round-tripping through `URL` is identity for both handlers' URL shapes
-(including Stalker's hand-encoded `cmd`), and `requestWithValidatedRedirects`
-normalizes hop 1 the same way, so the comparison is exact.
+**Where the failed hop is found depends on the transport, and both are in play.**
+
+| | Electron | Web backend |
+| --- | --- | --- |
+| Redirects | followed hop by hop (`maxRedirects: 0`), each its own request | followed inside one request by follow-redirects |
+| Failed hop is in | `error.config.url` | `error.request._currentUrl` |
+
+`failedRequestUrlOf` reads `_currentUrl` first and falls back to `config.url`,
+which is correct for both: a per-hop request exposes no `_currentUrl`, and on the
+following transport `config` is built once and keeps the URL we asked for — so
+reading `config.url` there would compare a URL with itself, find no redirect, and
+charge a dead destination to the provider that answered. Anything added here must
+work on both, because the same helper serves both.
+
+**The comparison is origin + path, not the whole URL.** A same-origin redirect
+(`/player_api.php` → `/slow/player_api.php`) proves the endpoint answered just as
+much as a cross-origin one, and charging it would fast-fail every OTHER call to a
+portal that answers — so the path has to be part of it. The query must NOT be:
+the web backend passes Xtream credentials through axios' `params`, so the sent
+URL always carries a query the baseline does not, and comparing whole URLs made
+every ordinary failure look like a redirect and stopped the breaker from ever
+opening. What that gives up is a redirect that changes nothing but the query,
+which is then counted as an ordinary failure — the safe direction.
+
+It requires positive evidence — anything unparseable or unknown counts the
+failure as usual, because guessing "redirect" here would stop the guard from ever
+tripping — and a failure that names no URL at all is still counted.
 
 Known gap: the failing hop is not guarded either (it has no token of its own),
 so a permanently broken redirect chain keeps costing a full timeout.
@@ -160,6 +218,13 @@ body does. That is why the exempt path reports through
 `reportGuardedHostFailure(token, error, { countFailures: false })` rather than
 skipping the report.
 
+The flag has to survive the PWA transport too, or discovery is exempt on the
+desktop and policed on the web. `PwaService.forwardStalkerRequest` forwards it
+as a `/stalker` control param and the route applies the same semantics — and,
+like `macAddress`/`token`/`serialNumber`, it is stripped from the query
+forwarded to the portal, because it is our control flag and not protocol
+content.
+
 ## Explicit reset
 
 `CONNECTIVITY_GUARD_RESET` (`{ url }`) is handled by
@@ -223,9 +288,14 @@ the next `nearEnd` event fires a second retry.
 They all go through `resetHostConnectivityGuard()`
 (`libs/services/src/lib/host-connectivity-reset.ts`), which holds the one rule
 they share: the reset is best effort, because the guard only ever _delays_ a
-request and a failed reset must not block the action that asked for it. In the
-PWA the channel is unknown and `sendIpcEvent` no-ops, which is correct —
-nothing there records per-host failures yet.
+request and a failed reset must not block the action that asked for it. Both
+runtimes honour it, so neither keeps fast-failing an endpoint the user just
+asked to retry — in the PWA `PwaService` forwards it to the web backend's
+`POST /connectivity-guard/reset`, since the breaker lives in the backend
+process and a local reset would clear nothing. That route takes the raw
+provider URL rather than a registered `targetId`, because callers reset
+precisely when the address may have changed, which is before any target exists
+for it; it fetches nothing, reads only the origin, and never logs the URL.
 
 ## Interaction with VOD multi-source
 
@@ -240,8 +310,20 @@ module's contract that unreachable ≠ contacted-and-refused. The
 
 ## Tests
 
+- `libs/shared/host-health/src/lib/host-connectivity-guard.spec.ts` — the state
+  machine, with an injected clock.
 - `apps/electron-backend/src/app/util/host-connectivity-guard.spec.ts` — the
-  state machine, with an injected clock.
+  main-process singleton and redirect attribution through it.
+- `apps/web-backend/src/app/web-backend-app.host-guard.spec.ts` — the proxy
+  routes: the HTTP 200 refusal shape, that the outbound request really is
+  skipped, that an open endpoint is refused before a DNS lookup is spent on it,
+  redirect attribution, the discovery exemption, half-open, the reset endpoint,
+  and that playlist/EPG downloads are never fast-failed. The per-route timeouts
+  are asserted in `web-backend-app.spec.ts`, which pins the whole outbound
+  request shape.
+- `apps/web/src/app/services/pwa.service.spec.ts` — that a fast-fail reaches the
+  renderer with no numeric `status` and no `HTTP Error <code>` in its message,
+  that the discovery bypass is forwarded, and that a reset calls the backend.
 - `apps/electron-backend/src/app/events/stalker.events.spec.ts` and
   `xtream.events.spec.ts` — trip, fast-fail without contacting axios, reset,
   exemption, and the absence of per-request log spam.

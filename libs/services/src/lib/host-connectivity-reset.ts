@@ -11,9 +11,11 @@ import type { DataService } from './data.service';
  * (import, edited connection, lazy repair).
  *
  * Always best effort: the guard only ever delays a request, so a failure here
- * must never block the action that asked for it. In the PWA the channel is
- * unknown and `sendIpcEvent` no-ops, which is correct — nothing there records
- * per-host failures yet.
+ * must never block the action that asked for it. Both runtimes honour it — the
+ * Electron main process over IPC, the PWA as an HTTP call to the web backend
+ * that owns its guard — so neither keeps fast-failing an endpoint the user just
+ * asked to retry. A new caller has to reach this helper on both paths; there is
+ * no longer a runtime where it quietly does nothing.
  */
 export async function resetHostConnectivityGuard(
     dataService: Pick<DataService, 'sendIpcEvent'>,

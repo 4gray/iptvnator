@@ -83,6 +83,9 @@
             ],
             "@iptvnator/shared/testing": ["libs/shared/testing/src/index.ts"],
             "@iptvnator/shared/logging": ["libs/shared/logging/src/index.ts"],
+            "@iptvnator/shared/host-health": [
+                "libs/shared/host-health/src/index.ts"
+            ],
             "@iptvnator/services": ["libs/services/src/index.ts"],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"

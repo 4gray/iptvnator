@@ -8,11 +8,24 @@ import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
 import {
+    HostConnectivityGuard,
+    HostRequestToken,
+} from '@iptvnator/shared/host-health';
+import {
     buildStalkerIdentityRequestContext,
     buildStalkerRequestUrl,
     normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import {
+    admitProviderRequest,
+    observeProviderRequest,
+    PROVIDER_REQUEST_TIMEOUT_MS,
+    releaseProviderRequest,
+    reportProviderRequestFailure,
+    reportProviderRequestSuccess,
+    resetProviderHost,
+} from './host-guard';
 import {
     collectProviderErrorCodes,
     logProviderRequestFailure,
@@ -24,6 +37,7 @@ export interface WebBackendHttpGetOptions {
     readonly headers?: Record<string, string>;
     readonly params?: Record<string, string>;
     readonly responseType?: 'arraybuffer';
+    readonly timeout?: number;
 }
 
 export interface WebBackendHttpClient {
@@ -43,6 +57,11 @@ export interface WebBackendAppOptions {
     readonly allowPrivateNetworkTargets?: boolean;
     readonly clientOrigins?: string[];
     readonly guid?: () => string;
+    /**
+     * Per-host circuit breaker for the proxy routes. One per app, so a test can
+     * drive it with a fake clock the same way `now` and `guid` are injected.
+     */
+    readonly hostGuard?: HostConnectivityGuard;
     readonly httpClient?: WebBackendHttpClient;
     readonly now?: () => Date;
     readonly resolveHostname?: (hostname: string) => Promise<readonly string[]>;
@@ -57,6 +76,25 @@ interface ProviderUrlPolicy {
 interface ProviderUrlError {
     readonly message: string;
     readonly status: number;
+    /**
+     * The DNS failure behind a "could not be resolved" refusal, when that is
+     * what this is. Internal only — {@link providerUrlErrorBody} strips it,
+     * because the client is told the same thing it always was.
+     *
+     * A name that does not resolve is evidence about reachability, exactly like
+     * the `ENOTFOUND` the transport would have raised a moment later. Without
+     * it, a host whose DNS died is refused by the policy on every request and
+     * the breaker never opens, so each call keeps paying for the lookup.
+     */
+    readonly lookupError?: unknown;
+}
+
+/** The client-facing half of a {@link ProviderUrlError}. */
+function providerUrlErrorBody(error: ProviderUrlError): {
+    message: string;
+    status: number;
+} {
+    return { message: error.message, status: error.status };
 }
 
 type ProviderTargetRegistry = Map<string, URL>;
@@ -68,6 +106,16 @@ export function createWebBackendApp(
     const httpClient = (options.httpClient ?? axios) as WebBackendHttpClient;
     const guid = options.guid ?? createGuid;
     const now = options.now ?? (() => new Date());
+    const hostGuard =
+        options.hostGuard ??
+        new HostConnectivityGuard({
+            // Host and port only — the provider URL's query string routinely
+            // carries Xtream credentials and must never reach a log.
+            onOpen: (host) =>
+                console.warn(
+                    `[web-backend] ${host} is not answering; skipping requests to it for a short while`
+                ),
+        });
     const clientOrigins = options.clientOrigins ?? getClientOrigins();
     const runtimeBackendUrl =
         options.runtimeBackendUrl ?? process.env['BACKEND_URL'] ?? '/api';
@@ -127,7 +175,7 @@ export function createWebBackendApp(
 
             const result = await validateProviderUrl(rawUrl, providerUrlPolicy);
             if ('message' in result) {
-                res.status(result.status).json(result);
+                res.status(result.status).json(providerUrlErrorBody(result));
                 return;
             }
 
@@ -137,12 +185,47 @@ export function createWebBackendApp(
         }
     );
 
+    app.options('/connectivity-guard/reset', corsMiddleware);
+    app.post(
+        '/connectivity-guard/reset',
+        corsMiddleware,
+        express.json({ limit: '4kb' }),
+        (req, res) => {
+            // Takes the raw provider URL rather than a registered targetId:
+            // callers reset a host precisely when its address may have changed,
+            // which is before any target exists for it. Nothing is fetched
+            // here — only the host is read, so there is no SSRF surface — and
+            // the URL is never logged, since its query string carries the
+            // Xtream credentials.
+            const rawUrl =
+                req.body &&
+                typeof req.body === 'object' &&
+                'url' in req.body &&
+                typeof req.body.url === 'string'
+                    ? req.body.url
+                    : undefined;
+
+            if (!rawUrl) {
+                res.status(400).json({ message: 'Missing url', status: 400 });
+                return;
+            }
+
+            res.json({ reset: resetProviderHost(hostGuard, rawUrl) });
+        }
+    );
+
     app.get('/parse', corsMiddleware, async (req, res) => {
         const url = getRegisteredProviderUrl(req, res, providerTargets);
         if (!url) {
             return;
         }
 
+        // Deliberately unguarded, matching Electron, where the breaker is
+        // wired into the two portal IPC handlers and not into the playlist or
+        // EPG download path. See "Scope" in the contract doc: a download is one
+        // request rather than a catalog fan-out, it is usually the direct
+        // result of the user asking for it, and it can legitimately run far
+        // longer than any portal call.
         const result = await handlePlaylistParse({
             guid,
             httpClient,
@@ -164,6 +247,7 @@ export function createWebBackendApp(
             return;
         }
 
+        // Unguarded for the same reasons as /parse above.
         try {
             const result = await fetchEpgDataFromUrl(httpClient, url);
             if (!result) {
@@ -193,31 +277,75 @@ export function createWebBackendApp(
         }
         const url = new URL(registeredUrl.href);
 
+        let guardToken: HostRequestToken | null = null;
+        // The URL actually requested, so a failure on a redirect hop can be
+        // told apart from a failure of the endpoint we guarded.
+        let requestUrl: string | undefined;
         try {
+            // Before URL validation, not after: that step resolves the hostname
+            // over DNS, and a dead host is exactly where DNS is slow or failing
+            // too. Checking first means an open breaker answers immediately
+            // with the fast-fail the caller expects, instead of paying for a
+            // lookup and then reporting an unrelated "host could not be
+            // resolved". Safe to key on the registered URL because
+            // `normalizeXtreamServerUrl` rebuilds from `url.origin`, so
+            // normalization can change the path but never the host.
+            const admission = admitProviderRequest(hostGuard, url.href);
+            if (!admission.allowed) {
+                // This route answers provider failures with HTTP 200 and an
+                // error body; a fast-fail is one of them.
+                res.json(admission.error);
+                return;
+            }
+            guardToken = admission.token;
+
             const providerUrlError =
                 await normalizeAndValidateXtreamProviderUrl(
                     url,
                     providerUrlPolicy
                 );
             if (providerUrlError) {
-                res.status(providerUrlError.status).json(providerUrlError);
+                // Admitted, then abandoned before any request went out. A
+                // policy refusal — private address, bad scheme — says nothing
+                // about reachability, so it only hands the half-open slot back.
+                // A name that would not resolve is different: that IS the host
+                // failing to answer, and counting it is what lets the breaker
+                // stop paying for the same dead lookup on every request.
+                if (providerUrlError.lookupError !== undefined) {
+                    reportProviderRequestFailure(
+                        hostGuard,
+                        guardToken,
+                        providerUrlError.lookupError
+                    );
+                } else {
+                    releaseProviderRequest(hostGuard, guardToken);
+                }
+                guardToken = null;
+                res.status(providerUrlError.status).json(
+                    providerUrlErrorBody(providerUrlError)
+                );
                 return;
             }
 
+            requestUrl = appendPathSegment(url, 'player_api.php');
+
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
-            const response = await httpClient.get(
-                appendPathSegment(url, 'player_api.php'),
-                {
-                    params: getProxyParams(req, ['targetId']),
-                }
-            );
+            const response = await httpClient.get(requestUrl, {
+                params: getProxyParams(req, ['targetId']),
+                timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
+            });
+            reportProviderRequestSuccess(hostGuard, guardToken);
+            guardToken = null;
 
             res.json({
                 action: getQueryString(req, 'action'),
                 payload: response.data,
             });
         } catch (error) {
+            reportProviderRequestFailure(hostGuard, guardToken, error, {
+                requestUrl,
+            });
             logProviderRequestFailure({ error, route: '/xtream', url });
             res.json(normalizeProviderError(error));
         }
@@ -232,6 +360,12 @@ export function createWebBackendApp(
             return;
         }
 
+        // Endpoint-discovery probes expect most candidates to fail; counting
+        // them would let discovery declare a slow-but-alive portal unreachable.
+        const countsTowardsGuard =
+            getQueryString(req, 'skipConnectionGuard') !== 'true';
+        let guardToken: HostRequestToken | null = null;
+        let requestUrl: string | undefined;
         try {
             // `macAddress`, `token` and `serialNumber` are portal credentials,
             // not protocol content: they reach the portal only as the same
@@ -242,7 +376,15 @@ export function createWebBackendApp(
             // a query param and is answered without authentication.
             const params: Record<string, string | number> = getProxyParams(
                 req,
-                ['targetId', 'macAddress', 'token', 'serialNumber']
+                [
+                    'targetId',
+                    'macAddress',
+                    'token',
+                    'serialNumber',
+                    // Guard control flag, not protocol content — it must never
+                    // reach the portal's query string.
+                    'skipConnectionGuard',
+                ]
             );
             if (params['action'] === 'handshake' && token) {
                 params['token'] = token;
@@ -265,18 +407,52 @@ export function createWebBackendApp(
                 delete headers['Cookie'];
             }
 
+            requestUrl = buildStalkerRequestUrl(
+                url.href,
+                identity.requestParams
+            );
+
+            if (countsTowardsGuard) {
+                const admission = admitProviderRequest(hostGuard, requestUrl);
+                if (!admission.allowed) {
+                    // This route answers provider failures with HTTP 200 and
+                    // an error body; a fast-fail is one of them.
+                    res.json(admission.error);
+                    return;
+                }
+                guardToken = admission.token;
+            } else {
+                // Endpoint discovery: never policed, never counted, but a
+                // candidate that answers still clears the record.
+                guardToken = observeProviderRequest(hostGuard, requestUrl);
+            }
+
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
-            const response = await httpClient.get(
-                buildStalkerRequestUrl(url.href, identity.requestParams),
-                { headers }
-            );
+            const response = await httpClient.get(requestUrl, {
+                headers,
+                // `create_link` gets the longer budget: the portal mints a
+                // stream URL before it answers.
+                timeout:
+                    params['action'] === 'create_link'
+                        ? PROVIDER_REQUEST_TIMEOUT_MS.stalkerCreateLink
+                        : PROVIDER_REQUEST_TIMEOUT_MS.stalker,
+            });
+            reportProviderRequestSuccess(hostGuard, guardToken);
+            guardToken = null;
 
             res.json({
                 action: getQueryString(req, 'action'),
                 payload: response.data,
             });
         } catch (error) {
+            // Always reported, even for exempt discovery probes: a failure
+            // carrying an HTTP response proves the endpoint answered, and
+            // dropping that is what lets the breaker open mid-discovery.
+            reportProviderRequestFailure(hostGuard, guardToken, error, {
+                countFailures: countsTowardsGuard,
+                requestUrl,
+            });
             logProviderRequestFailure({ error, route: '/stalker', url });
             res.json(normalizeProviderError(error));
         }
@@ -350,10 +526,11 @@ async function validateProviderUrl(
         let addresses: readonly string[];
         try {
             addresses = await policy.resolveHostname(hostname);
-        } catch {
+        } catch (lookupError) {
             return {
                 message: 'Provider URL host could not be resolved',
                 status: 400,
+                lookupError,
             };
         }
 
@@ -480,7 +657,9 @@ async function handlePlaylistParse(options: {
     try {
         // Provider URLs are validated by /provider-targets before playlist parsing.
         // codeql[js/request-forgery]
-        const response = await options.httpClient.get<string>(options.url);
+        const response = await options.httpClient.get<string>(options.url, {
+            timeout: PROVIDER_REQUEST_TIMEOUT_MS.playlist,
+        });
         const parsedPlaylist = parsePlaylist(response.data);
         const title = getLastUrlSegment(options.url);
         return createPlaylistObject({
@@ -518,6 +697,7 @@ async function fetchEpgDataFromUrl(
     // Provider URLs are validated by /provider-targets before XMLTV parsing.
     // codeql[js/request-forgery]
     const response = await httpClient.get<ArrayBuffer | string>(href, {
+        timeout: PROVIDER_REQUEST_TIMEOUT_MS.epg,
         ...(url.pathname.endsWith('.gz')
             ? { responseType: 'arraybuffer' }
             : {}),
