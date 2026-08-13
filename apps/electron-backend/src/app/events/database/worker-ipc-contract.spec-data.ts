@@ -19,6 +19,12 @@ const recentlyViewed = [{ contentId: 2, playlistId }];
 const categoryIds = [10, 11];
 const reorderUpdates = [{ content_id: 12, position: 1 }];
 const recentItemsBatch = [{ contentId: 13, playlistId }];
+const contentMetadataPatch = {
+    backdropUrl: 'https://image.example/backdrop.jpg',
+    tmdbId: 603,
+    releaseYear: 1999,
+    originalTitle: 'The Matrix',
+};
 const playbackData = {
     contentXtreamId: 42,
     contentType: 'vod',
@@ -163,24 +169,10 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
-        args: [
-            12,
-            {
-                backdropUrl: 'https://image.example/backdrop.jpg',
-                tmdbId: 603,
-                releaseYear: 1999,
-                originalTitle: 'The Matrix',
-            },
-        ],
-        payload: {
-            contentId: 12,
-            patch: {
-                backdropUrl: 'https://image.example/backdrop.jpg',
-                tmdbId: 603,
-                releaseYear: 1999,
-                originalTitle: 'The Matrix',
-            },
-        },
+        // Same object on both sides: the patch must cross the boundary
+        // unreshaped, or the worker reads fields the caller never sent.
+        args: [12, contentMetadataPatch],
+        payload: { contentId: 12, patch: contentMetadataPatch },
     },
     {
         operation: 'DB_SEARCH_CONTENT',

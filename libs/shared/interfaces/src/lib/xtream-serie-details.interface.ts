@@ -25,6 +25,8 @@ export interface XtreamSerieInfo {
     director: string;
     genre: string;
     releaseDate: string;
+    /** See `XtreamVodInfo.tmdb_supplied_release_date` — same contract */
+    tmdb_supplied_release_date?: boolean;
     last_modified: string;
     rating: string;
     rating_5based: number;

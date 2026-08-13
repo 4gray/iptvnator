@@ -29,6 +29,41 @@ describe('xtreamDetailContentMetadata', () => {
         ).toEqual({ tmdbId: 82856, releaseYear: 2019 });
     });
 
+    it('does not store a date TMDB supplied when the provider had none', () => {
+        // `mergeVodInfoWithTmdb` fills `releasedate` from `details.release_date`
+        // whenever the provider left it empty, and this runs against the
+        // merged object. Recording that as a provider fact is unfixable
+        // afterwards: the column is never overwritten, so a real provider date
+        // arriving later cannot correct it.
+        expect(
+            xtreamDetailContentMetadata({
+                releasedate: '2015-06-19',
+                tmdb_supplied_release_date: true,
+                tmdb_id: 150540,
+            })
+        ).toEqual({ tmdbId: 150540 });
+    });
+
+    it('stores the date when the provider stated it, enrichment or not', () => {
+        // The merge keeps the provider's own value and leaves the marker off,
+        // so an enriched item with a real provider date still records it.
+        expect(
+            xtreamDetailContentMetadata({
+                releasedate: '1999-03-31',
+                tmdb_id: 603,
+            })
+        ).toEqual({ tmdbId: 603, releaseYear: 1999 });
+    });
+
+    it('applies the same rule to a series releaseDate', () => {
+        expect(
+            xtreamDetailContentMetadata({
+                releaseDate: '2019-11-12',
+                tmdb_supplied_release_date: true,
+            })
+        ).toBeNull();
+    });
+
     it('never stores a year found only in the title', () => {
         // The provider stated no date. Readers apply their own title-derived
         // fallback; recording one here would turn a guess into a fact, and

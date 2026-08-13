@@ -25,8 +25,7 @@ import {
 } from '@iptvnator/ui/components';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
-    xtreamContentMetadataKey,
-    xtreamDetailContentMetadata,
+    registerContentMetadataBackfill,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -138,7 +137,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         });
     /** `playlistId:categoryId:serialId` of the last initialized view */
     private readonly lastInitKey = signal<string | null>(null);
-    private readonly metadataBackfillKey = signal<string | null>(null);
 
     /**
      * Reactive route params: the component is reused when navigating
@@ -296,35 +294,12 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             this.initializeSerialDetails(playlistId, categoryId, serialId);
         });
 
-        effect(() => {
-            const playlistId = this.currentPlaylistId();
-            const selectedItem = this.selectedItem();
-            const xtreamId = Number(selectedItem?.series_id ?? 0);
-            const patch = xtreamDetailContentMetadata(selectedItem?.info);
-
-            if (
-                !playlistId ||
-                !Number.isFinite(xtreamId) ||
-                xtreamId <= 0 ||
-                !patch
-            ) {
-                return;
-            }
-
-            // Re-runs as enrichment fills the id in, so the key covers the
-            // whole patch rather than just the backdrop.
-            const backfillKey = `${playlistId}:${xtreamId}:${xtreamContentMetadataKey(patch)}`;
-            if (this.metadataBackfillKey() === backfillKey) {
-                return;
-            }
-
-            this.metadataBackfillKey.set(backfillKey);
-            void this.xtreamStore.backfillContentMetadata({
-                xtreamId,
-                contentType: 'series',
-                playlist: this.xtreamStore.currentPlaylist,
-                patch,
-            });
+        registerContentMetadataBackfill({
+            store: this.xtreamStore,
+            contentType: 'series',
+            playlistId: () => this.currentPlaylistId(),
+            xtreamId: () => Number(this.selectedItem()?.series_id ?? 0),
+            info: () => this.selectedItem()?.info,
         });
     }
 

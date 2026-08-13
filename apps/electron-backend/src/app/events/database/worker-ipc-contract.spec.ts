@@ -21,6 +21,7 @@ type MockIpcEvent = {
 const mockRegisteredHandlers = new Map<string, IpcHandler>();
 const mockWorkerRequest = jest.fn();
 const mockWorkerCancel = jest.fn();
+const mockGetDatabase = jest.fn();
 
 jest.mock('electron', () => ({
     ipcMain: {
@@ -35,6 +36,10 @@ jest.mock('../../services/database-worker-client', () => ({
         request: (...args: unknown[]) => mockWorkerRequest(...args),
         cancel: (...args: unknown[]) => mockWorkerCancel(...args),
     },
+}));
+
+jest.mock('../../database/connection', () => ({
+    getDatabase: (...args: unknown[]) => mockGetDatabase(...args),
 }));
 
 async function importDatabaseEventModules(): Promise<void> {
@@ -80,6 +85,7 @@ describe('database worker IPC contract', () => {
         mockRegisteredHandlers.clear();
         mockWorkerRequest.mockReset().mockResolvedValue({ success: true });
         mockWorkerCancel.mockReset().mockResolvedValue({ success: true });
+        mockGetDatabase.mockReset().mockResolvedValue({});
 
         await importDatabaseEventModules();
     });
@@ -115,6 +121,41 @@ describe('database worker IPC contract', () => {
             }
         }
     );
+
+    it('waits for the migrated schema before dispatching to the worker', async () => {
+        // The renderer loads BEFORE `initDatabase()` in main.ts, and the
+        // worker opens the database file without running any migration. So a
+        // query issued during startup on an upgraded install could reach a
+        // schema whose newly added columns do not exist yet, and SQLite would
+        // reject it with "no such column" — emptying dashboard activity until
+        // the next reload. `getDatabase()` resolves the shared init promise.
+        let schemaReady = false;
+        mockGetDatabase.mockImplementation(async () => {
+            schemaReady = true;
+            return {};
+        });
+        mockWorkerRequest.mockImplementation(async () => {
+            expect(schemaReady).toBe(true);
+            return { success: true };
+        });
+
+        await getHandler('DB_GET_RECENTLY_VIEWED')(createIpcEvent());
+
+        expect(mockGetDatabase).toHaveBeenCalled();
+        expect(mockWorkerRequest).toHaveBeenCalled();
+    });
+
+    it('never reaches the worker when the schema cannot be prepared', async () => {
+        // Failing here rather than querying an unmigrated database: the query
+        // would fail anyway, but with an error naming a missing column instead
+        // of the real cause.
+        mockGetDatabase.mockRejectedValue(new Error('disk full'));
+
+        await expect(
+            getHandler('DB_GET_RECENTLY_VIEWED')(createIpcEvent())
+        ).rejects.toThrow('disk full');
+        expect(mockWorkerRequest).not.toHaveBeenCalled();
+    });
 
     it('covers every worker operation in the payload contract cases', () => {
         expect(

@@ -17,6 +17,8 @@ export interface XtreamDetailMetadataSource {
     releasedate?: string | null;
     /** Series (`get_series_info`) */
     releaseDate?: string | null;
+    /** Enrichment filled the date above because the provider sent none */
+    tmdb_supplied_release_date?: boolean;
     /** VOD only — series responses carry no original title */
     o_name?: string | null;
 }
@@ -35,7 +37,8 @@ export interface XtreamDetailMetadataSource {
  *
  * The year deliberately does NOT fall back to a year found in the title:
  * readers apply that fallback themselves, and storing it would turn a guess
- * into a recorded fact.
+ * into a recorded fact. For the same reason it is skipped entirely once
+ * enrichment has filled the date itself — see {@link providerReleaseYear}.
  */
 export function xtreamDetailContentMetadata(
     info: XtreamDetailMetadataSource | null | undefined
@@ -47,11 +50,36 @@ export function xtreamDetailContentMetadata(
     return normalizeContentMetadataPatch({
         backdropUrl: info.backdrop_path?.[0] ?? undefined,
         tmdbId: info.tmdb_id != null ? Number(info.tmdb_id) : undefined,
-        releaseYear:
-            extractYear(info.releasedate ?? info.releaseDate ?? null) ??
-            undefined,
+        releaseYear: providerReleaseYear(info),
         originalTitle: info.o_name ?? undefined,
     });
+}
+
+/**
+ * The release year the PROVIDER stated, or `undefined`.
+ *
+ * This runs against the object the detail view is rendering, which TMDB
+ * enrichment has already merged into. That merge fills `releasedate` from
+ * `details.release_date` whenever the provider left it empty — so reading
+ * the field alone would record a TMDB date as a provider fact, and since the
+ * column is never overwritten, a real provider date arriving later could not
+ * correct it.
+ *
+ * The merge marks its own substitution, which is the only reliable signal:
+ * the `tmdb_*` fields it adds are all conditional on having content, so a
+ * film with no credits and no recommendations carries none of them and would
+ * read as un-enriched.
+ */
+function providerReleaseYear(
+    info: XtreamDetailMetadataSource
+): number | undefined {
+    if (info.tmdb_supplied_release_date) {
+        return undefined;
+    }
+
+    return (
+        extractYear(info.releasedate ?? info.releaseDate ?? null) ?? undefined
+    );
 }
 
 /**

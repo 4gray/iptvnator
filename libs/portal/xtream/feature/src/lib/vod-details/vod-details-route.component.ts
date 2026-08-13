@@ -31,9 +31,8 @@ import {
     isProviderOnlyDetailState,
 } from '@iptvnator/portal/shared/util';
 import {
+    registerContentMetadataBackfill,
     resolveXtreamVodPlaybackSource,
-    xtreamContentMetadataKey,
-    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -147,7 +146,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly logger = createLogger('VodDetailsRoute');
     /** `playlistId:vodId` of the last initialized detail view */
     private readonly lastInitKey = signal<string | null>(null);
-    private readonly metadataBackfillKey = signal<string | null>(null);
     readonly inlinePlayback = this.playback.inlinePlayback;
     readonly vodPlaybackPosition = this.playback.vodPlaybackPosition;
     /** The route copy's own row — what Resume acts on. */
@@ -449,34 +447,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.initializeVodDetails(playlistId, vodId);
         });
 
-        effect(() => {
-            const playlistId = this.xtreamStore.currentPlaylist()?.id;
-            const vodId = this.selectedVodId();
-            const patch = xtreamDetailContentMetadata(this.selectedVodInfo());
-
-            if (
-                !playlistId ||
-                !Number.isFinite(vodId) ||
-                vodId <= 0 ||
-                !patch
-            ) {
-                return;
-            }
-
-            // Re-runs as enrichment fills the id in, so the key covers the
-            // whole patch rather than just the backdrop.
-            const backfillKey = `${playlistId}:${vodId}:${xtreamContentMetadataKey(patch)}`;
-            if (this.metadataBackfillKey() === backfillKey) {
-                return;
-            }
-
-            this.metadataBackfillKey.set(backfillKey);
-            void this.xtreamStore.backfillContentMetadata({
-                xtreamId: vodId,
-                contentType: 'movie',
-                playlist: this.xtreamStore.currentPlaylist,
-                patch,
-            });
+        registerContentMetadataBackfill({
+            store: this.xtreamStore,
+            contentType: 'movie',
+            playlistId: () => this.xtreamStore.currentPlaylist()?.id,
+            xtreamId: () => this.selectedVodId(),
+            info: () => this.selectedVodInfo(),
         });
     }
 

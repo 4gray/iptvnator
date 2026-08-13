@@ -608,6 +608,21 @@ Contracts worth keeping:
   column means "the provider gave no date" rather than "nobody looked" — and
   a title year like "2001: A Space Odyssey" can never be frozen into the row
   as that film's release year.
+
+  Keeping that true needs one thing from the merge. `xtreamDetailContentMetadata`
+  runs against the object the detail view is RENDERING, and
+  `mergeVodInfoWithTmdb`/`mergeSerieInfoWithTmdb` fill `releasedate`/
+  `releaseDate` from `details.release_date`/`first_air_date` whenever the
+  provider left them empty — silently, so afterwards the field alone cannot
+  say who stated the date. The merge therefore marks its own substitution
+  with `tmdb_supplied_release_date`, and the extractor skips the year when it
+  is set. Sniffing for enrichment instead would not work: the `tmdb_*` fields
+  the merge adds are all conditional on having content, so a film with no
+  credits and no recommendations carries none of them and reads as
+  un-enriched. Since the column is never overwritten, getting this wrong is
+  unfixable after the fact — a real provider date arriving later cannot
+  correct it. The same marker is what `trustedReleaseYear` (the
+  recommendations exclusion index) must consult if it ever reads this column.
 - **The id is stored unvetted.** Every consumer reaches TMDB through
   `TmdbEnrichmentService`, whose `detailsForProviderId` runs
   `assessProviderId` and lets the title search take over when the years
