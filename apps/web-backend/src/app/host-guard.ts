@@ -172,20 +172,31 @@ export function resetProviderHost(
  * we guarded: a provider that answers `302` towards a dead CDN is demonstrably
  * alive, and charging the destination's refusal to it would fast-fail a working
  * portal. Same rule and same helper as the Electron handlers.
+ *
+ * `countFailures: false` is for requests exempt from the guard (endpoint
+ * discovery). Their failures are expected and must not count — but the report
+ * must still happen, because an error that carries an HTTP response proves the
+ * endpoint answered. This route sets no `validateStatus`, so axios rejects every
+ * non-2xx WITH `error.response`; dropping those instead of reporting them is
+ * what would let the breaker open in the middle of discovery.
  */
 export function reportProviderRequestFailure(
     guard: HostConnectivityGuard,
     token: HostRequestToken | null,
     error: unknown,
-    requestUrl?: string
+    options: { countFailures?: boolean; requestUrl?: string } = {}
 ): void {
     if (!token) {
         return;
     }
 
+    const countFailures = options.countFailures ?? true;
     switch (classifyHostRequestFailure(error)) {
         case 'host-level':
-            if (failedAfterRedirect(error, token, requestUrl)) {
+            if (!countFailures) {
+                break;
+            }
+            if (failedAfterRedirect(error, token, options.requestUrl)) {
                 // The guarded endpoint answered with a redirect, so this
                 // clears its record rather than merely declining to count the
                 // downstream failure.

@@ -311,12 +311,9 @@ export function createWebBackendApp(
                 payload: response.data,
             });
         } catch (error) {
-            reportProviderRequestFailure(
-                hostGuard,
-                guardToken,
-                error,
-                requestUrl
-            );
+            reportProviderRequestFailure(hostGuard, guardToken, error, {
+                requestUrl,
+            });
             logProviderRequestFailure({ error, route: '/xtream', url });
             res.json(normalizeProviderError(error));
         }
@@ -417,14 +414,13 @@ export function createWebBackendApp(
                 payload: response.data,
             });
         } catch (error) {
-            if (countsTowardsGuard) {
-                reportProviderRequestFailure(
-                    hostGuard,
-                    guardToken,
-                    error,
-                    requestUrl
-                );
-            }
+            // Always reported, even for exempt discovery probes: a failure
+            // carrying an HTTP response proves the endpoint answered, and
+            // dropping that is what lets the breaker open mid-discovery.
+            reportProviderRequestFailure(hostGuard, guardToken, error, {
+                countFailures: countsTowardsGuard,
+                requestUrl,
+            });
             logProviderRequestFailure({ error, route: '/stalker', url });
             res.json(normalizeProviderError(error));
         }

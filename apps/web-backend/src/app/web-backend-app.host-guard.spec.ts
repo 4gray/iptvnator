@@ -194,6 +194,52 @@ describe('web backend host connectivity guard', () => {
         );
     });
 
+    it('lets an exempt probe clear the record with a response it was rejected for', async () => {
+        // This route sets no `validateStatus`, so axios rejects EVERY non-2xx
+        // with `error.response` attached. A discovery probe answered with 500
+        // has still proved the endpoint alive, so the report has to happen even
+        // though the probe's own failures are not counted — dropping it is what
+        // lets the breaker open in the middle of discovery.
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkError(hostLevelFailure('ETIMEDOUT'));
+        httpClient.queueFailure(500, 'Internal Server Error');
+        httpClient.queueNetworkError(hostLevelFailure('ETIMEDOUT'));
+        httpClient.queueResponse({ js: [{ id: '1' }] });
+        const { guard } = createTestGuard();
+
+        await withServer(
+            createWebBackendApp({
+                hostGuard: guard,
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
+                const base = `${baseUrl}/stalker?targetId=${targetId}&macAddress=00:1A:79:00:00:01`;
+
+                // Counted failure, then an exempt probe answered with 500, then
+                // another counted failure. Without the probe's report the two
+                // counted failures are consecutive and open the breaker.
+                await fetch(`${base}&action=get_categories`);
+                await fetch(
+                    `${base}&action=get_genres&skipConnectionGuard=true`
+                );
+                await fetch(`${base}&action=get_categories`);
+
+                const afterwards = await fetch(`${base}&action=get_categories`);
+
+                await expect(afterwards.json()).resolves.toEqual({
+                    action: 'get_categories',
+                    payload: { js: [{ id: '1' }] },
+                });
+                expect(httpClient.requests).toHaveLength(4);
+            }
+        );
+    });
+
     it('never fast-fails playlist or EPG downloads, however often they fail', async () => {
         // The breaker covers the portal routes only, matching Electron, where
         // it is wired into the two portal IPC handlers and not into the
