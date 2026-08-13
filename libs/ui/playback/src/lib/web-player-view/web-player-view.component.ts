@@ -150,12 +150,23 @@ export class WebPlayerViewComponent implements OnDestroy {
     channel: Channel | undefined;
     vjsOptions: VideoPlayerOptions | undefined;
 
+    /**
+     * `settings` is an async IndexedDB read with no initial value, so before
+     * it resolves the fallback decides which engine mounts — and the engine
+     * is part of the application token, so a late correction mounts a second
+     * application and swaps the player under the user. `SettingsStore` holds
+     * the same value synchronously (the workspace route awaits its initial
+     * load), which closes that window; hosts passing an explicit override
+     * still win, and an unhydrated store returns the same VideoJs default
+     * this used to hard-code.
+     */
     readonly selectedPlayer = computed<VideoPlayer>(() => {
         const temporary = this.recoverySession.temporaryPlayerOverride();
         return temporary
             ? toVideoPlayer(temporary)
             : (this.playerOverride() ??
                   this.settings()?.player ??
+                  this.settingsStore.player?.() ??
                   VideoPlayer.VideoJs);
     });
     private readonly applicationState = createWebPlayerApplicationState({
