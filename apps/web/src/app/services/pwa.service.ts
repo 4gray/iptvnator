@@ -15,7 +15,9 @@ import {
 } from 'rxjs';
 import { DataService } from '@iptvnator/services';
 import {
+    CONNECTIVITY_GUARD_RESET,
     ERROR,
+    isHostConnectivityFastFailMessage,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
@@ -140,11 +142,50 @@ export class PwaService extends DataService {
                     token?: string;
                     serialNumber?: string;
                     silent?: boolean;
+                    skipConnectionGuard?: boolean;
                 }
             ) as T;
         }
 
+        if (type === CONNECTIVITY_GUARD_RESET) {
+            return this.resetConnectivityGuard(
+                payload as { url?: string }
+            ) as T;
+        }
+
         return undefined as T;
+    }
+
+    /**
+     * Clears the web backend's per-host failure record, so the next request
+     * contacts the host for real instead of being fast-failed.
+     *
+     * The breaker lives in the backend process, not the browser, so this is an
+     * HTTP call rather than a local reset. Best effort by design — the caller's
+     * own request reports the real state, and `resetHostConnectivityGuard`
+     * swallows whatever this rejects with.
+     */
+    private async resetConnectivityGuard(payload: {
+        url?: string;
+    }): Promise<{ reset: boolean }> {
+        if (!payload?.url) {
+            return { reset: false };
+        }
+
+        const response = await fetch(
+            `${this.corsProxyUrl}/connectivity-guard/reset`,
+            {
+                body: JSON.stringify({ url: payload.url }),
+                headers: { 'content-type': 'application/json' },
+                method: 'POST',
+            }
+        );
+
+        if (!response.ok) {
+            return { reset: false };
+        }
+
+        return (await response.json()) as { reset: boolean };
     }
 
     refreshPlaylist(payload?: Partial<Playlist & { id: string }>) {
@@ -503,6 +544,13 @@ export class PwaService extends DataService {
         serialNumber?: string;
         /** Endpoint-discovery probes expect failures; no error snackbar. */
         silent?: boolean;
+        /**
+         * Endpoint-discovery probes are exempt from the backend's per-host
+         * connectivity guard: they walk several candidates on one host and
+         * expect most to fail, so counting them would declare a working portal
+         * unreachable. Mirrors the Electron `STALKER_REQUEST` payload flag.
+         */
+        skipConnectionGuard?: boolean;
     }) {
         let context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -529,6 +577,13 @@ export class PwaService extends DataService {
                 ...(token ? { token } : {}),
                 ...(payload.serialNumber
                     ? { serialNumber: payload.serialNumber }
+                    : {}),
+                // Endpoint-discovery probes are exempt from the backend's
+                // connectivity guard. Dropping this here would let two probes
+                // that time out open the breaker and fast-fail the healthy
+                // candidate discovery is looking for.
+                ...(payload.skipConnectionGuard
+                    ? { skipConnectionGuard: 'true' }
                     : {}),
             };
             const params = new URLSearchParams(requestParams);
@@ -564,6 +619,23 @@ export class PwaService extends DataService {
             // can classify them — unwrapping `payload` here silently
             // returned `undefined`, making a dead endpoint look like an
             // empty answer and unreachable to the repair.
+            // The connectivity guard refused to contact the host. This one must
+            // NOT go through the branch below: an `HTTP Error <code>` prefix
+            // and a numeric `status` both read as "the endpoint answered", so
+            // endpoint discovery would keep walking candidates instead of
+            // aborting, and a 4xx reading would additionally fire lazy portal
+            // repair against a host just declared unreachable. Thrown bare, the
+            // message lands in the connection-level-failure slot — which is
+            // exactly what a tripped breaker means.
+            if (
+                responseBody &&
+                typeof responseBody === 'object' &&
+                !('payload' in responseBody) &&
+                isHostConnectivityFastFailMessage(responseBody.message)
+            ) {
+                throw new Error(String(responseBody.message));
+            }
+
             if (
                 responseBody &&
                 typeof responseBody === 'object' &&

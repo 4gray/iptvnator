@@ -9,10 +9,16 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { config as rxjsConfig, EMPTY } from 'rxjs';
 import {
+    buildHostConnectivityFastFailMessage,
+    CONNECTIVITY_GUARD_RESET,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
 } from '@iptvnator/shared/interfaces';
+import {
+    getStalkerRequestErrorStatus,
+    isStalkerProbeTimeout,
+} from '@iptvnator/portal/stalker/data-access';
 import { PwaService } from './pwa.service';
 
 describe('PwaService', () => {
@@ -234,6 +240,153 @@ describe('PwaService', () => {
             expect(requestUrl.searchParams.get('action')).toBe(
                 'get_ordered_list'
             );
+        } finally {
+            delete globalWithFetch.fetch;
+        }
+    });
+
+    it('surfaces a connectivity-guard fast-fail as a status-less connection failure', async () => {
+        // The backend refuses to contact a host that stopped answering, using
+        // the same HTTP 200 `{ message, status }` envelope as every other
+        // provider failure. It must NOT come out of here as the test above
+        // does: an `HTTP Error <code>` message or a numeric `status` both read
+        // as "the endpoint answered", so endpoint discovery would keep walking
+        // candidates, and a 4xx reading would fire lazy portal repair against
+        // a host just declared unreachable.
+        const message = buildHostConnectivityFastFailMessage(
+            'portal.example:8080'
+        );
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ message, status: 502 }),
+        } as unknown as Response) as unknown as typeof fetch;
+
+        const request = service.sendIpcEvent(STALKER_REQUEST, {
+            url: 'http://portal.example:8080/portal.php',
+            macAddress: '00:1A:79:AA:BB:CC',
+            params: { action: 'get_genres' },
+            silent: true,
+        }) as Promise<unknown>;
+        const outcome = request.then(
+            () => {
+                throw new Error('expected rejection');
+            },
+            (error: unknown) => error
+        );
+
+        await Promise.resolve();
+        http.expectOne((candidate) =>
+            candidate.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'target-1' });
+
+        const error = (await outcome) as Error & { status?: number };
+        expect(error.message).toBe(message);
+        expect(error.status).toBeUndefined();
+        expect(getStalkerRequestErrorStatus(error)).toBeUndefined();
+        expect(isStalkerProbeTimeout(error)).toBe(false);
+
+        globalThis.fetch = originalFetch;
+    });
+
+    it('carries the discovery guard bypass through to the /stalker proxy', async () => {
+        // The Electron transport honours `skipConnectionGuard` on the payload.
+        // Dropping it here let two probe timeouts open the backend's breaker
+        // and fast-fail the healthy candidate discovery was looking for.
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ payload: { js: [] } }),
+        } as unknown as Response);
+        const globalWithFetch = globalThis as { fetch?: typeof fetch };
+        globalWithFetch.fetch = fetchMock as unknown as typeof fetch;
+
+        try {
+            const request = service.forwardStalkerRequest({
+                url: 'http://portal.example/portal.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_genres' },
+                silent: true,
+                skipConnectionGuard: true,
+            });
+
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-1' });
+
+            await expect(request).resolves.toEqual({ js: [] });
+
+            const requestUrl = new URL(String(fetchMock.mock.calls[0][0]));
+            expect(requestUrl.searchParams.get('skipConnectionGuard')).toBe(
+                'true'
+            );
+        } finally {
+            delete globalWithFetch.fetch;
+        }
+    });
+
+    it('omits the discovery guard bypass for ordinary Stalker requests', async () => {
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ payload: { js: [] } }),
+        } as unknown as Response);
+        const globalWithFetch = globalThis as { fetch?: typeof fetch };
+        globalWithFetch.fetch = fetchMock as unknown as typeof fetch;
+
+        try {
+            const request = service.forwardStalkerRequest({
+                url: 'http://portal.example/portal.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_categories' },
+            });
+
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-1' });
+
+            await expect(request).resolves.toEqual({ js: [] });
+
+            const requestUrl = new URL(String(fetchMock.mock.calls[0][0]));
+            expect(requestUrl.searchParams.has('skipConnectionGuard')).toBe(
+                false
+            );
+        } finally {
+            delete globalWithFetch.fetch;
+        }
+    });
+
+    it('asks the backend to forget a host when the connectivity guard is reset', async () => {
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ reset: true }),
+        } as unknown as Response);
+        const globalWithFetch = globalThis as { fetch?: typeof fetch };
+        globalWithFetch.fetch = fetchMock as unknown as typeof fetch;
+
+        try {
+            // The breaker lives in the backend process, not the browser, so
+            // the reset has to travel over HTTP. Before this it was a no-op,
+            // and a PWA user's "retry" never cleared anything.
+            await expect(
+                service.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                    url: 'http://portal.example:8080/portal.php',
+                }) as Promise<{ reset: boolean }>
+            ).resolves.toEqual({ reset: true });
+
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            const [url, init] = fetchMock.mock.calls[0];
+            expect(String(url)).toContain('/connectivity-guard/reset');
+            expect(init.method).toBe('POST');
+            expect(JSON.parse(init.body)).toEqual({
+                url: 'http://portal.example:8080/portal.php',
+            });
+
+            // Nothing to reset without a URL, and nothing sent either.
+            await expect(
+                service.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {}) as Promise<{
+                    reset: boolean;
+                }>
+            ).resolves.toEqual({ reset: false });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
         } finally {
             delete globalWithFetch.fetch;
         }
