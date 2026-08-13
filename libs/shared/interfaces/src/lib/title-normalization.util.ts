@@ -256,6 +256,29 @@ const PREFIX_SEPARATOR_TAIL = new RegExp(
 const HAS_LETTER = /\p{L}/u;
 
 /**
+ * Whether any WORD survives the strip — quality tags do not count, because
+ * the pipeline drops them a few lines later. Testing the raw remainder
+ * instead lets an unbracketed quality suffix smuggle the strip through:
+ * "|TA| RRR - HEVC" and "CAT - Multi" have letters right up until
+ * `QUALITY_TAGS` removes them, and the title then normalizes to the empty
+ * key — the same identity collapse this guard exists to prevent, only worse
+ * than a bare year. Diacritics are not folded first on purpose: every
+ * quality tag is ASCII, so an accented token is meaningful either way.
+ */
+function hasMeaningfulLetter(value: string): boolean {
+    return value
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .split(' ')
+        .some(
+            (token) =>
+                token !== '' &&
+                HAS_LETTER.test(token) &&
+                !QUALITY_TAGS.has(token)
+        );
+}
+
+/**
  * Strip a leading provider tag — but never one that is the film's own NAME.
  *
  * The two shapes are structurally identical: "IT - 65 (2023)" is the Italian
@@ -263,16 +286,15 @@ const HAS_LETTER = /\p{L}/u;
  * year. Both are 2–5 uppercase characters, a dash, and digits, so only the
  * token's MEANING can separate them — hence the vocabulary gate.
  *
- * It applies to the letterless case alone. Whenever a word survives the strip
- * the tag reading is safe ("XX - Some Title" cannot be a title plus a year),
- * and gating that path too would strand every genuine tag the vocabulary has
- * not heard of. Refusing here costs a missed cross-playlist match; stripping
- * wrongly leaves the year as the whole key ("AKA - 2023" → "2023"), which
- * collides with every other film tagged that year — measured on the live
- * catalog,
- * AKA/BDE/BRO/OUT/WIL/IF all collapsed onto the single key "2023" and were
- * offered to each other as alternative sources. A miss beats a wrong match,
- * so the unknown token keeps its title.
+ * It applies only when no real WORD would survive the strip. Whenever one
+ * does, the tag reading is safe ("XX - Some Title" cannot be a title plus a
+ * year), and gating that path too would strand every genuine tag the
+ * vocabulary has not heard of. Refusing here costs a missed cross-playlist
+ * match; stripping wrongly leaves the year as the whole key ("AKA - 2023" →
+ * "2023"), which collides with every other film tagged that year — measured
+ * on the live catalog, AKA/BDE/BRO/OUT/WIL/IF all collapsed onto the single
+ * key "2023" and were offered to each other as alternative sources. A miss
+ * beats a wrong match, so the unknown token keeps its title.
  */
 function stripLeadingTag(value: string): string {
     const match = value.match(LANGUAGE_PREFIX);
@@ -281,7 +303,7 @@ function stripLeadingTag(value: string): string {
     }
 
     const remainder = value.replace(LANGUAGE_PREFIX, '');
-    if (HAS_LETTER.test(remainder)) {
+    if (hasMeaningfulLetter(remainder)) {
         return remainder;
     }
 

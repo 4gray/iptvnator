@@ -217,26 +217,33 @@ forms — and the fact that a row only appears once it HAS matched — keeps a
 bad guess cosmetic.
 
 The one case where the shape genuinely cannot decide is a strip that would
-leave **no letters at all**. "IT - 65 (2023)" is the Italian copy of the film
+leave **no real word behind**. "IT - 65 (2023)" is the Italian copy of the film
 "65"; "AKA - 2023" is the film "AKA" and its year. Same shape, opposite
 readings, so the leading token is tested against a vocabulary instead —
 `TRAILING_TAG_VOCABULARY` plus a prefix-only list (`NF`, `EX`, `NRC`, `AMZ`,
 `D+`, `P+`, `OSN`, `VO`, …), with a compound read by its HEAD so the
 open-ended `4K-<lang>` family works and "INU-OH"/"PC-4L" — real film names —
-do not. Unknown token, letterless remainder: the title is kept whole. That
+do not. Unknown token, wordless remainder: the title is kept whole. That
 direction is chosen deliberately, because a refused strip costs one unmatched
 copy while a wrong one produced a bare-year key; on the live catalog
 AKA/BDE/BRO/OUT/WIL/IF all collapsed onto `"2023"` and were offered to each
-other as alternative sources. Gating the LETTERED case as well was rejected
-for the mirror reason: it would strand every genuine tag the vocabulary has
-not heard of.
+other as alternative sources. Gating the case where a word DOES survive was
+rejected for the mirror reason: it would strand every genuine tag the
+vocabulary has not heard of.
+
+"Wordless" is measured after quality tags are discounted, not on the raw
+remainder. They are dropped a few lines later anyway, so counting them lets an
+unbracketed suffix smuggle the strip through — "|TA| RRR - HEVC" and
+"CAT - Multi" carry letters right up until `QUALITY_TAGS` removes them, and
+the title then normalizes to the EMPTY key, which is the same identity
+collapse as a bare year only broader.
 
 The vocabulary is evidence, not intuition. Each entry prefixes hundreds to
 thousands of ordinary lettered titles in the real catalog; nothing is added
 because it "looks like a streaming service" (MAX and HULU would qualify, and
 "MAX - 2015" is a film). Deriving it from movies alone missed `AMZ`, `D+` and
 `P+`, which broke Paramount+/Disney+ copies of the numeric series 1923, 1883,
-24 and 9-1-1 — so validate any change over movies AND series: 75 keys fixed,
+24 and 9-1-1 — so validate any change over movies AND series: 80 keys fixed,
 0 corrupted across 1,616,111 titles.
 
 The category path exists because many panels tag the CATEGORY ("EN | Netflix",

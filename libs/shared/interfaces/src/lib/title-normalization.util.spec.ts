@@ -353,6 +353,22 @@ describe('provider tag stripping', () => {
             expect(normalizeTitle('PC-4L - 2020')).toBe('pc 4l');
         });
 
+        it('does not let a quality suffix smuggle the strip through', () => {
+            // The suffix has letters only until QUALITY_TAGS removes them, so
+            // testing the raw remainder would strip the name and normalize
+            // "RRR - HEVC" to the EMPTY key — while "RRR - 2022" keys as
+            // "rrr", hiding one copy of the film from the other.
+            expect(normalizeTitle('|TA| RRR - HEVC')).toBe('rrr');
+            expect(normalizeTitle('CAT - Multi')).toBe('cat');
+            expect(normalizeTitle('RRR - 2022 - 4K')).toBe('rrr');
+            expect(normalizeTitle('VFW - 2019 UHD')).toBe('vfw');
+            // …and a real tag before a numeric title still strips, because it
+            // now goes through the vocabulary instead of the raw-letter test.
+            expect(normalizeTitle('EX - 1917 (2019) 4K')).toBe('1917');
+            expect(normalizeTitle('NF - 1899 4K (2022)')).toBe('1899');
+            expect(normalizeTitle('EN - 180 - 2026 4K')).toBe('180');
+        });
+
         it('leaves the wrapped-pipe form ungated', () => {
             // A film name is never wrapped in pipes on both sides: all 174
             // letterless cases in the catalog were genuine tags.
