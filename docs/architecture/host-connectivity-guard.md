@@ -83,25 +83,41 @@ mid-transfer happens on hosts that are very much alive. Cancelled requests
 (`ERR_CANCELED`) and SSRF-policy refusals are `inconclusive` — they say nothing
 about reachability and only release the half-open slot.
 
-**A failure is only charged to the endpoint that produced it.** Redirects are
-followed hop by hop, each with its own config, so a failure on a later hop
-carries that hop's URL in `error.config.url`. Reaching any later hop _proves_ the
-guarded endpoint answered — the first hop is always the URL we asked for, and
-only a redirect status advances the chain — so it CLEARS the guarded endpoint's
-record, exactly like any other response. Merely declining to count it would leave
-an earlier direct failure standing, and a single later timeout would then
-fast-fail an endpoint that answered in between.
+**A failure is only charged to the endpoint that produced it.** Reaching any
+later hop _proves_ the guarded endpoint answered — the first hop is always the
+URL we asked for, and only a redirect status advances the chain — so a failure
+there CLEARS the guarded endpoint's record, exactly like any other response.
+Merely declining to count it would leave an earlier direct failure standing, and
+a single later timeout would then fast-fail an endpoint that answered in between.
+Every caller passes the URL it asked for as the baseline.
 
-The comparison is against the whole request URL, not just its origin: a
-same-origin redirect (`/player_api.php` → `/slow/player_api.php`) proves the
-endpoint answered just as much as a cross-origin one, and charging it would
-fast-fail every OTHER call to a portal that answers. Both handlers therefore pass
-the URL they asked for. It requires positive evidence — anything unparseable or
-unknown counts the failure as usual, because guessing "redirect" here would stop
-the guard from ever tripping — and a failure that names no URL at all is still
-counted. Round-tripping through `URL` is identity for both handlers' URL shapes
-(including Stalker's hand-encoded `cmd`), and `requestWithValidatedRedirects`
-normalizes hop 1 the same way, so the comparison is exact.
+**Where the failed hop is found depends on the transport, and both are in play.**
+
+| | Electron | Web backend |
+| --- | --- | --- |
+| Redirects | followed hop by hop (`maxRedirects: 0`), each its own request | followed inside one request by follow-redirects |
+| Failed hop is in | `error.config.url` | `error.request._currentUrl` |
+
+`failedRequestUrlOf` reads `_currentUrl` first and falls back to `config.url`,
+which is correct for both: a per-hop request exposes no `_currentUrl`, and on the
+following transport `config` is built once and keeps the URL we asked for — so
+reading `config.url` there would compare a URL with itself, find no redirect, and
+charge a dead destination to the provider that answered. Anything added here must
+work on both, because the same helper serves both.
+
+**The comparison is origin + path, not the whole URL.** A same-origin redirect
+(`/player_api.php` → `/slow/player_api.php`) proves the endpoint answered just as
+much as a cross-origin one, and charging it would fast-fail every OTHER call to a
+portal that answers — so the path has to be part of it. The query must NOT be:
+the web backend passes Xtream credentials through axios' `params`, so the sent
+URL always carries a query the baseline does not, and comparing whole URLs made
+every ordinary failure look like a redirect and stopped the breaker from ever
+opening. What that gives up is a redirect that changes nothing but the query,
+which is then counted as an ordinary failure — the safe direction.
+
+It requires positive evidence — anything unparseable or unknown counts the
+failure as usual, because guessing "redirect" here would stop the guard from ever
+tripping — and a failure that names no URL at all is still counted.
 
 Known gap: the failing hop is not guarded either (it has no token of its own),
 so a permanently broken redirect chain keeps costing a full timeout.
