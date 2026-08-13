@@ -1,7 +1,6 @@
 import {
     Component,
     OnDestroy,
-    Signal,
     ViewEncapsulation,
     computed,
     effect,
@@ -11,8 +10,6 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import {
     type PlaybackDiagnostic,
     type PlaybackDiagnosticCode,
@@ -22,11 +19,9 @@ import {
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
-    STORE_KEY,
     VideoPlayer,
     type Channel,
     type ResolvedPortalPlayback,
-    type Settings,
     type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
@@ -91,7 +86,6 @@ function resolveWebPlayerSharedControls(): boolean {
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent implements OnDestroy {
-    private readonly storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
@@ -130,9 +124,6 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
-    readonly settings = toSignal(
-        this.storage.get(STORE_KEY.Settings)
-    ) as Signal<Settings | undefined>;
     readonly showCaptions = computed(
         () => this.settingsStore.showCaptions?.() ?? false
     );
@@ -150,12 +141,15 @@ export class WebPlayerViewComponent implements OnDestroy {
     channel: Channel | undefined;
     vjsOptions: VideoPlayerOptions | undefined;
 
+    // Resolved from the live SettingsStore signal, not a mount-time storage
+    // snapshot: a saved player change (settings page, command palette) must
+    // reach an already-mounted player without a remount.
     readonly selectedPlayer = computed<VideoPlayer>(() => {
         const temporary = this.recoverySession.temporaryPlayerOverride();
         return temporary
             ? toVideoPlayer(temporary)
             : (this.playerOverride() ??
-                  this.settings()?.player ??
+                  this.settingsStore.player?.() ??
                   VideoPlayer.VideoJs);
     });
     private readonly applicationState = createWebPlayerApplicationState({
@@ -208,7 +202,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         isPlaybackExternallyTransferable(this.resolvedPlayback())
     );
     readonly recordingFolder = computed(
-        () => this.settings()?.recordingFolder ?? ''
+        () => this.settingsStore.recordingFolder?.() ?? ''
     );
     get supportsManagedExternalPlayers(): boolean {
         return this.runtime.supportsManagedExternalPlayers;

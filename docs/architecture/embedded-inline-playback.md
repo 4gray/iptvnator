@@ -364,7 +364,20 @@ Current contract:
 
 The shared `WebPlayerViewComponent` is the central browser-player viewport for
 M3U, Xtream, and Stalker inline playback, including live streams opened from
-favorites and recently viewed collections. Video.js, HTML5, and ArtPlayer
+favorites and recently viewed collections.
+
+The mounted engine resolves in a fixed order: temporary recovery override →
+host `playerOverride` input → the saved player read from the live
+`SettingsStore` signal (Video.js as the last-resort default). The saved player
+is deliberately NOT a mount-time storage snapshot: persisting a different
+player — from the settings page or the command palette — re-applies to every
+mounted `WebPlayerViewComponent` in place as a new playback application, and a
+first mount reads the already-loaded store value so the default engine never
+flashes before the saved one. Hosts that pass no `playerOverride` (the Xtream
+and Stalker live layouts, the portal inline detail player) rely on this live
+tracking.
+
+Video.js, HTML5, and ArtPlayer
 report native media errors, hls.js errors, Video.js/VHS errors, Shaka errors,
 mpegts.js errors, and HLS manifest codec metadata into the DOM-free classifiers
 exported by `@iptvnator/playback/util`.
