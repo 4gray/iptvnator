@@ -207,6 +207,29 @@ describe('transferWithReconnects', () => {
         expect(transfer).toHaveBeenCalledTimes(5);
     });
 
+    it('resets stalls accumulated against the discarded representation', async () => {
+        // Two stalls against the old file, then a restart regression: the
+        // rebuilt file starts with a clean stall budget.
+        const transfer = jest
+            .fn()
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockRejectedValueOnce(interrupted(510_000))
+            .mockRejectedValueOnce(interrupted(520_000))
+            .mockRejectedValueOnce(interrupted(100_000))
+            .mockRejectedValueOnce(interrupted(110_000))
+            .mockRejectedValueOnce(interrupted(120_000))
+            .mockRejectedValue(interrupted(130_000));
+
+        await expect(
+            transferWithReconnects(db, createTask(), reservation, {
+                delayMs: 0,
+                transfer,
+            })
+        ).rejects.toBeInstanceOf(InterruptedTransferError);
+        // free, 2 stalls, regression (stalls reset), 3 fresh stalls.
+        expect(transfer).toHaveBeenCalledTimes(7);
+    });
+
     it('gives up when attempts keep regressing below the previous attempt', async () => {
         const transfer = jest
             .fn()

@@ -21,16 +21,28 @@ export class OverlapMismatchError extends Error {
     }
 }
 
+export interface OverlapVerifier {
+    stream: Transform;
+    /**
+     * True once the entire expected window has been matched. A transfer must
+     * not report success — and a response validator must not be promoted —
+     * while this is false: nothing has proven that the retained partial and
+     * the response describe the same entity.
+     */
+    isComplete(): boolean;
+}
+
 /**
  * Compares the first `expected.length` streamed bytes against the retained
  * partial's tail and consumes them; only bytes past the overlap flow through
  * to the file. A mismatch fails the pipeline with OverlapMismatchError.
  * A stream that ends inside the overlap is NOT a mismatch — nothing was
- * appended, and the caller's short-transfer handling owns that case.
+ * appended, and the caller decides between an interruption (stream died
+ * early) and a shrunk remote entity (response was complete) via isComplete().
  */
-export function createOverlapVerifier(expected: Buffer): Transform {
+export function createOverlapVerifier(expected: Buffer): OverlapVerifier {
     let verifiedBytes = 0;
-    return new Transform({
+    const stream = new Transform({
         transform(chunk: Buffer | string, _encoding, callback) {
             let data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
             if (verifiedBytes < expected.length) {
@@ -54,6 +66,7 @@ export function createOverlapVerifier(expected: Buffer): Transform {
             callback(null, data.length > 0 ? data : undefined);
         },
     });
+    return { isComplete: () => verifiedBytes >= expected.length, stream };
 }
 
 /** Reads `[start, start + length)` of the partial file into a buffer. */

@@ -161,7 +161,13 @@ export async function transferToPartialFile(
 
     const totalBytes = getTotalBytes(response.headers, effectiveOffset);
     task.totalBytes = totalBytes;
-    if (effectiveOffset === 0) {
+    if (effectiveOffset === 0 && !verifyOverlap) {
+        // Fresh or restarted transfer: every byte on disk will come from this
+        // response, so its validator describes the file. A verify-append
+        // attempt must NOT promote the validator yet — until the verifier
+        // consumes the complete overlap, nothing proves the retained bytes
+        // belong to this entity, and a promoted validator would let the next
+        // resume If-Range-append onto an unverified prefix.
         task.resumeValidator = getResponseValidator(response.headers);
     }
     // Reported progress never drops below what the .part already holds: the
@@ -191,6 +197,13 @@ export async function transferToPartialFile(
     const abortStream = () => {
         readable.destroy(new Error('Download aborted'));
     };
+    const restartFromScratch = async (): Promise<TransferProgress> => {
+        console.warn(
+            `[Downloads] Restarting ${reservation.filename} from the beginning (retained partial does not match the server content)`
+        );
+        await truncate(reservation.partialPath, 0);
+        return transferToPartialFile(db, task, reservation, false);
+    };
 
     if (abortController.signal.aborted) {
         abortStream();
@@ -218,18 +231,14 @@ export async function transferToPartialFile(
 
     try {
         await (overlapVerifier
-            ? pipeline(readable, overlapVerifier, output)
+            ? pipeline(readable, overlapVerifier.stream, output)
             : pipeline(readable, output));
     } catch (error) {
         if (error instanceof OverlapMismatchError && allowOverlapResume) {
             // The server is serving a different entity than the partial came
             // from. Nothing was appended; discard the partial and download
             // the current entity from scratch.
-            console.warn(
-                `[Downloads] Restarting ${reservation.filename} from the beginning (retained partial does not match the server content)`
-            );
-            await truncate(reservation.partialPath, 0);
-            return transferToPartialFile(db, task, reservation, false);
+            return restartFromScratch();
         }
         const interruptedProgress = getInterruptedTransferProgress(
             error,
@@ -250,6 +259,34 @@ export async function transferToPartialFile(
     }
 
     const reportedBytes = Math.max(bytesDownloaded, progressFloor);
+    if (overlapVerifier && !overlapVerifier.isComplete()) {
+        // The response ended inside the verification window, so nothing was
+        // appended and nothing proves the partial matches the entity.
+        if (
+            allowOverlapResume &&
+            totalBytes !== null &&
+            bytesDownloaded >= totalBytes
+        ) {
+            // The server delivered its complete (now shorter) entity without
+            // ever covering the window — the remote representation shrank,
+            // so the retained partial belongs to a different entity.
+            return restartFromScratch();
+        }
+        // The stream died early: an ordinary retained interruption.
+        await persistProgress(db, task, {
+            bytesDownloaded: reportedBytes,
+            totalBytes,
+        });
+        throw new TruncatedTransferError({
+            bytesDownloaded: reportedBytes,
+            totalBytes,
+        });
+    }
+    if (verifyOverlap) {
+        // The complete overlap matched: the partial is proven to belong to
+        // this entity, so its validator may now cover the whole file.
+        task.resumeValidator = getResponseValidator(response.headers);
+    }
     await persistProgress(db, task, {
         bytesDownloaded: reportedBytes,
         totalBytes,

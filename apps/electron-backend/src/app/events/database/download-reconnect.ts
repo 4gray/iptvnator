@@ -82,11 +82,14 @@ export async function transferWithReconnects(
                 // A restart rewound the file. A tolerated regression is
                 // charged to its own bounded budget only — it is neither
                 // progress nor a stall, so it must not also consume the
-                // stall budget the rebuilt file needs to keep growing.
+                // stall budget the rebuilt file needs to keep growing, and
+                // stalls accumulated against the discarded representation
+                // must not be inherited by the new one.
                 if (regressionCredits <= 0) {
                     throw interruption;
                 }
                 regressionCredits -= 1;
+                stalledAttempts = 0;
             } else {
                 const advanced =
                     lastBytes === null ||
