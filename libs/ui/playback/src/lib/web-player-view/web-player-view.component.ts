@@ -48,13 +48,10 @@ import {
     ownsPlaybackApplication,
     type PlaybackApplicationOwnership,
 } from './web-player-application-ownership';
-import {
-    createWebPlayerApplicationState,
-    type WebPlayerApplicationToken,
-} from './web-player-application-state';
+import { createWebPlayerApplicationState } from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
+import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
-    createWebPlayerRecommendations,
     isPlaybackExternallyTransferable,
     resolveRenderableWebPlayer,
     toInlinePlaybackPlayer,
@@ -130,7 +127,6 @@ export class WebPlayerViewComponent implements OnDestroy {
         () => this.settingsStore.showCaptions?.() ?? false
     );
     readonly reloadToken = signal(0);
-    readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     readonly externalRecoveryState = this.externalRecovery.states;
     readonly externalRecoveryPending = this.externalRecovery.pending;
     readonly recoveryPending = computed(
@@ -173,33 +169,39 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedIsLive = this.applicationState.isLive;
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
-    // Diagnostic ownership follows raw intent so an old action disappears;
-    // the application effect then clears its backing state before handoff.
-    // Keep this token opaque: it must never retain playback payload fields.
-    private readonly playbackDiagnosticIntentToken =
-        computed<WebPlayerApplicationToken>(() => {
-            if (this.playback() === null) {
-                void this.streamUrl();
-                void this.startTime();
-            }
-            void this.selectedPlayer();
-            void this.reloadToken();
-            return Symbol();
-        });
-    private readonly playbackDiagnosticOwnerToken =
-        signal<WebPlayerApplicationToken | null>(null);
+    readonly playbackExternallyTransferable = computed(() =>
+        isPlaybackExternallyTransferable(this.resolvedPlayback())
+    );
+    private readonly recovery = new WebPlayerRecoveryController({
+        recoverySession: this.recoverySession,
+        externalRecovery: this.externalRecovery,
+        applicationHandoff: this.applicationHandoff,
+        playbackSessionKey: this.playbackSessionKey,
+        playback: this.playback,
+        streamUrl: this.streamUrl,
+        startTime: this.startTime,
+        selectedPlayer: this.selectedPlayer,
+        reloadToken: this.reloadToken,
+        playbackApplicationToken: this.playbackApplicationToken,
+        resolvedPlayback: this.resolvedPlayback,
+        resolvedIsLive: this.resolvedIsLive,
+        playbackExternallyTransferable: this.playbackExternallyTransferable,
+        alternativeSourceCount: () => this.alternativeSources().length,
+        managedExternalPlayersAvailable: () =>
+            this.runtime.supportsManagedExternalPlayers,
+        emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
+        emitExternalFallbackRequested: (request) =>
+            this.externalFallbackRequested.emit(request),
+    });
+    readonly playbackDiagnostic = this.recovery.playbackDiagnostic;
+    readonly visiblePlaybackDiagnostic =
+        this.recovery.visiblePlaybackDiagnostic;
+    readonly recommendations = this.recovery.recommendations;
     readonly effectiveStartTime = computed(() =>
         this.recoverySession.resumeStartTime(
             this.startTime(),
             this.resolvedIsLive()
         )
-    );
-    readonly visiblePlaybackDiagnostic = computed(() =>
-        this.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
-        this.playbackDiagnosticOwnerToken() !==
-            this.playbackDiagnosticIntentToken()
-            ? null
-            : this.playbackDiagnostic()
     );
     readonly playbackInteractionEnabled = computed(
         () => this.visiblePlaybackDiagnostic() === null
@@ -207,34 +209,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedMediaTitle = computed(() =>
         resolveWebPlayerMediaTitle(this.mediaTitle(), this.resolvedPlayback())
     );
-    readonly playbackExternallyTransferable = computed(() =>
-        isPlaybackExternallyTransferable(this.resolvedPlayback())
-    );
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
     get supportsManagedExternalPlayers(): boolean {
         return this.runtime.supportsManagedExternalPlayers;
     }
-    readonly recommendations = computed(() => {
-        const binding = this.activeBinding();
-        const token = this.playbackApplicationToken();
-        return createWebPlayerRecommendations({
-            diagnostic: this.visiblePlaybackDiagnostic(),
-            binding:
-                binding && this.applicationHandoff.owns(binding, token)
-                    ? binding
-                    : null,
-            attemptedTargets: this.recoverySession.attemptedTargets(),
-            externalStates: this.externalRecoveryState(),
-            managedExternalPlayersAvailable:
-                this.runtime.supportsManagedExternalPlayers,
-            playbackExternallyTransferable:
-                this.playbackExternallyTransferable(),
-            isLive: this.resolvedIsLive(),
-            alternativeSourceCount: this.alternativeSources().length,
-        });
-    });
     readonly renderedApplications = computed<
         readonly PlaybackApplicationOwnership[]
     >(() => {
@@ -264,8 +244,8 @@ export class WebPlayerViewComponent implements OnDestroy {
         effect(() => {
             // Session sync may clear a temporary player override. Run it before
             // tracking intent so that reset is folded into this application.
-            this.syncRecoverySession();
-            void this.playbackDiagnosticIntentToken();
+            this.recovery.syncSession();
+            void this.recovery.diagnosticIntentToken();
             const sourceRevision = this.playbackSourceRevisionToken();
             untracked(() =>
                 this.recoverySession.syncSourceRevision(sourceRevision)
@@ -278,7 +258,7 @@ export class WebPlayerViewComponent implements OnDestroy {
             const target = toInlinePlaybackPlayer(selectedPlayer);
             this.channel = undefined;
             this.vjsOptions = undefined;
-            this.clearPlaybackDiagnostic();
+            this.recovery.clearDiagnostic();
             if (target === null) {
                 this.applicationHandoff.release();
                 this.recoverySession.clearPlaybackBinding();
@@ -311,34 +291,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         issue: PlaybackDiagnostic | null,
         binding: PlaybackBinding
     ): void {
-        this.syncRecoverySession();
-        if (!this.recoverySession.accepts(binding)) {
-            return;
-        }
-        if (
-            !this.applicationHandoff.owns(
-                binding,
-                this.playbackApplicationToken()
-            )
-        ) {
-            this.applicationHandoff.invalidate();
-            this.recoverySession.clearPlaybackBinding();
-            this.clearPlaybackDiagnostic();
-            return;
-        }
-        if (!issue) {
-            this.recoverySession.settle(binding);
-            this.clearPlaybackDiagnostic();
-            return;
-        }
-        if (!this.recoverySession.recordFailure(binding)) {
-            return;
-        }
-        this.playbackDiagnosticOwnerToken.set(
-            this.playbackDiagnosticIntentToken()
-        );
-        this.playbackDiagnostic.set(issue);
-        this.playbackFailed.emit(issue.code);
+        this.recovery.handlePlaybackIssue(issue, binding);
     }
 
     handleTimeUpdate(
@@ -368,58 +321,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {
-        const diagnostic = this.visiblePlaybackDiagnostic();
-        if (!diagnostic) {
-            return;
-        }
-        const available = this.recommendations().some(
-            (item) => item.action === 'player' && item.target === target
-        );
-        if (!available) {
-            if (target !== 'mpv' && target !== 'vlc') {
-                this.recoverySession.recordInlineAttempt(target);
-            }
-            return;
-        }
-        if (target === 'mpv' || target === 'vlc') {
-            this.externalRecovery.request(
-                target,
-                () => this.recoverySession.recordExternalAttempt(target),
-                (trackLaunch) => {
-                    if (this.visiblePlaybackDiagnostic() !== diagnostic) {
-                        return false;
-                    }
-                    this.externalFallbackRequested.emit({
-                        player: target,
-                        playback: this.resolvedPlayback(),
-                        diagnostic,
-                        trackLaunch,
-                    });
-                    return true;
-                }
-            );
-            return;
-        }
-        this.recoverySession.beginPlayerSwitch(target, this.resolvedIsLive());
+        this.recovery.requestRecommendedPlayer(target);
     }
 
     retryPlayback(): void {
-        if (!this.recoverySession.beginRetry()) {
-            return;
-        }
-        this.reloadToken.update((value) => value + 1);
-    }
-
-    private syncRecoverySession(): void {
-        const sessionKey = this.playbackSessionKey();
-        this.externalRecovery.syncSession(sessionKey);
-        if (untracked(() => this.recoverySession.syncSession(sessionKey))) {
-            this.clearPlaybackDiagnostic();
-        }
-    }
-
-    private clearPlaybackDiagnostic(): void {
-        this.playbackDiagnosticOwnerToken.set(null);
-        this.playbackDiagnostic.set(null);
+        this.recovery.retryPlayback();
     }
 }
