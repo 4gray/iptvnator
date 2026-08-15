@@ -52,11 +52,13 @@ const HOSTISH_PATTERN = /^[a-z0-9][a-z0-9.-]*(?::\d{2,5})?$/i;
 
 const WRAPPING_CHARS = /^["'`«<([]+|["'`»>)\]]+$/g;
 
-// Both caps guard against pathological pastes only, and stay aligned with
-// the assembler's candidate cap so a real multi-link or multi-account
-// handout is never truncated by the scanner before assembly even sees it.
+// Both caps are DOM-safety guards against pathological pastes (a log file
+// full of MAC-shaped hex would otherwise render thousands of cards), sized
+// far beyond any real handout — reseller and scanner dumps top out around a
+// couple dozen accounts. The assembler's candidate cap leaves headroom for
+// both scanners together, so neither truncates real input before assembly.
 const MAX_URLS = 16;
-const MAX_MACS = 12;
+const MAX_MACS = 64;
 
 interface FieldMatcher {
     field: keyof LabeledFields;

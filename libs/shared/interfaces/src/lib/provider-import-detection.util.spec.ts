@@ -699,6 +699,23 @@ describe('detectProviderImportCandidates', () => {
             }
         });
 
+        it('treats same-host portals on different ports as different panels', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel.example.com:8080/c/',
+                    'MAC: 00:1A:79:AA:AA:AA',
+                    'http://panel.example.com:9090/c/',
+                    'MAC: 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBeUndefined();
+            }
+        });
+
         it('treats several MACs with generic URLs on different hosts as ambiguous too', () => {
             // Without portal-shaped URLs the picker falls back to a generic
             // URL — the ambiguity guard must cover that pool as well, or two
@@ -721,14 +738,15 @@ describe('detectProviderImportCandidates', () => {
 
         it('surfaces every MAC of a long multi-account list', () => {
             const macs = Array.from(
-                { length: 6 },
-                (_, index) => `00:1A:79:0${index}:0${index}:0${index}`
+                { length: 20 },
+                (_, index) =>
+                    `00:1A:79:${String(index).padStart(2, '0')}:11:22`
             );
             const candidates = detectProviderImportCandidates(
                 ['http://long.example.com/c/', ...macs].join('\n')
             );
 
-            expect(only(candidates, 'stalker')).toHaveLength(6);
+            expect(only(candidates, 'stalker')).toHaveLength(20);
         });
 
         it('gives labeled credentials to the stalker candidate, not a competing xtream guess', () => {

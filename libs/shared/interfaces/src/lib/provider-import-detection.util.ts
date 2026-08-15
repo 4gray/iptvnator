@@ -69,9 +69,10 @@ export interface ProviderImportCandidate {
 
 const GET_PHP_PATH_PATTERN = /\/get\.php$/i;
 const EXTM3U_HEADER_PATTERN = /^\s*#EXTM3U/i;
-// Guard against pathological pastes, not against real handouts: multi-account
-// MAC lists with a dozen entries are legitimate and must all surface.
-const MAX_CANDIDATES = 16;
+// DOM-safety guard against pathological pastes, not a business limit: sized
+// above the scanners' combined caps (64 MACs + 16 URLs), so every candidate
+// a real multi-account handout produces survives the final slice.
+const MAX_CANDIDATES = 96;
 
 /**
  * Scans a pasted provider message and returns ranked import candidates.
@@ -132,9 +133,13 @@ export function detectProviderImportCandidates(
             : labeledHostUrl(labeled) !== undefined
               ? []
               : urls.filter((url) => url.role === 'generic');
+    // Compared by ORIGIN, not hostname: two panels on one DNS name but
+    // different ports are different panels, while URL normalization drops a
+    // default port, so the Real/Panel `:80`-vs-bare pairs of scanner dumps
+    // still compare equal.
     const portalAmbiguous =
         macs.length > 1 &&
-        new Set(portalPool.map((url) => url.parsed.hostname)).size > 1;
+        new Set(portalPool.map((url) => url.parsed.origin)).size > 1;
     const portal = portalAmbiguous
         ? null
         : pickStalkerPortalUrl(urls, labeled);
