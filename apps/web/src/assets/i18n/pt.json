@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} marcados · {{failed}} com falha",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} desmarcados · {{failed}} com falha",
         "SEASON_WATCH_UPDATE_FAILED": "A atualização da temporada falhou",
+        "MARK_SERIES_WATCHED": "Marcar série como assistida ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Marcar série como assistida",
+        "MARK_SERIES_UNWATCHED": "Marcar série como não assistida",
+        "SERIES_MARKED_UNWATCHED": "Série marcada como não assistida",
+        "SERIES_WATCH_UPDATE_FAILED": "A atualização da série falhou",
+        "SERIES_WATCH_MENU": "Ações de visualização da série",
         "EPISODES_WATCHED": "{{count}} de {{total}} episódios assistidos",
         "DETAIL_FALLBACK": {
             "STATUS": "Metadados do portal indisponíveis",

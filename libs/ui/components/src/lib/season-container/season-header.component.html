@@ -4,7 +4,12 @@
             {{ 'PORTALS.SEASONS_AND_EPISODES' | translate }}
         </h3>
     </div>
-    @if (downloadVisible() || watchToggleVisible() || viewToggleVisible()) {
+    @if (
+        downloadVisible() ||
+        watchToggleVisible() ||
+        viewToggleVisible() ||
+        seriesMenuVisible()
+    ) {
         <div class="section-header__actions">
             @if (watchToggleVisible()) {
                 <button
@@ -103,6 +108,47 @@
                         </mat-button-toggle>
                     </mat-button-toggle-group>
                 </div>
+            }
+            @if (seriesMenuVisible()) {
+                <button
+                    mat-icon-button
+                    class="series-watch-menu-trigger"
+                    data-test-id="series-watch-menu"
+                    [matMenuTriggerFor]="seriesWatchMenu"
+                    [attr.aria-label]="'XTREAM.SERIES_WATCH_MENU' | translate"
+                >
+                    <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #seriesWatchMenu="matMenu">
+                    <button
+                        mat-menu-item
+                        class="series-watch-menu-item"
+                        data-test-id="toggle-series-watched"
+                        [disabled]="seriesActionDisabled()"
+                        [attr.aria-busy]="watchBatchRunning() ? 'true' : null"
+                        (click)="toggleSeriesWatched.emit()"
+                    >
+                        @if (watchBatchRunning()) {
+                            <mat-spinner
+                                diameter="18"
+                                aria-hidden="true"
+                            ></mat-spinner>
+                        } @else {
+                            <mat-icon>{{
+                                seriesFullyWatched()
+                                    ? 'remove_done'
+                                    : 'done_all'
+                            }}</mat-icon>
+                        }
+                        <span>
+                            {{
+                                seriesActionLabelKey()
+                                    | translate
+                                        : { count: seriesEligibleCount() }
+                            }}
+                        </span>
+                    </button>
+                </mat-menu>
             }
         </div>
     }

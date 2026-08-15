@@ -246,4 +246,56 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
 
         expect(seriesRequestCalls(dataService.sendIpcEvent)).toHaveLength(1);
     });
+
+    // Only a well-formed empty array is a trusted empty season: the series
+    // watched toggle marks an answered-empty season as loaded, so a
+    // malformed envelope collapsing to [] would silently skip that season.
+    describe('fetchVodSeriesEpisodes strictness', () => {
+        it('trusts a well-formed empty answer in either envelope shape', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({ js: { data: [] } });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 'season-2')
+            ).resolves.toEqual([]);
+
+            dataService.sendIpcEvent.mockResolvedValue({ js: [] });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 'season-2')
+            ).resolves.toEqual([]);
+        });
+
+        it('rejects a malformed envelope instead of reporting an empty season', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({ js: {} });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 'season-2')
+            ).rejects.toThrow('Malformed Stalker season episodes response');
+        });
+
+        it('rejects an answer whose rows contain no recognizable episode', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { data: [{ id: 'junk-row', is_season: true }] },
+            });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 'season-2')
+            ).rejects.toThrow(
+                'Stalker season answered without recognizable episodes'
+            );
+        });
+
+        it('returns sorted episodes for a proper answer', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: {
+                    data: [
+                        { id: 'e2', is_episode: true, series_number: 2 },
+                        { id: 'e1', is_episode: true, series_number: 1 },
+                    ],
+                },
+            });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 'season-2')
+            ).resolves.toEqual([
+                { id: 'e1', is_episode: true, series_number: 1 },
+                { id: 'e2', is_episode: true, series_number: 2 },
+            ]);
+        });
+    });
 });

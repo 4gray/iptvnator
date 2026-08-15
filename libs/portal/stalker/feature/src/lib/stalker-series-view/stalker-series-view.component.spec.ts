@@ -25,11 +25,11 @@ import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 
 @Component({
     selector: 'app-season-container',
-    standalone: true,
     template: '<div data-testid="season-container"></div>',
 })
 class StubSeasonContainerComponent {
     readonly seasons = input<unknown>(null);
+    readonly hasUnloadedSeasons = input(false);
     readonly seriesId = input<number | string | null>(null);
     readonly playlistId = input('');
     readonly seriesTitle = input<string | undefined>(undefined);

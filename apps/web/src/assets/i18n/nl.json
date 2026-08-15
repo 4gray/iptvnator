@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} gemarkeerd · {{failed}} mislukt",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} als niet bekeken gemarkeerd · {{failed}} mislukt",
         "SEASON_WATCH_UPDATE_FAILED": "Bijwerken van het seizoen is mislukt",
+        "MARK_SERIES_WATCHED": "Serie markeren als bekeken ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Serie markeren als bekeken",
+        "MARK_SERIES_UNWATCHED": "Serie markeren als niet bekeken",
+        "SERIES_MARKED_UNWATCHED": "Serie gemarkeerd als niet bekeken",
+        "SERIES_WATCH_UPDATE_FAILED": "Bijwerken van de serie is mislukt",
+        "SERIES_WATCH_MENU": "Kijkacties voor serie",
         "EPISODES_WATCHED": "{{count}} van {{total}} afleveringen bekeken",
         "DETAIL_FALLBACK": {
             "STATUS": "Portaalmetadata niet beschikbaar",

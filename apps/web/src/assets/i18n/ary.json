@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} تعلمو · {{failed}} فشلو",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} تعلمو كما متشافينش · {{failed}} فشلو",
         "SEASON_WATCH_UPDATE_FAILED": "فشل تحديث الموسم",
+        "MARK_SERIES_WATCHED": "علم السلسلة كمتشافة ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "علم السلسلة كمتشافة",
+        "MARK_SERIES_UNWATCHED": "علم السلسلة كما متشافاش",
+        "SERIES_MARKED_UNWATCHED": "السلسلة تعلمات كما متشافاش",
+        "SERIES_WATCH_UPDATE_FAILED": "فشل تحديث السلسلة",
+        "SERIES_WATCH_MENU": "إجراءات مشاهدة السلسلة",
         "EPISODES_WATCHED": "{{count}} من {{total}} ديال الحلقات متشافين",
         "DETAIL_FALLBACK": {
             "STATUS": "البيانات الوصفية ديال البوابة ما متوفراش",

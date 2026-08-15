@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} marked · {{failed}} failed",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} unmarked · {{failed}} failed",
         "SEASON_WATCH_UPDATE_FAILED": "Updating the season failed",
+        "MARK_SERIES_WATCHED": "Mark series as watched ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Mark series as watched",
+        "MARK_SERIES_UNWATCHED": "Mark series as unwatched",
+        "SERIES_MARKED_UNWATCHED": "Series marked as unwatched",
+        "SERIES_WATCH_UPDATE_FAILED": "Updating the series failed",
+        "SERIES_WATCH_MENU": "Series watch actions",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal metadata unavailable",

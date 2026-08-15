@@ -94,6 +94,16 @@
     }
 }
 
+.series-watch-menu-trigger {
+    flex-shrink: 0;
+}
+
+.series-watch-menu-item mat-spinner {
+    display: inline-block;
+    margin-inline-end: 16px;
+    vertical-align: middle;
+}
+
 @media (max-width: 560px) {
     .section-header {
         align-items: flex-start;

@@ -3,12 +3,29 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-import { SeasonContainerSeasonPlaybackToggleRequest } from '@iptvnator/ui/components';
+import { SeasonContainerSeriesPlaybackToggleRequest } from '@iptvnator/ui/components';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 
+// The marked-watched key is scope-generic on purpose ("{{count}} episodes
+// marked as watched"); only unmark and failure name their scope.
+const WATCH_TOGGLE_FEEDBACK = {
+    season: {
+        marked: 'XTREAM.SEASON_MARKED_WATCHED',
+        unmarked: 'XTREAM.SEASON_MARKED_UNWATCHED',
+        failed: 'XTREAM.SEASON_WATCH_UPDATE_FAILED',
+    },
+    series: {
+        marked: 'XTREAM.SEASON_MARKED_WATCHED',
+        unmarked: 'XTREAM.SERIES_MARKED_UNWATCHED',
+        failed: 'XTREAM.SERIES_WATCH_UPDATE_FAILED',
+    },
+} as const;
+
+export type SerialDetailsWatchScope = keyof typeof WATCH_TOGGLE_FEEDBACK;
+
 /**
- * Season-level bulk watched toggle for the serial details view: one batch
- * persistence call, host state update, and user feedback.
+ * Season- and series-level bulk watched toggle for the serial details view:
+ * one batch persistence call, host state update, and user feedback.
  */
 @Injectable()
 export class SerialDetailsSeasonWatchService {
@@ -19,7 +36,7 @@ export class SerialDetailsSeasonWatchService {
     readonly batchRunning = signal(false);
 
     async handle(
-        request: SeasonContainerSeasonPlaybackToggleRequest,
+        request: SeasonContainerSeriesPlaybackToggleRequest,
         playlistId: string,
         state: Pick<
             SerialDetailsPlaybackPositionState,
@@ -31,8 +48,10 @@ export class SerialDetailsSeasonWatchService {
         // into it (episode ids can collide across playlists) nor present
         // its contextless snackbar as feedback about the newly opened page.
         // The DB write itself is safe — it carries its own playlistId.
-        stillCurrent: () => boolean
+        stillCurrent: () => boolean,
+        scope: SerialDetailsWatchScope = 'season'
     ): Promise<boolean> {
+        const feedback = WATCH_TOGGLE_FEEDBACK[scope];
         if (!playlistId || request.requests.length === 0 || this.batchRunning()) {
             return false;
         }
@@ -54,7 +73,7 @@ export class SerialDetailsSeasonWatchService {
                     return true;
                 }
                 state.updateMany(positions);
-                this.notify('XTREAM.SEASON_MARKED_WATCHED', {
+                this.notify(feedback.marked, {
                     count: positions.length,
                 });
             } else {
@@ -71,18 +90,19 @@ export class SerialDetailsSeasonWatchService {
                 state.removeMany(
                     request.requests.map((item) => item.contentXtreamId)
                 );
-                this.notify('XTREAM.SEASON_MARKED_UNWATCHED');
+                this.notify(feedback.unmarked);
             }
             return true;
         } catch (error) {
             // Nothing was confirmed persisted — keep the rendered state and
             // report instead of showing episodes as (un)watched.
             console.error(
-                '[SerialDetailsSeasonWatch] Season watched toggle failed',
+                '[SerialDetailsSeasonWatch] Watched toggle failed',
+                { scope },
                 error
             );
             if (stillCurrent()) {
-                this.notify('XTREAM.SEASON_WATCH_UPDATE_FAILED');
+                this.notify(feedback.failed);
             }
             return false;
         } finally {

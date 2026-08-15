@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "Oznaczono {{count}} · Nieudane {{failed}}",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "Odznaczono {{count}} · Nieudane {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "Nie udało się zaktualizować sezonu",
+        "MARK_SERIES_WATCHED": "Oznacz serial jako obejrzany ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Oznacz serial jako obejrzany",
+        "MARK_SERIES_UNWATCHED": "Oznacz serial jako nieobejrzany",
+        "SERIES_MARKED_UNWATCHED": "Oznaczono serial jako nieobejrzany",
+        "SERIES_WATCH_UPDATE_FAILED": "Nie udało się zaktualizować serialu",
+        "SERIES_WATCH_MENU": "Akcje oglądania serialu",
         "EPISODES_WATCHED": "Obejrzano {{count}} z {{total}} odcinków",
         "DETAIL_FALLBACK": {
             "STATUS": "Metadane portalu niedostępne",

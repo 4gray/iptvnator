@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} адзначана · {{failed}} не ўдалося",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} знята · {{failed}} не ўдалося",
         "SEASON_WATCH_UPDATE_FAILED": "Не ўдалося абнавіць сезон",
+        "MARK_SERIES_WATCHED": "Адзначыць серыял як прагледжаны ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Адзначыць серыял як прагледжаны",
+        "MARK_SERIES_UNWATCHED": "Адзначыць серыял як непрагледжаны",
+        "SERIES_MARKED_UNWATCHED": "Серыял адзначаны як непрагледжаны",
+        "SERIES_WATCH_UPDATE_FAILED": "Не ўдалося абнавіць серыял",
+        "SERIES_WATCH_MENU": "Дзеянні прагляду серыяла",
         "EPISODES_WATCHED": "{{count}} з {{total}} эпізодаў прагледжана",
         "DETAIL_FALLBACK": {
             "STATUS": "Метаданыя партала недаступныя",

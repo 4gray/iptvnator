@@ -210,6 +210,7 @@
                     isCurrentSeasonLoading(seasonContainer?.selectedSeason())
                 "
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
+                [hasUnloadedSeasons]="hasUnloadedVodSeasons()"
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
                 (playbackToggleRequested)="
@@ -217,6 +218,9 @@
                 "
                 (seasonPlaybackToggleRequested)="
                     handleSeasonPlaybackToggleRequestedFromUi($event)
+                "
+                (seriesPlaybackToggleRequested)="
+                    handleSeriesPlaybackToggleRequestedFromUi($event)
                 "
                 #seasonContainer
             />
