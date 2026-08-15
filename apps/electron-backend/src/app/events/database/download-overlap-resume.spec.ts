@@ -225,6 +225,62 @@ describe('download overlap resume', () => {
         }
     });
 
+    it('retains the partial when the EOF probe collects an inconclusive 416', async () => {
+        // The probe's 416 carries no `bytes */N`: equally consistent with a
+        // complete file, so the partial must survive — restarting would
+        // redownload a likely finished movie forever.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            responses: [
+                {
+                    data: Readable.from([overlapTail]),
+                    headers: { 'content-range': 'bytes 37856-299999/*' },
+                    status: 206,
+                },
+                {
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        { response: { headers: {}, status: 416 } }
+                    ),
+                },
+                {
+                    // Later rewound attempts see the same zero-growth range.
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 37856-299999/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.truncate).not.toHaveBeenCalled();
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 300_000,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('verifies a small validator-less partial from byte zero and appends', async () => {
         // The 50-byte partial fits inside the overlap window: the plain
         // request (no Range) replays it in full for verification and only the

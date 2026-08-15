@@ -146,6 +146,22 @@ export async function transferToPartialFile(
                     totalBytes: confirmedTotal,
                 };
             }
+            if (
+                probingEof &&
+                (confirmedTotal === null || confirmedTotal >= retainedOffset)
+            ) {
+                // A probe at the partial's exact end ALWAYS collects a 416
+                // when the entity ends there, and the confirming length is
+                // optional — without it the response is equally consistent
+                // with a complete file, so restarting would destroy a likely
+                // finished download. Retain instead; only a stated total
+                // BELOW the partial proves the entity shrank.
+                task.totalBytes = null;
+                throw new TruncatedTransferError({
+                    bytesDownloaded: retainedOffset,
+                    totalBytes: null,
+                });
+            }
             // The remote entity shrank below the resume offset: a
             // representation change, not a transport failure. Restart against
             // the current entity instead of deleting the partial as a
