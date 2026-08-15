@@ -315,6 +315,36 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream[0].serverUrl).toBe('http://panel.example.io:8080');
         });
 
+        it('completes a port-less API URL with the separately labeled port', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Server: http://panel.example.org/player_api.php',
+                    'Port: 8080',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].serverUrl).toBe('http://panel.example.org:8080');
+        });
+
+        it('does not let a labeled port override an explicit one', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Server: http://panel.example.org:2500/player_api.php',
+                    'Port: 8080',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            expect(only(candidates, 'xtream')[0].serverUrl).toBe(
+                'http://panel.example.org:2500'
+            );
+        });
+
         it('strips panel_api.php from the derived server URL', () => {
             const candidates = detectProviderImportCandidates(
                 [
@@ -711,6 +741,20 @@ describe('detectProviderImportCandidates', () => {
                 expect(candidate.portalUrl).toBeUndefined();
                 expect(candidate.confidence).toBe('low');
             }
+        });
+
+        it('completes a port-less shaped portal with the separately labeled port', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Portal: http://stb.example.com/c/',
+                    'Port: 8080',
+                    'MAC: 00:1A:79:12:34:56',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(1);
+            expect(stalker[0].portalUrl).toBe('http://stb.example.com:8080/c/');
         });
 
         it('treats tenant installs under different base paths as different panels', () => {

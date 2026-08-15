@@ -178,11 +178,14 @@ export function detectProviderImportCandidates(
         const password =
             creds?.password ??
             (macs.length === 0 ? labeled.password : undefined);
+        // A separately labeled "Port:" completes a port-less API URL, same
+        // as the labeled-host fallback already does.
+        const completedRaw = completeWithLabeledPort(url, labeled.port);
         candidates.push(
             compact({
                 kind: 'xtream',
                 confidence: username && password ? 'high' : 'medium',
-                serverUrl: safeXtreamServerUrl(url.raw),
+                serverUrl: safeXtreamServerUrl(completedRaw),
                 username,
                 password,
                 suggestedTitle: url.parsed.hostname,
@@ -195,7 +198,7 @@ export function detectProviderImportCandidates(
             candidates.push({
                 kind: 'm3u-url',
                 confidence: 'low',
-                url: url.raw,
+                url: completedRaw,
                 suggestedTitle: url.parsed.hostname,
             });
         }
@@ -291,13 +294,33 @@ function portalInstallationKey(url: DetectedUrl): string {
     return `${url.parsed.origin}${base}`;
 }
 
+/**
+ * Completes a found URL with a separately labeled port — "Portal: http://x/…"
+ * plus "Port: 8080" on its own line is a real handout shape (corpus #5).
+ * Applied only when the URL itself states no explicit port, so a written
+ * `:80` is never overridden by the label.
+ */
+function completeWithLabeledPort(
+    url: DetectedUrl,
+    port: string | undefined
+): string {
+    if (!port || /^https?:\/\/[^/]*:\d+/i.test(url.raw)) {
+        return url.raw;
+    }
+    const { protocol, hostname, pathname, search } = url.parsed;
+    return `${protocol}//${hostname}:${port}${pathname}${search}`;
+}
+
 function pickStalkerPortalUrl(
     urls: DetectedUrl[],
     labeled: LabeledFields
 ): { url: string; confidence: ProviderImportConfidence } | null {
     const shaped = urls.find((url) => url.role === 'stalker');
     if (shaped) {
-        return { url: shaped.raw, confidence: 'high' };
+        return {
+            url: completeWithLabeledPort(shaped, labeled.port),
+            confidence: 'high',
+        };
     }
     const labeledUrl = labeledHostUrl(labeled);
     if (labeledUrl) {
@@ -305,7 +328,10 @@ function pickStalkerPortalUrl(
     }
     const generic = urls.find((url) => url.role === 'generic');
     if (generic) {
-        return { url: generic.raw, confidence: 'medium' };
+        return {
+            url: completeWithLabeledPort(generic, labeled.port),
+            confidence: 'medium',
+        };
     }
     return null;
 }
