@@ -162,6 +162,50 @@ describe('transferWithReconnects', () => {
         expect(transfer).toHaveBeenCalledTimes(4);
     });
 
+    it('follows the baseline down after a restart so rebuilt-file progress is not a stall', async () => {
+        // Overlap mismatch truncated the partial mid-loop: the next attempts
+        // regress below the discarded file's size but genuinely progress.
+        const transfer = jest
+            .fn()
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockRejectedValueOnce(interrupted(100_000))
+            .mockRejectedValueOnce(interrupted(400_000))
+            .mockResolvedValue({
+                bytesDownloaded: 1_000_000,
+                totalBytes: 1_000_000,
+            });
+
+        const progress = await transferWithReconnects(
+            db,
+            createTask(),
+            reservation,
+            { delayMs: 0, transfer }
+        );
+
+        expect(progress.bytesDownloaded).toBe(1_000_000);
+        expect(transfer).toHaveBeenCalledTimes(4);
+    });
+
+    it('gives up when attempts keep regressing below the previous attempt', async () => {
+        const transfer = jest
+            .fn()
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockRejectedValueOnce(interrupted(100_000))
+            .mockRejectedValueOnce(interrupted(400_000))
+            .mockRejectedValueOnce(interrupted(90_000))
+            .mockRejectedValueOnce(interrupted(300_000))
+            .mockRejectedValue(interrupted(80_000));
+
+        await expect(
+            transferWithReconnects(db, createTask(), reservation, {
+                delayMs: 0,
+                transfer,
+            })
+        ).rejects.toBeInstanceOf(InterruptedTransferError);
+        // Two regressions are tolerated; the third surfaces the failure.
+        expect(transfer).toHaveBeenCalledTimes(6);
+    });
+
     it('rethrows immediately when cancel or pause was requested', async () => {
         const task = createTask();
         const transfer = jest.fn().mockImplementation(async () => {

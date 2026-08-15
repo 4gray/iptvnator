@@ -93,7 +93,11 @@ async function setupResumeHarness(
         copyFile: jest.fn(async () => undefined),
         link: jest.fn(async () => undefined),
         open: jest.fn(async () => {
+            // The tail buffer stands in for the partial's overlap window; the
+            // first read's position anchors it, so the mock works for any
+            // rewound offset.
             const tail = options.partialTail ?? Buffer.alloc(0);
+            let basePosition: number | null = null;
             return {
                 close: jest.fn(async () => undefined),
                 read: jest.fn(
@@ -103,11 +107,8 @@ async function setupResumeHarness(
                         length: number,
                         position: number
                     ) => {
-                        // The tail buffer stands in for the partial's overlap
-                        // window; the mocked read serves it from its start
-                        // regardless of the absolute file position.
-                        const start =
-                            position - (options.partialSize - tail.length);
+                        basePosition ??= position;
+                        const start = position - basePosition;
                         const slice = tail.subarray(start, start + length);
                         slice.copy(buffer, offset);
                         return { bytesRead: slice.length };
@@ -224,13 +225,19 @@ describe('download resume validation', () => {
         );
     });
 
-    it('restarts without Range when a retained partial has no validator', async () => {
+    it('verifies a small validator-less partial from byte zero and appends', async () => {
+        // The 50-byte partial fits inside the overlap window: the plain
+        // request (no Range) replays it in full for verification and only the
+        // 4 new bytes are appended — the .part is never rewritten in place.
+        const retainedBytes = Buffer.alloc(50, 7);
+        const newBytes = Buffer.alloc(4, 8);
         const harness = await setupResumeHarness({
-            finalSize: 4,
+            finalSize: 54,
             partialSize: 50,
+            partialTail: retainedBytes,
             response: {
-                data: Readable.from([Buffer.from('full')]),
-                headers: { 'content-length': '4', etag: '"etag-new"' },
+                data: Readable.from([retainedBytes, newBytes]),
+                headers: { 'content-length': '54', etag: '"etag-new"' },
                 status: 200,
             },
         });
@@ -248,8 +255,10 @@ describe('download resume validation', () => {
         expect(requestOptions.headers).toEqual({});
         expect(harness.createWriteStream).toHaveBeenCalledWith(
             '/downloads/movie.mp4.part',
-            { flags: 'w' }
+            { flags: 'a' }
         );
+        expect(Buffer.concat(harness.writtenChunks)).toEqual(newBytes);
+        expect(harness.truncate).not.toHaveBeenCalled();
     });
 
     it('restarts from byte zero when a resume request is answered with 200', async () => {
@@ -622,6 +631,8 @@ describe('download resume validation', () => {
             finalSize: 'enoent',
             partialSize: 0,
             partialSizeAfterTransferError: 20,
+            // The reconnect attempts verify the 20 retained bytes from zero.
+            partialTail: Buffer.alloc(20, 'r'),
             response: {
                 data: body,
                 headers: { 'content-length': '100' },

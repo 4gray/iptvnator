@@ -86,22 +86,18 @@ export async function transferToPartialFile(
     const retainedOffset = getResumeOffset(task, reservation);
     let resumeOffset = retainedOffset;
     let overlapBytes = 0;
-    if (retainedOffset > 0 && !task.resumeValidator) {
+    if (retainedOffset > 0 && !task.resumeValidator && allowOverlapResume) {
         // No validator to hand to If-Range: rewind the request by the overlap
         // window and prove the entity is unchanged by comparing that window
-        // against the partial's tail before appending a single byte.
-        overlapBytes = allowOverlapResume
-            ? Math.min(retainedOffset, OVERLAP_VERIFICATION_BYTES)
-            : retainedOffset;
+        // against the partial's tail before appending a single byte. A partial
+        // smaller than the window is verified in full from byte zero (plain
+        // request, no Range) and appended to — never rewritten in place, so a
+        // reconnect that dies early can only grow the file, not shrink it.
+        overlapBytes = Math.min(retainedOffset, OVERLAP_VERIFICATION_BYTES);
         resumeOffset = retainedOffset - overlapBytes;
-        if (resumeOffset === 0) {
-            // The whole partial fits inside the overlap window — re-downloading
-            // it costs no more than verifying it would.
-            overlapBytes = 0;
-            console.warn(
-                `[Downloads] Restarting ${reservation.filename} from the beginning (saved partial is smaller than the overlap verification window)`
-            );
-        }
+    } else if (retainedOffset > 0 && !task.resumeValidator) {
+        // Post-mismatch restart: the truncated .part is rewritten from zero.
+        resumeOffset = 0;
     }
 
     const headers = {
@@ -136,6 +132,7 @@ export async function transferToPartialFile(
     const readable = response.data;
     let effectiveOffset = resumeOffset;
     let expectedOverlap: Buffer | null = null;
+    let verifyOverlap = false;
     try {
         effectiveOffset = validateResumeResponse(
             reservation,
@@ -143,7 +140,11 @@ export async function transferToPartialFile(
             response.headers,
             resumeOffset
         );
-        if (effectiveOffset > 0 && overlapBytes > 0) {
+        // Overlap verification only holds when the response actually starts
+        // at the rewound offset; a 200 answer to a Range request restarts
+        // from byte zero and rewrites instead.
+        verifyOverlap = overlapBytes > 0 && effectiveOffset === resumeOffset;
+        if (verifyOverlap) {
             expectedOverlap = await readPartialTail(
                 reservation.partialPath,
                 effectiveOffset,
@@ -163,11 +164,21 @@ export async function transferToPartialFile(
     if (effectiveOffset === 0) {
         task.resumeValidator = getResponseValidator(response.headers);
     }
-    await persistTransferStart(db, task, effectiveOffset, totalBytes);
+    // Reported progress never drops below what the .part already holds: the
+    // overlap replay re-counts from the rewound offset while the file keeps
+    // all of its retained bytes.
+    const appendToRetained = effectiveOffset > 0 || verifyOverlap;
+    const progressFloor = appendToRetained ? retainedOffset : 0;
+    await persistTransferStart(
+        db,
+        task,
+        Math.max(effectiveOffset, progressFloor),
+        totalBytes
+    );
 
     // Counts response bytes from the request offset, so with an overlap the
-    // tally passes through the partial's retained size as the overlap replays
-    // and only then grows past it — matching the file at every moment.
+    // tally converges on the partial's retained size as the overlap replays
+    // and only then grows past it.
     let bytesDownloaded = effectiveOffset;
     let lastProgressUpdate = 0;
     const progressThrottleMs = 500;
@@ -175,7 +186,7 @@ export async function transferToPartialFile(
         ? createOverlapVerifier(expectedOverlap)
         : null;
     const output = createWriteStream(reservation.partialPath, {
-        flags: effectiveOffset > 0 ? 'a' : 'w',
+        flags: appendToRetained ? 'a' : 'w',
     });
     const abortStream = () => {
         readable.destroy(new Error('Download aborted'));
@@ -198,7 +209,7 @@ export async function transferToPartialFile(
         }
         lastProgressUpdate = now;
         void persistProgress(db, task, {
-            bytesDownloaded,
+            bytesDownloaded: Math.max(bytesDownloaded, progressFloor),
             totalBytes,
         }).catch((error) => {
             console.error('[Downloads] Failed to persist progress:', error);
@@ -238,9 +249,16 @@ export async function transferToPartialFile(
         abortController.signal.removeEventListener('abort', abortStream);
     }
 
-    await persistProgress(db, task, { bytesDownloaded, totalBytes });
+    const reportedBytes = Math.max(bytesDownloaded, progressFloor);
+    await persistProgress(db, task, {
+        bytesDownloaded: reportedBytes,
+        totalBytes,
+    });
     if (totalBytes !== null && bytesDownloaded < totalBytes) {
-        throw new TruncatedTransferError({ bytesDownloaded, totalBytes });
+        throw new TruncatedTransferError({
+            bytesDownloaded: reportedBytes,
+            totalBytes,
+        });
     }
     return { bytesDownloaded, totalBytes };
 }

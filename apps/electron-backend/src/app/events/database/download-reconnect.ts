@@ -14,13 +14,21 @@ import {
 } from './download-transfer';
 
 /**
- * An attempt must append at least this much past the best previous attempt to
- * reset the stall budget. Bounds the loop structurally: a server trickling
- * less per connection cannot keep reconnects alive forever.
+ * An attempt must end at least this far past the previous attempt to reset
+ * the stall budget. Bounds the loop structurally: a server trickling less
+ * per connection cannot keep reconnects alive forever.
  */
 const RECONNECT_PROGRESS_MIN_BYTES = 65_536;
 /** Consecutive attempts without that progress before the failure surfaces. */
 const MAX_STALLED_RECONNECTS = 3;
+/**
+ * Attempts may legitimately end BELOW the previous attempt when the transfer
+ * restarted from byte zero (overlap mismatch truncated the partial, or the
+ * server ignored Range). The baseline follows the regression so the rebuilt
+ * file's genuine progress is not misread as a stall — but only this many
+ * times, or an always-restarting server would reset the budget forever.
+ */
+const MAX_PROGRESS_REGRESSIONS = 2;
 const RECONNECT_DELAY_MS = 1000;
 
 export interface ReconnectDeps {
@@ -45,10 +53,13 @@ export async function transferWithReconnects(
     const { delayMs = RECONNECT_DELAY_MS, transfer = transferToPartialFile } =
         deps;
     // The first interruption always earns a reconnect (there is no earlier
-    // attempt to measure against); afterwards progress is measured between
-    // consecutive attempts.
-    let bestBytes: number | null = null;
+    // attempt to measure against); afterwards progress is measured against
+    // the PREVIOUS attempt, not a high-water mark — a transfer that restarted
+    // from byte zero mid-loop must be judged by its rebuilt file, not by the
+    // discarded one's size.
+    let lastBytes: number | null = null;
     let stalledAttempts = 0;
+    let regressionCredits = MAX_PROGRESS_REGRESSIONS;
 
     for (;;) {
         try {
@@ -66,21 +77,24 @@ export async function transferWithReconnects(
                 throw error;
             }
 
+            const attemptBytes = interruption.progress.bytesDownloaded;
+            if (lastBytes !== null && attemptBytes < lastBytes) {
+                if (regressionCredits <= 0) {
+                    throw interruption;
+                }
+                regressionCredits -= 1;
+            }
             const advanced =
-                bestBytes === null ||
-                interruption.progress.bytesDownloaded - bestBytes >=
-                    RECONNECT_PROGRESS_MIN_BYTES;
+                lastBytes === null ||
+                attemptBytes - lastBytes >= RECONNECT_PROGRESS_MIN_BYTES;
             stalledAttempts = advanced ? 0 : stalledAttempts + 1;
             if (stalledAttempts >= MAX_STALLED_RECONNECTS) {
                 throw interruption;
             }
-            bestBytes = Math.max(
-                bestBytes ?? 0,
-                interruption.progress.bytesDownloaded
-            );
+            lastBytes = attemptBytes;
 
             console.warn(
-                `[Downloads] ${describeError(interruption)}; reconnecting ${task.fileName} at ${interruption.progress.bytesDownloaded} bytes`
+                `[Downloads] ${describeError(interruption)}; reconnecting ${task.fileName} at ${attemptBytes} bytes`
             );
             await sleep(delayMs);
             if (task.cancelRequested || task.pauseRequested) {

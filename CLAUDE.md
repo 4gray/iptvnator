@@ -1136,14 +1136,18 @@ engine` (restart required) or
   `DOWNLOAD_NETWORK_INTERRUPTED` code. Retry resumes with Range/If-Range when
   the response supplied a strong ETag or Last-Modified validator; without one
   the Range request rewinds by a 256 KiB overlap window whose bytes must match
-  the partial's tail before anything is appended (`download-overlap.ts`), and
-  a mismatch truncates the partial and restarts from byte zero instead of
-  risking mixed-representation corruption. The runtime also reconnects
-  interrupted transfers automatically (`download-reconnect.ts`): reconnects
-  continue while attempts append ≥64 KiB past the best previous attempt,
-  three consecutive stalled attempts surface the retained failure, and a
-  reconnect that fails before any response is converted into the same
-  retained interruption so it can never delete the partial.
+  the partial's tail before anything is appended (`download-overlap.ts`); a
+  smaller partial is verified in full from byte zero and appended, never
+  rewritten in place; reported progress is floored at the retained size while
+  appending; and a mismatch truncates the partial and restarts from byte zero
+  instead of risking mixed-representation corruption. The runtime also
+  reconnects interrupted transfers automatically (`download-reconnect.ts`):
+  reconnects continue while attempts end ≥64 KiB past the previous attempt
+  (previous-attempt baseline, not high-water, with at most two tolerated
+  restart regressions), three consecutive stalled attempts surface the
+  retained failure, and a reconnect that fails before any response is
+  converted into the same retained interruption so it can never delete the
+  partial.
 - The desktop-only manager shares one global download store across the global,
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed
