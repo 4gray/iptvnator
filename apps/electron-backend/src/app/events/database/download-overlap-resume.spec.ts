@@ -212,7 +212,10 @@ describe('download overlap resume', () => {
 
             const probeOptions =
                 harness.requestWithValidatedRedirects.mock.calls[1][1];
-            expect(probeOptions.headers).toEqual({ Range: 'bytes=300000-' });
+            expect(probeOptions.headers).toEqual({
+                'Accept-Encoding': 'identity',
+                Range: 'bytes=300000-',
+            });
             expect(harness.truncate).not.toHaveBeenCalled();
             expect(harness.set).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -664,7 +667,9 @@ describe('download overlap resume', () => {
 
         const requestOptions =
             harness.requestWithValidatedRedirects.mock.calls[0][1];
-        expect(requestOptions.headers).toEqual({});
+        expect(requestOptions.headers).toEqual({
+            'Accept-Encoding': 'identity',
+        });
         expect(harness.createWriteStream).toHaveBeenCalledWith(
             '/downloads/movie.mp4.part',
             { flags: 'a' }
@@ -698,7 +703,10 @@ describe('download overlap resume', () => {
 
         const requestOptions =
             harness.requestWithValidatedRedirects.mock.calls[0][1];
-        expect(requestOptions.headers).toEqual({ Range: 'bytes=37856-' });
+        expect(requestOptions.headers).toEqual({
+            'Accept-Encoding': 'identity',
+            Range: 'bytes=37856-',
+        });
         expect(harness.createWriteStream).toHaveBeenCalledWith(
             '/downloads/movie.mp4.part',
             { flags: 'a' }
@@ -747,7 +755,9 @@ describe('download overlap resume', () => {
         );
         const restartOptions =
             harness.requestWithValidatedRedirects.mock.calls[1][1];
-        expect(restartOptions.headers).toEqual({});
+        expect(restartOptions.headers).toEqual({
+            'Accept-Encoding': 'identity',
+        });
         // No mismatching byte reached the file; only the fresh body did.
         expect(Buffer.concat(harness.writtenChunks)).toEqual(freshBody);
         expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
@@ -1002,7 +1012,9 @@ describe('download overlap resume', () => {
         );
         const restartOptions =
             harness.requestWithValidatedRedirects.mock.calls[1][1];
-        expect(restartOptions.headers).toEqual({});
+        expect(restartOptions.headers).toEqual({
+            'Accept-Encoding': 'identity',
+        });
         expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
     });
     it('restarts instead of completing when the remote entity shrank inside the overlap', async () => {
@@ -1045,7 +1057,9 @@ describe('download overlap resume', () => {
         );
         const restartOptions =
             harness.requestWithValidatedRedirects.mock.calls[1][1];
-        expect(restartOptions.headers).toEqual({});
+        expect(restartOptions.headers).toEqual({
+            'Accept-Encoding': 'identity',
+        });
         expect(Buffer.concat(harness.writtenChunks)).toEqual(freshBody);
     });
     it('does not promote a response validator while the overlap is unverified', async () => {

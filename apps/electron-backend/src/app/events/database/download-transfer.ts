@@ -82,8 +82,12 @@ export async function transferToPartialFile(
         resumeOffset = 0;
     }
 
-    const headers = {
+    // Byte-exact transfer: Range offsets, totals, and the persisted .part
+    // must describe the SAME representation, and axios transparently decodes
+    // gzip/brotli — so content codings are refused outright.
+    const headers: Record<string, string> = {
         ...(task.headers ?? {}),
+        'Accept-Encoding': 'identity',
     };
     if (resumeOffset > 0) {
         headers.Range = `bytes=${resumeOffset}-`;
@@ -353,12 +357,11 @@ export async function transferToPartialFile(
                     'retained partial does not match the server content'
                 );
             }
-            const provenExpectation = provenTotal();
             if (
                 overlapProven &&
                 responseTotal !== null &&
                 fileBytes === responseTotal &&
-                fileBytes === (provenExpectation ?? responseTotal)
+                fileBytes === (provenTotal() ?? responseTotal)
             ) {
                 // The connection reset AFTER the final byte: every byte of
                 // the response's AUTHORITATIVE total is on disk and the
