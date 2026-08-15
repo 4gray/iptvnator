@@ -88,22 +88,26 @@ export function classifyRangeNotSatisfiable(input: {
     if (atExactEof && identityProven && confirmedTotal === retainedOffset) {
         return 'complete';
     }
-    if (
-        atExactEof &&
-        (confirmedTotal === null || confirmedTotal >= retainedOffset)
-    ) {
+    if (confirmedTotal === null) {
+        // Unsatisfiability alone never proves the entity shrank relative to
+        // the retained bytes — the stated length is optional, and a request
+        // at the entity's true end always collects a 416. Data safety wins.
         return 'retain';
     }
     if (
-        !atExactEof &&
-        confirmedTotal !== null &&
-        confirmedTotal >= resumeOffset
+        confirmedTotal < resumeOffset ||
+        (confirmedTotal === resumeOffset && !atExactEof)
     ) {
-        // Contradictory server: the stated total says the rewound range WAS
-        // satisfiable.
-        return 'retain';
+        // The stated entity end sits at or below the requested first byte of
+        // a REWOUND request: the partial provably extends past the current
+        // entity, so the representation changed. (Equality at an exact-EOF
+        // request means the opposite — the partial IS the entity — and is
+        // handled by the complete/retain branches.)
+        return 'restart';
     }
-    return 'restart';
+    // Ambiguous or contradictory: an exact-EOF length match without identity
+    // proof, or a stated total claiming the rewound range WAS satisfiable.
+    return 'retain';
 }
 
 /** HTTP 416: the requested Range starts at or past the entity's end. */
