@@ -16,6 +16,8 @@ import {
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
+    type RecordingItem,
+    RecordingsService,
 } from '@iptvnator/services';
 import {
     PORTAL_SHELL_ACTIONS,
@@ -27,6 +29,7 @@ import { BehaviorSubject, type Observable, Subject } from 'rxjs';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
 import type { DownloadActionResult } from './download-actions';
 import { DownloadManagerActionsService } from './download-manager-actions.service';
+import { RecordingManagerActionsService } from './recording-manager-actions.service';
 import type { DownloadSeriesCardViewModel } from './download-manager.viewmodel';
 import { DownloadsComponent } from './downloads.component';
 
@@ -141,11 +144,39 @@ describe('DownloadsComponent', () => {
     };
     let snackBar: { open: jest.Mock };
     let matDialog: { open: jest.Mock };
+    let recordings: ReturnType<typeof signal<RecordingItem[]>>;
+    let recordingsService: {
+        readonly recordings: typeof recordings;
+        readonly isAvailable: ReturnType<typeof signal<boolean>>;
+        readonly hasLoadedRecordings: ReturnType<typeof signal<boolean>>;
+        readonly hasAuthoritativeRecordingList: ReturnType<
+            typeof signal<boolean>
+        >;
+        readonly isLoadingRecordings: ReturnType<typeof signal<boolean>>;
+        loadRecordings: jest.Mock;
+        stopRecording: jest.Mock;
+        removeRecording: jest.Mock;
+        playFile: jest.Mock;
+        revealFile: jest.Mock;
+    };
 
     const success = async () => ({ success: true });
 
     beforeEach(async () => {
         downloads = signal<DownloadItem[]>([]);
+        recordings = signal<RecordingItem[]>([]);
+        recordingsService = {
+            recordings,
+            isAvailable: signal(false),
+            hasLoadedRecordings: signal(true),
+            hasAuthoritativeRecordingList: signal(true),
+            isLoadingRecordings: signal(false),
+            loadRecordings: jest.fn(async () => undefined),
+            stopRecording: jest.fn(success),
+            removeRecording: jest.fn(success),
+            playFile: jest.fn(success),
+            revealFile: jest.fn(success),
+        };
         routeParams = new BehaviorSubject(convertToParamMap({}));
         queryParams = new BehaviorSubject(convertToParamMap({}));
         activatedRoute = {
@@ -245,6 +276,10 @@ describe('DownloadsComponent', () => {
                     useValue: downloadsService,
                 },
                 {
+                    provide: RecordingsService,
+                    useValue: recordingsService,
+                },
+                {
                     provide: PlaylistsService,
                     useValue: {
                         getAllPlaylists: () => playlistItems.asObservable(),
@@ -275,6 +310,7 @@ describe('DownloadsComponent', () => {
                         },
                         { provide: MatDialog, useValue: matDialog },
                         DownloadManagerActionsService,
+                        RecordingManagerActionsService,
                     ],
                 },
             })

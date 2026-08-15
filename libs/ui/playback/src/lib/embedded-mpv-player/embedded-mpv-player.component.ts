@@ -21,6 +21,8 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { merge } from 'rxjs';
 import {
     EmbeddedMpvAudioTrack,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
@@ -77,6 +79,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
     readonly recordingFolder = input('');
+    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
 
@@ -87,6 +90,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
+    /** Clean recording stop — the host answers with EPG stop enrichment. */
+    readonly recordingStopped = output<RecordingStoppedEvent>();
 
     private readonly overlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
@@ -372,6 +377,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             playback: this.playback,
             seriesNavigation: this.seriesNavigation,
             recordingFolder: this.recordingFolder,
+            recordingMetadata: this.recordingMetadata,
+            onRecordingStopped: (event) => this.recordingStopped.emit(event),
         });
 
         if (typeof document !== 'undefined') {
@@ -683,8 +690,15 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         this.legacyInteractions.revealControls(false);
         if (this.isRecording()) {
+            const startedAt =
+                this.controller.session()?.recording?.startedAt ?? null;
             const recording = await this.controller.stopRecording();
             if (recording?.targetPath) {
+                this.recordingStopped.emit({
+                    targetPath: recording.targetPath,
+                    startedAt,
+                    endedAt: new Date().toISOString(),
+                });
                 this.setRecordingMessage(
                     this.translate.instant('EMBEDDED_MPV.PLAYER.SAVED_TO', {
                         path: recording.targetPath,
@@ -718,7 +732,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.setRecordingMessage(null);
         const recording = await this.controller.startRecording(
             this.recordingFolder(),
-            this.playback().title
+            this.playback().title,
+            this.recordingMetadata() ?? undefined
         );
         if (recording?.active) {
             this.feedback.flash(

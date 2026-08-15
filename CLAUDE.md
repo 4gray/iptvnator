@@ -696,6 +696,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `epgChannelMappings` (`epg_channel_mappings`) - Manual EPG channel mappings (defined in `epg-mapping.schema.ts`, re-exported by `schema.ts`)
     - `playbackPositions` - Resume positions
     - `downloads` - Download manager state
+    - `recordings` - Live-TV recording lifecycle + start-time channel/EPG snapshot (defined in `schema.ts` beside `downloads`)
     - `appState` - Key-value app state (also tracks one-off data migrations)
     - `tmdbMetadata` - TMDB enrichment cache (details payloads + search match resolutions, keyed by media type/lookup key/language)
     - `vodSourcePins` (`vod_source_pins`) - VOD multi-source per-movie preferred playlist, keyed by a portal-agnostic match key (defined in `vod-source-pins.schema.ts`, re-exported by `schema.ts`)
@@ -1229,6 +1230,28 @@ engine` (restart required) or
 - If a finalized file disappears while a focused detail is open, the
   authoritative download list refreshes and returns to the manager. A failed
   redirect leaves an actionable missing-file state with Back and Retry.
+- Live-TV recordings (Embedded MPV `stream-record`) are tracked beside
+  downloads in their own `recordings` table (no unique index, no playlist FK —
+  recordings survive source deletion with a `playlistDisplayLabel` name
+  snapshot). `EmbeddedMpvRecordingTracker` persists the lifecycle: start/stop
+  hooks in `EmbeddedMpvNativeService` plus a session-snapshot observer for the
+  implicit stops (stream-replacement auto-stop, helper crash, session
+  error/close); startup repair turns rows a hard kill left in `recording` into
+  playable `interrupted` partials or `failed`. Channel/EPG metadata is
+  snapshotted at recording START (each live host passes
+  `RecordingStartMetadata` down through the player chain; provider EPG never
+  reaches SQLite so post-hoc lookup is impossible), and a clean stop triggers
+  renderer-side enrichment: programs overlapping the recorded window, keyed by
+  target path (`RECORDINGS_UPDATE_PROGRAMS`) — that covers recordings spanning
+  a program boundary. Own `RECORDINGS_*` IPC + `RECORDINGS_UPDATE_EVENT` ping
+  and a separate `supportsRecordings` capability gate (never folded into the
+  all-or-nothing `supportsDownloads` allowlist). Manager UI: `recording`
+  filter chip, "Recording now" queue section (REC pulse + elapsed, live size,
+  Stop, no percentage), 16:9 channel-logo "Recordings" library cards, Needs
+  attention with Remove only (a broadcast cannot be re-recorded), focused
+  detail at `/workspace/downloads/recording/:recordingId` listing covered
+  programs. Reveal/play shell IPCs are gated on the recordings table
+  (`isManagedRecordingFile`).
 - Canonical contract: `docs/architecture/download-manager.md`; provider handoff:
   `docs/architecture/portal-detail-navigation.md`.
 

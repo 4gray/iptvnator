@@ -1170,7 +1170,9 @@
             "FAILED": "Échec",
             "CANCELED": "Annulé",
             "PAUSED": "En pause",
-            "FILE_MISSING": "File missing"
+            "FILE_MISSING": "File missing",
+            "RECORDING": "Enregistrement",
+            "INTERRUPTED": "Interrompu"
         },
         "ACTIVE_COUNT": "{{count}} active",
         "TRACKED_DOWNLOADS": "Tracked downloads",
@@ -1185,7 +1187,22 @@
             "ALL": "All",
             "MOVIES": "Movies",
             "SERIES": "Series",
-            "IN_PROGRESS": "In progress"
+            "IN_PROGRESS": "In progress",
+            "RECORDINGS": "Enregistrements"
+        },
+        "RECORDING_NOW": "Enregistrement en cours",
+        "RECORDINGS": "Enregistrements",
+        "RECORDING_BADGE": "Enregistrement",
+        "STOP_RECORDING": "Arrêter l'enregistrement",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Retirer l'enregistrement du gestionnaire ?",
+            "MESSAGE": "Cela retire l'entrée d'IPTVnator. Le fichier enregistré reste sur le disque."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Programmes enregistrés",
+            "RECORDED_FROM": "Enregistré depuis {{playlist}}",
+            "MISSING_BODY": "Le fichier d'enregistrement n'est plus sur le disque. Une diffusion en direct ne peut pas être réenregistrée, mais vous pouvez retirer l'entrée du gestionnaire.",
+            "FAILED_BODY": "Cet enregistrement a échoué et n'a produit aucun fichier lisible."
         },
         "REMOVE_FROM_MANAGER": "Remove from manager",
         "REMOVE_COMPLETED_DIALOG": {

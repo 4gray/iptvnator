@@ -281,7 +281,71 @@ variants, contextual buttons, and theme-aware styling.
   ignores search/category filtering while honoring route scope, so hiding a
   card never makes its disk footprint appear to vanish.
 
+## Live-TV recordings
+
+Recordings made with the embedded MPV player live beside downloads, not inside
+them: a recording has no source URL to re-fetch, no byte totals, and no
+retry/resume semantics, so it gets its own `recordings` SQLite table (no
+unique index — re-recording a channel is normal; `playlist_id` carries no FK
+so recordings survive source deletion, with `playlist_name` stored as a
+display snapshot via `playlistDisplayLabel`).
+
+- **Lifecycle tracking** is owned by `EmbeddedMpvRecordingTracker`
+  (`apps/electron-backend/src/app/services/embedded-mpv-recording-tracker.ts`):
+  explicit start/stop hooks in `EmbeddedMpvNativeService` plus a
+  session-snapshot observer for the implicit stop paths (stream-replacement
+  auto-stop, frame-copy helper crash, session error/close). Statuses:
+  `recording` → `completed` (clean stop, `fs.stat` size) / `interrupted`
+  (implicit stop with a playable partial — MPEG-TS is streamable) / `failed`
+  (start error or absent/empty file; the empty pre-reserved file is
+  unlinked). Startup repair (`recording-recovery.ts`,
+  `reconcileStaleRecordings`) resolves rows a hard kill left in `recording`.
+- **Metadata is captured at recording start** (EPG is time-sensitive and
+  Xtream/Stalker EPG never reaches SQLite): each live host — M3U player,
+  Xtream live layout, Stalker ITV layout, unified live tab — assembles a
+  `RecordingStartMetadata` (channel name/logo, playlist id + display-label
+  snapshot, source type, EPG key, current program) that flows
+  `WebPlayerViewComponent → EmbeddedMpvPlayerComponent →
+  EmbeddedMpvControlsAdapter → EmbeddedMpvRecordingStartOptions.metadata`.
+  On a clean stop the player emits `recordingStopped` and the host answers
+  with **stop enrichment**: it filters its in-memory program list to the
+  programs overlapping `[startedAt, endedAt]`
+  (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
+  sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
+  target path — that is how a recording spanning a program boundary lists
+  every covered show. Implicit stops keep the start snapshot.
+- **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
+  REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated
+  `RECORDINGS_UPDATE_EVENT` bare ping (not shared with downloads, so
+  recording transitions do not force availability-probed download refetches).
+  Reveal/play are gated by `isManagedRecordingFile` — the path must exist in
+  the recordings table, mirroring `isManagedDownloadFile`, so the
+  renderer-supplied recording directory stays a write-location preference
+  rather than a shell-access grant. `RECORDINGS_STOP` resolves the row's
+  `session_id` and stops through `EmbeddedMpvNativeService`, so the manager
+  can stop a recording without knowing about MPV sessions. Remove keeps
+  finished files on disk (same contract as downloads) and only cleans up a
+  failed row's leftover reservation. Renderer gate: a separate
+  `supportsRecordings` capability allowlist — deliberately NOT folded into
+  `supportsDownloads`, which would strip older builds of the whole manager.
+- **UI**: `RecordingsService` mirrors `DownloadsService` (one global list,
+  coalesced refreshes via `DownloadListLoadState`, refetch on ping). The
+  manager adds a `recording` filter chip; `recording-manager.viewmodel.ts`
+  partitions rows into a "Recording now" queue section (pulsing REC chip with
+  elapsed time and live file size — never a percentage, the length is
+  unknown), a recordings-only Needs attention list (Remove only: a broadcast
+  cannot be re-recorded), and a "Recordings" library section of 16:9
+  channel-logo cards (`recording-queue.component.*`,
+  `recording-library.component.*`). Card titles use the captured program
+  title, falling back to channel + start time. The focused detail
+  (`recording-detail/`, route `/workspace/downloads/recording/:recordingId`,
+  context panel and route search hidden via `workspace-shell-route.utils.ts`)
+  shows the recorded time range, covered programs when a recording spans ≥2
+  shows, file path, and Play/Reveal/Stop/Remove; a missing file degrades to
+  Back + Remove.
+
 Keeping the backend queue, IPC handlers, shared schema, and renderer signals
 synchronized minimizes drift between platform rules and the UI. Future work
-might cover recordings, queue reordering, bulk pause/cancel actions, disk-free
-space telemetry, or playback analytics.
+might cover queue reordering, bulk pause/cancel actions, disk-free space
+telemetry, playback analytics, or frame-copy screenshot posters for
+recordings.

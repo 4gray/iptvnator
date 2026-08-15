@@ -1170,7 +1170,9 @@
             "FAILED": "فشل",
             "CANCELED": "تلغى",
             "PAUSED": "موقوف مؤقتاً",
-            "FILE_MISSING": "File missing"
+            "FILE_MISSING": "File missing",
+            "RECORDING": "جاري التسجيل",
+            "INTERRUPTED": "تقطع"
         },
         "ACTIVE_COUNT": "{{count}} active",
         "TRACKED_DOWNLOADS": "Tracked downloads",
@@ -1185,7 +1187,22 @@
             "ALL": "All",
             "MOVIES": "Movies",
             "SERIES": "Series",
-            "IN_PROGRESS": "In progress"
+            "IN_PROGRESS": "In progress",
+            "RECORDINGS": "التسجيلات"
+        },
+        "RECORDING_NOW": "كيتسجل دابا",
+        "RECORDINGS": "التسجيلات",
+        "RECORDING_BADGE": "تسجيل",
+        "STOP_RECORDING": "وقّف التسجيل",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "نحيدو التسجيل من مدير التحميلات؟",
+            "MESSAGE": "هاد العملية كتحيد هاد العنصر من IPTVnator. الملف المسجل كيبقى على القرص."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "البرامج المسجلة",
+            "RECORDED_FROM": "تسجل من {{playlist}}",
+            "MISSING_BODY": "ملف التسجيل ما بقاش على القرص. البث المباشر ما يمكنش يتعاود تسجيلو، ولكن تقدر تحيد هاد العنصر من مدير التحميلات.",
+            "FAILED_BODY": "هاد التسجيل فشل وما عطى حتى ملف يقدر يتشغل."
         },
         "REMOVE_FROM_MANAGER": "Remove from manager",
         "REMOVE_COMPLETED_DIALOG": {

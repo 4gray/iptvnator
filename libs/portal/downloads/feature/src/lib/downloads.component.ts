@@ -18,6 +18,8 @@ import {
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
+    type RecordingItem,
+    RecordingsService,
 } from '@iptvnator/services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import {
@@ -43,13 +45,25 @@ import {
 } from './download-manager.viewmodel';
 import { DownloadQueueComponent } from './download-queue.component';
 import { DownloadedSeriesDialogComponent } from './downloaded-series-dialog.component';
+import type {
+    RecordingActionResult,
+    RecordingItemAction,
+} from './recording-actions';
+import { RecordingLibraryComponent } from './recording-library.component';
+import { RecordingManagerActionsService } from './recording-manager-actions.service';
+import { buildRecordingManagerViewModel } from './recording-manager.viewmodel';
+import { RecordingQueueComponent } from './recording-queue.component';
 
 const FILTER_KEYS = {
     all: 'DOWNLOADS.FILTER.ALL',
     movie: 'DOWNLOADS.FILTER.MOVIES',
     series: 'DOWNLOADS.FILTER.SERIES',
     inProgress: 'DOWNLOADS.FILTER.IN_PROGRESS',
+    recording: 'DOWNLOADS.FILTER.RECORDINGS',
 } as const;
+
+/** Cadence for refreshing the live file size of an active recording. */
+const ACTIVE_RECORDING_REFRESH_MS = 15_000;
 
 @Component({
     selector: 'app-downloads',
@@ -59,6 +73,7 @@ const FILTER_KEYS = {
     providers: [
         DownloadLibraryNavigationService,
         DownloadManagerActionsService,
+        RecordingManagerActionsService,
     ],
     imports: [
         DownloadLibraryComponent,
@@ -68,6 +83,8 @@ const FILTER_KEYS = {
         MatDialogModule,
         MatIcon,
         MatTooltip,
+        RecordingLibraryComponent,
+        RecordingQueueComponent,
         TranslatePipe,
     ],
 })
@@ -83,6 +100,8 @@ export class DownloadsComponent {
     private readonly shellActions = inject(PORTAL_SHELL_ACTIONS);
     private readonly destroyRef = inject(DestroyRef);
     readonly downloadsService = inject(DownloadsService);
+    readonly recordingsService = inject(RecordingsService);
+    private readonly recordingActions = inject(RecordingManagerActionsService);
 
     readonly pendingIds = this.actions.pendingIds;
     readonly isClearing = this.actions.isClearing;
@@ -139,20 +158,38 @@ export class DownloadsComponent {
             searchTerm: this.searchTerm(),
         })
     );
+    readonly recordingsAvailable = this.recordingsService.isAvailable;
+    readonly recordingPendingIds = this.recordingActions.pendingIds;
+    readonly recordingModel = computed(() =>
+        buildRecordingManagerViewModel({
+            recordings: this.recordingsAvailable()
+                ? this.recordingsService.recordings()
+                : [],
+            scopePlaylistId: this.playlistId() || undefined,
+            filter: this.selectedCategoryId(),
+            searchTerm: this.searchTerm(),
+        })
+    );
     readonly categories = computed(() => this.buildCategories());
     readonly collectionContext = createPortalCollectionContext({
         ctx: this.collectionCtx,
         categories: this.categories,
     });
     readonly hasScopedDownloads = computed(
-        () => this.model().scopedItems.length > 0
+        () =>
+            this.model().scopedItems.length > 0 ||
+            this.recordingModel().count > 0
     );
     readonly hasVisibleDownloads = computed(() => {
         const model = this.model();
+        const recordings = this.recordingModel();
         return (
             model.active.length +
                 model.attention.length +
-                model.library.length >
+                model.library.length +
+                recordings.active.length +
+                recordings.attention.length +
+                recordings.library.length >
             0
         );
     });
@@ -166,6 +203,21 @@ export class DownloadsComponent {
 
     constructor() {
         void this.downloadsService.loadDownloads();
+        if (this.recordingsAvailable()) {
+            void this.recordingsService.loadRecordings();
+        }
+        // Live file-size for an active recording: the backend only pings on
+        // transitions, so a modest poll keeps the growing size honest.
+        effect((onCleanup) => {
+            if (this.recordingModel().active.length === 0) {
+                return;
+            }
+            const intervalId = window.setInterval(
+                () => void this.recordingsService.loadRecordings(),
+                ACTIVE_RECORDING_REFRESH_MS
+            );
+            onCleanup(() => window.clearInterval(intervalId));
+        });
         effect(() => {
             const routeFilter = this.routeFilter();
             untracked(() => this.collectionContext.setCategoryId(routeFilter));
@@ -217,6 +269,24 @@ export class DownloadsComponent {
 
     async runAction(action: DownloadItemAction): Promise<DownloadActionResult> {
         return this.actions.run(action);
+    }
+
+    async runRecordingAction(
+        action: RecordingItemAction
+    ): Promise<RecordingActionResult> {
+        return this.recordingActions.run(action);
+    }
+
+    openRecordingDetail(item: RecordingItem): void {
+        if (this.recordingPendingIds().has(item.id)) {
+            return;
+        }
+        // Recordings have a single global detail route in v1 — portal-scoped
+        // managers navigate there too.
+        void this.router.navigate(
+            ['/workspace', 'downloads', 'recording', String(item.id)],
+            { state: { returnUrl: this.router.url } }
+        );
     }
 
     clearFinished(): void {
@@ -294,6 +364,15 @@ export class DownloadsComponent {
             count: counts.inProgress,
             parent_id: 0,
         });
+        if (this.recordingsAvailable()) {
+            categories.push({
+                id: 5,
+                category_id: 'recording',
+                category_name: this.translate.instant(FILTER_KEYS.recording),
+                count: this.recordingModel().count,
+                parent_id: 0,
+            });
+        }
         return categories;
     }
 }

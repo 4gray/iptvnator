@@ -113,6 +113,13 @@ export const routes: Routes = [
                     ),
             },
             {
+                path: 'downloads/recording/:recordingId',
+                loadComponent: () =>
+                    import('@iptvnator/portal/downloads/feature').then(
+                        (c) => c.RecordingDetailComponent
+                    ),
+            },
+            {
                 path: 'downloads/:downloadId',
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(

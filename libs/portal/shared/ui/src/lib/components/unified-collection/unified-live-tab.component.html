@@ -64,9 +64,11 @@
                         [title]="activeDetail()?.playback?.title ?? ''"
                         [playback]="inlinePlayback()"
                         [playerOverride]="player()"
+                        [recordingMetadata]="recordingMetadata()"
                         (externalFallbackRequested)="
                             handleExternalFallbackRequest($event)
                         "
+                        (recordingStopped)="onRecordingStopped($event)"
                     />
                 }
             </div>

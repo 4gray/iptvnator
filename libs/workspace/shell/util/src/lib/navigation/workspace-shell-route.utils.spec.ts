@@ -77,6 +77,30 @@ describe('workspace-shell-route.utils', () => {
         );
 
         expect(
+            parseWorkspaceShellRoute('/workspace/downloads/recording/7')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                context: null,
+                section: null,
+                contextPanel: 'none',
+                searchMode: 'none',
+                usesQuerySearch: false,
+            })
+        );
+
+        // The bare recording segment without an id is NOT a focused detail.
+        expect(
+            parseWorkspaceShellRoute('/workspace/downloads/recording')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+
+        expect(
             parseWorkspaceShellRoute('/workspace/xtreams/pl-1/downloads/42')
         ).toEqual(
             expect.objectContaining({

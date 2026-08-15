@@ -74,7 +74,7 @@ function libraryItemIds(entities: readonly DownloadLibraryEntity[]): number[] {
 }
 
 describe('normalizeDownloadFilter', () => {
-    it.each(['all', 'movie', 'series', 'in-progress'] as const)(
+    it.each(['all', 'movie', 'series', 'in-progress', 'recording'] as const)(
         'keeps the known %s filter',
         (filter) => {
             expect(normalizeDownloadFilter(filter)).toBe(filter);
@@ -157,6 +157,20 @@ describe('buildDownloadManagerViewModel', () => {
         expect(rowIds(inProgress.active)).toEqual([1]);
         expect(inProgress.attention).toEqual([]);
         expect(inProgress.library).toEqual([]);
+    });
+
+    it('hides every download row under the recording filter but keeps counts', () => {
+        const downloads = [
+            download(1, { status: 'queued' }),
+            download(2, { status: 'failed' }),
+            download(3, { status: 'completed' }),
+        ];
+        const model = build(downloads, { filter: 'recording' });
+        expect(model.active).toEqual([]);
+        expect(model.attention).toEqual([]);
+        expect(model.library).toEqual([]);
+        // Chip counts stay derived from the unfiltered scoped set.
+        expect(model.counts.all).toBe(3);
     });
 
     it('keeps queued, downloading, and paused rows in the in-progress filter only', () => {

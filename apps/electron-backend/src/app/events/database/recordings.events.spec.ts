@@ -1,0 +1,392 @@
+type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
+
+const registeredHandlers = new Map<string, IpcHandler>();
+const mockGetDatabase = jest.fn();
+const mockBroadcast = jest.fn();
+const mockStopRecording = jest.fn();
+const mockIsAvailableDownloadFile = jest.fn();
+const mockGetAvailabilityAsync = jest.fn();
+const mockUnlink = jest.fn();
+const mockOpenPath = jest.fn();
+const mockShowItemInFolder = jest.fn();
+
+function getHandler(channel: string): IpcHandler {
+    const handler = registeredHandlers.get(channel);
+    if (!handler) {
+        throw new Error(`Expected IPC handler for ${channel}`);
+    }
+    return handler;
+}
+
+async function setupRecordingsEventsHarness(): Promise<void> {
+    jest.resetModules();
+    registeredHandlers.clear();
+    mockGetDatabase.mockReset();
+    mockBroadcast.mockReset();
+    mockStopRecording.mockReset();
+    mockIsAvailableDownloadFile.mockReset().mockReturnValue(true);
+    mockGetAvailabilityAsync.mockReset().mockResolvedValue('available');
+    mockUnlink.mockReset().mockResolvedValue(undefined);
+    mockOpenPath.mockReset().mockResolvedValue('');
+    mockShowItemInFolder.mockReset();
+
+    jest.doMock('electron', () => ({
+        ipcMain: {
+            handle: jest.fn((channel: string, handler: IpcHandler) => {
+                registeredHandlers.set(channel, handler);
+            }),
+        },
+        shell: {
+            openPath: mockOpenPath,
+            showItemInFolder: mockShowItemInFolder,
+        },
+    }));
+    jest.doMock('node:fs/promises', () => ({
+        ...jest.requireActual<typeof import('node:fs/promises')>(
+            'node:fs/promises'
+        ),
+        unlink: mockUnlink,
+    }));
+    jest.doMock('../../database/connection', () => ({
+        getDatabase: mockGetDatabase,
+    }));
+    jest.doMock('../../services/embedded-mpv-native.service', () => ({
+        embeddedMpvNativeService: { stopRecording: mockStopRecording },
+    }));
+    jest.doMock('./recording-broadcast', () => ({
+        broadcastRecordingsUpdate: mockBroadcast,
+    }));
+    jest.doMock('./download-file-availability', () => ({
+        getDownloadFileAvailabilityAsync: mockGetAvailabilityAsync,
+        isAvailableDownloadFile: mockIsAvailableDownloadFile,
+    }));
+
+    await import('./recordings.events');
+}
+
+function recordingRow(overrides: Record<string, unknown> = {}) {
+    return {
+        id: 42,
+        sessionId: 'session-1',
+        status: 'completed',
+        filePath: '/rec/News-20260815-210000.ts',
+        fileSizeBytes: 1024,
+        channelName: 'Channel One',
+        channelLogoUrl: null,
+        playlistId: 'playlist-a',
+        playlistName: 'My provider',
+        sourceType: 'm3u',
+        epgChannelId: null,
+        programTitle: 'Evening News',
+        programDescription: null,
+        programStart: '2026-08-15T21:00:00Z',
+        programStop: '2026-08-15T21:45:00Z',
+        programsJson: null,
+        errorMessage: null,
+        startedAt: '2026-08-15T21:00:00Z',
+        endedAt: '2026-08-15T21:58:00Z',
+        createdAt: null,
+        updatedAt: null,
+        ...overrides,
+    };
+}
+
+function mockListDb(rows: unknown[]) {
+    const orderBy = jest.fn().mockResolvedValue(rows);
+    const db = {
+        select: jest.fn(() => ({
+            from: jest.fn(() => ({
+                where: jest.fn(() => ({ orderBy })),
+                orderBy,
+            })),
+        })),
+    };
+    mockGetDatabase.mockResolvedValue(db);
+    return { db, orderBy };
+}
+
+function mockRowDb(row: unknown | undefined) {
+    const deleteWhere = jest.fn().mockResolvedValue(undefined);
+    const updateWhere = jest.fn().mockResolvedValue(undefined);
+    const updateSet = jest.fn((_patch: Record<string, string>) => ({
+        where: updateWhere,
+    }));
+    const limit = jest.fn().mockResolvedValue(row ? [row] : []);
+    const db = {
+        delete: jest.fn(() => ({ where: deleteWhere })),
+        update: jest.fn(() => ({ set: updateSet })),
+        select: jest.fn(() => ({
+            from: jest.fn(() => ({
+                where: jest.fn(() => ({
+                    limit,
+                    orderBy: jest.fn(() => ({ limit })),
+                })),
+            })),
+        })),
+    };
+    mockGetDatabase.mockResolvedValue(db);
+    return { db, deleteWhere, updateSet, updateWhere };
+}
+
+describe('recordings events', () => {
+    beforeEach(async () => {
+        await setupRecordingsEventsHarness();
+    });
+
+    describe('RECORDINGS_GET_LIST', () => {
+        it('decorates rows with availability and decoded programs', async () => {
+            mockListDb([
+                recordingRow({
+                    programsJson: JSON.stringify([
+                        {
+                            title: 'Evening News',
+                            start: '2026-08-15T21:00:00Z',
+                            stop: '2026-08-15T21:45:00Z',
+                        },
+                        {
+                            title: 'Weather',
+                            start: '2026-08-15T21:45:00Z',
+                            stop: '2026-08-15T22:10:00Z',
+                        },
+                    ]),
+                }),
+            ]);
+
+            const result = (await getHandler('RECORDINGS_GET_LIST')(
+                null
+            )) as Array<Record<string, unknown>>;
+
+            expect(result).toHaveLength(1);
+            expect(result[0]).toEqual(
+                expect.objectContaining({
+                    id: 42,
+                    fileAvailability: 'available',
+                    channelName: 'Channel One',
+                })
+            );
+            expect(result[0].programs).toHaveLength(2);
+            // Availability probe sees interrupted/completed as completed.
+            expect(mockGetAvailabilityAsync).toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+        });
+
+        it('probes interrupted rows like completed ones but not failed rows', async () => {
+            mockListDb([
+                recordingRow({ status: 'interrupted' }),
+                recordingRow({ id: 43, status: 'failed' }),
+            ]);
+            await getHandler('RECORDINGS_GET_LIST')(null);
+            expect(mockGetAvailabilityAsync.mock.calls[0][0].status).toBe(
+                'completed'
+            );
+            expect(mockGetAvailabilityAsync.mock.calls[1][0].status).toBe(
+                'failed'
+            );
+        });
+    });
+
+    describe('RECORDINGS_STOP', () => {
+        it('stops through the embedded MPV service for an active row', async () => {
+            mockRowDb(
+                recordingRow({ status: 'recording', endedAt: null })
+            );
+            await expect(
+                getHandler('RECORDINGS_STOP')(null, 42)
+            ).resolves.toEqual({ success: true });
+            expect(mockStopRecording).toHaveBeenCalledWith('session-1');
+        });
+
+        it('refuses rows that are not active or lack a session id', async () => {
+            mockRowDb(recordingRow());
+            await expect(
+                getHandler('RECORDINGS_STOP')(null, 42)
+            ).resolves.toEqual({
+                error: 'Recording is not active',
+                success: false,
+            });
+
+            mockRowDb(
+                recordingRow({ status: 'recording', sessionId: null })
+            );
+            await expect(
+                getHandler('RECORDINGS_STOP')(null, 42)
+            ).resolves.toMatchObject({ success: false });
+            expect(mockStopRecording).not.toHaveBeenCalled();
+        });
+
+        it('normalizes a native stop failure into an error result', async () => {
+            mockRowDb(recordingRow({ status: 'recording' }));
+            mockStopRecording.mockImplementation(() => {
+                throw new Error('addon unavailable');
+            });
+            const consoleSpy = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+            await expect(
+                getHandler('RECORDINGS_STOP')(null, 42)
+            ).resolves.toEqual({ error: 'addon unavailable', success: false });
+            consoleSpy.mockRestore();
+        });
+    });
+
+    describe('RECORDINGS_REMOVE', () => {
+        it('removes a finished row, keeps its file, and broadcasts', async () => {
+            const { deleteWhere } = mockRowDb(recordingRow());
+            await expect(
+                getHandler('RECORDINGS_REMOVE')(null, 42)
+            ).resolves.toEqual({ success: true });
+            expect(mockUnlink).not.toHaveBeenCalled();
+            expect(deleteWhere).toHaveBeenCalledTimes(1);
+            expect(mockBroadcast).toHaveBeenCalledTimes(1);
+        });
+
+        it('cleans up the leftover file for failed rows, best-effort', async () => {
+            mockRowDb(recordingRow({ status: 'failed' }));
+            mockUnlink.mockRejectedValue(new Error('already gone'));
+            await expect(
+                getHandler('RECORDINGS_REMOVE')(null, 42)
+            ).resolves.toEqual({ success: true });
+            expect(mockUnlink).toHaveBeenCalledWith(
+                '/rec/News-20260815-210000.ts'
+            );
+        });
+
+        it('refuses to remove an active recording', async () => {
+            const { deleteWhere } = mockRowDb(
+                recordingRow({ status: 'recording' })
+            );
+            await expect(
+                getHandler('RECORDINGS_REMOVE')(null, 42)
+            ).resolves.toMatchObject({ success: false });
+            expect(deleteWhere).not.toHaveBeenCalled();
+        });
+
+        it('reports a missing row', async () => {
+            mockRowDb(undefined);
+            await expect(
+                getHandler('RECORDINGS_REMOVE')(null, 42)
+            ).resolves.toEqual({
+                error: 'Recording not found',
+                success: false,
+            });
+        });
+    });
+
+    describe('RECORDINGS_UPDATE_PROGRAMS', () => {
+        const programs = [
+            {
+                title: 'Evening News',
+                start: '2026-08-15T21:00:00Z',
+                stop: '2026-08-15T21:45:00Z',
+            },
+        ];
+
+        it('rejects invalid payloads without touching the database', async () => {
+            await expect(
+                getHandler('RECORDINGS_UPDATE_PROGRAMS')(null, '', programs)
+            ).resolves.toMatchObject({ success: false });
+            await expect(
+                getHandler('RECORDINGS_UPDATE_PROGRAMS')(
+                    null,
+                    '/rec/a.ts',
+                    'not-an-array'
+                )
+            ).resolves.toMatchObject({ success: false });
+            expect(mockGetDatabase).not.toHaveBeenCalled();
+        });
+
+        it('writes programs and keeps an existing headline program', async () => {
+            const { updateSet } = mockRowDb(recordingRow());
+            await expect(
+                getHandler('RECORDINGS_UPDATE_PROGRAMS')(
+                    null,
+                    '/rec/News-20260815-210000.ts',
+                    programs
+                )
+            ).resolves.toEqual({ success: true });
+            const patch = updateSet.mock.calls[0][0];
+            expect(JSON.parse(patch.programsJson)).toHaveLength(1);
+            expect(patch).not.toHaveProperty('programTitle');
+            expect(mockBroadcast).toHaveBeenCalledTimes(1);
+        });
+
+        it('backfills the headline program when the start snapshot had none', async () => {
+            const { updateSet } = mockRowDb(
+                recordingRow({ programTitle: null })
+            );
+            await getHandler('RECORDINGS_UPDATE_PROGRAMS')(
+                null,
+                '/rec/News-20260815-210000.ts',
+                programs
+            );
+            expect(updateSet.mock.calls[0][0]).toEqual(
+                expect.objectContaining({
+                    programTitle: 'Evening News',
+                    programStart: '2026-08-15T21:00:00Z',
+                    programStop: '2026-08-15T21:45:00Z',
+                })
+            );
+        });
+
+        it('reports when no terminal row matches the path', async () => {
+            mockRowDb(undefined);
+            await expect(
+                getHandler('RECORDINGS_UPDATE_PROGRAMS')(
+                    null,
+                    '/rec/unknown.ts',
+                    programs
+                )
+            ).resolves.toEqual({
+                error: 'Recording not found',
+                success: false,
+            });
+        });
+    });
+
+    describe('file actions', () => {
+        it('gates reveal on the recordings table and availability', async () => {
+            mockRowDb(undefined);
+            await expect(
+                getHandler('RECORDINGS_REVEAL_FILE')(null, '/rec/foreign.ts')
+            ).resolves.toEqual({ error: 'File not found', success: false });
+            expect(mockShowItemInFolder).not.toHaveBeenCalled();
+
+            mockRowDb(recordingRow());
+            await expect(
+                getHandler('RECORDINGS_REVEAL_FILE')(
+                    null,
+                    '/rec/News-20260815-210000.ts'
+                )
+            ).resolves.toEqual({ success: true });
+            expect(mockShowItemInFolder).toHaveBeenCalledWith(
+                '/rec/News-20260815-210000.ts'
+            );
+        });
+
+        it('refuses managed paths whose file is gone', async () => {
+            mockRowDb(recordingRow());
+            mockIsAvailableDownloadFile.mockReturnValue(false);
+            await expect(
+                getHandler('RECORDINGS_PLAY_FILE')(
+                    null,
+                    '/rec/News-20260815-210000.ts'
+                )
+            ).resolves.toEqual({ error: 'File not found', success: false });
+            expect(mockOpenPath).not.toHaveBeenCalled();
+        });
+
+        it('plays a managed available file', async () => {
+            mockRowDb(recordingRow());
+            await expect(
+                getHandler('RECORDINGS_PLAY_FILE')(
+                    null,
+                    '/rec/News-20260815-210000.ts'
+                )
+            ).resolves.toEqual({ success: true });
+            expect(mockOpenPath).toHaveBeenCalledWith(
+                '/rec/News-20260815-210000.ts'
+            );
+        });
+    });
+});

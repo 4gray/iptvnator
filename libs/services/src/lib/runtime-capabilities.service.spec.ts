@@ -395,6 +395,39 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsDownloads).toBe(true);
     });
 
+    it('gates recordings separately from the downloads allowlist', () => {
+        testWindow.electron = {
+            recordingsGetList: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsRecordings).toBe(false);
+
+        testWindow.electron = {
+            recordingsGetList: jest.fn(),
+            recordingsGet: jest.fn(),
+            recordingsStop: jest.fn(),
+            recordingsRemove: jest.fn(),
+            recordingsUpdatePrograms: jest.fn(),
+            recordingsRevealFile: jest.fn(),
+            recordingsPlayFile: jest.fn(),
+        };
+
+        expect(service.supportsRecordings).toBe(false);
+
+        testWindow.electron = {
+            ...testWindow.electron,
+            onRecordingsUpdate: jest.fn(),
+        };
+
+        expect(service.supportsRecordings).toBe(true);
+        // An older build without the recordings bridge keeps the download
+        // manager: the downloads allowlist is untouched by recordings.
+        expect(service.supportsDownloads).toBe(false);
+    });
+
     it('requires both desktop file-save preload methods', () => {
         testWindow.electron = {
             saveFileDialog: jest.fn(),

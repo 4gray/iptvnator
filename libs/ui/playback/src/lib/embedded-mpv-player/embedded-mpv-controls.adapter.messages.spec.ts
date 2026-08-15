@@ -248,6 +248,75 @@ describe('EmbeddedMpvControlsAdapter recording messages and lifecycle', () => {
         expect(adapter.state().audioTracks[0].label).toBe('DE Audio 1');
     });
 
+    it('forwards the host recording metadata into the start command', async () => {
+        const metadata = {
+            channelName: 'Channel One',
+            playlistId: 'playlist-a',
+            sourceType: 'm3u' as const,
+            currentProgram: {
+                title: 'Evening News',
+                start: '2026-07-16T10:00:00.000Z',
+                stop: '2026-07-16T11:00:00.000Z',
+            },
+        };
+        adapter.configure({
+            playback,
+            seriesNavigation,
+            recordingFolder,
+            recordingMetadata: signal(metadata),
+        });
+        TestBed.tick();
+
+        adapter.commands.toggleRecording();
+        await flushPromises();
+
+        expect(controller.startRecording).toHaveBeenCalledWith(
+            '/recordings',
+            LIVE_PLAYBACK.title,
+            metadata
+        );
+    });
+
+    it('notifies the host exactly once per clean stop (stop enrichment)', async () => {
+        const targetPath = '/recordings/live.ts';
+        const startedAt = '2026-07-16T10:00:00.000Z';
+        const onRecordingStopped = jest.fn();
+        adapter.configure({
+            playback,
+            seriesNavigation,
+            recordingFolder,
+            onRecordingStopped,
+        });
+        controller.session.set(
+            session({ recording: { active: true, targetPath, startedAt } })
+        );
+        TestBed.tick();
+
+        adapter.commands.toggleRecording();
+        await flushPromises();
+        controller.session.set(
+            session({ recording: { active: false, targetPath } })
+        );
+        TestBed.tick();
+
+        expect(onRecordingStopped).toHaveBeenCalledTimes(1);
+        expect(onRecordingStopped).toHaveBeenCalledWith({
+            targetPath,
+            startedAt,
+            endedAt: expect.any(String),
+        });
+
+        // Repeated snapshots of the settled stop never re-fire the callback.
+        controller.session.set(
+            session({
+                recording: { active: false, targetPath },
+                positionSeconds: 5,
+            })
+        );
+        TestBed.tick();
+        expect(onRecordingStopped).toHaveBeenCalledTimes(1);
+    });
+
     it('relocalizes saved feedback for every translate event source', async () => {
         const targetPath = '/recordings/live.ts';
         controller.session.set(

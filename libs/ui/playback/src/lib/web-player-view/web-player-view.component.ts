@@ -22,6 +22,8 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type Channel,
+    type RecordingStartMetadata,
+    type RecordingStoppedEvent,
     type ResolvedPortalPlayback,
     type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
@@ -110,6 +112,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly alternativeSources = input<VodSourceDescriptor[]>([]);
+    /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
+    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
 
     readonly timeUpdate = output<{
         currentTime: number;
@@ -122,6 +126,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
+    /** Re-emitted embedded-MPV clean recording stop (stop enrichment). */
+    readonly recordingStopped = output<RecordingStoppedEvent>();
 
     readonly showCaptions = computed(
         () => this.settingsStore.showCaptions?.() ?? false

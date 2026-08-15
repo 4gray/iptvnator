@@ -1170,7 +1170,9 @@
             "FAILED": "Απέτυχε",
             "CANCELED": "Ακυρώθηκε",
             "PAUSED": "Σε παύση",
-            "FILE_MISSING": "File missing"
+            "FILE_MISSING": "File missing",
+            "RECORDING": "Εγγραφή",
+            "INTERRUPTED": "Διακόπηκε"
         },
         "ACTIVE_COUNT": "{{count}} active",
         "TRACKED_DOWNLOADS": "Tracked downloads",
@@ -1185,7 +1187,22 @@
             "ALL": "All",
             "MOVIES": "Movies",
             "SERIES": "Series",
-            "IN_PROGRESS": "In progress"
+            "IN_PROGRESS": "In progress",
+            "RECORDINGS": "Εγγραφές"
+        },
+        "RECORDING_NOW": "Εγγραφή σε εξέλιξη",
+        "RECORDINGS": "Εγγραφές",
+        "RECORDING_BADGE": "Εγγραφή",
+        "STOP_RECORDING": "Διακοπή εγγραφής",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Αφαίρεση εγγραφής από τη διαχείριση;",
+            "MESSAGE": "Αυτό αφαιρεί την καταχώριση από το IPTVnator. Το αρχείο εγγραφής παραμένει στον δίσκο."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Εγγεγραμμένα προγράμματα",
+            "RECORDED_FROM": "Εγγράφηκε από {{playlist}}",
+            "MISSING_BODY": "Το αρχείο εγγραφής δεν βρίσκεται πλέον στον δίσκο. Μια ζωντανή μετάδοση δεν μπορεί να εγγραφεί ξανά, αλλά μπορείτε να αφαιρέσετε την καταχώριση από τη διαχείριση.",
+            "FAILED_BODY": "Αυτή η εγγραφή απέτυχε και δεν δημιούργησε αρχείο που να μπορεί να αναπαραχθεί."
         },
         "REMOVE_FROM_MANAGER": "Remove from manager",
         "REMOVE_COMPLETED_DIALOG": {

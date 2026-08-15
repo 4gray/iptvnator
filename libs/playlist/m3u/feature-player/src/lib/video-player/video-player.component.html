@@ -103,9 +103,11 @@
                                     : (playerSettings.player ?? null)
                             "
                             [volume]="volume()"
+                            [recordingMetadata]="recordingMetadata()"
                             (externalFallbackRequested)="
                                 handleExternalFallbackRequest($event)
                             "
+                            (recordingStopped)="onRecordingStopped($event)"
                         />
                     }
                 </div>

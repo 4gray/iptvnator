@@ -1170,7 +1170,9 @@
             "FAILED": "Sikertelen",
             "CANCELED": "Megszakítva",
             "PAUSED": "Paused",
-            "FILE_MISSING": "File missing"
+            "FILE_MISSING": "File missing",
+            "RECORDING": "Felvétel folyamatban",
+            "INTERRUPTED": "Megszakadt"
         },
         "ACTIVE_COUNT": "{{count}} active",
         "TRACKED_DOWNLOADS": "Tracked downloads",
@@ -1185,7 +1187,22 @@
             "ALL": "All",
             "MOVIES": "Movies",
             "SERIES": "Series",
-            "IN_PROGRESS": "In progress"
+            "IN_PROGRESS": "In progress",
+            "RECORDINGS": "Felvételek"
+        },
+        "RECORDING_NOW": "Folyamatban lévő felvételek",
+        "RECORDINGS": "Felvételek",
+        "RECORDING_BADGE": "Felvétel",
+        "STOP_RECORDING": "Felvétel leállítása",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Eltávolítja a felvételt a kezelőből?",
+            "MESSAGE": "A művelet eltávolítja a bejegyzést az IPTVnator alkalmazásból. A felvett fájl a lemezen marad."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Felvett műsorok",
+            "RECORDED_FROM": "Felvétel forrása: {{playlist}}",
+            "MISSING_BODY": "A felvett fájl már nem érhető el a lemezen. Az élő adás nem vehető fel újra, de a bejegyzést eltávolíthatja a kezelőből.",
+            "FAILED_BODY": "Ez a felvétel meghiúsult, és nem jött létre lejátszható fájl."
         },
         "REMOVE_FROM_MANAGER": "Remove from manager",
         "REMOVE_COMPLETED_DIALOG": {
