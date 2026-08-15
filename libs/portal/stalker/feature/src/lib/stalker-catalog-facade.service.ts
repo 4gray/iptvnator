@@ -58,6 +58,9 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         Map<number, PlaybackPositionData[]>
     >(new Map());
     private loadedPositionsForPlaylistId: string | null = null;
+    // Latest-load-wins: a positions fetch superseded while in flight must
+    // not patch the maps with another playlist's rows.
+    private positionsLoadGeneration = 0;
 
     readonly provider = 'stalker' as const;
     readonly contentType = this.stalkerStore.selectedContentType;
@@ -345,9 +348,26 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         );
     }
 
+    /**
+     * Re-read persisted positions after a renderer-initiated mutation (the
+     * season watched batch or a single toggle): the once-per-playlist load
+     * cannot see them and the runtime bridge only pushes external-player
+     * updates, so grid progress badges would stay stale on return.
+     */
+    async refreshPositions(playlistId: string): Promise<void> {
+        if (this.playlist()?.id !== playlistId) {
+            return;
+        }
+        await this.loadStalkerPositions(playlistId);
+    }
+
     private async loadStalkerPositions(playlistId: string): Promise<void> {
+        const generation = ++this.positionsLoadGeneration;
         const positions =
             await this.playbackPositions.getAllPlaybackPositions(playlistId);
+        if (generation !== this.positionsLoadGeneration) {
+            return;
+        }
 
         const positionsMap = new Map<string, PlaybackPositionData>();
         const seriesMap = new Map<number, PlaybackPositionData[]>();

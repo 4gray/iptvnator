@@ -15,6 +15,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
+import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
@@ -169,6 +170,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         PlaybackPositionRuntimeBridgeService
     );
     private readonly snackBar = inject(MatSnackBar);
+    // Optional: absent in collection-detail mounts outside the catalog.
+    private readonly catalogFacade = inject(StalkerCatalogFacadeService, {
+        optional: true,
+    });
     private readonly translateService = inject(TranslateService);
     readonly backClicked = output<void>();
     private readonly logger = createLogger('StalkerSeriesView');
@@ -1077,10 +1082,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         if (request.nextPosition) {
             await this.persistSeriesPosition(playlistId, request.nextPosition);
-            return;
+        } else {
+            await this.clearSeriesPosition(playlistId, request.contentXtreamId);
         }
-
-        await this.clearSeriesPosition(playlistId, request.contentXtreamId);
+        // Keep the catalog grid's progress badge in sync (ownership-checked
+        // inside the facade; no-op outside the catalog context).
+        await this.catalogFacade?.refreshPositions(playlistId);
     }
 
     handlePlaybackToggleRequestedFromUi(
@@ -1150,6 +1157,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 this.logger.error(
                     `Season watched toggle: ${failed} of ${outcomes.length} episodes failed`
                 );
+            }
+            if (succeeded > 0) {
+                // Partial successes changed rows too — the catalog badge
+                // must follow even when the user already moved on.
+                await this.catalogFacade?.refreshPositions(playlistId);
             }
             if (!stillCurrent()) {
                 return;

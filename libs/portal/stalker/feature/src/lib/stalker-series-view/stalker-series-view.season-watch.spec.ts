@@ -21,6 +21,7 @@ import {
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
+import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesPositionPartialSaveError } from './stalker-series-position-compatibility';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 
@@ -95,6 +96,7 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
     const clearPlaybackPosition = jest.fn();
     const savePlaybackPositionOrThrow = jest.fn();
     const clearPlaybackPositionOrThrow = jest.fn();
+    const refreshPositions = jest.fn();
 
     async function settle(): Promise<void> {
         for (let pass = 0; pass < 4; pass++) {
@@ -201,6 +203,8 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         clearPlaybackPositionOrThrow
             .mockReset()
             .mockImplementation(clearPlaybackPosition);
+        refreshPositions.mockReset();
+        refreshPositions.mockResolvedValue(undefined);
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -286,6 +290,10 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                     useValue: { open: jest.fn() },
                 },
                 {
+                    provide: StalkerCatalogFacadeService,
+                    useValue: { refreshPositions },
+                },
+                {
                     provide: TranslateService,
                     useValue: {
                         instant: (key: string) => key,
@@ -337,6 +345,8 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         const positions = fixture.componentInstance.episodePlaybackPositions();
         expect(positions.get(secondId)?.positionSeconds).toBe(100);
         expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+        // The catalog grid's progress badge source must follow the batch.
+        expect(refreshPositions).toHaveBeenCalledWith(PLAYLIST_ID);
         expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
     });
 
@@ -368,6 +378,8 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         expect(positions.has(firstId)).toBe(false);
         expect(positions.get(secondId)?.positionSeconds).toBe(100);
         expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL');
+        // A partial success changed rows — the badge refresh still runs.
+        expect(refreshPositions).toHaveBeenCalledWith(PLAYLIST_ID);
     });
 
     it('suppresses feedback when the series changes while the batch drains', async () => {
