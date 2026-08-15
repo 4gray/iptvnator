@@ -12,10 +12,14 @@ export function parseDuration(duration: string | number | undefined): number {
         return duration;
     }
 
-    // Stalker VOD episodes report durations like "45 min".
-    const minutesMatch = duration.match(/(\d+)\s*min/);
+    // Providers report "45 min" (Stalker VOD) and "1h 30min" (Xtream) —
+    // the hour component must not be dropped when both are present.
+    const minutesMatch = duration.match(/(?:(\d+)\s*h\w*)?\s*(\d+)\s*min/);
     if (minutesMatch) {
-        return parseInt(minutesMatch[1], 10) * 60;
+        return (
+            parseInt(minutesMatch[1] ?? '0', 10) * 3600 +
+            parseInt(minutesMatch[2], 10) * 60
+        );
     }
 
     const parts = duration.split(':').map(Number);
