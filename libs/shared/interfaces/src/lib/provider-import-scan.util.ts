@@ -209,6 +209,16 @@ const FIELD_MATCHERS: FieldMatcher[] = [
         validate: (value) => value.length <= 64,
     },
     {
+        field: 'serialNumber',
+        // Separator-less handout ("SN 38415545307A3"): allowed only because
+        // the hex-shaped value cannot be mistaken for prose.
+        pattern: new RegExp(
+            LABEL_LOOKBEHIND +
+                String.raw`(?:serial|s[\s._/-]?n)\s+([0-9A-Fa-f]{8,64})\b`,
+            'iu'
+        ),
+    },
+    {
         field: 'macAddress',
         // Turkish panels label it "MAC ADRESİ" — the trailing İ/ı/i is listed
         // in a class because JS case-insensitive matching does not fold the
@@ -306,11 +316,23 @@ function classifyUrl(raw: string, parsed: URL): UrlRole {
     return 'generic';
 }
 
-/** "DEVICE ID=> 1&2 <hex>" — the 1&2 marker may sit before or after the separator. */
+/**
+ * The "both device IDs" marker: 1 and 2 joined by any symbol run ("1&2",
+ * "1/2", "1💥2" — superscript ¹² are already folded to 1/2 by NFKC) or by
+ * plain whitespace. Bare "12" stays a number, not a marker.
+ */
+const DUAL_MARKER = String.raw`1(?:\s*[^\p{L}\p{N}\s]+\s*|\s+)2`;
+
+/**
+ * "DEVICE ID=> 1&2 <hex>" — the marker may sit before or after the
+ * separator, and the separator itself may be plain whitespace ("DeviceID
+ * 1💥2 <hex>"), which is safe here only because the 16–64-hex value shape
+ * cannot be prose.
+ */
 const DUAL_DEVICE_ID_PATTERN = new RegExp(
     LABEL_LOOKBEHIND +
         String.raw`device[\s_-]*ids?` +
-        `(?:[\\s_-]*1\\s*[&/+]\\s*2${LABEL_SEPARATOR}|${LABEL_SEPARATOR}1\\s*[&/+]\\s*2\\s+)` +
+        `(?:[\\s_-]*${DUAL_MARKER}(?:${LABEL_SEPARATOR}|\\s+)|(?:${LABEL_SEPARATOR}|\\s+)${DUAL_MARKER}\\s+)` +
         String.raw`([0-9A-Fa-f]{16,64})\b`,
     'iu'
 );
@@ -391,6 +413,19 @@ export function labeledHostUrl(labeled: LabeledFields): string | undefined {
         return undefined;
     }
     if (/^https?:\/\//i.test(host)) {
+        // Panels often hand out "Portal: http://host" and "Port: 8080" as two
+        // separate lines — a separately labeled port completes a port-less URL.
+        if (labeled.port) {
+            try {
+                const url = new URL(host);
+                if (!url.port) {
+                    url.port = labeled.port;
+                    return url.toString();
+                }
+            } catch {
+                return host;
+            }
+        }
         return host;
     }
     if (!HOSTISH_PATTERN.test(host) || !host.includes('.')) {

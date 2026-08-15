@@ -191,6 +191,36 @@ export function detectProviderImportCandidates(
         );
     }
 
+    // ── Bare handout: exactly "URL, token, token" and nothing else readable.
+    // "http://host\nVictoria89\nVictoria89" carries no labels at all — the
+    // shape IS the message (server, then username, then password, in reading
+    // order). Deliberately the last resort and ranked low: it only fires when
+    // no label, MAC or API URL produced anything, the single URL is generic,
+    // and the message contains nothing beyond those three lines, so prose
+    // cannot be misread as credentials.
+    if (
+        macs.length === 0 &&
+        !labeled.username &&
+        !labeled.password &&
+        candidates.length === 0 &&
+        urls.length === 1 &&
+        urls[0].role === 'generic'
+    ) {
+        const tokens = bareCredentialTokens(normalized, urls[0]);
+        if (tokens) {
+            candidates.push(
+                compact({
+                    kind: 'xtream',
+                    confidence: 'low',
+                    serverUrl: safeXtreamServerUrl(urls[0].raw),
+                    username: tokens[0],
+                    password: tokens[1],
+                    suggestedTitle: urls[0].parsed.hostname,
+                })
+            );
+        }
+    }
+
     // ── Plain playlist links.
     for (const url of urls) {
         if (url.role !== 'm3u') {
@@ -224,6 +254,32 @@ function pickStalkerPortalUrl(
         return { url: generic.raw, confidence: 'medium' };
     }
     return null;
+}
+
+/**
+ * For the bare "URL, token, token" shape: returns the two credential-shaped
+ * tokens when the message consists of exactly three non-empty lines — the
+ * URL and two single tokens — and nothing else.
+ */
+function bareCredentialTokens(
+    text: string,
+    url: DetectedUrl
+): [string, string] | null {
+    const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+    if (lines.length !== 3) {
+        return null;
+    }
+    const tokens = lines.filter((line) => !line.includes(url.raw));
+    if (tokens.length !== 2) {
+        return null;
+    }
+    const credentialShaped = /^[A-Za-z0-9._@-]{3,64}$/;
+    return credentialShaped.test(tokens[0]) && credentialShaped.test(tokens[1])
+        ? [tokens[0], tokens[1]]
+        : null;
 }
 
 function safeXtreamServerUrl(raw: string): string | undefined {
