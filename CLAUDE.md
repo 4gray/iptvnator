@@ -1142,12 +1142,15 @@ engine` (restart required) or
   appending; and a mismatch truncates the partial and restarts from byte zero
   instead of risking mixed-representation corruption. The runtime also
   reconnects interrupted transfers automatically (`download-reconnect.ts`):
-  reconnects continue while attempts end ≥64 KiB past the previous attempt
-  (previous-attempt baseline, not high-water, with at most two tolerated
-  restart regressions), three consecutive stalled attempts surface the
-  retained failure, and a reconnect that fails before any response is
-  converted into the same retained interruption so it can never delete the
-  partial.
+  reconnects continue while attempts end ≥64 KiB past the previous attempt;
+  restarts are an explicit `task.transferRestarts` signal (never byte
+  inference) that opens a fresh progress epoch, at most twice per transfer;
+  three consecutive stalled attempts surface the retained failure; and a
+  reconnect that fails before any response is converted into the same
+  retained interruption so it can never delete the partial. Completion and
+  truncation decisions use only the response's own total (or its advertised
+  indeterminate range end); carried totals are informational, dropped when
+  falsified, and a mid-reset `206` retains the partial with an unknown total.
 - The desktop-only manager shares one global download store across the global,
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed

@@ -162,83 +162,111 @@ describe('transferWithReconnects', () => {
         expect(transfer).toHaveBeenCalledTimes(4);
     });
 
-    it('follows the baseline down after a restart so rebuilt-file progress is not a stall', async () => {
-        // Overlap mismatch truncated the partial mid-loop: the next attempts
-        // regress below the discarded file's size but genuinely progress.
+    it('opens a fresh epoch when the transfer reports a restart', async () => {
+        // Overlap mismatch truncated the partial mid-loop: the rebuilt file
+        // regresses below the discarded file's size but genuinely progresses.
+        const task = createTask();
         const transfer = jest
             .fn()
             .mockRejectedValueOnce(interrupted(500_000))
-            .mockRejectedValueOnce(interrupted(100_000))
+            .mockImplementationOnce(async () => {
+                task.transferRestarts = (task.transferRestarts ?? 0) + 1;
+                throw interrupted(100_000);
+            })
             .mockRejectedValueOnce(interrupted(400_000))
             .mockResolvedValue({
                 bytesDownloaded: 1_000_000,
                 totalBytes: 1_000_000,
             });
 
-        const progress = await transferWithReconnects(
-            db,
-            createTask(),
-            reservation,
-            { delayMs: 0, transfer }
-        );
+        const progress = await transferWithReconnects(db, task, reservation, {
+            delayMs: 0,
+            transfer,
+        });
 
         expect(progress.bytesDownloaded).toBe(1_000_000);
         expect(transfer).toHaveBeenCalledTimes(4);
     });
 
-    it('does not charge a tolerated regression against the stall budget', async () => {
-        // After the restart regression, the rebuilt file grows below the
-        // progress threshold — it still gets the full three-stall budget.
+    it('treats a rebuild landing near the old byte count as a fresh epoch, not a stall', async () => {
+        // After two stalls, the restarted transfer rebuilds from zero to just
+        // past the previous attempt's count. Byte comparison would read that
+        // as the third stall; the explicit restart signal must not.
+        const task = createTask();
         const transfer = jest
             .fn()
             .mockRejectedValueOnce(interrupted(500_000))
-            .mockRejectedValueOnce(interrupted(100_000))
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockImplementationOnce(async () => {
+                task.transferRestarts = (task.transferRestarts ?? 0) + 1;
+                throw interrupted(520_000);
+            })
+            .mockResolvedValue({
+                bytesDownloaded: 1_000_000,
+                totalBytes: 1_000_000,
+            });
+
+        const progress = await transferWithReconnects(db, task, reservation, {
+            delayMs: 0,
+            transfer,
+        });
+
+        expect(progress.bytesDownloaded).toBe(1_000_000);
+        expect(transfer).toHaveBeenCalledTimes(5);
+    });
+
+    it('grants the rebuilt file its full stall budget', async () => {
+        const task = createTask();
+        const transfer = jest
+            .fn()
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockImplementationOnce(async () => {
+                task.transferRestarts = (task.transferRestarts ?? 0) + 1;
+                throw interrupted(100_000);
+            })
             .mockRejectedValueOnce(interrupted(120_000))
             .mockRejectedValueOnce(interrupted(140_000))
             .mockRejectedValue(interrupted(160_000));
 
         await expect(
-            transferWithReconnects(db, createTask(), reservation, {
+            transferWithReconnects(db, task, reservation, {
                 delayMs: 0,
                 transfer,
             })
         ).rejects.toBeInstanceOf(InterruptedTransferError);
-        // free, regression (no stall), then three sub-threshold stalls.
+        // free, restart epoch (free), then three sub-threshold stalls.
         expect(transfer).toHaveBeenCalledTimes(5);
     });
 
-    it('resets stalls accumulated against the discarded representation', async () => {
-        // Two stalls against the old file, then a restart regression: the
-        // rebuilt file starts with a clean stall budget.
+    it('gives up after too many reported restarts', async () => {
+        const task = createTask();
+        const restartThen = (bytes: number) => async () => {
+            task.transferRestarts = (task.transferRestarts ?? 0) + 1;
+            throw interrupted(bytes);
+        };
         const transfer = jest
             .fn()
             .mockRejectedValueOnce(interrupted(500_000))
-            .mockRejectedValueOnce(interrupted(510_000))
-            .mockRejectedValueOnce(interrupted(520_000))
-            .mockRejectedValueOnce(interrupted(100_000))
-            .mockRejectedValueOnce(interrupted(110_000))
-            .mockRejectedValueOnce(interrupted(120_000))
-            .mockRejectedValue(interrupted(130_000));
+            .mockImplementationOnce(restartThen(100_000))
+            .mockImplementationOnce(restartThen(90_000))
+            .mockImplementation(restartThen(80_000));
 
         await expect(
-            transferWithReconnects(db, createTask(), reservation, {
+            transferWithReconnects(db, task, reservation, {
                 delayMs: 0,
                 transfer,
             })
         ).rejects.toBeInstanceOf(InterruptedTransferError);
-        // free, 2 stalls, regression (stalls reset), 3 fresh stalls.
-        expect(transfer).toHaveBeenCalledTimes(7);
+        // Two restarts are tolerated; the third surfaces the failure.
+        expect(transfer).toHaveBeenCalledTimes(4);
     });
 
-    it('gives up when attempts keep regressing below the previous attempt', async () => {
+    it('treats an unsignalled byte regression as an ordinary stall', async () => {
         const transfer = jest
             .fn()
             .mockRejectedValueOnce(interrupted(500_000))
-            .mockRejectedValueOnce(interrupted(100_000))
-            .mockRejectedValueOnce(interrupted(400_000))
-            .mockRejectedValueOnce(interrupted(90_000))
-            .mockRejectedValueOnce(interrupted(300_000))
-            .mockRejectedValue(interrupted(80_000));
+            .mockRejectedValue(interrupted(100_000));
 
         await expect(
             transferWithReconnects(db, createTask(), reservation, {
@@ -246,8 +274,8 @@ describe('transferWithReconnects', () => {
                 transfer,
             })
         ).rejects.toBeInstanceOf(InterruptedTransferError);
-        // Two regressions are tolerated; the third surfaces the failure.
-        expect(transfer).toHaveBeenCalledTimes(6);
+        // free, then three no-progress attempts with no restart reported.
+        expect(transfer).toHaveBeenCalledTimes(4);
     });
 
     it('rethrows immediately when cancel or pause was requested', async () => {

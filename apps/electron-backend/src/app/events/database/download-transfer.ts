@@ -17,6 +17,7 @@ import {
     readPartialTail,
 } from './download-overlap';
 import {
+    getIndeterminateRangeEnd,
     getResponseValidator,
     getTotalBytes,
     validateResumeResponse,
@@ -131,6 +132,7 @@ export async function transferToPartialFile(
         console.warn(
             `[Downloads] Restarting ${reservation.filename} from the beginning (${reason})`
         );
+        task.transferRestarts = (task.transferRestarts ?? 0) + 1;
         await truncate(reservation.partialPath, 0);
         return transferToPartialFile(db, task, reservation, false);
     };
@@ -198,17 +200,35 @@ export async function transferToPartialFile(
         throw error;
     }
 
-    // A resumed response that reports no usable total (chunked, or
-    // `Content-Range: bytes .../*`) must not erase the total learned earlier:
-    // without one, a mid-stream reset could no longer classify as a retained
-    // interruption and generic cleanup would delete the verified partial. A
-    // fresh or restarted transfer carries nothing forward — its old total
-    // described a discarded file.
     const appendsToRetained = effectiveOffset > 0 || verifyOverlap;
-    const totalBytes =
-        getTotalBytes(response.headers, effectiveOffset) ??
-        (appendsToRetained ? (task.totalBytes ?? null) : null);
+    if (!appendsToRetained && retainedOffset > 0) {
+        // The response rewrites the file from byte zero (a 200 answer to a
+        // Range request): report the restart so the reconnect loop opens a
+        // fresh progress epoch for the rebuilt file.
+        task.transferRestarts = (task.transferRestarts ?? 0) + 1;
+    }
+    // Total handling separates authority from information. The response's own
+    // total is authoritative. A total carried from an earlier response is
+    // informational only — it keeps a mid-stream reset over a total-less
+    // reconnect classifiable as a retained interruption instead of generic
+    // partial-deleting cleanup — and is dropped once the bytes on disk
+    // falsify it. A fresh or restarted transfer carries nothing forward.
+    const responseTotal = getTotalBytes(response.headers, effectiveOffset);
+    const carriedTotal =
+        appendsToRetained &&
+        task.totalBytes != null &&
+        retainedOffset < task.totalBytes
+            ? task.totalBytes
+            : null;
+    const totalBytes = responseTotal ?? carriedTotal;
     task.totalBytes = totalBytes;
+    // Completion decisions use only what THIS response proves: its own total,
+    // or the end of its advertised indeterminate range. A carried total can
+    // flag a short transfer but never authorize finalization.
+    const completionBoundary =
+        responseTotal ??
+        getIndeterminateRangeEnd(response.headers) ??
+        carriedTotal;
     if (effectiveOffset === 0 && !verifyOverlap) {
         // Fresh or restarted transfer: every byte on disk will come from this
         // response, so its validator describes the file. A verify-append
@@ -286,7 +306,11 @@ export async function transferToPartialFile(
             error,
             reservation,
             effectiveOffset,
-            totalBytes
+            totalBytes,
+            // A 206 proves the server serves ranges: the partial stays
+            // resumable even when a stale informational total is falsified
+            // by the bytes on disk.
+            response.status === 206
         );
         if (interruptedProgress) {
             await persistProgress(db, task, interruptedProgress.progress);
@@ -306,8 +330,8 @@ export async function transferToPartialFile(
         // appended and nothing proves the partial matches the entity.
         if (
             allowOverlapResume &&
-            totalBytes !== null &&
-            bytesDownloaded >= totalBytes
+            completionBoundary !== null &&
+            bytesDownloaded >= completionBoundary
         ) {
             // The server delivered its complete (now shorter) entity without
             // ever covering the window — the remote representation shrank,
@@ -335,7 +359,7 @@ export async function transferToPartialFile(
         bytesDownloaded: reportedBytes,
         totalBytes,
     });
-    if (totalBytes !== null && bytesDownloaded < totalBytes) {
+    if (completionBoundary !== null && bytesDownloaded < completionBoundary) {
         throw new TruncatedTransferError({
             bytesDownloaded: reportedBytes,
             totalBytes,
@@ -373,32 +397,32 @@ function getInterruptedTransferProgress(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
     initialBytes: number,
-    totalBytes: number | null
+    totalBytes: number | null,
+    rangeCapable = false
 ): { networkCode: string; progress: TransferProgress } | null {
     const networkCode =
         error && typeof error === 'object' && 'code' in error
             ? String(error.code)
             : '';
-    if (
-        !RETAINABLE_NETWORK_ERROR_CODES.has(networkCode) ||
-        totalBytes === null
-    ) {
+    if (!RETAINABLE_NETWORK_ERROR_CODES.has(networkCode)) {
         return null;
     }
 
     const bytesDownloaded = getPartialDownloadSize(reservation.path);
-    if (
-        bytesDownloaded === 0 ||
-        bytesDownloaded < initialBytes ||
-        bytesDownloaded >= totalBytes
-    ) {
+    if (bytesDownloaded === 0 || bytesDownloaded < initialBytes) {
         return null;
     }
-
-    return {
-        networkCode,
-        progress: { bytesDownloaded, totalBytes },
-    };
+    if (totalBytes !== null && bytesDownloaded < totalBytes) {
+        return { networkCode, progress: { bytesDownloaded, totalBytes } };
+    }
+    if (rangeCapable) {
+        // The total is absent or already falsified by the bytes on disk, but
+        // this very response proved the server serves ranges. Retain with an
+        // unknown total — never with the falsified one, which would let the
+        // completed-partial shortcut finalize unverified bytes.
+        return { networkCode, progress: { bytesDownloaded, totalBytes: null } };
+    }
+    return null;
 }
 
 function getResumeOffset(

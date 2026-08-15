@@ -41,14 +41,18 @@ function createTask(overrides: Partial<DownloadTask> = {}): DownloadTask {
     };
 }
 
+// Starved CI runners can spend seconds on module setup alone; the default
+// 5 s test timeout flakes there.
+jest.setTimeout(20_000);
+
 async function waitForStatus(set: jest.Mock, status: string): Promise<void> {
     // Reconnect attempts interleave zero-delay timers between transfers, so
     // poll on a timer (not setImmediate) with headroom for several attempts.
-    for (let attempt = 0; attempt < 200; attempt++) {
+    for (let attempt = 0; attempt < 1000; attempt++) {
         if (set.mock.calls.some(([value]) => value?.status === status)) {
             return;
         }
-        await new Promise<void>((resolve) => setTimeout(resolve, 5));
+        await new Promise<void>((resolve) => setTimeout(resolve, 1));
     }
 
     expect(set).toHaveBeenCalledWith(expect.objectContaining({ status }));
@@ -690,6 +694,72 @@ describe('download resume validation', () => {
                 expect.objectContaining({
                     bytesDownloaded: 20,
                     filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('retains a range-capable partial after its stale carried total is falsified', async () => {
+        // The previous response advertised a 250-byte total, but this 206's
+        // indeterminate range extends past it. When the reset lands with the
+        // partial at 250, the falsified total must neither complete the
+        // download nor push it into generic partial-deleting cleanup.
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 40,
+            partialSizeAfterTransferError: 250,
+            responses: [
+                {
+                    data: body,
+                    headers: { 'content-range': 'bytes 40-299/*' },
+                    status: 206,
+                },
+                {
+                    // Reconnects resume from the falsified total's edge.
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 250-299/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                    totalBytes: 250,
+                })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            body.write(Buffer.alloc(210, 'r'));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 250,
                     status: 'failed',
                     totalBytes: null,
                 })

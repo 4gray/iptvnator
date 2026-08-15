@@ -71,6 +71,21 @@ export function getTotalBytes(
     return Number.isFinite(parsed) ? resumeOffset + parsed : null;
 }
 
+/**
+ * End (exclusive) of an indeterminate range: `Content-Range: bytes 200-299/*`
+ * yields 300. The entity provably extends at least this far even though its
+ * total is withheld, so a response ending earlier is short and one delivering
+ * its full range is complete BY ITS OWN evidence.
+ */
+export function getIndeterminateRangeEnd(headers: unknown): number | null {
+    const contentRange = getHeaderValue(
+        headers as Record<string, unknown>,
+        'content-range'
+    );
+    const match = contentRange?.match(/^bytes\s+\d+-(\d+)\/\*$/i);
+    return match ? Number(match[1]) + 1 : null;
+}
+
 function getHeaderValue(
     headers: Record<string, unknown>,
     name: string

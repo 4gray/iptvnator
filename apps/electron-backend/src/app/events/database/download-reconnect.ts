@@ -22,13 +22,13 @@ const RECONNECT_PROGRESS_MIN_BYTES = 65_536;
 /** Consecutive attempts without that progress before the failure surfaces. */
 const MAX_STALLED_RECONNECTS = 3;
 /**
- * Attempts may legitimately end BELOW the previous attempt when the transfer
- * restarted from byte zero (overlap mismatch truncated the partial, or the
- * server ignored Range). The baseline follows the regression so the rebuilt
- * file's genuine progress is not misread as a stall — but only this many
- * times, or an always-restarting server would reset the budget forever.
+ * Restarts the transfer layer reports via `task.transferRestarts` (overlap
+ * mismatch, shrunk entity, 416, ignored Range) each open a fresh progress
+ * epoch: clean stall budget and no baseline, because the rebuilt file must be
+ * judged on its own progress. Only this many restarts are tolerated per
+ * transfer, or an always-restarting server would reset the budget forever.
  */
-const MAX_PROGRESS_REGRESSIONS = 2;
+const MAX_TOLERATED_RESTARTS = 2;
 const RECONNECT_DELAY_MS = 1000;
 
 export interface ReconnectDeps {
@@ -52,14 +52,16 @@ export async function transferWithReconnects(
 ): Promise<TransferProgress> {
     const { delayMs = RECONNECT_DELAY_MS, transfer = transferToPartialFile } =
         deps;
-    // The first interruption always earns a reconnect (there is no earlier
-    // attempt to measure against); afterwards progress is measured against
-    // the PREVIOUS attempt, not a high-water mark — a transfer that restarted
-    // from byte zero mid-loop must be judged by its rebuilt file, not by the
-    // discarded one's size.
+    // The first interruption of each epoch always earns a reconnect (there is
+    // no attempt of the same file to measure against); afterwards progress is
+    // measured against the previous attempt. Epochs open on the transfer
+    // layer's explicit restart signal, never on byte inference: a rebuild
+    // that lands near the previous attempt's count is indistinguishable from
+    // a stall by bytes alone.
     let lastBytes: number | null = null;
     let stalledAttempts = 0;
-    let regressionCredits = MAX_PROGRESS_REGRESSIONS;
+    let restartCredits = MAX_TOLERATED_RESTARTS;
+    let seenRestarts = task.transferRestarts ?? 0;
 
     for (;;) {
         try {
@@ -77,27 +79,22 @@ export async function transferWithReconnects(
                 throw error;
             }
 
-            const attemptBytes = interruption.progress.bytesDownloaded;
-            if (lastBytes !== null && attemptBytes < lastBytes) {
-                // A restart rewound the file. A tolerated regression is
-                // charged to its own bounded budget only — it is neither
-                // progress nor a stall, so it must not also consume the
-                // stall budget the rebuilt file needs to keep growing, and
-                // stalls accumulated against the discarded representation
-                // must not be inherited by the new one.
-                if (regressionCredits <= 0) {
+            if ((task.transferRestarts ?? 0) > seenRestarts) {
+                seenRestarts = task.transferRestarts ?? 0;
+                if (restartCredits <= 0) {
                     throw interruption;
                 }
-                regressionCredits -= 1;
+                restartCredits -= 1;
                 stalledAttempts = 0;
-            } else {
-                const advanced =
-                    lastBytes === null ||
-                    attemptBytes - lastBytes >= RECONNECT_PROGRESS_MIN_BYTES;
-                stalledAttempts = advanced ? 0 : stalledAttempts + 1;
-                if (stalledAttempts >= MAX_STALLED_RECONNECTS) {
-                    throw interruption;
-                }
+                lastBytes = null;
+            }
+            const attemptBytes = interruption.progress.bytesDownloaded;
+            const advanced =
+                lastBytes === null ||
+                attemptBytes - lastBytes >= RECONNECT_PROGRESS_MIN_BYTES;
+            stalledAttempts = advanced ? 0 : stalledAttempts + 1;
+            if (stalledAttempts >= MAX_STALLED_RECONNECTS) {
+                throw interruption;
             }
             lastBytes = attemptBytes;
 

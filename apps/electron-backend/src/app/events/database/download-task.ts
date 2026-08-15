@@ -24,6 +24,15 @@ export interface DownloadTask {
     totalBytes?: number | null;
     /** ETag/Last-Modified of the entity the partial belongs to (If-Range). */
     resumeValidator?: string | null;
+    /**
+     * Times this task discarded its partial and rewrote from byte zero
+     * (overlap mismatch, shrunk entity, 416, or a server that ignored
+     * Range). The reconnect loop reads it to open a fresh progress epoch —
+     * an explicit signal, because a rebuild that happens to land near the
+     * previous attempt's byte count is indistinguishable from a stall by
+     * byte comparison alone.
+     */
+    transferRestarts?: number;
 }
 
 export function requestDownloadCancellation(task: DownloadTask): void {
