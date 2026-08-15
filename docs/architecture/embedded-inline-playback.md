@@ -271,9 +271,11 @@ existing position-mutation queue so legacy-row reconciliation still runs
 and the queue coalesces to a single reload; partial failures surface a
 direction-specific "{{count}} marked/unmarked · {{failed}} failed"
 snackbar. A stale batch completion is discarded on the Xtream side: the
-host captures the playlist/series identity before awaiting and skips the
-rendered-state mutation when navigation changed it (episode ids collide
-across playlists; the DB write itself carries its own playlistId). The
+host captures the playlist/series identity before awaiting and, when
+navigation changed it, skips both the rendered-state mutation and the
+feedback snackbar (episode ids collide across playlists and the
+contextless message would read as being about the new page; the DB write
+itself carries its own playlistId). The
 host reports busy-state back through the `seasonWatchBatchRunning` input.
 
 ## Components

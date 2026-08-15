@@ -28,8 +28,9 @@ export class SerialDetailsSeasonWatchService {
         // The component is reused across detail navigations and resets the
         // position state for the next series while a batch may still be in
         // flight; a stale completion must not write the old series' rows
-        // into it (episode ids can collide across playlists). The DB write
-        // itself is safe — it carries its own playlistId.
+        // into it (episode ids can collide across playlists) nor present
+        // its contextless snackbar as feedback about the newly opened page.
+        // The DB write itself is safe — it carries its own playlistId.
         stillCurrent: () => boolean
     ): Promise<void> {
         if (!playlistId || request.requests.length === 0 || this.batchRunning()) {
@@ -49,9 +50,10 @@ export class SerialDetailsSeasonWatchService {
                     playlistId,
                     positions
                 );
-                if (stillCurrent()) {
-                    state.updateMany(positions);
+                if (!stillCurrent()) {
+                    return;
                 }
+                state.updateMany(positions);
                 this.notify('XTREAM.SEASON_MARKED_WATCHED', {
                     count: positions.length,
                 });
@@ -63,11 +65,12 @@ export class SerialDetailsSeasonWatchService {
                         contentType: 'episode' as const,
                     }))
                 );
-                if (stillCurrent()) {
-                    state.removeMany(
-                        request.requests.map((item) => item.contentXtreamId)
-                    );
+                if (!stillCurrent()) {
+                    return;
                 }
+                state.removeMany(
+                    request.requests.map((item) => item.contentXtreamId)
+                );
                 this.notify('XTREAM.SEASON_MARKED_UNWATCHED');
             }
         } catch (error) {
@@ -77,7 +80,9 @@ export class SerialDetailsSeasonWatchService {
                 '[SerialDetailsSeasonWatch] Season watched toggle failed',
                 error
             );
-            this.notify('XTREAM.SEASON_WATCH_UPDATE_FAILED');
+            if (stillCurrent()) {
+                this.notify('XTREAM.SEASON_WATCH_UPDATE_FAILED');
+            }
         } finally {
             this.batchRunning.set(false);
         }

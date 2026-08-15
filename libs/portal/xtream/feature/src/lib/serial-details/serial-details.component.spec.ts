@@ -1022,6 +1022,7 @@ describe('SerialDetailsComponent', () => {
         expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
             false
         );
+        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
         expect(playbackService.seasonWatchBatchRunning()).toBe(false);
         currentPlaylist.set(initialPlaylist);
     });
