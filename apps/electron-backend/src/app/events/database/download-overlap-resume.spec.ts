@@ -171,6 +171,61 @@ describe('download overlap resume', () => {
         }
     });
 
+    it('drops a carried total an indeterminate range can exactly reach', async () => {
+        // `bytes 200-249/*` can deliver the partial exactly TO the carried
+        // 250: keeping that total would leave a 250/250 row (even via a
+        // mid-stream pause) for the completed-partial shortcut, though `/*`
+        // explicitly withheld the entity's length.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 200,
+            partialSizeAfterTransferError: 250,
+            responses: [
+                {
+                    data: Readable.from([Buffer.alloc(50, 'r')]),
+                    headers: { 'content-range': 'bytes 200-249/*' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 250-299/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                    totalBytes: 250,
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ totalBytes: 250 })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 250,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('probes EOF after a verified zero-growth replay and honors the confirming 416', async () => {
         // The 300,000-byte validator-less partial already IS the complete
         // unknown-length entity: the rewound replay verifies and appends

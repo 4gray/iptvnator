@@ -237,7 +237,10 @@ export async function transferToPartialFile(
         appendsToRetained &&
         task.totalBytes != null &&
         retainedOffset < task.totalBytes &&
-        (indeterminateEnd === null || indeterminateEnd <= task.totalBytes)
+        // STRICTLY below: an indeterminate range that can even REACH the
+        // carried total could leave an N/N row (mid-stream pause included)
+        // for the completed-partial shortcut, though `/*` withheld the total.
+        (indeterminateEnd === null || indeterminateEnd < task.totalBytes)
             ? task.totalBytes
             : null;
     const totalBytes = responseTotal ?? carriedTotal;
