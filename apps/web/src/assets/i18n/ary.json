@@ -893,6 +893,12 @@
         "IN_PROGRESS": "جاري",
         "MARK_WATCHED": "علم كمتشاف",
         "MARK_UNWATCHED": "علم كما متشافش",
+        "MARK_SEASON_WATCHED": "علم الموسم كمتشاف ({{count}})",
+        "MARK_SEASON_UNWATCHED": "علم الموسم كما متشافش",
+        "SEASON_MARKED_WATCHED": "{{count}} ديال الحلقات تعلمو كمتشافين",
+        "SEASON_MARKED_UNWATCHED": "الموسم تعلم كما متشافش",
+        "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} تعلمو · {{failed}} فشلو",
+        "SEASON_WATCH_UPDATE_FAILED": "فشل تحديث الموسم",
         "EPISODES_WATCHED": "{{count}} من {{total}} ديال الحلقات متشافين",
         "DETAIL_FALLBACK": {
             "STATUS": "البيانات الوصفية ديال البوابة ما متوفراش",

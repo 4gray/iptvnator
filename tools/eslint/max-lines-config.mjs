@@ -36,9 +36,13 @@ export const MAX_LINES_OPTIONS = {
  * Specs, E2E specs, and everything inside the E2E apps — the latter covers
  * fixtures, harnesses and performance capture helpers, which are test
  * infrastructure even though they carry no `.spec`/`.e2e` suffix.
+ * `.spec-data.ts` files are the unit-test counterpart of those fixtures:
+ * flat case lists consumed only by a spec (e.g. the worker IPC contract
+ * table), whose length grows with coverage rather than design debt.
  */
 export const TEST_FILE_GLOBS = [
     '**/*.spec.ts',
+    '**/*.spec-data.ts',
     '**/*.e2e.ts',
     'apps/*-e2e/**/*.ts',
 ];

@@ -162,6 +162,33 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 harness.playbackService.clearPlaybackPosition
             ).toHaveBeenCalledWith(playlistId, 202, 'vod');
         });
+
+        it('delegates batch playback position writes to the playback service', async () => {
+            const items = [position];
+            const clearItems: {
+                contentXtreamId: number;
+                contentType: 'vod' | 'episode';
+            }[] = [
+                { contentXtreamId: 202, contentType: 'vod' },
+                { contentXtreamId: 303, contentType: 'episode' },
+            ];
+
+            await harness.dataSource.savePlaybackPositionsBatch(
+                playlistId,
+                items
+            );
+            expect(
+                harness.playbackService.savePlaybackPositionsBatch
+            ).toHaveBeenCalledWith(playlistId, items);
+
+            await harness.dataSource.clearPlaybackPositionsBatch(
+                playlistId,
+                clearItems
+            );
+            expect(
+                harness.playbackService.clearPlaybackPositionsBatch
+            ).toHaveBeenCalledWith(playlistId, clearItems);
+        });
     });
 
     describe('cleanup operations', () => {

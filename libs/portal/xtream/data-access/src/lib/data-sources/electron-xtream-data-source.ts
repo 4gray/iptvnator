@@ -531,6 +531,26 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         );
     }
 
+    async savePlaybackPositionsBatch(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        await this.playbackService.savePlaybackPositionsBatch(
+            playlistId,
+            items
+        );
+    }
+
+    async clearPlaybackPositionsBatch(
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ): Promise<void> {
+        await this.playbackService.clearPlaybackPositionsBatch(
+            playlistId,
+            items
+        );
+    }
+
     // =========================================================================
     // Cleanup Operations
     // =========================================================================

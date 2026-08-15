@@ -7,6 +7,23 @@ import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { PlaybackPositionRuntimeBridgeService } from './playback-position-runtime-bridge.service';
 
+const batchSaveItems: PlaybackPositionData[] = [
+    createPosition(),
+    createPosition({
+        contentXtreamId: 101,
+        contentType: 'episode',
+        seriesXtreamId: 200,
+    }),
+];
+
+const batchClearItems: {
+    contentXtreamId: number;
+    contentType: 'vod' | 'episode';
+}[] = [
+    { contentXtreamId: 100, contentType: 'vod' },
+    { contentXtreamId: 101, contentType: 'episode' },
+];
+
 describe('PlaybackPositionRuntimeBridgeService', () => {
     let service: PlaybackPositionRuntimeBridgeService;
     let injector: DestroyableInjector;
@@ -321,6 +338,108 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
             operation.installBridge(jest.fn().mockRejectedValue(error));
 
             await expect(operation.invokeLenient(service)).rejects.toBe(error);
+        });
+    });
+
+    describe.each([
+        {
+            name: 'batch save',
+            items: batchSaveItems as unknown[],
+            installBridge: (implementation: jest.Mock) => {
+                window.electron = {
+                    ...window.electron,
+                    dbSavePlaybackPositionsBatch: implementation,
+                } as unknown as typeof window.electron;
+            },
+            invoke: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.savePlaybackPositionsBatch(
+                    'playlist-1',
+                    batchSaveItems
+                ),
+            invokeEmpty: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.savePlaybackPositionsBatch('playlist-1', []),
+        },
+        {
+            name: 'batch clear',
+            items: batchClearItems as unknown[],
+            installBridge: (implementation: jest.Mock) => {
+                window.electron = {
+                    ...window.electron,
+                    dbClearPlaybackPositionsBatch: implementation,
+                } as unknown as typeof window.electron;
+            },
+            invoke: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.clearPlaybackPositionsBatch(
+                    'playlist-1',
+                    batchClearItems
+                ),
+            invokeEmpty: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.clearPlaybackPositionsBatch('playlist-1', []),
+        },
+    ])('$name persistence', (operation) => {
+        it('silently no-ops when the storage capability is unavailable', async () => {
+            const bridgeMethod = jest
+                .fn()
+                .mockResolvedValue({ success: true });
+            operation.installBridge(bridgeMethod);
+
+            await expect(operation.invoke(service)).resolves.toBeUndefined();
+            expect(bridgeMethod).not.toHaveBeenCalled();
+        });
+
+        it('silently no-ops on an empty item list', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            const bridgeMethod = jest
+                .fn()
+                .mockResolvedValue({ success: true });
+            operation.installBridge(bridgeMethod);
+
+            await expect(
+                operation.invokeEmpty(service)
+            ).resolves.toBeUndefined();
+            expect(bridgeMethod).not.toHaveBeenCalled();
+        });
+
+        it('invokes the batch bridge method with the playlist and items', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            const bridgeMethod = jest
+                .fn()
+                .mockResolvedValue({ success: true });
+            operation.installBridge(bridgeMethod);
+
+            await expect(operation.invoke(service)).resolves.toBeUndefined();
+            expect(bridgeMethod).toHaveBeenCalledWith(
+                'playlist-1',
+                operation.items
+            );
+        });
+
+        it.each([{ success: false }, {}, undefined])(
+            'rejects a non-success result %#',
+            async (result) => {
+                runtimeCapabilities.supportsPlaybackPositionStorage = true;
+                operation.installBridge(jest.fn().mockResolvedValue(result));
+
+                await expect(operation.invoke(service)).rejects.toThrow(
+                    'did not succeed'
+                );
+            }
+        );
+
+        it('rejects when the batch bridge method is unavailable', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+
+            await expect(operation.invoke(service)).rejects.toThrow(
+                'method is unavailable'
+            );
+        });
+
+        it('propagates rejected IPC', async () => {
+            const error = new Error('database is locked');
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            operation.installBridge(jest.fn().mockRejectedValue(error));
+
+            await expect(operation.invoke(service)).rejects.toBe(error);
         });
     });
 });

@@ -893,6 +893,12 @@
         "IN_PROGRESS": "В процессе",
         "MARK_WATCHED": "Отметить как просмотренное",
         "MARK_UNWATCHED": "Отметить как непросмотренное",
+        "MARK_SEASON_WATCHED": "Отметить сезон как просмотренный ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Отметить сезон как непросмотренный",
+        "SEASON_MARKED_WATCHED": "Отмечено как просмотренные: {{count}} эпизодов",
+        "SEASON_MARKED_UNWATCHED": "Сезон отмечен как непросмотренный",
+        "SEASON_MARKED_WATCHED_PARTIAL": "Отмечено: {{count}} · Ошибок: {{failed}}",
+        "SEASON_WATCH_UPDATE_FAILED": "Не удалось обновить сезон",
         "EPISODES_WATCHED": "Просмотрено {{count}} из {{total}} эпизодов",
         "DETAIL_FALLBACK": {
             "STATUS": "Метаданные портала недоступны",

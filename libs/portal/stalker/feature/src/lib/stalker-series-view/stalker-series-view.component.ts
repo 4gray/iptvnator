@@ -23,6 +23,7 @@ import {
     ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeasonPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import {
     pickSeasonMarkedTitle,
@@ -201,6 +202,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    readonly seasonWatchBatchRunning = signal(false);
 
     /**
      * Optional input for VOD items with embedded series array (vclub mode)
@@ -1091,6 +1093,93 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     error
                 );
             }
+        );
+    }
+
+    async handleSeasonPlaybackToggleRequested(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): Promise<void> {
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (
+            !playlistId ||
+            request.requests.length === 0 ||
+            this.seasonWatchBatchRunning()
+        ) {
+            return;
+        }
+
+        this.seasonWatchBatchRunning.set(true);
+        try {
+            // Enqueue every episode synchronously: each mutation chains on
+            // the previous one's never-rejecting barrier, so the queue
+            // serializes the writes (incl. per-episode legacy-row cleanup)
+            // and reloads positions once after the whole chain drains.
+            const outcomes = await Promise.all(
+                request.requests.map((item) =>
+                    (item.nextPosition
+                        ? this.persistSeriesPosition(
+                              playlistId,
+                              item.nextPosition
+                          )
+                        : this.clearSeriesPosition(
+                              playlistId,
+                              item.contentXtreamId
+                          )
+                    ).then(
+                        () => true,
+                        () => false
+                    )
+                )
+            );
+
+            const failed = outcomes.filter((ok) => !ok).length;
+            const succeeded = outcomes.length - failed;
+            if (failed > 0) {
+                this.logger.error(
+                    `Season watched toggle: ${failed} of ${outcomes.length} episodes failed`
+                );
+            }
+
+            if (failed === 0) {
+                this.notifySeasonWatchToggle(
+                    request.markWatched
+                        ? 'XTREAM.SEASON_MARKED_WATCHED'
+                        : 'XTREAM.SEASON_MARKED_UNWATCHED',
+                    { count: succeeded }
+                );
+            } else if (succeeded > 0) {
+                this.notifySeasonWatchToggle(
+                    'XTREAM.SEASON_MARKED_WATCHED_PARTIAL',
+                    { count: succeeded, failed }
+                );
+            } else {
+                this.notifySeasonWatchToggle(
+                    'XTREAM.SEASON_WATCH_UPDATE_FAILED'
+                );
+            }
+        } finally {
+            this.seasonWatchBatchRunning.set(false);
+        }
+    }
+
+    handleSeasonPlaybackToggleRequestedFromUi(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): void {
+        void this.handleSeasonPlaybackToggleRequested(request).catch(
+            (error: unknown) => {
+                this.logger.error(
+                    'Failed to toggle season watched state',
+                    error
+                );
+            }
+        );
+    }
+
+    private notifySeasonWatchToggle(key: string, params?: object): void {
+        this.snackBar.open(
+            this.translateService.instant(key, params),
+            undefined,
+            { duration: 5000 }
         );
     }
 

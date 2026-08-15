@@ -893,6 +893,12 @@
         "IN_PROGRESS": "In Progress",
         "MARK_WATCHED": "Mark as Watched",
         "MARK_UNWATCHED": "Mark as Unwatched",
+        "MARK_SEASON_WATCHED": "Mark season as watched ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Mark season as unwatched",
+        "SEASON_MARKED_WATCHED": "{{count}} episodes marked as watched",
+        "SEASON_MARKED_UNWATCHED": "Season marked as unwatched",
+        "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} marked · {{failed}} failed",
+        "SEASON_WATCH_UPDATE_FAILED": "Updating the season failed",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal metadata unavailable",

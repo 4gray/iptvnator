@@ -727,6 +727,59 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
     }
 
+    async savePlaybackPositionsBatch(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        if (items.length === 0) {
+            return;
+        }
+
+        // One blob read + one write for the whole batch — the blob holds
+        // every playlist's positions, so per-item saves would re-serialize
+        // it N times.
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        const playlistPositions = allPositions[playlistId] ?? [];
+        const updatedAt = new Date().toISOString();
+
+        const replacedKeys = new Set(
+            items.map((item) => `${item.contentType}_${item.contentXtreamId}`)
+        );
+        allPositions[playlistId] = [
+            ...playlistPositions.filter(
+                (p) =>
+                    !replacedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
+            ),
+            ...items.map((item) => ({ ...item, updatedAt })),
+        ];
+
+        this.savePlaybackPositionsToStorage(allPositions);
+    }
+
+    async clearPlaybackPositionsBatch(
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ): Promise<void> {
+        if (items.length === 0) {
+            return;
+        }
+
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        const playlistPositions = allPositions[playlistId];
+        if (!playlistPositions) {
+            return;
+        }
+
+        const removedKeys = new Set(
+            items.map((item) => `${item.contentType}_${item.contentXtreamId}`)
+        );
+        allPositions[playlistId] = playlistPositions.filter(
+            (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
+        );
+
+        this.savePlaybackPositionsToStorage(allPositions);
+    }
+
     private getPlaybackPositionsFromStorage(): Record<
         string,
         PlaybackPositionData[]

@@ -110,6 +110,42 @@ describe('SerialDetailsPlaybackPositionState', () => {
         });
     });
 
+    describe('bulk mutators', () => {
+        it('updates many positions with a single map replacement', async () => {
+            await loadPositions([position(1001)]);
+            const before = state.positions();
+
+            state.updateMany([
+                position(1002, { episodeNumber: 2 }),
+                position(2001, { seasonNumber: 2 }),
+            ]);
+
+            expect(state.positions()).not.toBe(before);
+            expect(state.positions().size).toBe(3);
+            expect(state.positions().get(1002)?.episodeNumber).toBe(2);
+
+            state.updateMany([]);
+            expect(state.positions().size).toBe(3);
+        });
+
+        it('removes many positions and keeps the rest', async () => {
+            await loadPositions([
+                position(1001),
+                position(1002),
+                position(2001),
+            ]);
+
+            state.removeMany([1001, 2001]);
+
+            expect(state.positions().size).toBe(1);
+            expect(state.positions().has(1002)).toBe(true);
+
+            const current = state.positions();
+            state.removeMany([]);
+            expect(state.positions()).toBe(current);
+        });
+    });
+
     describe('takeResumeEpisode', () => {
         it('rejects targets before positions finish loading', () => {
             expect(

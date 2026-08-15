@@ -41,9 +41,11 @@ class StubSeasonContainerComponent {
     readonly isLoading = input(false);
     readonly downloadsEnabled = input(true);
     readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
+    readonly seasonWatchBatchRunning = input(false);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
+    readonly seasonPlaybackToggleRequested = output<unknown>();
     readonly selectedSeason = signal<string | undefined>(undefined);
 }
 

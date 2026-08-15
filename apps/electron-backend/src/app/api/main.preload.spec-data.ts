@@ -377,6 +377,21 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, 42, 'vod'],
     },
     {
+        method: 'dbSavePlaybackPositionsBatch',
+        args: [playlistId, [playbackData]],
+        channel: 'DB_SAVE_PLAYBACK_POSITIONS_BATCH',
+        forwardedArgs: [playlistId, [playbackData]],
+    },
+    {
+        method: 'dbClearPlaybackPositionsBatch',
+        args: [playlistId, [{ contentXtreamId: 42, contentType: 'episode' }]],
+        channel: 'DB_CLEAR_PLAYBACK_POSITIONS_BATCH',
+        forwardedArgs: [
+            playlistId,
+            [{ contentXtreamId: 42, contentType: 'episode' }],
+        ],
+    },
+    {
         method: 'dbGetTmdbMetadata',
         args: ['movie', 'id:603', 'en-US'],
         channel: 'DB_GET_TMDB_METADATA',

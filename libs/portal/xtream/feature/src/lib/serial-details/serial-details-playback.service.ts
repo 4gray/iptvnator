@@ -25,7 +25,10 @@ import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import { SeasonContainerPlaybackToggleRequest } from '@iptvnator/ui/components';
+import {
+    SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeasonPlaybackToggleRequest,
+} from '@iptvnator/ui/components';
 import {
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
@@ -35,6 +38,7 @@ import {
 } from '@iptvnator/ui/playback';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
+import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
 
 export type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
@@ -60,6 +64,7 @@ export class SerialDetailsPlaybackService {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
+    private readonly seasonWatch = inject(SerialDetailsSeasonWatchService);
 
     private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(
         null
@@ -77,6 +82,7 @@ export class SerialDetailsPlaybackService {
     readonly episodePlaybackPositions = this.playbackPositionState.positions;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    readonly seasonWatchBatchRunning = this.seasonWatch.batchRunning;
 
     readonly quickStartAction = computed(() => {
         const item = this.selectedItem();
@@ -335,6 +341,16 @@ export class SerialDetailsPlaybackService {
             'episode'
         );
         this.playbackPositionState.remove(request.contentXtreamId);
+    }
+
+    handleSeasonPlaybackToggleRequested(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): Promise<void> {
+        return this.seasonWatch.handle(
+            request,
+            this.currentPlaylistId(),
+            this.playbackPositionState
+        );
     }
 
     async loadSeriesPlaybackPositions(

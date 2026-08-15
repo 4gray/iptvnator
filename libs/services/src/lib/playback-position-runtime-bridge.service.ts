@@ -33,6 +33,17 @@ type PlaybackPositionElectronBridge = Partial<{
         contentXtreamId: number,
         contentType: PlaybackPositionContentType
     ) => Promise<{ success: boolean }>;
+    dbSavePlaybackPositionsBatch: (
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ) => Promise<{ success: boolean }>;
+    dbClearPlaybackPositionsBatch: (
+        playlistId: string,
+        items: {
+            contentXtreamId: number;
+            contentType: PlaybackPositionContentType;
+        }[]
+    ) => Promise<{ success: boolean }>;
     onPlaybackPositionUpdate: (
         callback: (data: PlaybackPositionData) => void
     ) => () => void;
@@ -194,6 +205,57 @@ export class PlaybackPositionRuntimeBridgeService {
         );
         if (result?.success !== true) {
             throw new Error('Playback position clear did not succeed');
+        }
+    }
+
+    async savePlaybackPositionsBatch(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        if (!this.supportsStorage || items.length === 0) {
+            return;
+        }
+
+        const bridge = this.bridge;
+        if (typeof bridge?.dbSavePlaybackPositionsBatch !== 'function') {
+            throw new Error(
+                'Playback position batch save method is unavailable'
+            );
+        }
+
+        const result = await bridge.dbSavePlaybackPositionsBatch(
+            playlistId,
+            items
+        );
+        if (result?.success !== true) {
+            throw new Error('Playback position batch save did not succeed');
+        }
+    }
+
+    async clearPlaybackPositionsBatch(
+        playlistId: string,
+        items: {
+            contentXtreamId: number;
+            contentType: PlaybackPositionContentType;
+        }[]
+    ): Promise<void> {
+        if (!this.supportsStorage || items.length === 0) {
+            return;
+        }
+
+        const bridge = this.bridge;
+        if (typeof bridge?.dbClearPlaybackPositionsBatch !== 'function') {
+            throw new Error(
+                'Playback position batch clear method is unavailable'
+            );
+        }
+
+        const result = await bridge.dbClearPlaybackPositionsBatch(
+            playlistId,
+            items
+        );
+        if (result?.success !== true) {
+            throw new Error('Playback position batch clear did not succeed');
         }
     }
 

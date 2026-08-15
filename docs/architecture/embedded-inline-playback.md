@@ -258,6 +258,20 @@ episode" chip appears when the playing episode is outside the opened
 season. Season descriptions come from `get_series_info` seasons (Xtream)
 or `TmdbEnrichmentService.getSeason` (Stalker).
 
+The season header carries a season-level watched toggle next to
+"Download season" (`season-watch-toggle.util.ts` builds the request:
+marking touches only unwatched episodes so real durations survive;
+a fully watched season flips the action to unwatch-all). The container
+emits one `seasonPlaybackToggleRequested` and the host persists it:
+Xtream through `SerialDetailsSeasonWatchService` and the batch IPC
+(`DB_SAVE_PLAYBACK_POSITIONS_BATCH` / `DB_CLEAR_PLAYBACK_POSITIONS_BATCH`,
+one SQLite transaction; the PWA data source rewrites its localStorage
+blob once), Stalker as synchronous per-episode enqueues through the
+existing position-mutation queue so legacy-row reconciliation still runs
+and the queue coalesces to a single reload; partial failures surface a
+"{{count}} marked · {{failed}} failed" snackbar. The host reports
+busy-state back through the `seasonWatchBatchRunning` input.
+
 ## Components
 
 Shared detail layout shell:

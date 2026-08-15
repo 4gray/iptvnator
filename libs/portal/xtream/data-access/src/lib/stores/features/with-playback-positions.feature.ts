@@ -6,7 +6,6 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
@@ -22,36 +21,6 @@ const initialState: PlaybackPositionsState = {
     playbackPositions: new Map(),
     seriesPositions: new Map(),
 };
-
-function parseDuration(duration: string | number): number {
-    if (typeof duration === 'number') return duration;
-    if (!duration) return 0;
-
-    // Check for "min" format (e.g. "45 min")
-    const minMatch = duration.match(/(\d+)\s*min/);
-    if (minMatch) {
-        return parseInt(minMatch[1], 10) * 60;
-    }
-
-    // Check for "h:m:s" or "m:s" format
-    if (duration.includes(':')) {
-        const parts = duration.split(':').map((p) => parseInt(p, 10));
-        if (parts.length === 3) {
-            return parts[0] * 3600 + parts[1] * 60 + parts[2];
-        } else if (parts.length === 2) {
-            return parts[0] * 60 + parts[1];
-        }
-    }
-
-    // Fallback: try parsing as simple number (seconds or minutes? assume minutes if < 1000, seconds otherwise?)
-    // Xtream usually returns seconds or "min" string
-    const num = parseInt(duration, 10);
-    if (!isNaN(num)) {
-        return num;
-    }
-
-    return 0;
-}
 
 export function withPlaybackPositions() {
     return signalStoreFeature(
@@ -234,105 +203,6 @@ export function withPlaybackPositions() {
                     const updated = new Map(store.playbackPositions());
                     updated.set(key, data);
                     patchState(store, { playbackPositions: updated });
-                },
-
-                /**
-                 * Toggle watched status for an episode
-                 */
-                async toggleEpisodeWatched(
-                    playlistId: string,
-                    episode: XtreamSerieEpisode,
-                    seriesId: number
-                ): Promise<void> {
-                    const id = Number(episode.id);
-                    const isWatched = this.isWatched(id, 'episode');
-
-                    if (isWatched) {
-                        // Mark as unwatched
-                        await dataSource.clearPlaybackPosition(
-                            playlistId,
-                            id,
-                            'episode'
-                        );
-                        // Update state (remove from map)
-                        const key = getPositionKey('episode', id);
-                        const updated = new Map(store.playbackPositions());
-                        updated.delete(key);
-
-                        // Update series map
-                        const seriesMap = new Map(store.seriesPositions());
-                        const seriesEpisodes = seriesMap.get(seriesId) || [];
-                        const filteredEpisodes = seriesEpisodes.filter(
-                            (p) => p.contentXtreamId !== id
-                        );
-                        if (filteredEpisodes.length === 0) {
-                            seriesMap.delete(seriesId);
-                        } else {
-                            seriesMap.set(seriesId, filteredEpisodes);
-                        }
-
-                        patchState(store, {
-                            playbackPositions: updated,
-                            seriesPositions: seriesMap,
-                        });
-                    } else {
-                        // Mark as watched
-                        let duration = 0;
-                        const info = Array.isArray(episode.info)
-                            ? null
-                            : episode.info;
-
-                        if (info?.duration_secs) {
-                            duration = info.duration_secs;
-                        } else if (info?.duration) {
-                            duration = parseDuration(info.duration);
-                        }
-
-                        if (duration === 0) duration = 1; // Fallback
-
-                        // Setting position = duration indicates episode is fully watched
-                        const data: PlaybackPositionData = {
-                            contentXtreamId: id,
-                            contentType: 'episode',
-                            seriesXtreamId: seriesId,
-                            seasonNumber: Number(episode.season),
-                            episodeNumber: Number(episode.episode_num),
-                            positionSeconds: duration,
-                            durationSeconds: duration,
-                            playlistId,
-                            updatedAt: new Date().toISOString(),
-                        };
-
-                        // Use existing savePosition to handle state update and persistence
-                        // But we also need to update seriesPositions map which savePosition doesn't do for individual updates
-                        // actually savePosition only updates playbackPositions map.
-                        // We should probably update savePosition to also update series map, or do it here.
-                        // Let's do it here to be safe.
-
-                        await dataSource.savePlaybackPosition(playlistId, data);
-
-                        const key = getPositionKey('episode', id);
-                        const updated = new Map(store.playbackPositions());
-                        updated.set(key, data);
-
-                        const seriesMap = new Map(store.seriesPositions());
-                        const seriesEpisodes = seriesMap.get(seriesId) || [];
-                        // Check if already exists
-                        const existingIdx = seriesEpisodes.findIndex(
-                            (p) => p.contentXtreamId === id
-                        );
-                        if (existingIdx >= 0) {
-                            seriesEpisodes[existingIdx] = data;
-                        } else {
-                            seriesEpisodes.push(data);
-                        }
-                        seriesMap.set(seriesId, seriesEpisodes);
-
-                        patchState(store, {
-                            playbackPositions: updated,
-                            seriesPositions: seriesMap,
-                        });
-                    }
                 },
             };
         }),

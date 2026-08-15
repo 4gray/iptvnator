@@ -32,9 +32,14 @@ export class SeasonHeaderComponent {
     readonly batchRunning = input.required<boolean>();
     readonly seasonDisabled = input.required<boolean>();
     readonly eligibleEpisodeCount = input.required<number>();
+    readonly watchToggleVisible = input.required<boolean>();
+    readonly watchBatchRunning = input.required<boolean>();
+    readonly seasonFullyWatched = input.required<boolean>();
+    readonly watchEligibleCount = input.required<number>();
     readonly viewToggleVisible = input.required<boolean>();
     readonly viewMode = input.required<EpisodeViewMode>();
 
     readonly downloadSeason = output<void>();
+    readonly toggleSeasonWatched = output<void>();
     readonly viewModeChange = output<EpisodeViewMode>();
 }

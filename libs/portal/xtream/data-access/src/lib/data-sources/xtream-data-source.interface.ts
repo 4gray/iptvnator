@@ -430,6 +430,24 @@ export interface IXtreamDataSource {
         contentType: 'vod' | 'episode'
     ): Promise<void>;
 
+    /**
+     * Save/update many playback positions at once (season-level "mark as
+     * watched"). Rejects when nothing was persisted.
+     */
+    savePlaybackPositionsBatch(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void>;
+
+    /**
+     * Clear many playback positions at once (season-level "mark as
+     * unwatched"). Rejects when nothing was cleared.
+     */
+    clearPlaybackPositionsBatch(
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ): Promise<void>;
+
     // =========================================================================
     // Cleanup Operations
     // =========================================================================

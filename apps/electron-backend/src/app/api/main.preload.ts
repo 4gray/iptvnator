@@ -1005,6 +1005,24 @@ const electronApi: ElectronBridgeApi = {
             contentXtreamId,
             contentType
         ),
+    dbSavePlaybackPositionsBatch: (
+        playlistId: string,
+        items: ElectronBridgePlaybackPositionInput[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SAVE_PLAYBACK_POSITIONS_BATCH',
+            playlistId,
+            items
+        ),
+    dbClearPlaybackPositionsBatch: (
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_CLEAR_PLAYBACK_POSITIONS_BATCH',
+            playlistId,
+            items
+        ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
     // Downloads
     downloadsStart: (data: ElectronBridgeDownloadStartPayload) =>

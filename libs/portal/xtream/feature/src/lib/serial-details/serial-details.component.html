@@ -215,8 +215,12 @@
                 inlinePlayback()?.contentInfo?.contentXtreamId ?? null
             "
             [seasonDescriptions]="seasonDescriptions()"
+            [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
+            (seasonPlaybackToggleRequested)="
+                handleSeasonPlaybackToggleRequested($event)
+            "
             (seasonSelected)="onSeasonSelected($event)"
         />
 

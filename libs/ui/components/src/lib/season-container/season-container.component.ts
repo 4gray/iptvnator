@@ -35,23 +35,27 @@ import {
     EpisodeInfoDialogComponent,
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
-import {
-    formatEpisodePositionText,
-    parseDuration,
-} from './episode-progress.util';
+import { formatEpisodePositionText } from './episode-progress.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
 import {
     type EpisodeViewMode,
     SeasonHeaderComponent,
 } from './season-header.component';
 import { SeasonTabsComponent } from './season-tabs.component';
+import {
+    type SeasonContainerPlaybackToggleRequest,
+    type SeasonContainerSeasonPlaybackToggleRequest,
+    buildSeasonWatchToggleRequest,
+    buildWatchedEpisodePosition,
+    resolveEpisodeInfo,
+} from './season-watch-toggle.util';
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
-export interface SeasonContainerPlaybackToggleRequest {
-    contentXtreamId: number;
-    nextPosition: PlaybackPositionData | null;
-}
+export type {
+    SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeasonPlaybackToggleRequest,
+} from './season-watch-toggle.util';
 
 @Component({
     selector: 'app-season-container',
@@ -94,10 +98,14 @@ export class SeasonContainerComponent implements OnInit {
     readonly playingEpisodeId = input<number | null>(null);
     /** Per-season descriptions (TMDB/provider), keyed by season key. */
     readonly seasonDescriptions = input<Record<string, string> | null>(null);
+    /** True while a host is persisting a season-level watched toggle. */
+    readonly seasonWatchBatchRunning = input(false);
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
     readonly playbackToggleRequested =
         output<SeasonContainerPlaybackToggleRequest>();
+    readonly seasonPlaybackToggleRequested =
+        output<SeasonContainerSeasonPlaybackToggleRequest>();
     readonly seasonSelected = output<string>();
     readonly viewMode = signal<EpisodeViewMode>('grid');
 
@@ -142,6 +150,33 @@ export class SeasonContainerComponent implements OnInit {
         const selected = this.selectedSeason();
         return selected ? (this.seasons()[selected] ?? []) : [];
     });
+
+    readonly selectedSeasonUnwatchedCount = computed(
+        () =>
+            this.selectedSeasonEpisodes().filter(
+                (episode) => !this.isEpisodeWatched(episode)
+            ).length
+    );
+
+    readonly selectedSeasonFullyWatched = computed(
+        () =>
+            this.selectedSeasonEpisodes().length > 0 &&
+            this.selectedSeasonUnwatchedCount() === 0
+    );
+
+    /** Count shown in the season toggle label: episodes the action touches. */
+    readonly seasonWatchEligibleCount = computed(() =>
+        this.selectedSeasonFullyWatched()
+            ? this.selectedSeasonEpisodes().length
+            : this.selectedSeasonUnwatchedCount()
+    );
+
+    readonly seasonWatchToggleVisible = computed(
+        () =>
+            this.sortedSeasonKeys().length > 0 &&
+            this.selectedSeasonEpisodes().length > 0 &&
+            !!this.playlistId()
+    );
 
     private readonly autoSelectKey = computed(
         () =>
@@ -294,35 +329,43 @@ export class SeasonContainerComponent implements OnInit {
             return;
         }
 
-        const info = this.getEpisodeInfo(episode);
-        const duration =
-            info?.duration_secs || parseDuration(info?.duration) || 1;
-
         this.playbackToggleRequested.emit({
             contentXtreamId,
-            nextPosition: {
-                contentXtreamId,
-                contentType: 'episode',
-                seriesXtreamId: this.seriesId(),
-                seasonNumber: Number(
-                    episode.season || this.selectedSeason() || 1
-                ),
-                episodeNumber: Number(episode.episode_num || 1),
-                positionSeconds: duration,
-                durationSeconds: duration,
+            nextPosition: buildWatchedEpisodePosition({
+                episode,
+                seriesId: this.seriesId(),
                 playlistId: this.playlistId(),
-                updatedAt: new Date().toISOString(),
-            },
+                fallbackSeasonKey: this.selectedSeason(),
+            }),
         });
+    }
+
+    toggleSeasonWatched() {
+        const seasonKey = this.selectedSeason();
+        if (!seasonKey || !this.playlistId()) {
+            this.logger.warn('Cannot toggle season watched: no season/playlist');
+            return;
+        }
+        if (this.seasonWatchBatchRunning()) {
+            return;
+        }
+
+        const request = buildSeasonWatchToggleRequest({
+            episodes: this.selectedSeasonEpisodes(),
+            seasonKey,
+            seriesId: this.seriesId(),
+            playlistId: this.playlistId(),
+            isEpisodeWatched: (episode) => this.isEpisodeWatched(episode),
+        });
+        if (request) {
+            this.seasonPlaybackToggleRequested.emit(request);
+        }
     }
 
     getEpisodeInfo(
         episode: XtreamSerieEpisode
     ): XtreamSerieEpisodeInfo | undefined {
-        if (Array.isArray(episode.info) || !episode.info) {
-            return undefined;
-        }
-        return episode.info;
+        return resolveEpisodeInfo(episode);
     }
 
     isEpisodeWatched(episode: XtreamSerieEpisode): boolean {

@@ -893,6 +893,12 @@
         "IN_PROGRESS": "Devam Ediyor",
         "MARK_WATCHED": "İzlendi Olarak İşaretle",
         "MARK_UNWATCHED": "İzlenmedi Olarak İşaretle",
+        "MARK_SEASON_WATCHED": "Sezonu İzlendi Olarak İşaretle ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Sezonu İzlenmedi Olarak İşaretle",
+        "SEASON_MARKED_WATCHED": "{{count}} bölüm izlendi olarak işaretlendi",
+        "SEASON_MARKED_UNWATCHED": "Sezon izlenmedi olarak işaretlendi",
+        "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} işaretlendi · {{failed}} başarısız",
+        "SEASON_WATCH_UPDATE_FAILED": "Sezon güncellemesi başarısız oldu",
         "EPISODES_WATCHED": "{{total}} bölümden {{count}} tanesi izlendi",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal üst verisi mevcut değil",

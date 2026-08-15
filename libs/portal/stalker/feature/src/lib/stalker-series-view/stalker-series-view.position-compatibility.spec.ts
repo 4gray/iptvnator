@@ -1196,4 +1196,88 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         );
         expect(clearPlaybackPosition).not.toHaveBeenCalled();
     });
+
+    async function startWithTwoLoadedEpisodes(): Promise<[number, number]> {
+        await startWithLoadedEpisode();
+        fixture.componentInstance.vodSeriesSeasons.set([
+            createSeason(SERIES_A_ID, [
+                createProviderEpisode(),
+                createProviderEpisode('provider-episode-2', 2),
+            ]),
+        ]);
+        await settle();
+        const [first, second] = fixture.componentInstance.mappedSeasons()['1'];
+        return [Number(first.id), Number(second.id)];
+    }
+
+    function seasonWatchRequest(ids: number[]) {
+        return {
+            seasonKey: '1',
+            markWatched: true,
+            requests: ids.map((contentXtreamId, index) => ({
+                contentXtreamId,
+                nextPosition: createPosition({
+                    contentXtreamId,
+                    episodeNumber: index + 1,
+                    positionSeconds: 100,
+                }),
+            })),
+        };
+    }
+
+    it('marks a season watched sequentially without redundant reloads', async () => {
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
+        const loadsBefore = getSeriesPlaybackPositions.mock.calls.length;
+
+        await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
+            seasonWatchRequest([firstId, secondId])
+        );
+
+        expect(repositoryOrder).toEqual([
+            `save:${firstId}`,
+            `save:${secondId}`,
+        ]);
+        expect(getSeriesPlaybackPositions.mock.calls.length).toBe(loadsBefore);
+        expect(
+            fixture.componentInstance.episodePlaybackPositions().get(secondId)
+                ?.positionSeconds
+        ).toBe(100);
+        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            'XTREAM.SEASON_MARKED_WATCHED',
+            undefined,
+            { duration: 5000 }
+        );
+        expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
+    });
+
+    it('keeps surviving episodes and reports a partial season failure', async () => {
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
+        savePlaybackPositionOrThrow.mockImplementation(
+            async (playlistId: string, position: PlaybackPositionData) => {
+                if (position.contentXtreamId === secondId) {
+                    throw new Error('save rejected');
+                }
+                return savePlaybackPosition(playlistId, position);
+            }
+        );
+
+        await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
+            seasonWatchRequest([firstId, secondId])
+        );
+
+        expect(
+            fixture.componentInstance.episodePlaybackPositions().get(firstId)
+                ?.positionSeconds
+        ).toBe(100);
+        expect(
+            fixture.componentInstance.episodePlaybackPositions().get(secondId)
+                ?.positionSeconds
+        ).not.toBe(100);
+        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            'XTREAM.SEASON_MARKED_WATCHED_PARTIAL',
+            undefined,
+            { duration: 5000 }
+        );
+        expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
+    });
 });

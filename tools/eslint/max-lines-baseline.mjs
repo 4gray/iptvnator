@@ -8,7 +8,6 @@
 export const maxLinesBaseline = [
     'apps/electron-backend-e2e/src/electron-test-fixtures.ts',
     'apps/electron-backend-e2e/src/search.e2e.ts',
-    'apps/electron-backend/src/app/api/main.preload.spec-data.ts',
     'apps/electron-backend/src/app/api/main.preload.ts',
     'apps/electron-backend/src/app/app.ts',
     'apps/electron-backend/src/app/database/operations/content.operations.ts',

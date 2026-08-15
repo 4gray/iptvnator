@@ -45,8 +45,10 @@ class StubSeasonContainerComponent {
     readonly activeEpisodeId = input<number | null>(null);
     readonly playingEpisodeId = input<number | null>(null);
     readonly seasonDescriptions = input<unknown>(null);
+    readonly seasonWatchBatchRunning = input(false);
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
+    readonly seasonPlaybackToggleRequested = output<unknown>();
 }
 
 @Component({
@@ -103,6 +105,8 @@ describe('SerialDetailsComponent', () => {
     const openExternalPlayback = jest.fn();
     const savePlaybackPosition = jest.fn();
     const clearPlaybackPosition = jest.fn();
+    const savePlaybackPositionsBatch = jest.fn();
+    const clearPlaybackPositionsBatch = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
     let positionUpdateCallback: ((data: PlaybackPositionData) => void) | null =
@@ -174,6 +178,10 @@ describe('SerialDetailsComponent', () => {
         savePlaybackPosition.mockResolvedValue(undefined);
         clearPlaybackPosition.mockReset();
         clearPlaybackPosition.mockResolvedValue(undefined);
+        savePlaybackPositionsBatch.mockReset();
+        savePlaybackPositionsBatch.mockResolvedValue(undefined);
+        clearPlaybackPositionsBatch.mockReset();
+        clearPlaybackPositionsBatch.mockResolvedValue(undefined);
         positionUpdateCallback = null;
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
@@ -233,6 +241,8 @@ describe('SerialDetailsComponent', () => {
                         getSeriesPlaybackPositions,
                         savePlaybackPosition,
                         clearPlaybackPosition,
+                        savePlaybackPositionsBatch,
+                        clearPlaybackPositionsBatch,
                     },
                 },
                 {
@@ -888,6 +898,127 @@ describe('SerialDetailsComponent', () => {
             1001,
             'episode'
         );
+    });
+
+    it('marks a season watched through one batch save and updates rendered positions', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const playbackService = fixture.debugElement.injector.get(
+            SerialDetailsPlaybackService
+        );
+        const snackBar = TestBed.inject(MatSnackBar);
+        const seasonPosition = (contentXtreamId: number, episodeNumber: number) => ({
+            playlistId: 'xtream-1',
+            contentXtreamId,
+            contentType: 'episode' as const,
+            seriesXtreamId: 103,
+            seasonNumber: 1,
+            episodeNumber,
+            positionSeconds: 1200,
+            durationSeconds: 1200,
+        });
+
+        await playbackService.handleSeasonPlaybackToggleRequested({
+            seasonKey: '1',
+            markWatched: true,
+            requests: [
+                { contentXtreamId: 1001, nextPosition: seasonPosition(1001, 1) },
+                { contentXtreamId: 1002, nextPosition: seasonPosition(1002, 2) },
+            ],
+        } as never);
+
+        expect(savePlaybackPositionsBatch).toHaveBeenCalledTimes(1);
+        expect(savePlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
+            expect.objectContaining({ contentXtreamId: 1001 }),
+            expect.objectContaining({ contentXtreamId: 1002 }),
+        ]);
+        expect(savePlaybackPosition).not.toHaveBeenCalled();
+        expect(
+            playbackService.episodePlaybackPositions().get(1001)
+        ).toEqual(expect.objectContaining({ positionSeconds: 1200 }));
+        expect(
+            playbackService.episodePlaybackPositions().get(1002)
+        ).toBeDefined();
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'XTREAM.SEASON_MARKED_WATCHED',
+            undefined,
+            { duration: 5000 }
+        );
+        expect(playbackService.seasonWatchBatchRunning()).toBe(false);
+    });
+
+    it('unwatches a season through one batch clear', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const playbackService = fixture.debugElement.injector.get(
+            SerialDetailsPlaybackService
+        );
+        await playbackService.handleSeasonPlaybackToggleRequested({
+            seasonKey: '1',
+            markWatched: false,
+            requests: [
+                { contentXtreamId: 1001, nextPosition: null },
+                { contentXtreamId: 1002, nextPosition: null },
+            ],
+        } as never);
+
+        expect(clearPlaybackPositionsBatch).toHaveBeenCalledTimes(1);
+        expect(clearPlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
+            { contentXtreamId: 1001, contentType: 'episode' },
+            { contentXtreamId: 1002, contentType: 'episode' },
+        ]);
+        expect(clearPlaybackPosition).not.toHaveBeenCalled();
+        expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
+            false
+        );
+    });
+
+    it('keeps rendered positions and reports the error when the season batch fails', async () => {
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        savePlaybackPositionsBatch.mockRejectedValue(
+            new Error('batch failed')
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const playbackService = fixture.debugElement.injector.get(
+            SerialDetailsPlaybackService
+        );
+        const snackBar = TestBed.inject(MatSnackBar);
+        await playbackService.handleSeasonPlaybackToggleRequested({
+            seasonKey: '1',
+            markWatched: true,
+            requests: [
+                {
+                    contentXtreamId: 1001,
+                    nextPosition: {
+                        playlistId: 'xtream-1',
+                        contentXtreamId: 1001,
+                        contentType: 'episode',
+                        seriesXtreamId: 103,
+                        seasonNumber: 1,
+                        episodeNumber: 1,
+                        positionSeconds: 1200,
+                        durationSeconds: 1200,
+                    },
+                },
+            ],
+        } as never);
+
+        expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
+            false
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'XTREAM.SEASON_WATCH_UPDATE_FAILED',
+            undefined,
+            { duration: 5000 }
+        );
+        expect(playbackService.seasonWatchBatchRunning()).toBe(false);
+        consoleError.mockRestore();
     });
 
     it('passes inline episode metadata and autoplays only inside the current season', async () => {

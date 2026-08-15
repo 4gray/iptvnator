@@ -893,6 +893,12 @@
         "IN_PROGRESS": "In corso",
         "MARK_WATCHED": "Segna come visto",
         "MARK_UNWATCHED": "Segna come non visto",
+        "MARK_SEASON_WATCHED": "Segna la stagione come vista ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Segna la stagione come non vista",
+        "SEASON_MARKED_WATCHED": "{{count}} episodi segnati come visti",
+        "SEASON_MARKED_UNWATCHED": "Stagione segnata come non vista",
+        "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} segnati · {{failed}} non riusciti",
+        "SEASON_WATCH_UPDATE_FAILED": "Aggiornamento della stagione non riuscito",
         "EPISODES_WATCHED": "{{count}} di {{total}} episodi visti",
         "DETAIL_FALLBACK": {
             "STATUS": "Metadati del portale non disponibili",

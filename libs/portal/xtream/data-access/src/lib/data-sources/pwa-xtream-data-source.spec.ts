@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
 import {
     XtreamApiService,
@@ -600,5 +601,155 @@ describe('PwaXtreamDataSource', () => {
             }),
         ]);
         expect(apiService.getStreams).not.toHaveBeenCalled();
+    });
+
+    describe('playback position batches', () => {
+        const storageKey = 'xtream-playback-positions';
+
+        const position = (
+            overrides: Partial<PlaybackPositionData> = {}
+        ): PlaybackPositionData => ({
+            contentXtreamId: 100,
+            contentType: 'vod',
+            positionSeconds: 42,
+            durationSeconds: 5400,
+            playlistId: 'playlist-1',
+            ...overrides,
+        });
+
+        it('writes a playback-position batch save as one storage write with upsert semantics', async () => {
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify({
+                    'playlist-1': [
+                        position({
+                            contentXtreamId: 100,
+                            contentType: 'episode',
+                            positionSeconds: 10,
+                            updatedAt: '2026-01-01T00:00:00.000Z',
+                        }),
+                    ],
+                    'playlist-2': [
+                        position({
+                            playlistId: 'playlist-2',
+                            contentXtreamId: 900,
+                            updatedAt: '2026-01-01T00:00:00.000Z',
+                        }),
+                    ],
+                })
+            );
+            const setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
+
+            await dataSource.savePlaybackPositionsBatch('playlist-1', [
+                position({
+                    contentXtreamId: 100,
+                    contentType: 'episode',
+                    positionSeconds: 1200,
+                }),
+                position({
+                    contentXtreamId: 101,
+                    contentType: 'episode',
+                    positionSeconds: 1300,
+                }),
+            ]);
+
+            expect(setItemSpy).toHaveBeenCalledTimes(1);
+            setItemSpy.mockRestore();
+
+            const stored = JSON.parse(
+                localStorage.getItem(storageKey) || '{}'
+            );
+            const playlistRows = stored[
+                'playlist-1'
+            ] as PlaybackPositionData[];
+            expect(playlistRows).toHaveLength(2);
+
+            const replaced = playlistRows.find(
+                (row) => row.contentXtreamId === 100
+            );
+            const appended = playlistRows.find(
+                (row) => row.contentXtreamId === 101
+            );
+            expect(replaced).toEqual(
+                expect.objectContaining({
+                    contentType: 'episode',
+                    positionSeconds: 1200,
+                })
+            );
+            expect(replaced?.updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+            // The whole batch is stamped with one shared timestamp.
+            expect(appended?.updatedAt).toBe(replaced?.updatedAt);
+            expect(stored['playlist-2']).toEqual([
+                expect.objectContaining({
+                    contentXtreamId: 900,
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                }),
+            ]);
+        });
+
+        it('removes only the named rows in a single write on batch clear', async () => {
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify({
+                    'playlist-1': [
+                        position({
+                            contentXtreamId: 100,
+                            contentType: 'episode',
+                        }),
+                        position({
+                            contentXtreamId: 101,
+                            contentType: 'episode',
+                        }),
+                        position({ contentXtreamId: 202 }),
+                    ],
+                    'playlist-2': [
+                        position({
+                            playlistId: 'playlist-2',
+                            contentXtreamId: 100,
+                            contentType: 'episode',
+                        }),
+                    ],
+                })
+            );
+            const setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
+
+            await dataSource.clearPlaybackPositionsBatch('playlist-1', [
+                { contentXtreamId: 100, contentType: 'episode' },
+                { contentXtreamId: 101, contentType: 'episode' },
+            ]);
+
+            expect(setItemSpy).toHaveBeenCalledTimes(1);
+            setItemSpy.mockRestore();
+
+            const stored = JSON.parse(
+                localStorage.getItem(storageKey) || '{}'
+            );
+            expect(stored['playlist-1']).toEqual([
+                expect.objectContaining({
+                    contentXtreamId: 202,
+                    contentType: 'vod',
+                }),
+            ]);
+            // Another playlist's row with the same episode key survives.
+            expect(stored['playlist-2']).toEqual([
+                expect.objectContaining({
+                    contentXtreamId: 100,
+                    contentType: 'episode',
+                }),
+            ]);
+        });
+
+        it('skips storage writes for empty batches and missing playlist buckets', async () => {
+            const setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
+
+            await dataSource.savePlaybackPositionsBatch('playlist-1', []);
+            await dataSource.clearPlaybackPositionsBatch('playlist-1', []);
+            await dataSource.clearPlaybackPositionsBatch('playlist-1', [
+                { contentXtreamId: 100, contentType: 'vod' },
+            ]);
+
+            expect(setItemSpy).not.toHaveBeenCalled();
+            setItemSpy.mockRestore();
+        });
     });
 });
