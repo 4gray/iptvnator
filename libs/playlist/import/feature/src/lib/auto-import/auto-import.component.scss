@@ -33,6 +33,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    // Narrow phone dialogs (~320–375px) cannot fit icon + title + badge +
+    // action on one line; wrapping the action below beats horizontal clipping.
+    flex-wrap: wrap;
+    row-gap: 6px;
 }
 
 .auto-import__candidate-icon {

@@ -265,27 +265,26 @@ const FIELD_MATCHERS: FieldMatcher[] = [
 ];
 
 /**
- * `String.prototype.matchAll` equivalent — the web build's TS lib target
- * predates it. Works on a fresh RegExp copy so the module-level patterns
- * never carry `lastIndex` state between calls.
+ * Fresh stateful matcher for a module-level global pattern, so `lastIndex`
+ * never leaks between calls. Callers drive it lazily with `exec` and stop at
+ * their cap — detection runs on every keystroke, and materializing every
+ * match of a pathological paste up front would defeat the caps' purpose.
+ * (Also avoids `String.prototype.matchAll`, which the web build's TS lib
+ * target predates.)
  */
-function allMatches(pattern: RegExp, text: string): RegExpExecArray[] {
-    const matcher = new RegExp(pattern.source, pattern.flags);
-    const matches: RegExpExecArray[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = matcher.exec(text)) !== null) {
-        matches.push(match);
-        if (match[0] === '') {
-            matcher.lastIndex += 1;
-        }
-    }
-    return matches;
+function freshMatcher(pattern: RegExp): RegExp {
+    return new RegExp(pattern.source, pattern.flags);
 }
 
 export function extractUrls(text: string): DetectedUrl[] {
     const detected: DetectedUrl[] = [];
     const seen = new Set<string>();
-    for (const match of allMatches(URL_PATTERN, text)) {
+    const matcher = freshMatcher(URL_PATTERN);
+    let match: RegExpExecArray | null;
+    while (
+        detected.length < MAX_URLS &&
+        (match = matcher.exec(text)) !== null
+    ) {
         const raw = match[0].replace(TRAILING_PUNCTUATION, '');
         if (seen.has(raw)) {
             continue;
@@ -298,9 +297,6 @@ export function extractUrls(text: string): DetectedUrl[] {
         }
         seen.add(raw);
         detected.push({ raw, parsed, role: classifyUrl(raw, parsed) });
-        if (detected.length >= MAX_URLS) {
-            break;
-        }
     }
     return detected;
 }
@@ -397,13 +393,17 @@ export function extractMacAddresses(
         }
     };
     push(normalizeStalkerMacAddress(labeledMac));
-    for (const match of allMatches(SEPARATED_MAC_PATTERN, text)) {
-        push(normalizeStalkerMacAddress(match[0]));
+    for (const pattern of [SEPARATED_MAC_PATTERN, BARE_INFOMIR_MAC_PATTERN]) {
+        const matcher = freshMatcher(pattern);
+        let match: RegExpExecArray | null;
+        while (
+            macs.length < MAX_MACS &&
+            (match = matcher.exec(text)) !== null
+        ) {
+            push(normalizeStalkerMacAddress(match[0]));
+        }
     }
-    for (const match of allMatches(BARE_INFOMIR_MAC_PATTERN, text)) {
-        push(normalizeStalkerMacAddress(match[0]));
-    }
-    return macs.slice(0, MAX_MACS);
+    return macs;
 }
 
 /**
