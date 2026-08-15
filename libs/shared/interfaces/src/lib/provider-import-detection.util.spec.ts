@@ -652,6 +652,44 @@ describe('detectProviderImportCandidates', () => {
             expect(stalker[0].deviceId2).toBeUndefined();
         });
 
+        it('does not cross-pair global identity labels onto multiple MACs', () => {
+            // First-match-wins labels cannot say WHOSE serial/device ID they
+            // are once a second MAC appears — and a device ID submitted with
+            // the wrong MAC gets pinned by the portal permanently. Multi-MAC
+            // candidates must therefore carry portal + MAC only.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Portal: http://multi.example.com/c/',
+                    'MAC: 00:1A:79:11:11:11',
+                    `Device ID: ${'a'.repeat(64)}`,
+                    'SN: AAAA1111BBBB2',
+                    'MAC: 00:1A:79:22:22:22',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBe(
+                    'http://multi.example.com/c/'
+                );
+                expect(candidate.deviceId1).toBeUndefined();
+                expect(candidate.serialNumber).toBeUndefined();
+            }
+        });
+
+        it('surfaces every MAC of a long multi-account list', () => {
+            const macs = Array.from(
+                { length: 6 },
+                (_, index) => `00:1A:79:0${index}:0${index}:0${index}`
+            );
+            const candidates = detectProviderImportCandidates(
+                ['http://long.example.com/c/', ...macs].join('\n')
+            );
+
+            expect(only(candidates, 'stalker')).toHaveLength(6);
+        });
+
         it('gives labeled credentials to the stalker candidate, not a competing xtream guess', () => {
             const candidates = detectProviderImportCandidates(
                 [
@@ -749,7 +787,7 @@ describe('detectProviderImportCandidates', () => {
 
             expect(
                 detectProviderImportCandidates(urls).length
-            ).toBeLessThanOrEqual(6);
+            ).toBeLessThanOrEqual(16);
         });
     });
 });

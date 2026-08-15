@@ -69,7 +69,9 @@ export interface ProviderImportCandidate {
 
 const GET_PHP_PATH_PATTERN = /\/get\.php$/i;
 const EXTM3U_HEADER_PATTERN = /^\s*#EXTM3U/i;
-const MAX_CANDIDATES = 6;
+// Guard against pathological pastes, not against real handouts: multi-account
+// MAC lists with a dozen entries are legitimate and must all surface.
+const MAX_CANDIDATES = 16;
 
 /**
  * Scans a pasted provider message and returns ranked import candidates.
@@ -106,7 +108,15 @@ export function detectProviderImportCandidates(
     // ── Stalker: a MAC address is the strongest signal there is. Labeled
     // credentials attach here (Stalker portals can require a login too)
     // rather than seeding a competing Xtream guess.
+    //
+    // Identity fields attach ONLY when the message names exactly one account:
+    // labeled extraction is first-match-wins over the whole text, so with
+    // several MACs there is no reliable way to tell whose serial/device ID a
+    // label belongs to — and a device ID submitted with the wrong MAC is
+    // pinned by the portal permanently. Multi-MAC candidates therefore carry
+    // portal + MAC only, and the user supplies identity per account.
     const portal = pickStalkerPortalUrl(urls, labeled);
+    const identity: LabeledFields = macs.length === 1 ? labeled : {};
     for (const macAddress of macs) {
         candidates.push(
             compact({
@@ -114,13 +124,13 @@ export function detectProviderImportCandidates(
                 confidence: portal?.confidence ?? 'low',
                 portalUrl: portal?.url,
                 macAddress,
-                serialNumber: labeled.serialNumber,
-                deviceId1: labeled.deviceId1,
-                deviceId2: labeled.deviceId2,
-                signature1: labeled.signature1,
-                signature2: labeled.signature2,
-                username: labeled.username,
-                password: labeled.password,
+                serialNumber: identity.serialNumber,
+                deviceId1: identity.deviceId1,
+                deviceId2: identity.deviceId2,
+                signature1: identity.signature1,
+                signature2: identity.signature2,
+                username: identity.username,
+                password: identity.password,
                 suggestedTitle: hostnameOf(portal?.url),
             })
         );
@@ -322,6 +332,9 @@ function dedupe(
             candidate.url ?? '',
             candidate.serverUrl ?? '',
             candidate.username ?? '',
+            // Same server + username with a DIFFERENT password is a distinct
+            // account (e.g. a rotation message) — never collapse it away.
+            candidate.password ?? '',
             candidate.portalUrl ?? '',
             candidate.macAddress ?? '',
         ].join('|');

@@ -53,7 +53,9 @@ const HOSTISH_PATTERN = /^[a-z0-9][a-z0-9.-]*(?::\d{2,5})?$/i;
 const WRAPPING_CHARS = /^["'`«<([]+|["'`»>)\]]+$/g;
 
 const MAX_URLS = 8;
-const MAX_MACS = 4;
+// High enough that a real multi-account handout is never silently truncated;
+// only a pathological paste (hex dumps, logs) hits it.
+const MAX_MACS = 12;
 
 interface FieldMatcher {
     field: keyof LabeledFields;
