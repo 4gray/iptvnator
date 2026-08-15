@@ -338,10 +338,7 @@ const DUAL_DEVICE_ID_PATTERN = new RegExp(
     'iu'
 );
 
-export function extractLabeledFields(
-    text: string,
-    urls: DetectedUrl[]
-): LabeledFields {
+export function extractLabeledFields(text: string): LabeledFields {
     // Query strings ARE label-shaped (`?username=u&password=p`), so labeled
     // extraction must never look inside a URL: credentials that ride in a
     // query are mined by `extractXtreamCredentialsFromUrl` with proper URL
@@ -351,7 +348,7 @@ export function extractLabeledFields(
     // ("Portal: http://…"), so it reads the raw text, accepting only matches
     // whose label starts outside every URL span (`&url=…` inside a query
     // stays rejected).
-    const spans = urlSpans(text, urls);
+    const spans = urlSpans(text);
     const masked = maskSpans(text, spans);
     const fields: LabeledFields = {};
     // "DEVICE ID=> 1&2 <hex>" (or "DEVICE ID 1&2: <hex>") hands one value to
@@ -441,21 +438,20 @@ export function labeledHostUrl(labeled: LabeledFields): string | undefined {
     return `http://${host}${portSuffix}`;
 }
 
-function urlSpans(
-    text: string,
-    urls: DetectedUrl[]
-): Array<[number, number]> {
+/**
+ * Spans of EVERY URL-shaped run in the text — deliberately not derived from
+ * the capped `extractUrls` result. A URL past that cap still carries a query
+ * that is label-shaped (`?username=…&password=…`), and an unmasked one would
+ * feed the label matchers credentials belonging to a source that never became
+ * a candidate. Spans are cheap index pairs, so the cap that bounds candidate
+ * assembly does not apply here.
+ */
+function urlSpans(text: string): Array<[number, number]> {
     const spans: Array<[number, number]> = [];
-    for (const url of urls) {
-        let from = 0;
-        for (;;) {
-            const index = text.indexOf(url.raw, from);
-            if (index === -1) {
-                break;
-            }
-            spans.push([index, index + url.raw.length]);
-            from = index + url.raw.length;
-        }
+    const matcher = freshMatcher(URL_PATTERN);
+    let match: RegExpExecArray | null;
+    while ((match = matcher.exec(text)) !== null) {
+        spans.push([match.index, match.index + match[0].length]);
     }
     return spans;
 }

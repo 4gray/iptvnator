@@ -774,6 +774,28 @@ describe('detectProviderImportCandidates', () => {
             }
         });
 
+        it('applies the labeled port before judging portal ambiguity', () => {
+            // Both URLs are the same panel once "Port: 8080" completes the
+            // port-less one — the MAC list must keep the shared portal.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel.example.com:8080/c/',
+                    'http://panel.example.com/c/',
+                    'Port: 8080',
+                    'MAC: 00:1A:79:AA:AA:AA',
+                    'MAC: 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBe(
+                    'http://panel.example.com:8080/c/'
+                );
+            }
+        });
+
         it('keeps alternate endpoints of one install unambiguous for a MAC list', () => {
             // /c/ and portal.php are two doors into the same installation —
             // a MAC list next to both must still get the shared portal.
@@ -930,6 +952,29 @@ describe('detectProviderImportCandidates', () => {
             );
 
             expect(only(candidates, 'm3u-url')).toHaveLength(1);
+        });
+
+        it('does not read credentials out of URLs beyond the extraction cap', () => {
+            // URL #17 is past the 16-URL cap and never becomes a candidate;
+            // its query credentials must not leak into the label matchers and
+            // attach to the early credential-less panel.
+            const filler = Array.from(
+                { length: 15 },
+                (_, index) => `https://lists.example.com/list-${index}.m3u`
+            );
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://early.example.org/player_api.php',
+                    ...filler,
+                    'http://late.example.org/x?username=wrong&password=wrongpass',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].serverUrl).toBe('http://early.example.org');
+            expect(xtream[0].username).toBeUndefined();
+            expect(xtream[0].password).toBeUndefined();
         });
 
         it('surfaces every link of a long list and caps only pathological pastes', () => {

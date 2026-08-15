@@ -104,7 +104,7 @@ export function detectProviderImportCandidates(
     // every emitted value, pass through unchanged.
     const normalized = foldDecorativeAlphabets(raw.normalize('NFKC'));
     const urls = extractUrls(normalized);
-    const labeled = extractLabeledFields(normalized, urls);
+    const labeled = extractLabeledFields(normalized);
     const macs = extractMacAddresses(normalized, labeled.macAddress);
     const candidates: ProviderImportCandidate[] = [];
 
@@ -137,7 +137,9 @@ export function detectProviderImportCandidates(
               : urls.filter((url) => url.role === 'generic');
     const portalAmbiguous =
         macs.length > 1 &&
-        new Set(portalPool.map(portalInstallationKey)).size > 1;
+        new Set(
+            portalPool.map((url) => portalInstallationKey(url, labeled.port))
+        ).size > 1;
     const portal = portalAmbiguous
         ? null
         : pickStalkerPortalUrl(urls, labeled);
@@ -282,16 +284,31 @@ export function detectProviderImportCandidates(
  * of scanner dumps compare equal. The base path separates tenant installs
  * sharing one origin (`/a/stalker_portal/c/` vs `/b/…`), while the known
  * endpoint suffixes of ONE install (`/c/`, `portal.php`, `server/load.php`)
- * are stripped so its alternate endpoints reduce to the same key.
+ * are stripped so its alternate endpoints reduce to the same key. The key is
+ * derived AFTER labeled-port completion, so `http://panel:8080/c/` next to
+ * `http://panel/c/` plus a `Port: 8080` line reads as one panel, exactly as
+ * the picker would complete it.
  */
-function portalInstallationKey(url: DetectedUrl): string {
-    const base = url.parsed.pathname
+function portalInstallationKey(
+    url: DetectedUrl,
+    labeledPort: string | undefined
+): string {
+    let parsed = url.parsed;
+    const completed = completeWithLabeledPort(url, labeledPort);
+    if (completed !== url.raw) {
+        try {
+            parsed = new URL(completed);
+        } catch {
+            parsed = url.parsed;
+        }
+    }
+    const base = parsed.pathname
         .replace(/\/(?:stalker_portal\/)?c\/?$/i, '')
         .replace(/\/stalker_portal\/?$/i, '')
         .replace(/\/portal\.php$/i, '')
         .replace(/\/(?:stalker_portal\/)?server\/load\.php$/i, '')
         .replace(/\/+$/, '');
-    return `${url.parsed.origin}${base}`;
+    return `${parsed.origin}${base}`;
 }
 
 /**
