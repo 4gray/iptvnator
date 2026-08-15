@@ -20,6 +20,7 @@ import {
     getIndeterminateRangeEnd,
     getResponseValidator,
     getTotalBytes,
+    getUnsatisfiedRangeTotal,
     validateResumeResponse,
 } from './download-resume-validation';
 import type {
@@ -117,6 +118,24 @@ export async function transferToPartialFile(
             allowOverlapResume &&
             isRangeNotSatisfiable(error)
         ) {
+            const confirmedTotal = getUnsatisfiedRangeTotal(
+                (error as { response?: { headers?: unknown } }).response
+                    ?.headers
+            );
+            if (
+                confirmedTotal !== null &&
+                confirmedTotal === retainedOffset
+            ) {
+                // The 416's `Content-Range: bytes */N` states the entity's
+                // length, and it equals the partial: the file is COMPLETE —
+                // the previous response merely reset instead of closing.
+                // (Under If-Range a non-matching validator yields a 200, so
+                // a 416 also confirms identity on the validator path.)
+                return {
+                    bytesDownloaded: retainedOffset,
+                    totalBytes: confirmedTotal,
+                };
+            }
             // The remote entity shrank below the resume offset: a
             // representation change, not a transport failure. Restart against
             // the current entity instead of deleting the partial as a
@@ -267,6 +286,14 @@ export async function transferToPartialFile(
             return restartFromScratch(
                 'retained partial does not match the server content'
             );
+        }
+        if (verifyOverlap && overlapVerifier?.isComplete()) {
+            // The overlap fully matched before the failure: the proof holds
+            // regardless of how the stream ended, so promote the validator
+            // now — otherwise every reconnect against a server whose
+            // per-connection cap barely exceeds the window would replay
+            // 256 KiB for sub-threshold progress and stall out.
+            task.resumeValidator = getResponseValidator(response.headers);
         }
         if (isRetainableNetworkCode(getNetworkErrorCode(error))) {
             const fileBytes = getPartialDownloadSize(reservation.path);

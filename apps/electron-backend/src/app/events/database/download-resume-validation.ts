@@ -86,6 +86,21 @@ export function getIndeterminateRangeEnd(headers: unknown): number | null {
     return match ? Number(match[1]) + 1 : null;
 }
 
+// Total from a 416's `Content-Range: bytes */N`. A compliant server states
+// the current representation length when refusing a range; equal to the
+// partial's size it CONFIRMS the file is complete rather than shrunk.
+export function getUnsatisfiedRangeTotal(headers: unknown): number | null {
+    if (!headers || typeof headers !== 'object') {
+        return null;
+    }
+    const contentRange = getHeaderValue(
+        headers as Record<string, unknown>,
+        'content-range'
+    );
+    const match = contentRange?.match(/^bytes\s+\*\/(\d+)$/i);
+    return match ? Number(match[1]) : null;
+}
+
 function getHeaderValue(
     headers: Record<string, unknown>,
     name: string

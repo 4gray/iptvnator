@@ -338,6 +338,9 @@ async function persistPause(
                 errorMessage: null,
                 fileName: task.fileName,
                 filePath: task.filePath ?? null,
+                // Keep a mid-attempt validator promotion (complete overlap
+                // match) across pause/resume.
+                resumeValidator: task.resumeValidator ?? null,
                 status: 'paused',
                 totalBytes: task.totalBytes ?? null,
                 updatedAt: sql`CURRENT_TIMESTAMP`,

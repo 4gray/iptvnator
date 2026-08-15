@@ -1,0 +1,715 @@
+import { PassThrough, Readable } from 'node:stream';
+import {
+    createTask,
+    setupResumeHarness,
+    waitForStatus,
+} from './download-resume.test-harness';
+
+jest.setTimeout(20_000);
+
+describe('download overlap resume', () => {
+    let warnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        warnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        warnSpy.mockRestore();
+    });
+
+    it('promotes the validator once the overlap verified, even on a mid-append reset', async () => {
+        // The overlap fully matched before the reset, so the proof holds: the
+        // retained failure must carry the response's validator into the row,
+        // sparing every later attempt another 256 KiB replay.
+        const retainedBytes = Buffer.alloc(50, 7);
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 50,
+            partialSizeAfterTransferError: 60,
+            partialTail: retainedBytes,
+            response: {
+                data: body,
+                headers: { 'content-length': '200', etag: '"etag-proven"' },
+                status: 200,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    totalBytes: 200,
+                })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            // Full overlap replays, then 10 appended bytes, then the reset.
+            body.write(retainedBytes);
+            body.write(Buffer.alloc(10, 8));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resumeValidator: '"etag-proven"',
+                    status: 'failed',
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('finalizes the partial when a 416 confirms its exact length', async () => {
+        // A resume at EOF answered with `416` + `Content-Range: bytes */100`
+        // confirms the 100-byte partial IS the complete entity — truncating
+        // and redownloading it would loop forever on a server that always
+        // resets after its last byte.
+        const harness = await setupResumeHarness({
+            finalSize: 100,
+            partialSize: 100,
+            responses: [
+                {
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        {
+                            response: {
+                                headers: { 'content-range': 'bytes */100' },
+                                status: 416,
+                            },
+                        }
+                    ),
+                },
+            ],
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                resumeValidator: '"etag-1"',
+                totalBytes: 100,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        expect(harness.truncate).not.toHaveBeenCalled();
+        expect(harness.set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 100,
+                status: 'completed',
+                totalBytes: 100,
+            })
+        );
+    });
+
+    it('verifies a small validator-less partial from byte zero and appends', async () => {
+        // The 50-byte partial fits inside the overlap window: the plain
+        // request (no Range) replays it in full for verification and only the
+        // 4 new bytes are appended — the .part is never rewritten in place.
+        const retainedBytes = Buffer.alloc(50, 7);
+        const newBytes = Buffer.alloc(4, 8);
+        const harness = await setupResumeHarness({
+            finalSize: 54,
+            partialSize: 50,
+            partialTail: retainedBytes,
+            response: {
+                data: Readable.from([retainedBytes, newBytes]),
+                headers: { 'content-length': '54', etag: '"etag-new"' },
+                status: 200,
+            },
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 54,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        const requestOptions =
+            harness.requestWithValidatedRedirects.mock.calls[0][1];
+        expect(requestOptions.headers).toEqual({});
+        expect(harness.createWriteStream).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            { flags: 'a' }
+        );
+        expect(Buffer.concat(harness.writtenChunks)).toEqual(newBytes);
+        expect(harness.truncate).not.toHaveBeenCalled();
+    });
+    it('resumes without a validator by verifying the overlap window', async () => {
+        // Partial: 300,000 bytes; overlap window: last 262,144 → resume at
+        // 37,856. The response replays the matching overlap then 16 new bytes.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const newBytes = Buffer.alloc(16, 8);
+        const harness = await setupResumeHarness({
+            finalSize: 300_016,
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            response: {
+                data: Readable.from([overlapTail, newBytes]),
+                headers: { 'content-range': 'bytes 37856-300015/300016' },
+                status: 206,
+            },
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 300_016,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        const requestOptions =
+            harness.requestWithValidatedRedirects.mock.calls[0][1];
+        expect(requestOptions.headers).toEqual({ Range: 'bytes=37856-' });
+        expect(harness.createWriteStream).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            { flags: 'a' }
+        );
+        // Only the bytes past the overlap reach the file.
+        expect(Buffer.concat(harness.writtenChunks)).toEqual(newBytes);
+        expect(harness.truncate).not.toHaveBeenCalled();
+        expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+    });
+    it('discards the partial and restarts when the overlap does not match', async () => {
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const freshBody = Buffer.alloc(16, 8);
+        const harness = await setupResumeHarness({
+            finalSize: 16,
+            partialSize: 300_000,
+            // After the mismatch truncates the partial, the restart sees an
+            // empty file.
+            partialSizeAfterTransferError: 0,
+            partialTail: overlapTail,
+            responses: [
+                {
+                    // A different representation: the overlap bytes differ.
+                    data: Readable.from([Buffer.alloc(262_144, 9)]),
+                    headers: { 'content-range': 'bytes 37856-300015/300016' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([freshBody]),
+                    headers: { 'content-length': '16' },
+                    status: 200,
+                },
+            ],
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 300_016,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        expect(harness.truncate).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            0
+        );
+        const restartOptions =
+            harness.requestWithValidatedRedirects.mock.calls[1][1];
+        expect(restartOptions.headers).toEqual({});
+        // No mismatching byte reached the file; only the fresh body did.
+        expect(Buffer.concat(harness.writtenChunks)).toEqual(freshBody);
+        expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+    });
+    it('keeps an unknown total unknown when the overlap stays unverified', async () => {
+        // No response ever advertises a total, and each attempt EOFs inside
+        // the 20-byte overlap. The failed row must persist totalBytes null —
+        // fabricating totalBytes = bytesDownloaded would let Retry's
+        // completed-partial shortcut finalize the unverified partial without
+        // making a request.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 20,
+            partialTail: Buffer.alloc(20, 'r'),
+            response: {
+                data: Readable.from([Buffer.alloc(10, 'r')]),
+                headers: {},
+                status: 200,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 20,
+                    filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('retains a range-capable partial after its stale carried total is falsified', async () => {
+        // The previous response advertised a 250-byte total, but this 206's
+        // indeterminate range extends past it. When the reset lands with the
+        // partial at 250, the falsified total must neither complete the
+        // download nor push it into generic partial-deleting cleanup.
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 40,
+            // The partial crosses the stale 250-byte total: only a task kept
+            // in sync with the falsified-total retention lets the reconnect's
+            // getResumeOffset accept it.
+            partialSizeAfterTransferError: 260,
+            responses: [
+                {
+                    data: body,
+                    headers: { 'content-range': 'bytes 40-299/*' },
+                    status: 206,
+                },
+                {
+                    // Reconnects resume past the falsified total's edge.
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 260-299/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                    totalBytes: 250,
+                })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            body.write(Buffer.alloc(220, 'r'));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 260,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('keeps the response total uncommitted while the overlap is unverified', async () => {
+        // The response advertises exactly the partial's size. Committing that
+        // total before the overlap matched would leave an N/N row that the
+        // completed-partial shortcut finalizes without another request after
+        // a pause, crash, or retained failure.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            response: {
+                data: body,
+                headers: { 'content-range': 'bytes 37856-299999/300000' },
+                status: 206,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            // Only part of the overlap arrives before the reset.
+            body.write(overlapTail.subarray(0, 100_000));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ totalBytes: 300_000 })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 300_000,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('never completes at the end of an indeterminate Content-Range', async () => {
+        // A 206 with `bytes 40-99/*` and Content-Length 60 describes only the
+        // selected range. Deriving a total of 100 from it would declare the
+        // 200-byte download complete at byte 100; the known total must be
+        // carried instead.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 40,
+            response: {
+                data: Readable.from([Buffer.alloc(60, 'r')]),
+                headers: {
+                    'content-length': '60',
+                    'content-range': 'bytes 40-99/*',
+                },
+                status: 206,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                    totalBytes: 200,
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 100,
+                    totalBytes: 200,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('restarts from scratch when the resume range is beyond the shrunken entity (416)', async () => {
+        const freshBody = Buffer.alloc(30, 8);
+        const harness = await setupResumeHarness({
+            finalSize: 30,
+            partialSize: 300_000,
+            partialSizeAfterTransferError: 0,
+            responses: [
+                {
+                    // A range-capable server whose entity shrank below the
+                    // rewound offset rejects the Range outright.
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        { response: { status: 416 } }
+                    ),
+                },
+                {
+                    data: Readable.from([freshBody]),
+                    headers: { 'content-length': '30' },
+                    status: 200,
+                },
+            ],
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 300_016,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        expect(harness.truncate).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            0
+        );
+        const restartOptions =
+            harness.requestWithValidatedRedirects.mock.calls[1][1];
+        expect(restartOptions.headers).toEqual({});
+        expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+    });
+    it('restarts instead of completing when the remote entity shrank inside the overlap', async () => {
+        // The server's entity is now 100,000 bytes — shorter than the
+        // 300,000-byte partial — and its complete 206 ends inside the
+        // verification window while matching the overlap's prefix. The old
+        // suffix must never be finalized as a completed file.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const freshBody = Buffer.alloc(30, 8);
+        const harness = await setupResumeHarness({
+            finalSize: 30,
+            partialSize: 300_000,
+            partialSizeAfterTransferError: 0,
+            partialTail: overlapTail,
+            responses: [
+                {
+                    data: Readable.from([overlapTail.subarray(0, 62_144)]),
+                    headers: { 'content-range': 'bytes 37856-99999/100000' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([freshBody]),
+                    headers: { 'content-length': '30' },
+                    status: 200,
+                },
+            ],
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 300_016,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        expect(harness.truncate).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            0
+        );
+        const restartOptions =
+            harness.requestWithValidatedRedirects.mock.calls[1][1];
+        expect(restartOptions.headers).toEqual({});
+        expect(Buffer.concat(harness.writtenChunks)).toEqual(freshBody);
+    });
+    it('does not promote a response validator while the overlap is unverified', async () => {
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 20,
+            partialTail: Buffer.alloc(20, 'r'),
+            response: {
+                data: body,
+                headers: { 'content-length': '100', etag: '"etag-x"' },
+                status: 200,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    totalBytes: 100,
+                })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            // Only half of the 20-byte overlap arrives before the reset.
+            body.write(Buffer.alloc(10, 'r'));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            // The unverified partial must never be blessed with the new
+            // response's validator — the next resume has to re-verify.
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ resumeValidator: '"etag-x"' })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('treats a stream ending inside the overlap as an interruption, not a mismatch', async () => {
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            response: {
+                // EOF after 100,000 matching overlap bytes — nothing appended.
+                data: Readable.from([overlapTail.subarray(0, 100_000)]),
+                headers: { 'content-range': 'bytes 37856-300015/300016' },
+                status: 206,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    totalBytes: 300_016,
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.truncate).not.toHaveBeenCalled();
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                })
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('retains the partial and reconnects when the response carries no validator', async () => {
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 0,
+            partialSizeAfterTransferError: 20,
+            // The reconnect attempts verify the 20 retained bytes from zero.
+            partialTail: Buffer.alloc(20, 'r'),
+            response: {
+                data: body,
+                headers: { 'content-length': '100' },
+                status: 200,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(createTask());
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            body.write(Buffer.alloc(20, 'r'));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(
+                harness.requestWithValidatedRedirects.mock.calls.length
+            ).toBeGreaterThan(1);
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 20,
+                    errorMessage: expect.stringContaining(
+                        'DOWNLOAD_NETWORK_INTERRUPTED'
+                    ),
+                    filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                    totalBytes: 100,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+    it('stays incomplete when an indeterminate range ends cleanly at its advertised end', async () => {
+        // A range-capping server closing cleanly at Y of `bytes X-Y/*` looks
+        // exactly like entity EOF but proves nothing about the entity's end:
+        // the transfer must remain incomplete and retained, never finalized.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 50,
+            partialSizeAfterTransferError: 100,
+            responses: [
+                {
+                    data: Readable.from([Buffer.alloc(50, 'r')]),
+                    headers: { 'content-range': 'bytes 50-99/*' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 100-149/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 100,
+                    errorMessage: 'Transfer ended before the advertised size',
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+});

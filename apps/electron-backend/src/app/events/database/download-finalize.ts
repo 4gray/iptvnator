@@ -220,6 +220,10 @@ async function persistRetainedPartialFailure(
             errorMessage: describeError(error),
             fileName,
             filePath,
+            // The task's validator is only ever proven-or-original, so a
+            // validator promoted mid-attempt (complete overlap match)
+            // survives into manual Retry instead of forcing a re-verify.
+            resumeValidator: task.resumeValidator ?? null,
             status: 'failed',
             totalBytes,
             updatedAt: sql`CURRENT_TIMESTAMP`,
