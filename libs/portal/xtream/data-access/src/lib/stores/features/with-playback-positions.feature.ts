@@ -32,6 +32,12 @@ export function withPlaybackPositions() {
             const getPositionKey = (type: string, id: number) =>
                 `${type}_${id}`;
 
+            // Latest-load-wins: a load that was superseded while its fetch
+            // was in flight must not patch the store — after a playlist
+            // switch the late result would overwrite the new playlist's
+            // position maps with the old playlist's rows.
+            let positionsLoadGeneration = 0;
+
             return {
                 /**
                  * Get progress percentage for display (0-100)
@@ -94,8 +100,12 @@ export function withPlaybackPositions() {
                  * Load all playback positions for the playlist (for grid view)
                  */
                 async loadAllPositions(playlistId: string): Promise<void> {
+                    const generation = ++positionsLoadGeneration;
                     const positions =
                         await dataSource.getAllPlaybackPositions(playlistId);
+                    if (generation !== positionsLoadGeneration) {
+                        return;
+                    }
 
                     const positionsMap = new Map<
                         string,
