@@ -147,12 +147,13 @@ export async function transferToPartialFile(
                 };
             }
             if (
-                probingEof &&
+                resumeOffset === retainedOffset &&
                 (confirmedTotal === null || confirmedTotal >= retainedOffset)
             ) {
-                // A probe at the partial's exact end ALWAYS collects a 416
-                // when the entity ends there, and the confirming length is
-                // optional — without it the response is equally consistent
+                // Any request starting at the partial's exact end — the EOF
+                // probe AND every validator-backed resume — ALWAYS collects a
+                // 416 when the entity ends there, and the confirming length
+                // is optional. Without it the response is equally consistent
                 // with a complete file, so restarting would destroy a likely
                 // finished download. Retain instead; only a stated total
                 // BELOW the partial proves the entity shrank.

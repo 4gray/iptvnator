@@ -281,6 +281,58 @@ describe('download overlap resume', () => {
         }
     });
 
+    it('retains a validator-backed partial whose EOF resume collects a length-less 416', async () => {
+        // The If-Range resume at the partial's exact end is itself an EOF
+        // probe: a 416 without the optional length must retain the file, not
+        // truncate and redownload it.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 100,
+            partialSizeAfterTransferError: 200,
+            responses: [
+                {
+                    data: Readable.from([Buffer.alloc(100, 'r')]),
+                    headers: { 'content-range': 'bytes 100-199/*' },
+                    status: 206,
+                },
+                {
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        { response: { headers: {}, status: 416 } }
+                    ),
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.truncate).not.toHaveBeenCalled();
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 200,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('verifies a small validator-less partial from byte zero and appends', async () => {
         // The 50-byte partial fits inside the overlap window: the plain
         // request (no Range) replays it in full for verification and only the
