@@ -9,7 +9,6 @@ import type {
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackFallbackRequest,
-    PlaybackRecommendation,
     PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
 import {
@@ -23,6 +22,7 @@ import type {
 } from './playback-recovery-session';
 import type { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import type { WebPlayerApplicationToken } from './web-player-application-state';
+import { createWebPlayerRecommendations } from './web-player-recovery-policy';
 
 export interface WebPlayerRecoveryControllerDeps {
     readonly recoverySession: PlaybackRecoverySession;
@@ -37,7 +37,9 @@ export interface WebPlayerRecoveryControllerDeps {
     readonly playbackApplicationToken: Signal<WebPlayerApplicationToken>;
     readonly resolvedPlayback: Signal<ResolvedPortalPlayback>;
     readonly resolvedIsLive: Signal<boolean>;
-    readonly recommendations: () => readonly PlaybackRecommendation[];
+    readonly playbackExternallyTransferable: Signal<boolean>;
+    readonly alternativeSourceCount: () => number;
+    readonly managedExternalPlayersAvailable: () => boolean;
     readonly emitPlaybackFailed: (code: PlaybackDiagnosticCode) => void;
     readonly emitExternalFallbackRequested: (
         request: PlaybackFallbackRequest
@@ -71,6 +73,25 @@ export class WebPlayerRecoveryController {
             ? null
             : this.playbackDiagnostic()
     );
+    readonly recommendations = computed(() => {
+        const binding = this.deps.recoverySession.activeBinding();
+        const token = this.deps.playbackApplicationToken();
+        return createWebPlayerRecommendations({
+            diagnostic: this.visiblePlaybackDiagnostic(),
+            binding:
+                binding && this.deps.applicationHandoff.owns(binding, token)
+                    ? binding
+                    : null,
+            attemptedTargets: this.deps.recoverySession.attemptedTargets(),
+            externalStates: this.deps.externalRecovery.states(),
+            managedExternalPlayersAvailable:
+                this.deps.managedExternalPlayersAvailable(),
+            playbackExternallyTransferable:
+                this.deps.playbackExternallyTransferable(),
+            isLive: this.deps.resolvedIsLive(),
+            alternativeSourceCount: this.deps.alternativeSourceCount(),
+        });
+    });
 
     constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {}
 
@@ -113,9 +134,9 @@ export class WebPlayerRecoveryController {
         if (!diagnostic) {
             return;
         }
-        const available = this.deps
-            .recommendations()
-            .some((item) => item.action === 'player' && item.target === target);
+        const available = this.recommendations().some(
+            (item) => item.action === 'player' && item.target === target
+        );
         if (!available) {
             if (target !== 'mpv' && target !== 'vlc') {
                 recoverySession.recordInlineAttempt(target);

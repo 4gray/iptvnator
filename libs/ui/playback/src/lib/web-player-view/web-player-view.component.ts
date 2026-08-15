@@ -52,7 +52,6 @@ import { createWebPlayerApplicationState } from './web-player-application-state'
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
 import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
-    createWebPlayerRecommendations,
     isPlaybackExternallyTransferable,
     resolveRenderableWebPlayer,
     toInlinePlaybackPlayer,
@@ -170,6 +169,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedIsLive = this.applicationState.isLive;
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
+    readonly playbackExternallyTransferable = computed(() =>
+        isPlaybackExternallyTransferable(this.resolvedPlayback())
+    );
     private readonly recovery = new WebPlayerRecoveryController({
         recoverySession: this.recoverySession,
         externalRecovery: this.externalRecovery,
@@ -183,7 +185,10 @@ export class WebPlayerViewComponent implements OnDestroy {
         playbackApplicationToken: this.playbackApplicationToken,
         resolvedPlayback: this.resolvedPlayback,
         resolvedIsLive: this.resolvedIsLive,
-        recommendations: () => this.recommendations(),
+        playbackExternallyTransferable: this.playbackExternallyTransferable,
+        alternativeSourceCount: () => this.alternativeSources().length,
+        managedExternalPlayersAvailable: () =>
+            this.runtime.supportsManagedExternalPlayers,
         emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
         emitExternalFallbackRequested: (request) =>
             this.externalFallbackRequested.emit(request),
@@ -191,6 +196,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly playbackDiagnostic = this.recovery.playbackDiagnostic;
     readonly visiblePlaybackDiagnostic =
         this.recovery.visiblePlaybackDiagnostic;
+    readonly recommendations = this.recovery.recommendations;
     readonly effectiveStartTime = computed(() =>
         this.recoverySession.resumeStartTime(
             this.startTime(),
@@ -203,34 +209,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedMediaTitle = computed(() =>
         resolveWebPlayerMediaTitle(this.mediaTitle(), this.resolvedPlayback())
     );
-    readonly playbackExternallyTransferable = computed(() =>
-        isPlaybackExternallyTransferable(this.resolvedPlayback())
-    );
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
     get supportsManagedExternalPlayers(): boolean {
         return this.runtime.supportsManagedExternalPlayers;
     }
-    readonly recommendations = computed(() => {
-        const binding = this.activeBinding();
-        const token = this.playbackApplicationToken();
-        return createWebPlayerRecommendations({
-            diagnostic: this.visiblePlaybackDiagnostic(),
-            binding:
-                binding && this.applicationHandoff.owns(binding, token)
-                    ? binding
-                    : null,
-            attemptedTargets: this.recoverySession.attemptedTargets(),
-            externalStates: this.externalRecoveryState(),
-            managedExternalPlayersAvailable:
-                this.runtime.supportsManagedExternalPlayers,
-            playbackExternallyTransferable:
-                this.playbackExternallyTransferable(),
-            isLive: this.resolvedIsLive(),
-            alternativeSourceCount: this.alternativeSources().length,
-        });
-    });
     readonly renderedApplications = computed<
         readonly PlaybackApplicationOwnership[]
     >(() => {
