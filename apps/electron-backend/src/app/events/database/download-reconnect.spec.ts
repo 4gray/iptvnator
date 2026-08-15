@@ -186,6 +186,27 @@ describe('transferWithReconnects', () => {
         expect(transfer).toHaveBeenCalledTimes(4);
     });
 
+    it('does not charge a tolerated regression against the stall budget', async () => {
+        // After the restart regression, the rebuilt file grows below the
+        // progress threshold — it still gets the full three-stall budget.
+        const transfer = jest
+            .fn()
+            .mockRejectedValueOnce(interrupted(500_000))
+            .mockRejectedValueOnce(interrupted(100_000))
+            .mockRejectedValueOnce(interrupted(120_000))
+            .mockRejectedValueOnce(interrupted(140_000))
+            .mockRejectedValue(interrupted(160_000));
+
+        await expect(
+            transferWithReconnects(db, createTask(), reservation, {
+                delayMs: 0,
+                transfer,
+            })
+        ).rejects.toBeInstanceOf(InterruptedTransferError);
+        // free, regression (no stall), then three sub-threshold stalls.
+        expect(transfer).toHaveBeenCalledTimes(5);
+    });
+
     it('gives up when attempts keep regressing below the previous attempt', async () => {
         const transfer = jest
             .fn()

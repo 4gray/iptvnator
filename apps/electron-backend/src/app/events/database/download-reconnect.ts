@@ -79,17 +79,22 @@ export async function transferWithReconnects(
 
             const attemptBytes = interruption.progress.bytesDownloaded;
             if (lastBytes !== null && attemptBytes < lastBytes) {
+                // A restart rewound the file. A tolerated regression is
+                // charged to its own bounded budget only — it is neither
+                // progress nor a stall, so it must not also consume the
+                // stall budget the rebuilt file needs to keep growing.
                 if (regressionCredits <= 0) {
                     throw interruption;
                 }
                 regressionCredits -= 1;
-            }
-            const advanced =
-                lastBytes === null ||
-                attemptBytes - lastBytes >= RECONNECT_PROGRESS_MIN_BYTES;
-            stalledAttempts = advanced ? 0 : stalledAttempts + 1;
-            if (stalledAttempts >= MAX_STALLED_RECONNECTS) {
-                throw interruption;
+            } else {
+                const advanced =
+                    lastBytes === null ||
+                    attemptBytes - lastBytes >= RECONNECT_PROGRESS_MIN_BYTES;
+                stalledAttempts = advanced ? 0 : stalledAttempts + 1;
+                if (stalledAttempts >= MAX_STALLED_RECONNECTS) {
+                    throw interruption;
+                }
             }
             lastBytes = attemptBytes;
 
