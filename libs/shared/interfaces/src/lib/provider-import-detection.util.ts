@@ -115,18 +115,26 @@ export function detectProviderImportCandidates(
     // label belongs to — and a device ID submitted with the wrong MAC is
     // pinned by the portal permanently. Multi-MAC candidates therefore carry
     // portal + MAC only, and the user supplies identity per account.
-    // Several MACs meeting portal-shaped URLs on DIFFERENT hosts is two
+    // Several MACs meeting portal candidates on DIFFERENT hosts is two
     // accounts from two panels in one paste — there is no deterministic way
     // to say which MAC belongs to which portal, so those candidates carry the
     // MAC alone instead of prefilling half of them with the wrong panel.
-    // Same-host URL pairs (the Real/Panel lines of scanner dumps) stay
-    // unambiguous, as does one portal shared by a whole MAC list.
-    const stalkerHosts = new Set(
-        urls
-            .filter((url) => url.role === 'stalker')
-            .map((url) => url.parsed.hostname)
-    );
-    const portalAmbiguous = macs.length > 1 && stalkerHosts.size > 1;
+    // The ambiguity is judged over the POOL `pickStalkerPortalUrl` would
+    // actually draw from: portal-shaped URLs when any exist, otherwise the
+    // generic-URL fallback — a guard on the shaped pool alone would let two
+    // root-URL panels slip through the fallback door. A single labeled
+    // "Portal:" line, same-host Real/Panel pairs, and one portal shared by a
+    // whole MAC list stay unambiguous.
+    const shapedPortals = urls.filter((url) => url.role === 'stalker');
+    const portalPool =
+        shapedPortals.length > 0
+            ? shapedPortals
+            : labeledHostUrl(labeled) !== undefined
+              ? []
+              : urls.filter((url) => url.role === 'generic');
+    const portalAmbiguous =
+        macs.length > 1 &&
+        new Set(portalPool.map((url) => url.parsed.hostname)).size > 1;
     const portal = portalAmbiguous
         ? null
         : pickStalkerPortalUrl(urls, labeled);

@@ -699,6 +699,26 @@ describe('detectProviderImportCandidates', () => {
             }
         });
 
+        it('treats several MACs with generic URLs on different hosts as ambiguous too', () => {
+            // Without portal-shaped URLs the picker falls back to a generic
+            // URL — the ambiguity guard must cover that pool as well, or two
+            // root-URL panels would still cross-pair through the fallback.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel-a.example.com',
+                    'MAC: 00:1A:79:AA:AA:AA',
+                    'http://panel-b.example.com',
+                    'MAC: 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBeUndefined();
+            }
+        });
+
         it('surfaces every MAC of a long multi-account list', () => {
             const macs = Array.from(
                 { length: 6 },
