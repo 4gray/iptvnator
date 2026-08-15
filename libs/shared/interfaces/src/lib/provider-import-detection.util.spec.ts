@@ -678,6 +678,27 @@ describe('detectProviderImportCandidates', () => {
             }
         });
 
+        it('omits the portal when several MACs meet portals on different hosts', () => {
+            // Two panels + two MACs in one paste: no deterministic owner for
+            // either portal, so the candidates carry the MAC alone instead of
+            // prefilling half of them with the wrong panel.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel-a.example.com/c/',
+                    'MAC: 00:1A:79:AA:AA:AA',
+                    'http://panel-b.example.com/c/',
+                    'MAC: 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBeUndefined();
+                expect(candidate.confidence).toBe('low');
+            }
+        });
+
         it('surfaces every MAC of a long multi-account list', () => {
             const macs = Array.from(
                 { length: 6 },
@@ -779,15 +800,18 @@ describe('detectProviderImportCandidates', () => {
             expect(only(candidates, 'm3u-url')).toHaveLength(1);
         });
 
-        it('caps the number of returned candidates', () => {
-            const urls = Array.from(
+        it('surfaces every link of a long list and caps only pathological pastes', () => {
+            const twelve = Array.from(
                 { length: 12 },
                 (_, index) => `https://lists.example.com/list-${index}.m3u`
             ).join('\n');
+            expect(detectProviderImportCandidates(twelve)).toHaveLength(12);
 
-            expect(
-                detectProviderImportCandidates(urls).length
-            ).toBeLessThanOrEqual(16);
+            const twenty = Array.from(
+                { length: 20 },
+                (_, index) => `https://lists.example.com/list-${index}.m3u`
+            ).join('\n');
+            expect(detectProviderImportCandidates(twenty)).toHaveLength(16);
         });
     });
 });

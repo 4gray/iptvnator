@@ -52,9 +52,10 @@ const HOSTISH_PATTERN = /^[a-z0-9][a-z0-9.-]*(?::\d{2,5})?$/i;
 
 const WRAPPING_CHARS = /^["'`«<([]+|["'`»>)\]]+$/g;
 
-const MAX_URLS = 8;
-// High enough that a real multi-account handout is never silently truncated;
-// only a pathological paste (hex dumps, logs) hits it.
+// Both caps guard against pathological pastes only, and stay aligned with
+// the assembler's candidate cap so a real multi-link or multi-account
+// handout is never truncated by the scanner before assembly even sees it.
+const MAX_URLS = 16;
 const MAX_MACS = 12;
 
 interface FieldMatcher {

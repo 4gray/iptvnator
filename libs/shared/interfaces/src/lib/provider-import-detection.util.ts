@@ -115,7 +115,21 @@ export function detectProviderImportCandidates(
     // label belongs to — and a device ID submitted with the wrong MAC is
     // pinned by the portal permanently. Multi-MAC candidates therefore carry
     // portal + MAC only, and the user supplies identity per account.
-    const portal = pickStalkerPortalUrl(urls, labeled);
+    // Several MACs meeting portal-shaped URLs on DIFFERENT hosts is two
+    // accounts from two panels in one paste — there is no deterministic way
+    // to say which MAC belongs to which portal, so those candidates carry the
+    // MAC alone instead of prefilling half of them with the wrong panel.
+    // Same-host URL pairs (the Real/Panel lines of scanner dumps) stay
+    // unambiguous, as does one portal shared by a whole MAC list.
+    const stalkerHosts = new Set(
+        urls
+            .filter((url) => url.role === 'stalker')
+            .map((url) => url.parsed.hostname)
+    );
+    const portalAmbiguous = macs.length > 1 && stalkerHosts.size > 1;
+    const portal = portalAmbiguous
+        ? null
+        : pickStalkerPortalUrl(urls, labeled);
     const identity: LabeledFields = macs.length === 1 ? labeled : {};
     for (const macAddress of macs) {
         candidates.push(
