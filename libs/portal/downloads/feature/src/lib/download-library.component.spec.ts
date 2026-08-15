@@ -214,7 +214,7 @@ describe('DownloadLibraryComponent', () => {
         expect(fallbackEpisodeCard.textContent).toContain('Episode');
     });
 
-    it('keeps ready cards clean while preserving tracked size', () => {
+    it('keeps ready cards free of size, source, and toolbar chrome', () => {
         const section = byTestId('downloads-library-section');
         const movieCard = byTestId('download-library-movie-9');
         const seriesCard = byTestId('download-library-series-playlist-a-77');
@@ -224,10 +224,30 @@ describe('DownloadLibraryComponent', () => {
         expect(movieCard.textContent).not.toContain('Cinema');
         expect(seriesCard.textContent).not.toContain('Living room');
         expect(episodeCard.textContent).not.toContain('Archive');
-        expect(movieCard.textContent).toContain('2.4 MB');
+        expect(movieCard.textContent).not.toContain('2.4 MB');
+        expect(
+            movieCard.querySelector('.download-library__actions')
+        ).toBeNull();
+        expect(
+            Array.from(movieCard.querySelectorAll('button')).find(
+                (candidate) =>
+                    candidate.getAttribute('aria-label') === 'Play: Moonrise'
+            )
+        ).toBeUndefined();
     });
 
-    it('puts the movie source ahead of its overflow commands', async () => {
+    it('renders the section heading with a presentational count badge', () => {
+        const heading = fixture.nativeElement.querySelector(
+            '#downloads-library-heading'
+        ) as HTMLElement;
+        const badge = heading.querySelector('.app-count-badge');
+
+        expect(heading.textContent).toContain('Ready to watch');
+        expect(badge?.textContent?.trim()).toBe('3');
+        expect(badge?.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('puts the movie source ahead of its ordered overflow commands', async () => {
         const card = byTestId('download-library-movie-9');
 
         await click(button(card, 'More actions: Moonrise'));
@@ -235,6 +255,8 @@ describe('DownloadLibraryComponent', () => {
         const header = document.querySelector<HTMLElement>(
             '.download-source-menu-header'
         );
+        const play = button(document, 'Play: Moonrise');
+        const reveal = button(document, 'Show in folder: Moonrise');
         const copy = button(document, 'Copy download URL: Moonrise');
         const remove = button(document, 'Remove from manager: Moonrise');
         expect(header?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
@@ -242,8 +264,16 @@ describe('DownloadLibraryComponent', () => {
         );
         expect(
             header &&
-                header.compareDocumentPosition(copy) &
+                header.compareDocumentPosition(play) &
                     Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+        expect(
+            play.compareDocumentPosition(reveal) &
+                Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+        expect(
+            reveal.compareDocumentPosition(copy) &
+                Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
         expect(
             copy.compareDocumentPosition(remove) &
@@ -331,16 +361,17 @@ describe('DownloadLibraryComponent', () => {
         expect(opened).toEqual([MOVIE, MOVIE]);
     });
 
-    it('keeps explicit movie toolbar and menu commands local', async () => {
+    it('keeps every movie file command local behind the overflow menu', async () => {
         const card = byTestId('download-library-movie-9');
         const actions: unknown[] = [];
-        const toolbar = card.querySelector(
-            '.download-library__actions'
-        ) as HTMLElement;
         component.itemAction.subscribe((action) => actions.push(action));
 
-        await click(button(toolbar, 'Play: Moonrise'));
-        await click(button(card, 'Show in folder: Moonrise'));
+        await clickMenuAction(card, 'More actions: Moonrise', 'Play: Moonrise');
+        await clickMenuAction(
+            card,
+            'More actions: Moonrise',
+            'Show in folder: Moonrise'
+        );
         await clickMenuAction(
             card,
             'More actions: Moonrise',
@@ -452,7 +483,7 @@ describe('DownloadLibraryComponent', () => {
         expect(opened).toEqual([SERIES]);
     });
 
-    it('keeps an invalid-series episode local without series navigation', async () => {
+    it('opens a fallback-episode detail from artwork and title, playing only via the menu', async () => {
         const card = byTestId('download-library-episode-21');
         const itemActions: unknown[] = [];
         const opened: DownloadItem[] = [];
@@ -469,16 +500,23 @@ describe('DownloadLibraryComponent', () => {
             '.download-library__title-button'
         ) as HTMLButtonElement;
 
-        expect(artwork.getAttribute('aria-label')).toBe('Play: Legacy episode');
-        expect(title.getAttribute('aria-label')).toBe('Play: Legacy episode');
+        expect(artwork.getAttribute('aria-label')).toBe(
+            'Open details: Legacy episode artwork'
+        );
+        expect(title.getAttribute('aria-label')).toBe(
+            'Open details: Legacy episode'
+        );
         await click(artwork);
         await click(title);
+        expect(opened).toEqual([FALLBACK_EPISODE, FALLBACK_EPISODE]);
+        expect(itemActions).toEqual([]);
 
-        expect(itemActions).toEqual([
-            { type: 'play', item: FALLBACK_EPISODE },
-            { type: 'play', item: FALLBACK_EPISODE },
-        ]);
-        expect(opened).toEqual([]);
+        await clickMenuAction(
+            card,
+            'More actions: Legacy episode',
+            'Play: Legacy episode'
+        );
+        expect(itemActions).toEqual([{ type: 'play', item: FALLBACK_EPISODE }]);
     });
 
     it('disables every local command while the concrete item is pending', async () => {

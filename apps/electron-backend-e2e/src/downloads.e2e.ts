@@ -291,15 +291,11 @@ test.describe('Electron Downloads', () => {
                 'e2e download payload'
             );
 
-            // Completed items expose play / reveal / remove actions.
+            // Completed items keep their file actions behind the poster's
+            // overflow menu; the card itself stays free of toolbar chrome.
             await expect(
-                card.getByRole('button', { name: 'Play: E2E Movie' }).last()
-            ).toBeVisible();
-            await expect(
-                card.getByRole('button', {
-                    name: 'Show in Folder: E2E Movie',
-                })
-            ).toBeVisible();
+                card.getByRole('button', { name: 'Play: E2E Movie' })
+            ).toHaveCount(0);
             await expect(
                 card.getByText('Offline', { exact: true })
             ).toHaveCount(0);
@@ -318,6 +314,16 @@ test.describe('Electron Downloads', () => {
                 sourceHeader.getByText('Source', { exact: true })
             ).toBeVisible();
             await expect(sourceHeader).toContainText('Download Portal');
+            await expect(
+                app.mainWindow.getByRole('menuitem', {
+                    name: 'Play: E2E Movie',
+                })
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('menuitem', {
+                    name: 'Show in Folder: E2E Movie',
+                })
+            ).toBeVisible();
             await app.mainWindow.keyboard.press('Escape');
 
             // Removing the finalized file must move the persisted completed
@@ -1022,6 +1028,11 @@ test.describe('Electron Downloads', () => {
             await expect(removeItem).toBeVisible();
             await removeItem
                 .getByRole('button', {
+                    name: 'More actions for Remove Retained Partial',
+                })
+                .click();
+            await app.mainWindow
+                .getByRole('menuitem', {
                     name: 'Remove Remove Retained Partial from manager',
                 })
                 .click();

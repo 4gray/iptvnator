@@ -4,43 +4,37 @@
 }
 
 .download-queue {
-    overflow: hidden;
-    border: 1px solid
-        color-mix(
-            in srgb,
-            var(--app-separator, var(--mat-sys-outline-variant)) 78%,
-            transparent
-        );
-    border-radius: 14px;
-    background: var(--mat-sys-surface-container-low);
-
     & + & {
-        margin-top: 16px;
+        margin-top: 20px;
     }
 
-    &__header {
-        padding: 11px 16px;
-        border-bottom: 1px solid
-            color-mix(
-                in srgb,
-                var(--app-separator, var(--mat-sys-outline-variant)) 72%,
-                transparent
-            );
-        background: var(
-            --app-widget-header-bg,
-            var(--mat-sys-surface-container)
-        );
-
-        h2 {
-            margin: 0;
-            color: var(--mat-sys-on-surface);
-            font: var(--mat-sys-title-small);
-            letter-spacing: 0.01em;
-        }
+    // Section heading mirrors the dashboard rail title contract
+    // (rail__title + .app-count-badge) so same-level sections read alike
+    // across the app.
+    &__heading {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0 0 10px;
+        padding: 0 2px;
+        color: var(--app-heading-color, var(--mat-sys-on-surface));
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.012em;
+        line-height: 1.2;
     }
 
     &__list {
         display: grid;
+        overflow: hidden;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--app-separator, var(--mat-sys-outline-variant)) 78%,
+                transparent
+            );
+        border-radius: 14px;
+        background: var(--mat-sys-surface-container-low);
     }
 
     &__item {
@@ -247,7 +241,7 @@
 
     &__actions {
         justify-content: flex-end;
-        gap: 2px;
+        gap: 4px;
 
         button {
             flex: none;
@@ -261,6 +255,22 @@
                     var(--mat-sys-secondary-container)
                 );
                 transform: translateY(-1px);
+            }
+        }
+
+        // The one action that moves the download forward
+        // (pause/resume/retry). Destructive commands live in the
+        // overflow menu.
+        .download-queue__primary {
+            background: var(--mat-sys-primary-container);
+            color: var(--mat-sys-on-primary-container);
+
+            &:hover:not(:disabled) {
+                background: color-mix(
+                    in srgb,
+                    var(--mat-sys-primary) 24%,
+                    var(--mat-sys-primary-container)
+                );
             }
         }
     }

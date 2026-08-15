@@ -17,6 +17,9 @@ const TEST_TRANSLATIONS = {
     DOWNLOADS: {
         DOWNLOADING_NOW: 'Downloading now',
         NEEDS_ATTENTION: 'Needs attention',
+        CANCEL: 'Cancel',
+        COPY_URL: 'Copy download URL',
+        REMOVE_FROM_MANAGER: 'Remove from manager',
         STATUS: {
             QUEUED: 'Queued',
             DOWNLOADING: 'Downloading',
@@ -141,9 +144,14 @@ describe('DownloadQueueComponent', () => {
             '[data-test-id="downloads-active-section"]'
         );
         expect(activeSection).not.toBeNull();
-        expect(activeSection.querySelector('h2')?.textContent?.trim()).toBe(
-            'Downloading now'
-        );
+        expect(
+            activeSection
+                .querySelector('h2 .download-queue__heading-label')
+                ?.textContent?.trim()
+        ).toBe('Downloading now');
+        const activeBadge = activeSection.querySelector('h2 .app-count-badge');
+        expect(activeBadge?.textContent?.trim()).toBe('1');
+        expect(activeBadge?.getAttribute('aria-hidden')).toBe('true');
         expect(activeSection.getAttribute('aria-labelledby')).toBeTruthy();
         expect(
             fixture.nativeElement.querySelector(
@@ -163,9 +171,11 @@ describe('DownloadQueueComponent', () => {
                 '[data-test-id="downloads-active-section"]'
             )
         ).toBeNull();
-        expect(attentionSection.querySelector('h2')?.textContent?.trim()).toBe(
-            'Needs attention'
-        );
+        expect(
+            attentionSection
+                .querySelector('h2 .download-queue__heading-label')
+                ?.textContent?.trim()
+        ).toBe('Needs attention');
         expect(row(2)).not.toBeNull();
 
         render();
@@ -291,14 +301,14 @@ describe('DownloadQueueComponent', () => {
     });
 
     it.each([
-        ['queued', ['pause', 'cancel']],
-        ['downloading', ['pause', 'cancel']],
-        ['paused', ['resume', 'cancel', 'remove']],
-        ['failed', ['retry', 'remove']],
-        ['canceled', ['retry', 'remove']],
+        ['queued', 'pause', ['cancel', 'copy-url']],
+        ['downloading', 'pause', ['cancel', 'copy-url']],
+        ['paused', 'resume', ['cancel', 'copy-url', 'remove']],
+        ['failed', 'retry', ['copy-url', 'remove']],
+        ['canceled', 'retry', ['copy-url', 'remove']],
     ] as const)(
-        'exposes the exact primary action contract for %s',
-        (status, expectedActions) => {
+        'exposes one visible primary action for %s and routes the rest through the menu',
+        async (status, primaryAction, menuActions) => {
             const viewModel = createRow(7, status);
             const emitted: DownloadItemAction[] = [];
             const opened = jest.fn();
@@ -317,13 +327,32 @@ describe('DownloadQueueComponent', () => {
                     '[data-test-action]:not([data-test-action="more"])'
                 )
             ).map((button) => button.dataset['testAction']);
-            expect(renderedActions).toEqual(expectedActions);
+            expect(renderedActions).toEqual([primaryAction]);
 
-            for (const action of expectedActions) {
-                actionButton(host, action).click();
+            actionButton(host, primaryAction).click();
+            expect(emitted.map(({ type }) => type)).toEqual([primaryAction]);
+
+            actionButton(host, 'more').click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const menu = overlayContainer.getContainerElement();
+            const renderedMenuActions = Array.from(
+                menu.querySelectorAll<HTMLButtonElement>('[data-test-action]')
+            ).map((button) => button.dataset['testAction']);
+            expect(renderedMenuActions).toEqual([...menuActions]);
+
+            const destructive = menuActions.find(
+                (action) => action !== 'copy-url'
+            );
+            if (destructive) {
+                actionButton(menu, destructive).click();
+                expect(emitted.map(({ type }) => type)).toEqual([
+                    primaryAction,
+                    destructive,
+                ]);
             }
 
-            expect(emitted.map(({ type }) => type)).toEqual(expectedActions);
             for (const event of emitted) {
                 expect(event.item).toBe(viewModel.item);
             }
@@ -351,7 +380,10 @@ describe('DownloadQueueComponent', () => {
             'copy-url'
         );
         expect(copyButton.closest('.mat-mdc-menu-panel')).not.toBeNull();
-        expect(copyButton.textContent).toContain('Copy URL for Download 11');
+        expect(copyButton.textContent).toContain('Copy download URL');
+        expect(copyButton.getAttribute('aria-label')).toBe(
+            'Copy URL for Download 11'
+        );
         copyButton.click();
 
         expect(emitted).toHaveBeenCalledTimes(1);
@@ -417,7 +449,7 @@ describe('DownloadQueueComponent', () => {
         expect(
             row(17).querySelector('.download-queue__metadata')
         ).not.toBeNull();
-        expect(itemButtons).toHaveLength(6);
+        expect(itemButtons).toHaveLength(4);
         expect(itemButtons.every(({ disabled }) => disabled)).toBe(true);
         expect(
             actionButton(overlayContainer.getContainerElement(), 'copy-url')
@@ -606,10 +638,8 @@ describe('DownloadQueueComponent', () => {
         const loader = TestbedHarnessEnvironment.loader(fixture);
         const commands = [
             [41, 'pause', 'Pause Named movie'],
-            [41, 'cancel', 'Cancel Named movie'],
             [41, 'more', 'More actions for Named movie'],
             [42, 'resume', 'Resume Paused episode'],
-            [42, 'remove', 'Remove Paused episode from manager'],
             [43, 'retry', 'Retry Failed movie'],
         ] as const;
 
@@ -631,25 +661,28 @@ describe('DownloadQueueComponent', () => {
         actionButton(row(41), 'more').click();
         fixture.detectChanges();
         await fixture.whenStable();
-        const copyButton = actionButton(
-            overlayContainer.getContainerElement(),
-            'copy-url'
+        const menu = overlayContainer.getContainerElement();
+        const cancelButton = actionButton(menu, 'cancel');
+        expect(cancelButton.getAttribute('aria-label')).toBe(
+            'Cancel Named movie'
         );
+        const copyButton = actionButton(menu, 'copy-url');
         expect(copyButton.type).toBe('button');
         expect(copyButton.getAttribute('aria-label')).toBe(
             'Copy URL for Named movie'
         );
-        const documentLoader =
-            TestbedHarnessEnvironment.documentRootLoader(fixture);
-        const copyTooltip = await documentLoader.getHarness(
-            MatTooltipHarness.with({
-                selector: '[data-test-action="copy-url"]',
-            })
-        );
-        await copyTooltip.show();
-        expect(await copyTooltip.getTooltipText()).toBe(
-            'Copy URL for Named movie'
-        );
-        await copyTooltip.hide();
+        cancelButton.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        actionButton(row(42), 'more').click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(
+            actionButton(
+                overlayContainer.getContainerElement(),
+                'remove'
+            ).getAttribute('aria-label')
+        ).toBe('Remove Paused episode from manager');
     });
 });
