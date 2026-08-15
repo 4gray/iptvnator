@@ -55,9 +55,11 @@ export function getTotalBytes(
     const contentRange = getHeaderValue(headerMap, 'content-range');
     if (contentRange) {
         const match = contentRange.match(/\/(\d+)$/);
-        if (match) {
-            return Number(match[1]);
-        }
+        // An indeterminate total (`bytes 200-299/*`) means the representation
+        // length is unknown; Content-Length then describes only the selected
+        // range, and deriving a "total" from it would declare the transfer
+        // complete at the end of that range.
+        return match ? Number(match[1]) : null;
     }
 
     const contentLength = getHeaderValue(headerMap, 'content-length');

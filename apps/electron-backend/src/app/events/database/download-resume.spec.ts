@@ -700,6 +700,52 @@ describe('download resume validation', () => {
         }
     });
 
+    it('never completes at the end of an indeterminate Content-Range', async () => {
+        // A 206 with `bytes 40-99/*` and Content-Length 60 describes only the
+        // selected range. Deriving a total of 100 from it would declare the
+        // 200-byte download complete at byte 100; the known total must be
+        // carried instead.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 40,
+            response: {
+                data: Readable.from([Buffer.alloc(60, 'r')]),
+                headers: {
+                    'content-length': '60',
+                    'content-range': 'bytes 40-99/*',
+                },
+                status: 206,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                    totalBytes: 200,
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 100,
+                    totalBytes: 200,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('restarts from scratch when the resume range is beyond the shrunken entity (416)', async () => {
         const freshBody = Buffer.alloc(30, 8);
         const harness = await setupResumeHarness({
