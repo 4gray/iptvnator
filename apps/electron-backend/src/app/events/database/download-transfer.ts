@@ -56,7 +56,20 @@ export async function transferToPartialFile(
     const retainedOffset = getResumeOffset(task, reservation);
     let resumeOffset = retainedOffset;
     let overlapBytes = 0;
-    if (retainedOffset > 0 && !task.resumeValidator && allowOverlapResume) {
+    const probingEof = task.probeEof === true && retainedOffset > 0;
+    task.probeEof = undefined;
+    if (probingEof && !task.resumeValidator && allowOverlapResume) {
+        // The previous attempt verified the complete overlap and appended
+        // nothing against an indeterminate range — the partial may BE the
+        // complete unknown-length entity. Ask for the next byte outright: a
+        // compliant 416 with `bytes */N` then confirms completion, which the
+        // rewound request could never observe.
+        resumeOffset = retainedOffset;
+    } else if (
+        retainedOffset > 0 &&
+        !task.resumeValidator &&
+        allowOverlapResume
+    ) {
         // No validator to hand to If-Range: rewind the request by the overlap
         // window and prove the entity is unchanged by comparing that window
         // against the partial's tail before appending a single byte. A partial
@@ -122,10 +135,7 @@ export async function transferToPartialFile(
                 (error as { response?: { headers?: unknown } }).response
                     ?.headers
             );
-            if (
-                confirmedTotal !== null &&
-                confirmedTotal === retainedOffset
-            ) {
+            if (confirmedTotal !== null && confirmedTotal === retainedOffset) {
                 // The 416's `Content-Range: bytes */N` states the entity's
                 // length, and it equals the partial: the file is COMPLETE —
                 // the previous response merely reset instead of closing.
@@ -175,6 +185,21 @@ export async function transferToPartialFile(
         readable.on('error', () => undefined);
         readable.destroy();
         throw error;
+    }
+
+    if (probingEof && effectiveOffset === resumeOffset) {
+        // The EOF probe found MORE bytes at the offset the previous verified
+        // replay treated as the end. They cannot be appended without a fresh
+        // overlap proof, so retire this response and let the next attempt
+        // resume through the ordinary rewound verification.
+        readable.on('error', () => undefined);
+        readable.destroy();
+        const probeTotal = getTotalBytes(response.headers, effectiveOffset);
+        task.totalBytes = probeTotal;
+        throw new TruncatedTransferError({
+            bytesDownloaded: retainedOffset,
+            totalBytes: probeTotal,
+        });
     }
 
     const appendsToRetained = effectiveOffset > 0 || verifyOverlap;
@@ -377,14 +402,23 @@ export async function transferToPartialFile(
         task.resumeValidator = getResponseValidator(response.headers);
         task.totalBytes = totalBytes;
     }
+    const indeterminateRange =
+        responseTotal === null &&
+        getIndeterminateRangeEnd(response.headers) !== null;
+    // A clean delivery can outgrow a stale carried total; keep the persisted
+    // AND in-memory totals consistent with the bytes on disk, or the next
+    // reconnect's resume-offset guard would reject the retained partial into
+    // generic cleanup.
+    const settledTotal =
+        totalBytes !== null && reportedBytes > totalBytes ? null : totalBytes;
+    task.totalBytes = settledTotal;
     await persistProgress(db, task, {
         bytesDownloaded: reportedBytes,
-        totalBytes,
+        totalBytes: settledTotal,
     });
     if (
         (completionBoundary !== null && bytesDownloaded < completionBoundary) ||
-        (responseTotal === null &&
-            getIndeterminateRangeEnd(response.headers) !== null)
+        indeterminateRange
     ) {
         // Short of the response's evidence — or an indeterminate range that
         // ended cleanly: reaching Y of `bytes X-Y/*` proves the range was
@@ -392,12 +426,24 @@ export async function transferToPartialFile(
         // incomplete and reconnects from the new offset. Only a response
         // with no range and no total keeps the clean-EOF completion contract
         // of unknown-length HTTP.
+        if (
+            indeterminateRange &&
+            verifyOverlap &&
+            overlapVerifier?.isComplete() &&
+            bytesDownloaded === retainedOffset
+        ) {
+            // A verified replay that appended nothing: the partial may BE the
+            // complete entity. Let the next attempt probe EOF directly so a
+            // compliant 416 can confirm completion instead of repeating the
+            // rewind forever.
+            task.probeEof = true;
+        }
         throw new TruncatedTransferError({
             bytesDownloaded: reportedBytes,
-            totalBytes,
+            totalBytes: settledTotal,
         });
     }
-    return { bytesDownloaded, totalBytes };
+    return { bytesDownloaded, totalBytes: settledTotal };
 }
 
 function getResumeOffset(

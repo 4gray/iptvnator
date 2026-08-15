@@ -3,7 +3,7 @@ import {
     createTask,
     setupResumeHarness,
     waitForStatus,
-} from './download-resume.test-harness';
+} from './download-resume.test-helpers';
 
 jest.setTimeout(20_000);
 
@@ -116,6 +116,113 @@ describe('download overlap resume', () => {
                 totalBytes: 100,
             })
         );
+    });
+
+    it('drops a carried total that a clean indeterminate delivery outgrew', async () => {
+        // The partial grows past the stale 250-byte total via a clean
+        // `bytes 200-299/*` delivery: both the row and the live task must
+        // settle the falsified total to null, or the reconnect's resume
+        // guard would reject the partial into generic cleanup.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 200,
+            partialSizeAfterTransferError: 300,
+            responses: [
+                {
+                    data: Readable.from([Buffer.alloc(100, 'r')]),
+                    headers: { 'content-range': 'bytes 200-299/*' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 300-349/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                    totalBytes: 250,
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 300,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('probes EOF after a verified zero-growth replay and honors the confirming 416', async () => {
+        // The 300,000-byte validator-less partial already IS the complete
+        // unknown-length entity: the rewound replay verifies and appends
+        // nothing, so the next attempt asks for byte 300,000 outright and the
+        // 416's `bytes */300000` confirms completion.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const harness = await setupResumeHarness({
+            finalSize: 300_000,
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            responses: [
+                {
+                    data: Readable.from([overlapTail]),
+                    headers: { 'content-range': 'bytes 37856-299999/*' },
+                    status: 206,
+                },
+                {
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        {
+                            response: {
+                                headers: { 'content-range': 'bytes */300000' },
+                                status: 416,
+                            },
+                        }
+                    ),
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            await waitForStatus(harness.set, 'completed');
+
+            const probeOptions =
+                harness.requestWithValidatedRedirects.mock.calls[1][1];
+            expect(probeOptions.headers).toEqual({ Range: 'bytes=300000-' });
+            expect(harness.truncate).not.toHaveBeenCalled();
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 300_000,
+                    status: 'completed',
+                    totalBytes: 300_000,
+                })
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 
     it('verifies a small validator-less partial from byte zero and appends', async () => {

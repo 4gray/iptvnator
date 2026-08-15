@@ -33,6 +33,13 @@ export interface DownloadTask {
      * byte comparison alone.
      */
     transferRestarts?: number;
+    // The previous attempt verified the complete overlap of an indeterminate
+    // range and appended nothing: the partial may already BE the complete
+    // unknown-length entity. The next attempt requests the byte AFTER the
+    // partial so a compliant 416 (Content-Range `bytes */N`) can confirm
+    // completion, which the ordinary rewound request can never observe.
+    // One-shot; consumed at the start of the next attempt.
+    probeEof?: boolean;
 }
 
 export function requestDownloadCancellation(task: DownloadTask): void {

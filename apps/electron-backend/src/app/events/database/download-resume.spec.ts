@@ -3,7 +3,7 @@ import {
     createTask,
     setupResumeHarness,
     waitForStatus,
-} from './download-resume.test-harness';
+} from './download-resume.test-helpers';
 
 jest.setTimeout(20_000);
 
