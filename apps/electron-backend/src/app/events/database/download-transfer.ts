@@ -135,19 +135,28 @@ export async function transferToPartialFile(
                 (error as { response?: { headers?: unknown } }).response
                     ?.headers
             );
-            if (confirmedTotal !== null && confirmedTotal === retainedOffset) {
+            const atExactEof = resumeOffset === retainedOffset;
+            if (
+                atExactEof &&
+                (probingEof || task.resumeValidator) &&
+                confirmedTotal !== null &&
+                confirmedTotal === retainedOffset
+            ) {
                 // The 416's `Content-Range: bytes */N` states the entity's
-                // length, and it equals the partial: the file is COMPLETE —
-                // the previous response merely reset instead of closing.
-                // (Under If-Range a non-matching validator yields a 200, so
-                // a 416 also confirms identity on the validator path.)
+                // length, it equals the partial, and identity is proven:
+                // either If-Range backed the request (a validator mismatch
+                // would have produced a 200), or this is the EOF probe that
+                // follows a fully verified overlap replay. The file is
+                // COMPLETE — the previous response merely reset instead of
+                // closing. A bare length match on a rewound request proves
+                // nothing about WHOSE bytes are on disk and never completes.
                 return {
                     bytesDownloaded: retainedOffset,
                     totalBytes: confirmedTotal,
                 };
             }
             if (
-                resumeOffset === retainedOffset &&
+                atExactEof &&
                 (confirmedTotal === null || confirmedTotal >= retainedOffset)
             ) {
                 // Any request starting at the partial's exact end — the EOF
@@ -157,6 +166,20 @@ export async function transferToPartialFile(
                 // with a complete file, so restarting would destroy a likely
                 // finished download. Retain instead; only a stated total
                 // BELOW the partial proves the entity shrank.
+                task.totalBytes = null;
+                throw new TruncatedTransferError({
+                    bytesDownloaded: retainedOffset,
+                    totalBytes: null,
+                });
+            }
+            if (
+                !atExactEof &&
+                confirmedTotal !== null &&
+                confirmedTotal >= resumeOffset
+            ) {
+                // Contradictory server: the stated total says the rewound
+                // range WAS satisfiable. Never destroy bytes on inconsistent
+                // evidence — retain and let the next attempt sort it out.
                 task.totalBytes = null;
                 throw new TruncatedTransferError({
                     bytesDownloaded: retainedOffset,
@@ -233,10 +256,17 @@ export async function transferToPartialFile(
     // partial-deleting cleanup — and is dropped once the bytes on disk
     // falsify it. A fresh or restarted transfer carries nothing forward.
     const responseTotal = getTotalBytes(response.headers, effectiveOffset);
+    const indeterminateEnd = getIndeterminateRangeEnd(response.headers);
+    // A carried total is dropped the moment ANY evidence contradicts it: the
+    // bytes already on disk reaching it, or this response's advertised range
+    // extending past it — waiting for the bytes to arrive would leave a
+    // pause/exit window in which an N/N row lets the completed-partial
+    // shortcut finalize a truncated file.
     const carriedTotal =
         appendsToRetained &&
         task.totalBytes != null &&
-        retainedOffset < task.totalBytes
+        retainedOffset < task.totalBytes &&
+        (indeterminateEnd === null || indeterminateEnd <= task.totalBytes)
             ? task.totalBytes
             : null;
     const totalBytes = responseTotal ?? carriedTotal;
@@ -244,9 +274,7 @@ export async function transferToPartialFile(
     // or the end of its advertised indeterminate range. A carried total can
     // flag a short transfer but never authorize finalization.
     const completionBoundary =
-        responseTotal ??
-        getIndeterminateRangeEnd(response.headers) ??
-        carriedTotal;
+        responseTotal ?? indeterminateEnd ?? carriedTotal;
     if (effectiveOffset === 0 && !verifyOverlap) {
         // Fresh or restarted transfer: every byte on disk will come from this
         // response, so its validator describes the file. A verify-append
@@ -420,8 +448,7 @@ export async function transferToPartialFile(
         task.totalBytes = totalBytes;
     }
     const indeterminateRange =
-        responseTotal === null &&
-        getIndeterminateRangeEnd(response.headers) !== null;
+        responseTotal === null && indeterminateEnd !== null;
     // A clean delivery can outgrow a stale carried total; keep the persisted
     // AND in-memory totals consistent with the bytes on disk, or the next
     // reconnect's resume-offset guard would reject the retained partial into
