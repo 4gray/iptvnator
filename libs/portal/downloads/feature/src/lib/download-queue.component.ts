@@ -127,6 +127,28 @@ export class DownloadQueueComponent {
         return row.attentionReason === 'file-missing';
     }
 
+    canCancel(row: DownloadListItemViewModel): boolean {
+        if (this.isMissingFile(row)) {
+            return false;
+        }
+        const status = row.item.status;
+        return (
+            status === 'queued' ||
+            status === 'downloading' ||
+            status === 'paused'
+        );
+    }
+
+    canRemove(row: DownloadListItemViewModel): boolean {
+        if (this.isMissingFile(row)) {
+            return true;
+        }
+        const status = row.item.status;
+        return (
+            status === 'paused' || status === 'failed' || status === 'canceled'
+        );
+    }
+
     statusIcon(row: DownloadListItemViewModel): string {
         return this.isMissingFile(row)
             ? 'file_off'

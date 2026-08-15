@@ -55,6 +55,42 @@ export class DownloadLibraryComponent {
         }
     }
 
+    protected representativeOf(entity: DownloadLibraryEntity): DownloadItem {
+        return entity.kind === 'series' ? entity.representative : entity.item;
+    }
+
+    protected entityTitle(entity: DownloadLibraryEntity): string {
+        return entity.kind === 'series' ? entity.title : entity.item.title;
+    }
+
+    protected typeKey(entity: DownloadLibraryEntity): string {
+        switch (entity.kind) {
+            case 'movie':
+                return 'DOWNLOADS.MOVIE';
+            case 'episode':
+                return 'DOWNLOADS.EPISODE';
+            case 'series':
+                return 'DOWNLOADS.SERIES';
+        }
+    }
+
+    protected placeholderIcon(entity: DownloadLibraryEntity): string {
+        switch (entity.kind) {
+            case 'movie':
+                return 'movie';
+            case 'episode':
+                return 'live_tv';
+            case 'series':
+                return 'tv';
+        }
+    }
+
+    // A pending series representative blocks navigation but must not lock
+    // the overflow menu: "Open downloaded episodes" is a local dialog.
+    protected moreDisabled(entity: DownloadLibraryEntity): boolean {
+        return entity.kind !== 'series' && this.isPending(entity.item);
+    }
+
     protected artworkUrl(entity: DownloadLibraryEntity): string | undefined {
         const raw =
             entity.kind === 'series' ? entity.posterUrl : entity.item.posterUrl;
@@ -105,22 +141,5 @@ export class DownloadLibraryComponent {
         return count === 1
             ? 'DOWNLOADS.EPISODE_COUNT_ONE'
             : 'DOWNLOADS.EPISODE_COUNT_OTHER';
-    }
-
-    protected formatBytes(bytes: number): string {
-        if (!Number.isFinite(bytes) || bytes <= 0) {
-            return '0 B';
-        }
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const exponent = Math.min(
-            Math.floor(Math.log(bytes) / Math.log(1024)),
-            units.length - 1
-        );
-        const value = bytes / 1024 ** exponent;
-        const formatted =
-            value >= 10 || Number.isInteger(value)
-                ? value.toFixed(0)
-                : value.toFixed(1);
-        return `${formatted} ${units[exponent]}`;
     }
 }

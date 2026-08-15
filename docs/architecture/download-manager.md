@@ -150,8 +150,18 @@ variants, contextual buttons, and theme-aware styling.
   `DownloadItemAction` values and do not inject the download service, router,
   dialogs, or snackbars.
   The fixed header and filter row sit above one vertical scroll owner. The
-  queue uses compact progress rows with status text and icons; completed movies
-  and grouped series reuse the portal's canonical content grid. Both completed
+  queue and library sections share one heading treatment (the dashboard-rail
+  title style with an `.app-count-badge` item count) so same-level sections
+  read alike; the queue's bordered panel wraps only the row list. Queue rows
+  expose exactly one visible primary action — pause, resume, or retry — while
+  cancel, copy-URL, and remove live in the row's overflow menu, so two
+  adjacent destructive icons never compete. Completed movies
+  and grouped series reuse the portal's canonical content grid as compact
+  poster cards borrowed from the dashboard-rail card language: a type badge
+  and an always-visible ⋮ trigger sit on the artwork, the title and series
+  facts sit below it, and Play / Show in folder / Copy URL / Remove live in
+  that overflow menu. File size is not repeated on the card; it belongs to the
+  focused offline detail. Both completed
   cards and their loading skeleton consume the global
   `--cover-grid-min-width` / `--cover-gap` tokens, so the Small, Medium, and
   Large cover preference behaves like it does elsewhere in the app. All
@@ -170,10 +180,11 @@ variants, contextual buttons, and theme-aware styling.
   playlist scope when the page is opened under a source route. VOD and episode
   detail views continue to render a paused download as an active Resume button
   (`DownloadsService.isPaused()` / `resumeDownloadByContent()`). Artwork and
-  titles on completed movie and grouped-series cards open the focused offline
-  detail for that download; the explicit card Play action still starts the
-  local file. A legacy standalone episode without a usable series id stays
-  directly playable because there is no reliable series detail to build.
+  titles on every completed card — movie, grouped series, and standalone
+  episode alike — open the focused offline detail for that download; the
+  explicit Play command in the poster's overflow menu still starts the local
+  file directly. A legacy standalone episode without a usable series id
+  resolves to a single-episode offline detail built from its own row.
   Missing completed rows show `File missing` under Needs attention with
   `Download again`; Play and Show in folder are withheld. A file-action race
   that returns `File not found` refreshes the authoritative list and returns

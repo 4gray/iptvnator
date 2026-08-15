@@ -6,16 +6,21 @@
 
 .download-library {
     display: grid;
-    gap: 14px;
+    gap: 12px;
 }
 
 .download-library__header {
     h2 {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
         margin: 0;
+        padding: 0 2px;
         color: var(--app-heading-color);
-        font: var(--mat-sys-title-medium);
-        font-weight: 680;
-        letter-spacing: -0.015em;
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.012em;
+        line-height: 1.2;
     }
 }
 
@@ -26,28 +31,31 @@
     );
 }
 
+// Gallery card, borrowed from the dashboard-rail card language: bordered
+// poster, text on the page surface below, actions behind the poster overflow
+// trigger. All row/toolbar chrome lives in the focused offline detail.
 .download-library__card {
     min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--app-separator);
-    border-radius: 16px;
-    background: var(--app-widget-bg);
     color: var(--app-body-color);
-    transition:
-        border-color 160ms ease,
-        transform 160ms ease,
-        box-shadow 160ms ease;
+    transition: transform 160ms ease;
 
     &:hover,
     &:focus-within {
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-primary) 38%,
-            var(--app-separator)
-        );
-        box-shadow: 0 12px 28px
-            color-mix(in srgb, var(--mat-sys-shadow) 14%, transparent);
         transform: translateY(-2px);
+
+        .download-library__artwork {
+            border-color: color-mix(
+                in srgb,
+                var(--mat-sys-primary) 38%,
+                var(--app-separator)
+            );
+            box-shadow: 0 12px 28px
+                color-mix(in srgb, var(--mat-sys-shadow) 14%, transparent);
+        }
+
+        .download-library__title-button:not(:disabled) {
+            color: var(--mat-sys-primary);
+        }
     }
 }
 
@@ -55,7 +63,12 @@
     position: relative;
     aspect-ratio: 2 / 3;
     overflow: hidden;
+    border: 1px solid var(--app-separator);
+    border-radius: 14px;
     background: var(--app-widget-header-bg);
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease;
 }
 
 .download-library__artwork-button,
@@ -66,11 +79,6 @@
     font: inherit;
     color: inherit;
     cursor: pointer;
-}
-
-.download-library__title-hint {
-    display: block;
-    min-width: 0;
 }
 
 .download-library__artwork-button {
@@ -119,26 +127,65 @@
     }
 }
 
+.download-library__type {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--mat-sys-scrim, #000) 74%, transparent);
+    color: #e8ecf4;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+// Same contract as the dashboard rail action trigger: small, always
+// visible, sitting on the poster's top-right corner.
+.download-library__more {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    color: #fff;
+    --mdc-icon-button-state-layer-size: 32px;
+
+    &::before {
+        position: absolute;
+        inset: 3px;
+        border-radius: 50%;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-scrim, #000) 55%,
+            transparent
+        );
+        content: '';
+    }
+
+    mat-icon {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+    }
+}
+
 .download-library__body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-    padding: 12px;
-}
-
-.download-library__type {
-    color: var(--app-eyebrow-color);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    line-height: 1.2;
-    text-transform: uppercase;
+    gap: 5px;
+    padding: 9px 4px 0;
 }
 
 .download-library__title-button {
     display: -webkit-box;
     width: 100%;
-    min-height: 2.6em;
     padding: 0;
     overflow: hidden;
     background: transparent;
@@ -147,36 +194,19 @@
     font-weight: 650;
     line-height: 1.3;
     text-align: left;
+    transition: color 140ms ease;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }
 
-.download-library__facts,
-.download-library__metadata {
+.download-library__facts {
     display: flex;
     min-width: 0;
     align-items: center;
     gap: 5px;
     color: var(--app-muted-color);
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     line-height: 1.3;
-}
-
-.download-library__metadata {
-    font-family: var(--mat-sys-body-small-font);
-
-    span:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    span:last-child {
-        font-family:
-            'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
-            monospace;
-        font-variant-numeric: tabular-nums;
-    }
 }
 
 .download-library__episodes-button {
@@ -205,20 +235,6 @@
     font-weight: 700;
 }
 
-.download-library__actions {
-    display: flex;
-    min-height: 40px;
-    align-items: center;
-    justify-content: flex-end;
-    margin: 2px -6px -6px;
-    border-top: 1px solid var(--app-separator);
-    padding-top: 6px;
-
-    button {
-        color: var(--app-body-color);
-    }
-}
-
 button:focus-visible {
     border-radius: 6px;
     outline: 2px solid var(--mat-sys-primary);
@@ -230,14 +246,9 @@ button:disabled {
     opacity: 0.48;
 }
 
-@media (max-width: 620px) {
-    .download-library__body {
-        padding: 10px;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .download-library__card,
+    .download-library__artwork,
     .download-library__artwork-button img {
         transition: none;
     }

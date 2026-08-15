@@ -1199,10 +1199,12 @@ engine` (restart required) or
   active rows plus completed available/unknown rows are skipped; failed,
   canceled, completed-missing, and unambiguous row-less episodes remain
   eligible.
-- Ready movie and grouped-series cards open a focused local detail. Movies play
-  the finalized local file; series list only locally available episode rows and
-  every episode action targets its own downloaded file. Focused routes disable
-  route search and use `contextPanel: 'none'`.
+- Ready cards (movies, grouped series, and standalone episodes) open a focused
+  local detail; local file actions (Play, Show in folder, Copy URL, Remove)
+  live in the poster's overflow menu. Movies play the finalized local file;
+  series list only locally available episode rows and every episode action
+  targets its own downloaded file. Focused routes disable route search and use
+  `contextPanel: 'none'`.
 - Downloads capture a versioned metadata snapshot from the rendered Xtream or
   Stalker movie/episode detail at start time, including already-merged TMDB
   fields. Legacy, sparse, stale, or wrong-language snapshots are safely

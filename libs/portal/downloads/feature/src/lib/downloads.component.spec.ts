@@ -828,8 +828,15 @@ describe('DownloadsComponent', () => {
         expect(downloadsService.playDownload).not.toHaveBeenCalled();
 
         jest.clearAllMocks();
-        const playButton = fixture.nativeElement.querySelector(
-            '.download-library__actions button[aria-label="Play: Signal"]'
+        const menuTrigger = fixture.nativeElement.querySelector(
+            '.download-library__more'
+        ) as HTMLButtonElement;
+        expect(menuTrigger).toBeTruthy();
+        menuTrigger.click();
+        await fixture.whenStable();
+
+        const playButton = document.querySelector(
+            'button[aria-label="Play: Signal"]'
         ) as HTMLButtonElement;
         expect(playButton).toBeTruthy();
 
@@ -841,6 +848,10 @@ describe('DownloadsComponent', () => {
         );
         expect(router.navigate).not.toHaveBeenCalled();
         expect(navigation.open).not.toHaveBeenCalled();
+
+        document
+            .querySelectorAll('.cdk-overlay-container')
+            .forEach((element) => element.remove());
     });
 
     it('opens a grouped-series representative relative to the Xtream downloads route', async () => {

@@ -43,7 +43,8 @@ describe('DialogService', () => {
                     title: 'Remove',
                     message: 'Confirm removal?',
                 }),
-                width: '300px',
+                width: '420px',
+                maxWidth: 'calc(100vw - 32px)',
             })
         );
     });

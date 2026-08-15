@@ -21,7 +21,10 @@ export class DialogService {
             ConfirmDialogData
         >(ConfirmDialogComponent, {
             data,
-            width: data.width ?? '300px',
+            // Wide enough for two side-by-side action buttons with translated
+            // labels; 300px forced them to wrap into a vertical stack.
+            width: data.width ?? '420px',
+            maxWidth: 'calc(100vw - 32px)',
         });
         dialogRef
             .afterClosed()
