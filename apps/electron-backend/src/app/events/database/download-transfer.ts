@@ -30,13 +30,12 @@ import type {
 } from './download-task';
 
 import {
-    describeError,
+    classifyRangeNotSatisfiable,
     getInterruptedTransferProgress,
     getNetworkErrorCode,
     InterruptedTransferError,
     isRangeNotSatisfiable,
     isRetainableNetworkCode,
-    toRetainedInterruption,
     TruncatedTransferError,
 } from './download-transfer-errors';
 
@@ -135,51 +134,19 @@ export async function transferToPartialFile(
                 (error as { response?: { headers?: unknown } }).response
                     ?.headers
             );
-            const atExactEof = resumeOffset === retainedOffset;
-            if (
-                atExactEof &&
-                (probingEof || task.resumeValidator) &&
-                confirmedTotal !== null &&
-                confirmedTotal === retainedOffset
-            ) {
-                // The 416's `Content-Range: bytes */N` states the entity's
-                // length, it equals the partial, and identity is proven:
-                // either If-Range backed the request (a validator mismatch
-                // would have produced a 200), or this is the EOF probe that
-                // follows a fully verified overlap replay. The file is
-                // COMPLETE — the previous response merely reset instead of
-                // closing. A bare length match on a rewound request proves
-                // nothing about WHOSE bytes are on disk and never completes.
+            const action = classifyRangeNotSatisfiable({
+                confirmedTotal,
+                identityProven: probingEof || task.resumeValidator != null,
+                resumeOffset,
+                retainedOffset,
+            });
+            if (action === 'complete') {
                 return {
                     bytesDownloaded: retainedOffset,
                     totalBytes: confirmedTotal,
                 };
             }
-            if (
-                atExactEof &&
-                (confirmedTotal === null || confirmedTotal >= retainedOffset)
-            ) {
-                // Any request starting at the partial's exact end — the EOF
-                // probe AND every validator-backed resume — ALWAYS collects a
-                // 416 when the entity ends there, and the confirming length
-                // is optional. Without it the response is equally consistent
-                // with a complete file, so restarting would destroy a likely
-                // finished download. Retain instead; only a stated total
-                // BELOW the partial proves the entity shrank.
-                task.totalBytes = null;
-                throw new TruncatedTransferError({
-                    bytesDownloaded: retainedOffset,
-                    totalBytes: null,
-                });
-            }
-            if (
-                !atExactEof &&
-                confirmedTotal !== null &&
-                confirmedTotal >= resumeOffset
-            ) {
-                // Contradictory server: the stated total says the rewound
-                // range WAS satisfiable. Never destroy bytes on inconsistent
-                // evidence — retain and let the next attempt sort it out.
+            if (action === 'retain') {
                 task.totalBytes = null;
                 throw new TruncatedTransferError({
                     bytesDownloaded: retainedOffset,

@@ -64,6 +64,48 @@ export function isRetainableNetworkCode(code: string): boolean {
     return RETAINABLE_NETWORK_ERROR_CODES.has(code);
 }
 
+export type RangeNotSatisfiableAction = 'complete' | 'restart' | 'retain';
+
+/**
+ * Decides what a 416 answer to a resume request proves. `complete` requires
+ * an exact-EOF request with identity proof (If-Range, or the EOF probe that
+ * follows a fully verified overlap replay) AND a stated length equal to the
+ * partial — a bare length match on a rewound request proves nothing about
+ * whose bytes are on disk. `restart` requires a stated total that proves the
+ * entity shrank below the requested offset; everything ambiguous or
+ * contradictory retains, because deleting bytes is the only unrecoverable
+ * outcome.
+ */
+export function classifyRangeNotSatisfiable(input: {
+    confirmedTotal: number | null;
+    identityProven: boolean;
+    resumeOffset: number;
+    retainedOffset: number;
+}): RangeNotSatisfiableAction {
+    const { confirmedTotal, identityProven, resumeOffset, retainedOffset } =
+        input;
+    const atExactEof = resumeOffset === retainedOffset;
+    if (atExactEof && identityProven && confirmedTotal === retainedOffset) {
+        return 'complete';
+    }
+    if (
+        atExactEof &&
+        (confirmedTotal === null || confirmedTotal >= retainedOffset)
+    ) {
+        return 'retain';
+    }
+    if (
+        !atExactEof &&
+        confirmedTotal !== null &&
+        confirmedTotal >= resumeOffset
+    ) {
+        // Contradictory server: the stated total says the rewound range WAS
+        // satisfiable.
+        return 'retain';
+    }
+    return 'restart';
+}
+
 /** HTTP 416: the requested Range starts at or past the entity's end. */
 export function isRangeNotSatisfiable(error: unknown): boolean {
     return (
