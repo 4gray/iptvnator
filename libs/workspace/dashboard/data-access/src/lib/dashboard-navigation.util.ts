@@ -12,6 +12,7 @@ import {
     buildXtreamNavigationTarget,
     getGlobalFavoriteNavigation,
     getRecentItemNavigation,
+    isPortalPlaybackWatched,
     WorkspaceNavigationTarget,
     type SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
@@ -78,6 +79,14 @@ function buildRecentSeriesResumeTarget(
         item.source !== 'xtream' ||
         playbackPosition?.contentType !== 'episode'
     ) {
+        return null;
+    }
+
+    // A watched row is a completion marker (natural finish or a manual/bulk
+    // "mark watched"), not resumable progress — auto-playing it would start
+    // the episode at its end. Detail-only handoff lets the series page's
+    // quick-start pick the first unwatched episode instead.
+    if (isPortalPlaybackWatched(playbackPosition)) {
         return null;
     }
 
