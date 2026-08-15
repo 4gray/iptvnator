@@ -252,10 +252,13 @@ baseline generator import so the enforced rule and the generated list cannot
 drift:
 
 - **Production TypeScript: hard maximum 400 lines.**
-- **Tests: 1200.** `**/*.spec.ts`, `**/*.e2e.ts` and everything under
-  `apps/*-e2e/**` — a spec is a flat list of independent cases, so splitting one
-  at the production limit yields arbitrary `-2.spec.ts` files, and length there
-  signals coverage rather than the design debt the production limit catches.
+- **Tests: 1200.** `**/*.spec.ts`, `**/*.spec-data.ts`, `**/*.e2e.ts` and
+  everything under `apps/*-e2e/**` — a spec is a flat list of independent
+  cases, so splitting one at the production limit yields arbitrary
+  `-2.spec.ts` files, and length there signals coverage rather than the
+  design debt the production limit catches. `.spec-data.ts` fixtures (flat
+  case lists consumed only by a spec, e.g. the worker IPC contract table)
+  grow with coverage the same way.
 - **Blank lines and comments are not counted** (`skipBlankLines`,
   `skipComments`), so a docblock is never the reason a file must be split.
 
@@ -575,8 +578,8 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 Keep production TypeScript files under **300 lines**. Hard maximum is
 **350–400 lines**, and CI enforces the 400. Blank lines and comments do not
 count toward it, so documenting a file never costs you headroom. Tests
-(`**/*.spec.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held to 1200 instead — the
-guidance below is about production code.
+(`**/*.spec.ts`, `**/*.spec-data.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held
+to 1200 instead — the guidance below is about production code.
 
 - When creating new files, design them to stay within this limit from the start.
 - When adding a feature to an existing file that would push it past 350 lines, **refactor first**: extract helpers, sub-services, or feature modules before adding the new code.
