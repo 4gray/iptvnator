@@ -84,6 +84,17 @@ export class PlaybackPositionService {
         }
     }
 
+    /**
+     * Failure-propagating read for cache refreshes: a swallowed error would
+     * surface as an authoritative empty list and let a transient IPC failure
+     * wipe an already-populated position cache.
+     */
+    getAllPlaybackPositionsOrThrow(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]> {
+        return this.playbackPositionBridge.getAllPlaybackPositions(playlistId);
+    }
+
     async clearAllPlaybackPositions(playlistId: string): Promise<void> {
         try {
             await this.playbackPositionBridge.clearAllPlaybackPositions(

@@ -1086,8 +1086,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             await this.clearSeriesPosition(playlistId, request.contentXtreamId);
         }
         // Keep the catalog grid's progress badge in sync (ownership-checked
-        // inside the facade; no-op outside the catalog context).
-        await this.catalogFacade?.refreshPositions(playlistId);
+        // inside the facade; no-op outside the catalog context). A failed
+        // refresh keeps the cache populated-but-stale.
+        await this.catalogFacade
+            ?.refreshPositions(playlistId)
+            .catch((error: unknown) =>
+                this.logger.warn('Catalog position refresh failed', error)
+            );
     }
 
     handlePlaybackToggleRequestedFromUi(
@@ -1160,8 +1165,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
             if (succeeded > 0) {
                 // Partial successes changed rows too — the catalog badge
-                // must follow even when the user already moved on.
-                await this.catalogFacade?.refreshPositions(playlistId);
+                // must follow even when the user already moved on. A failed
+                // refresh must not break the feedback flow below.
+                await this.catalogFacade
+                    ?.refreshPositions(playlistId)
+                    .catch((error: unknown) =>
+                        this.logger.warn(
+                            'Catalog position refresh failed',
+                            error
+                        )
+                    );
             }
             if (!stillCurrent()) {
                 return;

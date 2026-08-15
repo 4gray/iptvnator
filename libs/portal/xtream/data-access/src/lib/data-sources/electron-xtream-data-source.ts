@@ -516,7 +516,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getAllPlaybackPositions(
         playlistId: string
     ): Promise<PlaybackPositionData[]> {
-        return this.playbackService.getAllPlaybackPositions(playlistId);
+        // Failure-propagating on purpose: the store and catalog caches must
+        // not mistake a failed read for an authoritative empty list.
+        return this.playbackService.getAllPlaybackPositionsOrThrow(playlistId);
     }
 
     async clearPlaybackPosition(

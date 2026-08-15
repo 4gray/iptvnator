@@ -62,6 +62,22 @@ describe('withPlaybackPositions', () => {
         expect(store.hasSeriesProgress(7)).toBe(true);
     });
 
+    it('keeps the cached maps when a refresh read fails', async () => {
+        getAllPlaybackPositions.mockResolvedValueOnce([
+            position(11, 'playlist-a'),
+        ]);
+        const store = createStore();
+        await store.loadAllPositions('playlist-a');
+
+        getAllPlaybackPositions.mockRejectedValueOnce(new Error('ipc down'));
+        await expect(store.loadAllPositions('playlist-a')).rejects.toThrow(
+            'ipc down'
+        );
+
+        expect(store.playbackPositions().get('episode_11')).toBeDefined();
+        expect(store.hasSeriesProgress(7)).toBe(true);
+    });
+
     it('discards a superseded load so a late result cannot overwrite the newer playlist', async () => {
         let resolveFirst!: (rows: PlaybackPositionData[]) => void;
         getAllPlaybackPositions

@@ -123,9 +123,9 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             harness.playbackService.getRecentPlaybackPositions.mockResolvedValue(
                 [position]
             );
-            harness.playbackService.getAllPlaybackPositions.mockResolvedValue([
-                position,
-            ]);
+            harness.playbackService.getAllPlaybackPositionsOrThrow.mockResolvedValue(
+                [position]
+            );
 
             await harness.dataSource.savePlaybackPosition(playlistId, position);
             expect(
@@ -149,9 +149,14 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 harness.playbackService.getRecentPlaybackPositions
             ).toHaveBeenCalledWith(playlistId, 5);
 
+            // The data source uses the failure-propagating read so cache
+            // refreshes cannot mistake a swallowed error for an empty list.
             await expect(
                 harness.dataSource.getAllPlaybackPositions(playlistId)
             ).resolves.toEqual([position]);
+            expect(
+                harness.playbackService.getAllPlaybackPositionsOrThrow
+            ).toHaveBeenCalledWith(playlistId);
 
             await harness.dataSource.clearPlaybackPosition(
                 playlistId,

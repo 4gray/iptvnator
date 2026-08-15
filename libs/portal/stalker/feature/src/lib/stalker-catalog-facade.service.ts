@@ -141,7 +141,11 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             }
 
             this.loadedPositionsForPlaylistId = playlistId;
-            void this.loadStalkerPositions(playlistId);
+            void this.loadStalkerPositions(playlistId).catch(() => {
+                // Allow a retry on the next playlist activation; the read
+                // now rejects instead of masquerading as an empty list.
+                this.loadedPositionsForPlaylistId = null;
+            });
         });
 
         const unsubscribe =

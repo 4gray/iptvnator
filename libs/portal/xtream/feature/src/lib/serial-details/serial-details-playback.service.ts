@@ -371,7 +371,16 @@ export class SerialDetailsPlaybackService {
         if (this.currentPlaylistId() !== playlistId) {
             return;
         }
-        await this.xtreamStore.loadAllPositions(playlistId);
+        try {
+            await this.xtreamStore.loadAllPositions(playlistId);
+        } catch (error) {
+            // The toggle itself succeeded; a failed refresh keeps the store
+            // populated-but-stale, which beats wiping it with a bad read.
+            console.warn(
+                '[SerialDetailsPlayback] Store position refresh failed',
+                error
+            );
+        }
     }
 
     async loadSeriesPlaybackPositions(

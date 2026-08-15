@@ -92,6 +92,8 @@ describe('RuntimeCapabilitiesService', () => {
             dbGetAllPlaybackPositions: jest.fn(),
             dbClearAllPlaybackPositions: jest.fn(),
             dbClearPlaybackPosition: jest.fn(),
+            dbSavePlaybackPositionsBatch: jest.fn(),
+            dbClearPlaybackPositionsBatch: jest.fn(),
             onPlaybackPositionUpdate: jest.fn(),
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
@@ -468,6 +470,15 @@ describe('RuntimeCapabilitiesService', () => {
             dbClearPlaybackPosition: jest.fn(),
         };
 
+        // The season-batch methods are part of the storage contract too.
+        expect(service.supportsPlaybackPositionStorage).toBe(false);
+
+        testWindow.electron = {
+            ...testWindow.electron,
+            dbSavePlaybackPositionsBatch: jest.fn(),
+            dbClearPlaybackPositionsBatch: jest.fn(),
+        };
+
         expect(service.supportsPlaybackPositionStorage).toBe(true);
         expect(service.supportsPlaybackPositionUpdates).toBe(false);
 
@@ -523,6 +534,8 @@ function createXtreamSqliteBridge(): Record<string, jest.Mock> {
         dbAddRecentItem: jest.fn(),
         dbClearAllPlaybackPositions: jest.fn(),
         dbClearPlaybackPosition: jest.fn(),
+        dbSavePlaybackPositionsBatch: jest.fn(),
+        dbClearPlaybackPositionsBatch: jest.fn(),
         dbClearPlaylistRecentItems: jest.fn(),
         dbCreatePlaylist: jest.fn(),
         dbDeletePlaylist: jest.fn(),
