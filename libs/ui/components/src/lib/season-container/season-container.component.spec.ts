@@ -1134,11 +1134,10 @@ describe('SeasonContainerComponent', () => {
     });
 
     describe('season watched toggle', () => {
-        // '45:00' parses to 2700 seconds ('45 min' is NOT parseable and
-        // would hit the 1-second fallback, as for the per-episode toggle).
+        // The Stalker-style '45 min' format parses to 2700 seconds.
         const PARSED_DURATION = 2700;
         const parseableInfo = {
-            duration: '45:00',
+            duration: '45 min',
             plot: 'Pilot episode',
             movie_image: 'https://example.com/poster.jpg',
         };

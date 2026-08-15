@@ -7,6 +7,8 @@ describe('episode-progress.util', () => {
     it('parses duration strings', () => {
         expect(parseDuration('01:00:30')).toBe(3630);
         expect(parseDuration('45:12')).toBe(2712);
+        // Stalker VOD episodes report minute strings.
+        expect(parseDuration('45 min')).toBe(2700);
         expect(parseDuration(120)).toBe(120);
         expect(parseDuration(undefined)).toBe(0);
     });
