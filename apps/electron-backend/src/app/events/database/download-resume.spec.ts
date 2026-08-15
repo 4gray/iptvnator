@@ -655,6 +655,46 @@ describe('download resume validation', () => {
         }
     });
 
+    it('keeps an unknown total unknown when the overlap stays unverified', async () => {
+        // No response ever advertises a total, and each attempt EOFs inside
+        // the 20-byte overlap. The failed row must persist totalBytes null —
+        // fabricating totalBytes = bytesDownloaded would let Retry's
+        // completed-partial shortcut finalize the unverified partial without
+        // making a request.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 20,
+            partialTail: Buffer.alloc(20, 'r'),
+            response: {
+                data: Readable.from([Buffer.alloc(10, 'r')]),
+                headers: {},
+                status: 200,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 20,
+                    filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('restarts instead of completing when the remote entity shrank inside the overlap', async () => {
         // The server's entity is now 100,000 bytes — shorter than the
         // 300,000-byte partial — and its complete 206 ends inside the
