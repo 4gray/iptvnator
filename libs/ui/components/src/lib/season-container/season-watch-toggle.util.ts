@@ -50,11 +50,31 @@ export function buildWatchedEpisodePosition(options: {
     };
 }
 
+/** Episodes a mark-season-watched action would touch. */
+export function listMarkableEpisodes(
+    episodes: readonly XtreamSerieEpisode[],
+    isEpisodeWatched: (episode: XtreamSerieEpisode) => boolean,
+    excludedEpisodeIds?: ReadonlySet<number>
+): XtreamSerieEpisode[] {
+    return episodes.filter(
+        (episode) =>
+            !isEpisodeWatched(episode) &&
+            !excludedEpisodeIds?.has(Number(episode.id))
+    );
+}
+
 /**
  * Season-level bulk toggle request. Marking touches only unwatched episodes
  * so a watched episode's real duration is never overwritten with the parsed
  * fallback; unmarking clears every episode of the season. Returns null when
  * the action would touch nothing.
+ *
+ * `excludedEpisodeIds` (the episode playing inline or in an external
+ * session, or one whose launch is in flight) is honored for MARKING only:
+ * the player persists its real position every ~15 s, which would overwrite
+ * a just-written full-progress row and silently flip the episode back to
+ * in-progress. Unmarking still clears such an episode — the next position
+ * tick recreating an in-progress row reflects the live playback truthfully.
  */
 export function buildSeasonWatchToggleRequest(options: {
     episodes: readonly XtreamSerieEpisode[];
@@ -62,13 +82,16 @@ export function buildSeasonWatchToggleRequest(options: {
     seriesId: number;
     playlistId: string;
     isEpisodeWatched: (episode: XtreamSerieEpisode) => boolean;
+    excludedEpisodeIds?: ReadonlySet<number>;
 }): SeasonContainerSeasonPlaybackToggleRequest | null {
     const markWatched = options.episodes.some(
         (episode) => !options.isEpisodeWatched(episode)
     );
     const targets = markWatched
-        ? options.episodes.filter(
-              (episode) => !options.isEpisodeWatched(episode)
+        ? listMarkableEpisodes(
+              options.episodes,
+              options.isEpisodeWatched,
+              options.excludedEpisodeIds
           )
         : options.episodes;
 

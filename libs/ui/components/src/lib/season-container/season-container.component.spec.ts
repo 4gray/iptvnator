@@ -1261,6 +1261,42 @@ describe('SeasonContainerComponent', () => {
             ]);
         });
 
+        it('never bulk-marks the playing episode and disables an empty action', () => {
+            const emitted: {
+                requests: { contentXtreamId: number }[];
+            }[] = [];
+            component.seasonPlaybackToggleRequested.subscribe((request) =>
+                emitted.push(request)
+            );
+            setRequiredInputs(threeEpisodes());
+            fixture.componentRef.setInput('playingEpisodeId', 102);
+            fixture.componentRef.setInput(
+                'playbackPositions',
+                new Map([[101, watchedPosition(101)]])
+            );
+            fixture.detectChanges();
+
+            const button = toggleButton();
+            // 103 is the only markable episode: 101 watched, 102 playing.
+            expect(button?.textContent).toContain(
+                'Mark season as watched (1)'
+            );
+            button?.click();
+            expect(
+                emitted[0].requests.map((item) => item.contentXtreamId)
+            ).toEqual([103]);
+
+            fixture.componentRef.setInput(
+                'playbackPositions',
+                new Map([
+                    [101, watchedPosition(101)],
+                    [103, watchedPosition(103)],
+                ])
+            );
+            fixture.detectChanges();
+            expect(toggleButton()?.disabled).toBe(true);
+        });
+
         it('disables the toggle and reports busy while the host batch is running', () => {
             setRequiredInputs(threeEpisodes());
             fixture.componentRef.setInput('seasonWatchBatchRunning', true);

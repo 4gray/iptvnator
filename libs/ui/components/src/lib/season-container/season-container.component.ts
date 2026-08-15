@@ -47,6 +47,7 @@ import {
     type SeasonContainerSeasonPlaybackToggleRequest,
     buildSeasonWatchToggleRequest,
     buildWatchedEpisodePosition,
+    listMarkableEpisodes,
     resolveEpisodeInfo,
 } from './season-watch-toggle.util';
 
@@ -164,11 +165,29 @@ export class SeasonContainerComponent implements OnInit {
             this.selectedSeasonUnwatchedCount() === 0
     );
 
+    /**
+     * The episode currently playing (inline or externally) or launching is
+     * never bulk-marked: the player persists its live position and would
+     * immediately overwrite the full-progress row.
+     */
+    private readonly seasonWatchExcludedIds = computed(() => {
+        const ids = [
+            this.playingEpisodeId(),
+            this.activeEpisodeId(),
+            this.openingEpisodeId(),
+        ].filter((id): id is number => id !== null);
+        return new Set(ids);
+    });
+
     /** Count shown in the season toggle label: episodes the action touches. */
     readonly seasonWatchEligibleCount = computed(() =>
         this.selectedSeasonFullyWatched()
             ? this.selectedSeasonEpisodes().length
-            : this.selectedSeasonUnwatchedCount()
+            : listMarkableEpisodes(
+                  this.selectedSeasonEpisodes(),
+                  (episode) => this.isEpisodeWatched(episode),
+                  this.seasonWatchExcludedIds()
+              ).length
     );
 
     readonly seasonWatchToggleVisible = computed(
@@ -356,6 +375,7 @@ export class SeasonContainerComponent implements OnInit {
             seriesId: this.seriesId(),
             playlistId: this.playlistId(),
             isEpisodeWatched: (episode) => this.isEpisodeWatched(episode),
+            excludedEpisodeIds: this.seasonWatchExcludedIds(),
         });
         if (request) {
             this.seasonPlaybackToggleRequested.emit(request);

@@ -21,6 +21,7 @@ import {
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
+import { StalkerSeriesPositionPartialSaveError } from './stalker-series-position-compatibility';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 const PLAYLIST_ID = 'playlist-1';
 const SECOND_PLAYLIST_ID = 'playlist-2';
@@ -153,22 +154,13 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         pendingLoad: Deferred<PlaybackPositionData[]>;
         secondPosition: PlaybackPositionData;
     }> {
-        await startWithLoadedEpisode();
-        fixture.componentInstance.vodSeriesSeasons.set([
-            createSeason(SERIES_A_ID, [
-                createProviderEpisode(),
-                createProviderEpisode('provider-episode-2', 2),
-            ]),
-        ]);
-        await settle();
-        const [firstEpisode, secondEpisode] =
-            fixture.componentInstance.mappedSeasons()['1'];
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
         const firstPosition = createPosition({
-            contentXtreamId: Number(firstEpisode.id),
+            contentXtreamId: firstId,
             positionSeconds: 15,
         });
         const secondPosition = createPosition({
-            contentXtreamId: Number(secondEpisode.id),
+            contentXtreamId: secondId,
             episodeNumber: 2,
             positionSeconds: 25,
         });
@@ -1235,9 +1227,19 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         );
     }
 
-    it('marks a season watched sequentially without redundant reloads', async () => {
+    it('marks a season watched sequentially, counting failed legacy cleanup as watched', async () => {
         const [firstId, secondId] = await startWithTwoLoadedEpisodes();
         const loadsBefore = getSeriesPlaybackPositions.mock.calls.length;
+        // The second episode saves its scoped row but fails legacy cleanup —
+        // that outcome is still a watched episode, not a batch failure.
+        savePlaybackPositionOrThrow.mockImplementation(
+            async (playlistId: string, position: PlaybackPositionData) => {
+                await savePlaybackPosition(playlistId, position);
+                if (position.contentXtreamId === secondId) {
+                    throw new StalkerSeriesPositionPartialSaveError('cleanup');
+                }
+            }
+        );
 
         await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
             seasonToggleRequest([firstId, secondId], true)

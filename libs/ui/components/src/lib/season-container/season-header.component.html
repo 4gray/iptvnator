@@ -11,7 +11,10 @@
                     mat-stroked-button
                     class="season-watch-toggle-button"
                     data-test-id="toggle-season-watched"
-                    [disabled]="watchBatchRunning()"
+                    [disabled]="
+                        watchBatchRunning() ||
+                        (!seasonFullyWatched() && watchEligibleCount() === 0)
+                    "
                     [attr.aria-label]="
                         (seasonFullyWatched()
                             ? 'XTREAM.MARK_SEASON_UNWATCHED'

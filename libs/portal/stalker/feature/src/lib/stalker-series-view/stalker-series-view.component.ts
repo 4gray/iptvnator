@@ -1127,7 +1127,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                           )
                     ).then(
                         () => true,
-                        () => false
+                        // The scoped watched row was saved and published —
+                        // only the legacy-row cleanup failed. The episode IS
+                        // watched, so it must not count against the batch.
+                        (error: unknown) =>
+                            error instanceof
+                            StalkerSeriesPositionPartialSaveError
                     )
                 )
             );
