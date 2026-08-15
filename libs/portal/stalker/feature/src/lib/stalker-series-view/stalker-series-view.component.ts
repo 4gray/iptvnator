@@ -719,11 +719,37 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
     }
 
+    private readonly vodSeasonEpisodeLoads = new Map<
+        string,
+        Promise<boolean>
+    >();
+
     /**
-     * Loads episodes for a specific VOD season
+     * Loads episodes for a specific VOD season.
+     *
+     * Single-flight per season: a tab click, the spillover prefetch, the
+     * quick-start recursion, and the series-toggle hydration can all ask for
+     * the same season — a second concurrent request would duplicate portal
+     * traffic, and its failure could abort a series toggle whose original
+     * request succeeded.
      */
     /** Resolves true when the portal answered, false when the request failed. */
-    async loadEpisodesForSeason(season: VodSeriesSeasonVm): Promise<boolean> {
+    loadEpisodesForSeason(season: VodSeriesSeasonVm): Promise<boolean> {
+        const key = `${season.video_id}:${season.id}`;
+        const inFlight = this.vodSeasonEpisodeLoads.get(key);
+        if (inFlight) {
+            return inFlight;
+        }
+        const load = this.fetchEpisodesForSeason(season).finally(() => {
+            this.vodSeasonEpisodeLoads.delete(key);
+        });
+        this.vodSeasonEpisodeLoads.set(key, load);
+        return load;
+    }
+
+    private async fetchEpisodesForSeason(
+        season: VodSeriesSeasonVm
+    ): Promise<boolean> {
         // Set loading state in local signal
         const seasons = this.vodSeriesSeasons();
         const index = seasons.findIndex((s) => s.id === season.id);

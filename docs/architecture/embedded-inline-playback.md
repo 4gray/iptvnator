@@ -305,6 +305,14 @@ load). A season the portal ANSWERS for with zero episodes becomes
 loaded-and-empty (`VodSeriesSeasonVm.episodesLoaded`), not pending —
 `episodes.length === 0` alone would keep it counted as unloaded forever,
 locking the label countless and re-fetching it on every series toggle.
+Only a well-formed empty array earns that trust: `fetchVodSeriesEpisodes`
+rejects a malformed envelope or an answer whose rows contain no
+recognizable episode, so those fail the load instead of masquerading as
+an empty season. `loadEpisodesForSeason` is single-flight per season — a
+tab click, the spillover prefetch, the quick-start recursion, and the
+series-toggle hydration join one in-flight request instead of
+duplicating it (a second request's failure could abort a toggle whose
+original request succeeded).
 The host synchronously re-runs the position reconcile
 (`applyReconciledSeriesPositions` — the effect-fed maps only update on
 the next change-detection tick, and enqueuing against stale maps would

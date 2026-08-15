@@ -53,7 +53,15 @@ interface StalkerSeriesResponse<T> {
 
 type StalkerSeriesStoreContext = StalkerSeriesFeatureStoreContract;
 
-function extractSeriesItems<T>(response: StalkerSeriesResponse<T>): T[] {
+/**
+ * Strict variant: null when the envelope carried no array at all, so a
+ * malformed answer is distinguishable from a well-formed empty list. The
+ * series watched toggle treats an answered-empty season as loaded, so a
+ * malformed envelope collapsing to [] would silently skip that season.
+ */
+function extractSeriesItemsStrict<T>(
+    response: StalkerSeriesResponse<T>
+): T[] | null {
     if (Array.isArray(response?.js)) {
         return response.js;
     }
@@ -62,7 +70,11 @@ function extractSeriesItems<T>(response: StalkerSeriesResponse<T>): T[] {
         return response.js.data;
     }
 
-    return [];
+    return null;
+}
+
+function extractSeriesItems<T>(response: StalkerSeriesResponse<T>): T[] {
+    return extractSeriesItemsStrict(response) ?? [];
 }
 
 function toMovieId(value: unknown): string {
@@ -257,7 +269,16 @@ export function withStalkerSeries() {
                             p: '1',
                         });
 
-                        const episodeItems = extractSeriesItems(response);
+                        // Only a well-formed empty array is a trusted empty
+                        // season. A malformed envelope, or rows in which no
+                        // episode is recognizable, rejects so callers treat
+                        // the load as failed instead of loaded-and-empty.
+                        const episodeItems = extractSeriesItemsStrict(response);
+                        if (episodeItems === null) {
+                            throw new Error(
+                                'Malformed Stalker season episodes response'
+                            );
+                        }
                         if (episodeItems.length === 0) {
                             return [];
                         }
@@ -267,6 +288,11 @@ export function withStalkerSeries() {
                                 (item) => item.is_episode === true
                             )
                         );
+                        if (episodes.length === 0) {
+                            throw new Error(
+                                'Stalker season answered without recognizable episodes'
+                            );
+                        }
 
                         patchState(store, {
                             vodSeriesEpisodes: episodes,

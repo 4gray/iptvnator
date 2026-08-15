@@ -555,6 +555,40 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
             expect(repositoryOrder).toEqual([`save:${firstId}`]);
         });
 
+        it('reuses an in-flight tab-click season load instead of duplicating it', async () => {
+            const firstId = await startWithLazySecondSeason();
+            let releaseFetch!: (episodes: unknown[]) => void;
+            const fetch = TestBed.inject(StalkerStore)
+                .fetchVodSeriesEpisodes as jest.Mock;
+            fetch.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        releaseFetch = resolve;
+                    })
+            );
+
+            // The user opened the season tab; that load is still on the
+            // wire when the series action starts hydrating — it must join
+            // the in-flight request, not start a second one whose failure
+            // could abort the toggle independently.
+            const season2 = fixture.componentInstance.vodSeriesSeasons()[1];
+            const tabLoad =
+                fixture.componentInstance.loadEpisodesForSeason(season2);
+            const pending =
+                fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                    seriesToggleRequest([firstId], true)
+                );
+            releaseFetch([s2ProviderEpisode()]);
+            await Promise.all([tabLoad, pending]);
+
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(repositoryOrder).toEqual([
+                `save:${firstId}`,
+                `save:${S2_SCOPED_ID}`,
+            ]);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+        });
+
         it('aborts with zero writes when hydrating a season fails', async () => {
             const firstId = await startWithLazySecondSeason();
             (
