@@ -275,7 +275,12 @@ host captures the playlist/series identity before awaiting and, when
 navigation changed it, skips both the rendered-state mutation and the
 feedback snackbar (episode ids collide across playlists and the
 contextless message would read as being about the new page; the DB write
-itself carries its own playlistId). The
+itself carries its own playlistId). Stalker gates its snackbars on the
+same captured playlist/series identity. After any Xtream toggle
+(single or batch) the host refreshes `XtreamStore.loadAllPositions` —
+the catalog reads series-progress badges from the store, which otherwise
+loads positions once per playlist — unless the playlist changed
+meanwhile. The
 host reports busy-state back through the `seasonWatchBatchRunning` input.
 
 ## Components

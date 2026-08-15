@@ -107,6 +107,7 @@ describe('SerialDetailsComponent', () => {
     const clearPlaybackPosition = jest.fn();
     const savePlaybackPositionsBatch = jest.fn();
     const clearPlaybackPositionsBatch = jest.fn();
+    const loadAllPositions = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
     let positionUpdateCallback: ((data: PlaybackPositionData) => void) | null =
@@ -182,6 +183,8 @@ describe('SerialDetailsComponent', () => {
         savePlaybackPositionsBatch.mockResolvedValue(undefined);
         clearPlaybackPositionsBatch.mockReset();
         clearPlaybackPositionsBatch.mockResolvedValue(undefined);
+        loadAllPositions.mockReset();
+        loadAllPositions.mockResolvedValue(undefined);
         positionUpdateCallback = null;
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
@@ -227,6 +230,7 @@ describe('SerialDetailsComponent', () => {
                         constructEpisodeStreamUrl,
                         addRecentItem,
                         backfillContentMetadata: jest.fn(),
+                        loadAllPositions,
                     },
                 },
                 {
@@ -945,6 +949,8 @@ describe('SerialDetailsComponent', () => {
             undefined,
             { duration: 5000 }
         );
+        // The catalog badge source must follow the batch.
+        expect(loadAllPositions).toHaveBeenCalledWith('xtream-1');
         expect(playbackService.seasonWatchBatchRunning()).toBe(false);
     });
 
@@ -1023,6 +1029,8 @@ describe('SerialDetailsComponent', () => {
             false
         );
         expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        // The store now belongs to the other playlist — no stale refresh.
+        expect(loadAllPositions).not.toHaveBeenCalled();
         expect(playbackService.seasonWatchBatchRunning()).toBe(false);
         currentPlaylist.set(initialPlaylist);
     });

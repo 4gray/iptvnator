@@ -21,7 +21,6 @@ import {
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
-import { StalkerSeriesPositionPartialSaveError } from './stalker-series-position-compatibility';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 const PLAYLIST_ID = 'playlist-1';
 const SECOND_PLAYLIST_ID = 'playlist-2';
@@ -1202,87 +1201,6 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         return [Number(first.id), Number(second.id)];
     }
 
-    function seasonToggleRequest(ids: number[], markWatched: boolean) {
-        return {
-            seasonKey: '1',
-            markWatched,
-            requests: ids.map((contentXtreamId, index) => ({
-                contentXtreamId,
-                nextPosition: markWatched
-                    ? createPosition({
-                          contentXtreamId,
-                          episodeNumber: index + 1,
-                          positionSeconds: 100,
-                      })
-                    : null,
-            })),
-        };
-    }
-
-    function expectSeasonToggleSnackbar(key: string): void {
-        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
-            key,
-            undefined,
-            { duration: 5000 }
-        );
-    }
-
-    it('marks a season watched sequentially, counting failed legacy cleanup as watched', async () => {
-        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
-        const loadsBefore = getSeriesPlaybackPositions.mock.calls.length;
-        // The second episode saves its scoped row but fails legacy cleanup —
-        // that outcome is still a watched episode, not a batch failure.
-        savePlaybackPositionOrThrow.mockImplementation(
-            async (playlistId: string, position: PlaybackPositionData) => {
-                await savePlaybackPosition(playlistId, position);
-                if (position.contentXtreamId === secondId) {
-                    throw new StalkerSeriesPositionPartialSaveError('cleanup');
-                }
-            }
-        );
-
-        await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
-            seasonToggleRequest([firstId, secondId], true)
-        );
-
-        expect(repositoryOrder).toEqual([
-            `save:${firstId}`,
-            `save:${secondId}`,
-        ]);
-        expect(getSeriesPlaybackPositions.mock.calls.length).toBe(loadsBefore);
-        const positions = fixture.componentInstance.episodePlaybackPositions();
-        expect(positions.get(secondId)?.positionSeconds).toBe(100);
-        expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
-        expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
-    });
-
-    it('keeps surviving clears and reports a partial season unwatch failure', async () => {
-        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
-        repositoryRows = [firstId, secondId].map((contentXtreamId, index) =>
-            createPosition({
-                contentXtreamId,
-                episodeNumber: index + 1,
-                positionSeconds: 100,
-            })
-        );
-        selectedItem.set(createVodItem(SERIES_A_ID));
-        await settle();
-        clearPlaybackPositionOrThrow.mockImplementation(
-            async (playlistId: string, contentXtreamId: number) => {
-                if (contentXtreamId === secondId) {
-                    throw new Error('clear rejected');
-                }
-                return clearPlaybackPosition(playlistId, contentXtreamId);
-            }
-        );
-
-        await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
-            seasonToggleRequest([firstId, secondId], false)
-        );
-
-        const positions = fixture.componentInstance.episodePlaybackPositions();
-        expect(positions.has(firstId)).toBe(false);
-        expect(positions.get(secondId)?.positionSeconds).toBe(100);
-        expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL');
-    });
+    // Season-level bulk toggle coverage lives in
+    // stalker-series-view.season-watch.spec.ts.
 });

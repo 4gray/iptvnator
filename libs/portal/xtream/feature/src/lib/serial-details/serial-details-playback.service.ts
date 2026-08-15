@@ -332,23 +332,23 @@ export class SerialDetailsPlaybackService {
                 request.nextPosition
             );
             this.playbackPositionState.update(request.nextPosition);
-            return;
+        } else {
+            await this.playbackPositions.clearPlaybackPosition(
+                playlistId,
+                request.contentXtreamId,
+                'episode'
+            );
+            this.playbackPositionState.remove(request.contentXtreamId);
         }
-
-        await this.playbackPositions.clearPlaybackPosition(
-            playlistId,
-            request.contentXtreamId,
-            'episode'
-        );
-        this.playbackPositionState.remove(request.contentXtreamId);
+        await this.refreshStorePositions(playlistId);
     }
 
-    handleSeasonPlaybackToggleRequested(
+    async handleSeasonPlaybackToggleRequested(
         request: SeasonContainerSeasonPlaybackToggleRequest
     ): Promise<void> {
         const playlistId = this.currentPlaylistId();
         const seriesXtreamId = Number(this.selectedItem()?.series_id ?? 0);
-        return this.seasonWatch.handle(
+        const persisted = await this.seasonWatch.handle(
             request,
             playlistId,
             this.playbackPositionState,
@@ -356,6 +356,22 @@ export class SerialDetailsPlaybackService {
                 this.currentPlaylistId() === playlistId &&
                 Number(this.selectedItem()?.series_id ?? 0) === seriesXtreamId
         );
+        if (persisted) {
+            await this.refreshStorePositions(playlistId);
+        }
+    }
+
+    /**
+     * The catalog reads series progress from XtreamStore, whose positions
+     * load once per playlist (XtreamCatalogFacadeService.initialize), so a
+     * toggle must push the change back or badges go stale on return. Skipped
+     * after a playlist switch — the store then holds the other playlist.
+     */
+    private async refreshStorePositions(playlistId: string): Promise<void> {
+        if (this.currentPlaylistId() !== playlistId) {
+            return;
+        }
+        await this.xtreamStore.loadAllPositions(playlistId);
     }
 
     async loadSeriesPlaybackPositions(

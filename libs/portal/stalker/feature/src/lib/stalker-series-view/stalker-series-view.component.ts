@@ -1107,6 +1107,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         ) {
             return;
         }
+        // The mutation context already keeps a stale batch out of the next
+        // series' state; the snackbars need the same ownership so feedback
+        // for the old season is not presented on a newly opened page.
+        const seriesXtreamId = this.toSeriesId(this.displayItem()?.id ?? 0);
+        const stillCurrent = () =>
+            this.stalkerStore.currentPlaylist()?._id === playlistId &&
+            this.toSeriesId(this.displayItem()?.id ?? 0) === seriesXtreamId;
 
         this.seasonWatchBatchRunning.set(true);
         try {
@@ -1143,6 +1150,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 this.logger.error(
                     `Season watched toggle: ${failed} of ${outcomes.length} episodes failed`
                 );
+            }
+            if (!stillCurrent()) {
+                return;
             }
 
             if (failed === 0) {

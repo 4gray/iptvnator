@@ -32,9 +32,9 @@ export class SerialDetailsSeasonWatchService {
         // its contextless snackbar as feedback about the newly opened page.
         // The DB write itself is safe — it carries its own playlistId.
         stillCurrent: () => boolean
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (!playlistId || request.requests.length === 0 || this.batchRunning()) {
-            return;
+            return false;
         }
 
         this.batchRunning.set(true);
@@ -51,7 +51,7 @@ export class SerialDetailsSeasonWatchService {
                     positions
                 );
                 if (!stillCurrent()) {
-                    return;
+                    return true;
                 }
                 state.updateMany(positions);
                 this.notify('XTREAM.SEASON_MARKED_WATCHED', {
@@ -66,13 +66,14 @@ export class SerialDetailsSeasonWatchService {
                     }))
                 );
                 if (!stillCurrent()) {
-                    return;
+                    return true;
                 }
                 state.removeMany(
                     request.requests.map((item) => item.contentXtreamId)
                 );
                 this.notify('XTREAM.SEASON_MARKED_UNWATCHED');
             }
+            return true;
         } catch (error) {
             // Nothing was confirmed persisted — keep the rendered state and
             // report instead of showing episodes as (un)watched.
@@ -83,6 +84,7 @@ export class SerialDetailsSeasonWatchService {
             if (stillCurrent()) {
                 this.notify('XTREAM.SEASON_WATCH_UPDATE_FAILED');
             }
+            return false;
         } finally {
             this.batchRunning.set(false);
         }
