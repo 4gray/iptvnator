@@ -108,6 +108,20 @@ export class AppPortalPlaybackPositionsService
             contentType
         );
     }
+
+    async savePlaybackPositionsBatch(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        await this.dataSource.savePlaybackPositionsBatch(playlistId, items);
+    }
+
+    async clearPlaybackPositionsBatch(
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ): Promise<void> {
+        await this.dataSource.clearPlaybackPositionsBatch(playlistId, items);
+    }
 }
 
 export const providePortalPlaybackPositions = () => [

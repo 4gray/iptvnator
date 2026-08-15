@@ -952,6 +952,78 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
     ).toBeVisible({ timeout: 10_000 });
 });
 
+test('@stalker season watched toggle — embedded series marks and clears every episode', async ({
+    page,
+    request,
+}) => {
+    // Reuse the modeled embedded-series flow: find a VOD item carrying an
+    // embedded series[] array, open it from its category, and land on the
+    // series detail with its episode list.
+    const listResponse = await request.get(
+        `${MOCK_SERVER}/stalker?action=get_ordered_list&type=vod&category=2001&p=1&macAddress=${EMBEDDED_SERIES_MAC}&JsHttpRequest=1-xml`
+    );
+    const listBody = await listResponse.json();
+    const embeddedItem = listBody.payload.js.data.find(
+        (item: { series?: unknown[] }) =>
+            Array.isArray(item.series) && item.series.length > 0
+    );
+    expect(embeddedItem).toBeDefined();
+    const episodeCount: number = embeddedItem.series.length;
+
+    await addStalkerPortal(page, {
+        name: 'Embedded Series Watch Portal',
+        mac: EMBEDDED_SERIES_MAC,
+    });
+
+    const categories = page.locator('.category-item');
+    await expect(categories.first()).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+    const card = page.getByText(embeddedItem.name).first();
+    await expect(card).toBeVisible({ timeout: 10_000 });
+    await card.click();
+
+    await expect(
+        page.getByRole('heading', {
+            name: `${episodeCount}. Episode ${episodeCount}`,
+            exact: true,
+        })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // The season header's bulk toggle (data-test-id with a dash — getByTestId
+    // only matches data-testid in this suite) counts every unwatched episode.
+    const seasonToggle = page.locator(
+        '[data-test-id="toggle-season-watched"]'
+    );
+    await expect(seasonToggle).toBeVisible();
+    await expect(seasonToggle).toContainText(
+        `Mark season as watched (${episodeCount})`
+    );
+    const watchedCards = page.locator('.episode-card--watched');
+    await expect(watchedCards).toHaveCount(0);
+
+    await seasonToggle.click();
+
+    // All episodes get full-progress positions: the button flips and every
+    // episode card plus per-episode toggle shows the watched state.
+    await expect(seasonToggle).toContainText('Mark season as unwatched', {
+        timeout: 15_000,
+    });
+    await expect(watchedCards).toHaveCount(episodeCount);
+    await expect(
+        page.locator(
+            '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
+        )
+    ).toHaveCount(episodeCount);
+
+    // Second click clears every episode's position again.
+    await seasonToggle.click();
+    await expect(seasonToggle).toContainText(
+        `Mark season as watched (${episodeCount})`,
+        { timeout: 15_000 }
+    );
+    await expect(watchedCards).toHaveCount(0);
+});
+
 test('@stalker series — seasons load for a series item', async ({
     request,
 }) => {

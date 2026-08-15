@@ -893,6 +893,13 @@
         "IN_PROGRESS": "Σε εξέλιξη",
         "MARK_WATCHED": "Σήμανση ως προβληθέν",
         "MARK_UNWATCHED": "Σήμανση ως μη προβληθέν",
+        "MARK_SEASON_WATCHED": "Σήμανση σεζόν ως προβληθείσα ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Σήμανση σεζόν ως μη προβληθείσα",
+        "SEASON_MARKED_WATCHED": "{{count}} επεισόδια σημειώθηκαν ως προβληθέντα",
+        "SEASON_MARKED_UNWATCHED": "Η σεζόν σημειώθηκε ως μη προβληθείσα",
+        "SEASON_MARKED_WATCHED_PARTIAL": "Σημειώθηκαν {{count}} · Απέτυχαν {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "Αφαιρέθηκε η σήμανση από {{count}} · Απέτυχαν {{failed}}",
+        "SEASON_WATCH_UPDATE_FAILED": "Η ενημέρωση της σεζόν απέτυχε",
         "EPISODES_WATCHED": "{{count}} από {{total}} επεισόδια προβλήθηκαν",
         "DETAIL_FALLBACK": {
             "STATUS": "Τα μεταδεδομένα της πύλης δεν είναι διαθέσιμα",

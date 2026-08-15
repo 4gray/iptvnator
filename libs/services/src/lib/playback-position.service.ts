@@ -84,6 +84,17 @@ export class PlaybackPositionService {
         }
     }
 
+    /**
+     * Failure-propagating read for cache refreshes: a swallowed error would
+     * surface as an authoritative empty list and let a transient IPC failure
+     * wipe an already-populated position cache.
+     */
+    getAllPlaybackPositionsOrThrow(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]> {
+        return this.playbackPositionBridge.getAllPlaybackPositions(playlistId);
+    }
+
     async clearAllPlaybackPositions(playlistId: string): Promise<void> {
         try {
             await this.playbackPositionBridge.clearAllPlaybackPositions(
@@ -108,5 +119,28 @@ export class PlaybackPositionService {
         } catch (error) {
             console.error('Error clearing playback position:', error);
         }
+    }
+
+    // The batch methods deliberately propagate failures (no swallow):
+    // season-level bulk toggles must show an error and keep the UI state
+    // untouched when nothing was persisted.
+    savePlaybackPositionsBatch(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        return this.playbackPositionBridge.savePlaybackPositionsBatch(
+            playlistId,
+            items
+        );
+    }
+
+    clearPlaybackPositionsBatch(
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ): Promise<void> {
+        return this.playbackPositionBridge.clearPlaybackPositionsBatch(
+            playlistId,
+            items
+        );
     }
 }

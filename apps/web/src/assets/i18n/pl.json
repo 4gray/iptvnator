@@ -893,6 +893,13 @@
         "IN_PROGRESS": "W trakcie",
         "MARK_WATCHED": "Oznacz jako obejrzane",
         "MARK_UNWATCHED": "Oznacz jako nieobejrzane",
+        "MARK_SEASON_WATCHED": "Oznacz sezon jako obejrzany ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Oznacz sezon jako nieobejrzany",
+        "SEASON_MARKED_WATCHED": "Oznaczono {{count}} odcinków jako obejrzane",
+        "SEASON_MARKED_UNWATCHED": "Oznaczono sezon jako nieobejrzany",
+        "SEASON_MARKED_WATCHED_PARTIAL": "Oznaczono {{count}} · Nieudane {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "Odznaczono {{count}} · Nieudane {{failed}}",
+        "SEASON_WATCH_UPDATE_FAILED": "Nie udało się zaktualizować sezonu",
         "EPISODES_WATCHED": "Obejrzano {{count}} z {{total}} odcinków",
         "DETAIL_FALLBACK": {
             "STATUS": "Metadane portalu niedostępne",

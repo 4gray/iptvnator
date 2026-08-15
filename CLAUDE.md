@@ -252,10 +252,13 @@ baseline generator import so the enforced rule and the generated list cannot
 drift:
 
 - **Production TypeScript: hard maximum 400 lines.**
-- **Tests: 1200.** `**/*.spec.ts`, `**/*.e2e.ts` and everything under
-  `apps/*-e2e/**` — a spec is a flat list of independent cases, so splitting one
-  at the production limit yields arbitrary `-2.spec.ts` files, and length there
-  signals coverage rather than the design debt the production limit catches.
+- **Tests: 1200.** `**/*.spec.ts`, `**/*.spec-data.ts`, `**/*.e2e.ts` and
+  everything under `apps/*-e2e/**` — a spec is a flat list of independent
+  cases, so splitting one at the production limit yields arbitrary
+  `-2.spec.ts` files, and length there signals coverage rather than the
+  design debt the production limit catches. `.spec-data.ts` fixtures (flat
+  case lists consumed only by a spec, e.g. the worker IPC contract table)
+  grow with coverage the same way.
 - **Blank lines and comments are not counted** (`skipBlankLines`,
   `skipComments`), so a docblock is never the reason a file must be split.
 
@@ -575,8 +578,8 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 Keep production TypeScript files under **300 lines**. Hard maximum is
 **350–400 lines**, and CI enforces the 400. Blank lines and comments do not
 count toward it, so documenting a file never costs you headroom. Tests
-(`**/*.spec.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held to 1200 instead — the
-guidance below is about production code.
+(`**/*.spec.ts`, `**/*.spec-data.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held
+to 1200 instead — the guidance below is about production code.
 
 - When creating new files, design them to stay within this limit from the start.
 - When adding a feature to an existing file that would push it past 350 lines, **refactor first**: extract helpers, sub-services, or feature modules before adding the new code.
@@ -1303,6 +1306,7 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 - Stalker preserves this contract for regular `/series`, embedded VOD `series[]`, and lazy Ministra VOD `is_series` items; `is_series` is normalized only from `true`, `1`, or `'1'`. Quick-start translation parameters must reach the CTA, and inline/external episode handoffs must include the parent series id plus resolved season and episode numbers. Lazy VOD episode tracking IDs scope the parent series, provider episode, season key, and episode number; the previous season/episode hash is only a compatibility alias. Exact scoped positions win, while compatible legacy rows are considered only for the current parent and must match any stored season/episode coordinates. The scoped row is persisted through the strict failure-propagating boundary before confirmed legacy cleanup, so a failed save keeps the old row; compatibility is lazy and performs no schema migration or bulk rewrite.
 - Hosts pass hero chips/meta/actions as `*appDetailTags`/`*appDetailMeta`/`*appDetailActions` templates; the shell stamps them into both the hero and the About block
 - Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → first) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream, provider-first with URL-only junk filtered by `sanitizeProviderOverview` and a TMDB season-overview fallback stored as `tmdb_season_overviews` by the lazy season enrichment) or TMDB (Stalker)
+- The season header hosts a bulk watched toggle next to "Download season" (both portals): marking writes full-progress position rows for the unwatched episodes only — skipping the episode currently playing/launching, whose position ticks would overwrite the row — and a fully watched season flips the action to unwatch-all (`buildSeasonWatchToggleRequest` in `libs/ui/components/.../season-watch-toggle.util.ts`). Xtream persists via the batch IPC `DB_SAVE/CLEAR_PLAYBACK_POSITIONS_BATCH` (one SQLite transaction; the PWA data source rewrites its localStorage blob once) and refreshes `XtreamStore.loadAllPositions` after any toggle so catalog progress badges follow; Stalker loops the serialized position-mutation queue (legacy-row reconciliation, one coalesced reload) and reports direction-specific partial failures. A batch resolving after navigation neither mutates the new page's state nor shows its snackbar. Contract: `docs/architecture/embedded-inline-playback.md`
 - Dashboard hero/Continue Watching clicks for an Xtream series carry a one-shot resume target through the global-recent inline-detail handoff; after series metadata and playback positions load, the exact saved episode starts at its stored position. A failed positions load leaves the target unconsumed and the handoff detail-only, so a transient storage error never starts the episode from the beginning. Ordinary global-recent grid clicks remain detail-only.
 - See `docs/architecture/embedded-inline-playback.md` ("Two-State Detail Layout")
 

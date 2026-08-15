@@ -893,6 +893,13 @@
         "IN_PROGRESS": "观看中",
         "MARK_WATCHED": "标记为已观看",
         "MARK_UNWATCHED": "标记为未观看",
+        "MARK_SEASON_WATCHED": "标记整季为已观看（{{count}}）",
+        "MARK_SEASON_UNWATCHED": "标记整季为未观看",
+        "SEASON_MARKED_WATCHED": "{{count}} 集已标记为已观看",
+        "SEASON_MARKED_UNWATCHED": "本季已标记为未观看",
+        "SEASON_MARKED_WATCHED_PARTIAL": "已标记 {{count}} · 失败 {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "已取消标记 {{count}} · 失败 {{failed}}",
+        "SEASON_WATCH_UPDATE_FAILED": "无法更新本季",
         "EPISODES_WATCHED": "已观看 {{count}} / {{total}} 集",
         "DETAIL_FALLBACK": {
             "STATUS": "门户元数据不可用",

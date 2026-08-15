@@ -1066,6 +1066,17 @@ export interface ElectronBridgeApi {
         contentXtreamId: number,
         contentType: ElectronBridgePlaybackContentType
     ) => Promise<ElectronBridgeResult>;
+    dbSavePlaybackPositionsBatch: (
+        playlistId: string,
+        items: ElectronBridgePlaybackPositionInput[]
+    ) => Promise<ElectronBridgeResult>;
+    dbClearPlaybackPositionsBatch: (
+        playlistId: string,
+        items: {
+            contentXtreamId: number;
+            contentType: ElectronBridgePlaybackContentType;
+        }[]
+    ) => Promise<ElectronBridgeResult>;
     onPlaybackPositionUpdate: (
         callback: (data: PlaybackPositionData) => void
     ) => () => void;

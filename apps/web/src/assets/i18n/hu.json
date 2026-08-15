@@ -893,6 +893,13 @@
         "IN_PROGRESS": "Folyamatban",
         "MARK_WATCHED": "Megjelölés megtekintettként",
         "MARK_UNWATCHED": "Megjelölés nem megtekintettként",
+        "MARK_SEASON_WATCHED": "Évad megjelölése megtekintettként ({{count}})",
+        "MARK_SEASON_UNWATCHED": "Évad megjelölése nem megtekintettként",
+        "SEASON_MARKED_WATCHED": "{{count}} epizód megjelölve megtekintettként",
+        "SEASON_MARKED_UNWATCHED": "Évad megjelölve nem megtekintettként",
+        "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} megjelölve · {{failed}} sikertelen",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} jelölés törölve · {{failed}} sikertelen",
+        "SEASON_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni az évadot",
         "EPISODES_WATCHED": "Megtekintett epizódok: {{count}} / {{total}}",
         "DETAIL_FALLBACK": {
             "STATUS": "A portál metaadatai nem állnak rendelkezésre",

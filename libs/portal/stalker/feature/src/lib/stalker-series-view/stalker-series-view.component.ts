@@ -15,6 +15,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
+import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
@@ -23,6 +24,7 @@ import {
     ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeasonPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import {
     pickSeasonMarkedTitle,
@@ -168,6 +170,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         PlaybackPositionRuntimeBridgeService
     );
     private readonly snackBar = inject(MatSnackBar);
+    // Optional: absent in collection-detail mounts outside the catalog.
+    private readonly catalogFacade = inject(StalkerCatalogFacadeService, {
+        optional: true,
+    });
     private readonly translateService = inject(TranslateService);
     readonly backClicked = output<void>();
     private readonly logger = createLogger('StalkerSeriesView');
@@ -201,6 +207,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    readonly seasonWatchBatchRunning = signal(false);
 
     /**
      * Optional input for VOD items with embedded series array (vclub mode)
@@ -1075,10 +1082,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         if (request.nextPosition) {
             await this.persistSeriesPosition(playlistId, request.nextPosition);
-            return;
+        } else {
+            await this.clearSeriesPosition(playlistId, request.contentXtreamId);
         }
-
-        await this.clearSeriesPosition(playlistId, request.contentXtreamId);
+        // Keep the catalog grid's progress badge in sync (ownership-checked
+        // inside the facade; no-op outside the catalog context). A failed
+        // refresh keeps the cache populated-but-stale.
+        await this.catalogFacade
+            ?.refreshPositions(playlistId)
+            .catch((error: unknown) =>
+                this.logger.warn('Catalog position refresh failed', error)
+            );
     }
 
     handlePlaybackToggleRequestedFromUi(
@@ -1091,6 +1105,123 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     error
                 );
             }
+        );
+    }
+
+    async handleSeasonPlaybackToggleRequested(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): Promise<void> {
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (
+            !playlistId ||
+            request.requests.length === 0 ||
+            this.seasonWatchBatchRunning()
+        ) {
+            return;
+        }
+        // The mutation context already keeps a stale batch out of the next
+        // series' state; the snackbars need the same ownership so feedback
+        // for the old season is not presented on a newly opened page.
+        const seriesXtreamId = this.toSeriesId(this.displayItem()?.id ?? 0);
+        const stillCurrent = () =>
+            this.stalkerStore.currentPlaylist()?._id === playlistId &&
+            this.toSeriesId(this.displayItem()?.id ?? 0) === seriesXtreamId;
+
+        this.seasonWatchBatchRunning.set(true);
+        try {
+            // Enqueue every episode synchronously: each mutation chains on
+            // the previous one's never-rejecting barrier, so the queue
+            // serializes the writes (incl. per-episode legacy-row cleanup)
+            // and reloads positions once after the whole chain drains.
+            const outcomes = await Promise.all(
+                request.requests.map((item) =>
+                    (item.nextPosition
+                        ? this.persistSeriesPosition(
+                              playlistId,
+                              item.nextPosition
+                          )
+                        : this.clearSeriesPosition(
+                              playlistId,
+                              item.contentXtreamId
+                          )
+                    ).then(
+                        () => true,
+                        // The scoped watched row was saved and published —
+                        // only the legacy-row cleanup failed. The episode IS
+                        // watched, so it must not count against the batch.
+                        (error: unknown) =>
+                            error instanceof
+                            StalkerSeriesPositionPartialSaveError
+                    )
+                )
+            );
+
+            const failed = outcomes.filter((ok) => !ok).length;
+            const succeeded = outcomes.length - failed;
+            if (failed > 0) {
+                this.logger.error(
+                    `Season watched toggle: ${failed} of ${outcomes.length} episodes failed`
+                );
+            }
+            if (succeeded > 0) {
+                // Partial successes changed rows too — the catalog badge
+                // must follow even when the user already moved on. A failed
+                // refresh must not break the feedback flow below.
+                await this.catalogFacade
+                    ?.refreshPositions(playlistId)
+                    .catch((error: unknown) =>
+                        this.logger.warn(
+                            'Catalog position refresh failed',
+                            error
+                        )
+                    );
+            }
+            if (!stillCurrent()) {
+                return;
+            }
+
+            if (failed === 0) {
+                this.notifySeasonWatchToggle(
+                    request.markWatched
+                        ? 'XTREAM.SEASON_MARKED_WATCHED'
+                        : 'XTREAM.SEASON_MARKED_UNWATCHED',
+                    { count: succeeded }
+                );
+            } else if (succeeded > 0) {
+                this.notifySeasonWatchToggle(
+                    request.markWatched
+                        ? 'XTREAM.SEASON_MARKED_WATCHED_PARTIAL'
+                        : 'XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL',
+                    { count: succeeded, failed }
+                );
+            } else {
+                this.notifySeasonWatchToggle(
+                    'XTREAM.SEASON_WATCH_UPDATE_FAILED'
+                );
+            }
+        } finally {
+            this.seasonWatchBatchRunning.set(false);
+        }
+    }
+
+    handleSeasonPlaybackToggleRequestedFromUi(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): void {
+        void this.handleSeasonPlaybackToggleRequested(request).catch(
+            (error: unknown) => {
+                this.logger.error(
+                    'Failed to toggle season watched state',
+                    error
+                );
+            }
+        );
+    }
+
+    private notifySeasonWatchToggle(key: string, params?: object): void {
+        this.snackBar.open(
+            this.translateService.instant(key, params),
+            undefined,
+            { duration: 5000 }
         );
     }
 

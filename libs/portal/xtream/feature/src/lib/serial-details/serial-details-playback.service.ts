@@ -25,7 +25,10 @@ import {
     XtreamSerieDetails,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import { SeasonContainerPlaybackToggleRequest } from '@iptvnator/ui/components';
+import {
+    SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeasonPlaybackToggleRequest,
+} from '@iptvnator/ui/components';
 import {
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
@@ -35,6 +38,7 @@ import {
 } from '@iptvnator/ui/playback';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
+import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
 
 export type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
@@ -60,6 +64,7 @@ export class SerialDetailsPlaybackService {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
+    private readonly seasonWatch = inject(SerialDetailsSeasonWatchService);
 
     private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(
         null
@@ -77,6 +82,7 @@ export class SerialDetailsPlaybackService {
     readonly episodePlaybackPositions = this.playbackPositionState.positions;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    readonly seasonWatchBatchRunning = this.seasonWatch.batchRunning;
 
     readonly quickStartAction = computed(() => {
         const item = this.selectedItem();
@@ -326,15 +332,55 @@ export class SerialDetailsPlaybackService {
                 request.nextPosition
             );
             this.playbackPositionState.update(request.nextPosition);
+        } else {
+            await this.playbackPositions.clearPlaybackPosition(
+                playlistId,
+                request.contentXtreamId,
+                'episode'
+            );
+            this.playbackPositionState.remove(request.contentXtreamId);
+        }
+        await this.refreshStorePositions(playlistId);
+    }
+
+    async handleSeasonPlaybackToggleRequested(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): Promise<void> {
+        const playlistId = this.currentPlaylistId();
+        const seriesXtreamId = Number(this.selectedItem()?.series_id ?? 0);
+        const persisted = await this.seasonWatch.handle(
+            request,
+            playlistId,
+            this.playbackPositionState,
+            () =>
+                this.currentPlaylistId() === playlistId &&
+                Number(this.selectedItem()?.series_id ?? 0) === seriesXtreamId
+        );
+        if (persisted) {
+            await this.refreshStorePositions(playlistId);
+        }
+    }
+
+    /**
+     * The catalog reads series progress from XtreamStore, whose positions
+     * load once per playlist (XtreamCatalogFacadeService.initialize), so a
+     * toggle must push the change back or badges go stale on return. Skipped
+     * after a playlist switch — the store then holds the other playlist.
+     */
+    private async refreshStorePositions(playlistId: string): Promise<void> {
+        if (this.currentPlaylistId() !== playlistId) {
             return;
         }
-
-        await this.playbackPositions.clearPlaybackPosition(
-            playlistId,
-            request.contentXtreamId,
-            'episode'
-        );
-        this.playbackPositionState.remove(request.contentXtreamId);
+        try {
+            await this.xtreamStore.loadAllPositions(playlistId);
+        } catch (error) {
+            // The toggle itself succeeded; a failed refresh keeps the store
+            // populated-but-stale, which beats wiping it with a bad read.
+            console.warn(
+                '[SerialDetailsPlayback] Store position refresh failed',
+                error
+            );
+        }
     }
 
     async loadSeriesPlaybackPositions(

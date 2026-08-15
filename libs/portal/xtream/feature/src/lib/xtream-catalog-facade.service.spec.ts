@@ -60,7 +60,7 @@ describe('XtreamCatalogFacadeService', () => {
         contentSortMode,
         minRating,
         currentPlaylist,
-        loadAllPositions: jest.fn(),
+        loadAllPositions: jest.fn().mockResolvedValue(undefined),
         setCategorySearchTerm: jest.fn(),
         setSelectedItem: jest.fn((item: Record<string, unknown> | null) => {
             selectedItem.set(item);

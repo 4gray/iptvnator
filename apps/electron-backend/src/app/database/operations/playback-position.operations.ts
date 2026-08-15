@@ -81,6 +81,96 @@ export async function savePlaybackPosition(
     return { success: true };
 }
 
+export async function savePlaybackPositionsBatch(
+    db: AppDatabase,
+    playlistId: string,
+    items: PlaybackPositionPayload[]
+): Promise<{ success: boolean; count: number }> {
+    if (!Array.isArray(items) || items.length === 0) {
+        return { success: true, count: 0 };
+    }
+
+    // ensurePlaylistExists awaits, so it must run before the synchronous
+    // transaction callback below.
+    await ensurePlaylistExists(db, playlistId, items[0]?.playlistType);
+
+    await db.transaction(() => {
+        for (const item of items) {
+            // .run() (synchronous), NOT .execute(): the better-sqlite3
+            // driver's .execute() defers the write to a resolved promise
+            // that never settles inside this synchronous transaction
+            // callback, so the upsert would silently do nothing. See the
+            // matching note in recently-viewed.operations.ts (issue #1137).
+            db.insert(schema.playbackPositions)
+                .values({
+                    playlistId,
+                    contentXtreamId: item.contentXtreamId,
+                    contentType: item.contentType,
+                    seriesXtreamId: item.seriesXtreamId,
+                    seasonNumber: item.seasonNumber,
+                    episodeNumber: item.episodeNumber,
+                    positionSeconds: item.positionSeconds,
+                    durationSeconds: item.durationSeconds,
+                    updatedAt: sql`CURRENT_TIMESTAMP`,
+                })
+                .onConflictDoUpdate({
+                    target: [
+                        schema.playbackPositions.contentXtreamId,
+                        schema.playbackPositions.playlistId,
+                        schema.playbackPositions.contentType,
+                    ],
+                    set: {
+                        seriesXtreamId: item.seriesXtreamId,
+                        seasonNumber: item.seasonNumber,
+                        episodeNumber: item.episodeNumber,
+                        positionSeconds: item.positionSeconds,
+                        durationSeconds: item.durationSeconds,
+                        updatedAt: sql`CURRENT_TIMESTAMP`,
+                    },
+                })
+                .run();
+        }
+    });
+
+    return { success: true, count: items.length };
+}
+
+export async function clearPlaybackPositionsBatch(
+    db: AppDatabase,
+    playlistId: string,
+    items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+): Promise<{ success: boolean; count: number }> {
+    if (!Array.isArray(items) || items.length === 0) {
+        return { success: true, count: 0 };
+    }
+
+    const stmt = db
+        .delete(schema.playbackPositions)
+        .where(
+            and(
+                eq(schema.playbackPositions.playlistId, playlistId),
+                eq(
+                    schema.playbackPositions.contentXtreamId,
+                    sql.placeholder('contentXtreamId')
+                ),
+                eq(
+                    schema.playbackPositions.contentType,
+                    sql.placeholder('contentType')
+                )
+            )
+        )
+        .prepare();
+
+    await db.transaction(() => {
+        for (const { contentXtreamId, contentType } of items) {
+            // .run(), not .execute() — see savePlaybackPositionsBatch.
+            stmt.run({ contentXtreamId, contentType });
+        }
+    });
+
+    return { success: true, count: items.length };
+}
+
 export async function getPlaybackPosition(
     db: AppDatabase,
     playlistId: string,

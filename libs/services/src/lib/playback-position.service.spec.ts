@@ -20,6 +20,8 @@ describe('PlaybackPositionService', () => {
             | 'getAllPlaybackPositions'
             | 'clearAllPlaybackPositions'
             | 'clearPlaybackPosition'
+            | 'savePlaybackPositionsBatch'
+            | 'clearPlaybackPositionsBatch'
         >
     >;
 
@@ -32,6 +34,8 @@ describe('PlaybackPositionService', () => {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
+            savePlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
+            clearPlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
         };
 
         injector = Injector.create({
@@ -149,6 +153,54 @@ describe('PlaybackPositionService', () => {
         await expect(
             service.clearPlaybackPosition('playlist-1', 100, 'vod')
         ).resolves.toBeUndefined();
+    });
+
+    it('delegates batch playback-position writes through the runtime bridge', async () => {
+        const items = [
+            createPosition(),
+            createPosition({
+                contentXtreamId: 101,
+                contentType: 'episode',
+                seriesXtreamId: 200,
+            }),
+        ];
+        const clearItems: {
+            contentXtreamId: number;
+            contentType: 'vod' | 'episode';
+        }[] = [
+            { contentXtreamId: 100, contentType: 'vod' },
+            { contentXtreamId: 101, contentType: 'episode' },
+        ];
+
+        await service.savePlaybackPositionsBatch('playlist-1', items);
+        await service.clearPlaybackPositionsBatch('playlist-1', clearItems);
+
+        expect(bridge.savePlaybackPositionsBatch).toHaveBeenCalledWith(
+            'playlist-1',
+            items
+        );
+        expect(bridge.clearPlaybackPositionsBatch).toHaveBeenCalledWith(
+            'playlist-1',
+            clearItems
+        );
+    });
+
+    it('propagates batch failures to the caller instead of swallowing them', async () => {
+        const saveError = new Error('batch save failed');
+        const clearError = new Error('batch clear failed');
+        bridge.savePlaybackPositionsBatch.mockRejectedValue(saveError);
+        bridge.clearPlaybackPositionsBatch.mockRejectedValue(clearError);
+
+        await expect(
+            service.savePlaybackPositionsBatch('playlist-1', [
+                createPosition(),
+            ])
+        ).rejects.toBe(saveError);
+        await expect(
+            service.clearPlaybackPositionsBatch('playlist-1', [
+                { contentXtreamId: 100, contentType: 'vod' },
+            ])
+        ).rejects.toBe(clearError);
     });
 });
 

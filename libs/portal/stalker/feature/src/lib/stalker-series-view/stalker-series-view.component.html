@@ -209,10 +209,14 @@
                     isVodSeriesSeasonsLoading() ||
                     isCurrentSeasonLoading(seasonContainer?.selectedSeason())
                 "
+                [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
                 (playbackToggleRequested)="
                     handlePlaybackToggleRequestedFromUi($event)
+                "
+                (seasonPlaybackToggleRequested)="
+                    handleSeasonPlaybackToggleRequestedFromUi($event)
                 "
                 #seasonContainer
             />

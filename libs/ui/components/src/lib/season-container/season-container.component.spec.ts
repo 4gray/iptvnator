@@ -58,6 +58,7 @@ const EN_TRANSLATIONS = JSON.parse(
 
 const DOWNLOAD_TRANSLATIONS = {
     DOWNLOADS: EN_TRANSLATIONS['DOWNLOADS'],
+    XTREAM: EN_TRANSLATIONS['XTREAM'],
 };
 
 function createEpisode(
@@ -1130,5 +1131,192 @@ describe('SeasonContainerComponent', () => {
             undefined,
             { duration: 5000 }
         );
+    });
+
+    describe('season watched toggle', () => {
+        // The Stalker-style '45 min' format parses to 2700 seconds.
+        const PARSED_DURATION = 2700;
+        const parseableInfo = {
+            duration: '45 min',
+            plot: 'Pilot episode',
+            movie_image: 'https://example.com/poster.jpg',
+        };
+
+        const watchedPosition = (contentXtreamId: number) => ({
+            contentXtreamId,
+            contentType: 'episode' as const,
+            seriesXtreamId: 20,
+            positionSeconds: 100,
+            durationSeconds: 100,
+            playlistId: 'playlist-1',
+        });
+
+        const toggleButton = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="toggle-season-watched"]'
+            );
+
+        const threeEpisodes = () => ({
+            '1': [
+                createEpisode({ info: parseableInfo }),
+                createEpisode({
+                    id: '102',
+                    episode_num: 2,
+                    info: parseableInfo,
+                }),
+                createEpisode({
+                    id: '103',
+                    episode_num: 3,
+                    info: parseableInfo,
+                }),
+            ],
+        });
+
+        it('emits watched requests only for unwatched episodes with parsed durations', () => {
+            const emitted: unknown[] = [];
+            component.seasonPlaybackToggleRequested.subscribe((request) =>
+                emitted.push(request)
+            );
+            setRequiredInputs(threeEpisodes());
+            fixture.componentRef.setInput(
+                'playbackPositions',
+                new Map([[101, watchedPosition(101)]])
+            );
+            fixture.detectChanges();
+
+            const button = toggleButton();
+            expect(button?.textContent).toContain(
+                'Mark season as watched (2)'
+            );
+            button?.click();
+
+            expect(emitted).toEqual([
+                {
+                    seasonKey: '1',
+                    markWatched: true,
+                    requests: [
+                        {
+                            contentXtreamId: 102,
+                            nextPosition: expect.objectContaining({
+                                contentXtreamId: 102,
+                                contentType: 'episode',
+                                seriesXtreamId: 20,
+                                seasonNumber: 1,
+                                episodeNumber: 2,
+                                positionSeconds: PARSED_DURATION,
+                                durationSeconds: PARSED_DURATION,
+                                playlistId: 'playlist-1',
+                            }),
+                        },
+                        {
+                            contentXtreamId: 103,
+                            nextPosition: expect.objectContaining({
+                                contentXtreamId: 103,
+                                episodeNumber: 3,
+                            }),
+                        },
+                    ],
+                },
+            ]);
+        });
+
+        it('flips to unwatch and emits null positions for every episode when the season is fully watched', () => {
+            const emitted: {
+                markWatched: boolean;
+                requests: { contentXtreamId: number; nextPosition: unknown }[];
+            }[] = [];
+            component.seasonPlaybackToggleRequested.subscribe((request) =>
+                emitted.push(request)
+            );
+            setRequiredInputs(threeEpisodes());
+            fixture.componentRef.setInput(
+                'playbackPositions',
+                new Map([
+                    [101, watchedPosition(101)],
+                    [102, watchedPosition(102)],
+                    [103, watchedPosition(103)],
+                ])
+            );
+            fixture.detectChanges();
+
+            const button = toggleButton();
+            expect(button?.textContent).toContain('Mark season as unwatched');
+            expect(button?.querySelector('mat-icon')?.textContent).toContain(
+                'remove_done'
+            );
+            button?.click();
+
+            expect(emitted).toHaveLength(1);
+            expect(emitted[0].markWatched).toBe(false);
+            expect(
+                emitted[0].requests.map((request) => [
+                    request.contentXtreamId,
+                    request.nextPosition,
+                ])
+            ).toEqual([
+                [101, null],
+                [102, null],
+                [103, null],
+            ]);
+        });
+
+        it('never bulk-marks the playing episode and disables an empty action', () => {
+            const emitted: {
+                requests: { contentXtreamId: number }[];
+            }[] = [];
+            component.seasonPlaybackToggleRequested.subscribe((request) =>
+                emitted.push(request)
+            );
+            setRequiredInputs(threeEpisodes());
+            fixture.componentRef.setInput('playingEpisodeId', 102);
+            fixture.componentRef.setInput(
+                'playbackPositions',
+                new Map([[101, watchedPosition(101)]])
+            );
+            fixture.detectChanges();
+
+            const button = toggleButton();
+            // 103 is the only markable episode: 101 watched, 102 playing.
+            expect(button?.textContent).toContain(
+                'Mark season as watched (1)'
+            );
+            button?.click();
+            expect(
+                emitted[0].requests.map((item) => item.contentXtreamId)
+            ).toEqual([103]);
+
+            fixture.componentRef.setInput(
+                'playbackPositions',
+                new Map([
+                    [101, watchedPosition(101)],
+                    [103, watchedPosition(103)],
+                ])
+            );
+            fixture.detectChanges();
+            expect(toggleButton()?.disabled).toBe(true);
+        });
+
+        it('disables the toggle and reports busy while the host batch is running', () => {
+            setRequiredInputs(threeEpisodes());
+            fixture.componentRef.setInput('seasonWatchBatchRunning', true);
+            fixture.detectChanges();
+
+            const button = toggleButton();
+            expect(button?.disabled).toBe(true);
+            expect(button?.getAttribute('aria-busy')).toBe('true');
+            expect(button?.querySelector('mat-spinner')).not.toBeNull();
+        });
+
+        it('hides the toggle without a playlist id and on empty seasons', () => {
+            setRequiredInputs(threeEpisodes());
+            fixture.componentRef.setInput('playlistId', '');
+            fixture.detectChanges();
+            expect(toggleButton()).toBeNull();
+
+            fixture.componentRef.setInput('playlistId', 'playlist-1');
+            fixture.componentRef.setInput('seasons', {});
+            fixture.detectChanges();
+            expect(toggleButton()).toBeNull();
+        });
     });
 });

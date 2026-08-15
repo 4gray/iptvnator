@@ -30,6 +30,18 @@ const playbackData = {
     contentType: 'vod',
     positionSeconds: 120,
 };
+const playbackBatchItems = [
+    {
+        contentXtreamId: 42,
+        contentType: 'episode',
+        seriesXtreamId: 88,
+        seasonNumber: 1,
+        episodeNumber: 3,
+        positionSeconds: 1200,
+        durationSeconds: 1200,
+    },
+];
+const playbackClearBatchItems = [{ contentXtreamId: 42, contentType: 'episode' }];
 const tmdbCacheEntry = {
     mediaType: 'movie',
     lookupKey: 'id:603',
@@ -329,6 +341,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_CLEAR_PLAYBACK_POSITION',
         args: [playlistId, 42, 'vod'],
         payload: { playlistId, contentXtreamId: 42, contentType: 'vod' },
+    },
+    {
+        operation: 'DB_SAVE_PLAYBACK_POSITIONS_BATCH',
+        args: [playlistId, playbackBatchItems],
+        payload: { playlistId, items: playbackBatchItems },
+    },
+    {
+        operation: 'DB_CLEAR_PLAYBACK_POSITIONS_BATCH',
+        args: [playlistId, playbackClearBatchItems],
+        payload: { playlistId, items: playbackClearBatchItems },
     },
     {
         operation: 'DB_GET_TMDB_METADATA',

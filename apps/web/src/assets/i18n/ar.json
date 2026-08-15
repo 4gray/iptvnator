@@ -893,6 +893,13 @@
         "IN_PROGRESS": "قيد التقدم",
         "MARK_WATCHED": "وضع علامة كمشاهد",
         "MARK_UNWATCHED": "وضع علامة كغير مشاهد",
+        "MARK_SEASON_WATCHED": "وضع علامة على الموسم كمشاهد ({{count}})",
+        "MARK_SEASON_UNWATCHED": "وضع علامة على الموسم كغير مشاهد",
+        "SEASON_MARKED_WATCHED": "تم وضع علامة على {{count}} حلقة كمشاهدة",
+        "SEASON_MARKED_UNWATCHED": "تم وضع علامة على الموسم كغير مشاهد",
+        "SEASON_MARKED_WATCHED_PARTIAL": "تم وضع علامة على {{count}} · فشل {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "تمت إزالة العلامة عن {{count}} · فشل {{failed}}",
+        "SEASON_WATCH_UPDATE_FAILED": "فشل تحديث الموسم",
         "EPISODES_WATCHED": "تمت مشاهدة {{count}} من {{total}} حلقة",
         "DETAIL_FALLBACK": {
             "STATUS": "البيانات الوصفية للبوابة غير متاحة",

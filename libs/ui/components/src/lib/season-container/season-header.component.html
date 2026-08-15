@@ -4,8 +4,46 @@
             {{ 'PORTALS.SEASONS_AND_EPISODES' | translate }}
         </h3>
     </div>
-    @if (downloadVisible() || viewToggleVisible()) {
+    @if (downloadVisible() || watchToggleVisible() || viewToggleVisible()) {
         <div class="section-header__actions">
+            @if (watchToggleVisible()) {
+                <button
+                    mat-stroked-button
+                    class="season-watch-toggle-button"
+                    data-test-id="toggle-season-watched"
+                    [disabled]="
+                        watchBatchRunning() ||
+                        (!seasonFullyWatched() && watchEligibleCount() === 0)
+                    "
+                    [attr.aria-label]="
+                        (seasonFullyWatched()
+                            ? 'XTREAM.MARK_SEASON_UNWATCHED'
+                            : 'XTREAM.MARK_SEASON_WATCHED'
+                        ) | translate: { count: watchEligibleCount() }
+                    "
+                    [attr.aria-busy]="watchBatchRunning() ? 'true' : null"
+                    (click)="toggleSeasonWatched.emit()"
+                >
+                    @if (watchBatchRunning()) {
+                        <mat-spinner
+                            diameter="18"
+                            aria-hidden="true"
+                        ></mat-spinner>
+                    } @else {
+                        <mat-icon>{{
+                            seasonFullyWatched() ? 'remove_done' : 'done_all'
+                        }}</mat-icon>
+                    }
+                    <span class="season-watch-toggle-button__label">
+                        {{
+                            (seasonFullyWatched()
+                                ? 'XTREAM.MARK_SEASON_UNWATCHED'
+                                : 'XTREAM.MARK_SEASON_WATCHED'
+                            ) | translate: { count: watchEligibleCount() }
+                        }}
+                    </span>
+                </button>
+            }
             @if (downloadVisible()) {
                 <button
                     mat-stroked-button

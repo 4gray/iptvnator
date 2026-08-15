@@ -11,12 +11,30 @@ import * as schema from '@iptvnator/shared/database/schema';
 import {
     clearAllPlaybackPositions,
     clearPlaybackPosition,
+    clearPlaybackPositionsBatch,
     getAllPlaybackPositions,
     getPlaybackPosition,
     getRecentPlaybackPositions,
     getSeriesPlaybackPositions,
     savePlaybackPosition,
+    savePlaybackPositionsBatch,
 } from './playback-position.operations';
+
+/**
+ * Batch saves upsert inside a synchronous transaction, so the insert chain
+ * has to end in a synchronous `.run()` rather than resolving — exactly as
+ * the better-sqlite3 driver requires (issue #1137). The wrapper exposes
+ * both dispatch methods so the specs can assert the correct one is used.
+ */
+function createBatchUpsertDbMock(selectResultsByCall: unknown[][] = []) {
+    const mock = createDbMock(selectResultsByCall);
+    const insertExecute = jest.fn().mockResolvedValue(undefined);
+    const onConflictDoUpdate = jest
+        .fn()
+        .mockReturnValue({ run: mock.insertRun, execute: insertExecute });
+    mock.insertValues.mockReturnValue({ onConflictDoUpdate });
+    return { ...mock, insertExecute, onConflictDoUpdate };
+}
 
 describe('playback-position.operations', () => {
     beforeEach(() => {
@@ -134,6 +152,153 @@ describe('playback-position.operations', () => {
                 expect.objectContaining({
                     updatedAt: expect.objectContaining({ kind: 'sql' }),
                 })
+            );
+        });
+    });
+
+    describe('savePlaybackPositionsBatch', () => {
+        it('returns a zero count without touching the database for empty input', async () => {
+            const { db, select, insert, transaction } = createDbMock();
+
+            await expect(
+                savePlaybackPositionsBatch(db, 'playlist-1', [])
+            ).resolves.toEqual({ success: true, count: 0 });
+
+            expect(select).not.toHaveBeenCalled();
+            expect(insert).not.toHaveBeenCalled();
+            expect(transaction).not.toHaveBeenCalled();
+        });
+
+        it('upserts every item inside one transaction with the composite conflict target', async () => {
+            const {
+                db,
+                select,
+                insert,
+                insertValues,
+                onConflictDoUpdate,
+                insertRun,
+                insertExecute,
+                transaction,
+            } = createBatchUpsertDbMock([[{ id: 'playlist-1' }]]);
+
+            const result = await savePlaybackPositionsBatch(db, 'playlist-1', [
+                {
+                    contentXtreamId: 500,
+                    contentType: 'vod',
+                    positionSeconds: 120,
+                    durationSeconds: 3600,
+                },
+                {
+                    contentXtreamId: 42,
+                    contentType: 'episode',
+                    seriesXtreamId: 7,
+                    seasonNumber: 2,
+                    episodeNumber: 5,
+                    positionSeconds: 480,
+                },
+            ]);
+
+            expect(result).toEqual({ success: true, count: 2 });
+            // The playlist existence check runs exactly once for the whole
+            // batch, and it must complete before the synchronous transaction
+            // callback starts.
+            expect(select).toHaveBeenCalledTimes(1);
+            expect(select.mock.invocationCallOrder[0]).toBeLessThan(
+                transaction.mock.invocationCallOrder[0]
+            );
+            expect(transaction).toHaveBeenCalledTimes(1);
+            expect(insert).toHaveBeenCalledTimes(2);
+            expect(insert).toHaveBeenCalledWith(schema.playbackPositions);
+            expect(insertValues).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({
+                    playlistId: 'playlist-1',
+                    contentXtreamId: 500,
+                    contentType: 'vod',
+                    positionSeconds: 120,
+                    durationSeconds: 3600,
+                    updatedAt: expect.objectContaining({ kind: 'sql' }),
+                })
+            );
+            expect(insertValues).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    playlistId: 'playlist-1',
+                    contentXtreamId: 42,
+                    contentType: 'episode',
+                    seriesXtreamId: 7,
+                    seasonNumber: 2,
+                    episodeNumber: 5,
+                    positionSeconds: 480,
+                })
+            );
+            expect(onConflictDoUpdate).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({
+                    target: [
+                        schema.playbackPositions.contentXtreamId,
+                        schema.playbackPositions.playlistId,
+                        schema.playbackPositions.contentType,
+                    ],
+                    set: expect.objectContaining({
+                        positionSeconds: 120,
+                        durationSeconds: 3600,
+                        updatedAt: expect.objectContaining({ kind: 'sql' }),
+                    }),
+                })
+            );
+            expect(onConflictDoUpdate).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    set: expect.objectContaining({
+                        seriesXtreamId: 7,
+                        seasonNumber: 2,
+                        episodeNumber: 5,
+                        positionSeconds: 480,
+                    }),
+                })
+            );
+            // Regression (issue #1137): the upsert must be dispatched with
+            // synchronous `.run()`. `.execute()` defers to a promise that
+            // never settles inside the synchronous transaction callback, so
+            // the batch write would silently no-op.
+            expect(insertExecute).not.toHaveBeenCalled();
+            expect(insertRun).toHaveBeenCalledTimes(2);
+        });
+
+        it('creates the missing playlist once, honoring the first item playlist type', async () => {
+            const { db, insert, insertValues } = createBatchUpsertDbMock([[]]);
+
+            await savePlaybackPositionsBatch(db, 'playlist-xt', [
+                {
+                    contentXtreamId: 1,
+                    contentType: 'vod',
+                    positionSeconds: 10,
+                    playlistType: 'xtream',
+                },
+                {
+                    contentXtreamId: 2,
+                    contentType: 'vod',
+                    positionSeconds: 20,
+                },
+            ]);
+
+            // One playlist insert despite two items, then one position
+            // upsert per item.
+            expect(insert).toHaveBeenCalledTimes(3);
+            expect(insert).toHaveBeenNthCalledWith(1, schema.playlists);
+            expect(insertValues).toHaveBeenNthCalledWith(1, {
+                id: 'playlist-xt',
+                name: 'Imported Playlist',
+                type: 'xtream',
+            });
+            expect(insert).toHaveBeenNthCalledWith(
+                2,
+                schema.playbackPositions
+            );
+            expect(insert).toHaveBeenNthCalledWith(
+                3,
+                schema.playbackPositions
             );
         });
     });
@@ -273,6 +438,66 @@ describe('playback-position.operations', () => {
                 schema.playbackPositions.contentType,
                 'vod'
             );
+        });
+    });
+
+    describe('clearPlaybackPositionsBatch', () => {
+        it('returns a zero count without touching the database for empty input', async () => {
+            const { db, deleteFn, transaction } = createDbMock();
+
+            await expect(
+                clearPlaybackPositionsBatch(db, 'playlist-1', [])
+            ).resolves.toEqual({ success: true, count: 0 });
+
+            expect(deleteFn).not.toHaveBeenCalled();
+            expect(transaction).not.toHaveBeenCalled();
+        });
+
+        it('runs one prepared placeholder delete per item inside a transaction', async () => {
+            const {
+                db,
+                deleteFn,
+                deletePrepare,
+                deleteRun,
+                deleteExecute,
+                transaction,
+            } = createDbMock();
+
+            await expect(
+                clearPlaybackPositionsBatch(db, 'playlist-1', [
+                    { contentXtreamId: 500, contentType: 'vod' },
+                    { contentXtreamId: 42, contentType: 'episode' },
+                ])
+            ).resolves.toEqual({ success: true, count: 2 });
+
+            expect(deleteFn).toHaveBeenCalledWith(schema.playbackPositions);
+            expect(deletePrepare).toHaveBeenCalledTimes(1);
+            // The playlist id is bound directly; content id and type are
+            // per-item placeholders.
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+                schema.playbackPositions.playlistId,
+                'playlist-1'
+            );
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith(
+                'contentXtreamId'
+            );
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith(
+                'contentType'
+            );
+            expect(transaction).toHaveBeenCalledTimes(1);
+            // Regression (issue #1137): the prepared delete must be
+            // dispatched with synchronous `.run()`. `.execute()` defers to a
+            // promise that never settles inside the synchronous transaction
+            // callback, so the batch delete would silently no-op.
+            expect(deleteExecute).not.toHaveBeenCalled();
+            expect(deleteRun).toHaveBeenNthCalledWith(1, {
+                contentXtreamId: 500,
+                contentType: 'vod',
+            });
+            expect(deleteRun).toHaveBeenNthCalledWith(2, {
+                contentXtreamId: 42,
+                contentType: 'episode',
+            });
         });
     });
 });

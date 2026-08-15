@@ -5,6 +5,9 @@ export type RuntimeEnvironment = 'electron' | 'pwa';
 
 type RuntimeElectronBridge = Partial<ElectronBridgeApi>;
 
+// The full method set the position-storage layer may invoke — including the
+// season-batch variants, so a bridge lacking them degrades to the in-memory
+// path wholesale instead of throwing mid-action.
 const playbackPositionStorageMethods = [
     'dbSavePlaybackPosition',
     'dbGetPlaybackPosition',
@@ -13,6 +16,8 @@ const playbackPositionStorageMethods = [
     'dbGetAllPlaybackPositions',
     'dbClearAllPlaybackPositions',
     'dbClearPlaybackPosition',
+    'dbSavePlaybackPositionsBatch',
+    'dbClearPlaybackPositionsBatch',
 ];
 
 @Injectable({ providedIn: 'root' })

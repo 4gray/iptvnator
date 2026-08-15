@@ -85,7 +85,11 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         if (playlistId && this.loadedPositionsPlaylistId !== playlistId) {
             this.loadedPositionsPlaylistId = playlistId;
-            this.xtreamStore.loadAllPositions(playlistId);
+            // A failed initial load leaves the maps empty (same as before);
+            // the read now rejects instead of masquerading as empty.
+            void this.xtreamStore.loadAllPositions(playlistId).catch(() => {
+                this.loadedPositionsPlaylistId = null;
+            });
         }
 
         this.clearSelectedItem();

@@ -123,9 +123,9 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             harness.playbackService.getRecentPlaybackPositions.mockResolvedValue(
                 [position]
             );
-            harness.playbackService.getAllPlaybackPositions.mockResolvedValue([
-                position,
-            ]);
+            harness.playbackService.getAllPlaybackPositionsOrThrow.mockResolvedValue(
+                [position]
+            );
 
             await harness.dataSource.savePlaybackPosition(playlistId, position);
             expect(
@@ -149,9 +149,14 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 harness.playbackService.getRecentPlaybackPositions
             ).toHaveBeenCalledWith(playlistId, 5);
 
+            // The data source uses the failure-propagating read so cache
+            // refreshes cannot mistake a swallowed error for an empty list.
             await expect(
                 harness.dataSource.getAllPlaybackPositions(playlistId)
             ).resolves.toEqual([position]);
+            expect(
+                harness.playbackService.getAllPlaybackPositionsOrThrow
+            ).toHaveBeenCalledWith(playlistId);
 
             await harness.dataSource.clearPlaybackPosition(
                 playlistId,
@@ -161,6 +166,33 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             expect(
                 harness.playbackService.clearPlaybackPosition
             ).toHaveBeenCalledWith(playlistId, 202, 'vod');
+        });
+
+        it('delegates batch playback position writes to the playback service', async () => {
+            const items = [position];
+            const clearItems: {
+                contentXtreamId: number;
+                contentType: 'vod' | 'episode';
+            }[] = [
+                { contentXtreamId: 202, contentType: 'vod' },
+                { contentXtreamId: 303, contentType: 'episode' },
+            ];
+
+            await harness.dataSource.savePlaybackPositionsBatch(
+                playlistId,
+                items
+            );
+            expect(
+                harness.playbackService.savePlaybackPositionsBatch
+            ).toHaveBeenCalledWith(playlistId, items);
+
+            await harness.dataSource.clearPlaybackPositionsBatch(
+                playlistId,
+                clearItems
+            );
+            expect(
+                harness.playbackService.clearPlaybackPositionsBatch
+            ).toHaveBeenCalledWith(playlistId, clearItems);
         });
     });
 

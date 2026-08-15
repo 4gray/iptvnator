@@ -4,9 +4,14 @@
         [batchRunning]="downloadPresenter.batchRunning()"
         [seasonDisabled]="downloadPresenter.seasonDisabled()"
         [eligibleEpisodeCount]="downloadPresenter.eligibleEpisodeCount()"
+        [watchToggleVisible]="seasonWatchToggleVisible()"
+        [watchBatchRunning]="seasonWatchBatchRunning()"
+        [seasonFullyWatched]="selectedSeasonFullyWatched()"
+        [watchEligibleCount]="seasonWatchEligibleCount()"
         [viewToggleVisible]="hasSeasons() && !showSeasonEmptyState()"
         [viewMode]="viewMode()"
         (downloadSeason)="downloadPresenter.enqueueSeason()"
+        (toggleSeasonWatched)="toggleSeasonWatched()"
         (viewModeChange)="setViewMode($event)"
     />
 

@@ -49,11 +49,13 @@ import { setContentMetadataIfMissing } from '../database/operations/content-meta
 import {
     clearAllPlaybackPositions,
     clearPlaybackPosition,
+    clearPlaybackPositionsBatch,
     getAllPlaybackPositions,
     getPlaybackPosition,
     getRecentPlaybackPositions,
     getSeriesPlaybackPositions,
     savePlaybackPosition,
+    savePlaybackPositionsBatch,
 } from '../database/operations/playback-position.operations';
 import {
     createPlaylist,
@@ -1137,6 +1139,47 @@ async function executeRequest(
                 payload.playlistId,
                 payload.contentXtreamId,
                 payload.contentType
+            );
+        }
+
+        case 'DB_SAVE_PLAYBACK_POSITIONS_BATCH': {
+            const payload = message.payload as {
+                playlistId: string;
+                items: {
+                    contentXtreamId: number;
+                    contentType: 'vod' | 'episode';
+                    seriesXtreamId?: number;
+                    seasonNumber?: number;
+                    episodeNumber?: number;
+                    positionSeconds: number;
+                    durationSeconds?: number;
+                    playlistType?:
+                        | 'xtream'
+                        | 'stalker'
+                        | 'm3u-file'
+                        | 'm3u-text'
+                        | 'm3u-url';
+                }[];
+            };
+            return savePlaybackPositionsBatch(
+                db,
+                payload.playlistId,
+                payload.items
+            );
+        }
+
+        case 'DB_CLEAR_PLAYBACK_POSITIONS_BATCH': {
+            const payload = message.payload as {
+                playlistId: string;
+                items: {
+                    contentXtreamId: number;
+                    contentType: 'vod' | 'episode';
+                }[];
+            };
+            return clearPlaybackPositionsBatch(
+                db,
+                payload.playlistId,
+                payload.items
             );
         }
     }

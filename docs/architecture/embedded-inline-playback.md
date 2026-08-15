@@ -258,6 +258,31 @@ episode" chip appears when the playing episode is outside the opened
 season. Season descriptions come from `get_series_info` seasons (Xtream)
 or `TmdbEnrichmentService.getSeason` (Stalker).
 
+The season header carries a season-level watched toggle next to
+"Download season" (`season-watch-toggle.util.ts` builds the request:
+marking touches only unwatched episodes so real durations survive;
+a fully watched season flips the action to unwatch-all). The container
+emits one `seasonPlaybackToggleRequested` and the host persists it:
+Xtream through `SerialDetailsSeasonWatchService` and the batch IPC
+(`DB_SAVE_PLAYBACK_POSITIONS_BATCH` / `DB_CLEAR_PLAYBACK_POSITIONS_BATCH`,
+one SQLite transaction; the PWA data source rewrites its localStorage
+blob once), Stalker as synchronous per-episode enqueues through the
+existing position-mutation queue so legacy-row reconciliation still runs
+and the queue coalesces to a single reload; partial failures surface a
+direction-specific "{{count}} marked/unmarked · {{failed}} failed"
+snackbar. A stale batch completion is discarded on the Xtream side: the
+host captures the playlist/series identity before awaiting and, when
+navigation changed it, skips both the rendered-state mutation and the
+feedback snackbar (episode ids collide across playlists and the
+contextless message would read as being about the new page; the DB write
+itself carries its own playlistId). Stalker gates its snackbars on the
+same captured playlist/series identity. After any Xtream toggle
+(single or batch) the host refreshes `XtreamStore.loadAllPositions` —
+the catalog reads series-progress badges from the store, which otherwise
+loads positions once per playlist — unless the playlist changed
+meanwhile. The
+host reports busy-state back through the `seasonWatchBatchRunning` input.
+
 ## Components
 
 Shared detail layout shell:

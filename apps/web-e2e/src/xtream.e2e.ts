@@ -667,6 +667,111 @@ test('@xtream the saved engine mounts the live player first time — no default-
     ).toEqual(['app-html-video-player']);
 });
 
+// ---------------------------------------------------------------------------
+// Season-level watched toggle on the serial details page
+//
+// The season header exposes a bulk toggle (note: data-test-id with a dash —
+// getByTestId only matches data-testid in this suite) that writes
+// full-progress playback positions for every unwatched episode of the
+// selected season and clears them again on the second click. The PWA
+// persists positions to localStorage, so the state must survive a reload.
+// ---------------------------------------------------------------------------
+
+test('@xtream season watched toggle — marks a season, survives reload, and clears again', async ({
+    page,
+    request,
+}) => {
+    // Resolve a concrete series (category + name) from the mock so the card
+    // click below targets a known item of the default scenario.
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+    const category = categories[0];
+
+    const seriesItems = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
+        )
+    ).json()) as Array<{ name: string; series_id: number }>;
+    const targetSeries = seriesItems[0];
+
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+
+    const categoryItem = page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: category.category_name })
+        .first();
+    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
+    await categoryItem.click();
+
+    const seriesCard = page
+        .locator('app-grid-list mat-card')
+        .filter({ hasText: targetSeries.name })
+        .first();
+    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
+    await seriesCard.click();
+
+    // Serial details: default scenario has 3 seasons × 8 episodes and no
+    // playback positions yet, so season 1 is auto-selected fully unwatched.
+    const seasonToggle = page.locator(
+        '[data-test-id="toggle-season-watched"]'
+    );
+    await expect(seasonToggle).toBeVisible({ timeout: 15_000 });
+    await expect(seasonToggle).toContainText('Mark season as watched (8)');
+
+    const episodeCards = page.locator('.episode-card');
+    await expect(episodeCards).toHaveCount(8, { timeout: 10_000 });
+    const watchedCards = page.locator('.episode-card--watched');
+    await expect(watchedCards).toHaveCount(0);
+
+    await seasonToggle.click();
+
+    // Full-progress rows land for all 8 episodes: the button flips, every
+    // episode card gets the watched state, and the per-episode toggles show
+    // the filled check.
+    await expect(seasonToggle).toContainText('Mark season as unwatched', {
+        timeout: 15_000,
+    });
+    await expect(watchedCards).toHaveCount(8);
+    await expect(
+        page.locator(
+            '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
+        )
+    ).toHaveCount(8);
+
+    // The selected season's tab shows the completed check; the untouched
+    // seasons stay unmarked.
+    const seasonTabs = page.locator('.season-tabs__pill');
+    await expect(seasonTabs).toHaveCount(3);
+    await expect(
+        seasonTabs.first().locator('.season-tabs__done')
+    ).toBeVisible();
+    await expect(seasonTabs.nth(1).locator('.season-tabs__done')).toHaveCount(
+        0
+    );
+
+    // PWA persistence: positions live in localStorage, so a reload of the
+    // detail route must come back fully watched.
+    await page.reload();
+    await expect(seasonToggle).toBeVisible({ timeout: 20_000 });
+    await expect(seasonToggle).toContainText('Mark season as unwatched');
+    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
+    await expect(
+        seasonTabs.first().locator('.season-tabs__done')
+    ).toBeVisible();
+
+    // Second click clears every episode's position again.
+    await seasonToggle.click();
+    await expect(seasonToggle).toContainText('Mark season as watched (8)', {
+        timeout: 15_000,
+    });
+    await expect(watchedCards).toHaveCount(0);
+    await expect(page.locator('.season-tabs__done')).toHaveCount(0);
+});
+
 type XtreamLiveStream = {
     category_id: string;
     name: string;

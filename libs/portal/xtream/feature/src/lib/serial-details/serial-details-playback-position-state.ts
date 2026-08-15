@@ -117,9 +117,31 @@ export class SerialDetailsPlaybackPositionState {
         this.positions.set(updated);
     }
 
+    updateMany(positions: PlaybackPositionData[]): void {
+        if (positions.length === 0) {
+            return;
+        }
+        const updated = new Map(this.positions());
+        for (const position of positions) {
+            updated.set(position.contentXtreamId, position);
+        }
+        this.positions.set(updated);
+    }
+
     remove(contentXtreamId: number): void {
         const updated = new Map(this.positions());
         updated.delete(contentXtreamId);
+        this.positions.set(updated);
+    }
+
+    removeMany(contentXtreamIds: number[]): void {
+        if (contentXtreamIds.length === 0) {
+            return;
+        }
+        const updated = new Map(this.positions());
+        for (const contentXtreamId of contentXtreamIds) {
+            updated.delete(contentXtreamId);
+        }
         this.positions.set(updated);
     }
 

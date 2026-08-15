@@ -65,3 +65,22 @@ handleWorkerRequest(
         contentType,
     })
 );
+
+handleWorkerRequest(
+    'DB_SAVE_PLAYBACK_POSITIONS_BATCH',
+    (playlistId: string, items: unknown[]) => ({
+        playlistId,
+        items,
+    })
+);
+
+handleWorkerRequest(
+    'DB_CLEAR_PLAYBACK_POSITIONS_BATCH',
+    (
+        playlistId: string,
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+    ) => ({
+        playlistId,
+        items,
+    })
+);

@@ -22,6 +22,7 @@ import {
     ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeasonPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
@@ -52,6 +53,7 @@ import {
     SerialDetailsPlaybackService,
     type XtreamSerieDetailsView,
 } from './serial-details-playback.service';
+import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
 import {
     SimilarCatalogItem,
     matchRecommendationsToCatalog,
@@ -76,7 +78,7 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
             }
         `,
     ],
-    providers: [SerialDetailsPlaybackService],
+    providers: [SerialDetailsPlaybackService, SerialDetailsSeasonWatchService],
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,
@@ -154,6 +156,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly inlinePlayback = this.playback.inlinePlayback;
     readonly episodePlaybackPositions = this.playback.episodePlaybackPositions;
     readonly openingEpisodeId = this.playback.openingEpisodeId;
+    readonly seasonWatchBatchRunning = this.playback.seasonWatchBatchRunning;
     readonly activeEpisodeId = this.playback.activeEpisodeId;
     readonly quickStartAction = this.playback.quickStartAction;
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
@@ -386,6 +389,12 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         request: SeasonContainerPlaybackToggleRequest
     ): Promise<void> {
         return this.playback.handlePlaybackToggleRequested(request);
+    }
+
+    handleSeasonPlaybackToggleRequested(
+        request: SeasonContainerSeasonPlaybackToggleRequest
+    ): Promise<void> {
+        return this.playback.handleSeasonPlaybackToggleRequested(request);
     }
 
     toggleFavorite(): void {

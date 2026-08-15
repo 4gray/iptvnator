@@ -153,22 +153,13 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         pendingLoad: Deferred<PlaybackPositionData[]>;
         secondPosition: PlaybackPositionData;
     }> {
-        await startWithLoadedEpisode();
-        fixture.componentInstance.vodSeriesSeasons.set([
-            createSeason(SERIES_A_ID, [
-                createProviderEpisode(),
-                createProviderEpisode('provider-episode-2', 2),
-            ]),
-        ]);
-        await settle();
-        const [firstEpisode, secondEpisode] =
-            fixture.componentInstance.mappedSeasons()['1'];
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
         const firstPosition = createPosition({
-            contentXtreamId: Number(firstEpisode.id),
+            contentXtreamId: firstId,
             positionSeconds: 15,
         });
         const secondPosition = createPosition({
-            contentXtreamId: Number(secondEpisode.id),
+            contentXtreamId: secondId,
             episodeNumber: 2,
             positionSeconds: 25,
         });
@@ -1196,4 +1187,20 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         );
         expect(clearPlaybackPosition).not.toHaveBeenCalled();
     });
+
+    async function startWithTwoLoadedEpisodes(): Promise<[number, number]> {
+        await startWithLoadedEpisode();
+        fixture.componentInstance.vodSeriesSeasons.set([
+            createSeason(SERIES_A_ID, [
+                createProviderEpisode(),
+                createProviderEpisode('provider-episode-2', 2),
+            ]),
+        ]);
+        await settle();
+        const [first, second] = fixture.componentInstance.mappedSeasons()['1'];
+        return [Number(first.id), Number(second.id)];
+    }
+
+    // Season-level bulk toggle coverage lives in
+    // stalker-series-view.season-watch.spec.ts.
 });
