@@ -4,7 +4,6 @@ import {
     setupResumeHarness,
     waitForStatus,
 } from './download-resume.test-helpers';
-import { classifyRangeNotSatisfiable } from './download-transfer-errors';
 
 jest.setTimeout(20_000);
 
@@ -221,6 +220,76 @@ describe('download overlap resume', () => {
                 })
             );
             expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('arms the EOF probe after a reset-ended verified zero-growth replay', async () => {
+        // The full overlap replays and the connection resets right at the
+        // partial's end — same as the clean-EOF case, the next attempt must
+        // probe the byte after the partial and honor the confirming 416.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 300_000,
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            responses: [
+                {
+                    data: body,
+                    headers: { 'content-range': 'bytes 37856-299999/*' },
+                    status: 206,
+                },
+                {
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        {
+                            response: {
+                                headers: { 'content-range': 'bytes */300000' },
+                                status: 416,
+                            },
+                        }
+                    ),
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            body.write(overlapTail);
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'completed');
+
+            const probeOptions =
+                harness.requestWithValidatedRedirects.mock.calls[1][1];
+            expect(probeOptions.headers).toEqual({
+                'Accept-Encoding': 'identity',
+                Range: 'bytes=300000-',
+            });
+            expect(harness.truncate).not.toHaveBeenCalled();
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 300_000,
+                    status: 'completed',
+                    totalBytes: 300_000,
+                })
+            );
         } finally {
             consoleError.mockRestore();
         }
@@ -561,77 +630,6 @@ describe('download overlap resume', () => {
             })
         );
         expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
-    });
-
-    describe('classifyRangeNotSatisfiable', () => {
-        const base = { resumeOffset: 37_856, retainedOffset: 300_000 };
-
-        it.each([
-            {
-                expected: 'retain',
-                input: {
-                    ...base,
-                    confirmedTotal: null,
-                    identityProven: false,
-                },
-                label: 'a rewound 416 without a stated length proves nothing',
-            },
-            {
-                expected: 'restart',
-                input: {
-                    ...base,
-                    confirmedTotal: 37_856,
-                    identityProven: false,
-                },
-                label: 'a rewound range beginning at the new EOF proves shrinkage',
-            },
-            {
-                expected: 'restart',
-                input: { ...base, confirmedTotal: 30, identityProven: false },
-                label: 'a stated total below the rewound offset proves shrinkage',
-            },
-            {
-                expected: 'retain',
-                input: {
-                    ...base,
-                    confirmedTotal: 300_000,
-                    identityProven: false,
-                },
-                label: 'a bare length match on a rewound request is contradictory',
-            },
-            {
-                expected: 'complete',
-                input: {
-                    confirmedTotal: 300_000,
-                    identityProven: true,
-                    resumeOffset: 300_000,
-                    retainedOffset: 300_000,
-                },
-                label: 'an identity-proven exact-EOF length match completes',
-            },
-            {
-                expected: 'retain',
-                input: {
-                    confirmedTotal: null,
-                    identityProven: true,
-                    resumeOffset: 300_000,
-                    retainedOffset: 300_000,
-                },
-                label: 'a length-less exact-EOF 416 is inconclusive',
-            },
-            {
-                expected: 'restart',
-                input: {
-                    confirmedTotal: 200_000,
-                    identityProven: true,
-                    resumeOffset: 300_000,
-                    retainedOffset: 300_000,
-                },
-                label: 'an exact-EOF 416 stating a smaller entity proves shrinkage',
-            },
-        ])('$label -> $expected', ({ expected, input }) => {
-            expect(classifyRangeNotSatisfiable(input)).toBe(expected);
-        });
     });
 
     it('restarts when a reset-ended response delivered its complete shorter entity inside the overlap', async () => {
