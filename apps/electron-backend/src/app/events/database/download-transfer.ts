@@ -159,7 +159,16 @@ export async function transferToPartialFile(
         throw error;
     }
 
-    const totalBytes = getTotalBytes(response.headers, effectiveOffset);
+    // A resumed response that reports no usable total (chunked, or
+    // `Content-Range: bytes .../*`) must not erase the total learned earlier:
+    // without one, a mid-stream reset could no longer classify as a retained
+    // interruption and generic cleanup would delete the verified partial. A
+    // fresh or restarted transfer carries nothing forward — its old total
+    // described a discarded file.
+    const appendsToRetained = effectiveOffset > 0 || verifyOverlap;
+    const totalBytes =
+        getTotalBytes(response.headers, effectiveOffset) ??
+        (appendsToRetained ? (task.totalBytes ?? null) : null);
     task.totalBytes = totalBytes;
     if (effectiveOffset === 0 && !verifyOverlap) {
         // Fresh or restarted transfer: every byte on disk will come from this
@@ -173,8 +182,7 @@ export async function transferToPartialFile(
     // Reported progress never drops below what the .part already holds: the
     // overlap replay re-counts from the rewound offset while the file keeps
     // all of its retained bytes.
-    const appendToRetained = effectiveOffset > 0 || verifyOverlap;
-    const progressFloor = appendToRetained ? retainedOffset : 0;
+    const progressFloor = appendsToRetained ? retainedOffset : 0;
     await persistTransferStart(
         db,
         task,
@@ -192,7 +200,7 @@ export async function transferToPartialFile(
         ? createOverlapVerifier(expectedOverlap)
         : null;
     const output = createWriteStream(reservation.partialPath, {
-        flags: appendToRetained ? 'a' : 'w',
+        flags: appendsToRetained ? 'a' : 'w',
     });
     const abortStream = () => {
         readable.destroy(new Error('Download aborted'));

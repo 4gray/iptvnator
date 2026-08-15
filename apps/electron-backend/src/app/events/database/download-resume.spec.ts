@@ -586,6 +586,75 @@ describe('download resume validation', () => {
         expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
     });
 
+    it('keeps the known total when a reconnect answers without one, retaining the partial', async () => {
+        const firstBody = new PassThrough();
+        const chunkedBody = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 0,
+            partialSizeAfterTransferError: 20,
+            partialTail: Buffer.alloc(20, 'r'),
+            responses: [
+                {
+                    data: firstBody,
+                    headers: { 'content-length': '100' },
+                    status: 200,
+                },
+                {
+                    // Chunked reconnect: no usable total in the response.
+                    data: chunkedBody,
+                    headers: {},
+                    status: 200,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(createTask());
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            firstBody.write(Buffer.alloc(20, 'r'));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            firstBody.destroy(resetError);
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 2
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+            const secondReset = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            secondReset.code = 'ECONNRESET';
+            chunkedBody.destroy(secondReset);
+            await waitForStatus(harness.set, 'failed');
+
+            // The total learned from the first response classifies the
+            // chunked reconnect's reset as retained — never generic cleanup.
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: expect.stringContaining(
+                        'DOWNLOAD_NETWORK_INTERRUPTED'
+                    ),
+                    filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('restarts instead of completing when the remote entity shrank inside the overlap', async () => {
         // The server's entity is now 100,000 bytes — shorter than the
         // 300,000-byte partial — and its complete 206 ends inside the
