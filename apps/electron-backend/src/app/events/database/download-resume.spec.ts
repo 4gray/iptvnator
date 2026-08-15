@@ -234,6 +234,69 @@ describe('download resume validation', () => {
         );
     });
 
+    it('does not complete a reset at the end of an indeterminate range', async () => {
+        // A range-capping server serving `bytes 50-99/*` and resetting at 100
+        // proves only that the range was delivered — the entity may be far
+        // larger, so this must stay a retained interruption.
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 50,
+            partialSizeAfterTransferError: 100,
+            responses: [
+                {
+                    data: body,
+                    headers: { 'content-range': 'bytes 50-99/*' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 100-149/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            body.write(Buffer.alloc(50, 'r'));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 100,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('completes when the connection resets after the final ranged byte', async () => {
         // Some panels reset instead of closing cleanly once the last byte is
         // sent. With every advertised byte on disk this is a completion — an

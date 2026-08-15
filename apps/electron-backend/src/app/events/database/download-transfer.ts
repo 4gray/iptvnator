@@ -280,15 +280,18 @@ export async function transferToPartialFile(
             const provenExpectation = provenTotal();
             if (
                 overlapProven &&
-                completionBoundary !== null &&
-                fileBytes === completionBoundary &&
-                (provenExpectation === null || fileBytes === provenExpectation)
+                responseTotal !== null &&
+                fileBytes === responseTotal &&
+                fileBytes === (provenExpectation ?? responseTotal)
             ) {
-                // The connection reset AFTER the final byte: every byte the
-                // response's own evidence demands is on disk and the overlap
-                // is proven. Treating this as an interruption would resume at
-                // EOF, collect a 416, and truncate a complete file — so it is
-                // a completion, not a failure.
+                // The connection reset AFTER the final byte: every byte of
+                // the response's AUTHORITATIVE total is on disk and the
+                // overlap is proven. Treating this as an interruption would
+                // resume at EOF, collect a 416, and truncate a complete file
+                // — so it is a completion, not a failure. An indeterminate
+                // range end never qualifies: reaching Y of `bytes X-Y/*`
+                // proves the range was delivered, not that the entity ends
+                // there, so those resets stay retained interruptions.
                 return {
                     bytesDownloaded: fileBytes,
                     totalBytes: provenTotal(),
