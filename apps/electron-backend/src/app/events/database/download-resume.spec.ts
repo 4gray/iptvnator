@@ -713,7 +713,10 @@ describe('download resume validation', () => {
         const harness = await setupResumeHarness({
             finalSize: 'enoent',
             partialSize: 40,
-            partialSizeAfterTransferError: 250,
+            // The partial crosses the stale 250-byte total: only a task kept
+            // in sync with the falsified-total retention lets the reconnect's
+            // getResumeOffset accept it.
+            partialSizeAfterTransferError: 260,
             responses: [
                 {
                     data: body,
@@ -721,9 +724,9 @@ describe('download resume validation', () => {
                     status: 206,
                 },
                 {
-                    // Reconnects resume from the falsified total's edge.
+                    // Reconnects resume past the falsified total's edge.
                     data: Readable.from([]),
-                    headers: { 'content-range': 'bytes 250-299/*' },
+                    headers: { 'content-range': 'bytes 260-299/*' },
                     status: 206,
                 },
             ],
@@ -746,7 +749,7 @@ describe('download resume validation', () => {
                 await new Promise<void>((resolve) => setImmediate(resolve));
             }
 
-            body.write(Buffer.alloc(210, 'r'));
+            body.write(Buffer.alloc(220, 'r'));
             const resetError = new Error(
                 'socket hang up'
             ) as NodeJS.ErrnoException;
@@ -759,7 +762,63 @@ describe('download resume validation', () => {
             );
             expect(harness.set).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    bytesDownloaded: 250,
+                    bytesDownloaded: 260,
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('keeps the response total uncommitted while the overlap is unverified', async () => {
+        // The response advertises exactly the partial's size. Committing that
+        // total before the overlap matched would leave an N/N row that the
+        // completed-partial shortcut finalizes without another request after
+        // a pause, crash, or retained failure.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 300_000,
+            partialTail: overlapTail,
+            response: {
+                data: body,
+                headers: { 'content-range': 'bytes 37856-299999/300000' },
+                status: 206,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({ filePath: '/downloads/movie.mp4' })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            // Only part of the overlap arrives before the reset.
+            body.write(overlapTail.subarray(0, 100_000));
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ totalBytes: 300_000 })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 300_000,
                     status: 'failed',
                     totalBytes: null,
                 })

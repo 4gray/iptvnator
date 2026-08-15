@@ -221,7 +221,6 @@ export async function transferToPartialFile(
             ? task.totalBytes
             : null;
     const totalBytes = responseTotal ?? carriedTotal;
-    task.totalBytes = totalBytes;
     // Completion decisions use only what THIS response proves: its own total,
     // or the end of its advertised indeterminate range. A carried total can
     // flag a short transfer but never authorize finalization.
@@ -229,6 +228,11 @@ export async function transferToPartialFile(
         responseTotal ??
         getIndeterminateRangeEnd(response.headers) ??
         carriedTotal;
+    if (response.status === 206) {
+        // Proven range capability outlives this attempt: a later request-
+        // phase failure may retain the partial on this evidence alone.
+        task.serverAcceptsRanges = true;
+    }
     if (effectiveOffset === 0 && !verifyOverlap) {
         // Fresh or restarted transfer: every byte on disk will come from this
         // response, so its validator describes the file. A verify-append
@@ -238,6 +242,18 @@ export async function transferToPartialFile(
         // resume If-Range-append onto an unverified prefix.
         task.resumeValidator = getResponseValidator(response.headers);
     }
+    const overlapVerifier = expectedOverlap
+        ? createOverlapVerifier(expectedOverlap)
+        : null;
+    // Like the validator, the response's total stays uncommitted (task and
+    // row) until the complete overlap has matched: a persisted total equal to
+    // the unverified partial's size would let the completed-partial shortcut
+    // finalize unproven bytes after a pause, crash, or retained failure.
+    const provenTotal = () =>
+        overlapVerifier && !overlapVerifier.isComplete()
+            ? carriedTotal
+            : totalBytes;
+    task.totalBytes = provenTotal();
     // Reported progress never drops below what the .part already holds: the
     // overlap replay re-counts from the rewound offset while the file keeps
     // all of its retained bytes.
@@ -246,7 +262,7 @@ export async function transferToPartialFile(
         db,
         task,
         Math.max(effectiveOffset, progressFloor),
-        totalBytes
+        provenTotal()
     );
 
     // Counts response bytes from the request offset, so with an overlap the
@@ -255,9 +271,6 @@ export async function transferToPartialFile(
     let bytesDownloaded = effectiveOffset;
     let lastProgressUpdate = 0;
     const progressThrottleMs = 500;
-    const overlapVerifier = expectedOverlap
-        ? createOverlapVerifier(expectedOverlap)
-        : null;
     const output = createWriteStream(reservation.partialPath, {
         flags: appendsToRetained ? 'a' : 'w',
     });
@@ -283,7 +296,7 @@ export async function transferToPartialFile(
         lastProgressUpdate = now;
         void persistProgress(db, task, {
             bytesDownloaded: Math.max(bytesDownloaded, progressFloor),
-            totalBytes,
+            totalBytes: provenTotal(),
         }).catch((error) => {
             console.error('[Downloads] Failed to persist progress:', error);
         });
@@ -306,13 +319,17 @@ export async function transferToPartialFile(
             error,
             reservation,
             effectiveOffset,
-            totalBytes,
+            provenTotal(),
             // A 206 proves the server serves ranges: the partial stays
             // resumable even when a stale informational total is falsified
             // by the bytes on disk.
             response.status === 206
         );
         if (interruptedProgress) {
+            // Keep the live task consistent with what is persisted: the next
+            // automatic reconnect reuses it, and a stale falsified total
+            // would make getResumeOffset reject the retained partial.
+            task.totalBytes = interruptedProgress.progress.totalBytes;
             await persistProgress(db, task, interruptedProgress.progress);
             throw new InterruptedTransferError(
                 interruptedProgress.progress,
@@ -340,20 +357,22 @@ export async function transferToPartialFile(
                 'retained partial does not match the server content'
             );
         }
-        // The stream died early: an ordinary retained interruption.
+        // The stream died early: an ordinary retained interruption. The
+        // response's total stays uncommitted — the overlap never matched.
         await persistProgress(db, task, {
             bytesDownloaded: reportedBytes,
-            totalBytes,
+            totalBytes: provenTotal(),
         });
         throw new TruncatedTransferError({
             bytesDownloaded: reportedBytes,
-            totalBytes,
+            totalBytes: provenTotal(),
         });
     }
     if (verifyOverlap) {
         // The complete overlap matched: the partial is proven to belong to
-        // this entity, so its validator may now cover the whole file.
+        // this entity, so its validator and total may now cover the file.
         task.resumeValidator = getResponseValidator(response.headers);
+        task.totalBytes = totalBytes;
     }
     await persistProgress(db, task, {
         bytesDownloaded: reportedBytes,
@@ -377,13 +396,15 @@ export async function transferToPartialFile(
 export function toRetainedInterruption(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
-    totalBytes: number | null | undefined
+    totalBytes: number | null | undefined,
+    rangeCapable = false
 ): InterruptedTransferError | null {
     const interrupted = getInterruptedTransferProgress(
         error,
         reservation,
         0,
-        totalBytes ?? null
+        totalBytes ?? null,
+        rangeCapable
     );
     return interrupted
         ? new InterruptedTransferError(

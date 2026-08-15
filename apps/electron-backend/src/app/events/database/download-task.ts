@@ -33,6 +33,12 @@ export interface DownloadTask {
      * byte comparison alone.
      */
     transferRestarts?: number;
+    /**
+     * A 206 was observed for this task's URL. Lets a request-phase failure
+     * (no response at all) retain an unknown-length partial: the next
+     * attempt can still prove it through the validator or overlap path.
+     */
+    serverAcceptsRanges?: boolean;
 }
 
 export function requestDownloadCancellation(task: DownloadTask): void {
