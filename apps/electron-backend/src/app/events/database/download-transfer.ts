@@ -327,10 +327,12 @@ export async function transferToPartialFile(
         if (verifyOverlap && overlapVerifier?.isComplete()) {
             // The overlap fully matched before the failure: the proof holds
             // regardless of how the stream ended, so promote the validator
-            // now — otherwise every reconnect against a server whose
-            // per-connection cap barely exceeds the window would replay
-            // 256 KiB for sub-threshold progress and stall out.
+            // AND the response total now — otherwise a reconnect would replay
+            // the window for sub-threshold progress, and a pause landing
+            // while the partial sits at a stale carried total would persist
+            // an N/N row for the completed-partial shortcut to finalize.
             task.resumeValidator = getResponseValidator(response.headers);
+            task.totalBytes = totalBytes;
         }
         if (isRetainableNetworkCode(getNetworkErrorCode(error))) {
             const fileBytes = getPartialDownloadSize(reservation.path);

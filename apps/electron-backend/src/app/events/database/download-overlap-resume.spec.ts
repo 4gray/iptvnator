@@ -453,6 +453,57 @@ describe('download overlap resume', () => {
         }
     });
 
+    it('pauses with the promoted total, never a stale carried one, after a verified overlap', async () => {
+        // Carried total 100, real total 200. The user pauses exactly while
+        // the partial sits at 100: without the error-path total promotion the
+        // paused row would read 100/100 and Resume's completed-partial
+        // shortcut would finalize the half-finished file.
+        const retainedBytes = Buffer.alloc(50, 7);
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 50,
+            partialSizeAfterTransferError: 100,
+            partialTail: retainedBytes,
+            response: {
+                data: body,
+                headers: { 'content-length': '200', etag: '"etag-proven"' },
+                status: 200,
+            },
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 100,
+            })
+        );
+        while (harness.requestWithValidatedRedirects.mock.calls.length < 1) {
+            await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+
+        // Full overlap verifies, 50 more bytes land (partial reaches the
+        // stale total), then the user pauses.
+        body.write(retainedBytes);
+        body.write(Buffer.alloc(50, 8));
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        await harness.runtime.pauseDownload(42);
+        await waitForStatus(harness.set, 'paused');
+
+        expect(harness.set).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'completed' })
+        );
+        expect(harness.set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 100,
+                resumeValidator: '"etag-proven"',
+                status: 'paused',
+                totalBytes: 200,
+            })
+        );
+        expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+    });
+
     it('verifies a small validator-less partial from byte zero and appends', async () => {
         // The 50-byte partial fits inside the overlap window: the plain
         // request (no Range) replays it in full for verification and only the
