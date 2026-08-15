@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { createWriteStream } from 'node:fs';
+import { truncate } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import * as schema from '../../database/schema';
@@ -9,6 +10,17 @@ import {
     getPartialDownloadSize,
     type ReservedPartialDownloadFile,
 } from './download-file-path';
+import {
+    createOverlapVerifier,
+    OVERLAP_VERIFICATION_BYTES,
+    OverlapMismatchError,
+    readPartialTail,
+} from './download-overlap';
+import {
+    getResponseValidator,
+    getTotalBytes,
+    validateResumeResponse,
+} from './download-resume-validation';
 import type {
     DownloadsDatabase,
     DownloadTask,
@@ -34,9 +46,19 @@ export class TruncatedTransferError extends Error {
     }
 }
 
+/**
+ * Mid-transfer codes plus connection-establishment failures: a reconnect
+ * attempt against a rebooting host fails before any response, and deleting
+ * a multi-gigabyte partial over that would be data loss, not cleanup.
+ */
 const RETAINABLE_NETWORK_ERROR_CODES = new Set([
+    'EAI_AGAIN',
     'ECONNABORTED',
+    'ECONNREFUSED',
     'ECONNRESET',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'ENOTFOUND',
     'EPIPE',
     'ETIMEDOUT',
     'ERR_HTTP2_STREAM_CANCEL',
@@ -58,14 +80,28 @@ export class InterruptedTransferError extends Error {
 export async function transferToPartialFile(
     db: DownloadsDatabase,
     task: DownloadTask,
-    reservation: ReservedPartialDownloadFile
+    reservation: ReservedPartialDownloadFile,
+    allowOverlapResume = true
 ): Promise<TransferProgress> {
     const retainedOffset = getResumeOffset(task, reservation);
-    const resumeOffset = task.resumeValidator ? retainedOffset : 0;
-    if (retainedOffset > 0 && resumeOffset === 0) {
-        console.warn(
-            `[Downloads] Restarting ${reservation.filename} from the beginning (saved partial has no ETag or Last-Modified validator)`
-        );
+    let resumeOffset = retainedOffset;
+    let overlapBytes = 0;
+    if (retainedOffset > 0 && !task.resumeValidator) {
+        // No validator to hand to If-Range: rewind the request by the overlap
+        // window and prove the entity is unchanged by comparing that window
+        // against the partial's tail before appending a single byte.
+        overlapBytes = allowOverlapResume
+            ? Math.min(retainedOffset, OVERLAP_VERIFICATION_BYTES)
+            : retainedOffset;
+        resumeOffset = retainedOffset - overlapBytes;
+        if (resumeOffset === 0) {
+            // The whole partial fits inside the overlap window — re-downloading
+            // it costs no more than verifying it would.
+            overlapBytes = 0;
+            console.warn(
+                `[Downloads] Restarting ${reservation.filename} from the beginning (saved partial is smaller than the overlap verification window)`
+            );
+        }
     }
 
     const headers = {
@@ -99,6 +135,7 @@ export async function transferToPartialFile(
 
     const readable = response.data;
     let effectiveOffset = resumeOffset;
+    let expectedOverlap: Buffer | null = null;
     try {
         effectiveOffset = validateResumeResponse(
             reservation,
@@ -106,6 +143,13 @@ export async function transferToPartialFile(
             response.headers,
             resumeOffset
         );
+        if (effectiveOffset > 0 && overlapBytes > 0) {
+            expectedOverlap = await readPartialTail(
+                reservation.partialPath,
+                effectiveOffset,
+                overlapBytes
+            );
+        }
     } catch (error) {
         // Abandon the unconsumed response body; swallow its error events so
         // destroying a stream nobody is piping cannot crash the process.
@@ -121,9 +165,15 @@ export async function transferToPartialFile(
     }
     await persistTransferStart(db, task, effectiveOffset, totalBytes);
 
+    // Counts response bytes from the request offset, so with an overlap the
+    // tally passes through the partial's retained size as the overlap replays
+    // and only then grows past it — matching the file at every moment.
     let bytesDownloaded = effectiveOffset;
     let lastProgressUpdate = 0;
     const progressThrottleMs = 500;
+    const overlapVerifier = expectedOverlap
+        ? createOverlapVerifier(expectedOverlap)
+        : null;
     const output = createWriteStream(reservation.partialPath, {
         flags: effectiveOffset > 0 ? 'a' : 'w',
     });
@@ -156,14 +206,25 @@ export async function transferToPartialFile(
     });
 
     try {
-        await pipeline(readable, output);
+        await (overlapVerifier
+            ? pipeline(readable, overlapVerifier, output)
+            : pipeline(readable, output));
     } catch (error) {
+        if (error instanceof OverlapMismatchError && allowOverlapResume) {
+            // The server is serving a different entity than the partial came
+            // from. Nothing was appended; discard the partial and download
+            // the current entity from scratch.
+            console.warn(
+                `[Downloads] Restarting ${reservation.filename} from the beginning (retained partial does not match the server content)`
+            );
+            await truncate(reservation.partialPath, 0);
+            return transferToPartialFile(db, task, reservation, false);
+        }
         const interruptedProgress = getInterruptedTransferProgress(
             error,
             reservation,
             effectiveOffset,
-            totalBytes,
-            task.resumeValidator
+            totalBytes
         );
         if (interruptedProgress) {
             await persistProgress(db, task, interruptedProgress.progress);
@@ -184,12 +245,36 @@ export async function transferToPartialFile(
     return { bytesDownloaded, totalBytes };
 }
 
+/**
+ * Wraps a request-phase failure (no response, e.g. a refused reconnect) into
+ * the same retained-partial interruption as a mid-transfer reset, so the
+ * bytes already on disk survive the failure. Returns null when the error or
+ * the on-disk state does not justify retention.
+ */
+export function toRetainedInterruption(
+    error: unknown,
+    reservation: ReservedPartialDownloadFile,
+    totalBytes: number | null | undefined
+): InterruptedTransferError | null {
+    const interrupted = getInterruptedTransferProgress(
+        error,
+        reservation,
+        0,
+        totalBytes ?? null
+    );
+    return interrupted
+        ? new InterruptedTransferError(
+              interrupted.progress,
+              interrupted.networkCode
+          )
+        : null;
+}
+
 function getInterruptedTransferProgress(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
     initialBytes: number,
-    totalBytes: number | null,
-    resumeValidator: string | null | undefined
+    totalBytes: number | null
 ): { networkCode: string; progress: TransferProgress } | null {
     const networkCode =
         error && typeof error === 'object' && 'code' in error
@@ -197,8 +282,7 @@ function getInterruptedTransferProgress(
             : '';
     if (
         !RETAINABLE_NETWORK_ERROR_CODES.has(networkCode) ||
-        totalBytes === null ||
-        !resumeValidator
+        totalBytes === null
     ) {
         return null;
     }
@@ -233,47 +317,6 @@ function getResumeOffset(
     return resumeOffset;
 }
 
-function validateResumeResponse(
-    reservation: ReservedPartialDownloadFile,
-    status: number,
-    headers: unknown,
-    resumeOffset: number
-): number {
-    if (resumeOffset === 0) {
-        return 0;
-    }
-
-    if (status !== 206) {
-        // Either the server ignored Range or If-Range detected that the
-        // remote entity changed. The retained partial is unusable either way,
-        // so restart from byte zero instead of failing the download.
-        console.warn(
-            `[Downloads] Restarting ${reservation.filename} from the beginning (resume request answered with HTTP ${status})`
-        );
-        return 0;
-    }
-
-    const contentRange = getHeaderValue(
-        headers as Record<string, unknown>,
-        'content-range'
-    );
-    const start = contentRange?.match(/^bytes\s+(\d+)-/i)?.[1];
-    if (start === undefined || Number(start) !== resumeOffset) {
-        throw new Error('Server returned an invalid resume range');
-    }
-    return resumeOffset;
-}
-
-function getResponseValidator(headers: unknown): string | null {
-    const headerMap = headers as Record<string, unknown>;
-    const etag = getHeaderValue(headerMap, 'etag');
-    // If-Range only accepts strong validators, so skip weak W/ ETags.
-    if (etag && !etag.startsWith('W/')) {
-        return etag;
-    }
-    return getHeaderValue(headerMap, 'last-modified') ?? null;
-}
-
 async function persistTransferStart(
     db: DownloadsDatabase,
     task: DownloadTask,
@@ -306,34 +349,4 @@ async function persistProgress(
         })
         .where(eq(schema.downloads.id, task.id));
     broadcastDownloadUpdate();
-}
-
-function getTotalBytes(headers: unknown, resumeOffset: number): number | null {
-    const headerMap = headers as Record<string, unknown>;
-    const contentRange = getHeaderValue(headerMap, 'content-range');
-    if (contentRange) {
-        const match = contentRange.match(/\/(\d+)$/);
-        if (match) {
-            return Number(match[1]);
-        }
-    }
-
-    const contentLength = getHeaderValue(headerMap, 'content-length');
-    if (!contentLength) {
-        return null;
-    }
-
-    const parsed = Number(contentLength);
-    return Number.isFinite(parsed) ? resumeOffset + parsed : null;
-}
-
-function getHeaderValue(
-    headers: Record<string, unknown>,
-    name: string
-): string | undefined {
-    const value = headers[name] ?? headers[name.toLowerCase()];
-    if (Array.isArray(value)) {
-        return value.length > 0 ? String(value[0]) : undefined;
-    }
-    return value === undefined ? undefined : String(value);
 }

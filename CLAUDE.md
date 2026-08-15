@@ -1133,10 +1133,17 @@ engine` (restart required) or
   legacy row whose playlist is already absent receives the same IPTV-player
   fallback; a known Stalker row remains unchanged. Allowlisted connection
   resets after bytes reach disk retain the partial and show a credential-safe
-  `DOWNLOAD_NETWORK_INTERRUPTED` code only when the response supplied a strong
-  ETag or Last-Modified validator. Retry then continues with Range/If-Range;
-  without a validator it starts from byte zero and overwrites the unverified
-  partial instead of risking mixed-representation corruption.
+  `DOWNLOAD_NETWORK_INTERRUPTED` code. Retry resumes with Range/If-Range when
+  the response supplied a strong ETag or Last-Modified validator; without one
+  the Range request rewinds by a 256 KiB overlap window whose bytes must match
+  the partial's tail before anything is appended (`download-overlap.ts`), and
+  a mismatch truncates the partial and restarts from byte zero instead of
+  risking mixed-representation corruption. The runtime also reconnects
+  interrupted transfers automatically (`download-reconnect.ts`): reconnects
+  continue while attempts append ≥64 KiB past the best previous attempt,
+  three consecutive stalled attempts surface the retained failure, and a
+  reconnect that fails before any response is converted into the same
+  retained interruption so it can never delete the partial.
 - The desktop-only manager shares one global download store across the global,
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed
