@@ -98,19 +98,56 @@ const isHexIdentity = (value: string) => HEX_IDENTITY_PATTERN.test(value);
  * ASCII.
  */
 export function foldDecorativeAlphabets(text: string): string {
+    const chars = Array.from(text);
     let result = '';
-    for (const char of text) {
-        result +=
-            foldDecorativeCodePoint(char.codePointAt(0) as number) ?? char;
+    for (let index = 0; index < chars.length; ) {
+        const code = chars[index].codePointAt(0) as number;
+        if (isRegionalIndicator(code)) {
+            // Regional indicators are ambiguous: a run of EXACTLY two is a
+            // real flag emoji (🇳🇱) that must survive untouched — folding it
+            // would glue "NL" onto whatever follows and break an adjacent
+            // label's word boundary. Fancy-text words (🇺🇸🇪🇷, 🇺🇷🇱) are runs
+            // of three or more, so only those fold to letters.
+            let end = index;
+            while (
+                end < chars.length &&
+                isRegionalIndicator(chars[end].codePointAt(0) as number)
+            ) {
+                end += 1;
+            }
+            const run = chars.slice(index, end);
+            result +=
+                run.length >= 3
+                    ? run
+                          .map((char) =>
+                              String.fromCharCode(
+                                  0x41 +
+                                      ((char.codePointAt(0) as number) -
+                                          REGIONAL_INDICATOR_A)
+                              )
+                          )
+                          .join('')
+                    : run.join('');
+            index = end;
+            continue;
+        }
+        result += foldDecorativeCodePoint(code) ?? chars[index];
+        index += 1;
     }
     return result;
+}
+
+const REGIONAL_INDICATOR_A = 0x1f1e6;
+const REGIONAL_INDICATOR_Z = 0x1f1ff;
+
+function isRegionalIndicator(code: number): boolean {
+    return code >= REGIONAL_INDICATOR_A && code <= REGIONAL_INDICATOR_Z;
 }
 
 const DECORATIVE_LATIN_RANGES: Array<[number, number]> = [
     [0x1f130, 0x1f149], // 🄰 squared A–Z
     [0x1f150, 0x1f169], // 🅐 negative circled A–Z
     [0x1f170, 0x1f189], // 🅰 negative squared A–Z
-    [0x1f1e6, 0x1f1ff], // 🇦 regional indicator A–Z
 ];
 
 const DECORATIVE_DIGIT_RANGES: Array<[number, number]> = [

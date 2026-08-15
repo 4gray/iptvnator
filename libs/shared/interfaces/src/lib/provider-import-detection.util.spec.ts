@@ -187,6 +187,29 @@ describe('detectProviderImportCandidates', () => {
             });
         });
 
+        it('folds regional-indicator fancy text but leaves real flag emoji alone', () => {
+            // 🇺🇸🇪🇷 / 🇵🇦🇸🇸 are runs of 3+ regional indicators — fancy text
+            // for USER / PASS. 🇹🇷 is a run of exactly two — a real flag that
+            // must not fold, or the glued "TR" would break the PORT label's
+            // word boundary.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Server: iptv.example.tv',
+                    '🇹🇷PORT: 8080',
+                    '🇺🇸🇪🇷 : carol',
+                    '🇵🇦🇸🇸 : pa55',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0]).toMatchObject({
+                serverUrl: 'http://iptv.example.tv:8080',
+                username: 'carol',
+                password: 'pa55',
+            });
+        });
+
         it('does not read a hyphenated word as a labeled value', () => {
             expect(
                 detectProviderImportCandidates(
