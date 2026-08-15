@@ -338,6 +338,21 @@ export async function transferToPartialFile(
             const fileBytes = getPartialDownloadSize(reservation.path);
             const overlapProven =
                 !overlapVerifier || overlapVerifier.isComplete();
+            if (
+                !overlapProven &&
+                allowOverlapResume &&
+                responseTotal !== null &&
+                bytesDownloaded >= responseTotal
+            ) {
+                // The reset arrived only after the response delivered its
+                // complete AUTHORITATIVE total, all inside the verification
+                // window: the entity is provably shorter than the partial —
+                // the same shrink the clean-EOF path restarts on, just with a
+                // reset ending instead of a close.
+                return restartFromScratch(
+                    'retained partial does not match the server content'
+                );
+            }
             const provenExpectation = provenTotal();
             if (
                 overlapProven &&

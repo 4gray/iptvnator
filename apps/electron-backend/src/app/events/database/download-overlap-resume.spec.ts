@@ -576,6 +576,67 @@ describe('download overlap resume', () => {
         });
     });
 
+    it('restarts when a reset-ended response delivered its complete shorter entity inside the overlap', async () => {
+        // The changed entity (100,000 bytes) matches the retained prefix and
+        // resets right after its final byte, still inside the 262,144-byte
+        // window: the same shrink the clean-EOF path restarts on.
+        const overlapTail = Buffer.alloc(262_144, 7);
+        const freshBody = Buffer.alloc(30, 8);
+        const shorterDelivery = overlapTail.subarray(0, 62_144);
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 30,
+            partialSize: 300_000,
+            partialSizeAfterTransferError: 0,
+            partialTail: overlapTail,
+            responses: [
+                {
+                    data: body,
+                    headers: { 'content-range': 'bytes 37856-99999/100000' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([freshBody]),
+                    headers: { 'content-length': '30' },
+                    status: 200,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    totalBytes: 300_016,
+                })
+            );
+            while (
+                harness.requestWithValidatedRedirects.mock.calls.length < 1
+            ) {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+            }
+
+            body.write(shorterDelivery);
+            const resetError = new Error(
+                'socket hang up'
+            ) as NodeJS.ErrnoException;
+            resetError.code = 'ECONNRESET';
+            body.destroy(resetError);
+            await waitForStatus(harness.set, 'completed');
+
+            expect(harness.truncate).toHaveBeenCalledWith(
+                '/downloads/movie.mp4.part',
+                0
+            );
+            expect(Buffer.concat(harness.writtenChunks)).toEqual(freshBody);
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('verifies a small validator-less partial from byte zero and appends', async () => {
         // The 50-byte partial fits inside the overlap window: the plain
         // request (no Range) replays it in full for verification and only the
