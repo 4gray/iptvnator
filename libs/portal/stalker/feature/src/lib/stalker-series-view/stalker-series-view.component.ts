@@ -746,6 +746,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 newSeasons[newIndex] = {
                     ...newSeasons[newIndex],
                     episodes: episodes,
+                    // Even an EMPTY answer marks the season loaded: the
+                    // portal spoke, so it must stop counting as "unloaded"
+                    // (label/verdict gating and series-toggle hydration).
+                    episodesLoaded: true,
                     isLoading: false,
                 };
                 this.vodSeriesSeasons.set(newSeasons);
@@ -1149,12 +1153,22 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         );
     }
 
+    /**
+     * True for a season the portal has never answered for. A season that
+     * answered with zero episodes is loaded-and-empty, not pending — treating
+     * it as pending would keep the series label countless forever and make
+     * every series toggle re-fetch it.
+     */
+    private isSeasonHydrationPending(season: VodSeriesSeasonVm): boolean {
+        return season.episodes.length === 0 && !season.episodesLoaded;
+    }
+
     /** Seasons whose episode lists still need a portal request (lazy VOD). */
     readonly hasUnloadedVodSeasons = computed(
         () =>
             this.isVodSeries() &&
-            this.vodSeriesSeasons().some(
-                (season) => season.episodes.length === 0
+            this.vodSeriesSeasons().some((season) =>
+                this.isSeasonHydrationPending(season)
             )
     );
 
@@ -1166,8 +1180,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             return;
         }
         const pendingSeasons = this.isVodSeries()
-            ? this.vodSeriesSeasons().filter(
-                  (season) => season.episodes.length === 0
+            ? this.vodSeriesSeasons().filter((season) =>
+                  this.isSeasonHydrationPending(season)
               )
             : [];
         // An empty request is only meaningful when unloaded seasons remain:
@@ -1270,7 +1284,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const current = this.vodSeriesSeasons().find(
                 (candidate) => candidate.id === season.id
             );
-            if (!current || current.episodes.length > 0) {
+            if (!current || !this.isSeasonHydrationPending(current)) {
                 continue;
             }
             const answered = await this.loadEpisodesForSeason(current);

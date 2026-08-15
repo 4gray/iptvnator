@@ -301,7 +301,11 @@ and may emit an EMPTY mark request when every loaded episode is watched.
 The Stalker host then hydrates the missing seasons sequentially through
 `loadEpisodesForSeason` (aborting silently on navigation, and aborting
 with zero writes plus the series failure snackbar if any season fails to
-load), synchronously re-runs the position reconcile
+load). A season the portal ANSWERS for with zero episodes becomes
+loaded-and-empty (`VodSeriesSeasonVm.episodesLoaded`), not pending —
+`episodes.length === 0` alone would keep it counted as unloaded forever,
+locking the label countless and re-fetching it on every series toggle.
+The host synchronously re-runs the position reconcile
 (`applyReconciledSeriesPositions` — the effect-fed maps only update on
 the next change-detection tick, and enqueuing against stale maps would
 miss the hydrated episodes' legacy rows), rebuilds the request from the

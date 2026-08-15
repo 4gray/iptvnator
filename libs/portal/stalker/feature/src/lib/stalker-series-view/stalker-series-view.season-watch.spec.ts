@@ -525,6 +525,36 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
             expect(refreshPositions).toHaveBeenCalledWith(PLAYLIST_ID);
         });
 
+        it('treats an empty portal answer as loaded instead of eternally pending', async () => {
+            // The portal ANSWERS for season 2 but reports zero episodes. The
+            // season is then loaded-and-empty, not pending: the rest of the
+            // series still gets marked, the countless label unblocks, and a
+            // follow-up toggle must not re-fetch the empty season.
+            const firstId = await startWithLazySecondSeason();
+            const fetch = TestBed.inject(StalkerStore)
+                .fetchVodSeriesEpisodes as jest.Mock;
+            fetch.mockResolvedValue([]);
+
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([firstId], true)
+            );
+
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(repositoryOrder).toEqual([`save:${firstId}`]);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+            expect(
+                fixture.componentInstance.hasUnloadedVodSeasons()
+            ).toBe(false);
+
+            // Everything loaded is now watched and nothing is pending — an
+            // empty follow-up mark request is a no-op, not another fetch.
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([], true)
+            );
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(repositoryOrder).toEqual([`save:${firstId}`]);
+        });
+
         it('aborts with zero writes when hydrating a season fails', async () => {
             const firstId = await startWithLazySecondSeason();
             (
