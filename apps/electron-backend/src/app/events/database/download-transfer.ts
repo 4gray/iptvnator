@@ -28,65 +28,23 @@ import type {
     TransferProgress,
 } from './download-task';
 
-/**
- * Log transfer failures by message only: a raw AxiosError dumps its request
- * config, and download URLs can embed portal credentials.
- */
-export function describeError(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-}
+import {
+    describeError,
+    getInterruptedTransferProgress,
+    getNetworkErrorCode,
+    InterruptedTransferError,
+    isRangeNotSatisfiable,
+    isRetainableNetworkCode,
+    toRetainedInterruption,
+    TruncatedTransferError,
+} from './download-transfer-errors';
 
-/**
- * The response stream ended cleanly before the advertised representation
- * size was reached (e.g. a proxy that caps each response). The partial is
- * valid — the caller must retain it so a retry can continue via Range.
- */
-export class TruncatedTransferError extends Error {
-    constructor(readonly progress: TransferProgress) {
-        super('Transfer ended before the advertised size');
-    }
-}
-
-/**
- * Mid-transfer codes plus connection-establishment failures: a reconnect
- * attempt against a rebooting host fails before any response, and deleting
- * a multi-gigabyte partial over that would be data loss, not cleanup.
- */
-const RETAINABLE_NETWORK_ERROR_CODES = new Set([
-    'EAI_AGAIN',
-    'ECONNABORTED',
-    'ECONNREFUSED',
-    'ECONNRESET',
-    'EHOSTUNREACH',
-    'ENETUNREACH',
-    'ENOTFOUND',
-    'EPIPE',
-    'ETIMEDOUT',
-    'ERR_HTTP2_STREAM_CANCEL',
-    'ERR_HTTP2_STREAM_ERROR',
-    'ERR_STREAM_PREMATURE_CLOSE',
-]);
-
-export class InterruptedTransferError extends Error {
-    constructor(
-        readonly progress: TransferProgress,
-        networkCode: string
-    ) {
-        super(
-            `DOWNLOAD_NETWORK_INTERRUPTED (${networkCode}): Retry to continue from the saved partial file`
-        );
-    }
-}
-
-/** HTTP 416: the requested Range starts at or past the entity's end. */
-function isRangeNotSatisfiable(error: unknown): boolean {
-    return (
-        !!error &&
-        typeof error === 'object' &&
-        'response' in error &&
-        (error as { response?: { status?: number } }).response?.status === 416
-    );
-}
+export {
+    describeError,
+    InterruptedTransferError,
+    toRetainedInterruption,
+    TruncatedTransferError,
+} from './download-transfer-errors';
 
 export async function transferToPartialFile(
     db: DownloadsDatabase,
@@ -315,6 +273,28 @@ export async function transferToPartialFile(
                 'retained partial does not match the server content'
             );
         }
+        if (isRetainableNetworkCode(getNetworkErrorCode(error))) {
+            const fileBytes = getPartialDownloadSize(reservation.path);
+            const overlapProven =
+                !overlapVerifier || overlapVerifier.isComplete();
+            const provenExpectation = provenTotal();
+            if (
+                overlapProven &&
+                completionBoundary !== null &&
+                fileBytes === completionBoundary &&
+                (provenExpectation === null || fileBytes === provenExpectation)
+            ) {
+                // The connection reset AFTER the final byte: every byte the
+                // response's own evidence demands is on disk and the overlap
+                // is proven. Treating this as an interruption would resume at
+                // EOF, collect a 416, and truncate a complete file — so it is
+                // a completion, not a failure.
+                return {
+                    bytesDownloaded: fileBytes,
+                    totalBytes: provenTotal(),
+                };
+            }
+        }
         const interruptedProgress = getInterruptedTransferProgress(
             error,
             reservation,
@@ -385,65 +365,6 @@ export async function transferToPartialFile(
         });
     }
     return { bytesDownloaded, totalBytes };
-}
-
-/**
- * Wraps a request-phase failure (no response, e.g. a refused reconnect) into
- * the same retained-partial interruption as a mid-transfer reset, so the
- * bytes already on disk survive the failure. Returns null when the error or
- * the on-disk state does not justify retention.
- */
-export function toRetainedInterruption(
-    error: unknown,
-    reservation: ReservedPartialDownloadFile,
-    totalBytes: number | null | undefined,
-    rangeCapable = false
-): InterruptedTransferError | null {
-    const interrupted = getInterruptedTransferProgress(
-        error,
-        reservation,
-        0,
-        totalBytes ?? null,
-        rangeCapable
-    );
-    return interrupted
-        ? new InterruptedTransferError(
-              interrupted.progress,
-              interrupted.networkCode
-          )
-        : null;
-}
-
-function getInterruptedTransferProgress(
-    error: unknown,
-    reservation: ReservedPartialDownloadFile,
-    initialBytes: number,
-    totalBytes: number | null,
-    rangeCapable = false
-): { networkCode: string; progress: TransferProgress } | null {
-    const networkCode =
-        error && typeof error === 'object' && 'code' in error
-            ? String(error.code)
-            : '';
-    if (!RETAINABLE_NETWORK_ERROR_CODES.has(networkCode)) {
-        return null;
-    }
-
-    const bytesDownloaded = getPartialDownloadSize(reservation.path);
-    if (bytesDownloaded === 0 || bytesDownloaded < initialBytes) {
-        return null;
-    }
-    if (totalBytes !== null && bytesDownloaded < totalBytes) {
-        return { networkCode, progress: { bytesDownloaded, totalBytes } };
-    }
-    if (rangeCapable) {
-        // The total is absent or already falsified by the bytes on disk, but
-        // this very response proved the server serves ranges. Retain with an
-        // unknown total — never with the falsified one, which would let the
-        // completed-partial shortcut finalize unverified bytes.
-        return { networkCode, progress: { bytesDownloaded, totalBytes: null } };
-    }
-    return null;
 }
 
 function getResumeOffset(

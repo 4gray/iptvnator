@@ -234,6 +234,51 @@ describe('download resume validation', () => {
         );
     });
 
+    it('completes when the connection resets after the final ranged byte', async () => {
+        // Some panels reset instead of closing cleanly once the last byte is
+        // sent. With every advertised byte on disk this is a completion — an
+        // interruption would resume at EOF, collect a 416, and truncate the
+        // complete file.
+        const body = new PassThrough();
+        const harness = await setupResumeHarness({
+            finalSize: 100,
+            partialSize: 50,
+            partialSizeAfterTransferError: 100,
+            response: {
+                data: body,
+                headers: { 'content-range': 'bytes 50-99/100' },
+                status: 206,
+            },
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                resumeValidator: '"etag-1"',
+                totalBytes: 100,
+            })
+        );
+        while (harness.requestWithValidatedRedirects.mock.calls.length < 1) {
+            await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+
+        body.write(Buffer.alloc(50, 'r'));
+        const resetError = new Error('socket hang up') as NodeJS.ErrnoException;
+        resetError.code = 'ECONNRESET';
+        body.destroy(resetError);
+        await waitForStatus(harness.set, 'completed');
+
+        expect(harness.requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+        expect(harness.set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 100,
+                status: 'completed',
+                totalBytes: 100,
+            })
+        );
+        expect(harness.truncate).not.toHaveBeenCalled();
+    });
+
     it('verifies a small validator-less partial from byte zero and appends', async () => {
         // The 50-byte partial fits inside the overlap window: the plain
         // request (no Range) replays it in full for verification and only the
