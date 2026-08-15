@@ -77,6 +77,16 @@ export class InterruptedTransferError extends Error {
     }
 }
 
+/** HTTP 416: the requested Range starts at or past the entity's end. */
+function isRangeNotSatisfiable(error: unknown): boolean {
+    return (
+        !!error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        (error as { response?: { status?: number } }).response?.status === 416
+    );
+}
+
 export async function transferToPartialFile(
     db: DownloadsDatabase,
     task: DownloadTask,
@@ -115,19 +125,48 @@ export async function transferToPartialFile(
     if (task.cancelRequested || task.pauseRequested) {
         abortController.abort();
     }
+    const restartFromScratch = async (
+        reason: string
+    ): Promise<TransferProgress> => {
+        console.warn(
+            `[Downloads] Restarting ${reservation.filename} from the beginning (${reason})`
+        );
+        await truncate(reservation.partialPath, 0);
+        return transferToPartialFile(db, task, reservation, false);
+    };
 
     console.log(`[Downloads] Started: ${reservation.filename}`);
-    const response = await requestWithValidatedRedirects<Readable>(
-        task.url,
-        {
-            headers,
-            method: 'GET',
-            responseType: 'stream',
-            signal: abortController.signal,
-            validateStatus: (status) => status >= 200 && status < 300,
-        },
-        { allowPrivateNetworks: true }
-    );
+    let response: Awaited<
+        ReturnType<typeof requestWithValidatedRedirects<Readable>>
+    >;
+    try {
+        response = await requestWithValidatedRedirects<Readable>(
+            task.url,
+            {
+                headers,
+                method: 'GET',
+                responseType: 'stream',
+                signal: abortController.signal,
+                validateStatus: (status) => status >= 200 && status < 300,
+            },
+            { allowPrivateNetworks: true }
+        );
+    } catch (error) {
+        if (
+            resumeOffset > 0 &&
+            allowOverlapResume &&
+            isRangeNotSatisfiable(error)
+        ) {
+            // The remote entity shrank below the resume offset: a
+            // representation change, not a transport failure. Restart against
+            // the current entity instead of deleting the partial as a
+            // generic failure.
+            return restartFromScratch(
+                'the resume range is beyond the server content'
+            );
+        }
+        throw error;
+    }
 
     const readable = response.data;
     let effectiveOffset = resumeOffset;
@@ -205,13 +244,6 @@ export async function transferToPartialFile(
     const abortStream = () => {
         readable.destroy(new Error('Download aborted'));
     };
-    const restartFromScratch = async (): Promise<TransferProgress> => {
-        console.warn(
-            `[Downloads] Restarting ${reservation.filename} from the beginning (retained partial does not match the server content)`
-        );
-        await truncate(reservation.partialPath, 0);
-        return transferToPartialFile(db, task, reservation, false);
-    };
 
     if (abortController.signal.aborted) {
         abortStream();
@@ -246,7 +278,9 @@ export async function transferToPartialFile(
             // The server is serving a different entity than the partial came
             // from. Nothing was appended; discard the partial and download
             // the current entity from scratch.
-            return restartFromScratch();
+            return restartFromScratch(
+                'retained partial does not match the server content'
+            );
         }
         const interruptedProgress = getInterruptedTransferProgress(
             error,
@@ -278,7 +312,9 @@ export async function transferToPartialFile(
             // The server delivered its complete (now shorter) entity without
             // ever covering the window — the remote representation shrank,
             // so the retained partial belongs to a different entity.
-            return restartFromScratch();
+            return restartFromScratch(
+                'retained partial does not match the server content'
+            );
         }
         // The stream died early: an ordinary retained interruption.
         await persistProgress(db, task, {

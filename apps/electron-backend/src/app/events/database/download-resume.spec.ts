@@ -11,11 +11,13 @@ interface ResumeHarness {
     runtime: typeof import('./download-runtime');
 }
 
-interface ResumeHarnessResponse {
-    data: Readable;
-    headers: Record<string, string>;
-    status: number;
-}
+type ResumeHarnessResponse =
+    | {
+          data: Readable;
+          headers: Record<string, string>;
+          status: number;
+      }
+    | { requestError: unknown };
 
 interface ResumeHarnessOptions {
     partialSize: number;
@@ -65,10 +67,13 @@ async function setupResumeHarness(
         options.response as ResumeHarnessResponse,
     ];
     let requestCount = 0;
-    const requestWithValidatedRedirects = jest.fn(
-        async () =>
-            responses[Math.min(requestCount++, responses.length - 1)] as never
-    );
+    const requestWithValidatedRedirects = jest.fn(async () => {
+        const entry = responses[Math.min(requestCount++, responses.length - 1)];
+        if (entry && 'requestError' in entry) {
+            throw entry.requestError;
+        }
+        return entry as never;
+    });
     const writtenChunks: Buffer[] = [];
     const createWriteStream = jest.fn(() => {
         const sink = new PassThrough();
@@ -693,6 +698,47 @@ describe('download resume validation', () => {
         } finally {
             consoleError.mockRestore();
         }
+    });
+
+    it('restarts from scratch when the resume range is beyond the shrunken entity (416)', async () => {
+        const freshBody = Buffer.alloc(30, 8);
+        const harness = await setupResumeHarness({
+            finalSize: 30,
+            partialSize: 300_000,
+            partialSizeAfterTransferError: 0,
+            responses: [
+                {
+                    // A range-capable server whose entity shrank below the
+                    // rewound offset rejects the Range outright.
+                    requestError: Object.assign(
+                        new Error('Request failed with status code 416'),
+                        { response: { status: 416 } }
+                    ),
+                },
+                {
+                    data: Readable.from([freshBody]),
+                    headers: { 'content-length': '30' },
+                    status: 200,
+                },
+            ],
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 300_016,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        expect(harness.truncate).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            0
+        );
+        const restartOptions =
+            harness.requestWithValidatedRedirects.mock.calls[1][1];
+        expect(restartOptions.headers).toEqual({});
+        expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
     });
 
     it('restarts instead of completing when the remote entity shrank inside the overlap', async () => {
