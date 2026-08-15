@@ -83,15 +83,13 @@ export function isRangeNotSatisfiable(error: unknown): boolean {
 export function toRetainedInterruption(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
-    totalBytes: number | null | undefined,
-    rangeCapable = false
+    totalBytes: number | null | undefined
 ): InterruptedTransferError | null {
     const interrupted = getInterruptedTransferProgress(
         error,
         reservation,
         0,
-        totalBytes ?? null,
-        rangeCapable
+        totalBytes ?? null
     );
     return interrupted
         ? new InterruptedTransferError(
@@ -105,8 +103,7 @@ export function getInterruptedTransferProgress(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
     initialBytes: number,
-    totalBytes: number | null,
-    rangeCapable = false
+    totalBytes: number | null
 ): { networkCode: string; progress: TransferProgress } | null {
     const networkCode = getNetworkErrorCode(error);
     if (!RETAINABLE_NETWORK_ERROR_CODES.has(networkCode)) {
@@ -120,12 +117,11 @@ export function getInterruptedTransferProgress(
     if (totalBytes !== null && bytesDownloaded < totalBytes) {
         return { networkCode, progress: { bytesDownloaded, totalBytes } };
     }
-    if (rangeCapable) {
-        // The total is absent or already falsified by the bytes on disk, but
-        // this very response proved the server serves ranges. Retain with an
-        // unknown total — never with the falsified one, which would let the
-        // completed-partial shortcut finalize unverified bytes.
-        return { networkCode, progress: { bytesDownloaded, totalBytes: null } };
-    }
-    return null;
+    // Retention needs no further evidence: since overlap verification owns
+    // resume correctness, the next attempt can safely prove, resume, or
+    // restart over ANY retained partial — deleting bytes is the only
+    // unrecoverable outcome. A total the bytes on disk have falsified is
+    // persisted as unknown, never as the falsified value, which would let
+    // the completed-partial shortcut finalize unverified bytes.
+    return { networkCode, progress: { bytesDownloaded, totalBytes: null } };
 }

@@ -73,8 +73,7 @@ export async function transferWithReconnects(
             const interruption = classifyReconnectableError(
                 error,
                 reservation,
-                task.totalBytes,
-                task.serverAcceptsRanges ?? false
+                task.totalBytes
             );
             if (!interruption) {
                 throw error;
@@ -113,8 +112,7 @@ export async function transferWithReconnects(
 function classifyReconnectableError(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
-    totalBytes: number | null | undefined,
-    rangeCapable: boolean
+    totalBytes: number | null | undefined
 ): InterruptedTransferError | TruncatedTransferError | null {
     if (
         error instanceof InterruptedTransferError ||
@@ -122,5 +120,5 @@ function classifyReconnectableError(
     ) {
         return error;
     }
-    return toRetainedInterruption(error, reservation, totalBytes, rangeCapable);
+    return toRetainedInterruption(error, reservation, totalBytes);
 }

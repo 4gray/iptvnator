@@ -186,11 +186,6 @@ export async function transferToPartialFile(
         responseTotal ??
         getIndeterminateRangeEnd(response.headers) ??
         carriedTotal;
-    if (response.status === 206) {
-        // Proven range capability outlives this attempt: a later request-
-        // phase failure may retain the partial on this evidence alone.
-        task.serverAcceptsRanges = true;
-    }
     if (effectiveOffset === 0 && !verifyOverlap) {
         // Fresh or restarted transfer: every byte on disk will come from this
         // response, so its validator describes the file. A verify-append
@@ -302,11 +297,7 @@ export async function transferToPartialFile(
             error,
             reservation,
             effectiveOffset,
-            provenTotal(),
-            // A 206 proves the server serves ranges: the partial stays
-            // resumable even when a stale informational total is falsified
-            // by the bytes on disk.
-            response.status === 206
+            provenTotal()
         );
         if (interruptedProgress) {
             // Keep the live task consistent with what is persisted: the next
@@ -330,12 +321,14 @@ export async function transferToPartialFile(
         // appended and nothing proves the partial matches the entity.
         if (
             allowOverlapResume &&
-            completionBoundary !== null &&
-            bytesDownloaded >= completionBoundary
+            responseTotal !== null &&
+            bytesDownloaded >= responseTotal
         ) {
             // The server delivered its complete (now shorter) entity without
             // ever covering the window — the remote representation shrank,
-            // so the retained partial belongs to a different entity.
+            // so the retained partial belongs to a different entity. Only an
+            // AUTHORITATIVE total proves that; an indeterminate range end
+            // stays a retained interruption below.
             return restartFromScratch(
                 'retained partial does not match the server content'
             );
@@ -361,7 +354,17 @@ export async function transferToPartialFile(
         bytesDownloaded: reportedBytes,
         totalBytes,
     });
-    if (completionBoundary !== null && bytesDownloaded < completionBoundary) {
+    if (
+        (completionBoundary !== null && bytesDownloaded < completionBoundary) ||
+        (responseTotal === null &&
+            getIndeterminateRangeEnd(response.headers) !== null)
+    ) {
+        // Short of the response's evidence — or an indeterminate range that
+        // ended cleanly: reaching Y of `bytes X-Y/*` proves the range was
+        // delivered, never that the entity ends there, so the transfer stays
+        // incomplete and reconnects from the new offset. Only a response
+        // with no range and no total keeps the clean-EOF completion contract
+        // of unknown-length HTTP.
         throw new TruncatedTransferError({
             bytesDownloaded: reportedBytes,
             totalBytes,

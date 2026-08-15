@@ -1219,21 +1219,9 @@ describe('download resume validation', () => {
         },
         {
             code: 'ECONNRESET',
-            headers: {},
-            label: 'response without an advertised total',
-            partialSizeAfterTransferError: 20,
-        },
-        {
-            code: 'ECONNRESET',
             headers: { 'content-length': '100' },
             label: 'fresh zero-byte failure',
             partialSizeAfterTransferError: 0,
-        },
-        {
-            code: 'ECONNRESET',
-            headers: { 'content-length': '100' },
-            label: 'partial larger than the advertised total',
-            partialSizeAfterTransferError: 101,
         },
     ])(
         'uses generic cleanup for $label',
@@ -1279,6 +1267,120 @@ describe('download resume validation', () => {
             }
         }
     );
+
+    it.each([
+        {
+            headers: {},
+            label: 'the response advertised no total',
+            partialSizeAfterTransferError: 20,
+            partialTail: Buffer.alloc(20, 'r'),
+        },
+        {
+            headers: { 'content-length': '100' },
+            label: 'the partial exceeds the advertised total',
+            partialSizeAfterTransferError: 101,
+            partialTail: Buffer.alloc(101, 'r'),
+        },
+    ])(
+        'retains the partial with an unknown total when $label',
+        async ({ headers, partialSizeAfterTransferError, partialTail }) => {
+            const body = new PassThrough();
+            const harness = await setupResumeHarness({
+                finalSize: 'enoent',
+                partialSize: 0,
+                partialSizeAfterTransferError,
+                partialTail,
+                response: { data: body, headers, status: 200 },
+            });
+            const consoleError = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+
+            try {
+                harness.runtime.enqueueDownload(createTask());
+                while (
+                    harness.requestWithValidatedRedirects.mock.calls.length < 1
+                ) {
+                    await new Promise<void>((resolve) => setImmediate(resolve));
+                }
+
+                const streamError = new Error(
+                    'socket hang up'
+                ) as NodeJS.ErrnoException;
+                streamError.code = 'ECONNRESET';
+                body.destroy(streamError);
+                await waitForStatus(harness.set, 'failed');
+
+                expect(harness.set).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        bytesDownloaded: partialSizeAfterTransferError,
+                        errorMessage: expect.stringContaining(
+                            'DOWNLOAD_NETWORK_INTERRUPTED'
+                        ),
+                        filePath: '/downloads/movie.mp4',
+                        status: 'failed',
+                        totalBytes: null,
+                    })
+                );
+                expect(
+                    harness.removePartialDownloadFile
+                ).not.toHaveBeenCalled();
+            } finally {
+                consoleError.mockRestore();
+            }
+        }
+    );
+
+    it('stays incomplete when an indeterminate range ends cleanly at its advertised end', async () => {
+        // A range-capping server closing cleanly at Y of `bytes X-Y/*` looks
+        // exactly like entity EOF but proves nothing about the entity's end:
+        // the transfer must remain incomplete and retained, never finalized.
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 50,
+            partialSizeAfterTransferError: 100,
+            responses: [
+                {
+                    data: Readable.from([Buffer.alloc(50, 'r')]),
+                    headers: { 'content-range': 'bytes 50-99/*' },
+                    status: 206,
+                },
+                {
+                    data: Readable.from([]),
+                    headers: { 'content-range': 'bytes 100-149/*' },
+                    status: 206,
+                },
+            ],
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'completed' })
+            );
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 100,
+                    errorMessage: 'Transfer ended before the advertised size',
+                    status: 'failed',
+                    totalBytes: null,
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
 
     it('captures a strong ETag from the first response for later resumes', async () => {
         const harness = await setupResumeHarness({

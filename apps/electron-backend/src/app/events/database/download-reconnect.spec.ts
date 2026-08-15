@@ -333,30 +333,9 @@ describe('transferWithReconnects', () => {
         expect(transfer).toHaveBeenCalledTimes(4);
     });
 
-    it('retains an unknown-length partial on request failure when the server proved ranges', async () => {
-        mockedPartialSize.mockReturnValue(400_000);
-        const refused = new Error(
-            'connect ECONNREFUSED'
-        ) as NodeJS.ErrnoException;
-        refused.code = 'ECONNREFUSED';
-        const transfer = jest.fn().mockRejectedValue(refused);
-
-        await expect(
-            transferWithReconnects(
-                db,
-                createTask({ serverAcceptsRanges: true, totalBytes: null }),
-                reservation,
-                { delayMs: 0, transfer }
-            )
-        ).rejects.toMatchObject({
-            message: expect.stringContaining(
-                'DOWNLOAD_NETWORK_INTERRUPTED (ECONNREFUSED)'
-            ),
-        });
-        expect(transfer).toHaveBeenCalledTimes(4);
-    });
-
-    it('rethrows an unknown-length request failure when ranges were never proven', async () => {
+    it('retains an unknown-length partial on a request-phase failure', async () => {
+        // Retention needs no total or range evidence: the next attempt can
+        // safely prove, resume, or restart over any retained partial.
         mockedPartialSize.mockReturnValue(400_000);
         const refused = new Error(
             'connect ECONNREFUSED'
@@ -371,8 +350,12 @@ describe('transferWithReconnects', () => {
                 reservation,
                 { delayMs: 0, transfer }
             )
-        ).rejects.toBe(refused);
-        expect(transfer).toHaveBeenCalledTimes(1);
+        ).rejects.toMatchObject({
+            message: expect.stringContaining(
+                'DOWNLOAD_NETWORK_INTERRUPTED (ECONNREFUSED)'
+            ),
+        });
+        expect(transfer).toHaveBeenCalledTimes(4);
     });
 
     it('does not convert a request failure when nothing is on disk yet', async () => {
