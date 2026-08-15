@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "Отмечено как просмотренные: {{count}} эпизодов",
         "SEASON_MARKED_UNWATCHED": "Сезон отмечен как непросмотренный",
         "SEASON_MARKED_WATCHED_PARTIAL": "Отмечено: {{count}} · Ошибок: {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "Снято отметок: {{count}} · Ошибок: {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "Не удалось обновить сезон",
         "EPISODES_WATCHED": "Просмотрено {{count}} из {{total}} эпизодов",
         "DETAIL_FALLBACK": {

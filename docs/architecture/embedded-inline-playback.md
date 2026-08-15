@@ -269,8 +269,12 @@ one SQLite transaction; the PWA data source rewrites its localStorage
 blob once), Stalker as synchronous per-episode enqueues through the
 existing position-mutation queue so legacy-row reconciliation still runs
 and the queue coalesces to a single reload; partial failures surface a
-"{{count}} marked · {{failed}} failed" snackbar. The host reports
-busy-state back through the `seasonWatchBatchRunning` input.
+direction-specific "{{count}} marked/unmarked · {{failed}} failed"
+snackbar. A stale batch completion is discarded on the Xtream side: the
+host captures the playlist/series identity before awaiting and skips the
+rendered-state mutation when navigation changed it (episode ids collide
+across playlists; the DB write itself carries its own playlistId). The
+host reports busy-state back through the `seasonWatchBatchRunning` input.
 
 ## Components
 

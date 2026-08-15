@@ -975,6 +975,57 @@ describe('SerialDetailsComponent', () => {
         );
     });
 
+    it('does not write a stale season batch into another playlist state', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        let resolveBatch!: () => void;
+        savePlaybackPositionsBatch.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveBatch = resolve;
+                })
+        );
+        const playbackService = fixture.debugElement.injector.get(
+            SerialDetailsPlaybackService
+        );
+        const pending = playbackService.handleSeasonPlaybackToggleRequested({
+            seasonKey: '1',
+            markWatched: true,
+            requests: [
+                {
+                    contentXtreamId: 1001,
+                    nextPosition: {
+                        playlistId: 'xtream-1',
+                        contentXtreamId: 1001,
+                        contentType: 'episode',
+                        seriesXtreamId: 103,
+                        seasonNumber: 1,
+                        episodeNumber: 1,
+                        positionSeconds: 1200,
+                        durationSeconds: 1200,
+                    },
+                },
+            ],
+        } as never);
+
+        // The user navigates to another playlist while the batch is pending.
+        const initialPlaylist = currentPlaylist();
+        currentPlaylist.set({ ...initialPlaylist, id: 'xtream-2' });
+        resolveBatch();
+        await pending;
+
+        expect(savePlaybackPositionsBatch).toHaveBeenCalledWith(
+            'xtream-1',
+            expect.anything()
+        );
+        expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
+            false
+        );
+        expect(playbackService.seasonWatchBatchRunning()).toBe(false);
+        currentPlaylist.set(initialPlaylist);
+    });
+
     it('keeps rendered positions and reports the error when the season batch fails', async () => {
         const consoleError = jest
             .spyOn(console, 'error')

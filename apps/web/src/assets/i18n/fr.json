@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}} épisodes marqués comme vus",
         "SEASON_MARKED_UNWATCHED": "Saison marquée comme non vue",
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} marqués · {{failed}} échoués",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} marqués comme non vus · {{failed}} échoués",
         "SEASON_WATCH_UPDATE_FAILED": "Échec de la mise à jour de la saison",
         "EPISODES_WATCHED": "{{count}} sur {{total}} épisodes vus",
         "DETAIL_FALLBACK": {

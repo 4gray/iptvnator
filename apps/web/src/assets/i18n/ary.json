@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}} ديال الحلقات تعلمو كمتشافين",
         "SEASON_MARKED_UNWATCHED": "الموسم تعلم كما متشافش",
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} تعلمو · {{failed}} فشلو",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} تعلمو كما متشافينش · {{failed}} فشلو",
         "SEASON_WATCH_UPDATE_FAILED": "فشل تحديث الموسم",
         "EPISODES_WATCHED": "{{count}} من {{total}} ديال الحلقات متشافين",
         "DETAIL_FALLBACK": {

@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}} επεισόδια σημειώθηκαν ως προβληθέντα",
         "SEASON_MARKED_UNWATCHED": "Η σεζόν σημειώθηκε ως μη προβληθείσα",
         "SEASON_MARKED_WATCHED_PARTIAL": "Σημειώθηκαν {{count}} · Απέτυχαν {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "Αφαιρέθηκε η σήμανση από {{count}} · Απέτυχαν {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "Η ενημέρωση της σεζόν απέτυχε",
         "EPISODES_WATCHED": "{{count}} από {{total}} επεισόδια προβλήθηκαν",
         "DETAIL_FALLBACK": {

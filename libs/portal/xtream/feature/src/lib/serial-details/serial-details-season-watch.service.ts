@@ -24,7 +24,13 @@ export class SerialDetailsSeasonWatchService {
         state: Pick<
             SerialDetailsPlaybackPositionState,
             'updateMany' | 'removeMany'
-        >
+        >,
+        // The component is reused across detail navigations and resets the
+        // position state for the next series while a batch may still be in
+        // flight; a stale completion must not write the old series' rows
+        // into it (episode ids can collide across playlists). The DB write
+        // itself is safe — it carries its own playlistId.
+        stillCurrent: () => boolean
     ): Promise<void> {
         if (!playlistId || request.requests.length === 0 || this.batchRunning()) {
             return;
@@ -43,7 +49,9 @@ export class SerialDetailsSeasonWatchService {
                     playlistId,
                     positions
                 );
-                state.updateMany(positions);
+                if (stillCurrent()) {
+                    state.updateMany(positions);
+                }
                 this.notify('XTREAM.SEASON_MARKED_WATCHED', {
                     count: positions.length,
                 });
@@ -55,9 +63,11 @@ export class SerialDetailsSeasonWatchService {
                         contentType: 'episode' as const,
                     }))
                 );
-                state.removeMany(
-                    request.requests.map((item) => item.contentXtreamId)
-                );
+                if (stillCurrent()) {
+                    state.removeMany(
+                        request.requests.map((item) => item.contentXtreamId)
+                    );
+                }
                 this.notify('XTREAM.SEASON_MARKED_UNWATCHED');
             }
         } catch (error) {

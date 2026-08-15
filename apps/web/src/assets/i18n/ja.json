@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}}話を視聴済みにしました",
         "SEASON_MARKED_UNWATCHED": "シーズンを未視聴にしました",
         "SEASON_MARKED_WATCHED_PARTIAL": "視聴済み {{count}} · 失敗 {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "未視聴 {{count}} · 失敗 {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "シーズンの更新に失敗しました",
         "EPISODES_WATCHED": "{{count}} / {{total}}エピソード視聴済み",
         "DETAIL_FALLBACK": {

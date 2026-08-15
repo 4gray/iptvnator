@@ -1149,7 +1149,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 );
             } else if (succeeded > 0) {
                 this.notifySeasonWatchToggle(
-                    'XTREAM.SEASON_MARKED_WATCHED_PARTIAL',
+                    request.markWatched
+                        ? 'XTREAM.SEASON_MARKED_WATCHED_PARTIAL'
+                        : 'XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL',
                     { count: succeeded, failed }
                 );
             } else {

@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}} 集已标记为已观看",
         "SEASON_MARKED_UNWATCHED": "本季已标记为未观看",
         "SEASON_MARKED_WATCHED_PARTIAL": "已标记 {{count}} · 失败 {{failed}}",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "已取消标记 {{count}} · 失败 {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "无法更新本季",
         "EPISODES_WATCHED": "已观看 {{count}} / {{total}} 集",
         "DETAIL_FALLBACK": {

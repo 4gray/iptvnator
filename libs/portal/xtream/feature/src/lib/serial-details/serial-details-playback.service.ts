@@ -346,10 +346,15 @@ export class SerialDetailsPlaybackService {
     handleSeasonPlaybackToggleRequested(
         request: SeasonContainerSeasonPlaybackToggleRequest
     ): Promise<void> {
+        const playlistId = this.currentPlaylistId();
+        const seriesXtreamId = Number(this.selectedItem()?.series_id ?? 0);
         return this.seasonWatch.handle(
             request,
-            this.currentPlaylistId(),
-            this.playbackPositionState
+            playlistId,
+            this.playbackPositionState,
+            () =>
+                this.currentPlaylistId() === playlistId &&
+                Number(this.selectedItem()?.series_id ?? 0) === seriesXtreamId
         );
     }
 

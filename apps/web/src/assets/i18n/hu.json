@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}} epizód megjelölve megtekintettként",
         "SEASON_MARKED_UNWATCHED": "Évad megjelölve nem megtekintettként",
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} megjelölve · {{failed}} sikertelen",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} jelölés törölve · {{failed}} sikertelen",
         "SEASON_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni az évadot",
         "EPISODES_WATCHED": "Megtekintett epizódok: {{count}} / {{total}}",
         "DETAIL_FALLBACK": {

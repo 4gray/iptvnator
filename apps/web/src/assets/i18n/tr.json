@@ -898,6 +898,7 @@
         "SEASON_MARKED_WATCHED": "{{count}} bölüm izlendi olarak işaretlendi",
         "SEASON_MARKED_UNWATCHED": "Sezon izlenmedi olarak işaretlendi",
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} işaretlendi · {{failed}} başarısız",
+        "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} işaret kaldırıldı · {{failed}} başarısız",
         "SEASON_WATCH_UPDATE_FAILED": "Sezon güncellemesi başarısız oldu",
         "EPISODES_WATCHED": "{{total}} bölümden {{count}} tanesi izlendi",
         "DETAIL_FALLBACK": {

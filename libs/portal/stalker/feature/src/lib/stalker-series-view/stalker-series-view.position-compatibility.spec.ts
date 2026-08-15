@@ -1210,19 +1210,29 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         return [Number(first.id), Number(second.id)];
     }
 
-    function seasonWatchRequest(ids: number[]) {
+    function seasonToggleRequest(ids: number[], markWatched: boolean) {
         return {
             seasonKey: '1',
-            markWatched: true,
+            markWatched,
             requests: ids.map((contentXtreamId, index) => ({
                 contentXtreamId,
-                nextPosition: createPosition({
-                    contentXtreamId,
-                    episodeNumber: index + 1,
-                    positionSeconds: 100,
-                }),
+                nextPosition: markWatched
+                    ? createPosition({
+                          contentXtreamId,
+                          episodeNumber: index + 1,
+                          positionSeconds: 100,
+                      })
+                    : null,
             })),
         };
+    }
+
+    function expectSeasonToggleSnackbar(key: string): void {
+        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            key,
+            undefined,
+            { duration: 5000 }
+        );
     }
 
     it('marks a season watched sequentially without redundant reloads', async () => {
@@ -1230,7 +1240,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         const loadsBefore = getSeriesPlaybackPositions.mock.calls.length;
 
         await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
-            seasonWatchRequest([firstId, secondId])
+            seasonToggleRequest([firstId, secondId], true)
         );
 
         expect(repositoryOrder).toEqual([
@@ -1238,46 +1248,39 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             `save:${secondId}`,
         ]);
         expect(getSeriesPlaybackPositions.mock.calls.length).toBe(loadsBefore);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().get(secondId)
-                ?.positionSeconds
-        ).toBe(100);
-        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
-            'XTREAM.SEASON_MARKED_WATCHED',
-            undefined,
-            { duration: 5000 }
-        );
+        const positions = fixture.componentInstance.episodePlaybackPositions();
+        expect(positions.get(secondId)?.positionSeconds).toBe(100);
+        expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
         expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
     });
 
-    it('keeps surviving episodes and reports a partial season failure', async () => {
+    it('keeps surviving clears and reports a partial season unwatch failure', async () => {
         const [firstId, secondId] = await startWithTwoLoadedEpisodes();
-        savePlaybackPositionOrThrow.mockImplementation(
-            async (playlistId: string, position: PlaybackPositionData) => {
-                if (position.contentXtreamId === secondId) {
-                    throw new Error('save rejected');
+        repositoryRows = [firstId, secondId].map((contentXtreamId, index) =>
+            createPosition({
+                contentXtreamId,
+                episodeNumber: index + 1,
+                positionSeconds: 100,
+            })
+        );
+        selectedItem.set(createVodItem(SERIES_A_ID));
+        await settle();
+        clearPlaybackPositionOrThrow.mockImplementation(
+            async (playlistId: string, contentXtreamId: number) => {
+                if (contentXtreamId === secondId) {
+                    throw new Error('clear rejected');
                 }
-                return savePlaybackPosition(playlistId, position);
+                return clearPlaybackPosition(playlistId, contentXtreamId);
             }
         );
 
         await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
-            seasonWatchRequest([firstId, secondId])
+            seasonToggleRequest([firstId, secondId], false)
         );
 
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().get(firstId)
-                ?.positionSeconds
-        ).toBe(100);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().get(secondId)
-                ?.positionSeconds
-        ).not.toBe(100);
-        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
-            'XTREAM.SEASON_MARKED_WATCHED_PARTIAL',
-            undefined,
-            { duration: 5000 }
-        );
-        expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
+        const positions = fixture.componentInstance.episodePlaybackPositions();
+        expect(positions.has(firstId)).toBe(false);
+        expect(positions.get(secondId)?.positionSeconds).toBe(100);
+        expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL');
     });
 });
