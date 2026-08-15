@@ -181,6 +181,14 @@ export class AddPlaylistDialogComponent {
         if (!candidate) {
             return;
         }
+        // The user can click another method tile before the target form
+        // mounts; a candidate must not lie in wait and prefill a later visit
+        // to its form. Only the method the selection itself switched to may
+        // consume it.
+        if (this.method() !== METHOD_BY_CANDIDATE_KIND[candidate.kind]) {
+            this.pendingPrefill.set(null);
+            return;
+        }
         switch (candidate.kind) {
             case 'm3u-url': {
                 const child = this.urlUpload();

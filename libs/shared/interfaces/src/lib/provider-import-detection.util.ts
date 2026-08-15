@@ -26,7 +26,9 @@ import {
  *    Unicode math alphabets (`𝚄𝚂𝙴𝚁➤`, `𝙿𝙰𝚂𝚂➤`) to slip past chat spam
  *    filters; the folding turns them back into the ASCII they denote, and
  *    real credentials/URLs are ASCII already, so values pass through it
- *    unchanged.
+ *    unchanged. The one deliberate exception is `labeledHostUrl`, which
+ *    completes a scheme-less labeled host with `http://` and a separately
+ *    labeled port — an assembled value, landing in an editable form field.
  * 2. **Detection proposes, it never decides.** The output prefills the
  *    existing import forms; classification authority stays with the
  *    behavioral probes those forms already run (portal discovery, Xtream

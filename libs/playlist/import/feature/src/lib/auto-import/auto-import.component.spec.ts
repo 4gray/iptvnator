@@ -80,6 +80,20 @@ describe('AutoImportComponent', () => {
         expect(emitted).toEqual([candidate]);
     });
 
+    it('masks the query password of an M3U link on the card', () => {
+        fixture.detectChanges();
+
+        const rows = component.summaryRows({
+            kind: 'm3u-url',
+            confidence: 'low',
+            url: 'http://tv.example.com:8080/get.php?username=alice&password=s3cret&type=m3u_plus',
+        });
+
+        expect(rows[0].value).toContain('username=alice');
+        expect(rows[0].value).toContain('password=••••••');
+        expect(JSON.stringify(rows)).not.toContain('s3cret');
+    });
+
     it('masks the password in the summary rows', () => {
         fixture.detectChanges();
 

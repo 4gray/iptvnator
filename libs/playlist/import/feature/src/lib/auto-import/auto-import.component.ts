@@ -130,7 +130,16 @@ export class AutoImportComponent implements OnInit {
         };
         switch (candidate.kind) {
             case 'm3u-url':
-                push('HOME.URL_UPLOAD.PLAYLIST_URL', candidate.url);
+                // get.php links carry the password in their query — the card
+                // must not show it while every other password here is masked.
+                // The candidate keeps the untouched URL for prefilling.
+                push(
+                    'HOME.URL_UPLOAD.PLAYLIST_URL',
+                    candidate.url?.replace(
+                        /([?&]password=)[^&#\s]*/i,
+                        '$1••••••'
+                    )
+                );
                 break;
             case 'xtream':
                 push(

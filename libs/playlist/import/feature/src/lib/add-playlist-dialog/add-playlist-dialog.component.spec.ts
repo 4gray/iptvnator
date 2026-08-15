@@ -283,6 +283,28 @@ describe('AddPlaylistDialogComponent', () => {
             expect(patchValue).toHaveBeenCalledTimes(1);
         });
 
+        it('drops the candidate when the user switches to another method first', () => {
+            const patchValue = jest.fn();
+            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
+                () => ({ form: { patchValue } })
+            );
+
+            component.onCandidateSelected({
+                kind: 'xtream',
+                confidence: 'high',
+                username: 'alice',
+            });
+            // The user clicks another tile before the xtream form mounted.
+            component.method.set('file');
+            applyPrefill();
+
+            // Coming back to the xtream form later must not prefill it.
+            component.method.set('xtream');
+            applyPrefill();
+
+            expect(patchValue).not.toHaveBeenCalled();
+        });
+
         it('keeps the candidate pending while the target form does not exist yet', () => {
             (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
                 () => undefined
