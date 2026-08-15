@@ -315,6 +315,20 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream[0].serverUrl).toBe('http://panel.example.io:8080');
         });
 
+        it('strips panel_api.php from the derived server URL', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel.example.org/panel_api.php',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].serverUrl).toBe('http://panel.example.org');
+        });
+
         it('treats credentials in the query of a generic URL as xtream', () => {
             const candidates = detectProviderImportCandidates(
                 'http://portal.example.io/api?username=eve&password=pw&foo=bar'
@@ -696,6 +710,42 @@ describe('detectProviderImportCandidates', () => {
             for (const candidate of stalker) {
                 expect(candidate.portalUrl).toBeUndefined();
                 expect(candidate.confidence).toBe('low');
+            }
+        });
+
+        it('treats tenant installs under different base paths as different panels', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel.example.com/a/stalker_portal/c/',
+                    'MAC: 00:1A:79:AA:AA:AA',
+                    'http://panel.example.com/b/stalker_portal/c/',
+                    'MAC: 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBeUndefined();
+            }
+        });
+
+        it('keeps alternate endpoints of one install unambiguous for a MAC list', () => {
+            // /c/ and portal.php are two doors into the same installation —
+            // a MAC list next to both must still get the shared portal.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel.example.com/c/',
+                    'http://panel.example.com/portal.php',
+                    'MAC: 00:1A:79:AA:AA:AA',
+                    'MAC: 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(2);
+            for (const candidate of stalker) {
+                expect(candidate.portalUrl).toBe('http://panel.example.com/c/');
             }
         });
 

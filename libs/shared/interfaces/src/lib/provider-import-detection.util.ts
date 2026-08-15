@@ -135,13 +135,9 @@ export function detectProviderImportCandidates(
             : labeledHostUrl(labeled) !== undefined
               ? []
               : urls.filter((url) => url.role === 'generic');
-    // Compared by ORIGIN, not hostname: two panels on one DNS name but
-    // different ports are different panels, while URL normalization drops a
-    // default port, so the Real/Panel `:80`-vs-bare pairs of scanner dumps
-    // still compare equal.
     const portalAmbiguous =
         macs.length > 1 &&
-        new Set(portalPool.map((url) => url.parsed.origin)).size > 1;
+        new Set(portalPool.map(portalInstallationKey)).size > 1;
     const portal = portalAmbiguous
         ? null
         : pickStalkerPortalUrl(urls, labeled);
@@ -274,6 +270,25 @@ export function detectProviderImportCandidates(
     }
 
     return sortByConfidence(dedupe(candidates)).slice(0, MAX_CANDIDATES);
+}
+
+/**
+ * Ambiguity key for a portal candidate: origin plus the installation's base
+ * path. Origin (not hostname) separates panels on different ports while URL
+ * normalization drops default ports, so the Real/Panel `:80`-vs-bare pairs
+ * of scanner dumps compare equal. The base path separates tenant installs
+ * sharing one origin (`/a/stalker_portal/c/` vs `/b/…`), while the known
+ * endpoint suffixes of ONE install (`/c/`, `portal.php`, `server/load.php`)
+ * are stripped so its alternate endpoints reduce to the same key.
+ */
+function portalInstallationKey(url: DetectedUrl): string {
+    const base = url.parsed.pathname
+        .replace(/\/(?:stalker_portal\/)?c\/?$/i, '')
+        .replace(/\/stalker_portal\/?$/i, '')
+        .replace(/\/portal\.php$/i, '')
+        .replace(/\/(?:stalker_portal\/)?server\/load\.php$/i, '')
+        .replace(/\/+$/, '');
+    return `${url.parsed.origin}${base}`;
 }
 
 function pickStalkerPortalUrl(
