@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "Σημειώθηκαν {{count}} · Απέτυχαν {{failed}}",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "Αφαιρέθηκε η σήμανση από {{count}} · Απέτυχαν {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "Η ενημέρωση της σεζόν απέτυχε",
+        "MARK_SERIES_WATCHED": "Σήμανση σειράς ως προβληθείσα ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Σήμανση σειράς ως προβληθείσα",
+        "MARK_SERIES_UNWATCHED": "Σήμανση σειράς ως μη προβληθείσα",
+        "SERIES_MARKED_UNWATCHED": "Η σειρά σημειώθηκε ως μη προβληθείσα",
+        "SERIES_WATCH_UPDATE_FAILED": "Η ενημέρωση της σειράς απέτυχε",
+        "SERIES_WATCH_MENU": "Ενέργειες παρακολούθησης σειράς",
         "EPISODES_WATCHED": "{{count}} από {{total}} επεισόδια προβλήθηκαν",
         "DETAIL_FALLBACK": {
             "STATUS": "Τα μεταδεδομένα της πύλης δεν είναι διαθέσιμα",

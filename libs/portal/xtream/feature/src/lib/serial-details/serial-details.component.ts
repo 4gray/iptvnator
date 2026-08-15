@@ -23,6 +23,7 @@ import {
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerSeasonPlaybackToggleRequest,
+    SeasonContainerSeriesPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
@@ -394,7 +395,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     handleSeasonPlaybackToggleRequested(
         request: SeasonContainerSeasonPlaybackToggleRequest
     ): Promise<void> {
-        return this.playback.handleSeasonPlaybackToggleRequested(request);
+        return this.playback.handleWatchToggleRequested(request, 'season');
+    }
+
+    handleSeriesPlaybackToggleRequested(
+        request: SeasonContainerSeriesPlaybackToggleRequest
+    ): Promise<void> {
+        return this.playback.handleWatchToggleRequested(request, 'series');
     }
 
     toggleFavorite(): void {

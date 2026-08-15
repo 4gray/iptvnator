@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} 集已標記 · {{failed}} 集失敗",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} 集已取消標記 · {{failed}} 集失敗",
         "SEASON_WATCH_UPDATE_FAILED": "本季更新失敗",
+        "MARK_SERIES_WATCHED": "標記整部影集為已觀看（{{count}}）",
+        "MARK_SERIES_WATCHED_ALL": "標記整部影集為已觀看",
+        "MARK_SERIES_UNWATCHED": "標記整部影集為未觀看",
+        "SERIES_MARKED_UNWATCHED": "本影集已標記為未觀看",
+        "SERIES_WATCH_UPDATE_FAILED": "本影集更新失敗",
+        "SERIES_WATCH_MENU": "影集觀看操作",
         "EPISODES_WATCHED": "已觀看 {{total}} 集中的 {{count}} 集",
         "DETAIL_FALLBACK": {
             "STATUS": "無法取得入口網站中繼資料",

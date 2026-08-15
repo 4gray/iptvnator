@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "Отмечено: {{count}} · Ошибок: {{failed}}",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "Снято отметок: {{count}} · Ошибок: {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "Не удалось обновить сезон",
+        "MARK_SERIES_WATCHED": "Отметить сериал как просмотренный ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Отметить сериал как просмотренный",
+        "MARK_SERIES_UNWATCHED": "Отметить сериал как непросмотренный",
+        "SERIES_MARKED_UNWATCHED": "Сериал отмечен как непросмотренный",
+        "SERIES_WATCH_UPDATE_FAILED": "Не удалось обновить сериал",
+        "SERIES_WATCH_MENU": "Действия просмотра сериала",
         "EPISODES_WATCHED": "Просмотрено {{count}} из {{total}} эпизодов",
         "DETAIL_FALLBACK": {
             "STATUS": "Метаданные портала недоступны",

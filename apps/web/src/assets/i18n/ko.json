@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}}개 표시됨 · {{failed}}개 실패",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}}개 표시 해제됨 · {{failed}}개 실패",
         "SEASON_WATCH_UPDATE_FAILED": "시즌 업데이트에 실패했습니다",
+        "MARK_SERIES_WATCHED": "시리즈를 시청한 것으로 표시 ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "시리즈를 시청한 것으로 표시",
+        "MARK_SERIES_UNWATCHED": "시리즈를 시청하지 않은 것으로 표시",
+        "SERIES_MARKED_UNWATCHED": "시리즈가 시청하지 않은 것으로 표시되었습니다",
+        "SERIES_WATCH_UPDATE_FAILED": "시리즈 업데이트에 실패했습니다",
+        "SERIES_WATCH_MENU": "시리즈 시청 작업",
         "EPISODES_WATCHED": "{{total}}개 중 {{count}}개 에피소드 시청",
         "DETAIL_FALLBACK": {
             "STATUS": "포털 메타데이터를 사용할 수 없습니다",

@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "視聴済み {{count}} · 失敗 {{failed}}",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "未視聴 {{count}} · 失敗 {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "シーズンの更新に失敗しました",
+        "MARK_SERIES_WATCHED": "シリーズを視聴済みにする（{{count}}）",
+        "MARK_SERIES_WATCHED_ALL": "シリーズを視聴済みにする",
+        "MARK_SERIES_UNWATCHED": "シリーズを未視聴にする",
+        "SERIES_MARKED_UNWATCHED": "シリーズを未視聴にしました",
+        "SERIES_WATCH_UPDATE_FAILED": "シリーズの更新に失敗しました",
+        "SERIES_WATCH_MENU": "シリーズの視聴操作",
         "EPISODES_WATCHED": "{{count}} / {{total}}エピソード視聴済み",
         "DETAIL_FALLBACK": {
             "STATUS": "ポータルのメタデータは利用できません",

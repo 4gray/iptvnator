@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} işaretlendi · {{failed}} başarısız",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} işaret kaldırıldı · {{failed}} başarısız",
         "SEASON_WATCH_UPDATE_FAILED": "Sezon güncellemesi başarısız oldu",
+        "MARK_SERIES_WATCHED": "Diziyi İzlendi Olarak İşaretle ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Diziyi İzlendi Olarak İşaretle",
+        "MARK_SERIES_UNWATCHED": "Diziyi İzlenmedi Olarak İşaretle",
+        "SERIES_MARKED_UNWATCHED": "Dizi izlenmedi olarak işaretlendi",
+        "SERIES_WATCH_UPDATE_FAILED": "Dizi güncellemesi başarısız oldu",
+        "SERIES_WATCH_MENU": "Dizi izleme işlemleri",
         "EPISODES_WATCHED": "{{total}} bölümden {{count}} tanesi izlendi",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal üst verisi mevcut değil",

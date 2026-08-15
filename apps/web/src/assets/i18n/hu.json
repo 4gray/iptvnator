@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} megjelölve · {{failed}} sikertelen",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} jelölés törölve · {{failed}} sikertelen",
         "SEASON_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni az évadot",
+        "MARK_SERIES_WATCHED": "Sorozat megjelölése megtekintettként ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Sorozat megjelölése megtekintettként",
+        "MARK_SERIES_UNWATCHED": "Sorozat megjelölése nem megtekintettként",
+        "SERIES_MARKED_UNWATCHED": "Sorozat megjelölve nem megtekintettként",
+        "SERIES_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni a sorozatot",
+        "SERIES_WATCH_MENU": "A sorozat megtekintési műveletei",
         "EPISODES_WATCHED": "Megtekintett epizódok: {{count}} / {{total}}",
         "DETAIL_FALLBACK": {
             "STATUS": "A portál metaadatai nem állnak rendelkezésre",

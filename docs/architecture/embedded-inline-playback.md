@@ -280,8 +280,33 @@ same captured playlist/series identity. After any Xtream toggle
 (single or batch) the host refreshes `XtreamStore.loadAllPositions` —
 the catalog reads series-progress badges from the store, which otherwise
 loads positions once per playlist — unless the playlist changed
-meanwhile. The
-host reports busy-state back through the `seasonWatchBatchRunning` input.
+meanwhile. The host reports busy-state back through the
+`seasonWatchBatchRunning` input.
+
+A series-level counterpart lives in a `⋮` menu at the end of the same
+header row (`SeasonWatchPresenter` in `libs/ui/components` owns the state
+math for both scopes; the container component sits at the max-lines cap).
+`buildSeriesWatchToggleRequest` flattens every LOADED season with the same
+mark/unmark semantics, and the direction is always the one the label
+advertised (`markWatched: !seriesFullyWatched()`), never re-inferred from
+data at persist time. Hosts route the request through the same machinery
+as the season toggle — Xtream via the scope-parameterized
+`SerialDetailsSeasonWatchService.handle(..., scope)`, Stalker via the
+extracted `runWatchToggleBatch` core — sharing the busy flag, the
+ownership guards, and the catalog-badge refresh. Stalker lazy-VOD is the
+special case: unopened seasons have empty episode lists, so the container
+reports them through the `hasUnloadedSeasons` input (blocks the
+"fully watched" verdict and switches the label to its countless variant),
+and may emit an EMPTY mark request when every loaded episode is watched.
+The Stalker host then hydrates the missing seasons sequentially through
+`loadEpisodesForSeason` (aborting silently on navigation, and aborting
+with zero writes plus the series failure snackbar if any season fails to
+load), synchronously re-runs the position reconcile
+(`applyReconciledSeriesPositions` — the effect-fed maps only update on
+the next change-detection tick, and enqueuing against stale maps would
+miss the hydrated episodes' legacy rows), rebuilds the request from the
+now-complete seasons keeping the captured direction, and reports an
+honest count-0 success if hydration reveals nothing left to mark.
 
 ## Components
 

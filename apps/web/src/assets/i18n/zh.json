@@ -900,6 +900,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "已标记 {{count}} · 失败 {{failed}}",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "已取消标记 {{count}} · 失败 {{failed}}",
         "SEASON_WATCH_UPDATE_FAILED": "无法更新本季",
+        "MARK_SERIES_WATCHED": "标记整部剧集为已观看（{{count}}）",
+        "MARK_SERIES_WATCHED_ALL": "标记整部剧集为已观看",
+        "MARK_SERIES_UNWATCHED": "标记整部剧集为未观看",
+        "SERIES_MARKED_UNWATCHED": "剧集已标记为未观看",
+        "SERIES_WATCH_UPDATE_FAILED": "无法更新剧集",
+        "SERIES_WATCH_MENU": "剧集观看操作",
         "EPISODES_WATCHED": "已观看 {{count}} / {{total}} 集",
         "DETAIL_FALLBACK": {
             "STATUS": "门户元数据不可用",
