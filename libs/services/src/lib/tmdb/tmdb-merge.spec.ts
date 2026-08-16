@@ -51,6 +51,7 @@ const tmdbMovie: TmdbMovieDetails = {
     poster_path: '/matrix-poster.jpg',
     backdrop_path: '/matrix-backdrop.jpg',
     production_countries: [{ iso_3166_1: 'US', name: 'United States' }],
+    origin_country: ['US'],
     credits: {
         cast: [
             {
@@ -247,6 +248,36 @@ describe('mergeVodInfoWithTmdb', () => {
         ]);
     });
 
+    it('keeps country facets to the origin countries the filter can query', () => {
+        // A co-production lists every partner in production_countries, but
+        // Discover filters by origin — offering "Canada" here would return
+        // Canadian-origin films rather than ones Canada co-produced
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), {
+            id: 476299,
+            origin_country: ['FR'],
+            production_countries: [
+                { iso_3166_1: 'CA', name: 'Canada' },
+                { iso_3166_1: 'FR', name: 'France' },
+            ],
+        });
+
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'FR', name: 'France' },
+        ]);
+    });
+
+    it('drops an origin country TMDB does not name', () => {
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), {
+            id: 603,
+            origin_country: ['US', 'XX'],
+            production_countries: [{ iso_3166_1: 'US', name: 'United States' }],
+        });
+
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'US', name: 'United States' },
+        ]);
+    });
+
     it('omits facet fields when TMDB states none', () => {
         const merged = mergeVodInfoWithTmdb(providerVodInfo(), { id: 603 });
 
@@ -261,6 +292,7 @@ describe('mergeVodInfoWithTmdb', () => {
                 { id: 28, name: 'Action' },
                 { id: 12, name: '  ' },
             ],
+            origin_country: ['US', 'ZZ'],
             production_countries: [
                 { iso_3166_1: 'US', name: 'United States' },
                 { iso_3166_1: '', name: 'Nowhere' },
@@ -361,6 +393,7 @@ describe('mergeSerieInfoWithTmdb', () => {
     it('emits structured genre and country facets for Discover chips', () => {
         const merged = mergeSerieInfoWithTmdb(providerSerieInfo, {
             ...tmdbTv,
+            origin_country: ['DE'],
             production_countries: [{ iso_3166_1: 'DE', name: 'Germany' }],
         });
 

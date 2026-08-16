@@ -75,14 +75,25 @@ function genreFacets(details: TmdbDetails): TmdbGenreFacet[] {
         .map((genre) => ({ id: genre.id, name: genre.name }));
 }
 
-/** Structured production countries for clickable Discover chips */
+/**
+ * Structured countries for clickable Discover chips.
+ *
+ * Built from `origin_country`, never from the fuller
+ * `production_countries`: the Discover page filters by
+ * `with_origin_country`, so a co-production's other countries would
+ * promise "titles from here" and deliver a different set. Names come
+ * from `production_countries` (the only place TMDB states them), and a
+ * code it does not name is dropped rather than rendered as a bare "FR".
+ */
 function countryFacets(details: TmdbDetails): TmdbCountryFacet[] {
-    return (details.production_countries ?? [])
-        .filter((entry) => !!entry.iso_3166_1 && !!entry.name)
-        .map((entry) => ({
-            code: entry.iso_3166_1 as string,
-            name: entry.name as string,
-        }));
+    const namesByCode = new Map(
+        (details.production_countries ?? [])
+            .filter((entry) => !!entry.iso_3166_1 && !!entry.name)
+            .map((entry) => [entry.iso_3166_1 as string, entry.name as string])
+    );
+    return (details.origin_country ?? [])
+        .filter((code) => namesByCode.has(code))
+        .map((code) => ({ code, name: namesByCode.get(code) as string }));
 }
 
 function tmdbRating(details: TmdbDetails): number | null {

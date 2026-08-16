@@ -56,13 +56,25 @@ function toXtreamPlaylistData(
     };
 }
 
-function isImportDrivenSection(section: PortalRailSection | null): boolean {
+/**
+ * Sections whose content comes from the imported catalog, so a cold load
+ * of one has to initialize it first.
+ *
+ * The parameter is a raw URL segment, not a rail section: `actor` and
+ * `discover` have no rail entry, yet both read the catalog to decide
+ * whether a TMDB title is "In your library". Without initialization a
+ * direct load of either answers "no" for everything the user owns —
+ * a wrong claim rather than a missing one.
+ */
+function isImportDrivenSection(section: string | null): boolean {
     return (
         section === 'vod' ||
         section === 'live' ||
         section === 'series' ||
         section === 'search' ||
-        section === 'recently-added'
+        section === 'recently-added' ||
+        section === 'actor' ||
+        section === 'discover'
     );
 }
 

@@ -103,6 +103,7 @@ describe('mergeStalkerInfoWithTmdb', () => {
             providerStalkerInfo,
             {
                 ...tmdbMovieRu,
+                origin_country: ['RU'],
                 production_countries: [
                     { iso_3166_1: 'RU', name: 'Russia' },
                 ],

@@ -352,8 +352,13 @@ else search" pattern as actor pages, generalized to metadata facets
 
 **Structured facets from the merge.** All three merge functions in
 `tmdb-merge.ts` additionally emit `tmdb_genres: {id, name}[]` (from
-`details.genres`) and `tmdb_countries: {code, name}[]` (from
-`details.production_countries`, ISO 3166-1 alpha-2 codes);
+`details.genres`) and `tmdb_countries: {code, name}[]`. Countries come
+from `details.origin_country`, NOT the fuller `production_countries`:
+Discover filters by `with_origin_country`, so offering a co-production's
+other partners would promise "titles from here" and return a different
+set. Names are read out of `production_countries` (the only place TMDB
+states them) and a code it does not name is dropped rather than rendered
+as a bare `FR`;
 `mergeStalkerInfoWithTmdb` also emits `tmdb_media_type`, because Stalker
 embedded-VOD series route as movies structurally and the shared detail
 view needs the real media type for the Discover link. Cached details
@@ -394,7 +399,12 @@ scope toggle, same portal/global matching (Xtream in-memory index by the
 facet's media type; Stalker search-prefill only, global scope matching
 Xtream playlists), same navigation on click. Because facets change via
 query params on the SAME route instance, async results are
-staleness-guarded by `discoverFacetKey()` rather than by instance. Both
+staleness-guarded by `discoverFacetKey()` rather than by instance —
+but the in-flight INDICATOR is owned by `createLatestRequestGuard()`
+(`libs/portal/shared/util`), because a request whose subject changed
+must not clear a spinner a replacement request now owns, and a request
+with no replacement (the user left the scope) must still clear it. The
+actor pages use the same guard for the same reason. Both
 render the shared `DiscoverViewComponent`, whose grid is the
 `TitleResultsComponent` extracted from `ActorViewComponent`
 (`libs/ui/shared-portals/src/lib/title-results/`) — one grid, filter

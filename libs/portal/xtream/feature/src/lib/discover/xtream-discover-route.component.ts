@@ -18,6 +18,7 @@ import {
     pickTitleMatch,
 } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
+import { createLatestRequestGuard } from '@iptvnator/portal/shared/util';
 import {
     DiscoverViewComponent,
     TitleResultsScope,
@@ -84,6 +85,7 @@ export class XtreamDiscoverRouteComponent {
     readonly scope = signal<TitleResultsScope>('portal');
     readonly isMatchingGlobal = signal(false);
     private readonly globalMatches = signal<CatalogTitleMatch[] | null>(null);
+    private readonly matchRequest = createLatestRequestGuard();
 
     private readonly vodIndex = computed(() =>
         buildCatalogTitleIndex(this.xtreamStore.vodStreams())
@@ -195,14 +197,21 @@ export class XtreamDiscoverRouteComponent {
     private async loadGlobalMatches(): Promise<void> {
         const requestedKey = this.facetKey();
         const titles = this.results().map((title) => title.title);
+        const matchToken = this.matchRequest.start();
         this.isMatchingGlobal.set(true);
         try {
             const matches = await this.titleMatch.matchTitles(titles);
-            if (this.facetKey() === requestedKey) {
+            if (
+                this.matchRequest.isLatest(matchToken) &&
+                this.facetKey() === requestedKey
+            ) {
                 this.globalMatches.set(matches);
             }
         } finally {
-            if (this.facetKey() === requestedKey) {
+            // Only the newest request may clear the indicator. Keying this
+            // on the subject instead strands the spinner when the user
+            // leaves the scope and no replacement request ever runs.
+            if (this.matchRequest.isLatest(matchToken)) {
                 this.isMatchingGlobal.set(false);
             }
         }

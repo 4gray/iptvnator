@@ -103,6 +103,13 @@ interface TmdbDetailsBase {
     recommendations?: { results?: TmdbSearchResult[] };
     /** Present on both /movie and /tv details payloads */
     production_countries?: { iso_3166_1?: string; name?: string }[];
+    /**
+     * ISO 3166-1 codes of the countries the title ORIGINATES from — a
+     * subset of `production_countries` for co-productions. This is the
+     * dimension `/discover`'s `with_origin_country` filters on, so it is
+     * what a clickable country facet must be built from.
+     */
+    origin_country?: string[];
 }
 
 export interface TmdbMovieDetails extends TmdbDetailsBase {
