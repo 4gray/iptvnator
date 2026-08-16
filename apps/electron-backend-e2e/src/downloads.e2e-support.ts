@@ -235,6 +235,66 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
 }
 
 /**
+ * Interrupts the first response like createInterruptedRangeServer but sends
+ * no ETag/Last-Modified, and drops far enough in that the partial exceeds the
+ * 256 KiB overlap-verification window. The runtime must resume by rewinding
+ * the Range request and verifying the overlap instead of restarting from
+ * byte zero.
+ */
+export async function createInterruptedNoValidatorServer(): Promise<InterruptedRangeServer> {
+    const payload = Buffer.alloc(1024 * 1024);
+    for (let i = 0; i < payload.length; i++) {
+        payload[i] = (i * 31 + 7) % 251;
+    }
+    const interruptedBytes = 512 * 1024;
+    const requests: RangeServerRequest[] = [];
+
+    const server = createServer((req, res) => {
+        const range = req.headers.range;
+        const ifRange = req.headers['if-range'];
+        requests.push({
+            ifRange: typeof ifRange === 'string' ? ifRange : undefined,
+            range: typeof range === 'string' ? range : undefined,
+        });
+
+        const offset = range
+            ? Number(/^bytes=(\d+)-$/.exec(range)?.[1] ?? Number.NaN)
+            : 0;
+        if (range && Number.isFinite(offset)) {
+            res.writeHead(206, {
+                'Content-Length': payload.length - offset,
+                'Content-Range': `bytes ${offset}-${payload.length - 1}/${payload.length}`,
+                'Content-Type': 'video/mp4',
+            });
+            res.end(payload.subarray(offset));
+            return;
+        }
+
+        res.writeHead(200, {
+            'Content-Length': payload.length,
+            'Content-Type': 'video/mp4',
+        });
+        res.write(payload.subarray(0, interruptedBytes), () => {
+            setTimeout(() => res.socket?.destroy(), 20);
+        });
+    });
+
+    await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
+    );
+    const { port } = server.address() as AddressInfo;
+
+    return {
+        close: () =>
+            new Promise<void>((resolve) => server.close(() => resolve())),
+        interruptedBytes,
+        payload,
+        requests,
+        url: `http://127.0.0.1:${port}/media/e2e-no-validator-movie.mp4`,
+    };
+}
+
+/**
  * Ends a chunked response cleanly while Content-Range advertises a larger
  * representation. The runtime therefore retains the valid .part for a Range
  * retry instead of treating it as an unusable transport failure.

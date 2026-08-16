@@ -17,18 +17,16 @@ import {
     handleDownloadFailure,
     removePartialFile,
 } from './download-finalize';
+import { transferWithReconnects } from './download-reconnect';
 import {
     requestDownloadCancellation,
     requestDownloadPause,
     type DownloadsDatabase,
     type DownloadTask,
 } from './download-task';
-import { describeError, transferToPartialFile } from './download-transfer';
+import { describeError } from './download-transfer';
 
-export {
-    broadcastDownloadUpdate,
-    setMainWindow,
-} from './download-broadcast';
+export { broadcastDownloadUpdate, setMainWindow } from './download-broadcast';
 
 const downloadQueue: DownloadTask[] = [];
 let activeDownload: DownloadTask | null = null;
@@ -241,7 +239,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        const progress = await transferToPartialFile(db, task, reservation);
+        const progress = await transferWithReconnects(db, task, reservation);
         if (task.cancelRequested) {
             await persistCancellation(db, task);
             return;
@@ -340,6 +338,9 @@ async function persistPause(
                 errorMessage: null,
                 fileName: task.fileName,
                 filePath: task.filePath ?? null,
+                // Keep a mid-attempt validator promotion (complete overlap
+                // match) across pause/resume.
+                resumeValidator: task.resumeValidator ?? null,
                 status: 'paused',
                 totalBytes: task.totalBytes ?? null,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
