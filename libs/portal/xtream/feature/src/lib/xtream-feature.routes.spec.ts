@@ -14,6 +14,8 @@ describe('createXtreamRoutes', () => {
                 'vod',
                 'series',
                 'search',
+                'actor/:personId',
+                'discover',
                 'recently-added',
             ])
         );

@@ -41,6 +41,11 @@ const loadStalkerActorRouteComponent: ComponentLoader = () =>
         (c) => c.StalkerActorRouteComponent
     );
 
+const loadStalkerDiscoverRouteComponent: ComponentLoader = () =>
+    import('./stalker-discover-route.component').then(
+        (c) => c.StalkerDiscoverRouteComponent
+    );
+
 export function createStalkerRoutes(): Route[] {
     return [
         {
@@ -133,6 +138,10 @@ export function createStalkerRoutes(): Route[] {
                 {
                     path: 'actor/:personId',
                     loadComponent: loadStalkerActorRouteComponent,
+                },
+                {
+                    path: 'discover',
+                    loadComponent: loadStalkerDiscoverRouteComponent,
                 },
                 {
                     path: 'downloads/:downloadId',

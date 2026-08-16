@@ -1,6 +1,4 @@
-// Theme variables mirror the detail-view scope (_detail-view.scss) — the
-// actor page lives outside content-hero, so it must define them itself.
-// They cascade into the embedded app-title-results grid.
+// Same theme scope as the actor page — cascades into app-title-results.
 :host {
     --surface-bg: #fffaf5;
     --text-primary: #1a1a1a;
@@ -23,7 +21,7 @@
     --poster-fallback-bg: rgba(255, 255, 255, 0.08);
 }
 
-.actor-view {
+.discover-view {
     background: var(--surface-bg);
     color: var(--text-primary);
     display: block;
@@ -58,54 +56,33 @@
     }
 
     &__header {
+        align-items: baseline;
         display: flex;
-        gap: 24px;
-        margin-bottom: 32px;
-    }
+        flex-wrap: wrap;
+        gap: 12px 16px;
+        margin-bottom: 24px;
 
-    &__photo {
-        border-radius: 12px;
-        flex-shrink: 0;
-        height: 240px;
-        object-fit: cover;
-        width: 160px;
-
-        &--fallback {
-            align-items: center;
-            background: var(--poster-fallback-bg);
-            color: var(--text-muted);
-            display: inline-flex;
-            font-size: 4rem;
-            font-weight: 600;
-            justify-content: center;
-            text-transform: uppercase;
-        }
-    }
-
-    &__meta {
         h1 {
             color: var(--text-primary);
             font-size: 2rem;
             font-weight: 700;
-            margin: 0 0 8px;
+            margin: 0;
         }
     }
 
-    &__born {
-        color: var(--text-muted);
-        font-size: 0.9375rem;
-        margin: 0 0 12px;
+    &__facets {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
-    &__bio {
+    &__facet-chip {
+        background: var(--chip-bg);
+        border: 1px solid var(--chip-border);
+        border-radius: 999px;
         color: var(--text-primary);
-        display: -webkit-box;
-        font-size: 0.9375rem;
-        line-height: 1.5;
-        margin: 0;
-        max-width: 720px;
-        overflow: hidden;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 6;
+        font-size: 0.875rem;
+        font-weight: 500;
+        padding: 4px 14px;
     }
 }

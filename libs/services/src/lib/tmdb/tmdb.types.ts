@@ -101,6 +101,8 @@ interface TmdbDetailsBase {
     credits?: TmdbCredits;
     videos?: { results?: TmdbVideo[] };
     recommendations?: { results?: TmdbSearchResult[] };
+    /** Present on both /movie and /tv details payloads */
+    production_countries?: { iso_3166_1?: string; name?: string }[];
 }
 
 export interface TmdbMovieDetails extends TmdbDetailsBase {
@@ -108,7 +110,6 @@ export interface TmdbMovieDetails extends TmdbDetailsBase {
     original_title?: string;
     release_date?: string;
     runtime?: number;
-    production_countries?: { iso_3166_1?: string; name?: string }[];
 }
 
 export interface TmdbTvDetails extends TmdbDetailsBase {
@@ -180,6 +181,23 @@ export interface TmdbPersonDetails {
 }
 
 export type TmdbDetails = TmdbMovieDetails | TmdbTvDetails;
+
+/** `/discover/{movie,tv}` page; extends the search shape with paging */
+export interface TmdbDiscoverResponse extends TmdbSearchResponse {
+    page?: number;
+    total_pages?: number;
+}
+
+/**
+ * Facet filters for `/discover`. All optional — a single chip click sends
+ * exactly one, but the shape supports combined queries for later versions.
+ */
+export interface TmdbDiscoverFilters {
+    year?: number | null;
+    genreId?: number | null;
+    /** ISO 3166-1 alpha-2 */
+    countryCode?: string | null;
+}
 
 /** Input for the enrichment orchestrator */
 export interface TmdbEnrichmentQuery {

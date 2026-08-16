@@ -312,8 +312,8 @@ Filmography has two scopes:
 ### Resolving a batched match
 
 Every `DB_MATCH_TITLES` consumer — the Trending rail, the "Because you
-watched" recommendations rail, the cross-portal "Similar" rail and the
-actor page's "All portals" scope — turns the worker's flat result list
+watched" recommendations rail, the cross-portal "Similar" rail, and the
+actor and Discover pages' "All portals" scope — turns the worker's flat result list
 into one row through the same pair of helpers in
 `libs/services/src/lib/catalog-title-match.service.ts`:
 
@@ -342,6 +342,63 @@ title plus `original_title` — via `candidateLookup()`; the rest pass one.
 Multi-source VOD discovery deliberately does NOT use these
 (`operations/title-sources.operations.ts`): there every copy in every
 playlist is a distinct selectable source, not a single best answer.
+
+## Discover Pages (clickable metadata chips)
+
+The year, genre, and country chips on VOD/series detail pages are the
+Discover entry points — the same "TMDB list → what's in my library →
+else search" pattern as actor pages, generalized to metadata facets
+(issue #1449).
+
+**Structured facets from the merge.** All three merge functions in
+`tmdb-merge.ts` additionally emit `tmdb_genres: {id, name}[]` (from
+`details.genres`) and `tmdb_countries: {code, name}[]` (from
+`details.production_countries`, ISO 3166-1 alpha-2 codes);
+`mergeStalkerInfoWithTmdb` also emits `tmdb_media_type`, because Stalker
+embedded-VOD series route as movies structurally and the shared detail
+view needs the real media type for the Discover link. Cached details
+payloads already carry `genres`/`production_countries`
+(`trimDetailsForCache` only trims `aggregate_credits`), so existing cache
+rows produce facets without a refetch. Like person chips, facet chips are
+clickable ONLY with TMDB backing: genre/country chips render per-entry
+from the structured arrays (falling back to today's static joined-string
+chip without them), and the year chip is clickable only when
+`tmdb_id` is a merge-written number — provider payloads ship `tmdb_id`
+as untrusted strings, so `typeof === 'number'` is the gate.
+
+**Navigation.** Chip clicks navigate (via each render site's own
+`openDiscover*` methods, mirroring `openActor`) to the portal-scoped
+`discover` route: `/workspace/{xtreams|stalker}/:id/discover?type=
+movie|tv&year=&genre=<id>&genreLabel=&country=<iso>&countryLabel=`. The
+query-param assembly is centralized in `discoverLink()`
+(`libs/portal/shared/util/.../navigation/discover-link.util.ts`); parsing
+lives in `parseDiscoverParams()` (`libs/ui/shared-portals/.../
+discover-view/discover-params.ts`) — labels are dropped without their
+filter values, and `type`+`genre` are an atomic pair (movie and TV genre
+id spaces differ, so a genre never survives a type flip).
+
+**Data.** `TmdbDiscoverService` (facade via
+`TmdbEnrichmentService.discoverTitles`) fetches `/discover/{movie,tv}`
+sorted by popularity, up to 5 pages (early stop at `total_pages`),
+mapped/deduped by `mapDiscoverResults` (`tmdb-discover.ts`). Results are
+deliberately session-cached in memory only (FIFO-bounded Map keyed by
+mediaType|facets|language) and never persisted to `tmdb_metadata` —
+popularity rankings are volatile. Any failure returns `null` (not
+cached); the page shows its empty state, which also covers deep links
+with enrichment disabled.
+
+**Route containers.** `XtreamDiscoverRouteComponent`
+(`libs/portal/xtream/feature/src/lib/discover/`) and
+`StalkerDiscoverRouteComponent` clone the actor route containers: same
+scope toggle, same portal/global matching (Xtream in-memory index by the
+facet's media type; Stalker search-prefill only, global scope matching
+Xtream playlists), same navigation on click. Because facets change via
+query params on the SAME route instance, async results are
+staleness-guarded by `discoverFacetKey()` rather than by instance. Both
+render the shared `DiscoverViewComponent`, whose grid is the
+`TitleResultsComponent` extracted from `ActorViewComponent`
+(`libs/ui/shared-portals/src/lib/title-results/`) — one grid, filter
+chips, and badge set shared by actor and Discover pages.
 
 ## Cache
 

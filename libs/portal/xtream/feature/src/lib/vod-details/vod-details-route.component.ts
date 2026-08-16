@@ -28,6 +28,8 @@ import {
 import { SafePipe } from '@iptvnator/pipes';
 import {
     createLogger,
+    DiscoverFacetClick,
+    discoverLink,
     isProviderOnlyDetailState,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -50,7 +52,9 @@ import {
     normalizeTitleKeys,
     playlistDisplayLabel,
     reportsPlaybackFailures,
+    TmdbCountryFacet,
     TmdbEnrichedCastMember,
+    TmdbGenreFacet,
     XtreamCategory,
     XtreamVodDetails,
     XtreamVodInfo,
@@ -485,6 +489,38 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             'actor',
             member.tmdbPersonId,
         ]);
+    }
+
+    /** Discover needs TMDB; only a matched item can offer facet chips */
+    canDiscoverByYear(info: XtreamVodInfo): boolean {
+        return typeof info.tmdb_id === 'number' && !!info.releasedate;
+    }
+
+    openYearDiscover(info: XtreamVodInfo): void {
+        const year = Number(info.releasedate?.slice(0, 4));
+        if (!this.canDiscoverByYear(info) || !Number.isInteger(year)) {
+            return;
+        }
+        this.openDiscoverFacet({ kind: 'year', year });
+    }
+
+    openGenreDiscover(genre: TmdbGenreFacet): void {
+        this.openDiscoverFacet({ kind: 'genre', genre });
+    }
+
+    openCountryDiscover(country: TmdbCountryFacet): void {
+        this.openDiscoverFacet({ kind: 'country', country });
+    }
+
+    private openDiscoverFacet(facet: DiscoverFacetClick): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) {
+            return;
+        }
+        const link = discoverLink('xtream', playlistId, 'movie', facet);
+        void this.router.navigate(link.commands, {
+            queryParams: link.queryParams,
+        });
     }
 
     ngOnDestroy(): void {

@@ -100,6 +100,26 @@ export interface TmdbRecommendation {
 }
 
 /**
+ * Genre as stated by TMDB for one title. The id drives the Discover-page
+ * filter (`with_genres`), so it must never be mixed across media types —
+ * movie and TV genre id spaces differ.
+ */
+export interface TmdbGenreFacet {
+    id: number;
+    name: string;
+}
+
+/**
+ * Production country as stated by TMDB. `code` is ISO 3166-1 alpha-2 and
+ * drives the Discover-page filter (`with_origin_country`); `name` is the
+ * TMDB display name (English regardless of request language).
+ */
+export interface TmdbCountryFacet {
+    code: string;
+    name: string;
+}
+
+/**
  * One cached TMDB lookup. Two kinds of rows share the table, discriminated
  * by the `lookupKey` prefix:
  * - `id:<tmdbId>` — full details payload for a TMDB id

@@ -1,6 +1,7 @@
 import { Injector, runInInjectionContext } from '@angular/core';
 import { TmdbApiError, TmdbApiService } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
+import { TmdbDiscoverService } from './tmdb-discover.service';
 import { TmdbEnrichmentService } from './tmdb-enrichment.service';
 import { TmdbIdResolverService } from './tmdb-id-resolver.service';
 import { TmdbPersonService } from './tmdb-person.service';
@@ -74,6 +75,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
                 { provide: TmdbPersonService, useValue: {} },
                 { provide: TmdbSeasonService, useValue: {} },
                 { provide: TmdbTrendingService, useValue: {} },
+                { provide: TmdbDiscoverService, useValue: {} },
             ],
         });
         return runInInjectionContext(

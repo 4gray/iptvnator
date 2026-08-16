@@ -39,13 +39,19 @@ import {
 import {
     normalizeTitleKeys,
     seriesStatusLabelKey,
+    TmdbCountryFacet,
     TmdbEnrichedCastMember,
+    TmdbGenreFacet,
     XtreamSerieDetails,
     XtreamSerieEpisode,
     XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import { buildSeasonDescriptions } from './season-descriptions.util';
-import { isProviderOnlyDetailState } from '@iptvnator/portal/shared/util';
+import {
+    DiscoverFacetClick,
+    discoverLink,
+    isProviderOnlyDetailState,
+} from '@iptvnator/portal/shared/util';
 import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
@@ -339,6 +345,38 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             'actor',
             member.tmdbPersonId,
         ]);
+    }
+
+    /** Discover needs TMDB; only a matched series can offer facet chips */
+    canDiscoverByYear(info: XtreamSerieInfo): boolean {
+        return typeof info.tmdb_id === 'number' && !!info.releaseDate;
+    }
+
+    openYearDiscover(info: XtreamSerieInfo): void {
+        const year = Number(info.releaseDate?.slice(0, 4));
+        if (!this.canDiscoverByYear(info) || !Number.isInteger(year)) {
+            return;
+        }
+        this.openDiscoverFacet({ kind: 'year', year });
+    }
+
+    openGenreDiscover(genre: TmdbGenreFacet): void {
+        this.openDiscoverFacet({ kind: 'genre', genre });
+    }
+
+    openCountryDiscover(country: TmdbCountryFacet): void {
+        this.openDiscoverFacet({ kind: 'country', country });
+    }
+
+    private openDiscoverFacet(facet: DiscoverFacetClick): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) {
+            return;
+        }
+        const link = discoverLink('xtream', playlistId, 'tv', facet);
+        void this.router.navigate(link.commands, {
+            queryParams: link.queryParams,
+        });
     }
 
     onSeasonSelected(seasonKey: string): void {

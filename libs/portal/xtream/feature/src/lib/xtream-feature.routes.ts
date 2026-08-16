@@ -59,6 +59,11 @@ const loadXtreamActorRouteComponent: ComponentLoader = () =>
         (c) => c.XtreamActorRouteComponent
     );
 
+const loadXtreamDiscoverRouteComponent: ComponentLoader = () =>
+    import('./discover/xtream-discover-route.component').then(
+        (c) => c.XtreamDiscoverRouteComponent
+    );
+
 export function createXtreamRoutes(): Route[] {
     return [
         {
@@ -129,6 +134,10 @@ export function createXtreamRoutes(): Route[] {
                         {
                             path: 'actor/:personId',
                             loadComponent: loadXtreamActorRouteComponent,
+                        },
+                        {
+                            path: 'discover',
+                            loadComponent: loadXtreamDiscoverRouteComponent,
                         },
                         {
                             path: 'recently-added',

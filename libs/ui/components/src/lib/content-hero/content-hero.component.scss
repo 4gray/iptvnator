@@ -319,6 +319,18 @@
             color: #ffd700;
             border-color: rgba(255, 215, 0, 0.3);
         }
+
+        &--clickable {
+            cursor: pointer;
+            transition:
+                border-color 0.15s ease,
+                background 0.15s ease;
+
+            &:hover {
+                background: var(--tag-border);
+                border-color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+            }
+        }
     }
 
     &__description {

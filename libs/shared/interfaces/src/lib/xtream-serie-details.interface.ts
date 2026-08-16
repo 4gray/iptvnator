@@ -1,5 +1,7 @@
 import {
+    TmdbCountryFacet,
     TmdbEnrichedCastMember,
+    TmdbGenreFacet,
     TmdbRecommendation,
     TmdbSeriesStatus,
 } from './tmdb.interface';
@@ -44,6 +46,9 @@ export interface XtreamSerieInfo {
     tmdb_recommendations?: TmdbRecommendation[];
     /** Matched TMDB show id — enables lazy season/episode enrichment */
     tmdb_id?: number;
+    /** Populated by TMDB enrichment; per-entry clickable Discover chips */
+    tmdb_genres?: TmdbGenreFacet[];
+    tmdb_countries?: TmdbCountryFacet[];
 }
 
 export interface XtreamSerieEpisode {

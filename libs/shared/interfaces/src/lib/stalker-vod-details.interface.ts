@@ -1,5 +1,8 @@
 import {
+    TmdbCountryFacet,
     TmdbEnrichedCastMember,
+    TmdbGenreFacet,
+    TmdbMediaType,
     TmdbRecommendation,
     TmdbSeriesStatus,
 } from './tmdb.interface';
@@ -52,4 +55,13 @@ export interface StalkerVodInfo {
     tmdb_recommendations?: TmdbRecommendation[];
     /** Matched TMDB id — enables lazy season/episode enrichment */
     tmdb_id?: number;
+    /** Populated by TMDB enrichment; per-entry clickable Discover chips */
+    tmdb_genres?: TmdbGenreFacet[];
+    tmdb_countries?: TmdbCountryFacet[];
+    /**
+     * Media type the enrichment matched this item as. Stalker embedded-VOD
+     * series route as movies structurally, so the shared detail view needs
+     * this to send Discover clicks to the right media type.
+     */
+    tmdb_media_type?: TmdbMediaType;
 }
