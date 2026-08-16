@@ -25,6 +25,8 @@ import {
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerSeasonPlaybackToggleRequest,
+    SeasonContainerSeriesPlaybackToggleRequest,
+    buildSeriesWatchToggleRequest,
 } from '@iptvnator/ui/components';
 import {
     pickSeasonMarkedTitle,
@@ -38,6 +40,7 @@ import {
 import { SafePipe } from '@iptvnator/pipes';
 import {
     isLiveExternalPlayerSession,
+    isPortalPlaybackWatched,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -106,6 +109,33 @@ interface SeriesPositionContext {
     readonly seriesXtreamId: number;
     readonly mutationKey: string;
 }
+
+interface StalkerWatchToggleFeedback {
+    readonly marked: string;
+    readonly unmarked: string;
+    readonly partialMarked: string;
+    readonly partialUnmarked: string;
+    readonly failed: string;
+}
+
+// The marked and partial keys are scope-generic on purpose ("{{count}}
+// episodes marked as watched", "{{count}} marked · {{failed}} failed");
+// only unmark-success and failure name their scope.
+const SEASON_WATCH_FEEDBACK: StalkerWatchToggleFeedback = {
+    marked: 'XTREAM.SEASON_MARKED_WATCHED',
+    unmarked: 'XTREAM.SEASON_MARKED_UNWATCHED',
+    partialMarked: 'XTREAM.SEASON_MARKED_WATCHED_PARTIAL',
+    partialUnmarked: 'XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL',
+    failed: 'XTREAM.SEASON_WATCH_UPDATE_FAILED',
+};
+
+const SERIES_WATCH_FEEDBACK: StalkerWatchToggleFeedback = {
+    marked: 'XTREAM.SEASON_MARKED_WATCHED',
+    unmarked: 'XTREAM.SERIES_MARKED_UNWATCHED',
+    partialMarked: 'XTREAM.SEASON_MARKED_WATCHED_PARTIAL',
+    partialUnmarked: 'XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL',
+    failed: 'XTREAM.SERIES_WATCH_UPDATE_FAILED',
+};
 
 interface StalkerSeriesPlaybackRequestContext {
     readonly generation: number;
@@ -389,41 +419,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         });
 
         effect(() => {
-            const item = this.displayItem();
-            const playlistId = this.stalkerStore.currentPlaylist()?._id;
-            const seriesXtreamId = this.toSeriesId(item?.id ?? 0);
-            const rawSeriesPositions = this.rawSeriesPositions();
-            const episodesBySeason = this.mappedSeasons();
-
-            if (!item || !playlistId || seriesXtreamId <= 0) {
-                if (rawSeriesPositions.length > 0) {
-                    this.rawSeriesPositions.set([]);
-                }
-                if (this.episodePlaybackPositions().size > 0) {
-                    this.episodePlaybackPositions.set(new Map());
-                }
-                if (this.legacyPositionByTrackingId().size > 0) {
-                    this.legacyPositionByTrackingId.set(new Map());
-                }
-                return;
-            }
-
-            const reconciled = reconcileStalkerSeriesPositions({
-                seriesXtreamId,
-                episodesBySeason,
-                seriesPositions: rawSeriesPositions,
-            });
-            if (
-                rawSeriesPositions.length === 0 &&
-                reconciled.positionsByTrackingId.size === 0 &&
-                untracked(() => this.episodePlaybackPositions().size) > 0
-            ) {
-                return;
-            }
-            this.episodePlaybackPositions.set(reconciled.positionsByTrackingId);
-            this.legacyPositionByTrackingId.set(
-                reconciled.legacyPositionByTrackingId
-            );
+            this.applyReconciledSeriesPositions();
         });
 
         effect(() => {
@@ -723,11 +719,37 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
     }
 
+    private readonly vodSeasonEpisodeLoads = new Map<
+        string,
+        Promise<boolean>
+    >();
+
     /**
-     * Loads episodes for a specific VOD season
+     * Loads episodes for a specific VOD season.
+     *
+     * Single-flight per season: a tab click, the spillover prefetch, the
+     * quick-start recursion, and the series-toggle hydration can all ask for
+     * the same season — a second concurrent request would duplicate portal
+     * traffic, and its failure could abort a series toggle whose original
+     * request succeeded.
      */
     /** Resolves true when the portal answered, false when the request failed. */
-    async loadEpisodesForSeason(season: VodSeriesSeasonVm): Promise<boolean> {
+    loadEpisodesForSeason(season: VodSeriesSeasonVm): Promise<boolean> {
+        const key = `${season.video_id}:${season.id}`;
+        const inFlight = this.vodSeasonEpisodeLoads.get(key);
+        if (inFlight) {
+            return inFlight;
+        }
+        const load = this.fetchEpisodesForSeason(season).finally(() => {
+            this.vodSeasonEpisodeLoads.delete(key);
+        });
+        this.vodSeasonEpisodeLoads.set(key, load);
+        return load;
+    }
+
+    private async fetchEpisodesForSeason(
+        season: VodSeriesSeasonVm
+    ): Promise<boolean> {
         // Set loading state in local signal
         const seasons = this.vodSeriesSeasons();
         const index = seasons.findIndex((s) => s.id === season.id);
@@ -750,6 +772,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 newSeasons[newIndex] = {
                     ...newSeasons[newIndex],
                     episodes: episodes,
+                    // Even an EMPTY answer marks the season loaded: the
+                    // portal spoke, so it must stop counting as "unloaded"
+                    // (label/verdict gating and series-toggle hydration).
+                    episodesLoaded: true,
                     isLoading: false,
                 };
                 this.vodSeriesSeasons.set(newSeasons);
@@ -1129,76 +1155,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         this.seasonWatchBatchRunning.set(true);
         try {
-            // Enqueue every episode synchronously: each mutation chains on
-            // the previous one's never-rejecting barrier, so the queue
-            // serializes the writes (incl. per-episode legacy-row cleanup)
-            // and reloads positions once after the whole chain drains.
-            const outcomes = await Promise.all(
-                request.requests.map((item) =>
-                    (item.nextPosition
-                        ? this.persistSeriesPosition(
-                              playlistId,
-                              item.nextPosition
-                          )
-                        : this.clearSeriesPosition(
-                              playlistId,
-                              item.contentXtreamId
-                          )
-                    ).then(
-                        () => true,
-                        // The scoped watched row was saved and published —
-                        // only the legacy-row cleanup failed. The episode IS
-                        // watched, so it must not count against the batch.
-                        (error: unknown) =>
-                            error instanceof
-                            StalkerSeriesPositionPartialSaveError
-                    )
-                )
+            await this.runWatchToggleBatch(
+                request,
+                playlistId,
+                stillCurrent,
+                SEASON_WATCH_FEEDBACK
             );
-
-            const failed = outcomes.filter((ok) => !ok).length;
-            const succeeded = outcomes.length - failed;
-            if (failed > 0) {
-                this.logger.error(
-                    `Season watched toggle: ${failed} of ${outcomes.length} episodes failed`
-                );
-            }
-            if (succeeded > 0) {
-                // Partial successes changed rows too — the catalog badge
-                // must follow even when the user already moved on. A failed
-                // refresh must not break the feedback flow below.
-                await this.catalogFacade
-                    ?.refreshPositions(playlistId)
-                    .catch((error: unknown) =>
-                        this.logger.warn(
-                            'Catalog position refresh failed',
-                            error
-                        )
-                    );
-            }
-            if (!stillCurrent()) {
-                return;
-            }
-
-            if (failed === 0) {
-                this.notifySeasonWatchToggle(
-                    request.markWatched
-                        ? 'XTREAM.SEASON_MARKED_WATCHED'
-                        : 'XTREAM.SEASON_MARKED_UNWATCHED',
-                    { count: succeeded }
-                );
-            } else if (succeeded > 0) {
-                this.notifySeasonWatchToggle(
-                    request.markWatched
-                        ? 'XTREAM.SEASON_MARKED_WATCHED_PARTIAL'
-                        : 'XTREAM.SEASON_MARKED_UNWATCHED_PARTIAL',
-                    { count: succeeded, failed }
-                );
-            } else {
-                this.notifySeasonWatchToggle(
-                    'XTREAM.SEASON_WATCH_UPDATE_FAILED'
-                );
-            }
         } finally {
             this.seasonWatchBatchRunning.set(false);
         }
@@ -1214,6 +1176,280 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     error
                 );
             }
+        );
+    }
+
+    /**
+     * True for a season the portal has never answered for. A season that
+     * answered with zero episodes is loaded-and-empty, not pending — treating
+     * it as pending would keep the series label countless forever and make
+     * every series toggle re-fetch it.
+     */
+    private isSeasonHydrationPending(season: VodSeriesSeasonVm): boolean {
+        return season.episodes.length === 0 && !season.episodesLoaded;
+    }
+
+    /** Seasons whose episode lists still need a portal request (lazy VOD). */
+    readonly hasUnloadedVodSeasons = computed(
+        () =>
+            this.isVodSeries() &&
+            this.vodSeriesSeasons().some((season) =>
+                this.isSeasonHydrationPending(season)
+            )
+    );
+
+    async handleSeriesPlaybackToggleRequested(
+        request: SeasonContainerSeriesPlaybackToggleRequest
+    ): Promise<void> {
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (!playlistId || this.seasonWatchBatchRunning()) {
+            return;
+        }
+        const pendingSeasons = this.isVodSeries()
+            ? this.vodSeriesSeasons().filter((season) =>
+                  this.isSeasonHydrationPending(season)
+              )
+            : [];
+        // An empty request is only meaningful when unloaded seasons remain:
+        // every loaded episode is watched, so the container could not build
+        // a target list, but hydration below may still surface unwatched
+        // episodes to mark.
+        if (request.requests.length === 0 && pendingSeasons.length === 0) {
+            return;
+        }
+
+        const seriesXtreamId = this.toSeriesId(this.displayItem()?.id ?? 0);
+        const stillCurrent = () =>
+            this.stalkerStore.currentPlaylist()?._id === playlistId &&
+            this.toSeriesId(this.displayItem()?.id ?? 0) === seriesXtreamId;
+
+        this.seasonWatchBatchRunning.set(true);
+        try {
+            let effective: SeasonContainerSeriesPlaybackToggleRequest | null =
+                request;
+            if (pendingSeasons.length > 0) {
+                const hydrated = await this.hydrateSeasonsForSeriesToggle(
+                    pendingSeasons,
+                    stillCurrent
+                );
+                if (hydrated !== 'complete') {
+                    if (hydrated === 'failed' && stillCurrent()) {
+                        this.notifySeasonWatchToggle(
+                            SERIES_WATCH_FEEDBACK.failed
+                        );
+                    }
+                    return;
+                }
+                // The reconcile effect only flushes on the next change-
+                // detection tick; rebuild the maps synchronously so the
+                // batch below sees the hydrated episodes' scoped and legacy
+                // rows (see applyReconciledSeriesPositions).
+                this.applyReconciledSeriesPositions();
+                effective = buildSeriesWatchToggleRequest({
+                    seasons: this.mappedSeasons(),
+                    seriesId: seriesXtreamId,
+                    playlistId,
+                    isEpisodeWatched: (episode) =>
+                        isPortalPlaybackWatched(
+                            this.episodePlaybackPositions().get(
+                                Number(episode.id)
+                            )
+                        ),
+                    excludedEpisodeIds: this.seriesWatchExcludedIds(),
+                    // Keep the direction the user clicked; re-inference over
+                    // the now-complete data could flip a "mark" into an
+                    // unwatch when everything turned out watched.
+                    markWatched: request.markWatched,
+                });
+                if (!effective) {
+                    if (stillCurrent()) {
+                        this.notifySeasonWatchToggle(
+                            SERIES_WATCH_FEEDBACK.marked,
+                            { count: 0 }
+                        );
+                    }
+                    return;
+                }
+            }
+
+            await this.runWatchToggleBatch(
+                effective,
+                playlistId,
+                stillCurrent,
+                SERIES_WATCH_FEEDBACK
+            );
+        } finally {
+            this.seasonWatchBatchRunning.set(false);
+        }
+    }
+
+    handleSeriesPlaybackToggleRequestedFromUi(
+        request: SeasonContainerSeriesPlaybackToggleRequest
+    ): void {
+        void this.handleSeriesPlaybackToggleRequested(request).catch(
+            (error: unknown) => {
+                this.logger.error(
+                    'Failed to toggle series watched state',
+                    error
+                );
+            }
+        );
+    }
+
+    /**
+     * Sequential on purpose: loadEpisodesForSeason snapshots the season VM
+     * array before its writes, so concurrent calls clobber each other's
+     * loading flags; and one request at a time keeps the portal load bounded.
+     */
+    private async hydrateSeasonsForSeriesToggle(
+        pendingSeasons: readonly VodSeriesSeasonVm[],
+        stillCurrent: () => boolean
+    ): Promise<'complete' | 'failed' | 'superseded'> {
+        for (const season of pendingSeasons) {
+            // A tab click may have loaded this season meanwhile.
+            const current = this.vodSeriesSeasons().find(
+                (candidate) => candidate.id === season.id
+            );
+            if (!current || !this.isSeasonHydrationPending(current)) {
+                continue;
+            }
+            const answered = await this.loadEpisodesForSeason(current);
+            if (!stillCurrent()) {
+                return 'superseded';
+            }
+            if (!answered) {
+                return 'failed';
+            }
+        }
+        return 'complete';
+    }
+
+    /**
+     * Mirrors the exclusions the template binds into the season container
+     * (playingEpisodeId / activeEpisodeId / openingEpisodeId): the episode
+     * playing or launching is never bulk-marked, because its live position
+     * ticks would immediately overwrite the full-progress row.
+     */
+    private seriesWatchExcludedIds(): ReadonlySet<number> {
+        const ids = [
+            this.openingEpisodeId(),
+            this.activeEpisodeId(),
+            this.inlinePlayback()?.contentInfo?.contentXtreamId ?? null,
+        ].filter((id): id is number => id !== null);
+        return new Set(ids);
+    }
+
+    private async runWatchToggleBatch(
+        request: SeasonContainerSeriesPlaybackToggleRequest,
+        playlistId: string,
+        stillCurrent: () => boolean,
+        feedback: StalkerWatchToggleFeedback
+    ): Promise<void> {
+        // Enqueue every episode synchronously: each mutation chains on
+        // the previous one's never-rejecting barrier, so the queue
+        // serializes the writes (incl. per-episode legacy-row cleanup)
+        // and reloads positions once after the whole chain drains.
+        const outcomes = await Promise.all(
+            request.requests.map((item) =>
+                (item.nextPosition
+                    ? this.persistSeriesPosition(playlistId, item.nextPosition)
+                    : this.clearSeriesPosition(
+                          playlistId,
+                          item.contentXtreamId
+                      )
+                ).then(
+                    () => true,
+                    // The scoped watched row was saved and published —
+                    // only the legacy-row cleanup failed. The episode IS
+                    // watched, so it must not count against the batch.
+                    (error: unknown) =>
+                        error instanceof StalkerSeriesPositionPartialSaveError
+                )
+            )
+        );
+
+        const failed = outcomes.filter((ok) => !ok).length;
+        const succeeded = outcomes.length - failed;
+        if (failed > 0) {
+            this.logger.error(
+                `Watched toggle: ${failed} of ${outcomes.length} episodes failed`
+            );
+        }
+        if (succeeded > 0) {
+            // Partial successes changed rows too — the catalog badge
+            // must follow even when the user already moved on. A failed
+            // refresh must not break the feedback flow below.
+            await this.catalogFacade
+                ?.refreshPositions(playlistId)
+                .catch((error: unknown) =>
+                    this.logger.warn('Catalog position refresh failed', error)
+                );
+        }
+        if (!stillCurrent()) {
+            return;
+        }
+
+        if (failed === 0) {
+            this.notifySeasonWatchToggle(
+                request.markWatched ? feedback.marked : feedback.unmarked,
+                { count: succeeded }
+            );
+        } else if (succeeded > 0) {
+            this.notifySeasonWatchToggle(
+                request.markWatched
+                    ? feedback.partialMarked
+                    : feedback.partialUnmarked,
+                { count: succeeded, failed }
+            );
+        } else {
+            this.notifySeasonWatchToggle(feedback.failed);
+        }
+    }
+
+    /**
+     * Maps the raw series position rows onto the currently mapped episodes
+     * (scoped rows plus compatible legacy promotions). Runs reactively from
+     * the constructor effect, and synchronously from the series-level watch
+     * toggle right after it hydrates lazy seasons — the effect only re-runs
+     * on the next change-detection tick, and enqueuing the batch against the
+     * stale maps would miss the hydrated episodes' legacy rows (an unwatch
+     * would leave rows behind that a later reconcile resurrects as watched).
+     */
+    private applyReconciledSeriesPositions(): void {
+        const item = this.displayItem();
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        const seriesXtreamId = this.toSeriesId(item?.id ?? 0);
+        const rawSeriesPositions = this.rawSeriesPositions();
+        const episodesBySeason = this.mappedSeasons();
+
+        if (!item || !playlistId || seriesXtreamId <= 0) {
+            if (rawSeriesPositions.length > 0) {
+                this.rawSeriesPositions.set([]);
+            }
+            if (this.episodePlaybackPositions().size > 0) {
+                this.episodePlaybackPositions.set(new Map());
+            }
+            if (this.legacyPositionByTrackingId().size > 0) {
+                this.legacyPositionByTrackingId.set(new Map());
+            }
+            return;
+        }
+
+        const reconciled = reconcileStalkerSeriesPositions({
+            seriesXtreamId,
+            episodesBySeason,
+            seriesPositions: rawSeriesPositions,
+        });
+        if (
+            rawSeriesPositions.length === 0 &&
+            reconciled.positionsByTrackingId.size === 0 &&
+            untracked(() => this.episodePlaybackPositions().size) > 0
+        ) {
+            return;
+        }
+        this.episodePlaybackPositions.set(reconciled.positionsByTrackingId);
+        this.legacyPositionByTrackingId.set(
+            reconciled.legacyPositionByTrackingId
         );
     }
 

@@ -772,6 +772,95 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
     await expect(page.locator('.season-tabs__done')).toHaveCount(0);
 });
 
+// ---------------------------------------------------------------------------
+// Series-level watched toggle: the season header's ⋮ menu marks EVERY season
+// in one action (default scenario: 3 seasons × 8 episodes = 24), flips to
+// unwatch-all once the whole series is watched, and survives a reload.
+// ---------------------------------------------------------------------------
+
+test('@xtream series watched toggle — marks every season from the header menu, survives reload, and clears again', async ({
+    page,
+    request,
+}) => {
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+    const category = categories[0];
+
+    const seriesItems = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
+        )
+    ).json()) as Array<{ name: string; series_id: number }>;
+    const targetSeries = seriesItems[0];
+
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+
+    const categoryItem = page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: category.category_name })
+        .first();
+    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
+    await categoryItem.click();
+
+    const seriesCard = page
+        .locator('app-grid-list mat-card')
+        .filter({ hasText: targetSeries.name })
+        .first();
+    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
+    await seriesCard.click();
+
+    // The ⋮ series menu sits at the end of the season-header actions row
+    // (data-test-id with a dash — getByTestId only matches data-testid in
+    // this suite; the menu item renders into the CDK overlay).
+    const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
+    await expect(menuTrigger).toBeVisible({ timeout: 15_000 });
+    const seasonTabs = page.locator('.season-tabs__pill');
+    await expect(seasonTabs).toHaveCount(3);
+
+    await menuTrigger.click();
+    const seriesToggle = page.locator(
+        '[data-test-id="toggle-series-watched"]'
+    );
+    await expect(seriesToggle).toBeVisible();
+    await expect(seriesToggle).toContainText('Mark series as watched (24)');
+    await seriesToggle.click();
+
+    // One batch marks all 24 episodes: every season tab gets the completed
+    // check and the visible season's episodes flip to watched.
+    await expect(page.locator('.season-tabs__done')).toHaveCount(3, {
+        timeout: 15_000,
+    });
+    await expect(page.locator('.episode-card--watched')).toHaveCount(8);
+
+    // The action now offers unwatch-all.
+    await menuTrigger.click();
+    await expect(seriesToggle).toContainText('Mark series as unwatched');
+    await page.keyboard.press('Escape');
+
+    // PWA persistence: positions live in localStorage, so a reload must come
+    // back fully watched across all seasons.
+    await page.reload();
+    await expect(menuTrigger).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.season-tabs__done')).toHaveCount(3, {
+        timeout: 10_000,
+    });
+
+    // Unwatch-all clears every season again.
+    await menuTrigger.click();
+    await expect(seriesToggle).toContainText('Mark series as unwatched');
+    await seriesToggle.click();
+    await expect(page.locator('.season-tabs__done')).toHaveCount(0, {
+        timeout: 15_000,
+    });
+    await expect(page.locator('.episode-card--watched')).toHaveCount(0);
+    await menuTrigger.click();
+    await expect(seriesToggle).toContainText('Mark series as watched (24)');
+});
+
 type XtreamLiveStream = {
     category_id: string;
     name: string;

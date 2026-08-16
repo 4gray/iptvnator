@@ -1,6 +1,7 @@
 import {
     Component,
     computed,
+    effect,
     inject,
     signal,
     ViewEncapsulation,
@@ -19,7 +20,11 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DataService } from '@iptvnator/services';
-import { PLAYLIST_PARSE_BY_URL } from '@iptvnator/shared/interfaces';
+import {
+    PLAYLIST_PARSE_BY_URL,
+    ProviderImportCandidate,
+} from '@iptvnator/shared/interfaces';
+import { AutoImportComponent } from '../auto-import/auto-import.component';
 import { FileUploadComponent } from '../file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from '../text-import/text-import.component';
@@ -38,8 +43,20 @@ export interface PlaylistMethodOption {
     subKey: string;
 }
 
+/** The import form a picked auto-detect candidate prefills. */
+const METHOD_BY_CANDIDATE_KIND: Record<
+    ProviderImportCandidate['kind'],
+    PlaylistType
+> = {
+    xtream: 'xtream',
+    stalker: 'stalker',
+    'm3u-url': 'url',
+    'm3u-text': 'text',
+};
+
 @Component({
     imports: [
+        AutoImportComponent,
         FileUploadComponent,
         MatButtonModule,
         MatDialogModule,
@@ -70,8 +87,25 @@ export class AddPlaylistDialogComponent {
     readonly textImport = viewChild(TextImportComponent);
     readonly xtreamImport = viewChild(XtreamCodeImportComponent);
     readonly stalkerImport = viewChild(StalkerPortalImportComponent);
+    readonly autoImport = viewChild(AutoImportComponent);
 
     readonly method = signal<PlaylistType>('url');
+
+    /**
+     * Candidate picked in the auto-detect surface, waiting for its target
+     * form to exist. Selecting a candidate switches `method`, which only
+     * instantiates the target child on the NEXT change-detection pass — so
+     * the prefill is applied by an effect that re-runs once the child's
+     * viewChild signal resolves, then clears this.
+     */
+    private readonly pendingPrefill =
+        signal<ProviderImportCandidate | null>(null);
+
+    /**
+     * Survives the auto-detect surface being destroyed by a method switch, so
+     * returning to it after inspecting a prefilled form keeps the paste.
+     */
+    readonly autoDetectText = signal('');
 
     // Order matches the v0.22 mockup left-to-right: URL first (Most common),
     // then File, Xtream credentials, Stalker portal, raw text paste. Each
@@ -110,6 +144,12 @@ export class AddPlaylistDialogComponent {
             labelKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_SUB',
         },
+        {
+            value: 'auto',
+            icon: 'auto_awesome',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_AUTO_LABEL',
+            subKey: 'HOME.ADD_PLAYLIST.METHOD_AUTO_SUB',
+        },
     ];
 
     /**
@@ -122,6 +162,87 @@ export class AddPlaylistDialogComponent {
         if (this.data?.type) {
             this.method.set(this.data.type);
         }
+        effect(() => this.applyPendingPrefill());
+    }
+
+    /**
+     * Hands a detected source to the matching import form. Only prefills —
+     * the user reviews and submits through the regular form, so validation
+     * and the behavioral probes (portal discovery, connection test) stay in
+     * charge of what actually gets persisted.
+     */
+    onCandidateSelected(candidate: ProviderImportCandidate): void {
+        this.pendingPrefill.set(candidate);
+        this.method.set(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
+    }
+
+    private applyPendingPrefill(): void {
+        const candidate = this.pendingPrefill();
+        if (!candidate) {
+            return;
+        }
+        // The user can click another method tile before the target form
+        // mounts; a candidate must not lie in wait and prefill a later visit
+        // to its form. Only the method the selection itself switched to may
+        // consume it.
+        if (this.method() !== METHOD_BY_CANDIDATE_KIND[candidate.kind]) {
+            this.pendingPrefill.set(null);
+            return;
+        }
+        switch (candidate.kind) {
+            case 'm3u-url': {
+                const child = this.urlUpload();
+                if (!child) {
+                    return;
+                }
+                child.form.patchValue({
+                    playlistUrl: candidate.url ?? '',
+                    playlistName: candidate.suggestedTitle ?? '',
+                });
+                break;
+            }
+            case 'm3u-text': {
+                const child = this.textImport();
+                if (!child) {
+                    return;
+                }
+                child.textForm.patchValue({ text: candidate.text ?? '' });
+                break;
+            }
+            case 'xtream': {
+                const child = this.xtreamImport();
+                if (!child) {
+                    return;
+                }
+                child.form.patchValue({
+                    title: candidate.suggestedTitle ?? '',
+                    serverUrl: candidate.serverUrl ?? '',
+                    username: candidate.username ?? '',
+                    password: candidate.password ?? '',
+                });
+                break;
+            }
+            case 'stalker': {
+                const child = this.stalkerImport();
+                if (!child) {
+                    return;
+                }
+                child.form.patchValue({
+                    title: candidate.suggestedTitle ?? '',
+                    portalUrl: candidate.portalUrl ?? '',
+                    macAddress: candidate.macAddress ?? '',
+                    serialNumber: candidate.serialNumber ?? '',
+                    deviceId1: candidate.deviceId1 ?? '',
+                    deviceId2: candidate.deviceId2 ?? '',
+                    signature1: candidate.signature1 ?? '',
+                    signature2: candidate.signature2 ?? '',
+                    username: candidate.username ?? '',
+                    password: candidate.password ?? '',
+                });
+                break;
+            }
+        }
+        this.pendingPrefill.set(null);
     }
 
     /**
@@ -195,6 +316,9 @@ export class AddPlaylistDialogComponent {
                 break;
             case 'stalker':
                 this.stalkerImport()?.clearForm();
+                break;
+            case 'auto':
+                this.autoImport()?.clearForm();
                 break;
         }
     }

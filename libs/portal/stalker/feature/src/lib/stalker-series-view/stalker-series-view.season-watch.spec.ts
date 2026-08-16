@@ -10,6 +10,8 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
+    mapVodSeriesEpisodes,
+    type StalkerMappedEpisode,
     type StalkerVodSource,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
@@ -396,5 +398,307 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
 
         expect(snackBarCalls().length).toBe(callsBefore);
         expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
+    });
+
+    describe('series scope', () => {
+        function createSecondSeason(
+            episodes: VodSeriesSeasonVm['episodes'] = []
+        ): VodSeriesSeasonVm {
+            return {
+                id: 'season-2',
+                video_id: String(SERIES_A_ID),
+                name: 'Season 2',
+                season_number: '2',
+                episodes,
+                isLoading: false,
+                isExpanded: false,
+            };
+        }
+
+        // The real mapper is the oracle for the tracking ids a hydrated
+        // season will produce, so legacy rows can be seeded BEFORE the
+        // toggle hydrates that season.
+        const s2ProviderEpisode = () =>
+            createProviderEpisode('provider-episode-s2', 1);
+        const s2Mapped = mapVodSeriesEpisodes(
+            [createSecondSeason([s2ProviderEpisode()])],
+            { parentSeriesId: SERIES_A_ID, fallbackPoster: '' }
+        )['2'][0] as StalkerMappedEpisode;
+        const S2_SCOPED_ID = Number(s2Mapped.id);
+        const S2_LEGACY_ID = Number(s2Mapped.legacyTrackingId);
+
+        function seriesToggleRequest(ids: number[], markWatched: boolean) {
+            return {
+                markWatched,
+                requests: ids.map((contentXtreamId, index) => ({
+                    contentXtreamId,
+                    nextPosition: markWatched
+                        ? createPosition({
+                              contentXtreamId,
+                              episodeNumber: index + 1,
+                              positionSeconds: 100,
+                          })
+                        : null,
+                })),
+            };
+        }
+
+        async function startWithLazySecondSeason(): Promise<number> {
+            vodSeriesSeasonsResource.set([
+                {
+                    id: 'season-1',
+                    video_id: String(SERIES_A_ID),
+                    name: 'Season 1',
+                    season_number: '1',
+                },
+            ]);
+            await settle();
+            fixture.componentInstance.vodSeriesSeasons.set([
+                createSeason(SERIES_A_ID, [createProviderEpisode()]),
+                createSecondSeason(),
+            ]);
+            await settle();
+            return Number(
+                fixture.componentInstance.mappedSeasons()['1'][0].id
+            );
+        }
+
+        function mockSecondSeasonFetch(): jest.Mock {
+            const fetch = TestBed.inject(StalkerStore)
+                .fetchVodSeriesEpisodes as jest.Mock;
+            fetch.mockResolvedValue([s2ProviderEpisode()]);
+            return fetch;
+        }
+
+        it('marks every season directly when all seasons are loaded', async () => {
+            const [firstId, secondId] = await startWithTwoLoadedEpisodes();
+
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([firstId, secondId], true)
+            );
+
+            expect(repositoryOrder).toEqual([
+                `save:${firstId}`,
+                `save:${secondId}`,
+            ]);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+            expect(refreshPositions).toHaveBeenCalledWith(PLAYLIST_ID);
+            expect(
+                fixture.componentInstance.seasonWatchBatchRunning()
+            ).toBe(false);
+        });
+
+        it('hydrates lazy seasons, then marks them with legacy-row cleanup', async () => {
+            // A pre-scope legacy row for the NOT-yet-hydrated season 2
+            // episode: the sync reconcile after hydration must surface it so
+            // the save cleans it up — enqueuing against the effect-fed maps
+            // would miss it (the effect only flushes on the next CD tick).
+            repositoryRows = [
+                createPosition({
+                    contentXtreamId: S2_LEGACY_ID,
+                    seasonNumber: 2,
+                    episodeNumber: 1,
+                }),
+            ];
+            const firstId = await startWithLazySecondSeason();
+            const fetch = mockSecondSeasonFetch();
+
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([firstId], true)
+            );
+
+            expect(fetch).toHaveBeenCalledWith(
+                String(SERIES_A_ID),
+                'season-2'
+            );
+            expect(repositoryOrder).toEqual([
+                `save:${firstId}`,
+                `save:${S2_SCOPED_ID}`,
+                `clear:${S2_LEGACY_ID}`,
+            ]);
+            expect(
+                repositoryRows.some(
+                    (row) => row.contentXtreamId === S2_LEGACY_ID
+                )
+            ).toBe(false);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+            expect(refreshPositions).toHaveBeenCalledWith(PLAYLIST_ID);
+        });
+
+        it('treats an empty portal answer as loaded instead of eternally pending', async () => {
+            // The portal ANSWERS for season 2 but reports zero episodes. The
+            // season is then loaded-and-empty, not pending: the rest of the
+            // series still gets marked, the countless label unblocks, and a
+            // follow-up toggle must not re-fetch the empty season.
+            const firstId = await startWithLazySecondSeason();
+            const fetch = TestBed.inject(StalkerStore)
+                .fetchVodSeriesEpisodes as jest.Mock;
+            fetch.mockResolvedValue([]);
+
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([firstId], true)
+            );
+
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(repositoryOrder).toEqual([`save:${firstId}`]);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+            expect(
+                fixture.componentInstance.hasUnloadedVodSeasons()
+            ).toBe(false);
+
+            // Everything loaded is now watched and nothing is pending — an
+            // empty follow-up mark request is a no-op, not another fetch.
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([], true)
+            );
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(repositoryOrder).toEqual([`save:${firstId}`]);
+        });
+
+        it('reuses an in-flight tab-click season load instead of duplicating it', async () => {
+            const firstId = await startWithLazySecondSeason();
+            let releaseFetch!: (episodes: unknown[]) => void;
+            const fetch = TestBed.inject(StalkerStore)
+                .fetchVodSeriesEpisodes as jest.Mock;
+            fetch.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        releaseFetch = resolve;
+                    })
+            );
+
+            // The user opened the season tab; that load is still on the
+            // wire when the series action starts hydrating — it must join
+            // the in-flight request, not start a second one whose failure
+            // could abort the toggle independently.
+            const season2 = fixture.componentInstance.vodSeriesSeasons()[1];
+            const tabLoad =
+                fixture.componentInstance.loadEpisodesForSeason(season2);
+            const pending =
+                fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                    seriesToggleRequest([firstId], true)
+                );
+            releaseFetch([s2ProviderEpisode()]);
+            await Promise.all([tabLoad, pending]);
+
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(repositoryOrder).toEqual([
+                `save:${firstId}`,
+                `save:${S2_SCOPED_ID}`,
+            ]);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+        });
+
+        it('aborts with zero writes when hydrating a season fails', async () => {
+            const firstId = await startWithLazySecondSeason();
+            (
+                TestBed.inject(StalkerStore).fetchVodSeriesEpisodes as jest.Mock
+            ).mockRejectedValue(new Error('portal down'));
+
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([firstId], true)
+            );
+
+            expect(repositoryOrder).toEqual([]);
+            expectSeasonToggleSnackbar('XTREAM.SERIES_WATCH_UPDATE_FAILED');
+            expect(refreshPositions).not.toHaveBeenCalled();
+            expect(
+                fixture.componentInstance.seasonWatchBatchRunning()
+            ).toBe(false);
+        });
+
+        it('aborts silently when the series changes during hydration', async () => {
+            const firstId = await startWithLazySecondSeason();
+            let releaseFetch!: (episodes: unknown[]) => void;
+            (
+                TestBed.inject(StalkerStore).fetchVodSeriesEpisodes as jest.Mock
+            ).mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        releaseFetch = resolve;
+                    })
+            );
+            const callsBefore = snackBarCalls().length;
+
+            const pending =
+                fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                    seriesToggleRequest([firstId], true)
+                );
+            selectedItem.set(createVodItem(SERIES_B_ID));
+            releaseFetch([s2ProviderEpisode()]);
+            await pending;
+
+            expect(repositoryOrder).toEqual([]);
+            expect(snackBarCalls().length).toBe(callsBefore);
+            expect(
+                fixture.componentInstance.seasonWatchBatchRunning()
+            ).toBe(false);
+        });
+
+        it('reports a zero count when hydration reveals nothing to mark', async () => {
+            // Every episode — loaded and hydrated alike — is already
+            // watched, but the empty mark request must still be honored
+            // (the container cannot know before hydration).
+            const firstId = await startWithLazySecondSeason();
+            repositoryRows = [
+                createPosition({
+                    contentXtreamId: firstId,
+                    positionSeconds: 100,
+                }),
+                createPosition({
+                    contentXtreamId: S2_SCOPED_ID,
+                    seasonNumber: 2,
+                    positionSeconds: 100,
+                }),
+            ];
+            selectedItem.set(createVodItem(SERIES_A_ID));
+            await settle();
+            mockSecondSeasonFetch();
+            const writesBefore = repositoryOrder.length;
+
+            await fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                seriesToggleRequest([], true)
+            );
+
+            expect(repositoryOrder.length).toBe(writesBefore);
+            expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
+        });
+
+        it('locks the season toggle while hydration is in flight', async () => {
+            const firstId = await startWithLazySecondSeason();
+            let releaseFetch!: (episodes: unknown[]) => void;
+            (
+                TestBed.inject(StalkerStore).fetchVodSeriesEpisodes as jest.Mock
+            ).mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        releaseFetch = resolve;
+                    })
+            );
+
+            const pending =
+                fixture.componentInstance.handleSeriesPlaybackToggleRequested(
+                    seriesToggleRequest([firstId], true)
+                );
+            expect(
+                fixture.componentInstance.seasonWatchBatchRunning()
+            ).toBe(true);
+            // A season toggle during hydration must not enqueue anything.
+            await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
+                seasonToggleRequest([firstId], true)
+            );
+            expect(repositoryOrder).toEqual([]);
+
+            releaseFetch([s2ProviderEpisode()]);
+            await pending;
+
+            expect(repositoryOrder).toEqual([
+                `save:${firstId}`,
+                `save:${S2_SCOPED_ID}`,
+            ]);
+            expect(
+                fixture.componentInstance.seasonWatchBatchRunning()
+            ).toBe(false);
+        });
     });
 });

@@ -303,7 +303,7 @@ This is an Nx monorepo with the following structure:
 - **libs/** - Shared libraries:
     - **epg/data-access** - EPG services, runtime bridge, program normalization
     - **m3u-state** - NgRx state management for M3U playlists
-    - **playlist/import/feature** - Playlist import flows (file/URL/text upload, Xtream and Stalker import dialogs)
+    - **playlist/import/feature** - Playlist import flows (file/URL/text upload, Xtream and Stalker import dialogs, and the "Auto-detect" method: paste a provider message, `detectProviderImportCandidates` in `libs/shared/interfaces` deterministically extracts URLs/credentials/MAC+device identity and prefills the matching form — detection only proposes, the target form's own validation and behavioral probes stay authoritative)
     - **playlist/m3u/feature-player** - M3U video player page and `/workspace/playlists/:id` routes
     - **playlist/shared/{ui,util}** - Shared playlist UI and utilities
     - **portal/xtream/{data-access,feature}** - XtreamStore, services, data sources; routed Xtream components
@@ -1137,10 +1137,26 @@ engine` (restart required) or
   legacy row whose playlist is already absent receives the same IPTV-player
   fallback; a known Stalker row remains unchanged. Allowlisted connection
   resets after bytes reach disk retain the partial and show a credential-safe
-  `DOWNLOAD_NETWORK_INTERRUPTED` code only when the response supplied a strong
-  ETag or Last-Modified validator. Retry then continues with Range/If-Range;
-  without a validator it starts from byte zero and overwrites the unverified
-  partial instead of risking mixed-representation corruption.
+  `DOWNLOAD_NETWORK_INTERRUPTED` code. Retry resumes with Range/If-Range when
+  the response supplied a strong ETag or Last-Modified validator; without one
+  the Range request rewinds by a 256 KiB overlap window whose bytes must match
+  the partial's tail before anything is appended (`download-overlap.ts`); a
+  smaller partial is verified in full from byte zero and appended, never
+  rewritten in place; reported progress is floored at the retained size while
+  appending; and a mismatch truncates the partial and restarts from byte zero
+  instead of risking mixed-representation corruption. The runtime also
+  reconnects interrupted transfers automatically (`download-reconnect.ts`):
+  reconnects continue while attempts end ≥64 KiB past the previous attempt;
+  restarts are an explicit `task.transferRestarts` signal (never byte
+  inference) that opens a fresh progress epoch, at most twice per transfer;
+  three consecutive stalled attempts surface the retained failure; and a
+  reconnect that fails before any response is converted into the same
+  retained interruption so it can never delete the partial. Only the response's own
+  total authorizes completion — an indeterminate `bytes X-Y/*` range stays
+  incomplete even at a clean EOF; carried totals are informational and
+  dropped when falsified; and any retainable network failure retains any
+  nonempty partial (no evidence required), persisting a falsified total as
+  unknown.
 - The desktop-only manager shares one global download store across the global,
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed
@@ -1337,7 +1353,7 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 - Stalker preserves this contract for regular `/series`, embedded VOD `series[]`, and lazy Ministra VOD `is_series` items; `is_series` is normalized only from `true`, `1`, or `'1'`. Quick-start translation parameters must reach the CTA, and inline/external episode handoffs must include the parent series id plus resolved season and episode numbers. Lazy VOD episode tracking IDs scope the parent series, provider episode, season key, and episode number; the previous season/episode hash is only a compatibility alias. Exact scoped positions win, while compatible legacy rows are considered only for the current parent and must match any stored season/episode coordinates. The scoped row is persisted through the strict failure-propagating boundary before confirmed legacy cleanup, so a failed save keeps the old row; compatibility is lazy and performs no schema migration or bulk rewrite.
 - Hosts pass hero chips/meta/actions as `*appDetailTags`/`*appDetailMeta`/`*appDetailActions` templates; the shell stamps them into both the hero and the About block
 - Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → first) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream, provider-first with URL-only junk filtered by `sanitizeProviderOverview` and a TMDB season-overview fallback stored as `tmdb_season_overviews` by the lazy season enrichment) or TMDB (Stalker)
-- The season header hosts a bulk watched toggle next to "Download season" (both portals): marking writes full-progress position rows for the unwatched episodes only — skipping the episode currently playing/launching, whose position ticks would overwrite the row — and a fully watched season flips the action to unwatch-all (`buildSeasonWatchToggleRequest` in `libs/ui/components/.../season-watch-toggle.util.ts`). Xtream persists via the batch IPC `DB_SAVE/CLEAR_PLAYBACK_POSITIONS_BATCH` (one SQLite transaction; the PWA data source rewrites its localStorage blob once) and refreshes `XtreamStore.loadAllPositions` after any toggle so catalog progress badges follow; Stalker loops the serialized position-mutation queue (legacy-row reconciliation, one coalesced reload) and reports direction-specific partial failures. A batch resolving after navigation neither mutates the new page's state nor shows its snackbar. Contract: `docs/architecture/embedded-inline-playback.md`
+- The season header hosts a bulk watched toggle next to "Download season" (both portals): marking writes full-progress position rows for the unwatched episodes only — skipping the episode currently playing/launching, whose position ticks would overwrite the row — and a fully watched season flips the action to unwatch-all (`buildSeasonWatchToggleRequest` in `libs/ui/components/.../season-watch-toggle.util.ts`). Xtream persists via the batch IPC `DB_SAVE/CLEAR_PLAYBACK_POSITIONS_BATCH` (one SQLite transaction; the PWA data source rewrites its localStorage blob once) and refreshes `XtreamStore.loadAllPositions` after any toggle so catalog progress badges follow; Stalker loops the serialized position-mutation queue (legacy-row reconciliation, one coalesced reload) and reports direction-specific partial failures. A batch resolving after navigation neither mutates the new page's state nor shows its snackbar. A series-level counterpart sits in a `⋮` menu at the end of the header row (`SeasonWatchPresenter` owns both scopes' state math; `buildSeriesWatchToggleRequest` flattens every loaded season; the direction is always the one the label advertised). It reuses the same host machinery per portal (Xtream: scope-parameterized `SerialDetailsSeasonWatchService`; Stalker: shared `runWatchToggleBatch` core). Stalker lazy-VOD hydrates unloaded seasons sequentially first (abort with zero writes on a failed fetch; a well-formed EMPTY portal answer marks the season loaded-and-empty via `VodSeriesSeasonVm.episodesLoaded` rather than eternally pending, while `fetchVodSeriesEpisodes` rejects malformed envelopes and answers without recognizable episodes; `loadEpisodesForSeason` is single-flight per season so concurrent callers join one request), re-runs the position reconcile synchronously so hydrated episodes' legacy rows are cleaned, then rebuilds the request keeping the clicked direction — the `hasUnloadedSeasons` container input blocks the unwatch verdict and the count label until everything is loaded. Contract: `docs/architecture/embedded-inline-playback.md`
 - Dashboard hero/Continue Watching clicks for an Xtream series carry a one-shot resume target through the global-recent inline-detail handoff; after series metadata and playback positions load, the exact saved episode starts at its stored position. A failed positions load leaves the target unconsumed and the handoff detail-only, so a transient storage error never starts the episode from the beginning. Ordinary global-recent grid clicks remain detail-only.
 - See `docs/architecture/embedded-inline-playback.md` ("Two-State Detail Layout")
 

@@ -280,8 +280,45 @@ same captured playlist/series identity. After any Xtream toggle
 (single or batch) the host refreshes `XtreamStore.loadAllPositions` —
 the catalog reads series-progress badges from the store, which otherwise
 loads positions once per playlist — unless the playlist changed
-meanwhile. The
-host reports busy-state back through the `seasonWatchBatchRunning` input.
+meanwhile. The host reports busy-state back through the
+`seasonWatchBatchRunning` input.
+
+A series-level counterpart lives in a `⋮` menu at the end of the same
+header row (`SeasonWatchPresenter` in `libs/ui/components` owns the state
+math for both scopes; the container component sits at the max-lines cap).
+`buildSeriesWatchToggleRequest` flattens every LOADED season with the same
+mark/unmark semantics, and the direction is always the one the label
+advertised (`markWatched: !seriesFullyWatched()`), never re-inferred from
+data at persist time. Hosts route the request through the same machinery
+as the season toggle — Xtream via the scope-parameterized
+`SerialDetailsSeasonWatchService.handle(..., scope)`, Stalker via the
+extracted `runWatchToggleBatch` core — sharing the busy flag, the
+ownership guards, and the catalog-badge refresh. Stalker lazy-VOD is the
+special case: unopened seasons have empty episode lists, so the container
+reports them through the `hasUnloadedSeasons` input (blocks the
+"fully watched" verdict and switches the label to its countless variant),
+and may emit an EMPTY mark request when every loaded episode is watched.
+The Stalker host then hydrates the missing seasons sequentially through
+`loadEpisodesForSeason` (aborting silently on navigation, and aborting
+with zero writes plus the series failure snackbar if any season fails to
+load). A season the portal ANSWERS for with zero episodes becomes
+loaded-and-empty (`VodSeriesSeasonVm.episodesLoaded`), not pending —
+`episodes.length === 0` alone would keep it counted as unloaded forever,
+locking the label countless and re-fetching it on every series toggle.
+Only a well-formed empty array earns that trust: `fetchVodSeriesEpisodes`
+rejects a malformed envelope or an answer whose rows contain no
+recognizable episode, so those fail the load instead of masquerading as
+an empty season. `loadEpisodesForSeason` is single-flight per season — a
+tab click, the spillover prefetch, the quick-start recursion, and the
+series-toggle hydration join one in-flight request instead of
+duplicating it (a second request's failure could abort a toggle whose
+original request succeeded).
+The host synchronously re-runs the position reconcile
+(`applyReconciledSeriesPositions` — the effect-fed maps only update on
+the next change-detection tick, and enqueuing against stale maps would
+miss the hydrated episodes' legacy rows), rebuilds the request from the
+now-complete seasons keeping the captured direction, and reports an
+honest count-0 success if hydration reveals nothing left to mark.
 
 ## Components
 

@@ -14,7 +14,10 @@ export interface XtreamCredentialsFromUrl {
     username: string;
 }
 
-const XTREAM_API_ENDPOINT_PATTERN = /\/(?:get|player_api)\.php$/i;
+// panel_api.php is the legacy admin-flavored endpoint some panels hand out;
+// it identifies an Xtream server just like the other two and must be
+// stripped the same way, or the transport would append /player_api.php to it.
+const XTREAM_API_ENDPOINT_PATTERN = /\/(?:get|player_api|panel_api)\.php$/i;
 
 // Some Xtream panels challenge generic Node HTTP clients while allowing
 // established IPTV players. Keep API, probe, and download requests aligned.

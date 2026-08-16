@@ -923,14 +923,23 @@ describe('SerialDetailsComponent', () => {
             durationSeconds: 1200,
         });
 
-        await playbackService.handleSeasonPlaybackToggleRequested({
-            seasonKey: '1',
-            markWatched: true,
-            requests: [
-                { contentXtreamId: 1001, nextPosition: seasonPosition(1001, 1) },
-                { contentXtreamId: 1002, nextPosition: seasonPosition(1002, 2) },
-            ],
-        } as never);
+        await playbackService.handleWatchToggleRequested(
+            {
+                seasonKey: '1',
+                markWatched: true,
+                requests: [
+                    {
+                        contentXtreamId: 1001,
+                        nextPosition: seasonPosition(1001, 1),
+                    },
+                    {
+                        contentXtreamId: 1002,
+                        nextPosition: seasonPosition(1002, 2),
+                    },
+                ],
+            } as never,
+            'season'
+        );
 
         expect(savePlaybackPositionsBatch).toHaveBeenCalledTimes(1);
         expect(savePlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
@@ -961,14 +970,17 @@ describe('SerialDetailsComponent', () => {
         const playbackService = fixture.debugElement.injector.get(
             SerialDetailsPlaybackService
         );
-        await playbackService.handleSeasonPlaybackToggleRequested({
-            seasonKey: '1',
-            markWatched: false,
-            requests: [
-                { contentXtreamId: 1001, nextPosition: null },
-                { contentXtreamId: 1002, nextPosition: null },
-            ],
-        } as never);
+        await playbackService.handleWatchToggleRequested(
+            {
+                seasonKey: '1',
+                markWatched: false,
+                requests: [
+                    { contentXtreamId: 1001, nextPosition: null },
+                    { contentXtreamId: 1002, nextPosition: null },
+                ],
+            } as never,
+            'season'
+        );
 
         expect(clearPlaybackPositionsBatch).toHaveBeenCalledTimes(1);
         expect(clearPlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
@@ -995,25 +1007,28 @@ describe('SerialDetailsComponent', () => {
         const playbackService = fixture.debugElement.injector.get(
             SerialDetailsPlaybackService
         );
-        const pending = playbackService.handleSeasonPlaybackToggleRequested({
-            seasonKey: '1',
-            markWatched: true,
-            requests: [
-                {
-                    contentXtreamId: 1001,
-                    nextPosition: {
-                        playlistId: 'xtream-1',
+        const pending = playbackService.handleWatchToggleRequested(
+            {
+                seasonKey: '1',
+                markWatched: true,
+                requests: [
+                    {
                         contentXtreamId: 1001,
-                        contentType: 'episode',
-                        seriesXtreamId: 103,
-                        seasonNumber: 1,
-                        episodeNumber: 1,
-                        positionSeconds: 1200,
-                        durationSeconds: 1200,
+                        nextPosition: {
+                            playlistId: 'xtream-1',
+                            contentXtreamId: 1001,
+                            contentType: 'episode',
+                            seriesXtreamId: 103,
+                            seasonNumber: 1,
+                            episodeNumber: 1,
+                            positionSeconds: 1200,
+                            durationSeconds: 1200,
+                        },
                     },
-                },
-            ],
-        } as never);
+                ],
+            } as never,
+            'season'
+        );
 
         // The user navigates to another playlist while the batch is pending.
         const initialPlaylist = currentPlaylist();
@@ -1049,25 +1064,28 @@ describe('SerialDetailsComponent', () => {
             SerialDetailsPlaybackService
         );
         const snackBar = TestBed.inject(MatSnackBar);
-        await playbackService.handleSeasonPlaybackToggleRequested({
-            seasonKey: '1',
-            markWatched: true,
-            requests: [
-                {
-                    contentXtreamId: 1001,
-                    nextPosition: {
-                        playlistId: 'xtream-1',
+        await playbackService.handleWatchToggleRequested(
+            {
+                seasonKey: '1',
+                markWatched: true,
+                requests: [
+                    {
                         contentXtreamId: 1001,
-                        contentType: 'episode',
-                        seriesXtreamId: 103,
-                        seasonNumber: 1,
-                        episodeNumber: 1,
-                        positionSeconds: 1200,
-                        durationSeconds: 1200,
+                        nextPosition: {
+                            playlistId: 'xtream-1',
+                            contentXtreamId: 1001,
+                            contentType: 'episode',
+                            seriesXtreamId: 103,
+                            seasonNumber: 1,
+                            episodeNumber: 1,
+                            positionSeconds: 1200,
+                            durationSeconds: 1200,
+                        },
                     },
-                },
-            ],
-        } as never);
+                ],
+            } as never,
+            'season'
+        );
 
         expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
             false

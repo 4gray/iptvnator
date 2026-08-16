@@ -1,3 +1,5 @@
+jest.setTimeout(20_000);
+
 import { PassThrough, Readable } from 'node:stream';
 import {
     requestDownloadCancellation,

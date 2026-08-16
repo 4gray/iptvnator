@@ -27,7 +27,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     SeasonContainerPlaybackToggleRequest,
-    SeasonContainerSeasonPlaybackToggleRequest,
+    SeasonContainerSeriesPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import {
     getSeriesEpisodeMetadata,
@@ -38,7 +38,10 @@ import {
 } from '@iptvnator/ui/playback';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
-import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
+import {
+    SerialDetailsSeasonWatchService,
+    type SerialDetailsWatchScope,
+} from './serial-details-season-watch.service';
 
 export type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
@@ -343,8 +346,9 @@ export class SerialDetailsPlaybackService {
         await this.refreshStorePositions(playlistId);
     }
 
-    async handleSeasonPlaybackToggleRequested(
-        request: SeasonContainerSeasonPlaybackToggleRequest
+    async handleWatchToggleRequested(
+        request: SeasonContainerSeriesPlaybackToggleRequest,
+        scope: SerialDetailsWatchScope
     ): Promise<void> {
         const playlistId = this.currentPlaylistId();
         const seriesXtreamId = Number(this.selectedItem()?.series_id ?? 0);
@@ -354,7 +358,8 @@ export class SerialDetailsPlaybackService {
             this.playbackPositionState,
             () =>
                 this.currentPlaylistId() === playlistId &&
-                Number(this.selectedItem()?.series_id ?? 0) === seriesXtreamId
+                Number(this.selectedItem()?.series_id ?? 0) === seriesXtreamId,
+            scope
         );
         if (persisted) {
             await this.refreshStorePositions(playlistId);

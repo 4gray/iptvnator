@@ -10,10 +10,14 @@ export interface SeasonContainerPlaybackToggleRequest {
     nextPosition: PlaybackPositionData | null;
 }
 
-export interface SeasonContainerSeasonPlaybackToggleRequest {
-    seasonKey: string;
+export interface SeasonContainerSeriesPlaybackToggleRequest {
     markWatched: boolean;
     requests: SeasonContainerPlaybackToggleRequest[];
+}
+
+export interface SeasonContainerSeasonPlaybackToggleRequest
+    extends SeasonContainerSeriesPlaybackToggleRequest {
+    seasonKey: string;
 }
 
 export function resolveEpisodeInfo(
@@ -111,4 +115,65 @@ export function buildSeasonWatchToggleRequest(options: {
     }
 
     return { seasonKey: options.seasonKey, markWatched, requests };
+}
+
+/**
+ * Series-level bulk toggle request across every LOADED season, with the same
+ * mark/unmark semantics as the season builder (marking touches only unwatched
+ * episodes minus the exclusions; unmarking clears every episode, exclusions
+ * ignored). Each season's key is that season's duration fallback, so
+ * cross-season position rows keep their own season numbers.
+ *
+ * `markWatched` forces the direction the UI advertised. Without it the
+ * direction is inferred from the loaded data — wrong for a lazily loaded
+ * series whose loaded episodes are all watched while unloaded seasons remain:
+ * the label says "mark", inference would say "unmark". Hosts that rebuild a
+ * request after hydrating such seasons must pass the direction captured at
+ * click time.
+ */
+export function buildSeriesWatchToggleRequest(options: {
+    seasons: Record<string, readonly XtreamSerieEpisode[]>;
+    seriesId: number;
+    playlistId: string;
+    isEpisodeWatched: (episode: XtreamSerieEpisode) => boolean;
+    excludedEpisodeIds?: ReadonlySet<number>;
+    markWatched?: boolean;
+}): SeasonContainerSeriesPlaybackToggleRequest | null {
+    const seasonEntries = Object.entries(options.seasons);
+    const markWatched =
+        options.markWatched ??
+        seasonEntries.some(([, episodes]) =>
+            (episodes ?? []).some(
+                (episode) => !options.isEpisodeWatched(episode)
+            )
+        );
+
+    const requests: SeasonContainerPlaybackToggleRequest[] = [];
+    for (const [seasonKey, episodes] of seasonEntries) {
+        const targets = markWatched
+            ? listMarkableEpisodes(
+                  episodes ?? [],
+                  options.isEpisodeWatched,
+                  options.excludedEpisodeIds
+              )
+            : (episodes ?? []);
+        for (const episode of targets) {
+            requests.push({
+                contentXtreamId: Number(episode.id),
+                nextPosition: markWatched
+                    ? buildWatchedEpisodePosition({
+                          episode,
+                          seriesId: options.seriesId,
+                          playlistId: options.playlistId,
+                          fallbackSeasonKey: seasonKey,
+                      })
+                    : null,
+            });
+        }
+    }
+    if (requests.length === 0) {
+        return null;
+    }
+
+    return { markWatched, requests };
 }

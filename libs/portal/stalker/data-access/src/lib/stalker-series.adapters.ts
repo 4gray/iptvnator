@@ -20,6 +20,13 @@ export interface VodSeriesSeasonVm {
     episodes: StalkerVodSeriesEpisode[];
     isLoading: boolean;
     isExpanded: boolean;
+    /**
+     * True once the portal has answered an episode fetch for this season —
+     * including an EMPTY answer. Distinguishes "loaded and empty per portal"
+     * from "not fetched yet": `episodes.length === 0` alone conflates them,
+     * which would keep an empty season permanently counted as unloaded.
+     */
+    episodesLoaded?: boolean;
 }
 
 export interface StalkerSeriesSeasonVm {

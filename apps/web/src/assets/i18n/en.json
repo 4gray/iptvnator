@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker portal",
             "METHOD_STALKER_SUB": "MAC address and portal URL",
             "METHOD_TEXT_LABEL": "Raw m3u text",
-            "METHOD_TEXT_SUB": "For one-off lists or when you only have text"
+            "METHOD_TEXT_SUB": "For one-off lists or when you only have text",
+            "METHOD_AUTO_LABEL": "Auto-detect",
+            "METHOD_AUTO_SUB": "Paste the message from your provider"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drop an .m3u or .m3u8 file here",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Imported as text",
-        "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:"
+        "PARSING_ERROR": "Error: Parsing failed, not a valid playlist:",
+        "AUTO_DETECT": {
+            "LABEL": "Message from your provider",
+            "PLACEHOLDER": "Paste everything your provider sent — links, username and password, MAC address…",
+            "PRIVACY_HINT": "Detection runs locally in the app; nothing you paste is sent anywhere.",
+            "NO_MATCHES": "Nothing recognized yet. Paste the full message including the link or credentials.",
+            "CONFIDENCE_HIGH": "Confident match",
+            "CONFIDENCE_MEDIUM": "Likely match",
+            "CONFIDENCE_LOW": "Guess",
+            "USE": "Fill the form",
+            "M3U_TEXT_NOTE": "Looks like a raw M3U playlist — it will be imported as pasted text."
+        }
     },
     "SETTINGS": {
         "TITLE": "Settings",
@@ -900,6 +913,12 @@
         "SEASON_MARKED_WATCHED_PARTIAL": "{{count}} marked · {{failed}} failed",
         "SEASON_MARKED_UNWATCHED_PARTIAL": "{{count}} unmarked · {{failed}} failed",
         "SEASON_WATCH_UPDATE_FAILED": "Updating the season failed",
+        "MARK_SERIES_WATCHED": "Mark series as watched ({{count}})",
+        "MARK_SERIES_WATCHED_ALL": "Mark series as watched",
+        "MARK_SERIES_UNWATCHED": "Mark series as unwatched",
+        "SERIES_MARKED_UNWATCHED": "Series marked as unwatched",
+        "SERIES_WATCH_UPDATE_FAILED": "Updating the series failed",
+        "SERIES_WATCH_MENU": "Series watch actions",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal metadata unavailable",

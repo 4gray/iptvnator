@@ -169,7 +169,10 @@ async function persistFinalizationFailure(
         reservation.path,
         progress,
         error,
-        `[Downloads] Error finalizing ${reservation.filename}:`
+        `[Downloads] Error finalizing ${reservation.filename}:`,
+        // The transfer itself completed, so its byte count IS the total —
+        // recording it lets Retry finalize the proven partial directly.
+        true
     );
 }
 
@@ -186,7 +189,12 @@ export async function persistCompletedPartialFailure(
         progress.filePath,
         progress,
         error,
-        `[Downloads] Error downloading ${task.fileName}:`
+        `[Downloads] Error downloading ${task.fileName}:`,
+        // An interrupted or unverified transfer must keep an unknown total
+        // unknown: fabricating one equal to the partial's size would let
+        // Retry's completed-partial shortcut finalize unverified bytes
+        // without a request.
+        false
     );
 }
 
@@ -197,10 +205,13 @@ async function persistRetainedPartialFailure(
     filePath: string,
     progress: TransferProgress,
     error: unknown,
-    logMessage: string
+    logMessage: string,
+    fallbackTotalToBytes: boolean
 ): Promise<void> {
     console.error(logMessage, describeError(error));
-    const totalBytes = progress.totalBytes ?? progress.bytesDownloaded;
+    const totalBytes =
+        progress.totalBytes ??
+        (fallbackTotalToBytes ? progress.bytesDownloaded : null);
     task.totalBytes = totalBytes;
     await db
         .update(schema.downloads)
@@ -209,6 +220,10 @@ async function persistRetainedPartialFailure(
             errorMessage: describeError(error),
             fileName,
             filePath,
+            // The task's validator is only ever proven-or-original, so a
+            // validator promoted mid-attempt (complete overlap match)
+            // survives into manual Retry instead of forcing a re-verify.
+            resumeValidator: task.resumeValidator ?? null,
             status: 'failed',
             totalBytes,
             updatedAt: sql`CURRENT_TIMESTAMP`,

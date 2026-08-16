@@ -18,6 +18,8 @@ export * from './lib/view-in-portal-action/view-in-portal-handoff.token';
 export * from './lib/progress-capsule/progress-capsule.component';
 export * from './lib/resizable/resizable.directive';
 export * from './lib/season-container/season-container.component';
+export * from './lib/season-container/season-watch-presenter';
+export * from './lib/season-container/season-watch-toggle.util';
 export * from './lib/vod-sources/vod-source-copy-row.component';
 export * from './lib/vod-sources/vod-source-filtering.util';
 export * from './lib/vod-sources/vod-source-row.component';

@@ -257,6 +257,57 @@ test.describe('Electron Season Watched Toggle', () => {
                     timeout: 20_000,
                 })
                 .toEqual([]);
+
+            // Series scope: the header ⋮ menu routes EVERY season through
+            // the same batch IPC — one action, 24 full-progress rows across
+            // seasons 1–3 (no second restart: durability of the channel is
+            // already proven above).
+            const seriesMenuTrigger =
+                app.mainWindow.getByTestId('series-watch-menu');
+            await expect(seriesMenuTrigger).toBeVisible();
+            await seriesMenuTrigger.click();
+            const seriesToggle = app.mainWindow.getByTestId(
+                'toggle-series-watched'
+            );
+            await expect(seriesToggle).toBeVisible();
+            await expect(seriesToggle).toContainText(
+                `Mark series as watched (${seasonCount * seasonEpisodeCount})`
+            );
+            await seriesToggle.click();
+
+            await expect(
+                app.mainWindow.locator('.season-tabs__done')
+            ).toHaveCount(seasonCount, { timeout: 15_000 });
+            await expect
+                .poll(() => readEpisodePositions(app.mainWindow, playlistId), {
+                    timeout: 20_000,
+                })
+                .toHaveLength(seasonCount * seasonEpisodeCount);
+            const seriesRows = await readEpisodePositions(
+                app.mainWindow,
+                playlistId
+            );
+            expect(
+                new Set(seriesRows.map((row) => row.seasonNumber))
+            ).toEqual(new Set([1, 2, 3]));
+            expect(
+                seriesRows.every((row) => row.positionSeconds > 0)
+            ).toBe(true);
+
+            // Unwatch-all clears all 24 rows again through the clear batch.
+            await seriesMenuTrigger.click();
+            await expect(seriesToggle).toContainText(
+                'Mark series as unwatched'
+            );
+            await seriesToggle.click();
+            await expect(
+                app.mainWindow.locator('.season-tabs__done')
+            ).toHaveCount(0, { timeout: 15_000 });
+            await expect
+                .poll(() => readEpisodePositions(app.mainWindow, playlistId), {
+                    timeout: 20_000,
+                })
+                .toEqual([]);
         } finally {
             await closeElectronApp(app);
         }
