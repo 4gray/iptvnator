@@ -37,6 +37,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
@@ -321,9 +322,13 @@ export class VodDetailsComponent {
     }
 
     /** Clickable year/genre/country chips (Discover pages) */
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+
     readonly discover = createDiscoverFacetNavigation(() => {
         const item = this.item();
-        return item.playlistId
+        // Discover reads its results from TMDB, so a chip must not offer a
+        // page that enrichment cannot fill
+        return item.playlistId && this.tmdbEnrichment.isEnabled()
             ? {
                   portal: item.type === 'stalker' ? 'stalker' : 'xtream',
                   // Stalker embedded-VOD series render here but are matched

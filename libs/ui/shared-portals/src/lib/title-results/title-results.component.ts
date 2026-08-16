@@ -70,6 +70,16 @@ export class TitleResultsComponent<T extends TitleResultItem> {
             : 'XTREAM.CREW_JOB_DIRECTOR';
     }
 
+    /**
+     * The spinner belongs to the global scope only. Gating the grid on the
+     * raw flag hides valid portal results when the user switches back while
+     * the worker request is still in flight — a stuck worker would then
+     * blank the local grid indefinitely.
+     */
+    readonly matchingVisible = computed(
+        () => this.isMatching() && this.scope() === 'global'
+    );
+
     readonly visibleItems = computed(() =>
         this.showAvailabilityFilter() && this.filterMode() === 'available'
             ? this.items().filter((item) => item.available)

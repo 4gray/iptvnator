@@ -42,6 +42,8 @@ below is reached as `/workspace/stalker/:id/…`.
 - `/workspace/stalker/:id/recent`
 - `/workspace/stalker/:id/search`
 - `/workspace/stalker/:id/actor/:personId`
+- `/workspace/stalker/:id/discover` (facet query params; see
+  `docs/architecture/tmdb-metadata-enrichment.md`)
 - `/workspace/stalker/:id/downloads` (shared `DownloadsComponent` from `@iptvnator/portal/downloads/feature`)
 - `/workspace/stalker/:id/downloads/:downloadId` (focused local movie/series
   detail with no category context panel)

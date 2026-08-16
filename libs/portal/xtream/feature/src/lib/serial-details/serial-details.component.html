@@ -17,13 +17,11 @@
                 }}</span>
             }
             @if (info.releaseDate) {
-                @if (discover.canOpenYear(info.tmdb_id, info.releaseDate)) {
+                @if (discover.canOpenYear(info.releaseDate)) {
                     <button
                         type="button"
                         class="details__tag details__tag--clickable"
-                        (click)="
-                            discover.openYear(info.tmdb_id, info.releaseDate)
-                        "
+                        (click)="discover.openYear(info.releaseDate)"
                     >
                         {{ info.releaseDate | slice: 0 : 4 }}
                     </button>

@@ -51,6 +51,7 @@ import {
 import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
     SerialDetailsPlaybackService,
@@ -299,9 +300,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     /** Clickable year/genre/country chips (Discover pages) */
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+
     readonly discover = createDiscoverFacetNavigation(() => {
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        return playlistId
+        // Discover reads its results from TMDB, so a chip must not offer a
+        // page that enrichment cannot fill
+        return playlistId && this.tmdbEnrichment.isEnabled()
             ? { portal: 'xtream', mediaType: 'tv', playlistId }
             : null;
     });

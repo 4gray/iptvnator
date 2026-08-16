@@ -12,11 +12,11 @@
     <!-- Tags: Year, Genre, Duration, Rating -->
     <ng-template appDetailTags>
         @if (meta.year) {
-            @if (discover.canOpenYear(meta.tmdbId, meta.year)) {
+            @if (discover.canOpenYear(meta.year)) {
                 <button
                     type="button"
                     class="details__tag details__tag--clickable"
-                    (click)="discover.openYear(meta.tmdbId, meta.year)"
+                    (click)="discover.openYear(meta.year)"
                 >
                     {{ meta.year }}
                 </button>

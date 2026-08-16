@@ -537,8 +537,8 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
 - Dashboard: `/workspace/dashboard`; sources overview: `/workspace/sources`
 - M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `:view`) — routes in `libs/playlist/m3u/feature-player`
-- Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `actor/:personId`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
-- Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
+- Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `actor/:personId`, `discover`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
+- Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `discover`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
 - Downloads: `/workspace/downloads` with focused

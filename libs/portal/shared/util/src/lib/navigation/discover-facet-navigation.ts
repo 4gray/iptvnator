@@ -9,8 +9,9 @@ import {
 import { discoverLink } from './discover-link.util';
 
 /**
- * Where a detail page's facet chips should navigate. `null` means the page
- * cannot resolve its own playlist yet, so chips must not navigate at all.
+ * Where a detail page's facet chips should navigate. `null` means the
+ * page cannot send a facet anywhere — it has no playlist yet, or TMDB
+ * enrichment is off, which is what Discover reads its results from.
  */
 export interface DiscoverFacetTarget {
     portal: 'xtream' | 'stalker';
@@ -19,11 +20,8 @@ export interface DiscoverFacetTarget {
 }
 
 export interface DiscoverFacetNavigation {
-    canOpenYear(
-        tmdbId: unknown,
-        releaseDate: string | null | undefined
-    ): boolean;
-    openYear(tmdbId: unknown, releaseDate: string | null | undefined): void;
+    canOpenYear(releaseDate: string | null | undefined): boolean;
+    openYear(releaseDate: string | null | undefined): void;
     openGenre(genre: TmdbGenreFacet): void;
     openCountry(country: TmdbCountryFacet): void;
 }
@@ -45,10 +43,11 @@ function facetYear(releaseDate: string | null | undefined): number | null {
  * Shared behavior behind the clickable year/genre/country chips on every
  * detail page. Call it from a field initializer (injection context).
  *
- * The year gate is deliberately `typeof tmdbId === 'number'`: provider
- * payloads ship `tmdb_id` as an untrusted string, so only a value written
- * by the TMDB merge proves the item was actually matched — and without a
- * match there is no facet identity to discover by.
+ * A chip is offered only when its click can actually land somewhere, which
+ * is what the target answers. Genre and country chips are inherently safe
+ * (they exist only on an enriched item), but the year chip renders from
+ * provider data, so the target is what keeps it from promising a Discover
+ * page that enrichment cannot fill.
  */
 export function createDiscoverFacetNavigation(
     target: () => DiscoverFacetTarget | null
@@ -73,19 +72,16 @@ export function createDiscoverFacetNavigation(
         });
     };
 
-    const canOpenYear = (
-        tmdbId: unknown,
-        releaseDate: string | null | undefined
-    ): boolean => typeof tmdbId === 'number' && facetYear(releaseDate) !== null;
+    const canOpenYear = (releaseDate: string | null | undefined): boolean =>
+        target() !== null && facetYear(releaseDate) !== null;
 
     return {
         canOpenYear,
-        openYear(tmdbId, releaseDate) {
+        openYear(releaseDate) {
             const year = facetYear(releaseDate);
-            if (year === null || !canOpenYear(tmdbId, releaseDate)) {
-                return;
+            if (year !== null) {
+                navigate({ kind: 'year', year });
             }
-            navigate({ kind: 'year', year });
         },
         openGenre(genre) {
             navigate({ kind: 'genre', genre });

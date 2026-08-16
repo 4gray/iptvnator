@@ -71,34 +71,32 @@ describe('createDiscoverFacetNavigation', () => {
             ['31-03-1999', '1999'],
         ]) {
             navigate.mockClear();
-            discover.openYear(603, date);
+            discover.openYear(date);
             expect(navigate).toHaveBeenCalledWith(expect.anything(), {
                 queryParams: { type: 'movie', year },
             });
         }
     });
 
-    it('refuses the year facet without a merge-written numeric tmdb id', () => {
-        const discover = create(xtreamMovie);
+    it('refuses the year facet when the target cannot be reached', () => {
+        // Hosts return null when enrichment is off, and Discover reads its
+        // results from TMDB — a year chip must not promise an empty page
+        const discover = create(() => null);
 
-        // Providers ship tmdb_id as an untrusted string; only the merge
-        // writes a number, and only a matched item has a facet identity
-        expect(discover.canOpenYear('603', '1999-03-31')).toBe(false);
-        expect(discover.canOpenYear(undefined, '1999-03-31')).toBe(false);
-        expect(discover.canOpenYear(603, '1999-03-31')).toBe(true);
+        expect(discover.canOpenYear('1999-03-31')).toBe(false);
 
-        discover.openYear('603', '1999-03-31');
+        discover.openYear('1999-03-31');
         expect(navigate).not.toHaveBeenCalled();
     });
 
     it('refuses the year facet without a parsable year', () => {
         const discover = create(xtreamMovie);
 
-        expect(discover.canOpenYear(603, '')).toBe(false);
-        expect(discover.canOpenYear(603, undefined)).toBe(false);
-        expect(discover.canOpenYear(603, 'unknown')).toBe(false);
+        expect(discover.canOpenYear('')).toBe(false);
+        expect(discover.canOpenYear(undefined)).toBe(false);
+        expect(discover.canOpenYear('unknown')).toBe(false);
 
-        discover.openYear(603, 'unknown');
+        discover.openYear('unknown');
         expect(navigate).not.toHaveBeenCalled();
     });
 
@@ -106,10 +104,10 @@ describe('createDiscoverFacetNavigation', () => {
         const discover = create(xtreamMovie);
 
         // '0000-00-00' reads as a four-digit year but filters by nothing
-        expect(discover.canOpenYear(603, '0000-00-00')).toBe(false);
-        expect(discover.canOpenYear(603, '0000')).toBe(false);
+        expect(discover.canOpenYear('0000-00-00')).toBe(false);
+        expect(discover.canOpenYear('0000')).toBe(false);
 
-        discover.openYear(603, '0000-00-00');
+        discover.openYear('0000-00-00');
         expect(navigate).not.toHaveBeenCalled();
     });
 
@@ -118,7 +116,7 @@ describe('createDiscoverFacetNavigation', () => {
 
         discover.openGenre({ id: 18, name: 'Drama' });
         discover.openCountry({ code: 'US', name: 'United States' });
-        discover.openYear(603, '1999');
+        discover.openYear('1999');
 
         expect(navigate).not.toHaveBeenCalled();
     });

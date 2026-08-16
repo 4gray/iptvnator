@@ -295,13 +295,11 @@
     >
         <ng-template appDetailTags>
             @if (info.releasedate) {
-                @if (discover.canOpenYear(info.tmdb_id, info.releasedate)) {
+                @if (discover.canOpenYear(info.releasedate)) {
                     <button
                         type="button"
                         class="details__tag details__tag--clickable"
-                        (click)="
-                            discover.openYear(info.tmdb_id, info.releasedate)
-                        "
+                        (click)="discover.openYear(info.releasedate)"
                     >
                         {{ info.releasedate | slice: 0 : 4 }}
                     </button>

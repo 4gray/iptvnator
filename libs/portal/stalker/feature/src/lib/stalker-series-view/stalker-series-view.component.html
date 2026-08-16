@@ -16,21 +16,11 @@
                 }}</span>
             }
             @if (serial.info.releasedate) {
-                @if (
-                    discover.canOpenYear(
-                        serial.info.tmdb_id,
-                        serial.info.releasedate
-                    )
-                ) {
+                @if (discover.canOpenYear(serial.info.releasedate)) {
                     <button
                         type="button"
                         class="details__tag details__tag--clickable"
-                        (click)="
-                            discover.openYear(
-                                serial.info.tmdb_id,
-                                serial.info.releasedate
-                            )
-                        "
+                        (click)="discover.openYear(serial.info.releasedate)"
                     >
                         {{ serial.info.releasedate }}
                     </button>
