@@ -1,5 +1,6 @@
 import { XtreamVodDetails, getXtreamVodInfo } from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
+import { parseFacetYear } from './tmdb.interface';
 import {
     NormalizedVodMeta,
     VodDetailsItem,
@@ -170,24 +171,28 @@ export function getVodNumericId(item: VodDetailsItem): number {
 // ============ Helper Functions ============
 
 /**
- * Extracts 4-digit year from various date formats.
+ * Extracts the 4-digit year from the various date formats providers send.
+ *
+ * Delegates to the shared facet parser so the displayed year and the
+ * Discover chip built from it cannot disagree — the old fixed-prefix
+ * fallback turned a day-first `31-03-1999` into `31-0`, which is both
+ * the wrong label and an unusable filter. The date-parse fallback stays
+ * for shapes stating no four-digit run of their own.
  */
 function extractYear(dateString?: string): string | undefined {
     if (!dateString) return undefined;
 
-    // Try to extract 4-digit year from beginning
-    const yearMatch = dateString.match(/^(\d{4})/);
-    if (yearMatch) {
-        return yearMatch[1];
+    const facetYear = parseFacetYear(dateString);
+    if (facetYear !== null) {
+        return String(facetYear);
     }
 
-    // Try to parse as date and extract year
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
         return date.getFullYear().toString();
     }
 
-    return dateString.slice(0, 4);
+    return undefined;
 }
 
 /**

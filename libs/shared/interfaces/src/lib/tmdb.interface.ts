@@ -132,6 +132,23 @@ export function isTmdbYearFacet(year: number): boolean {
 }
 
 /**
+ * The year stated by a provider date field, whatever shape it arrives in
+ * — `1976`, `1999-03-31` and `31-03-1999` all resolve to the same year.
+ *
+ * Reads the first four-digit run rather than a fixed prefix: slicing
+ * turns a day-first date into `31-0`, which is both the wrong label and
+ * an unusable filter. Lives here so the Discover chips and the detail
+ * adapters cannot drift into disagreeing about what a date says.
+ */
+export function parseFacetYear(
+    releaseDate: string | null | undefined
+): number | null {
+    const match = releaseDate?.match(/\d{4}/);
+    const year = match ? Number(match[0]) : null;
+    return year !== null && isTmdbYearFacet(year) ? year : null;
+}
+
+/**
  * One cached TMDB lookup. Two kinds of rows share the table, discriminated
  * by the `lookupKey` prefix:
  * - `id:<tmdbId>` — full details payload for a TMDB id

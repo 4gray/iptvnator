@@ -4,7 +4,7 @@ import {
     TmdbCountryFacet,
     TmdbGenreFacet,
     TmdbMediaType,
-    isTmdbYearFacet,
+    parseFacetYear,
 } from '@iptvnator/shared/interfaces';
 import { discoverLink } from './discover-link.util';
 
@@ -31,19 +31,6 @@ export interface DiscoverFacetNavigation {
     openYear(releaseDate: string | null | undefined): void;
     openGenre(genre: TmdbGenreFacet): void;
     openCountry(country: TmdbCountryFacet): void;
-}
-
-/**
- * Year stated by a provider date field, whatever shape it arrives in —
- * `1976`, `1999-03-31` and `31-03-1999` all resolve. Reads the first
- * four-digit run rather than a fixed slice, which the day-first form
- * would otherwise turn into `NaN`, and rejects the `0000-00-00`
- * placeholder rather than offering a chip that filters by nothing.
- */
-function facetYear(releaseDate: string | null | undefined): number | null {
-    const match = releaseDate?.match(/\d{4}/);
-    const year = match ? Number(match[0]) : null;
-    return year !== null && isTmdbYearFacet(year) ? year : null;
 }
 
 /**
@@ -80,16 +67,16 @@ export function createDiscoverFacetNavigation(
     };
 
     const canOpenYear = (releaseDate: string | null | undefined): boolean =>
-        target() !== null && facetYear(releaseDate) !== null;
+        target() !== null && parseFacetYear(releaseDate) !== null;
 
     return {
         yearLabel(releaseDate) {
-            const year = facetYear(releaseDate);
+            const year = parseFacetYear(releaseDate);
             return year === null ? null : String(year);
         },
         canOpenYear,
         openYear(releaseDate) {
-            const year = facetYear(releaseDate);
+            const year = parseFacetYear(releaseDate);
             if (year !== null) {
                 navigate({ kind: 'year', year });
             }
