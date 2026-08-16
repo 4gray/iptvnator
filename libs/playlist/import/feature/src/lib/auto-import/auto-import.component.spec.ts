@@ -94,6 +94,21 @@ describe('AutoImportComponent', () => {
         expect(JSON.stringify(rows)).not.toContain('s3cret');
     });
 
+    it('masks an HTTP Basic password embedded in the URL', () => {
+        fixture.detectChanges();
+
+        const rows = component.summaryRows({
+            kind: 'm3u-url',
+            confidence: 'high',
+            url: 'https://alice:s3cret@lists.example.com/list.m3u',
+        });
+
+        expect(rows[0].value).toBe(
+            'https://alice:••••••@lists.example.com/list.m3u'
+        );
+        expect(rows[0].value).not.toContain('s3cret');
+    });
+
     it('masks percent-encoded and repeated password parameters', () => {
         fixture.detectChanges();
 

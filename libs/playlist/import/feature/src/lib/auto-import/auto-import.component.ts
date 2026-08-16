@@ -50,6 +50,49 @@ const CONFIDENCE_LABEL_KEYS: Record<ProviderImportConfidence, string> = {
  * the importer — reads as `password`.
  */
 function maskUrlPasswords(url: string): string {
+    return maskUrlQueryPasswords(maskUrlUserinfoPassword(url));
+}
+
+/**
+ * Hides the password half of HTTP Basic userinfo
+ * (`https://alice:secret@host/…`), which is a password on the card exactly
+ * like a query one. The username stays visible, as it does everywhere else.
+ */
+function maskUrlUserinfoPassword(url: string): string {
+    const schemeEnd = url.indexOf('://');
+    if (schemeEnd === -1) {
+        return url;
+    }
+    const authorityStart = schemeEnd + 3;
+    const authorityEnd = (() => {
+        const rest = url.slice(authorityStart);
+        const cut = rest.search(/[/?#]/);
+        return cut === -1 ? url.length : authorityStart + cut;
+    })();
+
+    const authority = url.slice(authorityStart, authorityEnd);
+    // Last `@`: one inside the password itself has to be percent-encoded, so
+    // whatever follows the final `@` is the host.
+    const userinfoEnd = authority.lastIndexOf('@');
+    if (userinfoEnd === -1) {
+        return url;
+    }
+    const userinfo = authority.slice(0, userinfoEnd);
+    const separator = userinfo.indexOf(':');
+    if (separator === -1) {
+        return url;
+    }
+
+    const masked = `${userinfo.slice(0, separator)}:••••••`;
+    return (
+        url.slice(0, authorityStart) +
+        masked +
+        authority.slice(userinfoEnd) +
+        url.slice(authorityEnd)
+    );
+}
+
+function maskUrlQueryPasswords(url: string): string {
     const queryStart = url.indexOf('?');
     if (queryStart === -1) {
         return url;
