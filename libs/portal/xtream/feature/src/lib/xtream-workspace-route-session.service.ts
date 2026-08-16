@@ -92,7 +92,7 @@ function toContentInitBlockReason(
 }
 
 function toCachedContentScope(
-    section: PortalRailSection | null
+    section: string | null
 ): XtreamCachedContentScope | null {
     switch (section) {
         case 'live':
@@ -101,6 +101,13 @@ function toCachedContentScope(
         case 'search':
         case 'recently-added':
             return section;
+        // Neither reads one content type: both match TMDB titles against
+        // the whole catalog, so they take the aggregate scope search uses.
+        // Without it an expired or offline portal skips hydration and the
+        // page answers "not in your library" from an empty catalog.
+        case 'actor':
+        case 'discover':
+            return 'search';
         default:
             return null;
     }
