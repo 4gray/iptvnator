@@ -1,0 +1,133 @@
+<section class="title-results">
+    <h2>
+        {{ headingKey() | translate }}
+        @if (showScopeToggle()) {
+            <span class="title-results__filter">
+                <button
+                    type="button"
+                    class="title-results__filter-chip"
+                    [class.title-results__filter-chip--active]="
+                        scope() === 'portal'
+                    "
+                    (click)="scopeChanged.emit('portal')"
+                >
+                    {{ 'XTREAM.ACTOR_SCOPE_THIS_PORTAL' | translate }}
+                </button>
+                <button
+                    type="button"
+                    class="title-results__filter-chip"
+                    [class.title-results__filter-chip--active]="
+                        scope() === 'global'
+                    "
+                    (click)="scopeChanged.emit('global')"
+                >
+                    {{ 'XTREAM.ACTOR_SCOPE_ALL_PORTALS' | translate }}
+                </button>
+            </span>
+        }
+        @if (showAvailabilityFilter()) {
+            <span class="title-results__filter">
+                <button
+                    type="button"
+                    class="title-results__filter-chip"
+                    [class.title-results__filter-chip--active]="
+                        filterMode() === 'all'
+                    "
+                    (click)="filterMode.set('all')"
+                >
+                    {{ 'XTREAM.ACTOR_FILTER_ALL' | translate }}
+                </button>
+                <button
+                    type="button"
+                    class="title-results__filter-chip"
+                    [class.title-results__filter-chip--active]="
+                        filterMode() === 'available'
+                    "
+                    (click)="filterMode.set('available')"
+                >
+                    {{ 'XTREAM.ACTOR_IN_LIBRARY' | translate }}
+                </button>
+            </span>
+        }
+    </h2>
+    @if (matchingVisible()) {
+        <div class="title-results__matching">
+            <mat-spinner diameter="32" />
+        </div>
+    } @else if (visibleItems().length === 0) {
+        <div class="title-results__empty">
+            <mat-icon>search_off</mat-icon>
+            <p>{{ emptyMessageKey() | translate }}</p>
+        </div>
+    } @else {
+        <!-- Hidden while matching on purpose: until the matches land every
+             card still reads as unavailable, and clicking one would open
+             the portal search for a title the next tick will resolve. -->
+        <div class="title-results__grid">
+            @for (
+                item of visibleItems();
+                track item.mediaType + '-' + item.tmdbId
+            ) {
+                <button
+                    type="button"
+                    class="title-results__card"
+                    [class.title-results__card--unavailable]="!item.available"
+                    [title]="
+                        item.character
+                            ? item.title + ' — ' + item.character
+                            : item.title
+                    "
+                    (click)="itemClicked.emit(item)"
+                >
+                    @if (item.posterUrl) {
+                        <img
+                            class="title-results__poster"
+                            [src]="item.posterUrl"
+                            [alt]="item.title"
+                            loading="lazy"
+                        />
+                    } @else {
+                        <span
+                            class="title-results__poster title-results__poster--fallback"
+                        >
+                            {{ item.title.charAt(0) }}
+                        </span>
+                    }
+                    @if (item.available && item.availableIn) {
+                        <span class="title-results__badge">
+                            <mat-icon>check_circle</mat-icon>
+                            {{ item.availableIn }}
+                        </span>
+                    } @else if (
+                        item.available && filterMode() !== 'available'
+                    ) {
+                        <span class="title-results__badge">
+                            <mat-icon>check_circle</mat-icon>
+                            {{ 'XTREAM.ACTOR_IN_LIBRARY' | translate }}
+                        </span>
+                    } @else if (!item.available) {
+                        <span
+                            class="title-results__badge title-results__badge--search"
+                        >
+                            <mat-icon>search</mat-icon>
+                            {{ 'XTREAM.ACTOR_SEARCH_IN_PORTAL' | translate }}
+                        </span>
+                    }
+                    <span class="title-results__card-title">
+                        {{ item.title }}
+                    </span>
+                    <span class="title-results__card-sub">
+                        @if (item.year) {
+                            {{ item.year }}
+                        }
+                        @if (item.character) {
+                            · {{ item.character }}
+                        } @else if (item.crewJob) {
+                            · {{ crewJobKey(item.crewJob) | translate }}
+                        }
+                    </span>
+                </button>
+            }
+        </div>
+    }
+</section>

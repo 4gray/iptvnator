@@ -1,6 +1,8 @@
 import {
     normalizeSeriesStatus,
     StalkerVodInfo,
+    TmdbCountryFacet,
+    TmdbGenreFacet,
     TmdbMediaType,
     TmdbRecommendation,
     XtreamSerieInfo,
@@ -66,6 +68,34 @@ function genreNames(details: TmdbDetails): string {
         .join(', ');
 }
 
+/** Structured genres for clickable Discover chips */
+function genreFacets(details: TmdbDetails): TmdbGenreFacet[] {
+    return (details.genres ?? [])
+        .filter((genre) => Number.isInteger(genre.id) && !!genre.name?.trim())
+        .map((genre) => ({ id: genre.id, name: genre.name }));
+}
+
+/**
+ * Structured countries for clickable Discover chips.
+ *
+ * Built from `origin_country`, never from the fuller
+ * `production_countries`: the Discover page filters by
+ * `with_origin_country`, so a co-production's other countries would
+ * promise "titles from here" and deliver a different set. Names come
+ * from `production_countries` (the only place TMDB states them), and a
+ * code it does not name is dropped rather than rendered as a bare "FR".
+ */
+function countryFacets(details: TmdbDetails): TmdbCountryFacet[] {
+    const namesByCode = new Map(
+        (details.production_countries ?? [])
+            .filter((entry) => !!entry.iso_3166_1 && !!entry.name)
+            .map((entry) => [entry.iso_3166_1 as string, entry.name as string])
+    );
+    return (details.origin_country ?? [])
+        .filter((code) => namesByCode.has(code))
+        .map((code) => ({ code, name: namesByCode.get(code) as string }));
+}
+
 function tmdbRating(details: TmdbDetails): number | null {
     const { vote_average: average, vote_count: count } = details;
     return average && average > 0 && count && count > 0
@@ -106,6 +136,8 @@ export function mergeVodInfoWithTmdb(
     const cast = castNames(movieCast);
     const director = directorNames(details.credits);
     const genre = genreNames(details);
+    const tmdbGenres = genreFacets(details);
+    const tmdbCountries = countryFacets(details);
     const rating = tmdbRating(details);
     const poster = tmdbPosterUrl(details.poster_path);
     const country = (details.production_countries ?? [])
@@ -140,6 +172,10 @@ export function mergeVodInfoWithTmdb(
         ...(recommendations.length > 0
             ? { tmdb_recommendations: recommendations }
             : {}),
+        ...(tmdbGenres.length > 0 ? { tmdb_genres: tmdbGenres } : {}),
+        ...(tmdbCountries.length > 0
+            ? { tmdb_countries: tmdbCountries }
+            : {}),
     };
 }
 
@@ -156,6 +192,8 @@ export function mergeSerieInfoWithTmdb(
     const cast = castNames(seriesCast);
     const creators = creatorNames(details);
     const genre = genreNames(details);
+    const tmdbGenres = genreFacets(details);
+    const tmdbCountries = countryFacets(details);
     const rating = tmdbRating(details);
     const poster = tmdbPosterUrl(details.poster_path);
 
@@ -179,6 +217,10 @@ export function mergeSerieInfoWithTmdb(
         ...(tmdbCast.length > 0 ? { tmdb_cast: tmdbCast } : {}),
         ...(recommendations.length > 0
             ? { tmdb_recommendations: recommendations }
+            : {}),
+        ...(tmdbGenres.length > 0 ? { tmdb_genres: tmdbGenres } : {}),
+        ...(tmdbCountries.length > 0
+            ? { tmdb_countries: tmdbCountries }
             : {}),
     };
 }
@@ -215,6 +257,8 @@ export function mergeStalkerInfoWithTmdb(
             ? directorNames(details.credits)
             : creatorNames(details as TmdbTvDetails);
     const genre = genreNames(details);
+    const tmdbGenres = genreFacets(details);
+    const tmdbCountries = countryFacets(details);
     const rating = tmdbRating(details);
     const poster = tmdbPosterUrl(details.poster_path);
     const backdrop = tmdbBackdropUrl(details.backdrop_path);
@@ -243,5 +287,12 @@ export function mergeStalkerInfoWithTmdb(
         ...(recommendations.length > 0
             ? { tmdb_recommendations: recommendations }
             : {}),
+        ...(tmdbGenres.length > 0 ? { tmdb_genres: tmdbGenres } : {}),
+        ...(tmdbCountries.length > 0
+            ? { tmdb_countries: tmdbCountries }
+            : {}),
+        // Lets the shared detail view route Discover clicks to the media
+        // type this item actually matched as (embedded-VOD series → tv)
+        tmdb_media_type: mediaType,
     };
 }

@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { TMDB_API_BASE_URL } from './tmdb-config';
 import {
+    TmdbDiscoverFilters,
+    TmdbDiscoverResponse,
     TmdbMovieDetails,
     TmdbPersonDetails,
     TmdbSearchResponse,
@@ -114,6 +116,40 @@ export class TmdbApiService {
             apiKey
         );
         return response.results ?? [];
+    }
+
+    /**
+     * One `/discover` page for the given facets, most popular first. The
+     * year filter parameter differs per media type; genre ids are only
+     * valid within their own media type's id space.
+     */
+    async discoverTitles(
+        mediaType: 'movie' | 'tv',
+        filters: TmdbDiscoverFilters,
+        page: number,
+        language: string,
+        apiKey: string
+    ): Promise<TmdbDiscoverResponse> {
+        const yearParam =
+            mediaType === 'movie'
+                ? 'primary_release_year'
+                : 'first_air_date_year';
+        return this.request<TmdbDiscoverResponse>(
+            `/discover/${mediaType}`,
+            {
+                language,
+                sort_by: 'popularity.desc',
+                page: String(page),
+                ...(filters.year ? { [yearParam]: String(filters.year) } : {}),
+                ...(filters.genreId
+                    ? { with_genres: String(filters.genreId) }
+                    : {}),
+                ...(filters.countryCode
+                    ? { with_origin_country: filters.countryCode }
+                    : {}),
+            },
+            apiKey
+        );
     }
 
     async getPersonDetails(

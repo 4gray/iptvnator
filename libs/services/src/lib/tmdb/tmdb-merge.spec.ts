@@ -51,6 +51,7 @@ const tmdbMovie: TmdbMovieDetails = {
     poster_path: '/matrix-poster.jpg',
     backdrop_path: '/matrix-backdrop.jpg',
     production_countries: [{ iso_3166_1: 'US', name: 'United States' }],
+    origin_country: ['US'],
     credits: {
         cast: [
             {
@@ -235,6 +236,76 @@ describe('mergeVodInfoWithTmdb', () => {
         expect(merged.tmdb_supplied_release_date).toBeUndefined();
     });
 
+    it('emits structured genre and country facets for Discover chips', () => {
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), tmdbMovie);
+
+        expect(merged.tmdb_genres).toEqual([
+            { id: 28, name: 'Action' },
+            { id: 878, name: 'Science Fiction' },
+        ]);
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'US', name: 'United States' },
+        ]);
+    });
+
+    it('keeps country facets to the origin countries the filter can query', () => {
+        // A co-production lists every partner in production_countries, but
+        // Discover filters by origin — offering "Canada" here would return
+        // Canadian-origin films rather than ones Canada co-produced
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), {
+            id: 476299,
+            origin_country: ['FR'],
+            production_countries: [
+                { iso_3166_1: 'CA', name: 'Canada' },
+                { iso_3166_1: 'FR', name: 'France' },
+            ],
+        });
+
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'FR', name: 'France' },
+        ]);
+    });
+
+    it('drops an origin country TMDB does not name', () => {
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), {
+            id: 603,
+            origin_country: ['US', 'XX'],
+            production_countries: [{ iso_3166_1: 'US', name: 'United States' }],
+        });
+
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'US', name: 'United States' },
+        ]);
+    });
+
+    it('omits facet fields when TMDB states none', () => {
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), { id: 603 });
+
+        expect(merged.tmdb_genres).toBeUndefined();
+        expect(merged.tmdb_countries).toBeUndefined();
+    });
+
+    it('drops facet entries with missing ids or names', () => {
+        const merged = mergeVodInfoWithTmdb(providerVodInfo(), {
+            id: 603,
+            genres: [
+                { id: 28, name: 'Action' },
+                { id: 12, name: '  ' },
+            ],
+            origin_country: ['US', 'ZZ'],
+            production_countries: [
+                { iso_3166_1: 'US', name: 'United States' },
+                { iso_3166_1: '', name: 'Nowhere' },
+                { name: 'No Code' },
+            ],
+        });
+
+        expect(merged.tmdb_genres).toEqual([{ id: 28, name: 'Action' }]);
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'US', name: 'United States' },
+        ]);
+    });
+
     it('does not mutate the provider object', () => {
         const info = providerVodInfo();
         const snapshot = JSON.parse(JSON.stringify(info));
@@ -317,6 +388,28 @@ describe('mergeSerieInfoWithTmdb', () => {
         expect(merged.rating).toBe('7');
         expect(merged.rating_5based).toBe(3.5);
         expect(merged.cover).toBe('http://provider/cover.jpg');
+    });
+
+    it('emits structured genre and country facets for Discover chips', () => {
+        const merged = mergeSerieInfoWithTmdb(providerSerieInfo, {
+            ...tmdbTv,
+            origin_country: ['DE'],
+            production_countries: [{ iso_3166_1: 'DE', name: 'Germany' }],
+        });
+
+        expect(merged.tmdb_genres).toEqual([{ id: 9648, name: 'Mystery' }]);
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'DE', name: 'Germany' },
+        ]);
+    });
+
+    it('omits facet fields when TMDB states none', () => {
+        const merged = mergeSerieInfoWithTmdb(providerSerieInfo, {
+            id: 70523,
+        });
+
+        expect(merged.tmdb_genres).toBeUndefined();
+        expect(merged.tmdb_countries).toBeUndefined();
     });
 });
 

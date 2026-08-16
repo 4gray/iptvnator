@@ -1,5 +1,7 @@
 import {
+    TmdbCountryFacet,
     TmdbEnrichedCastMember,
+    TmdbGenreFacet,
     TmdbRecommendation,
 } from './tmdb.interface';
 
@@ -52,6 +54,9 @@ export interface XtreamVodInfo {
     tmdb_directors?: TmdbEnrichedCastMember[];
     /** Populated by TMDB enrichment; matched against the catalog in views */
     tmdb_recommendations?: TmdbRecommendation[];
+    /** Populated by TMDB enrichment; per-entry clickable Discover chips */
+    tmdb_genres?: TmdbGenreFacet[];
+    tmdb_countries?: TmdbCountryFacet[];
 }
 
 export interface XtreamVodMovieData {

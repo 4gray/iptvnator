@@ -1,3 +1,4 @@
+export * from './lib/latest-request-guard';
 export * from './lib/logger';
 export * from './lib/category-sort';
 export * from './lib/channel-sort';
@@ -22,6 +23,8 @@ export * from './lib/workspace-header-context.service';
 export * from './lib/workspace-view-command.types';
 export * from './lib/workspace-view-command.service';
 export * from './lib/navigation/collection-detail-portal-navigation';
+export * from './lib/navigation/discover-facet-navigation';
+export * from './lib/navigation/discover-link.util';
 export * from './lib/navigation/portal-rail-links';
 export * from './lib/navigation/provider-detail-mode';
 export * from './lib/navigation/portal-route.utils';

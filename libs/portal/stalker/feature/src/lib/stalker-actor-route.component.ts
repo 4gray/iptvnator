@@ -20,6 +20,7 @@ import {
     pickTitleMatch,
 } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
+import { createLatestRequestGuard } from '@iptvnator/portal/shared/util';
 import {
     ActorViewComponent,
     ActorViewItem,
@@ -71,6 +72,7 @@ export class StalkerActorRouteComponent {
     readonly scope = signal<ActorViewScope>('portal');
     readonly isMatchingGlobal = signal(false);
     private readonly globalMatches = signal<CatalogTitleMatch[] | null>(null);
+    private readonly matchRequest = createLatestRequestGuard();
     private readonly globalIndex = computed(() =>
         groupTitleMatchesByKey(this.globalMatches() ?? [])
     );
@@ -167,14 +169,21 @@ export class StalkerActorRouteComponent {
         // previous person must not overwrite the current one's results
         const requestedPersonId = this.personId();
         const titles = this.filmography().map((credit) => credit.title);
+        const matchToken = this.matchRequest.start();
         this.isMatchingGlobal.set(true);
         try {
             const matches = await this.titleMatch.matchTitles(titles);
-            if (this.personId() === requestedPersonId) {
+            if (
+                this.matchRequest.isLatest(matchToken) &&
+                this.personId() === requestedPersonId
+            ) {
                 this.globalMatches.set(matches);
             }
         } finally {
-            if (this.personId() === requestedPersonId) {
+            // Only the newest request may clear the indicator. Keying this
+            // on the subject instead strands the spinner when the user
+            // leaves the scope and no replacement request ever runs.
+            if (this.matchRequest.isLatest(matchToken)) {
                 this.isMatchingGlobal.set(false);
             }
         }

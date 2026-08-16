@@ -1,6 +1,10 @@
 import { XtreamVodDetails } from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
-import { TmdbEnrichedCastMember,
+import {
+    TmdbCountryFacet,
+    TmdbEnrichedCastMember,
+    TmdbGenreFacet,
+    TmdbMediaType,
     TmdbRecommendation,
 } from './tmdb.interface';
 
@@ -88,6 +92,12 @@ export interface NormalizedVodMeta {
     tmdbDirectors?: TmdbEnrichedCastMember[];
     /** TMDB recommendations (drives the cross-portal "Similar" rail) */
     tmdbRecommendations?: TmdbRecommendation[];
+    /** Media type the enrichment matched as; Discover click routing */
+    tmdbMediaType?: TmdbMediaType;
+    /** Per-entry clickable genre chips (Discover page) */
+    tmdbGenres?: TmdbGenreFacet[];
+    /** Per-entry clickable country chips (Discover page) */
+    tmdbCountries?: TmdbCountryFacet[];
 }
 
 /**

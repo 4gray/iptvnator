@@ -312,8 +312,8 @@ Filmography has two scopes:
 ### Resolving a batched match
 
 Every `DB_MATCH_TITLES` consumer — the Trending rail, the "Because you
-watched" recommendations rail, the cross-portal "Similar" rail and the
-actor page's "All portals" scope — turns the worker's flat result list
+watched" recommendations rail, the cross-portal "Similar" rail, and the
+actor and Discover pages' "All portals" scope — turns the worker's flat result list
 into one row through the same pair of helpers in
 `libs/services/src/lib/catalog-title-match.service.ts`:
 
@@ -342,6 +342,94 @@ title plus `original_title` — via `candidateLookup()`; the rest pass one.
 Multi-source VOD discovery deliberately does NOT use these
 (`operations/title-sources.operations.ts`): there every copy in every
 playlist is a distinct selectable source, not a single best answer.
+
+## Discover Pages (clickable metadata chips)
+
+The year, genre, and country chips on VOD/series detail pages are the
+Discover entry points — the same "TMDB list → what's in my library →
+else search" pattern as actor pages, generalized to metadata facets
+(issue #1449).
+
+**Structured facets from the merge.** All three merge functions in
+`tmdb-merge.ts` additionally emit `tmdb_genres: {id, name}[]` (from
+`details.genres`) and `tmdb_countries: {code, name}[]`. Countries come
+from `details.origin_country`, NOT the fuller `production_countries`:
+Discover filters by `with_origin_country`, so offering a co-production's
+other partners would promise "titles from here" and return a different
+set. Names are read out of `production_countries` (the only place TMDB
+states them) and a code it does not name is dropped rather than rendered
+as a bare `FR`;
+`mergeStalkerInfoWithTmdb` also emits `tmdb_media_type`, because Stalker
+embedded-VOD series route as movies structurally and the shared detail
+view needs the real media type for the Discover link. Cached details
+payloads already carry `genres`/`production_countries`
+(`trimDetailsForCache` only trims `aggregate_credits`), so existing cache
+rows produce facets without a refetch. Like person chips, facet chips are
+clickable ONLY with TMDB backing: genre/country chips render per-entry
+from the structured arrays (falling back to today's static joined-string
+chip without them), while the year chip renders from provider data and
+so needs a gate of its own. That gate is the navigation TARGET, not the
+item's identity: `createDiscoverFacetNavigation()` offers a facet only
+when its click can land somewhere, and the four hosts return `null` from
+their target unless a playlist resolves AND
+`TmdbEnrichmentService.isEnabled()` — Discover reads its results from
+TMDB, so a chip must never promise a page enrichment cannot fill. An
+earlier version gated on `typeof tmdb_id === 'number'` instead; that is
+wrong, because `XtreamVodInfo.tmdb_id` is `number | string` and a
+provider sending a JSON number satisfied it with enrichment never having
+run. Discover-by-year does not use the item's TMDB id at all.
+
+**Navigation.** Chip clicks navigate (via
+`createDiscoverFacetNavigation()`, shared by all four render sites) to
+the portal-scoped
+`discover` route: `/workspace/{xtreams|stalker}/:id/discover?type=
+movie|tv&year=&genre=<id>&genreLabel=&country=<iso>&countryLabel=`. The
+query-param assembly is centralized in `discoverLink()`
+(`libs/portal/shared/util/.../navigation/discover-link.util.ts`); parsing
+lives in `parseDiscoverParams()` (`libs/ui/shared-portals/.../
+discover-view/discover-params.ts`) — labels are dropped without their
+filter values, and `type`+`genre` are an atomic pair (movie and TV genre
+id spaces differ, so a genre never survives a type flip).
+
+**Data.** `TmdbDiscoverService` (facade via
+`TmdbEnrichmentService.discoverTitles`) fetches `/discover/{movie,tv}`
+sorted by popularity, up to 5 pages (early stop at `total_pages`),
+mapped/deduped by `mapDiscoverResults` (`tmdb-discover.ts`). Results are
+deliberately session-cached in memory only (FIFO-bounded Map keyed by
+mediaType|facets|language) and never persisted to `tmdb_metadata` —
+popularity rankings are volatile. Any failure returns `null` (not
+cached); the page shows its empty state, which also covers deep links
+with enrichment disabled.
+
+**Route containers.** `XtreamDiscoverRouteComponent`
+(`libs/portal/xtream/feature/src/lib/discover/`) and
+`StalkerDiscoverRouteComponent` clone the actor route containers: same
+scope toggle, same portal/global matching (Xtream in-memory index by the
+facet's media type; Stalker search-prefill only, global scope matching
+Xtream playlists), same navigation on click.
+
+Facets change via query params on the SAME route instance, so staleness
+cannot be decided by instance — and, for the discover load, not by facet
+either: A→B→A leaves two in-flight requests whose `discoverFacetKey()`
+is identical, so an older one failing after the newer succeeded would
+replace valid results with an empty page. Recency decides instead, via
+`createLatestRequestGuard()` (`libs/portal/shared/util`). The catalog
+match keeps both: the guard owns the in-flight INDICATOR (a request whose
+subject changed must not clear a spinner its replacement now owns, and a
+request with no replacement must still clear it) while the facet key
+decides whether the RESULT is still wanted. The actor pages use the same
+guard for the same reason.
+
+Availability also waits for the catalog, not just for TMDB: the content
+gate renders the route while a cold import runs, and TMDB usually answers
+first, so publishing then would state that owned titles are missing.
+Readiness is keyed on the in-flight flags rather than
+`isContentInitialized`, so a failed import settles the page instead of
+spinning forever. Both
+render the shared `DiscoverViewComponent`, whose grid is the
+`TitleResultsComponent` extracted from `ActorViewComponent`
+(`libs/ui/shared-portals/src/lib/title-results/`) — one grid, filter
+chips, and badge set shared by actor and Discover pages.
 
 ## Cache
 

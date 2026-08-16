@@ -295,11 +295,32 @@
     >
         <ng-template appDetailTags>
             @if (info.releasedate) {
-                <span class="details__tag">{{
-                    info.releasedate | slice: 0 : 4
-                }}</span>
+                @if (discover.canOpenYear(info.releasedate)) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="discover.openYear(info.releasedate)"
+                    >
+                        {{ discover.yearLabel(info.releasedate) }}
+                    </button>
+                } @else {
+                    <span class="details__tag">{{
+                        discover.yearLabel(info.releasedate) ??
+                            (info.releasedate | slice: 0 : 4)
+                    }}</span>
+                }
             }
-            @if (info.genre) {
+            @if (info.tmdb_genres?.length) {
+                @for (genre of info.tmdb_genres; track genre.id) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="discover.openGenre(genre)"
+                    >
+                        {{ genre.name }}
+                    </button>
+                }
+            } @else if (info.genre) {
                 <span class="details__tag">{{ info.genre }}</span>
             }
             @if (info.duration) {
@@ -310,7 +331,17 @@
                     ⭐ {{ info.rating_imdb }}
                 </span>
             }
-            @if (info.country) {
+            @if (info.tmdb_countries?.length) {
+                @for (country of info.tmdb_countries; track country.code) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="discover.openCountry(country)"
+                    >
+                        {{ country.name }}
+                    </button>
+                }
+            } @else if (info.country) {
                 <span class="details__tag">{{ info.country }}</span>
             }
             @if (isDownloaded()) {

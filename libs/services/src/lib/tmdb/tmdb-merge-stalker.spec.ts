@@ -98,6 +98,35 @@ describe('mergeStalkerInfoWithTmdb', () => {
         expect(merged.director).toBe('Создатель Сериала');
     });
 
+    it('emits facets and the matched media type for Discover chips', () => {
+        const merged = mergeStalkerInfoWithTmdb(
+            providerStalkerInfo,
+            {
+                ...tmdbMovieRu,
+                origin_country: ['RU'],
+                production_countries: [
+                    { iso_3166_1: 'RU', name: 'Russia' },
+                ],
+            },
+            'movie'
+        );
+
+        expect(merged.tmdb_genres).toEqual([{ id: 35, name: 'комедия' }]);
+        expect(merged.tmdb_countries).toEqual([
+            { code: 'RU', name: 'Russia' },
+        ]);
+        expect(merged.tmdb_media_type).toBe('movie');
+    });
+
+    it('marks embedded-VOD series as tv so Discover routes correctly', () => {
+        const tv: TmdbTvDetails = { id: 1, overview: 'tv overview' };
+        const merged = mergeStalkerInfoWithTmdb(providerStalkerInfo, tv, 'tv');
+
+        expect(merged.tmdb_media_type).toBe('tv');
+        expect(merged.tmdb_genres).toBeUndefined();
+        expect(merged.tmdb_countries).toBeUndefined();
+    });
+
     it('keeps provider values for missing TMDB fields', () => {
         const merged = mergeStalkerInfoWithTmdb(
             { ...providerStalkerInfo, description: 'Провайдерский сюжет' },

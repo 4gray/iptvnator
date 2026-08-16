@@ -16,9 +16,32 @@
                 }}</span>
             }
             @if (serial.info.releasedate) {
-                <span class="details__tag">{{ serial.info.releasedate }}</span>
+                @if (discover.canOpenYear(serial.info.releasedate)) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="discover.openYear(serial.info.releasedate)"
+                    >
+                        {{ discover.yearLabel(serial.info.releasedate) }}
+                    </button>
+                } @else {
+                    <span class="details__tag">{{
+                        discover.yearLabel(serial.info.releasedate) ??
+                            serial.info.releasedate
+                    }}</span>
+                }
             }
-            @if (serial.info.genre) {
+            @if (serial.info.tmdb_genres?.length) {
+                @for (genre of serial.info.tmdb_genres; track genre.id) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="discover.openGenre(genre)"
+                    >
+                        {{ genre.name }}
+                    </button>
+                }
+            } @else if (serial.info.genre) {
                 <span class="details__tag">{{ serial.info.genre }}</span>
             }
             @if (serial.info.rating_imdb) {
@@ -30,6 +53,20 @@
                 <span class="details__tag">
                     KP {{ serial.info.rating_kinopoisk }}
                 </span>
+            }
+            @if (serial.info.tmdb_countries?.length) {
+                @for (
+                    country of serial.info.tmdb_countries;
+                    track country.code
+                ) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="discover.openCountry(country)"
+                    >
+                        {{ country.name }}
+                    </button>
+                }
             }
         </ng-template>
 

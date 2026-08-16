@@ -14,12 +14,15 @@ import {
     detailsFallbackLanguage,
     fillDetailsFromFallback,
 } from './tmdb-language-fallback';
+import { DiscoverTitle } from './tmdb-discover';
+import { TmdbDiscoverService } from './tmdb-discover.service';
 import { TmdbPersonService } from './tmdb-person.service';
 import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSeasonService } from './tmdb-season.service';
 import { TmdbTrendingService } from './tmdb-trending.service';
 import {
     TmdbDetails,
+    TmdbDiscoverFilters,
     TmdbEnrichmentQuery,
     TmdbEpisode,
     TmdbMovieDetails,
@@ -47,6 +50,7 @@ export class TmdbEnrichmentService {
     private readonly person = inject(TmdbPersonService);
     private readonly season = inject(TmdbSeasonService);
     private readonly trending = inject(TmdbTrendingService);
+    private readonly discover = inject(TmdbDiscoverService);
     private readonly idResolver = inject(TmdbIdResolverService);
 
     isEnabled(): boolean {
@@ -100,6 +104,14 @@ export class TmdbEnrichmentService {
         personId: number
     ): Promise<TmdbPersonDetails | null> {
         return this.person.getPersonDetails(personId);
+    }
+
+    /** Popular titles for one facet set (year/genre/country), session-cached */
+    async discoverTitles(
+        mediaType: TmdbMediaType,
+        filters: TmdbDiscoverFilters
+    ): Promise<DiscoverTitle[] | null> {
+        return this.discover.discoverTitles(mediaType, filters);
     }
 
     private async enrich(

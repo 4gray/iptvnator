@@ -13,6 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
+    createDiscoverFacetNavigation,
     createExternalPlaybackButtonState,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -36,6 +37,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
@@ -318,6 +320,24 @@ export class VodDetailsComponent {
     goBack(): void {
         this.backClicked.emit();
     }
+
+    /** Clickable year/genre/country chips (Discover pages) */
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+
+    readonly discover = createDiscoverFacetNavigation(() => {
+        const item = this.item();
+        // Discover reads its results from TMDB, so a chip must not offer a
+        // page that enrichment cannot fill
+        return item.playlistId && this.tmdbEnrichment.isEnabled()
+            ? {
+                  portal: item.type === 'stalker' ? 'stalker' : 'xtream',
+                  // Stalker embedded-VOD series render here but are matched
+                  // as tv, so the merge's verdict decides — not the route
+                  mediaType: this.normalizedMeta().tmdbMediaType ?? 'movie',
+                  playlistId: item.playlistId,
+              }
+            : null;
+    });
 
     /** Handle download request */
     onDownload(): void {

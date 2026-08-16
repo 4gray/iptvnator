@@ -27,6 +27,7 @@ import {
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
 import {
+    createDiscoverFacetNavigation,
     createLogger,
     isProviderOnlyDetailState,
 } from '@iptvnator/portal/shared/util';
@@ -44,6 +45,7 @@ import {
     CrossPortalSimilarService,
     DownloadsService,
     SettingsStore,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
     getXtreamVodInfo,
@@ -486,6 +488,18 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             member.tmdbPersonId,
         ]);
     }
+
+    /** Clickable year/genre/country chips (Discover pages) */
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+
+    readonly discover = createDiscoverFacetNavigation(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        // Discover reads its results from TMDB, so a chip must not offer a
+        // page that enrichment cannot fill
+        return playlistId && this.tmdbEnrichment.isEnabled()
+            ? { portal: 'xtream', mediaType: 'movie', playlistId }
+            : null;
+    });
 
     ngOnDestroy(): void {
         if (this.favoritePulseTimer) {

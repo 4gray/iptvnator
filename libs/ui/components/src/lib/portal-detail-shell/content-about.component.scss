@@ -82,6 +82,30 @@
         color: #ffd700;
         border-color: rgba(255, 215, 0, 0.3);
     }
+
+    // Rendered as a <button> so the facet is keyboard-operable; the UA's
+    // own font and appearance have to be neutralized to keep it visually
+    // identical to the informational chips beside it.
+    &--clickable {
+        appearance: none;
+        cursor: pointer;
+        font-family: inherit;
+        letter-spacing: inherit;
+        line-height: inherit;
+        transition:
+            border-color 0.15s ease,
+            background 0.15s ease;
+
+        &:hover {
+            background: var(--tag-border, rgba(255, 255, 255, 0.2));
+            border-color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--text-primary, #fff);
+            outline-offset: 2px;
+        }
+    }
 }
 
 .about ::ng-deep .details__meta-item {

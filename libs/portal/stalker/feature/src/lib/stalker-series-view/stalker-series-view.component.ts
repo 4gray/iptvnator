@@ -46,6 +46,7 @@ import {
     PORTAL_PLAYER,
     createLogger,
     consumeStalkerReturnMarker,
+    createDiscoverFacetNavigation,
     resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -77,6 +78,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import {
@@ -873,6 +875,18 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             member.tmdbPersonId,
         ]);
     }
+
+    /** Clickable year/genre/country chips (Discover pages) */
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+
+    readonly discover = createDiscoverFacetNavigation(() => {
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        // Discover reads its results from TMDB, so a chip must not offer a
+        // page that enrichment cannot fill
+        return playlistId && this.tmdbEnrichment.isEnabled()
+            ? { portal: 'stalker', mediaType: 'tv', playlistId }
+            : null;
+    });
 
     goBack() {
         const back = resolveStalkerBackNavigation(
