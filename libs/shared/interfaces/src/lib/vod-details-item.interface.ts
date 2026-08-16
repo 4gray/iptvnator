@@ -92,8 +92,6 @@ export interface NormalizedVodMeta {
     tmdbDirectors?: TmdbEnrichedCastMember[];
     /** TMDB recommendations (drives the cross-portal "Similar" rail) */
     tmdbRecommendations?: TmdbRecommendation[];
-    /** Matched TMDB id — gates the clickable year chip (Discover page) */
-    tmdbId?: number;
     /** Media type the enrichment matched as; Discover click routing */
     tmdbMediaType?: TmdbMediaType;
     /** Per-entry clickable genre chips (Discover page) */

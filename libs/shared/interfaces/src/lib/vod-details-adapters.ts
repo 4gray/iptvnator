@@ -32,9 +32,6 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
         tmdbCast: info?.tmdb_cast,
         tmdbDirectors: info?.tmdb_directors,
         tmdbRecommendations: info?.tmdb_recommendations,
-        // Provider payloads carry tmdb_id as an untrusted string too; only
-        // a merge-written number proves an enrichment match
-        tmdbId: typeof info?.tmdb_id === 'number' ? info.tmdb_id : undefined,
         tmdbGenres: info?.tmdb_genres,
         tmdbCountries: info?.tmdb_countries,
     };
@@ -67,7 +64,6 @@ export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta 
         tmdbCast: info?.tmdb_cast,
         tmdbDirectors: info?.tmdb_directors,
         tmdbRecommendations: info?.tmdb_recommendations,
-        tmdbId: info?.tmdb_id,
         tmdbMediaType: info?.tmdb_media_type,
         tmdbGenres: info?.tmdb_genres,
         tmdbCountries: info?.tmdb_countries,
