@@ -37,7 +37,6 @@ import {
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
-    normalizeTitleKeys,
     seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieDetails,
@@ -58,10 +57,8 @@ import {
     type XtreamSerieDetailsView,
 } from './serial-details-playback.service';
 import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
-import {
-    SimilarCatalogItem,
-    matchRecommendationsToCatalog,
-} from '../tmdb-similar.util';
+import { SerialDetailsSimilarService } from './serial-details-similar.service';
+import { SimilarCatalogItem } from '../tmdb-similar.util';
 import { createXtreamSeriesDownloadMetadataContext } from './serial-download-metadata';
 import { createXtreamSeriesDownloadAdapter } from './xtream-series-download.adapter';
 import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
@@ -82,7 +79,11 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
             }
         `,
     ],
-    providers: [SerialDetailsPlaybackService, SerialDetailsSeasonWatchService],
+    providers: [
+        SerialDetailsPlaybackService,
+        SerialDetailsSeasonWatchService,
+        SerialDetailsSimilarService,
+    ],
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,
@@ -189,61 +190,14 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         buildSeasonDescriptions(this.selectedItem())
     );
 
-    /** TMDB recommendations matched against the loaded series catalog */
-    readonly similarItems = computed<SimilarCatalogItem[]>(() => {
-        const item = this.selectedItem();
-        const recommendations = item?.info?.tmdb_recommendations;
-        if (!recommendations?.length) {
-            return [];
-        }
-        return matchRecommendationsToCatalog(
-            recommendations,
-            this.xtreamStore.serialStreams(),
-            { excludeId: Number(item?.series_id) }
-        );
-    });
-
-    /** Recommendations found in the user's OTHER portals (Electron only) */
-    private readonly crossPortalItems = signal<CrossPortalSimilarItem[]>([]);
-    readonly similarInPortals = computed<CrossPortalSimilarItem[]>(() => {
-        const localTitles = new Set(
-            this.similarItems().map(
-                (item) => normalizeTitleKeys(item.title).exact
-            )
-        );
-        return this.crossPortalItems().filter(
-            (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
-        );
-    });
-
-    private readonly loadCrossPortalSimilar = effect(() => {
-        const recommendations = this.selectedItem()?.info?.tmdb_recommendations;
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        untracked(() => {
-            this.crossPortalItems.set([]);
-            if (
-                !recommendations?.length ||
-                !this.crossPortalSimilar.isAvailable
-            ) {
-                return;
-            }
-            void this.crossPortalSimilar
-                .matchRecommendations(recommendations, 'series', {
-                    excludePlaylistId: playlistId,
-                })
-                .then((items) => {
-                    if (
-                        this.selectedItem()?.info?.tmdb_recommendations ===
-                        recommendations
-                    ) {
-                        this.crossPortalItems.set(items);
-                    }
-                });
-        });
-    });
+    /** The "Similar" rail: catalog matches plus cross-portal matches */
+    private readonly similar = inject(SerialDetailsSimilarService);
+    readonly similarItems = this.similar.similarItems;
+    readonly similarInPortals = this.similar.similarInPortals;
 
     constructor() {
         this.playback.bind({ selectedItem: this.selectedItem });
+        this.similar.bind({ selectedItem: this.selectedItem });
 
         // TMDB season enrichment, keyed on (tmdb_id, selected season). With
         // season tabs the first seasonSelected fires as soon as seasons load —
