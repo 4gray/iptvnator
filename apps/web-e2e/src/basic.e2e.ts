@@ -97,9 +97,11 @@ test('@web @auto-detect keeps the pasted message when switching methods', async 
     await expect(
         dialog.getByRole('radio', { name: /Stalker portal/i })
     ).toBeChecked();
-    await expect(dialog.getByLabel('Mac Address')).toHaveValue(
-        '00:1A:79:12:34:56'
-    );
+    // Exact: the derive-device-IDs checkbox is labelled "Generate device IDs
+    // from the MAC address", which a substring match would also resolve to.
+    await expect(
+        dialog.getByLabel('Mac Address', { exact: true })
+    ).toHaveValue('00:1A:79:12:34:56');
 
     // Returning to auto-detect must not cost the user their paste.
     await dialog.getByRole('radio', { name: /Auto-detect/i }).click();
