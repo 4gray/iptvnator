@@ -31,7 +31,11 @@ export interface LabeledFields {
     signature2?: string;
 }
 
-const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/gi;
+// `|` ends a URL: it is not a legal URL character, but it IS the inline field
+// delimiter of one-line handouts ("Server: http://host|User: alice"). Letting
+// the span run through it would mask the very next label and lose that
+// account entirely.
+const URL_PATTERN = /https?:\/\/[^\s<>"'`|]+/gi;
 const TRAILING_PUNCTUATION = /[),.;:!?\]»›]+$/;
 const M3U_PATH_PATTERN = /\.m3u8?$/i;
 const XTREAM_API_PATH_PATTERN = /\/(?:get|player_api|panel_api)\.php$/i;
@@ -478,14 +482,14 @@ function maskSpans(text: string, spans: Array<[number, number]>): string {
     return chars.join('');
 }
 
-function isInsideSpan(
-    spans: Array<[number, number]>,
-    index: number
-): boolean {
-    return spans.some(([start, end]) => index > start && index < end);
-}
-
-/** First match of `pattern` whose label does not start inside a URL span. */
+/**
+ * First match of `pattern` whose label does not start inside a URL span.
+ *
+ * Both sequences are produced left to right and the spans never overlap, so
+ * a single forward cursor is enough — rescanning the span list per match
+ * would be quadratic on a paste full of host-shaped query keys, and this
+ * runs synchronously on every keystroke.
+ */
 function firstMatchOutsideSpans(
     pattern: RegExp,
     text: string,
@@ -496,9 +500,14 @@ function firstMatchOutsideSpans(
             ? pattern
             : new RegExp(pattern.source, `${pattern.flags}g`)
     );
+    let cursor = 0;
     let match: RegExpExecArray | null;
     while ((match = matcher.exec(text)) !== null) {
-        if (!isInsideSpan(spans, match.index)) {
+        while (cursor < spans.length && spans[cursor][1] <= match.index) {
+            cursor += 1;
+        }
+        const span = spans[cursor];
+        if (!span || !(match.index > span[0] && match.index < span[1])) {
             return match;
         }
         if (match[0] === '') {

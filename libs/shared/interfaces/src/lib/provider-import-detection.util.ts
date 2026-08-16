@@ -321,7 +321,9 @@ function completeWithLabeledPort(
     url: DetectedUrl,
     port: string | undefined
 ): string {
-    if (!port || /^https?:\/\/[^/]*:\d+/i.test(url.raw)) {
+    // `parsed.port` rather than a colon in the authority: an IPv6 literal
+    // (`http://[2001:db8::1]/…`) is full of colons that are address, not port.
+    if (!port || url.parsed.port !== '') {
         return url.raw;
     }
     const { protocol, hostname, pathname, search } = url.parsed;

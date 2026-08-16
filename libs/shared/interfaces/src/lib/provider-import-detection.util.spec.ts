@@ -315,6 +315,38 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream[0].serverUrl).toBe('http://panel.example.io:8080');
         });
 
+        it('reads an inline one-line handout with pipe delimiters', () => {
+            // No space after the pipe: the URL must not swallow the next
+            // label, or the account silently produces no candidate at all.
+            const candidates = detectProviderImportCandidates(
+                'Server: http://panel.example.org|User: alice|Pass: s3cret'
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0]).toMatchObject({
+                serverUrl: 'http://panel.example.org',
+                username: 'alice',
+                password: 's3cret',
+            });
+        });
+
+        it('applies a labeled port to an IPv6 endpoint', () => {
+            // The address is full of colons; none of them is a port.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Server: http://[2001:db8::1]/player_api.php',
+                    'Port: 8080',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].serverUrl).toBe('http://[2001:db8::1]:8080');
+        });
+
         it('ignores host-shaped query keys inside unrelated links', () => {
             // `?url=guide` is a query key, not a label — the real "Server:"
             // line below it must still be the one the credentials attach to.
