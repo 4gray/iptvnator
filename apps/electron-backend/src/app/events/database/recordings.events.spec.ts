@@ -1,3 +1,10 @@
+// Marks the file as a module. Without it the top-level bindings below land in
+// the global scope and collide with same-named consts in sibling event specs
+// (stream-probe.spec.ts declares its own `registeredHandlers`). The spec
+// otherwise has no static imports on purpose: every dependency is swapped
+// through `jest.doMock` before the dynamic import in the harness.
+export {};
+
 type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
 
 const registeredHandlers = new Map<string, IpcHandler>();
