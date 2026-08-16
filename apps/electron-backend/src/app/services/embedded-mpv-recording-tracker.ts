@@ -44,8 +44,15 @@ type RecordingFinalStatus = 'completed' | 'interrupted' | 'failed';
  */
 const STOP_ACKNOWLEDGEMENT_TIMEOUT_MS = 10_000;
 
-/** Upper bound for callers waiting on a specific recording's finalization. */
-const FINALIZATION_WAIT_TIMEOUT_MS = 5_000;
+/**
+ * Upper bound for callers waiting on a specific recording's finalization.
+ *
+ * Derived from the acknowledgement bound on purpose: a wait shorter than the
+ * fallback would expire while the row is still `recording`, and stop
+ * enrichment — which has no retry — would drop the covered programs exactly
+ * in the case the fallback exists for. Keep it strictly larger.
+ */
+const FINALIZATION_WAIT_TIMEOUT_MS = STOP_ACKNOWLEDGEMENT_TIMEOUT_MS + 1_000;
 
 /**
  * Persists the lifecycle of embedded-MPV live recordings into the

@@ -325,9 +325,11 @@ display snapshot via `playlistDisplayLabel`).
   (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
   sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
   target path — that is how a recording spanning a program boundary lists
-  every covered show. The handler awaits `whenFinalized(targetPath)` (bounded)
-  before its terminal-row lookup, since the stop IPC returns before mpv
-  acknowledges. A recording stopped while no player is mounted on that
+  every covered show. The handler awaits `whenFinalized(targetPath)` before its
+  terminal-row lookup, since the stop IPC returns before mpv acknowledges;
+  that wait is derived from the acknowledgement bound (fallback + 1 s) so it
+  can never expire while the row is still `recording` — enrichment has no
+  retry. A recording stopped while no player is mounted on that
   channel keeps its start snapshot.
 - **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
   REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated

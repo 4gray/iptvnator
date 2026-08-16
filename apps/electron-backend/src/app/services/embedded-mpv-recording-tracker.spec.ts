@@ -357,6 +357,36 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
     });
 
+    it('whenFinalized outlasts the stop fallback so enrichment is never dropped', async () => {
+        // The default wait must exceed the acknowledgement fallback: a shorter
+        // bound expires while the row is still `recording`, and stop
+        // enrichment has no retry.
+        jest.useFakeTimers();
+        let settled = false;
+        try {
+            started(tracker);
+            tracker.observeSnapshot(activeSnapshot());
+            tracker.onRecordingStopped('session-1');
+
+            const pending = tracker
+                .whenFinalized('/rec/News-20260815-210000.ts')
+                .then(() => {
+                    settled = true;
+                });
+
+            // mpv never acknowledges; the fallback finalizes at 10s.
+            await jest.advanceTimersByTimeAsync(10_000);
+            await jest.advanceTimersByTimeAsync(0);
+            await pending;
+        } finally {
+            jest.useRealTimers();
+        }
+
+        expect(settled).toBe(true);
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+    });
+
     it('whenFinalized gives up on an unacknowledged stop instead of hanging', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
