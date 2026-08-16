@@ -367,12 +367,21 @@ payloads already carry `genres`/`production_countries`
 rows produce facets without a refetch. Like person chips, facet chips are
 clickable ONLY with TMDB backing: genre/country chips render per-entry
 from the structured arrays (falling back to today's static joined-string
-chip without them), and the year chip is clickable only when
-`tmdb_id` is a merge-written number — provider payloads ship `tmdb_id`
-as untrusted strings, so `typeof === 'number'` is the gate.
+chip without them), while the year chip renders from provider data and
+so needs a gate of its own. That gate is the navigation TARGET, not the
+item's identity: `createDiscoverFacetNavigation()` offers a facet only
+when its click can land somewhere, and the four hosts return `null` from
+their target unless a playlist resolves AND
+`TmdbEnrichmentService.isEnabled()` — Discover reads its results from
+TMDB, so a chip must never promise a page enrichment cannot fill. An
+earlier version gated on `typeof tmdb_id === 'number'` instead; that is
+wrong, because `XtreamVodInfo.tmdb_id` is `number | string` and a
+provider sending a JSON number satisfied it with enrichment never having
+run. Discover-by-year does not use the item's TMDB id at all.
 
-**Navigation.** Chip clicks navigate (via each render site's own
-`openDiscover*` methods, mirroring `openActor`) to the portal-scoped
+**Navigation.** Chip clicks navigate (via
+`createDiscoverFacetNavigation()`, shared by all four render sites) to
+the portal-scoped
 `discover` route: `/workspace/{xtreams|stalker}/:id/discover?type=
 movie|tv&year=&genre=<id>&genreLabel=&country=<iso>&countryLabel=`. The
 query-param assembly is centralized in `discoverLink()`
@@ -397,14 +406,26 @@ with enrichment disabled.
 `StalkerDiscoverRouteComponent` clone the actor route containers: same
 scope toggle, same portal/global matching (Xtream in-memory index by the
 facet's media type; Stalker search-prefill only, global scope matching
-Xtream playlists), same navigation on click. Because facets change via
-query params on the SAME route instance, async results are
-staleness-guarded by `discoverFacetKey()` rather than by instance —
-but the in-flight INDICATOR is owned by `createLatestRequestGuard()`
-(`libs/portal/shared/util`), because a request whose subject changed
-must not clear a spinner a replacement request now owns, and a request
-with no replacement (the user left the scope) must still clear it. The
-actor pages use the same guard for the same reason. Both
+Xtream playlists), same navigation on click.
+
+Facets change via query params on the SAME route instance, so staleness
+cannot be decided by instance — and, for the discover load, not by facet
+either: A→B→A leaves two in-flight requests whose `discoverFacetKey()`
+is identical, so an older one failing after the newer succeeded would
+replace valid results with an empty page. Recency decides instead, via
+`createLatestRequestGuard()` (`libs/portal/shared/util`). The catalog
+match keeps both: the guard owns the in-flight INDICATOR (a request whose
+subject changed must not clear a spinner its replacement now owns, and a
+request with no replacement must still clear it) while the facet key
+decides whether the RESULT is still wanted. The actor pages use the same
+guard for the same reason.
+
+Availability also waits for the catalog, not just for TMDB: the content
+gate renders the route while a cold import runs, and TMDB usually answers
+first, so publishing then would state that owned titles are missing.
+Readiness is keyed on the in-flight flags rather than
+`isContentInitialized`, so a failed import settles the page instead of
+spinning forever. Both
 render the shared `DiscoverViewComponent`, whose grid is the
 `TitleResultsComponent` extracted from `ActorViewComponent`
 (`libs/ui/shared-portals/src/lib/title-results/`) — one grid, filter
