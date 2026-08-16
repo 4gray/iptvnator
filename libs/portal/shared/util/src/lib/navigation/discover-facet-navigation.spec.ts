@@ -78,6 +78,24 @@ describe('createDiscoverFacetNavigation', () => {
         }
     });
 
+    it('labels the chip with the year it navigates to', () => {
+        const discover = create(xtreamMovie);
+
+        // The label and the destination must not disagree: slicing the
+        // first four characters of a day-first date renders '31-0'
+        expect(discover.yearLabel('31-03-1999')).toBe('1999');
+        expect(discover.yearLabel('1999-03-31')).toBe('1999');
+        expect(discover.yearLabel('1976')).toBe('1976');
+    });
+
+    it('has no label for a date stating no usable year', () => {
+        const discover = create(xtreamMovie);
+
+        expect(discover.yearLabel('0000-00-00')).toBeNull();
+        expect(discover.yearLabel('unknown')).toBeNull();
+        expect(discover.yearLabel(undefined)).toBeNull();
+    });
+
     it('refuses the year facet when the target cannot be reached', () => {
         // Hosts return null when enrichment is off, and Discover reads its
         // results from TMDB — a year chip must not promise an empty page

@@ -301,11 +301,12 @@
                         class="details__tag details__tag--clickable"
                         (click)="discover.openYear(info.releasedate)"
                     >
-                        {{ info.releasedate | slice: 0 : 4 }}
+                        {{ discover.yearLabel(info.releasedate) }}
                     </button>
                 } @else {
                     <span class="details__tag">{{
-                        info.releasedate | slice: 0 : 4
+                        discover.yearLabel(info.releasedate) ??
+                            (info.releasedate | slice: 0 : 4)
                     }}</span>
                 }
             }

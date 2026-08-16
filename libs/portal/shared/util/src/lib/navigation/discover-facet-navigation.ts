@@ -20,6 +20,13 @@ export interface DiscoverFacetTarget {
 }
 
 export interface DiscoverFacetNavigation {
+    /**
+     * The year a chip should DISPLAY, so its label and its destination
+     * cannot disagree — a day-first `31-03-1999` navigates to 1999 and
+     * must not render as the first four characters. `null` when the date
+     * states no usable year; the caller then keeps its own rendering.
+     */
+    yearLabel(releaseDate: string | null | undefined): string | null;
     canOpenYear(releaseDate: string | null | undefined): boolean;
     openYear(releaseDate: string | null | undefined): void;
     openGenre(genre: TmdbGenreFacet): void;
@@ -76,6 +83,10 @@ export function createDiscoverFacetNavigation(
         target() !== null && facetYear(releaseDate) !== null;
 
     return {
+        yearLabel(releaseDate) {
+            const year = facetYear(releaseDate);
+            return year === null ? null : String(year);
+        },
         canOpenYear,
         openYear(releaseDate) {
             const year = facetYear(releaseDate);

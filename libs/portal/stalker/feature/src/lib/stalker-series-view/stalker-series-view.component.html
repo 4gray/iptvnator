@@ -22,11 +22,12 @@
                         class="details__tag details__tag--clickable"
                         (click)="discover.openYear(serial.info.releasedate)"
                     >
-                        {{ serial.info.releasedate }}
+                        {{ discover.yearLabel(serial.info.releasedate) }}
                     </button>
                 } @else {
                     <span class="details__tag">{{
-                        serial.info.releasedate
+                        discover.yearLabel(serial.info.releasedate) ??
+                            serial.info.releasedate
                     }}</span>
                 }
             }
