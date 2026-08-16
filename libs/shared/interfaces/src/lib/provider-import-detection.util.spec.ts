@@ -315,6 +315,20 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream[0].serverUrl).toBe('http://panel.example.io:8080');
         });
 
+        it('strips sentence punctuation from a labeled server URL', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Server: http://panel.example.com!',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].serverUrl).toBe('http://panel.example.com');
+        });
+
         it('completes a port-less API URL with the separately labeled port', () => {
             const candidates = detectProviderImportCandidates(
                 [

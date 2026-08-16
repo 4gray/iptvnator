@@ -410,7 +410,11 @@ export function extractMacAddresses(
  * form field, never on the wire directly.
  */
 export function labeledHostUrl(labeled: LabeledFields): string | undefined {
-    const host = labeled.host;
+    // Same sentence-punctuation cleanup the URL scanner applies: a labeled
+    // value takes precedence over the scanned one, so leaving `Server:
+    // http://host!` uncleaned here would hand the forms a hostname DNS can
+    // never resolve while the sanitized scanned URL sat right beside it.
+    const host = labeled.host?.replace(TRAILING_PUNCTUATION, '');
     if (!host) {
         return undefined;
     }
