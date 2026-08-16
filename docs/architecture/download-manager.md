@@ -333,10 +333,10 @@ display snapshot via `playlistDisplayLabel`).
   sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
   target path — that is how a recording spanning a program boundary lists
   every covered show. The handler awaits `whenFinalized(targetPath)` before its
-  terminal-row lookup, since the stop IPC returns before mpv acknowledges;
-  that wait is derived from the acknowledgement bound (fallback + 1 s) so it
-  can never expire while the row is still `recording` — enrichment has no
-  retry. A recording stopped while no player is mounted on that
+  terminal-row lookup, since the stop IPC returns before mpv acknowledges.
+  That deadline bounds only the wait for mpv (fallback + 1 s); once
+  finalization has started the wait follows the terminal write itself, so a
+  slow database can never make the one-shot enrichment miss its row. A recording stopped while no player is mounted on that
   channel keeps its start snapshot.
 - **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
   REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated
@@ -351,7 +351,9 @@ display snapshot via `playlistDisplayLabel`).
   renderer-supplied recording directory stays a write-location preference
   rather than a shell-access grant. `RECORDINGS_STOP` resolves the row's
   `session_id` and stops through `EmbeddedMpvNativeService`, so the manager
-  can stop a recording without knowing about MPV sessions. Remove keeps
+  can stop a recording without knowing about MPV sessions — but only for rows
+  this process owns: session ids restart per process, so dispatching a
+  foreign row's id would stop an unrelated local recording. Remove keeps
   finished files on disk (same contract as downloads) and cleans up a failed
   row's leftover reservation only while no other row claims that path — a
   retry within the same timestamp second reuses the freed name. Renderer gate: a separate

@@ -74,8 +74,23 @@ describe('buildRecordingManagerViewModel', () => {
         expect(model.library[0].interrupted).toBe(true);
     });
 
+    it('keeps active recordings under the in-progress filter', () => {
+        // The chip counts them, so the page must list them.
+        const model = buildRecordingManagerViewModel({
+            recordings: [
+                recording({ status: 'recording', endedAt: undefined }),
+                recording({ status: 'completed' }),
+                recording({ status: 'failed' }),
+            ],
+            filter: 'in-progress',
+        });
+        expect(model.active).toHaveLength(1);
+        expect(model.library).toEqual([]);
+        expect(model.attention).toEqual([]);
+    });
+
     it('hides recordings under download-type filters but keeps the count', () => {
-        for (const filter of ['movie', 'series', 'in-progress']) {
+        for (const filter of ['movie', 'series']) {
             const model = buildRecordingManagerViewModel({
                 recordings: [recording()],
                 filter,

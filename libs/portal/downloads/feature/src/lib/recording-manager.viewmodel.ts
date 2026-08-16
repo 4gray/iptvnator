@@ -99,10 +99,12 @@ function compareNewestFirst(
 }
 
 /**
- * Sibling of buildDownloadManagerViewModel for live-TV recordings. Recordings
- * only surface under the 'all' and 'recording' filters — the download-type
- * chips (movies/series/in-progress) hide them symmetrically to how the
- * 'recording' chip hides downloads.
+ * Sibling of buildDownloadManagerViewModel for live-TV recordings.
+ *
+ * The 'movie'/'series' chips hide recordings symmetrically to how the
+ * 'recording' chip hides downloads. 'in-progress' is about what is running
+ * right now, so it keeps the active recordings (and only those) — its chip
+ * counts them, and a chip whose count does not match its page is a lie.
  */
 export function buildRecordingManagerViewModel({
     recordings,
@@ -115,27 +117,33 @@ export function buildRecordingManagerViewModel({
             scopePlaylistId === undefined || item.playlistId === scopePlaylistId
     );
     const activeFilter = normalizeDownloadFilter(filter);
-    const visible =
-        activeFilter === 'all' || activeFilter === 'recording'
-            ? scoped
-                  .map(toRow)
-                  .filter((row) => matchesSearch(row, searchTerm))
-            : [];
+    const showsRecordings =
+        activeFilter === 'all' ||
+        activeFilter === 'recording' ||
+        activeFilter === 'in-progress';
+    const visible = showsRecordings
+        ? scoped.map(toRow).filter((row) => matchesSearch(row, searchTerm))
+        : [];
+    const activeOnly = activeFilter === 'in-progress';
 
     return {
         active: visible
             .filter(({ item }) => item.status === 'recording')
             .sort(compareNewestFirst),
-        attention: visible
-            .filter((row) => row.attentionReason !== null)
-            .sort(compareNewestFirst),
-        library: visible
-            .filter(
-                (row) =>
-                    row.attentionReason === null &&
-                    isPlayableStatus(row.item)
-            )
-            .sort(compareNewestFirst),
+        attention: activeOnly
+            ? []
+            : visible
+                  .filter((row) => row.attentionReason !== null)
+                  .sort(compareNewestFirst),
+        library: activeOnly
+            ? []
+            : visible
+                  .filter(
+                      (row) =>
+                          row.attentionReason === null &&
+                          isPlayableStatus(row.item)
+                  )
+                  .sort(compareNewestFirst),
         count: scoped.length,
     };
 }

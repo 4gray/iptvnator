@@ -16,6 +16,7 @@ interface RecordingStartedEvent {
 }
 
 interface OpenRecordingEntry {
+    sessionId: string;
     targetPath: string;
     startedAt: string;
     /**
@@ -121,6 +122,7 @@ export class EmbeddedMpvRecordingTracker {
             resolveFinalized = resolve;
         });
         this.open.set(event.sessionId, {
+            sessionId: event.sessionId,
             targetPath: event.targetPath,
             startedAt,
             sawActive: false,
@@ -241,6 +243,13 @@ export class EmbeddedMpvRecordingTracker {
                     clearTimeout(timer);
                 }
             });
+            // The deadline only bounds the wait for mpv. `finalize()` drops
+            // the entry synchronously, so once it is gone the terminal write
+            // is merely in flight — abandoning it on a clock would drop the
+            // enrichment exactly when the fallback did its job.
+            if (!this.open.has(entry.sessionId)) {
+                await entry.finalized;
+            }
         }
         await this.chain;
     }

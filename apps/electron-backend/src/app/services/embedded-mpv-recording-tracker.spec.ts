@@ -398,6 +398,39 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
     });
 
+    it('whenFinalized waits out a slow terminal write past its deadline', async () => {
+        // The deadline bounds the wait for mpv, not the database: once the
+        // fallback fired, abandoning the write on a clock would drop the
+        // enrichment exactly when the fallback did its job.
+        let releaseUpdate: (() => void) | undefined;
+        db.updateWhere.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    releaseUpdate = () => resolve();
+                })
+        );
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        let settled = false;
+        const pending = tracker
+            .whenFinalized('/rec/News-20260815-210000.ts', 20)
+            .then(() => {
+                settled = true;
+            });
+
+        await settleStop(tracker);
+        await flush();
+        // Deadline long gone, but the write is still in flight.
+        expect(settled).toBe(false);
+
+        releaseUpdate?.();
+        await pending;
+        expect(settled).toBe(true);
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+    });
+
     it('whenFinalized gives up on an unacknowledged stop instead of hanging', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());

@@ -83,6 +83,7 @@ function recordingRow(overrides: Record<string, unknown> = {}) {
     return {
         id: 42,
         sessionId: 'session-1',
+        ownerPid: null,
         status: 'completed',
         filePath: '/rec/News-20260815-210000.ts',
         fileSizeBytes: 1024,
@@ -273,6 +274,36 @@ describe('recordings events', () => {
                 getHandler('RECORDINGS_STOP')(null, 42)
             ).resolves.toMatchObject({ success: false });
             expect(mockStopRecording).not.toHaveBeenCalled();
+        });
+
+        it('refuses to stop a recording owned by another instance', async () => {
+            // Session ids restart per process, so dispatching a foreign row's
+            // id would stop an unrelated local recording.
+            mockRowDb(
+                recordingRow({
+                    status: 'recording',
+                    endedAt: null,
+                    ownerPid: process.pid + 1,
+                })
+            );
+            await expect(
+                getHandler('RECORDINGS_STOP')(null, 42)
+            ).resolves.toMatchObject({ success: false });
+            expect(mockStopRecording).not.toHaveBeenCalled();
+        });
+
+        it('stops a row this process owns', async () => {
+            mockRowDb(
+                recordingRow({
+                    status: 'recording',
+                    endedAt: null,
+                    ownerPid: process.pid,
+                })
+            );
+            await expect(
+                getHandler('RECORDINGS_STOP')(null, 42)
+            ).resolves.toEqual({ success: true });
+            expect(mockStopRecording).toHaveBeenCalledWith('session-1');
         });
 
         it('normalizes a native stop failure into an error result', async () => {

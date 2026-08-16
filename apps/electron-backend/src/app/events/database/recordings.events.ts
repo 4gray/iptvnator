@@ -148,6 +148,20 @@ ipcMain.handle('RECORDINGS_STOP', async (_event, recordingId: number) => {
         if (!row || row.status !== 'recording' || !row.sessionId) {
             return { error: 'Recording is not active', success: false };
         }
+        // Session ids restart per process, so under
+        // IPTVNATOR_ALLOW_MULTIPLE_INSTANCES another instance's row can name
+        // a session id that exists locally as an unrelated recording. Only
+        // the owning process may stop it.
+        if (
+            row.ownerPid !== null &&
+            row.ownerPid !== undefined &&
+            row.ownerPid !== process.pid
+        ) {
+            return {
+                error: 'Recording belongs to another IPTVnator instance',
+                success: false,
+            };
+        }
         // Finalization (status, ended_at, file size, broadcast) happens in
         // the recording tracker's stop hook, exactly like a stop from the
         // player controls.
