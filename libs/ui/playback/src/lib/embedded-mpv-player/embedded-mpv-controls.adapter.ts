@@ -47,8 +47,6 @@ export interface EmbeddedMpvControlsContext {
     readonly recordingFolder: Signal<string>;
     /** Channel/EPG snapshot the live host captured for the recording tracker. */
     readonly recordingMetadata?: Signal<RecordingStartMetadata | null>;
-    /** Clean-stop notification; the host answers with stop enrichment. */
-    readonly onRecordingStopped?: (event: RecordingStoppedEvent) => void;
 }
 
 interface MappedPlayerStatus {
@@ -83,8 +81,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     );
     private readonly recordingControls = new EmbeddedMpvControlsRecording(
         this.controller,
-        () => this.recordingPlaybackIdentity(),
-        (event) => this.configuredContext()?.onRecordingStopped?.(event)
+        () => this.recordingPlaybackIdentity()
     );
     private readonly recordingActive = computed(
         () =>

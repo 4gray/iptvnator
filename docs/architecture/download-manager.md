@@ -293,13 +293,22 @@ display snapshot via `playlistDisplayLabel`).
 - **Lifecycle tracking** is owned by `EmbeddedMpvRecordingTracker`
   (`apps/electron-backend/src/app/services/embedded-mpv-recording-tracker.ts`):
   explicit start/stop hooks in `EmbeddedMpvNativeService` plus a
-  session-snapshot observer for the implicit stop paths (stream-replacement
-  auto-stop, frame-copy helper crash, session error/close). Statuses:
-  `recording` → `completed` (clean stop, `fs.stat` size) / `interrupted`
-  (implicit stop with a playable partial — MPEG-TS is streamable) / `failed`
-  (start error or absent/empty file; the empty pre-reserved file is
-  unlinked). Startup repair (`recording-recovery.ts`,
-  `reconcileStaleRecordings`) resolves rows a hard kill left in `recording`.
+  session-snapshot observer. The stop hook is a *request*, not an outcome —
+  `addon.stopRecording()` only dispatches (async mpv property set, or a
+  command written to the frame-copy helper), so finalization always waits for
+  the snapshot reporting the recording inactive; statting or unlinking
+  earlier would report a short recording as failed and could delete bytes mpv
+  is still flushing. A 10 s bound finalizes anyway if the acknowledgement
+  never arrives. The same observer covers the stop paths that never call
+  `stopRecording()` at all (stream-replacement auto-stop, frame-copy helper
+  crash, session error/close). Statuses: `recording` → `completed` (acknowledged
+  stop, `fs.stat` size) / `interrupted` (implicit stop with a playable partial
+  — MPEG-TS is streamable) / `failed` (start error or absent/empty file). Only
+  a recording that never went active has its empty pre-reserved file unlinked;
+  once mpv owned the file, the bytes are left alone. Rows carry `owner_pid`,
+  so startup repair (`recording-recovery.ts`, `reconcileStaleRecordings`)
+  resolves what a hard kill left in `recording` while skipping rows another
+  live instance still owns (`IPTVNATOR_ALLOW_MULTIPLE_INSTANCES`).
 - **Metadata is captured at recording start** (EPG is time-sensitive and
   Xtream/Stalker EPG never reaches SQLite): each live host — M3U player,
   Xtream live layout, Stalker ITV layout, unified live tab — assembles a
@@ -307,17 +316,26 @@ display snapshot via `playlistDisplayLabel`).
   snapshot, source type, EPG key, current program) that flows
   `WebPlayerViewComponent → EmbeddedMpvPlayerComponent →
   EmbeddedMpvControlsAdapter → EmbeddedMpvRecordingStartOptions.metadata`.
-  On a clean stop the player emits `recordingStopped` and the host answers
-  with **stop enrichment**: it filters its in-memory program list to the
-  programs overlapping `[startedAt, endedAt]`
+  `EmbeddedMpvPlayerComponent` watches the session snapshot for the
+  active→inactive recording edge and emits `recordingStopped` — one owner for
+  every trigger, including a Stop clicked in the download manager, which
+  talks to the main process directly and never reaches the player's own
+  toggle. The host answers with **stop enrichment**: it filters its in-memory
+  program list to the programs overlapping `[startedAt, endedAt]`
   (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
   sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
   target path — that is how a recording spanning a program boundary lists
-  every covered show. Implicit stops keep the start snapshot.
+  every covered show. The handler awaits `whenFinalized(targetPath)` (bounded)
+  before its terminal-row lookup, since the stop IPC returns before mpv
+  acknowledges. A recording stopped while no player is mounted on that
+  channel keeps its start snapshot.
 - **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
   REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated
   `RECORDINGS_UPDATE_EVENT` bare ping (not shared with downloads, so
   recording transitions do not force availability-probed download refetches).
+  Active rows are decorated with a live `fs.stat` size — `file_size_bytes` is
+  only persisted at finalization, so the manager's growing size comes from
+  there.
   Reveal/play are gated by `isManagedRecordingFile` — the path must exist in
   the recordings table, mirroring `isManagedDownloadFile`, so the
   renderer-supplied recording directory stays a write-location preference

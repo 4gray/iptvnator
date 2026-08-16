@@ -382,6 +382,10 @@ export const recordings = sqliteTable(
         id: integer('id').primaryKey({ autoIncrement: true }),
         // Transient embedded-MPV session id, correlation/debugging only.
         sessionId: text('session_id'),
+        // PID of the process that opened the recording. Startup recovery uses
+        // it to leave rows owned by another live instance alone
+        // (IPTVNATOR_ALLOW_MULTIPLE_INSTANCES).
+        ownerPid: integer('owner_pid'),
         status: text('status', {
             enum: ['recording', 'completed', 'interrupted', 'failed'],
         })

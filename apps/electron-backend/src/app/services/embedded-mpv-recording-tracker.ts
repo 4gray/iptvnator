@@ -24,22 +24,42 @@ interface OpenRecordingEntry {
      * async mpv property set settles, so `active: false` alone is not a stop.
      */
     sawActive: boolean;
+    /** Set once a stop was requested; the acknowledged snapshot finalizes. */
+    stopRequested: boolean;
+    /** Fires if mpv never acknowledges the requested stop. */
+    stopFallbackTimer?: ReturnType<typeof setTimeout>;
     rowId: Promise<number | null>;
+    /** Resolved when this entry reaches a terminal status. */
+    finalized: Promise<void>;
+    resolveFinalized: () => void;
 }
 
 type RecordingFinalStatus = 'completed' | 'interrupted' | 'failed';
+
+/**
+ * mpv acknowledges a stop asynchronously (`mpv_set_property_async`, or a
+ * command written to the frame-copy helper), so the tracker waits for the
+ * snapshot that confirms it. This bound keeps a lost acknowledgement from
+ * leaving the row `recording` forever.
+ */
+const STOP_ACKNOWLEDGEMENT_TIMEOUT_MS = 10_000;
+
+/** Upper bound for callers waiting on a specific recording's finalization. */
+const FINALIZATION_WAIT_TIMEOUT_MS = 5_000;
 
 /**
  * Persists the lifecycle of embedded-MPV live recordings into the
  * `recordings` table.
  *
  * Explicit start/stop hooks are the only place where the start metadata and
- * the reserved target path are visible deterministically; but three stop
- * paths never call `stopRecording()` (stream-replacement auto-stop, a
- * frame-copy helper crash that leaves `active: true` behind, session
- * error/close) and are only observable on the session snapshot stream —
- * hence the snapshot observer. Rows that survive a hard app kill in status
- * 'recording' are repaired by `reconcileStaleRecordings()` at startup.
+ * the reserved target path are visible deterministically, but they are
+ * requests, not outcomes: `addon.stopRecording()` merely dispatches, so
+ * finalization always waits for the snapshot that reports the recording
+ * inactive. That same observer covers the stop paths which never call
+ * `stopRecording()` at all (stream-replacement auto-stop, a frame-copy helper
+ * crash that leaves `active: true` behind, session error/close). Rows that
+ * survive a hard app kill in status 'recording' are repaired by
+ * `reconcileStaleRecordings()` at startup.
  */
 export class EmbeddedMpvRecordingTracker {
     private readonly open = new Map<string, OpenRecordingEntry>();
@@ -53,6 +73,9 @@ export class EmbeddedMpvRecordingTracker {
             const db = await getDatabase();
             const result = await db.insert(schema.recordings).values({
                 sessionId: event.sessionId,
+                // Recovery uses this to tell a crashed run's leftovers from a
+                // row another live process still owns.
+                ownerPid: process.pid,
                 status: 'recording',
                 filePath: event.targetPath,
                 channelName:
@@ -71,11 +94,18 @@ export class EmbeddedMpvRecordingTracker {
             return Number(result.lastInsertRowid);
         });
 
+        let resolveFinalized: () => void = () => undefined;
+        const finalized = new Promise<void>((resolve) => {
+            resolveFinalized = resolve;
+        });
         this.open.set(event.sessionId, {
             targetPath: event.targetPath,
             startedAt,
             sawActive: false,
+            stopRequested: false,
             rowId,
+            finalized,
+            resolveFinalized,
         });
         void rowId.then((id) => {
             if (id !== null) {
@@ -84,22 +114,23 @@ export class EmbeddedMpvRecordingTracker {
         });
     }
 
-    /** Clean stop through the stop IPC/controls. */
-    onRecordingStopped(sessionId: string): void {
-        this.finalize(sessionId, 'completed');
-    }
-
     /**
-     * Resolves once every mutation enqueued so far has committed.
-     *
-     * The stop IPC returns the inactive session as soon as mpv acknowledges,
-     * while the row's terminal-state update is still queued here. The renderer
-     * answers that snapshot with stop enrichment, whose handler only accepts a
-     * terminal row — without this barrier it would look the row up too early,
-     * get "Recording not found", and silently drop the covered programs.
+     * Stop requested through the stop IPC/controls. The row is finalized by
+     * the acknowledged snapshot, not here: stopping is asynchronous, and
+     * statting (or unlinking) the file before mpv flushed it would report a
+     * short recording as failed and could delete bytes still being written.
      */
-    whenSettled(): Promise<void> {
-        return this.chain;
+    onRecordingStopped(sessionId: string): void {
+        const entry = this.open.get(sessionId);
+        if (!entry || entry.stopRequested) {
+            return;
+        }
+        entry.stopRequested = true;
+        entry.stopFallbackTimer = setTimeout(() => {
+            // mpv never confirmed; finalize anyway so the row cannot stay
+            // `recording` for the rest of the session.
+            this.finalize(sessionId, 'completed');
+        }, STOP_ACKNOWLEDGEMENT_TIMEOUT_MS);
     }
 
     /**
@@ -132,8 +163,8 @@ export class EmbeddedMpvRecordingTracker {
         }
 
         if (entry.sawActive) {
-            // Recording went active and is now off without an explicit stop:
-            // the stream-replacement auto-stop. The file has real bytes.
+            // The acknowledged stop: either the requested one or the
+            // stream-replacement auto-stop. The file is flushed by now.
             this.finalize(session.id, 'completed');
         } else if (recording.error) {
             // The async start failed before the recording ever activated.
@@ -141,6 +172,45 @@ export class EmbeddedMpvRecordingTracker {
         }
         // else: start still settling — a successful async start passes
         // through active:false snapshots before the property set applies.
+    }
+
+    /**
+     * Resolves once every mutation enqueued so far has committed.
+     *
+     * Callers that need a specific recording's terminal row should await
+     * {@link whenFinalized} first: this only drains what is already queued.
+     */
+    whenSettled(): Promise<void> {
+        return this.chain;
+    }
+
+    /**
+     * Resolves once the recording writing to `targetPath` reached a terminal
+     * status and its row was committed — or immediately when no such
+     * recording is open. Bounded, so a lost mpv acknowledgement degrades the
+     * caller (stop enrichment) instead of hanging its IPC.
+     */
+    async whenFinalized(
+        targetPath: string,
+        timeoutMs = FINALIZATION_WAIT_TIMEOUT_MS
+    ): Promise<void> {
+        const entry = [...this.open.values()].find(
+            (candidate) => candidate.targetPath === targetPath
+        );
+        if (entry) {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            await Promise.race([
+                entry.finalized,
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(resolve, timeoutMs);
+                }),
+            ]).finally(() => {
+                if (timer !== undefined) {
+                    clearTimeout(timer);
+                }
+            });
+        }
+        await this.chain;
     }
 
     private finalize(
@@ -153,6 +223,9 @@ export class EmbeddedMpvRecordingTracker {
             return;
         }
         this.open.delete(sessionId);
+        if (entry.stopFallbackTimer !== undefined) {
+            clearTimeout(entry.stopFallbackTimer);
+        }
 
         void this.enqueue(async () => {
             const rowId = await entry.rowId;
@@ -166,9 +239,11 @@ export class EmbeddedMpvRecordingTracker {
                 // Nothing usable reached the disk — whatever the trigger,
                 // the honest terminal state is 'failed'.
                 finalStatus = 'failed';
-                if (fileSize === 0) {
-                    // Empty pre-reserved file; keeping it around would only
-                    // produce an unplayable library entry.
+                if (fileSize === 0 && !entry.sawActive) {
+                    // The empty file is the pre-reserved target of a
+                    // recording that never started; a recording that did go
+                    // active keeps its file even when it looks empty, since
+                    // mpv owns those bytes.
                     this.safeUnlink(entry.targetPath);
                 }
             }
@@ -191,6 +266,7 @@ export class EmbeddedMpvRecordingTracker {
                 );
             return rowId;
         }).then((rowId) => {
+            entry.resolveFinalized();
             if (rowId !== null) {
                 broadcastRecordingsUpdate();
             }

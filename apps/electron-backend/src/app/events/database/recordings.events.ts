@@ -4,7 +4,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { ipcMain, shell } from 'electron';
-import { unlink } from 'node:fs/promises';
+import { stat, unlink } from 'node:fs/promises';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { embeddedMpvNativeService } from '../../services/embedded-mpv-native.service';
@@ -21,6 +21,21 @@ import {
 
 type RecordingRow = schema.Recording;
 
+/**
+ * Bytes on disk for a recording still being written. The tracker only
+ * persists `file_size_bytes` at finalization, so the manager's active row
+ * would otherwise report nothing while mpv keeps growing the file. At most
+ * one recording is active at a time, so this stays a single cheap stat.
+ */
+async function liveFileSizeBytes(filePath: string): Promise<number | null> {
+    try {
+        const stats = await stat(filePath);
+        return stats.isFile() ? stats.size : null;
+    } catch {
+        return null;
+    }
+}
+
 async function decorateRecordingItem(
     row: RecordingRow
 ): Promise<ElectronRecordingItem> {
@@ -36,12 +51,17 @@ async function decorateRecordingItem(
                 : 'failed',
     });
 
+    const fileSizeBytes =
+        row.status === 'recording'
+            ? ((await liveFileSizeBytes(row.filePath)) ?? undefined)
+            : (row.fileSizeBytes ?? undefined);
+
     return {
         id: row.id,
         sessionId: row.sessionId ?? undefined,
         status: row.status,
         filePath: row.filePath,
-        fileSizeBytes: row.fileSizeBytes ?? undefined,
+        fileSizeBytes,
         channelName: row.channelName,
         channelLogoUrl: row.channelLogoUrl ?? undefined,
         playlistId: row.playlistId ?? undefined,
@@ -196,10 +216,11 @@ ipcMain.handle(
             if (!targetPath || sanitized === null) {
                 return { error: 'Invalid programs payload', success: false };
             }
-            // The stop IPC returns as soon as mpv acknowledges, so the row may
-            // still be mid-finalization when this enrichment arrives. Wait for
-            // the tracker's queued writes before the terminal-row lookup.
-            await embeddedMpvRecordingTracker.whenSettled();
+            // The stop IPC returns before mpv acknowledges, and the tracker
+            // only finalizes on the acknowledged snapshot. Wait (bounded) for
+            // this recording to reach a terminal row before looking it up,
+            // otherwise the enrichment is dropped as "not found".
+            await embeddedMpvRecordingTracker.whenFinalized(targetPath);
             const db = await getDatabase();
             // The reserved path is unique per recording in practice; a
             // historical row could share it after an external delete, so the

@@ -142,10 +142,24 @@ describe('EmbeddedMpvRecordingTracker', () => {
         );
     });
 
-    it('finalizes an explicit stop as completed with the file size', async () => {
+    it('finalizes an explicit stop only after mpv acknowledges it', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');
+        await flush();
+
+        // addon.stopRecording() only dispatches: statting or unlinking here
+        // could hit a file mpv has not flushed yet.
+        expect(db.updateSet).not.toHaveBeenCalled();
+
+        tracker.observeSnapshot(
+            session({
+                recording: {
+                    active: false,
+                    targetPath: '/rec/News-20260815-210000.ts',
+                },
+            })
+        );
         await flush();
 
         expect(db.updateSet).toHaveBeenCalledTimes(1);
@@ -264,23 +278,99 @@ describe('EmbeddedMpvRecordingTracker', () => {
 
     it('serializes a stop that races the pending insert', async () => {
         started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');
+        tracker.observeSnapshot(
+            session({
+                recording: {
+                    active: false,
+                    targetPath: '/rec/News-20260815-210000.ts',
+                },
+            })
+        );
         await flush();
         expect(db.insertValues).toHaveBeenCalledTimes(1);
         expect(db.updateSet).toHaveBeenCalledTimes(1);
     });
 
-    it('whenSettled resolves only after queued finalization committed', async () => {
+    it('finalizes a stop mpv never acknowledges once the bound elapses', async () => {
+        jest.useFakeTimers();
+        try {
+            started(tracker);
+            tracker.observeSnapshot(activeSnapshot());
+            tracker.onRecordingStopped('session-1');
+            jest.advanceTimersByTime(10_000);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+        expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+    });
+
+    it('keeps the file of a recording that went active even when it looks empty', async () => {
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 0 });
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+        tracker.observeSnapshot(
+            session({
+                recording: {
+                    active: false,
+                    targetPath: '/rec/News-20260815-210000.ts',
+                },
+            })
+        );
+        await flush();
+
+        expect(db.updateSet.mock.calls[0][0].status).toBe('failed');
+        // Those bytes belong to mpv; only a never-started reservation is
+        // cleaned up.
+        expect(mockUnlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('records the owning process so recovery can skip live rows', async () => {
+        started(tracker);
+        await flush();
+        expect(db.insertValues.mock.calls[0][0].ownerPid).toBe(process.pid);
+    });
+
+    it('whenFinalized resolves once the acknowledged stop committed', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');
 
-        // The stop IPC returns here; the enrichment handler awaits this
-        // barrier so the row is already terminal when it looks it up.
-        await tracker.whenSettled();
+        const pending = tracker.whenFinalized(
+            '/rec/News-20260815-210000.ts',
+            5_000
+        );
+        tracker.observeSnapshot(
+            session({
+                recording: {
+                    active: false,
+                    targetPath: '/rec/News-20260815-210000.ts',
+                },
+            })
+        );
+        await pending;
 
         expect(db.updateSet).toHaveBeenCalledTimes(1);
         expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+    });
+
+    it('whenFinalized gives up on an unacknowledged stop instead of hanging', async () => {
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        await tracker.whenFinalized('/rec/News-20260815-210000.ts', 5);
+
+        expect(db.updateSet).not.toHaveBeenCalled();
+    });
+
+    it('whenFinalized resolves immediately for an unknown path', async () => {
+        await expect(
+            tracker.whenFinalized('/rec/never-seen.ts', 5_000)
+        ).resolves.toBeUndefined();
     });
 
     it('ignores snapshots for sessions without an open recording', async () => {

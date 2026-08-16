@@ -13,11 +13,31 @@ function recordedFileSize(filePath: string): number | null {
 }
 
 /**
+ * True when `pid` belongs to a process that is still running. Signal 0 only
+ * probes for existence; EPERM means the process exists but is owned by
+ * someone else, which still counts as alive.
+ */
+function isProcessAlive(pid: number): boolean {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code === 'EPERM';
+    }
+}
+
+/**
  * Startup repair for recordings the previous app run left in status
  * 'recording' (hard kill, crash, power loss). mpv muxes MPEG-TS
  * continuously, so a file with real bytes is a playable partial recording
  * ('interrupted'); an absent or empty file means nothing usable was captured
  * ('failed').
+ *
+ * Rows whose owner process is still alive are skipped: with
+ * IPTVNATOR_ALLOW_MULTIPLE_INSTANCES a second instance shares this database,
+ * and its startup must not terminate a recording the first one is actively
+ * writing (the tracker's own update is guarded on status 'recording', so the
+ * row would never get its real end time or size).
  */
 export async function reconcileStaleRecordings(): Promise<void> {
     try {
@@ -28,6 +48,15 @@ export async function reconcileStaleRecordings(): Promise<void> {
             .where(eq(schema.recordings.status, 'recording'));
 
         for (const row of stale) {
+            if (
+                row.ownerPid !== null &&
+                row.ownerPid !== undefined &&
+                row.ownerPid !== process.pid &&
+                isProcessAlive(row.ownerPid)
+            ) {
+                continue;
+            }
+
             const fileSize = recordedFileSize(row.filePath);
             const playable = fileSize !== null && fileSize > 0;
             await db

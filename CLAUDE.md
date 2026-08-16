@@ -1234,16 +1234,24 @@ engine` (restart required) or
   downloads in their own `recordings` table (no unique index, no playlist FK —
   recordings survive source deletion with a `playlistDisplayLabel` name
   snapshot). `EmbeddedMpvRecordingTracker` persists the lifecycle: start/stop
-  hooks in `EmbeddedMpvNativeService` plus a session-snapshot observer for the
-  implicit stops (stream-replacement auto-stop, helper crash, session
-  error/close); startup repair turns rows a hard kill left in `recording` into
-  playable `interrupted` partials or `failed`. Channel/EPG metadata is
+  hooks in `EmbeddedMpvNativeService` plus a session-snapshot observer. The
+  stop hook only REQUESTS a stop (`addon.stopRecording()` dispatches
+  asynchronously), so finalization waits for the snapshot reporting the
+  recording inactive — bounded at 10s — and only a recording that never went
+  active has its empty reservation unlinked; mpv's bytes are never deleted.
+  The same observer covers the implicit stops (stream-replacement auto-stop,
+  helper crash, session error/close). Rows carry `owner_pid`, so startup
+  repair turns a hard kill's leftovers into playable `interrupted` partials or
+  `failed` while skipping rows another live instance owns. Channel/EPG metadata is
   snapshotted at recording START (each live host passes
   `RecordingStartMetadata` down through the player chain; provider EPG never
-  reaches SQLite so post-hoc lookup is impossible), and a clean stop triggers
-  renderer-side enrichment: programs overlapping the recorded window, keyed by
-  target path (`RECORDINGS_UPDATE_PROGRAMS`) — that covers recordings spanning
-  a program boundary. Own `RECORDINGS_*` IPC + `RECORDINGS_UPDATE_EVENT` ping
+  reaches SQLite so post-hoc lookup is impossible). `EmbeddedMpvPlayerComponent`
+  owns the active→inactive recording edge and emits `recordingStopped` for
+  every trigger (including the manager's Stop, which bypasses the player's own
+  toggle); the host answers with enrichment: programs overlapping the recorded
+  window, keyed by target path (`RECORDINGS_UPDATE_PROGRAMS`, which awaits the
+  tracker's bounded `whenFinalized`) — that covers recordings spanning a
+  program boundary. Own `RECORDINGS_*` IPC + `RECORDINGS_UPDATE_EVENT` ping
   and a separate `supportsRecordings` capability gate (never folded into the
   all-or-nothing `supportsDownloads` allowlist). Manager UI: `recording`
   filter chip, "Recording now" queue section (REC pulse + elapsed, live size,

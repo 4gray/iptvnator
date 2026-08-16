@@ -11,10 +11,11 @@ const registeredHandlers = new Map<string, IpcHandler>();
 const mockGetDatabase = jest.fn();
 const mockBroadcast = jest.fn();
 const mockStopRecording = jest.fn();
-const mockWhenSettled = jest.fn();
+const mockWhenFinalized = jest.fn();
 const mockIsAvailableDownloadFile = jest.fn();
 const mockGetAvailabilityAsync = jest.fn();
 const mockUnlink = jest.fn();
+const mockStat = jest.fn();
 const mockOpenPath = jest.fn();
 const mockShowItemInFolder = jest.fn();
 
@@ -32,10 +33,11 @@ async function setupRecordingsEventsHarness(): Promise<void> {
     mockGetDatabase.mockReset();
     mockBroadcast.mockReset();
     mockStopRecording.mockReset();
-    mockWhenSettled.mockReset().mockResolvedValue(undefined);
+    mockWhenFinalized.mockReset().mockResolvedValue(undefined);
     mockIsAvailableDownloadFile.mockReset().mockReturnValue(true);
     mockGetAvailabilityAsync.mockReset().mockResolvedValue('available');
     mockUnlink.mockReset().mockResolvedValue(undefined);
+    mockStat.mockReset().mockResolvedValue({ isFile: () => true, size: 4096 });
     mockOpenPath.mockReset().mockResolvedValue('');
     mockShowItemInFolder.mockReset();
 
@@ -54,6 +56,7 @@ async function setupRecordingsEventsHarness(): Promise<void> {
         ...jest.requireActual<typeof import('node:fs/promises')>(
             'node:fs/promises'
         ),
+        stat: mockStat,
         unlink: mockUnlink,
     }));
     jest.doMock('../../database/connection', () => ({
@@ -63,7 +66,7 @@ async function setupRecordingsEventsHarness(): Promise<void> {
         embeddedMpvNativeService: { stopRecording: mockStopRecording },
     }));
     jest.doMock('../../services/embedded-mpv-recording-tracker', () => ({
-        embeddedMpvRecordingTracker: { whenSettled: mockWhenSettled },
+        embeddedMpvRecordingTracker: { whenFinalized: mockWhenFinalized },
     }));
     jest.doMock('./recording-broadcast', () => ({
         broadcastRecordingsUpdate: mockBroadcast,
@@ -181,6 +184,51 @@ describe('recordings events', () => {
             expect(mockGetAvailabilityAsync).toHaveBeenCalledWith(
                 expect.objectContaining({ status: 'completed' })
             );
+        });
+
+        it('reports the live size of an active recording from disk', async () => {
+            // The tracker only persists file_size_bytes at finalization, so
+            // the manager's growing size has to come from a stat here.
+            mockListDb([
+                recordingRow({
+                    status: 'recording',
+                    fileSizeBytes: null,
+                    endedAt: null,
+                }),
+            ]);
+
+            const result = (await getHandler('RECORDINGS_GET_LIST')(
+                null
+            )) as Array<Record<string, unknown>>;
+
+            expect(mockStat).toHaveBeenCalledWith(
+                '/rec/News-20260815-210000.ts'
+            );
+            expect(result[0].fileSizeBytes).toBe(4096);
+        });
+
+        it('keeps the persisted size for terminal rows without statting', async () => {
+            mockListDb([recordingRow()]);
+
+            const result = (await getHandler('RECORDINGS_GET_LIST')(
+                null
+            )) as Array<Record<string, unknown>>;
+
+            expect(mockStat).not.toHaveBeenCalled();
+            expect(result[0].fileSizeBytes).toBe(1024);
+        });
+
+        it('omits the live size when the active file cannot be statted', async () => {
+            mockStat.mockRejectedValue(new Error('gone'));
+            mockListDb([
+                recordingRow({ status: 'recording', fileSizeBytes: null }),
+            ]);
+
+            const result = (await getHandler('RECORDINGS_GET_LIST')(
+                null
+            )) as Array<Record<string, unknown>>;
+
+            expect(result[0].fileSizeBytes).toBeUndefined();
         });
 
         it('probes interrupted rows like completed ones but not failed rows', async () => {
@@ -313,7 +361,7 @@ describe('recordings events', () => {
             // status, so an unsynchronized lookup would find no terminal row
             // and silently drop the covered programs.
             let releaseTracker: (() => void) | undefined;
-            mockWhenSettled.mockReturnValue(
+            mockWhenFinalized.mockReturnValue(
                 new Promise<void>((resolve) => {
                     releaseTracker = resolve;
                 })

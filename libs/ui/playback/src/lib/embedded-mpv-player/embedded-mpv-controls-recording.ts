@@ -1,7 +1,6 @@
 import type {
     EmbeddedMpvSession,
     RecordingStartMetadata,
-    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -34,8 +33,6 @@ interface PendingRecordingOperation {
     readonly expectedActive: boolean;
     readonly initialError: string | null;
     readonly targetPath: string | null;
-    /** For stop operations: the active recording's startedAt at toggle time. */
-    readonly startedAt: string | null;
     readonly baselineSnapshotIdentity: string | null;
     observedOutcome: RecordingOutcome | null;
     timeoutFeedback: RecordingFeedback | null;
@@ -63,9 +60,7 @@ export class EmbeddedMpvControlsRecording {
 
     constructor(
         private readonly controller: EmbeddedMpvSessionController,
-        private readonly currentPlaybackIdentity: () => string | null,
-        /** Invoked once per clean stop — the stop-enrichment trigger. */
-        private readonly onStopped?: (event: RecordingStoppedEvent) => void
+        private readonly currentPlaybackIdentity: () => string | null
     ) {}
 
     toggle(context: RecordingToggleContext): void {
@@ -86,7 +81,6 @@ export class EmbeddedMpvControlsRecording {
             expectedActive: kind === RECORDING_OPERATION.START,
             initialError,
             targetPath: recording?.targetPath ?? null,
-            startedAt: recording?.startedAt ?? null,
             baselineSnapshotIdentity: this.recordingSnapshotIdentity(
                 context.session
             ),
@@ -177,7 +171,6 @@ export class EmbeddedMpvControlsRecording {
             return;
         }
         const targetPath = recording.targetPath ?? pending.targetPath;
-        const firstOutcome = pending.observedOutcome === null;
         this.observeOutcome(pending, {
             feedback: targetPath
                 ? {
@@ -189,13 +182,6 @@ export class EmbeddedMpvControlsRecording {
             autoDismiss: Boolean(targetPath),
             expectedActive: pending.expectedActive,
         });
-        if (firstOutcome && targetPath) {
-            this.onStopped?.({
-                targetPath,
-                startedAt: pending.startedAt,
-                endedAt: new Date().toISOString(),
-            });
-        }
     }
 
     syncOwner(playbackIdentity: string | null, sessionId: string | null): void {

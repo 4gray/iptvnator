@@ -277,46 +277,6 @@ describe('EmbeddedMpvControlsAdapter recording messages and lifecycle', () => {
         );
     });
 
-    it('notifies the host exactly once per clean stop (stop enrichment)', async () => {
-        const targetPath = '/recordings/live.ts';
-        const startedAt = '2026-07-16T10:00:00.000Z';
-        const onRecordingStopped = jest.fn();
-        adapter.configure({
-            playback,
-            seriesNavigation,
-            recordingFolder,
-            onRecordingStopped,
-        });
-        controller.session.set(
-            session({ recording: { active: true, targetPath, startedAt } })
-        );
-        TestBed.tick();
-
-        adapter.commands.toggleRecording();
-        await flushPromises();
-        controller.session.set(
-            session({ recording: { active: false, targetPath } })
-        );
-        TestBed.tick();
-
-        expect(onRecordingStopped).toHaveBeenCalledTimes(1);
-        expect(onRecordingStopped).toHaveBeenCalledWith({
-            targetPath,
-            startedAt,
-            endedAt: expect.any(String),
-        });
-
-        // Repeated snapshots of the settled stop never re-fire the callback.
-        controller.session.set(
-            session({
-                recording: { active: false, targetPath },
-                positionSeconds: 5,
-            })
-        );
-        TestBed.tick();
-        expect(onRecordingStopped).toHaveBeenCalledTimes(1);
-    });
-
     it('relocalizes saved feedback for every translate event source', async () => {
         const targetPath = '/recordings/live.ts';
         controller.session.set(

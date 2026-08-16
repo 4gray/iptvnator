@@ -15,6 +15,7 @@ interface StaleRow {
     id: number;
     filePath: string;
     endedAt: string | null;
+    ownerPid?: number | null;
 }
 
 function mockDb(rows: StaleRow[]) {
@@ -89,6 +90,58 @@ describe('reconcileStaleRecordings', () => {
         expect(updateSet.mock.calls[0][0].endedAt).toBe(
             '2026-08-15T21:58:00Z'
         );
+    });
+
+    it('leaves rows owned by another live process alone', async () => {
+        // IPTVNATOR_ALLOW_MULTIPLE_INSTANCES: the other instance is still
+        // writing that file, and its own finalize is guarded on status
+        // 'recording' — repairing here would strand the row.
+        const { updateSet } = mockDb([
+            { id: 1, filePath: '/rec/live.ts', endedAt: null, ownerPid: 4242 },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+        const killSpy = jest
+            .spyOn(process, 'kill')
+            .mockImplementation(() => true);
+
+        await reconcileStaleRecordings();
+
+        expect(killSpy).toHaveBeenCalledWith(4242, 0);
+        expect(updateSet).not.toHaveBeenCalled();
+        killSpy.mockRestore();
+    });
+
+    it('repairs rows whose owner process is gone', async () => {
+        const { updateSet } = mockDb([
+            { id: 1, filePath: '/rec/dead.ts', endedAt: null, ownerPid: 4242 },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+        const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => {
+            throw Object.assign(new Error('no such process'), {
+                code: 'ESRCH',
+            });
+        });
+
+        await reconcileStaleRecordings();
+
+        expect(updateSet.mock.calls[0][0].status).toBe('interrupted');
+        killSpy.mockRestore();
+    });
+
+    it('repairs its own leftovers from a previous run', async () => {
+        const { updateSet } = mockDb([
+            {
+                id: 1,
+                filePath: '/rec/own.ts',
+                endedAt: null,
+                ownerPid: process.pid,
+            },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+
+        await reconcileStaleRecordings();
+
+        expect(updateSet.mock.calls[0][0].status).toBe('interrupted');
     });
 
     it('swallows database failures without throwing', async () => {

@@ -124,6 +124,7 @@ const DOWNLOADS_INDEX_STATEMENTS = [
 const RECORDINGS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS recordings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id TEXT,
+      owner_pid INTEGER,
       status TEXT NOT NULL DEFAULT 'recording' CHECK (status IN ('recording', 'completed', 'interrupted', 'failed')),
       file_path TEXT NOT NULL,
       file_size_bytes INTEGER,

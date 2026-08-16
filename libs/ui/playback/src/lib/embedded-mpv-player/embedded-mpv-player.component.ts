@@ -378,7 +378,38 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             seriesNavigation: this.seriesNavigation,
             recordingFolder: this.recordingFolder,
             recordingMetadata: this.recordingMetadata,
-            onRecordingStopped: (event) => this.recordingStopped.emit(event),
+        });
+
+        // Single owner of the "a recording just stopped" edge, for every
+        // engine and every trigger — the controls button, the download
+        // manager's Stop (which talks to the main process directly and never
+        // reaches this component's own toggle), or mpv stopping on its own.
+        // The host answers with EPG stop enrichment.
+        let previousRecording: {
+            targetPath: string;
+            startedAt: string | null;
+        } | null = null;
+        effect(() => {
+            const recording = this.controller.session()?.recording;
+            untracked(() => {
+                if (recording?.active && recording.targetPath) {
+                    previousRecording = {
+                        targetPath: recording.targetPath,
+                        startedAt: recording.startedAt ?? null,
+                    };
+                    return;
+                }
+                if (!previousRecording) {
+                    return;
+                }
+                const stopped = previousRecording;
+                previousRecording = null;
+                this.recordingStopped.emit({
+                    targetPath: stopped.targetPath,
+                    startedAt: stopped.startedAt,
+                    endedAt: new Date().toISOString(),
+                });
+            });
         });
 
         if (typeof document !== 'undefined') {
@@ -690,15 +721,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         this.legacyInteractions.revealControls(false);
         if (this.isRecording()) {
-            const startedAt =
-                this.controller.session()?.recording?.startedAt ?? null;
             const recording = await this.controller.stopRecording();
             if (recording?.targetPath) {
-                this.recordingStopped.emit({
-                    targetPath: recording.targetPath,
-                    startedAt,
-                    endedAt: new Date().toISOString(),
-                });
+                // recordingStopped is emitted by the session watcher in the
+                // constructor, which also covers stops triggered elsewhere.
                 this.setRecordingMessage(
                     this.translate.instant('EMBEDDED_MPV.PLAYER.SAVED_TO', {
                         path: recording.targetPath,
