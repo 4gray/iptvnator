@@ -86,6 +86,7 @@ export class XtreamDiscoverRouteComponent {
     readonly isMatchingGlobal = signal(false);
     private readonly globalMatches = signal<CatalogTitleMatch[] | null>(null);
     private readonly matchRequest = createLatestRequestGuard();
+    private readonly discoverRequest = createLatestRequestGuard();
 
     private readonly vodIndex = computed(() =>
         buildCatalogTitleIndex(this.xtreamStore.vodStreams())
@@ -117,8 +118,8 @@ export class XtreamDiscoverRouteComponent {
 
     constructor() {
         effect(() => {
-            const key = this.facetKey();
-            void this.loadDiscover(key);
+            this.facetKey();
+            void this.loadDiscover();
         });
     }
 
@@ -180,14 +181,25 @@ export class XtreamDiscoverRouteComponent {
     private portalMatchFor(title: DiscoverTitle) {
         const index =
             title.mediaType === 'movie' ? this.vodIndex() : this.serialIndex();
-        return lookupCatalogTitle(index, title.title, title.year);
+        // The localized title first, then TMDB's original: the catalog
+        // stores whatever the panel named the file
+        return (
+            lookupCatalogTitle(index, title.title, title.year) ??
+            (title.originalTitle
+                ? lookupCatalogTitle(index, title.originalTitle, title.year)
+                : null)
+        );
     }
 
     private globalMatchFor(title: DiscoverTitle): CatalogTitleMatch | null {
         return pickTitleMatch(
             {
                 type: title.mediaType === 'movie' ? 'movie' : 'series',
-                titles: [title.title],
+                // The localized title first, then TMDB's original: the
+                // catalog stores whatever the panel named the file
+                titles: title.originalTitle
+                    ? [title.title, title.originalTitle]
+                    : [title.title],
                 year: title.year,
             },
             this.globalIndex()
@@ -196,7 +208,14 @@ export class XtreamDiscoverRouteComponent {
 
     private async loadGlobalMatches(): Promise<void> {
         const requestedKey = this.facetKey();
-        const titles = this.results().map((title) => title.title);
+        // Both names go to the worker so its FTS can hit either one
+        const titles: string[] = [];
+        for (const result of this.results()) {
+            titles.push(result.title);
+            if (result.originalTitle) {
+                titles.push(result.originalTitle);
+            }
+        }
         const matchToken = this.matchRequest.start();
         this.isMatchingGlobal.set(true);
         try {
@@ -217,8 +236,12 @@ export class XtreamDiscoverRouteComponent {
         }
     }
 
-    private async loadDiscover(requestedKey: string): Promise<void> {
+    private async loadDiscover(): Promise<void> {
         const facets = this.facets();
+        // A facet change to B and back to A leaves two in-flight requests
+        // with the SAME key, so recency — not the key — decides who may
+        // commit: otherwise the older one's failure blanks valid results
+        const token = this.discoverRequest.start();
         this.isLoading.set(true);
         this.globalMatches.set(null);
         if (!hasDiscoverFacet(facets)) {
@@ -231,7 +254,7 @@ export class XtreamDiscoverRouteComponent {
             genreId: facets.genreId,
             countryCode: facets.countryCode,
         });
-        if (this.facetKey() !== requestedKey) {
+        if (!this.discoverRequest.isLatest(token)) {
             return;
         }
         this.results.set(titles ?? []);

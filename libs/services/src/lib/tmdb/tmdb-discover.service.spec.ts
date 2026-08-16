@@ -91,6 +91,7 @@ describe('TmdbDiscoverService', () => {
             tmdbId: 100,
             mediaType: 'movie',
             title: 'Movie 100',
+            originalTitle: null,
             year: 1990,
             posterUrl: null,
         });

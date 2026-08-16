@@ -11,6 +11,12 @@ export interface DiscoverTitle {
     tmdbId: number;
     mediaType: 'movie' | 'tv';
     title: string;
+    /**
+     * TMDB's original-language title, kept as a matching alias: `title`
+     * is localized to the app language while the provider catalog stores
+     * whatever the panel named the file, which is often the original.
+     */
+    originalTitle: string | null;
     year: number | null;
     posterUrl: string | null;
 }
@@ -33,10 +39,17 @@ export function mapDiscoverResults(
             continue;
         }
         seen.add(result.id);
+        const originalTitle = (
+            result.original_title ??
+            result.original_name ??
+            ''
+        ).trim();
         titles.push({
             tmdbId: result.id,
             mediaType,
             title,
+            originalTitle:
+                originalTitle && originalTitle !== title ? originalTitle : null,
             year: extractYear(result.release_date ?? result.first_air_date),
             posterUrl: tmdbPosterUrl(result.poster_path),
         });
