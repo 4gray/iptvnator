@@ -90,6 +90,19 @@ export class EmbeddedMpvRecordingTracker {
     }
 
     /**
+     * Resolves once every mutation enqueued so far has committed.
+     *
+     * The stop IPC returns the inactive session as soon as mpv acknowledges,
+     * while the row's terminal-state update is still queued here. The renderer
+     * answers that snapshot with stop enrichment, whose handler only accepts a
+     * terminal row — without this barrier it would look the row up too early,
+     * get "Recording not found", and silently drop the covered programs.
+     */
+    whenSettled(): Promise<void> {
+        return this.chain;
+    }
+
+    /**
      * Snapshot observer, wired into the service's session-update fan-out. It
      * rides the existing 500 ms diffed poll — no timers of its own.
      */

@@ -8,6 +8,7 @@ import { unlink } from 'node:fs/promises';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { embeddedMpvNativeService } from '../../services/embedded-mpv-native.service';
+import { embeddedMpvRecordingTracker } from '../../services/embedded-mpv-recording-tracker';
 import {
     getDownloadFileAvailabilityAsync,
     isAvailableDownloadFile,
@@ -195,6 +196,10 @@ ipcMain.handle(
             if (!targetPath || sanitized === null) {
                 return { error: 'Invalid programs payload', success: false };
             }
+            // The stop IPC returns as soon as mpv acknowledges, so the row may
+            // still be mid-finalization when this enrichment arrives. Wait for
+            // the tracker's queued writes before the terminal-row lookup.
+            await embeddedMpvRecordingTracker.whenSettled();
             const db = await getDatabase();
             // The reserved path is unique per recording in practice; a
             // historical row could share it after an external delete, so the

@@ -4,6 +4,7 @@ const registeredHandlers = new Map<string, IpcHandler>();
 const mockGetDatabase = jest.fn();
 const mockBroadcast = jest.fn();
 const mockStopRecording = jest.fn();
+const mockWhenSettled = jest.fn();
 const mockIsAvailableDownloadFile = jest.fn();
 const mockGetAvailabilityAsync = jest.fn();
 const mockUnlink = jest.fn();
@@ -24,6 +25,7 @@ async function setupRecordingsEventsHarness(): Promise<void> {
     mockGetDatabase.mockReset();
     mockBroadcast.mockReset();
     mockStopRecording.mockReset();
+    mockWhenSettled.mockReset().mockResolvedValue(undefined);
     mockIsAvailableDownloadFile.mockReset().mockReturnValue(true);
     mockGetAvailabilityAsync.mockReset().mockResolvedValue('available');
     mockUnlink.mockReset().mockResolvedValue(undefined);
@@ -52,6 +54,9 @@ async function setupRecordingsEventsHarness(): Promise<void> {
     }));
     jest.doMock('../../services/embedded-mpv-native.service', () => ({
         embeddedMpvNativeService: { stopRecording: mockStopRecording },
+    }));
+    jest.doMock('../../services/embedded-mpv-recording-tracker', () => ({
+        embeddedMpvRecordingTracker: { whenSettled: mockWhenSettled },
     }));
     jest.doMock('./recording-broadcast', () => ({
         broadcastRecordingsUpdate: mockBroadcast,
@@ -294,6 +299,31 @@ describe('recordings events', () => {
                 )
             ).resolves.toMatchObject({ success: false });
             expect(mockGetDatabase).not.toHaveBeenCalled();
+        });
+
+        it('waits for the tracker to finalize before looking the row up', async () => {
+            // The stop IPC returns before the tracker commits the terminal
+            // status, so an unsynchronized lookup would find no terminal row
+            // and silently drop the covered programs.
+            let releaseTracker: (() => void) | undefined;
+            mockWhenSettled.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    releaseTracker = resolve;
+                })
+            );
+            const { updateSet } = mockRowDb(recordingRow());
+
+            const pending = getHandler('RECORDINGS_UPDATE_PROGRAMS')(
+                null,
+                '/rec/News-20260815-210000.ts',
+                programs
+            );
+            await Promise.resolve();
+            expect(mockGetDatabase).not.toHaveBeenCalled();
+
+            releaseTracker?.();
+            await expect(pending).resolves.toEqual({ success: true });
+            expect(updateSet).toHaveBeenCalledTimes(1);
         });
 
         it('writes programs and keeps an existing headline program', async () => {

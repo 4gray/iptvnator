@@ -13,7 +13,11 @@ import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { VideoPlayer } from '@iptvnator/shared/interfaces';
+import {
+    VideoPlayer,
+    type RecordingStartMetadata,
+    type RecordingStoppedEvent,
+} from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { ErrorDetails, ErrorTypes } from 'hls.js';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
@@ -106,11 +110,13 @@ class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
     readonly mediaTitle = input<unknown>(null);
     readonly recordingFolder = input('');
+    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
+    readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 
 describe('WebPlayerViewComponent', () => {

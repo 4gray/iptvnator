@@ -270,6 +270,19 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(db.updateSet).toHaveBeenCalledTimes(1);
     });
 
+    it('whenSettled resolves only after queued finalization committed', async () => {
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        // The stop IPC returns here; the enrichment handler awaits this
+        // barrier so the row is already terminal when it looks it up.
+        await tracker.whenSettled();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+    });
+
     it('ignores snapshots for sessions without an open recording', async () => {
         tracker.observeSnapshot(activeSnapshot());
         tracker.observeSnapshot(session({ status: 'closed' }));

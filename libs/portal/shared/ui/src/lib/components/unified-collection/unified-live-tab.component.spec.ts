@@ -1,11 +1,4 @@
-import {
-    ChangeDetectionStrategy,
-    Component,
-    Directive,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
@@ -13,7 +6,6 @@ import { GlobalFavoritesListComponent } from '../global-favorites-list/global-fa
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import {
     AudioPlayerComponent,
-    type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import {
@@ -29,107 +21,24 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     EpgItem,
     EpgProgram,
-    ResolvedPortalPlayback,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
-    DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     PORTAL_PLAYER,
-    FavoritesChannelSortMode,
     UnifiedCollectionItem,
-    UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
 import {
     StreamResolverService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { createPlaybackSessionKey as sessionKey } from '@iptvnator/playback/util';
-
-@Directive({
-    selector: '[appResizable]',
-})
-class StubResizableDirective {
-    readonly minWidth = input<number>();
-    readonly maxWidth = input<number>();
-    readonly defaultWidth = input<number>();
-    readonly storageKey = input<string>('');
-}
-
-@Component({
-    selector: 'app-global-favorites-list',
-    template: '',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubGlobalFavoritesListComponent {
-    readonly channels = input.required<UnifiedFavoriteChannel[]>();
-    readonly mode = input<'favorites' | 'recent'>('favorites');
-    readonly showEpg = input(true);
-    readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
-    readonly epgMap = input<Map<string, EpgProgram | null>>(new Map());
-    readonly progressTick = input(0);
-    readonly activeUid = input<string | null>(null);
-    readonly searchTermInput = input('');
-    readonly draggable = input(true);
-    readonly sortMode = input<FavoritesChannelSortMode>(
-        DEFAULT_FAVORITES_CHANNEL_SORT_MODE
-    );
-
-    readonly channelSelected = output<UnifiedFavoriteChannel>();
-    readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
-    readonly favoriteToggled = output<UnifiedFavoriteChannel>();
-    readonly removeRequested = output<UnifiedFavoriteChannel>();
-}
-
-// Matches both live-panel selectors so the host's timeline ↔ list swap can be
-// asserted by tag name; both branches share the identical contract.
-@Component({
-    selector: 'app-epg-timeline, app-epg-list-view',
-    template: '<div class="stub-epg-timeline"></div>',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubEpgTimelineComponent {
-    readonly programs = input<EpgProgram[]>([]);
-    readonly channelName = input('');
-    readonly channelLogo = input('');
-    readonly archivePlaybackAvailable = input(false);
-    readonly archiveDays = input(0);
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly isLivePlayback = input(true);
-    readonly selectedDate = input<string | null>(null);
-    readonly collapsed = input(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    readonly summary = input<any>(null);
-    readonly summaryLabelKey = input('');
-    readonly selectedDateChange = output<string>();
-    readonly collapsedChange = output<boolean>();
-    readonly programActivated = output<EpgProgramActivationEvent>();
-    readonly returnToLive = output<void>();
-}
-
-@Component({
-    selector: 'app-audio-player',
-    template: '<div class="stub-audio-player"></div>',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubAudioPlayerComponent {
-    readonly icon = input('');
-    readonly url = input.required<string>();
-    readonly channelName = input('');
-}
-
-@Component({
-    selector: 'app-web-player-view',
-    template: '<div class="stub-web-player-view"></div>',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubWebPlayerViewComponent {
-    readonly playbackSessionKey = input.required<string>();
-    readonly streamUrl = input.required<string>();
-    readonly title = input('');
-    readonly playback = input<ResolvedPortalPlayback | null>(null);
-    readonly playerOverride = input<VideoPlayer | null>(null);
-    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
-}
+import {
+    StubAudioPlayerComponent,
+    StubEpgTimelineComponent,
+    StubGlobalFavoritesListComponent,
+    StubResizableDirective,
+    StubWebPlayerViewComponent,
+} from './unified-live-tab.spec-stubs';
 
 describe('UnifiedLiveTabComponent', () => {
     let fixture: ComponentFixture<UnifiedLiveTabComponent>;

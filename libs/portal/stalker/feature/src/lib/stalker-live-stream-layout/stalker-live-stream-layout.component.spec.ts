@@ -1,11 +1,4 @@
-import {
-    Component,
-    Directive,
-    EventEmitter,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { EventEmitter, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -18,10 +11,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
-import {
-    AudioPlayerComponent,
-    type PlaybackFallbackRequest,
-} from '@iptvnator/ui/playback';
+import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
@@ -40,103 +30,14 @@ import { MatDialog } from '@angular/material/dialog';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
-
-@Component({
-    selector: 'app-channel-list-item',
-    standalone: true,
-    template: '',
-})
-class StubChannelListItemComponent {
-    readonly name = input('');
-    readonly logo = input<string | null | undefined>(null);
-    readonly selected = input(false);
-    readonly showEpg = input(true);
-    readonly isRadio = input(false);
-    readonly epgProgram = input<unknown>(null);
-    readonly progressPercentage = input(0);
-    readonly showFavoriteButton = input(false);
-    readonly showProgramInfoButton = input(false);
-    readonly showDetailsContextMenu = input(false);
-    readonly isFavorite = input(false);
-    readonly clicked = output<void>();
-    readonly activated = output<void>();
-    readonly favoriteToggled = output<void>();
-    readonly contextMenuRequested = output<MouseEvent>();
-}
-
-@Component({
-    selector: 'app-web-player-view',
-    standalone: true,
-    template: '',
-})
-class StubWebPlayerViewComponent {
-    readonly playbackSessionKey = input.required<string>();
-    readonly streamUrl = input('');
-    readonly title = input('');
-    readonly playback = input<unknown>(null);
-    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
-}
-
-@Component({
-    selector: 'app-audio-player',
-    standalone: true,
-    template: '',
-})
-class StubAudioPlayerComponent {
-    readonly url = input.required<string>();
-    readonly icon = input('');
-    readonly channelName = input('');
-    readonly dispatchAdjacentChannelAction = input(true);
-    readonly channelSwitchRequested = output<'next' | 'previous'>();
-}
-
-// Matches both live-panel selectors so the host's timeline ↔ list swap can be
-// asserted by tag name; both branches share the identical contract.
-@Component({
-    selector: 'app-epg-timeline, app-epg-list-view',
-    standalone: true,
-    template: `
-        <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
-    `,
-})
-class StubEpgTimelineComponent {
-    readonly programs = input<EpgProgram[]>([]);
-    readonly channelName = input('');
-    readonly channelLogo = input('');
-    readonly sourceLabel = input('');
-    readonly archivePlaybackAvailable = input(false);
-    readonly archiveDays = input(0);
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly isLivePlayback = input(false);
-    readonly loading = input(false);
-    readonly emptyReason = input<string>('none');
-    readonly selectedDate = input<string | null>(null);
-    readonly collapsed = input(false);
-    readonly summary = input<{ title?: string } | null>(null);
-    readonly summaryLabelKey = input('');
-    readonly selectedDateChange = output<string>();
-    readonly programActivated = output<EpgProgram>();
-    readonly returnToLive = output<void>();
-    readonly openEpgSettings = output<void>();
-    readonly retry = output<void>();
-    readonly collapsedChange = output<boolean>();
-}
-
-@Component({
-    selector: 'app-portal-empty-state',
-    standalone: true,
-    template: '',
-})
-class StubPortalEmptyStateComponent {
-    readonly icon = input('');
-    readonly message = input('');
-}
-
-@Directive({
-    selector: '[appResizable]',
-    standalone: true,
-})
-class StubResizableDirective {}
+import {
+    StubAudioPlayerComponent,
+    StubChannelListItemComponent,
+    StubEpgTimelineComponent,
+    StubPortalEmptyStateComponent,
+    StubResizableDirective,
+    StubWebPlayerViewComponent,
+} from './stalker-live-stream-layout.spec-stubs';
 
 describe('StalkerLiveStreamLayoutComponent', () => {
     let fixture: ComponentFixture<StalkerLiveStreamLayoutComponent>;
