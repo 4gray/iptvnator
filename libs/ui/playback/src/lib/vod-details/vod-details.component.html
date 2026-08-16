@@ -12,22 +12,27 @@
     <!-- Tags: Year, Genre, Duration, Rating -->
     <ng-template appDetailTags>
         @if (meta.year) {
-            <span
-                class="details__tag"
-                [class.details__tag--clickable]="
-                    discover.canOpenYear(meta.tmdbId, meta.year)
-                "
-                (click)="discover.openYear(meta.tmdbId, meta.year)"
-                >{{ meta.year }}</span
-            >
+            @if (discover.canOpenYear(meta.tmdbId, meta.year)) {
+                <button
+                    type="button"
+                    class="details__tag details__tag--clickable"
+                    (click)="discover.openYear(meta.tmdbId, meta.year)"
+                >
+                    {{ meta.year }}
+                </button>
+            } @else {
+                <span class="details__tag">{{ meta.year }}</span>
+            }
         }
         @if (meta.tmdbGenres?.length) {
             @for (genre of meta.tmdbGenres; track genre.id) {
-                <span
+                <button
+                    type="button"
                     class="details__tag details__tag--clickable"
                     (click)="discover.openGenre(genre)"
-                    >{{ genre.name }}</span
                 >
+                    {{ genre.name }}
+                </button>
             }
         } @else if (meta.genre) {
             <span class="details__tag">{{ meta.genre }}</span>
@@ -42,11 +47,13 @@
         }
         @if (meta.tmdbCountries?.length) {
             @for (country of meta.tmdbCountries; track country.code) {
-                <span
+                <button
+                    type="button"
                     class="details__tag details__tag--clickable"
                     (click)="discover.openCountry(country)"
-                    >{{ country.name }}</span
                 >
+                    {{ country.name }}
+                </button>
             }
         } @else if (meta.country) {
             <span class="details__tag">{{ meta.country }}</span>

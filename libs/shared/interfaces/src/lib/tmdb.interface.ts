@@ -120,6 +120,18 @@ export interface TmdbCountryFacet {
 }
 
 /**
+ * Whether a number is a year the Discover page can actually filter by.
+ *
+ * Providers ship `0000-00-00` as their "no date" placeholder, which reads
+ * as a four-digit year and would otherwise produce a `0000` chip that
+ * filters by nothing. Shared by the chip side and the route-param side so
+ * a deep link cannot smuggle in what a chip refuses to offer.
+ */
+export function isTmdbYearFacet(year: number): boolean {
+    return Number.isInteger(year) && year >= 1000 && year <= 9999;
+}
+
+/**
  * One cached TMDB lookup. Two kinds of rows share the table, discriminated
  * by the `lookupKey` prefix:
  * - `id:<tmdbId>` — full details payload for a TMDB id

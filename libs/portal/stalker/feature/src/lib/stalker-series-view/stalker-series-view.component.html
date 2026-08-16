@@ -16,30 +16,39 @@
                 }}</span>
             }
             @if (serial.info.releasedate) {
-                <span
-                    class="details__tag"
-                    [class.details__tag--clickable]="
-                        discover.canOpenYear(
-                            serial.info.tmdb_id,
-                            serial.info.releasedate
-                        )
-                    "
-                    (click)="
-                        discover.openYear(
-                            serial.info.tmdb_id,
-                            serial.info.releasedate
-                        )
-                    "
-                    >{{ serial.info.releasedate }}</span
-                >
+                @if (
+                    discover.canOpenYear(
+                        serial.info.tmdb_id,
+                        serial.info.releasedate
+                    )
+                ) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="
+                            discover.openYear(
+                                serial.info.tmdb_id,
+                                serial.info.releasedate
+                            )
+                        "
+                    >
+                        {{ serial.info.releasedate }}
+                    </button>
+                } @else {
+                    <span class="details__tag">{{
+                        serial.info.releasedate
+                    }}</span>
+                }
             }
             @if (serial.info.tmdb_genres?.length) {
                 @for (genre of serial.info.tmdb_genres; track genre.id) {
-                    <span
+                    <button
+                        type="button"
                         class="details__tag details__tag--clickable"
                         (click)="discover.openGenre(genre)"
-                        >{{ genre.name }}</span
                     >
+                        {{ genre.name }}
+                    </button>
                 }
             } @else if (serial.info.genre) {
                 <span class="details__tag">{{ serial.info.genre }}</span>
@@ -59,11 +68,13 @@
                     country of serial.info.tmdb_countries;
                     track country.code
                 ) {
-                    <span
+                    <button
+                        type="button"
                         class="details__tag details__tag--clickable"
                         (click)="discover.openCountry(country)"
-                        >{{ country.name }}</span
                     >
+                        {{ country.name }}
+                    </button>
                 }
             }
         </ng-template>

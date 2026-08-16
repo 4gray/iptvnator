@@ -102,6 +102,17 @@ describe('createDiscoverFacetNavigation', () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
+    it('refuses the zero-date placeholder providers ship for "no date"', () => {
+        const discover = create(xtreamMovie);
+
+        // '0000-00-00' reads as a four-digit year but filters by nothing
+        expect(discover.canOpenYear(603, '0000-00-00')).toBe(false);
+        expect(discover.canOpenYear(603, '0000')).toBe(false);
+
+        discover.openYear(603, '0000-00-00');
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
     it('does not navigate while the host cannot resolve its playlist', () => {
         const discover = create(() => null);
 

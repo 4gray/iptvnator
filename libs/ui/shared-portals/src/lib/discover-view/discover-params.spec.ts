@@ -38,6 +38,15 @@ describe('parseDiscoverParams', () => {
         expect(parseDiscoverParams({ year: '1990' }).year).toBe(1990);
     });
 
+    it('rejects a zero year a deep link could smuggle in', () => {
+        // The chips refuse '0000'; the route must refuse it too, or the
+        // request drops the filter and returns unfiltered popular titles
+        expect(parseDiscoverParams({ year: '0000' }).year).toBeNull();
+        expect(hasDiscoverFacet(parseDiscoverParams({ year: '0000' }))).toBe(
+            false
+        );
+    });
+
     it('drops a genre label without a valid genre id', () => {
         const facets = parseDiscoverParams({
             genre: 'drama',

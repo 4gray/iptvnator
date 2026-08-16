@@ -1,4 +1,4 @@
-import { TmdbMediaType } from '@iptvnator/shared/interfaces';
+import { TmdbMediaType, isTmdbYearFacet } from '@iptvnator/shared/interfaces';
 
 /**
  * Facets of a portal Discover page, parsed from route query params.
@@ -30,8 +30,13 @@ export function parseDiscoverParams(params: RawParams): DiscoverRouteParams {
     const type: TmdbMediaType =
         rawString(params, 'type') === 'tv' ? 'tv' : 'movie';
 
+    // `0000` parses as four digits but filters by nothing — a deep link
+    // must not reach a state the chips themselves refuse to offer
     const rawYear = rawString(params, 'year');
-    const year = rawYear && /^\d{4}$/.test(rawYear) ? Number(rawYear) : null;
+    const parsedYear =
+        rawYear && /^\d{4}$/.test(rawYear) ? Number(rawYear) : null;
+    const year =
+        parsedYear !== null && isTmdbYearFacet(parsedYear) ? parsedYear : null;
 
     const rawGenre = rawString(params, 'genre');
     const parsedGenre = rawGenre && /^\d+$/.test(rawGenre) ? Number(rawGenre) : null;

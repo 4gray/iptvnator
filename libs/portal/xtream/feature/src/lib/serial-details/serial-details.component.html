@@ -17,22 +17,31 @@
                 }}</span>
             }
             @if (info.releaseDate) {
-                <span
-                    class="details__tag"
-                    [class.details__tag--clickable]="
-                        discover.canOpenYear(info.tmdb_id, info.releaseDate)
-                    "
-                    (click)="discover.openYear(info.tmdb_id, info.releaseDate)"
-                    >{{ info.releaseDate | slice: 0 : 4 }}</span
-                >
+                @if (discover.canOpenYear(info.tmdb_id, info.releaseDate)) {
+                    <button
+                        type="button"
+                        class="details__tag details__tag--clickable"
+                        (click)="
+                            discover.openYear(info.tmdb_id, info.releaseDate)
+                        "
+                    >
+                        {{ info.releaseDate | slice: 0 : 4 }}
+                    </button>
+                } @else {
+                    <span class="details__tag">{{
+                        info.releaseDate | slice: 0 : 4
+                    }}</span>
+                }
             }
             @if (info.tmdb_genres?.length) {
                 @for (genre of info.tmdb_genres; track genre.id) {
-                    <span
+                    <button
+                        type="button"
                         class="details__tag details__tag--clickable"
                         (click)="discover.openGenre(genre)"
-                        >{{ genre.name }}</span
                     >
+                        {{ genre.name }}
+                    </button>
                 }
             } @else if (info.genre) {
                 <span class="details__tag">{{ info.genre }}</span>
@@ -49,11 +58,13 @@
             }
             @if (info.tmdb_countries?.length) {
                 @for (country of info.tmdb_countries; track country.code) {
-                    <span
+                    <button
+                        type="button"
                         class="details__tag details__tag--clickable"
                         (click)="discover.openCountry(country)"
-                        >{{ country.name }}</span
                     >
+                        {{ country.name }}
+                    </button>
                 }
             }
         </ng-template>

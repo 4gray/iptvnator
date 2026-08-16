@@ -4,6 +4,7 @@ import {
     TmdbCountryFacet,
     TmdbGenreFacet,
     TmdbMediaType,
+    isTmdbYearFacet,
 } from '@iptvnator/shared/interfaces';
 import { discoverLink } from './discover-link.util';
 
@@ -31,11 +32,13 @@ export interface DiscoverFacetNavigation {
  * Year stated by a provider date field, whatever shape it arrives in —
  * `1976`, `1999-03-31` and `31-03-1999` all resolve. Reads the first
  * four-digit run rather than a fixed slice, which the day-first form
- * would otherwise turn into `NaN`.
+ * would otherwise turn into `NaN`, and rejects the `0000-00-00`
+ * placeholder rather than offering a chip that filters by nothing.
  */
 function facetYear(releaseDate: string | null | undefined): number | null {
     const match = releaseDate?.match(/\d{4}/);
-    return match ? Number(match[0]) : null;
+    const year = match ? Number(match[0]) : null;
+    return year !== null && isTmdbYearFacet(year) ? year : null;
 }
 
 /**
