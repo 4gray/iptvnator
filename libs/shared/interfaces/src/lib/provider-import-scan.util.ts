@@ -37,6 +37,31 @@ export interface LabeledFields {
 // account entirely.
 const URL_PATTERN = /https?:\/\/[^\s<>"'`|]+/gi;
 const TRAILING_PUNCTUATION = /[),.;:!?\]»›]+$/;
+
+/**
+ * Strips sentence punctuation a URL picked up from prose ("see http://x/y.")
+ * — unless doing so breaks the address itself. `]` is both a closing quote in
+ * prose and the structural end of an IPv6 authority (`http://[2001:db8::1]`),
+ * and only parsing can tell the two apart: the stripped form wins whenever it
+ * still parses, otherwise the original stands. Values with no scheme parse
+ * either way, so they keep the plain stripped form.
+ */
+function stripTrailingProsePunctuation(value: string): string {
+    const stripped = value.replace(TRAILING_PUNCTUATION, '');
+    if (stripped === value || parsesAsUrl(stripped) || !parsesAsUrl(value)) {
+        return stripped;
+    }
+    return value;
+}
+
+function parsesAsUrl(value: string): boolean {
+    try {
+        new URL(value);
+        return true;
+    } catch {
+        return false;
+    }
+}
 const M3U_PATH_PATTERN = /\.m3u8?$/i;
 const XTREAM_API_PATH_PATTERN = /\/(?:get|player_api|panel_api)\.php$/i;
 const STALKER_PATH_PATTERN = /\/(?:portal\.php|c\/?)$/i;
@@ -289,7 +314,7 @@ export function extractUrls(text: string): DetectedUrl[] {
         detected.length < MAX_URLS &&
         (match = matcher.exec(text)) !== null
     ) {
-        const raw = match[0].replace(TRAILING_PUNCTUATION, '');
+        const raw = stripTrailingProsePunctuation(match[0]);
         if (seen.has(raw)) {
             continue;
         }
@@ -423,7 +448,9 @@ export function labeledHostUrl(labeled: LabeledFields): string | undefined {
     // value takes precedence over the scanned one, so leaving `Server:
     // http://host!` uncleaned here would hand the forms a hostname DNS can
     // never resolve while the sanitized scanned URL sat right beside it.
-    const host = labeled.host?.replace(TRAILING_PUNCTUATION, '');
+    const host = labeled.host
+        ? stripTrailingProsePunctuation(labeled.host)
+        : undefined;
     if (!host) {
         return undefined;
     }
@@ -518,5 +545,12 @@ function firstMatchOutsideSpans(
 }
 
 function stripWrapping(value: string): string {
-    return value.trim().replace(WRAPPING_CHARS, '').trim();
+    const trimmed = value.trim();
+    const stripped = trimmed.replace(WRAPPING_CHARS, '').trim();
+    // Same hazard as the prose-punctuation cleanup: `]` closes both a bracket
+    // quote and an IPv6 authority, so a strip that breaks the address loses.
+    if (stripped === trimmed || parsesAsUrl(stripped) || !parsesAsUrl(trimmed)) {
+        return stripped;
+    }
+    return trimmed;
 }

@@ -317,13 +317,27 @@ function portalInstallationKey(
  * Applied only when the URL itself states no explicit port, so a written
  * `:80` is never overridden by the label.
  */
+/**
+ * Whether the URL states a port itself. Read off the RAW authority rather
+ * than `parsed.port`, which the WHATWG parser blanks for a protocol's default
+ * (`http://host:80` reports no port) — a written `:80` is still the user's
+ * explicit choice and must not be overwritten by a labeled one. An IPv6
+ * literal's own colons are skipped by cutting the bracketed address first.
+ */
+function hasExplicitPort(raw: string): boolean {
+    const afterScheme = raw.slice(raw.indexOf('://') + 3);
+    const authority = afterScheme.split(/[/?#]/, 1)[0];
+    const afterAddress = authority.startsWith('[')
+        ? authority.slice(authority.indexOf(']') + 1)
+        : authority;
+    return /:\d+$/.test(afterAddress);
+}
+
 function completeWithLabeledPort(
     url: DetectedUrl,
     port: string | undefined
 ): string {
-    // `parsed.port` rather than a colon in the authority: an IPv6 literal
-    // (`http://[2001:db8::1]/…`) is full of colons that are address, not port.
-    if (!port || url.parsed.port !== '') {
+    if (!port || hasExplicitPort(url.raw)) {
         return url.raw;
     }
     const { protocol, hostname, pathname, search } = url.parsed;
@@ -416,17 +430,20 @@ function dedupe(
 ): ProviderImportCandidate[] {
     const seen = new Set<string>();
     return candidates.filter((candidate) => {
-        const key = [
+        // JSON rather than a joined string: a credential may legitimately
+        // contain the separator (URL-encoded in the query), and two different
+        // accounts must never collapse into one key because of it. Same
+        // server + username with a DIFFERENT password is a distinct account
+        // (e.g. a rotation message), so the password is part of the key.
+        const key = JSON.stringify([
             candidate.kind,
             candidate.url ?? '',
             candidate.serverUrl ?? '',
             candidate.username ?? '',
-            // Same server + username with a DIFFERENT password is a distinct
-            // account (e.g. a rotation message) — never collapse it away.
             candidate.password ?? '',
             candidate.portalUrl ?? '',
             candidate.macAddress ?? '',
-        ].join('|');
+        ]);
         if (seen.has(key)) {
             return false;
         }

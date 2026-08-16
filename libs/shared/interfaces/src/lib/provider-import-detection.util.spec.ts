@@ -331,6 +331,45 @@ describe('detectProviderImportCandidates', () => {
             });
         });
 
+        it('keeps an explicitly written default port over a labeled one', () => {
+            // The WHATWG parser blanks `:80`, but the user wrote it.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Server: http://primary.example.org:80/player_api.php',
+                    'Port: 8080',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            // `:80` is http's default, so the shared normalizer collapses it
+            // away — what matters is that the labeled 8080 never replaced it.
+            expect(only(candidates, 'xtream')[0].serverUrl).toBe(
+                'http://primary.example.org'
+            );
+        });
+
+        it('keeps distinct accounts whose credentials contain the key separator', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel.example.org/get.php?username=a%7Cb&password=c',
+                    'http://panel.example.org/get.php?username=a&password=b%7Cc',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(2);
+            expect(
+                xtream.map((candidate) => [
+                    candidate.username,
+                    candidate.password,
+                ])
+            ).toEqual([
+                ['a|b', 'c'],
+                ['a', 'b|c'],
+            ]);
+        });
+
         it('applies a labeled port to an IPv6 endpoint', () => {
             // The address is full of colons; none of them is a port.
             const candidates = detectProviderImportCandidates(
@@ -478,6 +517,20 @@ describe('detectProviderImportCandidates', () => {
             expect(stalker[0].confidence).toBe('medium');
             expect(stalker[0].portalUrl).toBe('http://somehost.example.net/tv');
             expect(stalker[0].macAddress).toBe('00:1A:79:AA:BB:CC');
+        });
+
+        it('keeps the closing bracket of a root IPv6 portal URL', () => {
+            // `]` closes the authority here; stripping it as prose would
+            // leave an address that cannot be parsed or imported.
+            const candidates = detectProviderImportCandidates(
+                ['Portal: http://[2001:db8::1]', 'MAC: 00:1A:79:12:34:56'].join(
+                    '\n'
+                )
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(1);
+            expect(stalker[0].portalUrl).toBe('http://[2001:db8::1]');
         });
 
         it('proposes a low-confidence stalker candidate for a lone MAC', () => {
