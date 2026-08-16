@@ -70,6 +70,23 @@ function deferred<T>(): Deferred<T> {
     return { promise, resolve };
 }
 
+function recording(
+    id: number,
+    overrides: Partial<RecordingItem> = {}
+): RecordingItem {
+    return {
+        id,
+        status: 'completed',
+        filePath: `/recordings/${id}.ts`,
+        channelName: `Channel ${id}`,
+        startedAt: '2026-08-15T21:00:00Z',
+        endedAt: '2026-08-15T21:58:00Z',
+        fileAvailability: 'available',
+        playlistId: 'playlist-a',
+        ...overrides,
+    };
+}
+
 function download(
     id: number,
     overrides: Partial<DownloadItem> = {}
@@ -463,6 +480,32 @@ describe('DownloadsComponent', () => {
         expect(component.model().activeCount).toBe(1);
         expect(downloadsService.activeCount()).toBe(2);
         expect(downloads()).toBe(globalItems);
+    });
+
+    it('counts recordings in the All chip and the active badge', () => {
+        // A manager listing only recordings must not read "All 0", and an
+        // active recording belongs in the header badge.
+        recordingsService.isAvailable.set(true);
+        recordings.set([
+            recording(1),
+            recording(2, { status: 'recording', endedAt: undefined }),
+        ]);
+        fixture.detectChanges();
+
+        const all = component
+            .categories()
+            .find(({ category_id }) => category_id === 'all');
+        const inProgress = component
+            .categories()
+            .find(({ category_id }) => category_id === 'in-progress');
+        const recordingsChip = component
+            .categories()
+            .find(({ category_id }) => category_id === 'recording');
+
+        expect(all?.count).toBe(2);
+        expect(inProgress?.count).toBe(1);
+        expect(recordingsChip?.count).toBe(2);
+        expect(component.activeCount()).toBe(1);
     });
 
     it('keeps retained offline downloads visible after the last source is removed', () => {

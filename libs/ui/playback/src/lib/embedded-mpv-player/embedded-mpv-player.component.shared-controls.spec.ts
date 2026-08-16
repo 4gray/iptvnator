@@ -428,6 +428,38 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(stopped).toHaveLength(1);
     });
 
+    it('carries the recorded channel identity through the stop event', () => {
+        const { fixture, component, controller } = render();
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'Channel One',
+            epgChannelId: 'channel.one',
+        });
+        const stopped: Array<string | null | undefined> = [];
+        component.recordingStopped.subscribe((event) =>
+            stopped.push(event.epgChannelId)
+        );
+
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: true, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        // A channel switch auto-stops the recording and moves the host on;
+        // the event must still name the channel that was recorded.
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'Channel Two',
+            epgChannelId: 'channel.two',
+        });
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: false, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        expect(stopped).toEqual(['channel.one']);
+    });
+
     it('does not emit recordingStopped without a preceding active recording', () => {
         const { fixture, component, controller } = render();
         const stopped: unknown[] = [];

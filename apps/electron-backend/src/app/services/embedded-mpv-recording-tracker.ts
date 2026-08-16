@@ -28,6 +28,8 @@ interface OpenRecordingEntry {
     stopRequested: boolean;
     /** Fires if mpv never acknowledges the requested stop. */
     stopFallbackTimer?: ReturnType<typeof setTimeout>;
+    /** Armed by an inactive snapshot; finalizes once the stop looks settled. */
+    settleTimer?: ReturnType<typeof setTimeout>;
     rowId: Promise<number | null>;
     /** Resolved when this entry reaches a terminal status. */
     finalized: Promise<void>;
@@ -43,6 +45,19 @@ type RecordingFinalStatus = 'completed' | 'interrupted' | 'failed';
  * leaving the row `recording` forever.
  */
 const STOP_ACKNOWLEDGEMENT_TIMEOUT_MS = 10_000;
+
+/**
+ * How long an observed inactive recording must stay inactive before it is
+ * finalized.
+ *
+ * macOS native-view clears `recordingActive` *before* dispatching the async
+ * `stream-record` property set and restores it (with an error) if that
+ * request is rejected, so the first inactive snapshot is optimistic rather
+ * than an acknowledgement. Three 500 ms poll cycles are enough for that
+ * revert to arrive. The frame-copy helper sets the property synchronously and
+ * is unaffected; it simply finalizes a beat later.
+ */
+const STOP_SETTLE_WINDOW_MS = 1_500;
 
 /**
  * Upper bound for callers waiting on a specific recording's finalization.
@@ -162,6 +177,12 @@ export class EmbeddedMpvRecordingTracker {
 
         if (recording.active && recording.targetPath === entry.targetPath) {
             entry.sawActive = true;
+            // A rejected stop puts the recording back: abandon the pending
+            // finalization instead of ending a row that is still recording.
+            if (entry.settleTimer !== undefined) {
+                clearTimeout(entry.settleTimer);
+                entry.settleTimer = undefined;
+            }
             return;
         }
 
@@ -170,9 +191,13 @@ export class EmbeddedMpvRecordingTracker {
         }
 
         if (entry.sawActive) {
-            // The acknowledged stop: either the requested one or the
-            // stream-replacement auto-stop. The file is flushed by now.
-            this.finalize(session.id, 'completed');
+            // Inactive, but on native-view that state precedes mpv's reply.
+            // Finalize only once it survived the settle window.
+            if (entry.settleTimer === undefined) {
+                entry.settleTimer = setTimeout(() => {
+                    this.finalize(session.id, 'completed');
+                }, STOP_SETTLE_WINDOW_MS);
+            }
         } else if (recording.error) {
             // The async start failed before the recording ever activated.
             this.finalize(session.id, 'failed', recording.error);
@@ -232,6 +257,9 @@ export class EmbeddedMpvRecordingTracker {
         this.open.delete(sessionId);
         if (entry.stopFallbackTimer !== undefined) {
             clearTimeout(entry.stopFallbackTimer);
+        }
+        if (entry.settleTimer !== undefined) {
+            clearTimeout(entry.settleTimer);
         }
 
         void this.enqueue(async () => {

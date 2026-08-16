@@ -170,6 +170,14 @@ export class DownloadsComponent {
             searchTerm: this.searchTerm(),
         })
     );
+    /**
+     * Header badge and All chip must count everything the page can list —
+     * otherwise a manager holding only recordings reads "All 0" and an active
+     * recording never reaches the active-count badge.
+     */
+    readonly activeCount = computed(
+        () => this.model().activeCount + this.recordingModel().active.length
+    );
     readonly categories = computed(() => this.buildCategories());
     readonly collectionContext = createPortalCollectionContext({
         ctx: this.collectionCtx,
@@ -348,6 +356,9 @@ export class DownloadsComponent {
     private buildCategories(): XtreamCategory[] {
         this.languageChange();
         const counts = this.model().counts;
+        const recordingCount = this.recordingsAvailable()
+            ? this.recordingModel().count
+            : 0;
         const categories = buildStandardCollectionCategories({
             labels: {
                 all: this.translate.instant(FILTER_KEYS.all),
@@ -357,11 +368,17 @@ export class DownloadsComponent {
             },
             counts,
         });
+        const allCategory = categories.find(
+            ({ category_id }) => category_id === 'all'
+        );
+        if (allCategory) {
+            allCategory.count = (allCategory.count ?? 0) + recordingCount;
+        }
         categories.push({
             id: 4,
             category_id: 'in-progress',
             category_name: this.translate.instant(FILTER_KEYS.inProgress),
-            count: counts.inProgress,
+            count: counts.inProgress + this.recordingModel().active.length,
             parent_id: 0,
         });
         if (this.recordingsAvailable()) {
@@ -369,7 +386,7 @@ export class DownloadsComponent {
                 id: 5,
                 category_id: 'recording',
                 category_name: this.translate.instant(FILTER_KEYS.recording),
-                count: this.recordingModel().count,
+                count: recordingCount,
                 parent_id: 0,
             });
         }

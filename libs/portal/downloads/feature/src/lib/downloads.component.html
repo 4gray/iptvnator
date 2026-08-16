@@ -5,14 +5,14 @@
                 <h1 id="downloads-title">
                     {{ 'DOWNLOADS.TITLE' | translate }}
                 </h1>
-                @if (model().activeCount > 0) {
+                @if (activeCount() > 0) {
                     <span
                         class="downloads__active-count"
                         data-test-id="downloads-active-count"
                     >
                         {{
                             'DOWNLOADS.ACTIVE_COUNT'
-                                | translate: { count: model().activeCount }
+                                | translate: { count: activeCount() }
                         }}
                     </span>
                 }

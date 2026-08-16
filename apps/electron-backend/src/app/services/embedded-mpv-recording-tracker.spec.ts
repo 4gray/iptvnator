@@ -86,6 +86,33 @@ const started = (tracker: EmbeddedMpvRecordingTracker) =>
         },
     });
 
+const inactiveSnapshot = (overrides: Partial<EmbeddedMpvSession> = {}) =>
+    session({
+        recording: {
+            active: false,
+            targetPath: '/rec/News-20260815-210000.ts',
+        },
+        ...overrides,
+    });
+
+/**
+ * Pushes the inactive snapshot and drives the settle window that guards
+ * against macOS native-view's optimistic pre-reply state.
+ */
+async function settleStop(
+    tracker: EmbeddedMpvRecordingTracker,
+    overrides: Partial<EmbeddedMpvSession> = {}
+): Promise<void> {
+    jest.useFakeTimers();
+    try {
+        tracker.observeSnapshot(inactiveSnapshot(overrides));
+        await jest.advanceTimersByTimeAsync(1_600);
+    } finally {
+        jest.useRealTimers();
+    }
+    await flush();
+}
+
 const activeSnapshot = () =>
     session({
         recording: {
@@ -152,15 +179,7 @@ describe('EmbeddedMpvRecordingTracker', () => {
         // could hit a file mpv has not flushed yet.
         expect(db.updateSet).not.toHaveBeenCalled();
 
-        tracker.observeSnapshot(
-            session({
-                recording: {
-                    active: false,
-                    targetPath: '/rec/News-20260815-210000.ts',
-                },
-            })
-        );
-        await flush();
+        await settleStop(tracker);
 
         expect(db.updateSet).toHaveBeenCalledTimes(1);
         expect(db.updateSet.mock.calls[0][0]).toEqual(
@@ -179,16 +198,31 @@ describe('EmbeddedMpvRecordingTracker', () => {
     it('treats an observed active→inactive flip as the auto-stop', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
-        tracker.observeSnapshot(
-            session({
-                recording: {
-                    active: false,
-                    targetPath: '/rec/News-20260815-210000.ts',
-                },
-            })
-        );
-        await flush();
+        await settleStop(tracker);
         expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+    });
+
+    it('abandons finalization when a rejected stop revives the recording', async () => {
+        // macOS native-view clears recordingActive before dispatching the
+        // async property set and restores it if that request is rejected, so
+        // the first inactive snapshot is not an acknowledgement.
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        jest.useFakeTimers();
+        try {
+            tracker.observeSnapshot(inactiveSnapshot());
+            await jest.advanceTimersByTimeAsync(500);
+            // mpv rejected the stop: it is recording again.
+            tracker.observeSnapshot(activeSnapshot());
+            await jest.advanceTimersByTimeAsync(3_000);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).not.toHaveBeenCalled();
     });
 
     it('ignores inactive snapshots while an async start is still settling', async () => {
@@ -280,15 +314,7 @@ describe('EmbeddedMpvRecordingTracker', () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');
-        tracker.observeSnapshot(
-            session({
-                recording: {
-                    active: false,
-                    targetPath: '/rec/News-20260815-210000.ts',
-                },
-            })
-        );
-        await flush();
+        await settleStop(tracker);
         expect(db.insertValues).toHaveBeenCalledTimes(1);
         expect(db.updateSet).toHaveBeenCalledTimes(1);
     });
@@ -312,15 +338,7 @@ describe('EmbeddedMpvRecordingTracker', () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');
-        tracker.observeSnapshot(
-            session({
-                recording: {
-                    active: false,
-                    targetPath: '/rec/News-20260815-210000.ts',
-                },
-            })
-        );
-        await flush();
+        await settleStop(tracker);
 
         expect(db.updateSet.mock.calls[0][0].status).toBe('failed');
         // Those bytes belong to mpv; only a never-started reservation is
@@ -343,14 +361,7 @@ describe('EmbeddedMpvRecordingTracker', () => {
             '/rec/News-20260815-210000.ts',
             5_000
         );
-        tracker.observeSnapshot(
-            session({
-                recording: {
-                    active: false,
-                    targetPath: '/rec/News-20260815-210000.ts',
-                },
-            })
-        );
+        await settleStop(tracker);
         await pending;
 
         expect(db.updateSet).toHaveBeenCalledTimes(1);

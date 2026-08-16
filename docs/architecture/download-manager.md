@@ -298,8 +298,12 @@ display snapshot via `playlistDisplayLabel`).
   command written to the frame-copy helper), so finalization always waits for
   the snapshot reporting the recording inactive; statting or unlinking
   earlier would report a short recording as failed and could delete bytes mpv
-  is still flushing. A 10 s bound finalizes anyway if the acknowledgement
-  never arrives. The same observer covers the stop paths that never call
+  is still flushing. macOS native-view clears `recordingActive` *before*
+  dispatching the async property set and restores it if that request is
+  rejected, so an inactive snapshot must additionally survive a 1.5 s settle
+  window (three poll cycles) before it counts as an acknowledgement; a revived
+  recording cancels the pending finalization. A 10 s bound finalizes anyway if
+  the acknowledgement never arrives. The same observer covers the stop paths that never call
   `stopRecording()` at all (stream-replacement auto-stop, frame-copy helper
   crash, session error/close). Statuses: `recording` → `completed` (acknowledged
   stop, `fs.stat` size) / `interrupted` (implicit stop with a playable partial
@@ -320,7 +324,10 @@ display snapshot via `playlistDisplayLabel`).
   active→inactive recording edge and emits `recordingStopped` — one owner for
   every trigger, including a Stop clicked in the download manager, which
   talks to the main process directly and never reaches the player's own
-  toggle. The host answers with **stop enrichment**: it filters its in-memory
+  toggle. The event carries the EPG key captured while the recording was
+  active, because a channel switch auto-stops the recording and the host's own
+  state already describes the new channel by the time the stop is handled;
+  each host enriches only when that key still matches its current channel. The host answers with **stop enrichment**: it filters its in-memory
   program list to the programs overlapping `[startedAt, endedAt]`
   (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
   sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
@@ -337,15 +344,17 @@ display snapshot via `playlistDisplayLabel`).
   recording transitions do not force availability-probed download refetches).
   Active rows are decorated with a live `fs.stat` size — `file_size_bytes` is
   only persisted at finalization, so the manager's growing size comes from
-  there.
+  there. Recording totals also feed the manager-wide All chip and the header's
+  active badge, so a page listing only recordings never reads "All 0".
   Reveal/play are gated by `isManagedRecordingFile` — the path must exist in
   the recordings table, mirroring `isManagedDownloadFile`, so the
   renderer-supplied recording directory stays a write-location preference
   rather than a shell-access grant. `RECORDINGS_STOP` resolves the row's
   `session_id` and stops through `EmbeddedMpvNativeService`, so the manager
   can stop a recording without knowing about MPV sessions. Remove keeps
-  finished files on disk (same contract as downloads) and only cleans up a
-  failed row's leftover reservation. Renderer gate: a separate
+  finished files on disk (same contract as downloads) and cleans up a failed
+  row's leftover reservation only while no other row claims that path — a
+  retry within the same timestamp second reuses the freed name. Renderer gate: a separate
   `supportsRecordings` capability allowlist — deliberately NOT folded into
   `supportsDownloads`, which would strip older builds of the whole manager.
 - **UI**: `RecordingsService` mirrors `DownloadsService` (one global list,

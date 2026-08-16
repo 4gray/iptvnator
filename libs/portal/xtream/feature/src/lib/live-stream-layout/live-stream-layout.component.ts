@@ -213,6 +213,16 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     /** Stop enrichment: programs overlapping the recorded window. */
     onRecordingStopped(event: RecordingStoppedEvent): void {
+        // A channel switch auto-stops the recording, and by now this host
+        // already describes the new channel — enriching then would attach the
+        // wrong schedule (and could promote an unrelated program to the
+        // recording's title).
+        if (
+            event.epgChannelId &&
+            event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
         const programs = filterRecordingProgramsOverlap(
             this.controlledEpgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,

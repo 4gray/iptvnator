@@ -388,6 +388,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         let previousRecording: {
             targetPath: string;
             startedAt: string | null;
+            epgChannelId: string | null;
         } | null = null;
         effect(() => {
             const recording = this.controller.session()?.recording;
@@ -396,6 +397,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                     previousRecording = {
                         targetPath: recording.targetPath,
                         startedAt: recording.startedAt ?? null,
+                        // Captured while it is still the recorded channel: a
+                        // channel switch auto-stops the recording and moves
+                        // the host's state on before the stop is handled.
+                        epgChannelId:
+                            previousRecording?.epgChannelId ??
+                            this.recordingMetadata()?.epgChannelId ??
+                            null,
                     };
                     return;
                 }
@@ -408,6 +416,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                     targetPath: stopped.targetPath,
                     startedAt: stopped.startedAt,
                     endedAt: new Date().toISOString(),
+                    epgChannelId: stopped.epgChannelId,
                 });
             });
         });

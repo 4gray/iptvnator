@@ -47,6 +47,14 @@ export interface RecordingStoppedEvent {
     startedAt: string | null;
     /** Observation time of the stop (ISO). */
     endedAt: string;
+    /**
+     * EPG key of the channel that was being recorded, captured when the
+     * recording went active. Switching channels auto-stops the recording, and
+     * by the time the host handles the stop its own state already describes
+     * the NEW channel — the host compares this key before enriching, so a
+     * recording is never given another channel's schedule.
+     */
+    epgChannelId?: string | null;
 }
 
 export const RECORDING_STATUSES = [

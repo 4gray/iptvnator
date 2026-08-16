@@ -312,6 +312,31 @@ describe('recordings events', () => {
             );
         });
 
+        it('keeps the file when another row already owns that path', async () => {
+            // A retry inside the same timestamp second reuses the freed name;
+            // unlinking here would take the newer recording's file.
+            const deleteWhere = jest.fn().mockResolvedValue(undefined);
+            const limit = jest
+                .fn()
+                .mockResolvedValueOnce([recordingRow({ status: 'failed' })])
+                .mockResolvedValueOnce([{ id: 42 }, { id: 77 }]);
+            mockGetDatabase.mockResolvedValue({
+                delete: jest.fn(() => ({ where: deleteWhere })),
+                select: jest.fn(() => ({
+                    from: jest.fn(() => ({
+                        where: jest.fn(() => ({ limit })),
+                    })),
+                })),
+            });
+
+            await expect(
+                getHandler('RECORDINGS_REMOVE')(null, 42)
+            ).resolves.toEqual({ success: true });
+
+            expect(mockUnlink).not.toHaveBeenCalled();
+            expect(deleteWhere).toHaveBeenCalledTimes(1);
+        });
+
         it('refuses to remove an active recording', async () => {
             const { deleteWhere } = mockRowDb(
                 recordingRow({ status: 'recording' })

@@ -182,12 +182,25 @@ ipcMain.handle('RECORDINGS_REMOVE', async (_event, recordingId: number) => {
         }
         // Finished recordings keep their file on disk (same contract as
         // completed downloads); only a failed row's leftover reservation is
-        // cleaned up best-effort.
+        // cleaned up best-effort — and only while no other row claims that
+        // path. A retry within the same timestamp second reuses the freed
+        // name, and unlinking then would take the newer recording's file
+        // (mpv would keep writing to an inode nobody can reach).
         if (row.status === 'failed' && row.filePath) {
-            try {
-                await unlink(row.filePath);
-            } catch {
-                // Already gone or inaccessible — the row removal matters.
+            const otherOwners = await db
+                .select({ id: schema.recordings.id })
+                .from(schema.recordings)
+                .where(eq(schema.recordings.filePath, row.filePath))
+                .limit(2);
+            const pathIsExclusive = otherOwners.every(
+                (candidate) => candidate.id === row.id
+            );
+            if (pathIsExclusive) {
+                try {
+                    await unlink(row.filePath);
+                } catch {
+                    // Already gone or inaccessible — the row removal matters.
+                }
             }
         }
         await db
