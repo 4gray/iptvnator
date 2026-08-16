@@ -33,10 +33,7 @@ import {
     PlaybackPositionData,
     ResolvedPortalPlayback,
     seriesStatusLabelKey,
-    StalkerVodInfo,
-    TmdbCountryFacet,
     TmdbEnrichedCastMember,
-    TmdbGenreFacet,
     XtreamSerieEpisode,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
@@ -49,8 +46,7 @@ import {
     PORTAL_PLAYER,
     createLogger,
     consumeStalkerReturnMarker,
-    DiscoverFacetClick,
-    discoverLink,
+    createDiscoverFacetNavigation,
     resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -879,37 +875,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         ]);
     }
 
-    /** Discover needs TMDB; only a matched series can offer facet chips */
-    canDiscoverByYear(info: StalkerVodInfo): boolean {
-        return typeof info.tmdb_id === 'number' && !!info.releasedate;
-    }
-
-    openYearDiscover(info: StalkerVodInfo): void {
-        const year = Number(info.releasedate?.match(/\d{4}/)?.[0]);
-        if (!this.canDiscoverByYear(info) || !Number.isInteger(year)) {
-            return;
-        }
-        this.openDiscoverFacet({ kind: 'year', year });
-    }
-
-    openGenreDiscover(genre: TmdbGenreFacet): void {
-        this.openDiscoverFacet({ kind: 'genre', genre });
-    }
-
-    openCountryDiscover(country: TmdbCountryFacet): void {
-        this.openDiscoverFacet({ kind: 'country', country });
-    }
-
-    private openDiscoverFacet(facet: DiscoverFacetClick): void {
+    /** Clickable year/genre/country chips (Discover pages) */
+    readonly discover = createDiscoverFacetNavigation(() => {
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
-        if (!playlistId) {
-            return;
-        }
-        const link = discoverLink('stalker', playlistId, 'tv', facet);
-        void this.router.navigate(link.commands, {
-            queryParams: link.queryParams,
-        });
-    }
+        return playlistId
+            ? { portal: 'stalker', mediaType: 'tv', playlistId }
+            : null;
+    });
 
     goBack() {
         const back = resolveStalkerBackNavigation(

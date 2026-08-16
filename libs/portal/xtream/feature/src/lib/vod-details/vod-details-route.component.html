@@ -297,8 +297,10 @@
             @if (info.releasedate) {
                 <span
                     class="details__tag"
-                    [class.details__tag--clickable]="canDiscoverByYear(info)"
-                    (click)="openYearDiscover(info)"
+                    [class.details__tag--clickable]="
+                        discover.canOpenYear(info.tmdb_id, info.releasedate)
+                    "
+                    (click)="discover.openYear(info.tmdb_id, info.releasedate)"
                     >{{ info.releasedate | slice: 0 : 4 }}</span
                 >
             }
@@ -306,7 +308,7 @@
                 @for (genre of info.tmdb_genres; track genre.id) {
                     <span
                         class="details__tag details__tag--clickable"
-                        (click)="openGenreDiscover(genre)"
+                        (click)="discover.openGenre(genre)"
                         >{{ genre.name }}</span
                     >
                 }
@@ -325,7 +327,7 @@
                 @for (country of info.tmdb_countries; track country.code) {
                     <span
                         class="details__tag details__tag--clickable"
-                        (click)="openCountryDiscover(country)"
+                        (click)="discover.openCountry(country)"
                         >{{ country.name }}</span
                     >
                 }

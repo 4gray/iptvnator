@@ -12,10 +12,9 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
 import {
-    DiscoverFacetClick,
     PORTAL_EXTERNAL_PLAYBACK,
+    createDiscoverFacetNavigation,
     createExternalPlaybackButtonState,
-    discoverLink,
 } from '@iptvnator/portal/shared/util';
 import {
     DetailActionsTemplateDirective,
@@ -28,9 +27,7 @@ import { Router } from '@angular/router';
 import {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
-    TmdbCountryFacet,
     TmdbEnrichedCastMember,
-    TmdbGenreFacet,
     VodDetailsItem,
     getVodNumericId,
     normalizeVodDetails,
@@ -323,43 +320,19 @@ export class VodDetailsComponent {
         this.backClicked.emit();
     }
 
-    // ============ Discover (clickable metadata chips) ============
-
-    /** Discover needs TMDB; only a matched item can offer facet chips */
-    readonly canDiscoverByYear = computed(
-        () =>
-            this.normalizedMeta().tmdbId !== undefined &&
-            !!this.normalizedMeta().year
-    );
-
-    openYearDiscover(): void {
-        const year = Number(this.normalizedMeta().year);
-        if (!this.canDiscoverByYear() || !Number.isInteger(year)) {
-            return;
-        }
-        this.openDiscover({ kind: 'year', year });
-    }
-
-    openGenreDiscover(genre: TmdbGenreFacet): void {
-        this.openDiscover({ kind: 'genre', genre });
-    }
-
-    openCountryDiscover(country: TmdbCountryFacet): void {
-        this.openDiscover({ kind: 'country', country });
-    }
-
-    private openDiscover(facet: DiscoverFacetClick): void {
+    /** Clickable year/genre/country chips (Discover pages) */
+    readonly discover = createDiscoverFacetNavigation(() => {
         const item = this.item();
-        const link = discoverLink(
-            item.type === 'stalker' ? 'stalker' : 'xtream',
-            item.playlistId,
-            this.normalizedMeta().tmdbMediaType ?? 'movie',
-            facet
-        );
-        void this.router.navigate(link.commands, {
-            queryParams: link.queryParams,
-        });
-    }
+        return item.playlistId
+            ? {
+                  portal: item.type === 'stalker' ? 'stalker' : 'xtream',
+                  // Stalker embedded-VOD series render here but are matched
+                  // as tv, so the merge's verdict decides — not the route
+                  mediaType: this.normalizedMeta().tmdbMediaType ?? 'movie',
+                  playlistId: item.playlistId,
+              }
+            : null;
+    });
 
     /** Handle download request */
     onDownload(): void {

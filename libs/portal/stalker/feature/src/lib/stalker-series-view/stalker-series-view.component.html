@@ -19,9 +19,17 @@
                 <span
                     class="details__tag"
                     [class.details__tag--clickable]="
-                        canDiscoverByYear(serial.info)
+                        discover.canOpenYear(
+                            serial.info.tmdb_id,
+                            serial.info.releasedate
+                        )
                     "
-                    (click)="openYearDiscover(serial.info)"
+                    (click)="
+                        discover.openYear(
+                            serial.info.tmdb_id,
+                            serial.info.releasedate
+                        )
+                    "
                     >{{ serial.info.releasedate }}</span
                 >
             }
@@ -29,7 +37,7 @@
                 @for (genre of serial.info.tmdb_genres; track genre.id) {
                     <span
                         class="details__tag details__tag--clickable"
-                        (click)="openGenreDiscover(genre)"
+                        (click)="discover.openGenre(genre)"
                         >{{ genre.name }}</span
                     >
                 }
@@ -53,7 +61,7 @@
                 ) {
                     <span
                         class="details__tag details__tag--clickable"
-                        (click)="openCountryDiscover(country)"
+                        (click)="discover.openCountry(country)"
                         >{{ country.name }}</span
                     >
                 }

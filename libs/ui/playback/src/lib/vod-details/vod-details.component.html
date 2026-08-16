@@ -14,8 +14,10 @@
         @if (meta.year) {
             <span
                 class="details__tag"
-                [class.details__tag--clickable]="canDiscoverByYear()"
-                (click)="openYearDiscover()"
+                [class.details__tag--clickable]="
+                    discover.canOpenYear(meta.tmdbId, meta.year)
+                "
+                (click)="discover.openYear(meta.tmdbId, meta.year)"
                 >{{ meta.year }}</span
             >
         }
@@ -23,7 +25,7 @@
             @for (genre of meta.tmdbGenres; track genre.id) {
                 <span
                     class="details__tag details__tag--clickable"
-                    (click)="openGenreDiscover(genre)"
+                    (click)="discover.openGenre(genre)"
                     >{{ genre.name }}</span
                 >
             }
@@ -42,7 +44,7 @@
             @for (country of meta.tmdbCountries; track country.code) {
                 <span
                     class="details__tag details__tag--clickable"
-                    (click)="openCountryDiscover(country)"
+                    (click)="discover.openCountry(country)"
                     >{{ country.name }}</span
                 >
             }

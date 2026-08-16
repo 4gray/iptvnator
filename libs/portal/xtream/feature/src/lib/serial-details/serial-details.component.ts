@@ -39,17 +39,14 @@ import {
 import {
     normalizeTitleKeys,
     seriesStatusLabelKey,
-    TmdbCountryFacet,
     TmdbEnrichedCastMember,
-    TmdbGenreFacet,
     XtreamSerieDetails,
     XtreamSerieEpisode,
     XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import { buildSeasonDescriptions } from './season-descriptions.util';
 import {
-    DiscoverFacetClick,
-    discoverLink,
+    createDiscoverFacetNavigation,
     isProviderOnlyDetailState,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -347,37 +344,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         ]);
     }
 
-    /** Discover needs TMDB; only a matched series can offer facet chips */
-    canDiscoverByYear(info: XtreamSerieInfo): boolean {
-        return typeof info.tmdb_id === 'number' && !!info.releaseDate;
-    }
-
-    openYearDiscover(info: XtreamSerieInfo): void {
-        const year = Number(info.releaseDate?.slice(0, 4));
-        if (!this.canDiscoverByYear(info) || !Number.isInteger(year)) {
-            return;
-        }
-        this.openDiscoverFacet({ kind: 'year', year });
-    }
-
-    openGenreDiscover(genre: TmdbGenreFacet): void {
-        this.openDiscoverFacet({ kind: 'genre', genre });
-    }
-
-    openCountryDiscover(country: TmdbCountryFacet): void {
-        this.openDiscoverFacet({ kind: 'country', country });
-    }
-
-    private openDiscoverFacet(facet: DiscoverFacetClick): void {
+    /** Clickable year/genre/country chips (Discover pages) */
+    readonly discover = createDiscoverFacetNavigation(() => {
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!playlistId) {
-            return;
-        }
-        const link = discoverLink('xtream', playlistId, 'tv', facet);
-        void this.router.navigate(link.commands, {
-            queryParams: link.queryParams,
-        });
-    }
+        return playlistId
+            ? { portal: 'xtream', mediaType: 'tv', playlistId }
+            : null;
+    });
 
     onSeasonSelected(seasonKey: string): void {
         // The enrichment call itself runs from the constructor effect keyed
