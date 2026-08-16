@@ -79,7 +79,26 @@ export class XtreamDiscoverRouteComponent {
     private readonly facetKey = computed(() => discoverFacetKey(this.facets()));
 
     private readonly results = signal<DiscoverTitle[]>([]);
-    readonly isLoading = signal(true);
+    private readonly isLoadingResults = signal(true);
+
+    /**
+     * TMDB usually answers before a cold catalog finishes importing, and
+     * the content gate renders this route while that runs. Publishing
+     * results against an empty catalog would state that titles the user
+     * owns are missing, so availability waits for the catalog too.
+     */
+    readonly isLoading = computed(
+        () => this.isLoadingResults() || !this.isCatalogReady()
+    );
+
+    // Keyed on what is in flight rather than on isContentInitialized, so
+    // a failed import settles the page instead of spinning forever
+    private readonly isCatalogReady = computed(
+        () =>
+            !this.xtreamStore.isLoadingContent() &&
+            !this.xtreamStore.isLoadingCategories() &&
+            !this.xtreamStore.isImporting()
+    );
 
     readonly showScopeToggle = this.titleMatch.isAvailable;
     readonly scope = signal<TitleResultsScope>('portal');
@@ -242,11 +261,11 @@ export class XtreamDiscoverRouteComponent {
         // with the SAME key, so recency — not the key — decides who may
         // commit: otherwise the older one's failure blanks valid results
         const token = this.discoverRequest.start();
-        this.isLoading.set(true);
+        this.isLoadingResults.set(true);
         this.globalMatches.set(null);
         if (!hasDiscoverFacet(facets)) {
             this.results.set([]);
-            this.isLoading.set(false);
+            this.isLoadingResults.set(false);
             return;
         }
         const titles = await this.tmdbEnrichment.discoverTitles(facets.type, {
@@ -258,7 +277,7 @@ export class XtreamDiscoverRouteComponent {
             return;
         }
         this.results.set(titles ?? []);
-        this.isLoading.set(false);
+        this.isLoadingResults.set(false);
         if (this.scope() === 'global') {
             void this.loadGlobalMatches();
         }
