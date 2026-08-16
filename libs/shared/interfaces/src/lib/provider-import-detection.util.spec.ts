@@ -315,6 +315,23 @@ describe('detectProviderImportCandidates', () => {
             expect(xtream[0].serverUrl).toBe('http://panel.example.io:8080');
         });
 
+        it('ignores host-shaped query keys inside unrelated links', () => {
+            // `?url=guide` is a query key, not a label — the real "Server:"
+            // line below it must still be the one the credentials attach to.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'Guide: https://reseller.example/setup?url=guide',
+                    'Server: http://panel.example.org',
+                    'User: alice',
+                    'Pass: s3cret',
+                ].join('\n')
+            );
+
+            const xtream = only(candidates, 'xtream');
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].serverUrl).toBe('http://panel.example.org');
+        });
+
         it('strips sentence punctuation from a labeled server URL', () => {
             const candidates = detectProviderImportCandidates(
                 [

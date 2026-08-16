@@ -39,6 +39,52 @@ const CONFIDENCE_LABEL_KEYS: Record<ProviderImportConfidence, string> = {
 };
 
 /**
+ * Hides the value of every `password` query parameter for display, keeping
+ * the rest of the URL byte-identical so the user still recognizes their link.
+ *
+ * Works pair by pair on the raw query rather than through `URLSearchParams`,
+ * for two reasons: re-serializing would re-encode the whole URL (the mask
+ * itself included) into something unreadable, and every occurrence must be
+ * covered, not just the first. The parameter NAME is decoded before the
+ * comparison because `pass%77ord=` is what `URLSearchParams` — and therefore
+ * the importer — reads as `password`.
+ */
+function maskUrlPasswords(url: string): string {
+    const queryStart = url.indexOf('?');
+    if (queryStart === -1) {
+        return url;
+    }
+    const head = url.slice(0, queryStart + 1);
+    const rest = url.slice(queryStart + 1);
+    const hashStart = rest.indexOf('#');
+    const query = hashStart === -1 ? rest : rest.slice(0, hashStart);
+    const hash = hashStart === -1 ? '' : rest.slice(hashStart);
+
+    const masked = query
+        .split('&')
+        .map((pair) => {
+            const separator = pair.indexOf('=');
+            if (separator === -1) {
+                return pair;
+            }
+            const rawName = pair.slice(0, separator);
+            let name = rawName;
+            try {
+                name = decodeURIComponent(rawName);
+            } catch {
+                // A malformed escape stays as written; it cannot be the
+                // decoded `password` the importer would read either.
+            }
+            return name.toLowerCase() === 'password'
+                ? `${rawName}=••••••`
+                : pair;
+        })
+        .join('&');
+
+    return `${head}${masked}${hash}`;
+}
+
+/**
  * "Paste anything from your provider" surface: a free-text area run through
  * the deterministic `detectProviderImportCandidates` on every edit. Each
  * recognized source renders as a card; picking one hands the candidate to the
@@ -135,10 +181,7 @@ export class AutoImportComponent implements OnInit {
                 // The candidate keeps the untouched URL for prefilling.
                 push(
                     'HOME.URL_UPLOAD.PLAYLIST_URL',
-                    candidate.url?.replace(
-                        /([?&]password=)[^&#\s]*/i,
-                        '$1••••••'
-                    )
+                    candidate.url && maskUrlPasswords(candidate.url)
                 );
                 break;
             case 'xtream':

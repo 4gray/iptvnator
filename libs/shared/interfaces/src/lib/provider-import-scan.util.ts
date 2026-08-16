@@ -363,11 +363,16 @@ export function extractLabeledFields(text: string): LabeledFields {
         if (fields[field] !== undefined) {
             continue;
         }
-        const match = pattern.exec(field === 'host' ? text : masked);
+        // The host label is the one matcher that reads the RAW text, because
+        // it legitimately points at a URL ("Portal: http://…"). That means it
+        // also meets host-shaped query keys inside unrelated links
+        // (`…/setup?url=guide`), so it keeps scanning past those rather than
+        // giving up — a real `Server:` line further down must still win.
+        const match =
+            field === 'host'
+                ? firstMatchOutsideSpans(pattern, text, spans)
+                : pattern.exec(masked);
         if (!match) {
-            continue;
-        }
-        if (field === 'host' && isInsideSpan(spans, match.index)) {
             continue;
         }
         const value = stripWrapping(match[1] ?? '');
@@ -478,6 +483,29 @@ function isInsideSpan(
     index: number
 ): boolean {
     return spans.some(([start, end]) => index > start && index < end);
+}
+
+/** First match of `pattern` whose label does not start inside a URL span. */
+function firstMatchOutsideSpans(
+    pattern: RegExp,
+    text: string,
+    spans: Array<[number, number]>
+): RegExpExecArray | null {
+    const matcher = freshMatcher(
+        pattern.flags.includes('g')
+            ? pattern
+            : new RegExp(pattern.source, `${pattern.flags}g`)
+    );
+    let match: RegExpExecArray | null;
+    while ((match = matcher.exec(text)) !== null) {
+        if (!isInsideSpan(spans, match.index)) {
+            return match;
+        }
+        if (match[0] === '') {
+            matcher.lastIndex += 1;
+        }
+    }
+    return null;
 }
 
 function stripWrapping(value: string): string {

@@ -94,6 +94,24 @@ describe('AutoImportComponent', () => {
         expect(JSON.stringify(rows)).not.toContain('s3cret');
     });
 
+    it('masks percent-encoded and repeated password parameters', () => {
+        fixture.detectChanges();
+
+        const rows = component.summaryRows({
+            kind: 'm3u-url',
+            confidence: 'low',
+            // `pass%77ord` is what URLSearchParams — and the importer — read
+            // as `password`, so the card must hide it too.
+            url: 'http://tv.example.com/get.php?pass%77ord=first&username=alice&password=second',
+        });
+
+        expect(rows[0].value).toContain('username=alice');
+        expect(rows[0].value).not.toContain('first');
+        expect(rows[0].value).not.toContain('second');
+        expect(rows[0].value).toContain('pass%77ord=••••••');
+        expect(rows[0].value).toContain('password=••••••');
+    });
+
     it('masks the password in the summary rows', () => {
         fixture.detectChanges();
 
