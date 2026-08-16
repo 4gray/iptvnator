@@ -303,7 +303,7 @@ This is an Nx monorepo with the following structure:
 - **libs/** - Shared libraries:
     - **epg/data-access** - EPG services, runtime bridge, program normalization
     - **m3u-state** - NgRx state management for M3U playlists
-    - **playlist/import/feature** - Playlist import flows (file/URL/text upload, Xtream and Stalker import dialogs)
+    - **playlist/import/feature** - Playlist import flows (file/URL/text upload, Xtream and Stalker import dialogs, and the "Auto-detect" method: paste a provider message, `detectProviderImportCandidates` in `libs/shared/interfaces` deterministically extracts URLs/credentials/MAC+device identity and prefills the matching form — detection only proposes, the target form's own validation and behavioral probes stay authoritative)
     - **playlist/m3u/feature-player** - M3U video player page and `/workspace/playlists/:id` routes
     - **playlist/shared/{ui,util}** - Shared playlist UI and utilities
     - **portal/xtream/{data-access,feature}** - XtreamStore, services, data sources; routed Xtream components

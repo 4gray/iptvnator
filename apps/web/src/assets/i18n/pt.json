@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Portal Stalker",
             "METHOD_STALKER_SUB": "Endereço MAC e URL do portal",
             "METHOD_TEXT_LABEL": "Texto m3u bruto",
-            "METHOD_TEXT_SUB": "Para listas pontuais ou quando você só tem o texto"
+            "METHOD_TEXT_SUB": "Para listas pontuais ou quando você só tem o texto",
+            "METHOD_AUTO_LABEL": "Deteção automática",
+            "METHOD_AUTO_SUB": "Cole a mensagem do seu provedor"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Arraste e solte os arquivos aqui",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Importado como texto",
-        "PARSING_ERROR": "Erro: Falha na análise, não é uma playlist válida:"
+        "PARSING_ERROR": "Erro: Falha na análise, não é uma playlist válida:",
+        "AUTO_DETECT": {
+            "LABEL": "Mensagem do seu provedor",
+            "PLACEHOLDER": "Cole tudo o que o provedor enviou — links, utilizador e palavra-passe, endereço MAC…",
+            "PRIVACY_HINT": "A deteção é feita localmente na aplicação; o texto colado não é enviado para lado nenhum.",
+            "NO_MATCHES": "Ainda nada reconhecido. Cole a mensagem completa com o link ou as credenciais.",
+            "CONFIDENCE_HIGH": "Correspondência segura",
+            "CONFIDENCE_MEDIUM": "Correspondência provável",
+            "CONFIDENCE_LOW": "Palpite",
+            "USE": "Preencher o formulário",
+            "M3U_TEXT_NOTE": "Parece uma playlist M3U — será importada como texto colado."
+        }
     },
     "SETTINGS": {
         "TITLE": "Configurações",

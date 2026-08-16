@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Portail Stalker",
             "METHOD_STALKER_SUB": "Adresse MAC et URL du portail",
             "METHOD_TEXT_LABEL": "Texte m3u brut",
-            "METHOD_TEXT_SUB": "Pour les listes ponctuelles ou quand vous n'avez que du texte"
+            "METHOD_TEXT_SUB": "Pour les listes ponctuelles ou quand vous n'avez que du texte",
+            "METHOD_AUTO_LABEL": "Détection automatique",
+            "METHOD_AUTO_SUB": "Collez le message de votre fournisseur"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Glissez un fichier ici",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Importé sous forme de texte",
-        "PARSING_ERROR": "Erreur : échec de l'analyse, liste de lecture non valide :"
+        "PARSING_ERROR": "Erreur : échec de l'analyse, liste de lecture non valide :",
+        "AUTO_DETECT": {
+            "LABEL": "Message de votre fournisseur",
+            "PLACEHOLDER": "Collez tout ce que votre fournisseur a envoyé : liens, identifiant et mot de passe, adresse MAC…",
+            "PRIVACY_HINT": "La détection s'effectue localement dans l'application ; le texte collé n'est envoyé nulle part.",
+            "NO_MATCHES": "Rien de reconnu pour l'instant. Collez le message complet avec le lien ou les identifiants.",
+            "CONFIDENCE_HIGH": "Correspondance sûre",
+            "CONFIDENCE_MEDIUM": "Correspondance probable",
+            "CONFIDENCE_LOW": "Supposition",
+            "USE": "Remplir le formulaire",
+            "M3U_TEXT_NOTE": "Ressemble à une liste M3U — elle sera importée comme texte collé."
+        }
     },
     "SETTINGS": {
         "TITLE": "Paramètres",

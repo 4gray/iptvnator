@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Portal Stalker",
             "METHOD_STALKER_SUB": "Dirección MAC y URL del portal",
             "METHOD_TEXT_LABEL": "Texto m3u sin formato",
-            "METHOD_TEXT_SUB": "Para listas puntuales o cuando solo tienes texto"
+            "METHOD_TEXT_SUB": "Para listas puntuales o cuando solo tienes texto",
+            "METHOD_AUTO_LABEL": "Detección automática",
+            "METHOD_AUTO_SUB": "Pega el mensaje de tu proveedor"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Arrastre & suelte archivos aquí",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Importado como texto",
-        "PARSING_ERROR": "Error: Error al analizar, no es una lista de reproducción válida:"
+        "PARSING_ERROR": "Error: Error al analizar, no es una lista de reproducción válida:",
+        "AUTO_DETECT": {
+            "LABEL": "Mensaje de tu proveedor",
+            "PLACEHOLDER": "Pega todo lo que te envió tu proveedor: enlaces, usuario y contraseña, dirección MAC…",
+            "PRIVACY_HINT": "La detección se realiza localmente en la aplicación; el texto pegado no se envía a ningún sitio.",
+            "NO_MATCHES": "Aún no se ha reconocido nada. Pega el mensaje completo con el enlace o las credenciales.",
+            "CONFIDENCE_HIGH": "Coincidencia segura",
+            "CONFIDENCE_MEDIUM": "Coincidencia probable",
+            "CONFIDENCE_LOW": "Suposición",
+            "USE": "Rellenar el formulario",
+            "M3U_TEXT_NOTE": "Parece una lista M3U: se importará como texto pegado."
+        }
     },
     "SETTINGS": {
         "TITLE": "Ajustes",

@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Portal Stalker",
             "METHOD_STALKER_SUB": "Adres MAC i URL portalu",
             "METHOD_TEXT_LABEL": "Surowy tekst m3u",
-            "METHOD_TEXT_SUB": "Do jednorazowych list lub gdy dostępny jest tylko tekst"
+            "METHOD_TEXT_SUB": "Do jednorazowych list lub gdy dostępny jest tylko tekst",
+            "METHOD_AUTO_LABEL": "Automatyczne wykrywanie",
+            "METHOD_AUTO_SUB": "Wklej wiadomość od dostawcy"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Przeciągnij i upuść pliki tutaj",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Zaimportowano jako tekst",
-        "PARSING_ERROR": "Błąd: Analiza nie powiodła się, nieprawidłowa lista odtwarzania:"
+        "PARSING_ERROR": "Błąd: Analiza nie powiodła się, nieprawidłowa lista odtwarzania:",
+        "AUTO_DETECT": {
+            "LABEL": "Wiadomość od dostawcy",
+            "PLACEHOLDER": "Wklej wszystko, co przysłał dostawca — linki, login i hasło, adres MAC…",
+            "PRIVACY_HINT": "Wykrywanie odbywa się lokalnie w aplikacji; wklejony tekst nigdzie nie jest wysyłany.",
+            "NO_MATCHES": "Na razie nic nie rozpoznano. Wklej całą wiadomość z linkiem lub danymi logowania.",
+            "CONFIDENCE_HIGH": "Pewne dopasowanie",
+            "CONFIDENCE_MEDIUM": "Prawdopodobne dopasowanie",
+            "CONFIDENCE_LOW": "Przypuszczenie",
+            "USE": "Wypełnij formularz",
+            "M3U_TEXT_NOTE": "Wygląda na playlistę M3U — zostanie zaimportowana jako wklejony tekst."
+        }
     },
     "SETTINGS": {
         "TITLE": "Ustawienia",

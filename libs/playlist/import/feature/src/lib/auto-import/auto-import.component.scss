@@ -1,0 +1,102 @@
+:host {
+    display: flex;
+    margin: 10px;
+    justify-content: center;
+}
+
+.auto-import {
+    width: 100%;
+}
+
+.auto-import__privacy {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: var(--app-muted-color);
+    line-height: 1.45;
+}
+
+.auto-import__empty {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--app-muted-color);
+}
+
+.auto-import__candidate {
+    border: 1px solid var(--app-widget-header-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: color-mix(in srgb, var(--app-shell-bg) 60%, transparent);
+}
+
+.auto-import__candidate-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    // Narrow phone dialogs (~320–375px) cannot fit icon + title + badge +
+    // action on one line; wrapping the action below beats horizontal clipping.
+    flex-wrap: wrap;
+    row-gap: 6px;
+}
+
+.auto-import__candidate-icon {
+    color: var(--app-selection-color);
+    flex-shrink: 0;
+}
+
+.auto-import__candidate-title {
+    font-weight: 600;
+    color: var(--app-heading-color);
+}
+
+.auto-import__confidence {
+    font-size: 11px;
+    border-radius: 999px;
+    padding: 2px 8px;
+    border: 1px solid var(--app-widget-header-border);
+    color: var(--app-muted-color);
+    margin-right: auto;
+    white-space: nowrap;
+}
+
+.auto-import__confidence--high {
+    color: var(--app-selection-color);
+    border-color: color-mix(
+        in srgb,
+        var(--app-selection-color) 45%,
+        transparent
+    );
+}
+
+.auto-import__rows {
+    margin: 10px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.auto-import__row {
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+    font-size: 12.5px;
+
+    dt {
+        flex: 0 0 130px;
+        color: var(--app-muted-color);
+    }
+
+    dd {
+        margin: 0;
+        color: var(--app-body-color);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.auto-import__candidate-note {
+    margin: 8px 0 0;
+    font-size: 12.5px;
+    color: var(--app-muted-color);
+}

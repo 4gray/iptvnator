@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker 포털",
             "METHOD_STALKER_SUB": "MAC 주소와 포털 URL",
             "METHOD_TEXT_LABEL": "원본 m3u 텍스트",
-            "METHOD_TEXT_SUB": "일회성 목록이나 텍스트만 있을 때 사용하세요"
+            "METHOD_TEXT_SUB": "일회성 목록이나 텍스트만 있을 때 사용하세요",
+            "METHOD_AUTO_LABEL": "자동 감지",
+            "METHOD_AUTO_SUB": "제공업체의 메시지를 붙여넣으세요"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "파일을 드래그 앤 드롭",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "텍스트로 가져옴",
-        "PARSING_ERROR": "오류: 파싱에 실패했습니다. 유효한 재생목록이 아닙니다:"
+        "PARSING_ERROR": "오류: 파싱에 실패했습니다. 유효한 재생목록이 아닙니다:",
+        "AUTO_DETECT": {
+            "LABEL": "제공업체의 메시지",
+            "PLACEHOLDER": "제공업체가 보낸 모든 내용을 붙여넣으세요 — 링크, 사용자 이름과 비밀번호, MAC 주소…",
+            "PRIVACY_HINT": "감지는 앱에서 로컬로 실행되며 붙여넣은 텍스트는 어디에도 전송되지 않습니다.",
+            "NO_MATCHES": "아직 인식된 내용이 없습니다. 링크나 자격 증명이 포함된 전체 메시지를 붙여넣으세요.",
+            "CONFIDENCE_HIGH": "확실한 일치",
+            "CONFIDENCE_MEDIUM": "유력한 일치",
+            "CONFIDENCE_LOW": "추측",
+            "USE": "양식 채우기",
+            "M3U_TEXT_NOTE": "M3U 재생목록으로 보입니다 — 붙여넣은 텍스트로 가져옵니다."
+        }
     },
     "SETTINGS": {
         "TITLE": "설정",

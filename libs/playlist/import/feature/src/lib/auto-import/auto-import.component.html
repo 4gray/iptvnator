@@ -1,0 +1,64 @@
+<form class="auto-import" (submit)="$event.preventDefault()">
+    <mat-form-field class="w-full">
+        <mat-label>{{ 'HOME.AUTO_DETECT.LABEL' | translate }}</mat-label>
+        <textarea
+            matInput
+            [formControl]="textControl"
+            rows="6"
+            data-test-id="auto-detect-textarea"
+            [placeholder]="'HOME.AUTO_DETECT.PLACEHOLDER' | translate"
+        ></textarea>
+    </mat-form-field>
+
+    <p class="auto-import__privacy">
+        {{ 'HOME.AUTO_DETECT.PRIVACY_HINT' | translate }}
+    </p>
+
+    @if (hasText() && candidates().length === 0) {
+        <p class="auto-import__empty" data-test-id="auto-detect-no-matches">
+            {{ 'HOME.AUTO_DETECT.NO_MATCHES' | translate }}
+        </p>
+    }
+
+    @for (candidate of candidates(); track $index) {
+        <div class="auto-import__candidate" data-test-id="auto-detect-candidate">
+            <div class="auto-import__candidate-head">
+                <mat-icon class="auto-import__candidate-icon">
+                    {{ kindIcon(candidate.kind) }}
+                </mat-icon>
+                <span class="auto-import__candidate-title">
+                    {{ kindLabelKey(candidate.kind) | translate }}
+                </span>
+                <span
+                    class="auto-import__confidence"
+                    [class]="'auto-import__confidence--' + candidate.confidence"
+                >
+                    {{ confidenceLabelKey(candidate.confidence) | translate }}
+                </span>
+                <button
+                    mat-stroked-button
+                    color="primary"
+                    type="button"
+                    data-test-id="auto-detect-use"
+                    (click)="selectCandidate(candidate)"
+                >
+                    {{ 'HOME.AUTO_DETECT.USE' | translate }}
+                </button>
+            </div>
+            @if (summaryRows(candidate).length > 0) {
+                <dl class="auto-import__rows">
+                    @for (row of summaryRows(candidate); track row.labelKey) {
+                        <div class="auto-import__row">
+                            <dt>{{ row.labelKey | translate }}</dt>
+                            <dd>{{ row.value }}</dd>
+                        </div>
+                    }
+                </dl>
+            } @else {
+                <p class="auto-import__candidate-note">
+                    {{ 'HOME.AUTO_DETECT.M3U_TEXT_NOTE' | translate }}
+                </p>
+            }
+        </div>
+    }
+</form>

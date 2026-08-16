@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalkerポータル",
             "METHOD_STALKER_SUB": "MACアドレスとポータルURL",
             "METHOD_TEXT_LABEL": "M3Uテキスト",
-            "METHOD_TEXT_SUB": "一度限りのリストやテキストしかない場合に"
+            "METHOD_TEXT_SUB": "一度限りのリストやテキストしかない場合に",
+            "METHOD_AUTO_LABEL": "自動検出",
+            "METHOD_AUTO_SUB": "プロバイダーからのメッセージを貼り付け"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "テキストとしてインポート",
-        "PARSING_ERROR": "エラー：解析に失敗しました。有効なプレイリストではありません："
+        "PARSING_ERROR": "エラー：解析に失敗しました。有効なプレイリストではありません：",
+        "AUTO_DETECT": {
+            "LABEL": "プロバイダーからのメッセージ",
+            "PLACEHOLDER": "プロバイダーから送られた内容をすべて貼り付けてください — リンク、ユーザー名とパスワード、MACアドレスなど…",
+            "PRIVACY_HINT": "検出はアプリ内でローカルに実行され、貼り付けたテキストはどこにも送信されません。",
+            "NO_MATCHES": "まだ何も認識されていません。リンクや認証情報を含むメッセージ全体を貼り付けてください。",
+            "CONFIDENCE_HIGH": "確実な一致",
+            "CONFIDENCE_MEDIUM": "可能性の高い一致",
+            "CONFIDENCE_LOW": "推測",
+            "USE": "フォームに入力",
+            "M3U_TEXT_NOTE": "M3Uプレイリストのようです — 貼り付けたテキストとしてインポートされます。"
+        }
     },
     "SETTINGS": {
         "TITLE": "設定",

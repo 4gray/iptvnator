@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Stalker portalı",
             "METHOD_STALKER_SUB": "MAC adresi ve portal URL'si",
             "METHOD_TEXT_LABEL": "Ham m3u metni",
-            "METHOD_TEXT_SUB": "Tek seferlik listeler veya yalnızca metniniz olduğunda"
+            "METHOD_TEXT_SUB": "Tek seferlik listeler veya yalnızca metniniz olduğunda",
+            "METHOD_AUTO_LABEL": "Otomatik algılama",
+            "METHOD_AUTO_SUB": "Sağlayıcınızın mesajını yapıştırın"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Dosyaları buraya sürükleyip bırakın",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Metin olarak içe aktarıldı",
-        "PARSING_ERROR": "Hata: Ayrıştırma başarısız, geçerli bir oynatma listesi değil:"
+        "PARSING_ERROR": "Hata: Ayrıştırma başarısız, geçerli bir oynatma listesi değil:",
+        "AUTO_DETECT": {
+            "LABEL": "Sağlayıcınızın mesajı",
+            "PLACEHOLDER": "Sağlayıcınızın gönderdiği her şeyi yapıştırın — bağlantılar, kullanıcı adı ve şifre, MAC adresi…",
+            "PRIVACY_HINT": "Algılama uygulama içinde yerel olarak yapılır; yapıştırılan metin hiçbir yere gönderilmez.",
+            "NO_MATCHES": "Henüz bir şey tanınmadı. Bağlantı veya kimlik bilgileriyle birlikte mesajın tamamını yapıştırın.",
+            "CONFIDENCE_HIGH": "Kesin eşleşme",
+            "CONFIDENCE_MEDIUM": "Olası eşleşme",
+            "CONFIDENCE_LOW": "Tahmin",
+            "USE": "Formu doldur",
+            "M3U_TEXT_NOTE": "M3U çalma listesine benziyor — yapıştırılan metin olarak içe aktarılacak."
+        }
     },
     "SETTINGS": {
         "TITLE": "Ayarlar",

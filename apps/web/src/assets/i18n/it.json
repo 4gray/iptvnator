@@ -144,7 +144,9 @@
             "METHOD_STALKER_LABEL": "Portale Stalker",
             "METHOD_STALKER_SUB": "Indirizzo MAC e URL del portale",
             "METHOD_TEXT_LABEL": "Testo m3u grezzo",
-            "METHOD_TEXT_SUB": "Per liste occasionali o quando hai solo il testo"
+            "METHOD_TEXT_SUB": "Per liste occasionali o quando hai solo il testo",
+            "METHOD_AUTO_LABEL": "Rilevamento automatico",
+            "METHOD_AUTO_SUB": "Incolla il messaggio del tuo provider"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Trascina e rilascia qui i file",
@@ -228,7 +230,18 @@
             "STALKER": "Stalker"
         },
         "IMPORTED_AS_TEXT": "Importato come testo",
-        "PARSING_ERROR": "Errore: analisi fallita, non è una playlist valida:"
+        "PARSING_ERROR": "Errore: analisi fallita, non è una playlist valida:",
+        "AUTO_DETECT": {
+            "LABEL": "Messaggio del tuo provider",
+            "PLACEHOLDER": "Incolla tutto ciò che il provider ti ha inviato: link, nome utente e password, indirizzo MAC…",
+            "PRIVACY_HINT": "Il rilevamento avviene localmente nell'app; il testo incollato non viene inviato da nessuna parte.",
+            "NO_MATCHES": "Ancora nulla di riconosciuto. Incolla il messaggio completo con il link o le credenziali.",
+            "CONFIDENCE_HIGH": "Corrispondenza sicura",
+            "CONFIDENCE_MEDIUM": "Corrispondenza probabile",
+            "CONFIDENCE_LOW": "Ipotesi",
+            "USE": "Compila il modulo",
+            "M3U_TEXT_NOTE": "Sembra una playlist M3U: verrà importata come testo incollato."
+        }
     },
     "SETTINGS": {
         "TITLE": "Impostazioni IPTVnator",
