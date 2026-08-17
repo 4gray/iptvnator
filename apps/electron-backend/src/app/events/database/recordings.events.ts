@@ -2,7 +2,7 @@ import type {
     ElectronRecordingItem,
     RecordingProgramSnapshot,
 } from '@iptvnator/shared/interfaces';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { ipcMain, shell } from 'electron';
 import { stat, unlink } from 'node:fs/promises';
 import { getDatabase } from '../../database/connection';
@@ -243,27 +243,21 @@ ipcMain.handle(
             if (!targetPath || sanitized === null) {
                 return { error: 'Invalid programs payload', success: false };
             }
-            // The stop IPC returns before mpv acknowledges, and the tracker
-            // only finalizes on the acknowledged snapshot. Wait (bounded) for
-            // this recording to reach a terminal row before looking it up,
-            // otherwise the enrichment is dropped as "not found".
-            await embeddedMpvRecordingTracker.whenFinalized(targetPath);
+            // Only guarantees the row's INSERT has committed — a recording
+            // stopped within milliseconds of starting. Enrichment does not
+            // wait for finalization: the row is found in any status and
+            // `finalize()` never touches `programs_json`, so the two writes
+            // are order-independent and no deadline can drop the programs.
+            await embeddedMpvRecordingTracker.whenSettled();
             const db = await getDatabase();
-            // The reserved path is unique per recording in practice; a
-            // historical row could share it after an external delete, so the
-            // newest terminal row wins and an active row is never touched.
+            // `openSync('wx')` makes the reserved path exclusive while a
+            // recording owns it, so the newest row for that path is the
+            // recording that was just stopped — whatever status it currently
+            // carries.
             const rows = await db
                 .select()
                 .from(schema.recordings)
-                .where(
-                    and(
-                        eq(schema.recordings.filePath, targetPath),
-                        inArray(schema.recordings.status, [
-                            'completed',
-                            'interrupted',
-                        ])
-                    )
-                )
+                .where(eq(schema.recordings.filePath, targetPath))
                 .orderBy(desc(schema.recordings.id))
                 .limit(1);
             const row = rows[0];

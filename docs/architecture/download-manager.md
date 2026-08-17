@@ -304,7 +304,8 @@ display snapshot via `playlistDisplayLabel`).
   rejected, so an inactive snapshot must additionally survive a 1.5 s settle
   window (three poll cycles) before it counts as an acknowledgement; a revived
   recording cancels the pending finalization. A 10 s bound finalizes anyway if
-  the acknowledgement never arrives. The same observer covers the stop paths that never call
+  the acknowledgement never arrives. None of this timing is load-bearing for
+  stop enrichment — that path does not wait for finalization at all. The same observer covers the stop paths that never call
   `stopRecording()` at all (stream-replacement auto-stop, frame-copy helper
   crash, session error/close). Statuses: `recording` → `completed` (acknowledged
   stop, `fs.stat` size) / `interrupted` (implicit stop with a playable partial
@@ -333,11 +334,13 @@ display snapshot via `playlistDisplayLabel`).
   (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
   sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
   target path — that is how a recording spanning a program boundary lists
-  every covered show. The handler awaits `whenFinalized(targetPath)` before its
-  terminal-row lookup, since the stop IPC returns before mpv acknowledges.
-  That deadline bounds only the wait for mpv (fallback + 1 s); once
-  finalization has started the wait follows the terminal write itself, so a
-  slow database can never make the one-shot enrichment miss its row. A recording stopped while no player is mounted on that
+  every covered show. The handler is deliberately independent of finalization: it
+  looks the row up in **any** status (the newest for that path — `openSync
+  ('wx')` keeps a reserved path exclusive while its recording owns it) and
+  `finalize()` never touches `programs_json`, so the two writes commit in
+  either order. The only wait is the tracker's queue drain, which guarantees
+  the row's INSERT exists — no deadline, and therefore no way for a one-shot
+  enrichment to be dropped by a clock. A recording stopped while no player is mounted on that
   channel keeps its start snapshot.
 - **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
   REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated

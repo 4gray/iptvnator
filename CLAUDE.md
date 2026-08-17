@@ -1265,9 +1265,11 @@ engine` (restart required) or
   owns the active→inactive recording edge and emits `recordingStopped` for
   every trigger (including the manager's Stop, which bypasses the player's own
   toggle); the host answers with enrichment: programs overlapping the recorded
-  window, keyed by target path (`RECORDINGS_UPDATE_PROGRAMS`, which awaits the
-  tracker's bounded `whenFinalized`) — that covers recordings spanning a
-  program boundary. Own `RECORDINGS_*` IPC + `RECORDINGS_UPDATE_EVENT` ping
+  window, keyed by target path (`RECORDINGS_UPDATE_PROGRAMS`, which awaits only
+  the tracker's write queue and then matches the newest row for that path in
+  ANY status — `finalize()` never touches `programs_json`, so the two writes
+  are order-independent and no deadline can drop the programs) — that covers
+  recordings spanning a program boundary. Own `RECORDINGS_*` IPC + `RECORDINGS_UPDATE_EVENT` ping
   and a separate `supportsRecordings` capability gate (never folded into the
   all-or-nothing `supportsDownloads` allowlist). Manager UI: `recording`
   filter chip, "Recording now" queue section (REC pulse + elapsed, live size,

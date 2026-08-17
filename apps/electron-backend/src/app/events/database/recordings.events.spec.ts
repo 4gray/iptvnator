@@ -11,7 +11,7 @@ const registeredHandlers = new Map<string, IpcHandler>();
 const mockGetDatabase = jest.fn();
 const mockBroadcast = jest.fn();
 const mockStopRecording = jest.fn();
-const mockWhenFinalized = jest.fn();
+const mockWhenSettled = jest.fn();
 const mockIsAvailableDownloadFile = jest.fn();
 const mockGetAvailabilityAsync = jest.fn();
 const mockUnlink = jest.fn();
@@ -33,7 +33,7 @@ async function setupRecordingsEventsHarness(): Promise<void> {
     mockGetDatabase.mockReset();
     mockBroadcast.mockReset();
     mockStopRecording.mockReset();
-    mockWhenFinalized.mockReset().mockResolvedValue(undefined);
+    mockWhenSettled.mockReset().mockResolvedValue(undefined);
     mockIsAvailableDownloadFile.mockReset().mockReturnValue(true);
     mockGetAvailabilityAsync.mockReset().mockResolvedValue('available');
     mockUnlink.mockReset().mockResolvedValue(undefined);
@@ -66,7 +66,7 @@ async function setupRecordingsEventsHarness(): Promise<void> {
         embeddedMpvNativeService: { stopRecording: mockStopRecording },
     }));
     jest.doMock('../../services/embedded-mpv-recording-tracker', () => ({
-        embeddedMpvRecordingTracker: { whenFinalized: mockWhenFinalized },
+        embeddedMpvRecordingTracker: { whenSettled: mockWhenSettled },
     }));
     jest.doMock('./recording-broadcast', () => ({
         broadcastRecordingsUpdate: mockBroadcast,
@@ -412,12 +412,12 @@ describe('recordings events', () => {
             expect(mockGetDatabase).not.toHaveBeenCalled();
         });
 
-        it('waits for the tracker to finalize before looking the row up', async () => {
-            // The stop IPC returns before the tracker commits the terminal
-            // status, so an unsynchronized lookup would find no terminal row
-            // and silently drop the covered programs.
+        it('waits for the queued row INSERT before looking the row up', async () => {
+            // A recording stopped milliseconds after starting: the row may
+            // still be queued, and an unsynchronized lookup would find
+            // nothing.
             let releaseTracker: (() => void) | undefined;
-            mockWhenFinalized.mockReturnValue(
+            mockWhenSettled.mockReturnValue(
                 new Promise<void>((resolve) => {
                     releaseTracker = resolve;
                 })
@@ -470,7 +470,30 @@ describe('recordings events', () => {
             );
         });
 
-        it('reports when no terminal row matches the path', async () => {
+        it('enriches a row that has not finalized yet', async () => {
+            // Enrichment and finalization are order-independent: finalize()
+            // writes status/time/size and never touches programs_json.
+            const { updateSet } = mockRowDb(
+                recordingRow({
+                    status: 'recording',
+                    endedAt: null,
+                    programTitle: null,
+                })
+            );
+
+            await expect(
+                getHandler('RECORDINGS_UPDATE_PROGRAMS')(
+                    null,
+                    '/rec/News-20260815-210000.ts',
+                    programs
+                )
+            ).resolves.toEqual({ success: true });
+            expect(JSON.parse(updateSet.mock.calls[0][0].programsJson)).toEqual(
+                programs
+            );
+        });
+
+        it('reports when no row matches the path', async () => {
             mockRowDb(undefined);
             await expect(
                 getHandler('RECORDINGS_UPDATE_PROGRAMS')(

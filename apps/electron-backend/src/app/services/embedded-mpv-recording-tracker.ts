@@ -32,9 +32,6 @@ interface OpenRecordingEntry {
     /** Armed by an inactive snapshot; finalizes once the stop looks settled. */
     settleTimer?: ReturnType<typeof setTimeout>;
     rowId: Promise<number | null>;
-    /** Resolved when this entry reaches a terminal status. */
-    finalized: Promise<void>;
-    resolveFinalized: () => void;
 }
 
 type RecordingFinalStatus = 'completed' | 'interrupted' | 'failed';
@@ -59,16 +56,6 @@ const STOP_ACKNOWLEDGEMENT_TIMEOUT_MS = 10_000;
  * is unaffected; it simply finalizes a beat later.
  */
 const STOP_SETTLE_WINDOW_MS = 1_500;
-
-/**
- * Upper bound for callers waiting on a specific recording's finalization.
- *
- * Derived from the acknowledgement bound on purpose: a wait shorter than the
- * fallback would expire while the row is still `recording`, and stop
- * enrichment — which has no retry — would drop the covered programs exactly
- * in the case the fallback exists for. Keep it strictly larger.
- */
-const FINALIZATION_WAIT_TIMEOUT_MS = STOP_ACKNOWLEDGEMENT_TIMEOUT_MS + 1_000;
 
 /**
  * Persists the lifecycle of embedded-MPV live recordings into the
@@ -117,10 +104,6 @@ export class EmbeddedMpvRecordingTracker {
             return Number(result.lastInsertRowid);
         });
 
-        let resolveFinalized: () => void = () => undefined;
-        const finalized = new Promise<void>((resolve) => {
-            resolveFinalized = resolve;
-        });
         this.open.set(event.sessionId, {
             sessionId: event.sessionId,
             targetPath: event.targetPath,
@@ -128,8 +111,6 @@ export class EmbeddedMpvRecordingTracker {
             sawActive: false,
             stopRequested: false,
             rowId,
-            finalized,
-            resolveFinalized,
         });
         void rowId.then((id) => {
             if (id !== null) {
@@ -211,47 +192,14 @@ export class EmbeddedMpvRecordingTracker {
     /**
      * Resolves once every mutation enqueued so far has committed.
      *
-     * Callers that need a specific recording's terminal row should await
-     * {@link whenFinalized} first: this only drains what is already queued.
+     * Stop enrichment awaits this so the row's INSERT is guaranteed to exist
+     * before it is looked up (a recording stopped within milliseconds of
+     * starting). It deliberately involves no deadline: it waits for work, not
+     * for a clock, and the enrichment does not care whether the row has
+     * reached its terminal status yet.
      */
     whenSettled(): Promise<void> {
         return this.chain;
-    }
-
-    /**
-     * Resolves once the recording writing to `targetPath` reached a terminal
-     * status and its row was committed — or immediately when no such
-     * recording is open. Bounded, so a lost mpv acknowledgement degrades the
-     * caller (stop enrichment) instead of hanging its IPC.
-     */
-    async whenFinalized(
-        targetPath: string,
-        timeoutMs = FINALIZATION_WAIT_TIMEOUT_MS
-    ): Promise<void> {
-        const entry = [...this.open.values()].find(
-            (candidate) => candidate.targetPath === targetPath
-        );
-        if (entry) {
-            let timer: ReturnType<typeof setTimeout> | undefined;
-            await Promise.race([
-                entry.finalized,
-                new Promise<void>((resolve) => {
-                    timer = setTimeout(resolve, timeoutMs);
-                }),
-            ]).finally(() => {
-                if (timer !== undefined) {
-                    clearTimeout(timer);
-                }
-            });
-            // The deadline only bounds the wait for mpv. `finalize()` drops
-            // the entry synchronously, so once it is gone the terminal write
-            // is merely in flight — abandoning it on a clock would drop the
-            // enrichment exactly when the fallback did its job.
-            if (!this.open.has(entry.sessionId)) {
-                await entry.finalized;
-            }
-        }
-        await this.chain;
     }
 
     private finalize(
@@ -310,7 +258,6 @@ export class EmbeddedMpvRecordingTracker {
                 );
             return rowId;
         }).then((rowId) => {
-            entry.resolveFinalized();
             if (rowId !== null) {
                 broadcastRecordingsUpdate();
             }
