@@ -136,7 +136,7 @@
         "@angular-eslint/schematics": "21.3.1",
         "@angular-eslint/template-parser": "21.3.1",
         "@angular/build": "21.2.19",
-        "@angular/cli": "21.2.19",
+        "@angular/cli": "21.2.21",
         "@angular/common": "21.2.19",
         "@angular/compiler": "21.2.19",
         "@angular/compiler-cli": "21.2.19",
