@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, Location } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -58,6 +58,7 @@ import {
 export class RecordingDetailComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     private readonly recordings = inject(RecordingsService);
     private readonly actions = inject(RecordingManagerActionsService);
 
@@ -125,9 +126,16 @@ export class RecordingDetailComponent {
     }
 
     goBack(): void {
-        void this.router.navigateByUrl(
-            this.returnUrl ?? '/workspace/downloads'
-        );
+        // A validated returnUrl means the manager is the previous history
+        // entry: step back to it instead of pushing a third entry (which
+        // would make the browser Back button reopen this detail). Router
+        // navigation is the fallback for direct links with no usable
+        // history — matching the offline-detail navigation.
+        if (this.returnUrl) {
+            this.location.back();
+            return;
+        }
+        void this.router.navigateByUrl('/workspace/downloads');
     }
 
     runAction(type: RecordingItemActionType): void {
