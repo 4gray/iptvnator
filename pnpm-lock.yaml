@@ -173,8 +173,8 @@ importers:
         specifier: 21.2.19
         version: 21.2.19(chokidar@5.0.0)
       '@angular-devkit/schematics':
-        specifier: 21.2.19
-        version: 21.2.19(chokidar@5.0.0)
+        specifier: 21.2.21
+        version: 21.2.21(chokidar@5.0.0)
       '@angular-eslint/builder':
         specifier: 21.3.1
         version: 21.3.1(@angular/cli@21.2.19(@types/node@20.19.9)(chokidar@5.0.0))(chokidar@5.0.0)(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
@@ -249,7 +249,7 @@ importers:
         version: 16.0.1(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)(zone.js@0.16.2))
       '@nx/angular':
         specifier: 22.7.8
-        version: 22.7.8(d05e5b074e75040418244af5b15d2172)
+        version: 22.7.8(16d653af049c9803b64d2ea7df342a22)
       '@nx/devkit':
         specifier: 22.7.8
         version: 22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.15.47(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.15.47(@swc/helpers@0.5.23)))
@@ -545,8 +545,21 @@ packages:
       chokidar:
         optional: true
 
+  '@angular-devkit/core@21.2.21':
+    resolution: {integrity: sha512-xOr6mZ00M6hgM/xltAVkPVc/Yd1a/Wa0CGecV64JTITaVaSH8p8+wXe62Xavdr3pcc9cLKKUUB4mAup4k7Kkyw==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
+    peerDependencies:
+      chokidar: ^5.0.0
+    peerDependenciesMeta:
+      chokidar:
+        optional: true
+
   '@angular-devkit/schematics@21.2.19':
     resolution: {integrity: sha512-AG3Fzh9wJCmKBfxUQOUWaEHMj5Gq2O+Msf1z52aDSxbVhs5/iSQcXGPv/DLdAXu7d4xmQhLouNe9Glaq2omDyw==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
+
+  '@angular-devkit/schematics@21.2.21':
+    resolution: {integrity: sha512-LgTd/0CpyWSxMJLLk0X85F5RyDlJekssLlapU1C8fKqOUdWONYncTXYvZUQ+zbRAGXHcSZrst1Vm8qdXbo11Mg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
 
   '@angular-eslint/builder@21.3.1':
@@ -6836,6 +6849,7 @@ packages:
   eslint@9.39.2:
     resolution: {integrity: sha512-LEyamqS7W5HB3ujJyvi0HQK/dtVINZvd5mAAp9eT5S/ujByGjiZLCzPcHVzuXbpJDJF/cxwHlfceVUDZ2lnSTw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -11847,9 +11861,30 @@ snapshots:
     optionalDependencies:
       chokidar: 5.0.0
 
+  '@angular-devkit/core@21.2.21(chokidar@5.0.0)':
+    dependencies:
+      ajv: 8.18.0
+      ajv-formats: 3.0.1(ajv@8.18.0)
+      jsonc-parser: 3.3.1
+      picomatch: 4.0.4
+      rxjs: 7.8.2
+      source-map: 0.7.6
+    optionalDependencies:
+      chokidar: 5.0.0
+
   '@angular-devkit/schematics@21.2.19(chokidar@5.0.0)':
     dependencies:
       '@angular-devkit/core': 21.2.19(chokidar@5.0.0)
+      jsonc-parser: 3.3.1
+      magic-string: 0.30.21
+      ora: 9.3.0
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - chokidar
+
+  '@angular-devkit/schematics@21.2.21(chokidar@5.0.0)':
+    dependencies:
+      '@angular-devkit/core': 21.2.21(chokidar@5.0.0)
       jsonc-parser: 3.3.1
       magic-string: 0.30.21
       ora: 9.3.0
@@ -11926,7 +11961,7 @@ snapshots:
   '@angular-eslint/schematics@21.3.1(@angular-eslint/template-parser@21.3.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(@angular/cli@21.2.19(@types/node@20.19.9)(chokidar@5.0.0))(@typescript-eslint/types@8.67.0)(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(chokidar@5.0.0)(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)':
     dependencies:
       '@angular-devkit/core': 21.2.19(chokidar@5.0.0)
-      '@angular-devkit/schematics': 21.2.19(chokidar@5.0.0)
+      '@angular-devkit/schematics': 21.2.21(chokidar@5.0.0)
       '@angular-eslint/eslint-plugin': 21.3.1(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       '@angular-eslint/eslint-plugin-template': 21.3.1(@angular-eslint/template-parser@21.3.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(@typescript-eslint/types@8.67.0)(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       '@angular/cli': 21.2.19(@types/node@20.19.9)(chokidar@5.0.0)
@@ -11944,7 +11979,7 @@ snapshots:
   '@angular-eslint/schematics@21.4.0(@angular-eslint/template-parser@21.4.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(@angular/cli@21.2.19(@types/node@20.19.9)(chokidar@5.0.0))(@typescript-eslint/types@8.66.0)(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(chokidar@5.0.0)(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)':
     dependencies:
       '@angular-devkit/core': 21.2.19(chokidar@5.0.0)
-      '@angular-devkit/schematics': 21.2.19(chokidar@5.0.0)
+      '@angular-devkit/schematics': 21.2.21(chokidar@5.0.0)
       '@angular-eslint/eslint-plugin': 21.4.0(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       '@angular-eslint/eslint-plugin-template': 21.4.0(@angular-eslint/template-parser@21.4.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(@typescript-eslint/types@8.66.0)(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       '@angular/cli': 21.2.19(@types/node@20.19.9)(chokidar@5.0.0)
@@ -15078,10 +15113,10 @@ snapshots:
       node-gyp: 12.4.0
       proc-log: 6.1.0
 
-  '@nx/angular@22.7.8(d05e5b074e75040418244af5b15d2172)':
+  '@nx/angular@22.7.8(16d653af049c9803b64d2ea7df342a22)':
     dependencies:
       '@angular-devkit/core': 21.2.19(chokidar@5.0.0)
-      '@angular-devkit/schematics': 21.2.19(chokidar@5.0.0)
+      '@angular-devkit/schematics': 21.2.21(chokidar@5.0.0)
       '@nx/devkit': 22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.15.47(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.15.47(@swc/helpers@0.5.23)))
       '@nx/eslint': 22.7.8(5d8e116ecf28960b728f05bee433010d)
       '@nx/js': 22.7.8(@babel/traverse@7.29.8)(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.15.47(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.15.47(@swc/helpers@0.5.23))(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.15.47(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.15.47(@swc/helpers@0.5.23)))
@@ -15710,7 +15745,7 @@ snapshots:
       detect-libc: 2.1.2
       is-glob: 4.0.3
       node-addon-api: 7.1.1
-      picomatch: 4.0.4
+      picomatch: 4.0.5
     optionalDependencies:
       '@parcel/watcher-android-arm64': 2.6.0
       '@parcel/watcher-darwin-arm64': 2.6.0
@@ -17021,7 +17056,7 @@ snapshots:
   angular-eslint@21.4.0(@angular/cli@21.2.19(@types/node@20.19.9)(chokidar@5.0.0))(chokidar@5.0.0)(eslint@9.39.2(jiti@1.21.7))(typescript-eslint@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(typescript@5.9.3):
     dependencies:
       '@angular-devkit/core': 21.2.19(chokidar@5.0.0)
-      '@angular-devkit/schematics': 21.2.19(chokidar@5.0.0)
+      '@angular-devkit/schematics': 21.2.21(chokidar@5.0.0)
       '@angular-eslint/builder': 21.4.0(@angular/cli@21.2.19(@types/node@20.19.9)(chokidar@5.0.0))(chokidar@5.0.0)(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       '@angular-eslint/eslint-plugin': 21.4.0(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       '@angular-eslint/eslint-plugin-template': 21.4.0(@angular-eslint/template-parser@21.4.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(@typescript-eslint/types@8.66.0)(@typescript-eslint/utils@8.67.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
@@ -24010,7 +24045,7 @@ snapshots:
   ts-loader@9.6.2(loader-utils@2.0.4)(typescript@5.9.3)(webpack@5.109.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(esbuild@0.28.2)(postcss@8.5.6)):
     dependencies:
       chalk: 4.1.2
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       source-map: 0.7.6
       typescript: 5.9.3
       webpack: 5.109.2(@swc/core@1.15.47(@swc/helpers@0.5.23))(esbuild@0.28.2)(postcss@8.5.6)
