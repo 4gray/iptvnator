@@ -21,18 +21,54 @@ import {
 
 type RecordingRow = schema.Recording;
 
+const LIVE_SIZE_PROBE_TIMEOUT_MS = 1_000;
+
+/**
+ * Coalesced raw stat for an actively recorded file. Mirrors the availability
+ * probe's contract: caller deadlines never evict the in-flight operation, so
+ * a stat stalled on a slow network filesystem is not duplicated by every
+ * manager refresh; completed results are dropped so growth stays visible.
+ */
+const inFlightSizeProbes = new Map<string, Promise<number | null>>();
+
+function probeLiveFileSize(filePath: string): Promise<number | null> {
+    const existing = inFlightSizeProbes.get(filePath);
+    if (existing) {
+        return existing;
+    }
+    const probe = stat(filePath).then(
+        (stats) => (stats.isFile() ? stats.size : null),
+        () => null
+    );
+    inFlightSizeProbes.set(filePath, probe);
+    const clear = () => {
+        if (inFlightSizeProbes.get(filePath) === probe) {
+            inFlightSizeProbes.delete(filePath);
+        }
+    };
+    void probe.then(clear, clear);
+    return probe;
+}
+
 /**
  * Bytes on disk for a recording still being written. The tracker only
  * persists `file_size_bytes` at finalization, so the manager's active row
- * would otherwise report nothing while mpv keeps growing the file. At most
- * one recording is active at a time, so this stays a single cheap stat.
+ * would otherwise report nothing while mpv keeps growing the file. The stat
+ * is bounded: `RECORDINGS_GET_LIST` awaits every decorator, so one stat
+ * hanging on an unreachable filesystem must degrade to "no size" instead of
+ * wedging every manager refresh.
  */
 async function liveFileSizeBytes(filePath: string): Promise<number | null> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<null>((resolve) => {
+        timeout = setTimeout(() => resolve(null), LIVE_SIZE_PROBE_TIMEOUT_MS);
+    });
     try {
-        const stats = await stat(filePath);
-        return stats.isFile() ? stats.size : null;
-    } catch {
-        return null;
+        return await Promise.race([probeLiveFileSize(filePath), timedOut]);
+    } finally {
+        if (timeout !== undefined) {
+            clearTimeout(timeout);
+        }
     }
 }
 

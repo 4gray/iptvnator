@@ -265,28 +265,91 @@ describe('EmbeddedMpvRecordingTracker', () => {
         );
     });
 
+    /**
+     * Pushes an error/closed snapshot and drives the teardown flush window
+     * that lets the frame-copy helper exit and flush before the stat.
+     */
+    async function settleTeardown(
+        push: () => void,
+        advanceMs = 2_600
+    ): Promise<void> {
+        jest.useFakeTimers();
+        try {
+            push();
+            await jest.advanceTimersByTimeAsync(advanceMs);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+    }
+
     it('finalizes as interrupted when the session errors mid-recording', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
-        tracker.observeSnapshot(session({ status: 'error' }));
-        await flush();
+        await settleTeardown(() =>
+            tracker.observeSnapshot(session({ status: 'error' }))
+        );
         expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
     });
 
     it('finalizes as interrupted on the synthetic closed dispose snapshot', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
-        tracker.observeSnapshot(
-            session({
-                status: 'closed',
-                recording: {
-                    active: false,
-                    targetPath: '/rec/News-20260815-210000.ts',
-                },
-            })
+        await settleTeardown(() =>
+            tracker.observeSnapshot(
+                session({
+                    status: 'closed',
+                    recording: {
+                        active: false,
+                        targetPath: '/rec/News-20260815-210000.ts',
+                    },
+                })
+            )
         );
+        expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
+    });
+
+    it('defers the teardown stat until the helper had time to flush', async () => {
+        // disposeSession() emits the synthetic snapshot immediately, but the
+        // frame-copy helper exits up to ~2 s later — statting right away
+        // would persist a truncated size or misread a short capture.
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+
+        jest.useFakeTimers();
+        try {
+            tracker.observeSnapshot(session({ status: 'closed' }));
+            await jest.advanceTimersByTimeAsync(2_000);
+            // Row must stay 'recording' (recoverable) through the window.
+            expect(db.updateSet).not.toHaveBeenCalled();
+            await jest.advanceTimersByTimeAsync(600);
+        } finally {
+            jest.useRealTimers();
+        }
         await flush();
         expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
+    });
+
+    it('lets an acknowledged stop finalize as completed despite a dispose', async () => {
+        // Stop acknowledged (inactive snapshot, settle pending) and then the
+        // player is closed: the recording ended cleanly, so the armed settle
+        // timer wins and the row must not be relabelled 'interrupted'.
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        jest.useFakeTimers();
+        try {
+            tracker.observeSnapshot(inactiveSnapshot());
+            tracker.observeSnapshot(session({ status: 'closed' }));
+            await jest.advanceTimersByTimeAsync(3_000);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
     });
 
     it('degrades an interrupted stop to failed when the file is gone', async () => {
@@ -295,8 +358,9 @@ describe('EmbeddedMpvRecordingTracker', () => {
         });
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
-        tracker.observeSnapshot(session({ status: 'closed' }));
-        await flush();
+        await settleTeardown(() =>
+            tracker.observeSnapshot(session({ status: 'closed' }))
+        );
         expect(db.updateSet.mock.calls[0][0].status).toBe('failed');
     });
 
@@ -305,8 +369,10 @@ describe('EmbeddedMpvRecordingTracker', () => {
         tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');
         tracker.onRecordingStopped('session-1');
-        tracker.observeSnapshot(session({ status: 'closed' }));
-        await flush();
+        await settleTeardown(
+            () => tracker.observeSnapshot(session({ status: 'closed' })),
+            11_000
+        );
         expect(db.updateSet).toHaveBeenCalledTimes(1);
     });
 

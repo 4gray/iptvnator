@@ -64,6 +64,18 @@ const STOP_ACKNOWLEDGEMENT_TIMEOUT_MS = 10_000;
 const STOP_SETTLE_WINDOW_MS = 1_500;
 
 /**
+ * How long a synthetic error/closed snapshot defers finalization.
+ *
+ * `disposeSession()` emits that snapshot immediately, while the frame-copy
+ * helper still has a 0.5 s quit grace and a 2 s SIGTERM grace before SIGKILL
+ * — statting the file earlier can record a truncated size or mistake a short
+ * capture for an empty failure. The row stays `recording` (and therefore
+ * repairable by startup recovery) until the window elapses, so an app quit
+ * that outruns the timer loses nothing.
+ */
+const TEARDOWN_FLUSH_WINDOW_MS = 2_500;
+
+/**
  * Persists the lifecycle of embedded-MPV live recordings into the
  * `recordings` table.
  *
@@ -171,7 +183,16 @@ export class EmbeddedMpvRecordingTracker {
         }
 
         if (session.status === 'error' || session.status === 'closed') {
-            this.finalize(entry, 'interrupted');
+            // Teardown may still be flushing the file (the frame-copy helper
+            // exits up to ~2 s after this synthetic snapshot), so finalize
+            // after the flush window rather than statting now. An armed
+            // settle timer means the stop was already acknowledged before
+            // the session went down — leave it to finalize as 'completed'.
+            if (entry.settleTimer === undefined) {
+                entry.settleTimer = setTimeout(() => {
+                    this.finalize(entry, 'interrupted');
+                }, TEARDOWN_FLUSH_WINDOW_MS);
+            }
             return;
         }
 

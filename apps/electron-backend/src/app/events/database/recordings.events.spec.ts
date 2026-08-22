@@ -232,6 +232,32 @@ describe('recordings events', () => {
             expect(result[0].fileSizeBytes).toBeUndefined();
         });
 
+        it('bounds a hanging live-size stat so the list still resolves', async () => {
+            // A recording directory on a dead network filesystem can leave
+            // the stat pending forever; the list awaits every decorator, so
+            // the probe must time out to "no size" instead of wedging it.
+            mockStat.mockReturnValue(new Promise(() => undefined));
+            mockListDb([
+                recordingRow({
+                    status: 'recording',
+                    fileSizeBytes: null,
+                    endedAt: null,
+                }),
+            ]);
+
+            jest.useFakeTimers();
+            try {
+                const pending = getHandler('RECORDINGS_GET_LIST')(null);
+                await jest.advanceTimersByTimeAsync(1_100);
+                const result = (await pending) as Array<
+                    Record<string, unknown>
+                >;
+                expect(result[0].fileSizeBytes).toBeUndefined();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
         it('probes interrupted rows like completed ones but not failed rows', async () => {
             mockListDb([
                 recordingRow({ status: 'interrupted' }),

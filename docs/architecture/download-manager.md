@@ -307,7 +307,12 @@ display snapshot via `playlistDisplayLabel`).
   the acknowledgement never arrives. None of this timing is load-bearing for
   stop enrichment — that path does not wait for finalization at all. The same observer covers the stop paths that never call
   `stopRecording()` at all (stream-replacement auto-stop, frame-copy helper
-  crash, session error/close). Statuses: `recording` → `completed` (acknowledged
+  crash, session error/close). A synthetic error/closed snapshot arrives
+  while teardown may still be flushing (the frame-copy helper exits up to
+  ~2 s after `disposeSession()`), so it defers finalization behind a 2.5 s
+  flush window instead of statting immediately — the row stays `recording`
+  (startup-repairable) through the window, and an already-armed stop settle
+  timer keeps its `completed` verdict. Statuses: `recording` → `completed` (acknowledged
   stop, `fs.stat` size) / `interrupted` (implicit stop with a playable partial
   — MPEG-TS is streamable) / `failed` (start error or absent/empty file). Only
   a recording that never went active has its empty pre-reserved file unlinked;
@@ -376,7 +381,9 @@ display snapshot via `playlistDisplayLabel`).
   manager adds a `recording` filter chip; `recording-manager.viewmodel.ts`
   partitions rows into a "Recording now" queue section (pulsing REC chip with
   elapsed time and live file size — never a percentage, the length is
-  unknown), a recordings-only Needs attention list (Remove only: a broadcast
+  unknown; the size comes from a bounded, in-flight-coalesced `stat` with a
+  1 s deadline so a recording directory on a dead network filesystem
+  degrades to "no size" instead of wedging every list load), a recordings-only Needs attention list (Remove only: a broadcast
   cannot be re-recorded), and a "Recordings" library section of 16:9
   channel-logo cards (`recording-queue.component.*`,
   `recording-library.component.*`). Card titles use the captured program
