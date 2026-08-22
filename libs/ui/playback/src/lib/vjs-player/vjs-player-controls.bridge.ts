@@ -72,6 +72,7 @@ export class VjsPlayerControlsBridge {
 
         this.audioTracks.resetSource();
         this.textTracks.resetSource();
+        this.qualityLevels.resetSource();
         this.sourceActive = true;
         this.bindTrackLists();
         this.config.adapter.refresh();

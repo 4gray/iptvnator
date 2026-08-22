@@ -536,8 +536,12 @@ Engine mechanics:
 - **Video.js**: `VjsQualityLevels` projects the videojs-contrib-quality-levels
   list (registered by the component's plugin import). VHS has no manual-level
   setter, so a manual selection enables exactly one level and auto re-enables
-  all; the mode is derived statelessly — manual iff exactly one level is
-  enabled. A missing or throwing plugin degrades to no capability.
+  all. Manual intent is tracked explicitly by the picked level object — VHS
+  also flips `enabled` off for renditions it temporarily excludes after
+  delivery errors, so counting enabled levels would misreport a manual
+  selection. A picked level that leaves the list, a source change, and
+  `clear()` all revert to auto. A missing or throwing plugin degrades to no
+  capability.
 - **Embedded MPV and external players**: `qualityLevels` stays false —
   single-program transport streams have no rendition list to offer and no HLS
   level API is surfaced there. `EmbeddedMpvControlsAdapter.setQualityLevel` is

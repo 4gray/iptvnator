@@ -154,6 +154,55 @@ describe('VjsQualityLevels', () => {
         expect(helper.getQualityLevels()[0].selected).toBe(false);
     });
 
+    it('does not mistake VHS error-exclusions for a manual selection', () => {
+        const levels = [
+            level({ height: 1080 }),
+            level({ height: 720 }),
+            level({ height: 480 }),
+        ];
+        const { helper } = createHarness(levels);
+
+        // VHS excludes failing renditions by flipping `enabled` off itself;
+        // only one survivor must still read as auto, not as a user pick.
+        levels[0].enabled = false;
+        levels[2].enabled = false;
+
+        expect(helper.isAutoQualityEnabled()).toBe(true);
+        expect(
+            helper.getQualityLevels().some((entry) => entry.selected)
+        ).toBe(false);
+    });
+
+    it('reverts to auto when the manually picked level leaves the list', () => {
+        const picked = level({ height: 720 });
+        const { helper, levelList } = createHarness([
+            level({ height: 1080 }),
+            picked,
+        ]);
+
+        helper.setQualityLevel(1);
+        expect(helper.isAutoQualityEnabled()).toBe(false);
+
+        levelList.replace([level({ height: 1080 }), level({ height: 480 })]);
+        expect(helper.isAutoQualityEnabled()).toBe(true);
+        expect(
+            helper.getQualityLevels().some((entry) => entry.selected)
+        ).toBe(false);
+    });
+
+    it('forgets manual intent on resetSource', () => {
+        const { helper } = createHarness([
+            level({ height: 1080 }),
+            level({ height: 720 }),
+        ]);
+
+        helper.setQualityLevel(0);
+        expect(helper.isAutoQualityEnabled()).toBe(false);
+
+        helper.resetSource();
+        expect(helper.isAutoQualityEnabled()).toBe(true);
+    });
+
     it('refreshes on list events and detaches exact listeners on clear', () => {
         const { helper, levelList, refresh } = createHarness([
             level({ height: 720 }),

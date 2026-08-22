@@ -25,12 +25,17 @@ export interface VjsQualityLevelsConfig {
 /**
  * Projects the videojs-contrib-quality-levels list onto the shared-controls
  * quality contract, mirroring {@link VjsAudioTracks}. VHS has no manual-level
- * setter; a manual selection enables exactly one level and auto re-enables all,
- * so the mode is derived statelessly: manual iff exactly one level is enabled.
- * Ids are list indices, valid for the lifetime of the current source.
+ * setter; a manual selection enables exactly one level and auto re-enables all.
+ * Manual intent is tracked explicitly by the picked level object — VHS also
+ * flips `enabled` off for renditions it temporarily excludes after delivery
+ * errors, so inferring the mode from the enabled count would report a manual
+ * selection the user never made. Object identity (not an index) keeps the
+ * intent valid across list mutations, and a picked level that leaves the list
+ * reverts to auto. Ids are list indices for the current snapshot.
  */
 export class VjsQualityLevels {
     private levelList: VideoJsQualityLevelList | null = null;
+    private manualLevel: VideoJsQualityLevel | null = null;
     private readonly handleListChange: EventListener = () => {
         this.config.refresh();
     };
@@ -57,16 +62,22 @@ export class VjsQualityLevels {
     clear(): void {
         this.detachLevelList();
         this.levelList = null;
+        this.manualLevel = null;
+    }
+
+    /** Forgets manual intent when the bridge activates a new source. */
+    resetSource(): void {
+        this.manualLevel = null;
     }
 
     getQualityLevels(): PlayerTrack[] {
         const levels = this.listLevels();
         const labels = buildQualityLevelLabels(levels);
-        const manualIndex = this.readManualIndex(levels);
-        return levels.map((_level, index) => ({
+        const manualLevel = this.readManualLevel(levels);
+        return levels.map((level, index) => ({
             id: index,
             label: labels[index],
-            selected: index === manualIndex,
+            selected: level === manualLevel,
         }));
     }
 
@@ -77,6 +88,7 @@ export class VjsQualityLevels {
 
         const levels = this.listLevels();
         if (id === AUTO_QUALITY_LEVEL_ID) {
+            this.manualLevel = null;
             for (const level of levels) {
                 level.enabled = true;
             }
@@ -86,22 +98,25 @@ export class VjsQualityLevels {
             return;
         }
 
+        this.manualLevel = levels[id];
         levels.forEach((level, index) => {
             level.enabled = index === id;
         });
     }
 
     isAutoQualityEnabled(): boolean {
-        return this.readManualIndex(this.listLevels()) === null;
+        return this.readManualLevel(this.listLevels()) === null;
     }
 
-    private readManualIndex(levels: VideoJsQualityLevel[]): number | null {
-        const enabled = levels
-            .map((level, index) => ({ level, index }))
-            .filter(({ level }) => level.enabled === true);
-        return enabled.length === 1 && levels.length > 1
-            ? enabled[0].index
-            : null;
+    private readManualLevel(
+        levels: VideoJsQualityLevel[]
+    ): VideoJsQualityLevel | null {
+        if (this.manualLevel && !levels.includes(this.manualLevel)) {
+            // The picked rendition left the list (source change or removal):
+            // there is nothing the intent can hold on to, so revert to auto.
+            this.manualLevel = null;
+        }
+        return this.manualLevel;
     }
 
     private listLevels(): VideoJsQualityLevel[] {
