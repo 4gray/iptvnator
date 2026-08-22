@@ -9,10 +9,7 @@ import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { embeddedMpvNativeService } from '../../services/embedded-mpv-native.service';
 import { embeddedMpvRecordingTracker } from '../../services/embedded-mpv-recording-tracker';
-import {
-    getDownloadFileAvailabilityWithTimeoutAsync,
-    isAvailableDownloadFile,
-} from './download-file-availability';
+import { getDownloadFileAvailabilityWithTimeoutAsync } from './download-file-availability';
 import { broadcastRecordingsUpdate } from './recording-broadcast';
 import {
     decodeRecordingPrograms,
@@ -250,10 +247,23 @@ ipcMain.handle('RECORDINGS_REMOVE', async (_event, recordingId: number) => {
                 (candidate) => candidate.id === row.id
             );
             if (pathIsExclusive) {
-                try {
-                    await unlink(row.filePath);
-                } catch {
-                    // Already gone or inaccessible — the row removal matters.
+                // Bounded: a hung network unlink must not keep the Remove
+                // action busy — deleting the row is what matters, and the
+                // cleanup contract is best-effort anyway.
+                let unlinkDeadline:
+                    | ReturnType<typeof setTimeout>
+                    | undefined;
+                await Promise.race([
+                    unlink(row.filePath).catch(() => undefined),
+                    new Promise<void>((resolve) => {
+                        unlinkDeadline = setTimeout(
+                            resolve,
+                            LIVE_SIZE_PROBE_TIMEOUT_MS
+                        );
+                    }),
+                ]);
+                if (unlinkDeadline !== undefined) {
+                    clearTimeout(unlinkDeadline);
                 }
             }
         }
@@ -335,10 +345,24 @@ ipcMain.handle(
     }
 );
 
+/**
+ * Bounded pre-shell gate: only PROVEN absence refuses the action. The
+ * synchronous lstat variant would block the main process on a dead mount,
+ * and an inconclusive probe (timeout, permission error) must still let the
+ * shell try — the OS gives the honest answer either way.
+ */
+async function isRecordingFileMissing(filePath: string): Promise<boolean> {
+    const availability = await getDownloadFileAvailabilityWithTimeoutAsync({
+        filePath,
+        status: 'completed',
+    });
+    return availability === 'missing';
+}
+
 ipcMain.handle('RECORDINGS_REVEAL_FILE', async (_event, filePath: string) => {
     if (
         !(await isManagedRecordingFile(filePath)) ||
-        !isAvailableDownloadFile(filePath)
+        (await isRecordingFileMissing(filePath))
     ) {
         return { error: 'File not found', success: false };
     }
@@ -349,7 +373,7 @@ ipcMain.handle('RECORDINGS_REVEAL_FILE', async (_event, filePath: string) => {
 ipcMain.handle('RECORDINGS_PLAY_FILE', async (_event, filePath: string) => {
     if (
         !(await isManagedRecordingFile(filePath)) ||
-        !isAvailableDownloadFile(filePath)
+        (await isRecordingFileMissing(filePath))
     ) {
         return { error: 'File not found', success: false };
     }
@@ -357,7 +381,7 @@ ipcMain.handle('RECORDINGS_PLAY_FILE', async (_event, filePath: string) => {
     if (!error) {
         return { success: true };
     }
-    return isAvailableDownloadFile(filePath)
-        ? { error, success: false }
-        : { error: 'File not found', success: false };
+    return (await isRecordingFileMissing(filePath))
+        ? { error: 'File not found', success: false }
+        : { error, success: false };
 });

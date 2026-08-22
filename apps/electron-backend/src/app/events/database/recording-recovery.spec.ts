@@ -104,6 +104,31 @@ describe('reconcileStaleRecordings', () => {
         expect(updateSet.mock.calls[1][0].status).toBe('failed');
     });
 
+    it('takes endedAt from the file mtime, not the repair time', async () => {
+        // The recording ended when mpv last wrote the file; an overnight
+        // shutdown must not inflate a short capture into hours.
+        const mtimeMs = Date.parse('2026-08-15T21:05:00Z');
+        const { updateSet } = mockDb([
+            {
+                id: 1,
+                filePath: '/rec/a.ts',
+                endedAt: null,
+                startedAt: '2026-08-15T21:00:00Z',
+            },
+        ]);
+        mockStatSync.mockResolvedValue({
+            isFile: () => true,
+            size: 2048,
+            mtimeMs,
+        });
+
+        await reconcileStaleRecordings();
+
+        expect(updateSet.mock.calls[0][0].endedAt).toBe(
+            new Date(mtimeMs).toISOString()
+        );
+    });
+
     it('preserves an already-known endedAt', async () => {
         const { updateSet } = mockDb([
             { id: 1, filePath: '/rec/a.ts', endedAt: '2026-08-15T21:58:00Z' },

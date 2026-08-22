@@ -10,7 +10,7 @@ import { broadcastRecordingsUpdate } from './recording-broadcast';
 const RECOVERY_STAT_TIMEOUT_MS = 3_000;
 
 type RecordedFileProbe =
-    | { kind: 'size'; size: number }
+    | { kind: 'size'; size: number; mtimeMs: number | null }
     | { kind: 'missing' }
     | { kind: 'unknown' };
 
@@ -32,7 +32,16 @@ async function probeRecordedFile(filePath: string): Promise<RecordedFileProbe> {
     const probe = stat(filePath).then(
         (stats): RecordedFileProbe =>
             stats.isFile()
-                ? { kind: 'size', size: stats.size }
+                ? {
+                      kind: 'size',
+                      size: stats.size,
+                      // mpv last touched the file when the killed process
+                      // stopped writing — the honest end of the recording.
+                      mtimeMs:
+                          Number.isFinite(stats.mtimeMs) && stats.mtimeMs > 0
+                              ? stats.mtimeMs
+                              : null,
+                  }
                 : { kind: 'missing' },
         (error): RecordedFileProbe => {
             const code = (error as NodeJS.ErrnoException)?.code;
@@ -272,12 +281,19 @@ export async function reconcileStaleRecordings(): Promise<void> {
             }
             const size = probe.kind === 'size' ? probe.size : null;
             const playable = size !== null && size > 0;
+            // The recording ended when mpv last wrote the file, not when
+            // this repair happens to run — an overnight shutdown must not
+            // inflate a five-minute capture into hours.
+            const capturedEndedAt =
+                probe.kind === 'size' && probe.mtimeMs !== null
+                    ? new Date(probe.mtimeMs).toISOString()
+                    : new Date().toISOString();
             await db
                 .update(schema.recordings)
                 .set({
                     status: playable ? 'interrupted' : 'failed',
                     fileSizeBytes: playable ? size : null,
-                    endedAt: row.endedAt ?? new Date().toISOString(),
+                    endedAt: row.endedAt ?? capturedEndedAt,
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(schema.recordings.id, row.id));

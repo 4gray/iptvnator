@@ -12,7 +12,6 @@ const mockGetDatabase = jest.fn();
 const mockBroadcast = jest.fn();
 const mockStopRecording = jest.fn();
 const mockWhenSettled = jest.fn();
-const mockIsAvailableDownloadFile = jest.fn();
 const mockGetAvailabilityAsync = jest.fn();
 const mockUnlink = jest.fn();
 const mockStat = jest.fn();
@@ -34,7 +33,6 @@ async function setupRecordingsEventsHarness(): Promise<void> {
     mockBroadcast.mockReset();
     mockStopRecording.mockReset();
     mockWhenSettled.mockReset().mockResolvedValue(undefined);
-    mockIsAvailableDownloadFile.mockReset().mockReturnValue(true);
     mockGetAvailabilityAsync.mockReset().mockResolvedValue('available');
     mockUnlink.mockReset().mockResolvedValue(undefined);
     mockStat.mockReset().mockResolvedValue({ isFile: () => true, size: 4096 });
@@ -73,7 +71,6 @@ async function setupRecordingsEventsHarness(): Promise<void> {
     }));
     jest.doMock('./download-file-availability', () => ({
         getDownloadFileAvailabilityWithTimeoutAsync: mockGetAvailabilityAsync,
-        isAvailableDownloadFile: mockIsAvailableDownloadFile,
     }));
 
     await import('./recordings.events');
@@ -568,9 +565,9 @@ describe('recordings events', () => {
             );
         });
 
-        it('refuses managed paths whose file is gone', async () => {
+        it('refuses managed paths whose file is provenly gone', async () => {
             mockRowDb(recordingRow());
-            mockIsAvailableDownloadFile.mockReturnValue(false);
+            mockGetAvailabilityAsync.mockResolvedValue('missing');
             await expect(
                 getHandler('RECORDINGS_PLAY_FILE')(
                     null,
@@ -578,6 +575,22 @@ describe('recordings events', () => {
                 )
             ).resolves.toEqual({ error: 'File not found', success: false });
             expect(mockOpenPath).not.toHaveBeenCalled();
+        });
+
+        it('lets the shell try when the availability probe is inconclusive', async () => {
+            // Only proven absence refuses the action: a timed-out probe on
+            // a slow mount must not block Play — the OS answers honestly.
+            mockRowDb(recordingRow());
+            mockGetAvailabilityAsync.mockResolvedValue('unknown');
+            await expect(
+                getHandler('RECORDINGS_PLAY_FILE')(
+                    null,
+                    '/rec/News-20260815-210000.ts'
+                )
+            ).resolves.toEqual({ success: true });
+            expect(mockOpenPath).toHaveBeenCalledWith(
+                '/rec/News-20260815-210000.ts'
+            );
         });
 
         it('plays a managed available file', async () => {
