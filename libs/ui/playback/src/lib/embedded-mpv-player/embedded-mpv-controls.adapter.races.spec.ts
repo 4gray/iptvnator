@@ -185,7 +185,9 @@ describe('EmbeddedMpvControlsAdapter recording acknowledgement races', () => {
 
         expect(controller.startRecording).toHaveBeenCalledWith(
             '/recordings',
-            LIVE_PLAYBACK.title
+            LIVE_PLAYBACK.title,
+            // No host recording metadata configured in this harness.
+            undefined
         );
         expect(adapter.state().recording.message).toBeNull();
         controller.session.update((current) => ({

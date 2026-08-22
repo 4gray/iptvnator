@@ -11,6 +11,7 @@ import {
     EmbeddedMpvBounds,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
+    RecordingStartMetadata,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { EmbeddedMpvCommandRunner } from './embedded-mpv-command-runner';
@@ -306,9 +307,10 @@ export class EmbeddedMpvSessionController {
         this.commands.setAspect(aspect);
     readonly startRecording = (
         directory: string | undefined,
-        title: string
+        title: string,
+        metadata?: RecordingStartMetadata
     ): Promise<EmbeddedMpvSession['recording'] | null> =>
-        this.commands.startRecording(directory, title);
+        this.commands.startRecording(directory, title, metadata);
     readonly stopRecording = (): Promise<
         EmbeddedMpvSession['recording'] | null
     > => this.commands.stopRecording();

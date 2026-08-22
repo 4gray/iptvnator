@@ -31,6 +31,7 @@ import {
 } from '@iptvnator/ui/components';
 import {
     PlaylistsService,
+    RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -39,8 +40,13 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    filterRecordingProgramsOverlap,
+    playlistDisplayLabel,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
     StalkerPortalItem,
+    toRecordingProgramSnapshot,
 } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
@@ -343,6 +349,65 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly currentProgram = computed(() =>
         this.findCurrentProgram(this.activeEpgPrograms())
     );
+    private readonly recordingsService = inject(RecordingsService);
+    /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
+    readonly recordingMetadata = computed<RecordingStartMetadata | null>(() => {
+        const selectedItem = this.stalkerStore.selectedItem();
+        if (!selectedItem?.id) {
+            return null;
+        }
+        const playlist = this.stalkerStore.currentPlaylist();
+        const selectedType = this.stalkerStore.selectedContentType();
+        // ITV only: the bulk EPG cache is ITV-keyed and Ministra reuses small
+        // integer ids across itv/radio, so a radio recording gets no program.
+        const program =
+            selectedType === 'itv' ? (this.currentProgram() ?? null) : null;
+        return {
+            channelName:
+                selectedItem.o_name?.trim() ||
+                selectedItem.name?.trim() ||
+                'Live TV',
+            channelLogoUrl: this.activePlaybackArtwork() || undefined,
+            playlistId: playlist?._id,
+            playlistName: playlistDisplayLabel(playlist?.title) || undefined,
+            sourceType: 'stalker',
+            epgChannelId: playlist?._id
+                ? buildStalkerEpgMappingKey(
+                      playlist._id,
+                      String(selectedItem.id)
+                  )
+                : undefined,
+            currentProgram: program
+                ? toRecordingProgramSnapshot(program)
+                : undefined,
+        };
+    });
+
+    /** Stop enrichment: programs overlapping the recorded window. */
+    onRecordingStopped(event: RecordingStoppedEvent): void {
+        if (this.stalkerStore.selectedContentType() !== 'itv') {
+            return;
+        }
+        // A channel switch auto-stops the recording, and by now this host
+        // already describes the new channel — enriching then would attach the
+        // wrong schedule (and could promote an unrelated program to the
+        // recording's title).
+        if (
+            event.epgChannelId &&
+            event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
+        const programs = filterRecordingProgramsOverlap(
+            this.activeEpgPrograms().map(toRecordingProgramSnapshot),
+            event.startedAt,
+            event.endedAt
+        );
+        if (programs.length === 0) {
+            return;
+        }
+        void this.recordingsService.updatePrograms(event.targetPath, programs);
+    }
     readonly liveEpgPanelState = signal<LiveEpgPanelState>(
         restoreLiveEpgPanelState()
     );

@@ -9,6 +9,8 @@ import {
     resetStaleDownloads,
     setMainWindow as setDownloadsMainWindow,
 } from './app/events/database/downloads.events';
+import { setRecordingsMainWindow } from './app/events/database/recording-broadcast';
+import { reconcileStaleRecordings } from './app/events/database/recording-recovery';
 import ElectronEvents from './app/events/electron.events';
 import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
@@ -173,6 +175,7 @@ export default class Main {
         // rebuild the window while the process runs, and a stale reference
         // silently swallows every DOWNLOADS_UPDATE_EVENT.
         App.onMainWindowCreated(setDownloadsMainWindow);
+        App.onMainWindowCreated(setRecordingsMainWindow);
 
         // Load the renderer only after IPC handlers are registered. On slower
         // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
@@ -194,6 +197,12 @@ export default class Main {
 
         if (isStartupTraceEnabled()) {
             trace('startup', 'reset-stale-downloads:done');
+        }
+
+        await reconcileStaleRecordings();
+
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'reconcile-stale-recordings:done');
         }
 
         if (isStartupTraceEnabled()) {

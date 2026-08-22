@@ -1194,7 +1194,9 @@
             "FAILED": "Failed",
             "CANCELED": "Canceled",
             "PAUSED": "Paused",
-            "FILE_MISSING": "File missing"
+            "FILE_MISSING": "File missing",
+            "RECORDING": "Recording",
+            "INTERRUPTED": "Interrupted"
         },
         "ACTIVE_COUNT": "{{count}} active",
         "TRACKED_DOWNLOADS": "Tracked downloads",
@@ -1209,7 +1211,22 @@
             "ALL": "All",
             "MOVIES": "Movies",
             "SERIES": "Series",
-            "IN_PROGRESS": "In progress"
+            "IN_PROGRESS": "In progress",
+            "RECORDINGS": "Recordings"
+        },
+        "RECORDING_NOW": "Recording now",
+        "RECORDINGS": "Recordings",
+        "RECORDING_BADGE": "Recording",
+        "STOP_RECORDING": "Stop recording",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Remove recording from manager?",
+            "MESSAGE": "This removes the entry from IPTVnator. The recorded file remains on disk."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Recorded programs",
+            "RECORDED_FROM": "Recorded from {{playlist}}",
+            "MISSING_BODY": "The recording file is no longer on disk. A live broadcast cannot be re-recorded, but you can remove the entry from the manager.",
+            "FAILED_BODY": "This recording failed and produced no playable file."
         },
         "REMOVE_FROM_MANAGER": "Remove from manager",
         "REMOVE_COMPLETED_DIALOG": {

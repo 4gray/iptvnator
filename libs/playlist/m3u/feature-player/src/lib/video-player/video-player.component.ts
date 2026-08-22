@@ -103,6 +103,7 @@ import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
     PlaylistsService,
+    RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
@@ -112,11 +113,16 @@ import {
     createDevLogger,
     EpgProgram,
     ExternalPlayerSession,
+    filterRecordingProgramsOverlap,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     PLAYLIST_PARSE_BY_URL,
     M3uRecentlyViewedItem,
+    playlistDisplayLabel,
     PlaylistMeta,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
+    toRecordingProgramSnapshot,
     ResolvedPortalPlayback,
     STORE_KEY,
     Settings,
@@ -411,6 +417,60 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     );
     private readonly activePlaylistMeta =
         this.store.selectSignal(selectActivePlaylist);
+    private readonly recordingsService = inject(RecordingsService);
+    /**
+     * Channel/EPG snapshot for the embedded-MPV recording tracker, captured
+     * at recording start (EPG cannot be reconstructed after the fact).
+     */
+    readonly recordingMetadata = computed<RecordingStartMetadata | null>(() => {
+        const channel = this.activeChannel();
+        if (!channel) {
+            return null;
+        }
+        const program = this.epgProgram() ?? null;
+        const playlistName = playlistDisplayLabel(
+            this.activePlaylistMeta()?.title
+        );
+        return {
+            channelName:
+                channel.name?.trim() || channel.tvg?.name?.trim() || 'Live TV',
+            channelLogoUrl: this.timelineChannelLogo() || undefined,
+            playlistId: this.activePlaylistId() || undefined,
+            playlistName: playlistName || undefined,
+            sourceType: 'm3u',
+            epgChannelId: resolveChannelEpgLookupKey(channel) || undefined,
+            currentProgram: program
+                ? toRecordingProgramSnapshot(program)
+                : undefined,
+        };
+    });
+
+    /**
+     * Stop enrichment: report every program overlapping the recorded window
+     * from the in-memory multi-day schedule (a recording can span a program
+     * boundary). Fire-and-forget — a failed update leaves the start snapshot.
+     */
+    onRecordingStopped(event: RecordingStoppedEvent): void {
+        // A channel switch auto-stops the recording, and by now this host
+        // already describes the new channel — enriching then would attach the
+        // wrong schedule (and could promote an unrelated program to the
+        // recording's title).
+        if (
+            event.epgChannelId &&
+            event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
+        const programs = filterRecordingProgramsOverlap(
+            this.epgPrograms().map(toRecordingProgramSnapshot),
+            event.startedAt,
+            event.endedAt
+        );
+        if (programs.length === 0) {
+            return;
+        }
+        void this.recordingsService.updatePrograms(event.targetPath, programs);
+    }
     /**
      * Without a single configured XMLTV source the whole playlist has no EPG,
      * so the panel's empty state should point at the EPG settings page

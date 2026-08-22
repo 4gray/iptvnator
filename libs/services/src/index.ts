@@ -4,6 +4,7 @@ export * from './lib/data.service';
 export * from './lib/host-connectivity-reset';
 export * from './lib/database-electron.service';
 export * from './lib/downloads.service';
+export * from './lib/recordings.service';
 export * from './lib/playback-position-runtime-bridge.service';
 export * from './lib/playback-position.service';
 export * from './lib/playlist-delete-cleanup.token';

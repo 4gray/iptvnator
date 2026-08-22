@@ -1,0 +1,210 @@
+@use '../../../../shared/ui/src/lib/styles/content-grid' as grid;
+
+:host {
+    display: block;
+}
+
+.recording-library {
+    display: grid;
+    gap: 12px;
+
+    &__header h2 {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0;
+        padding: 0 2px;
+        color: var(--app-heading-color);
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.012em;
+        line-height: 1.2;
+    }
+
+    // Wider tiles than the poster grid: recording artwork is a 16:9 channel
+    // tile, so the min width is ~1.55× the cover token.
+    &__grid {
+        @include grid.content-grid(
+            $min-width: min(
+                    100%,
+                    calc(var(--cover-grid-min-width, 148px) * 1.55)
+                ),
+            $gap: var(--cover-gap, 16px)
+        );
+    }
+
+    &__card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+
+        &:hover .recording-library__artwork,
+        &:focus-within .recording-library__artwork {
+            border-color: color-mix(
+                in srgb,
+                var(--mat-sys-primary) 55%,
+                var(--app-separator, var(--mat-sys-outline-variant))
+            );
+            transform: translateY(-2px);
+        }
+    }
+
+    &__artwork {
+        position: relative;
+        overflow: hidden;
+        aspect-ratio: 16 / 9;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--app-separator, var(--mat-sys-outline-variant)) 78%,
+                transparent
+            );
+        border-radius: 14px;
+        background: radial-gradient(
+            130% 160% at 28% 18%,
+            color-mix(
+                    in srgb,
+                    var(--mat-sys-surface-container-highest) 82%,
+                    var(--mat-sys-primary)
+                )
+                0%,
+            var(--mat-sys-surface-container-low) 68%
+        );
+        transition:
+            transform 160ms ease,
+            border-color 160ms ease;
+    }
+
+    &__artwork-button {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: 0;
+        background: none;
+        place-items: center;
+        cursor: pointer;
+
+        img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+    }
+
+    &__placeholder {
+        display: grid;
+        place-items: center;
+        color: var(--mat-sys-on-surface-variant);
+
+        mat-icon {
+            width: 34px;
+            height: 34px;
+            font-size: 34px;
+        }
+    }
+
+    &__type {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--mat-sys-error) 28%, rgb(0 0 0 / 62%));
+        color: var(--mat-sys-on-error, #fff);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        backdrop-filter: blur(4px);
+    }
+
+    &__duration {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: rgb(0 0 0 / 62%);
+        color: #d6dde4;
+        font-size: 0.68rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        backdrop-filter: blur(4px);
+    }
+
+    &__more {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 32px;
+        height: 32px;
+        color: #d6dde4;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            border-radius: 50%;
+            background: rgb(0 0 0 / 48%);
+        }
+
+        mat-icon {
+            position: relative;
+        }
+    }
+
+    &__body {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+        padding: 0 2px;
+    }
+
+    &__title-button {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--mat-sys-on-surface);
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.3;
+        text-align: start;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            text-decoration: underline;
+        }
+    }
+
+    &__facts {
+        overflow: hidden;
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 0.78rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .recording-library {
+        &__artwork {
+            transition: none;
+        }
+
+        &__card:hover .recording-library__artwork,
+        &__card:focus-within .recording-library__artwork {
+            transform: none;
+        }
+    }
+}

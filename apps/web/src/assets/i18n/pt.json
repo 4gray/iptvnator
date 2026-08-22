@@ -1194,7 +1194,9 @@
             "FAILED": "Falhou",
             "CANCELED": "Cancelado",
             "PAUSED": "Pausado",
-            "FILE_MISSING": "Arquivo ausente"
+            "FILE_MISSING": "Arquivo ausente",
+            "RECORDING": "Gravando",
+            "INTERRUPTED": "Interrompida"
         },
         "ACTIVE_COUNT": "{{count}} ativos",
         "TRACKED_DOWNLOADS": "Downloads acompanhados",
@@ -1209,7 +1211,22 @@
             "ALL": "Todos",
             "MOVIES": "Filmes",
             "SERIES": "Séries",
-            "IN_PROGRESS": "Em andamento"
+            "IN_PROGRESS": "Em andamento",
+            "RECORDINGS": "Gravações"
+        },
+        "RECORDING_NOW": "Gravando agora",
+        "RECORDINGS": "Gravações",
+        "RECORDING_BADGE": "Gravação",
+        "STOP_RECORDING": "Parar gravação",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Remover gravação do gerenciador?",
+            "MESSAGE": "Isso remove a entrada do IPTVnator. O arquivo gravado permanece no disco."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Programas gravados",
+            "RECORDED_FROM": "Gravado a partir de {{playlist}}",
+            "MISSING_BODY": "O arquivo da gravação não está mais no disco. Uma transmissão ao vivo não pode ser gravada novamente, mas você pode remover a entrada do gerenciador.",
+            "FAILED_BODY": "Esta gravação falhou e não gerou nenhum arquivo reproduzível."
         },
         "REMOVE_FROM_MANAGER": "Remover do gerenciador",
         "REMOVE_COMPLETED_DIALOG": {

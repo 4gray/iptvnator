@@ -36,6 +36,8 @@ import {
 import {
     EpgItem,
     EpgProgram,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
@@ -86,7 +88,9 @@ class StubWebPlayerViewComponent {
     readonly streamUrl = input('');
     readonly title = input('');
     readonly playback = input<unknown>(null);
+    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 
 // Matches both live-panel selectors so the host's timeline ↔ list swap can be

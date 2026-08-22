@@ -1194,7 +1194,9 @@
             "FAILED": "Няўдала",
             "CANCELED": "Скасавана",
             "PAUSED": "На паўзе",
-            "FILE_MISSING": "Файл адсутнічае"
+            "FILE_MISSING": "Файл адсутнічае",
+            "RECORDING": "Запісваецца",
+            "INTERRUPTED": "Перарвана"
         },
         "ACTIVE_COUNT": "{{count}} актыўныя",
         "TRACKED_DOWNLOADS": "Адсочваныя спампоўкі",
@@ -1209,7 +1211,22 @@
             "ALL": "Усе",
             "MOVIES": "Фільмы",
             "SERIES": "Серыялы",
-            "IN_PROGRESS": "Выконваецца"
+            "IN_PROGRESS": "Выконваецца",
+            "RECORDINGS": "Запісы"
+        },
+        "RECORDING_NOW": "Зараз запісваецца",
+        "RECORDINGS": "Запісы",
+        "RECORDING_BADGE": "Ідзе запіс",
+        "STOP_RECORDING": "Спыніць запіс",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Выдаліць запіс з менеджара?",
+            "MESSAGE": "Гэта выдаліць запіс з IPTVnator. Запісаны файл застанецца на дыску."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Запісаныя перадачы",
+            "RECORDED_FROM": "Запісана з {{playlist}}",
+            "MISSING_BODY": "Файл запісу больш недаступны на дыску. Прамую трансляцыю нельга запісаць паўторна, але вы можаце выдаліць запіс з менеджара.",
+            "FAILED_BODY": "Гэты запіс не ўдаўся, таму файла для прайгравання няма."
         },
         "REMOVE_FROM_MANAGER": "Выдаліць з менеджара спамповак",
         "REMOVE_COMPLETED_DIALOG": {

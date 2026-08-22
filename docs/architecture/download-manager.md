@@ -282,7 +282,113 @@ variants, contextual buttons, and theme-aware styling.
   ignores search/category filtering while honoring route scope, so hiding a
   card never makes its disk footprint appear to vanish.
 
+## Live-TV recordings
+
+Recordings made with the embedded MPV player live beside downloads, not inside
+them: a recording has no source URL to re-fetch, no byte totals, and no
+retry/resume semantics, so it gets its own `recordings` SQLite table (no
+unique index — re-recording a channel is normal; `playlist_id` carries no FK
+so recordings survive source deletion, with `playlist_name` stored as a
+display snapshot via `playlistDisplayLabel`).
+
+- **Lifecycle tracking** is owned by `EmbeddedMpvRecordingTracker`
+  (`apps/electron-backend/src/app/services/embedded-mpv-recording-tracker.ts`):
+  explicit start/stop hooks in `EmbeddedMpvNativeService` plus a
+  session-snapshot observer. The stop hook is a *request*, not an outcome —
+  `addon.stopRecording()` only dispatches (async mpv property set, or a
+  command written to the frame-copy helper), so finalization always waits for
+  the snapshot reporting the recording inactive; statting or unlinking
+  earlier would report a short recording as failed and could delete bytes mpv
+  is still flushing. macOS native-view clears `recordingActive` *before*
+  dispatching the async property set and restores it if that request is
+  rejected, so an inactive snapshot must additionally survive a 1.5 s settle
+  window (three poll cycles) before it counts as an acknowledgement; a revived
+  recording cancels the pending finalization. A 10 s bound finalizes anyway if
+  the acknowledgement never arrives. None of this timing is load-bearing for
+  stop enrichment — that path does not wait for finalization at all. The same observer covers the stop paths that never call
+  `stopRecording()` at all (stream-replacement auto-stop, frame-copy helper
+  crash, session error/close). Statuses: `recording` → `completed` (acknowledged
+  stop, `fs.stat` size) / `interrupted` (implicit stop with a playable partial
+  — MPEG-TS is streamable) / `failed` (start error or absent/empty file). Only
+  a recording that never went active has its empty pre-reserved file unlinked;
+  once mpv owned the file, the bytes are left alone. Rows carry `owner_pid`,
+  so startup repair (`recording-recovery.ts`, `reconcileStaleRecordings`)
+  resolves what a hard kill left in `recording` while skipping rows another
+  live instance still owns (`IPTVNATOR_ALLOW_MULTIPLE_INSTANCES`) and rows
+  the tracker itself is still tracking (`activeRowIds()`) — the renderer is
+  interactive before this pass runs, so a recording started during bootstrap
+  carries this process's own pid and only the tracker's ledger proves it
+  live. Tracker finalization is bound to the exact open entry, never the
+  reusable session id: a stop → immediate restart on the same session leaves
+  the old entry to its own settle timer, and replacing the map entry arms
+  that timer if no stop was ever observed, so neither row can be finalized
+  by the other's lifecycle.
+- **Metadata is captured at recording start** (EPG is time-sensitive and
+  Xtream/Stalker EPG never reaches SQLite): each live host — M3U player,
+  Xtream live layout, Stalker ITV layout, unified live tab — assembles a
+  `RecordingStartMetadata` (channel name/logo, playlist id + display-label
+  snapshot, source type, EPG key, current program) that flows
+  `WebPlayerViewComponent → EmbeddedMpvPlayerComponent →
+  EmbeddedMpvControlsAdapter → EmbeddedMpvRecordingStartOptions.metadata`.
+  `EmbeddedMpvPlayerComponent` watches the session snapshot for the
+  active→inactive recording edge and emits `recordingStopped` — one owner for
+  every trigger, including a Stop clicked in the download manager, which
+  talks to the main process directly and never reaches the player's own
+  toggle. The event carries the EPG key captured while the recording was
+  active, because a channel switch auto-stops the recording and the host's own
+  state already describes the new channel by the time the stop is handled;
+  each host enriches only when that key still matches its current channel. The host answers with **stop enrichment**: it filters its in-memory
+  program list to the programs overlapping `[startedAt, endedAt]`
+  (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
+  sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique
+  target path — that is how a recording spanning a program boundary lists
+  every covered show. The handler is deliberately independent of finalization: it
+  looks the row up in **any** status (the newest for that path — `openSync
+  ('wx')` keeps a reserved path exclusive while its recording owns it) and
+  `finalize()` never touches `programs_json`, so the two writes commit in
+  either order. The only wait is the tracker's queue drain, which guarantees
+  the row's INSERT exists — no deadline, and therefore no way for a one-shot
+  enrichment to be dropped by a clock. A recording stopped while no player is mounted on that
+  channel keeps its start snapshot.
+- **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
+  REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated
+  `RECORDINGS_UPDATE_EVENT` bare ping (not shared with downloads, so
+  recording transitions do not force availability-probed download refetches).
+  Active rows are decorated with a live `fs.stat` size — `file_size_bytes` is
+  only persisted at finalization, so the manager's growing size comes from
+  there. Recording totals also feed the manager-wide All chip and the header's
+  active badge, so a page listing only recordings never reads "All 0".
+  Reveal/play are gated by `isManagedRecordingFile` — the path must exist in
+  the recordings table, mirroring `isManagedDownloadFile`, so the
+  renderer-supplied recording directory stays a write-location preference
+  rather than a shell-access grant. `RECORDINGS_STOP` resolves the row's
+  `session_id` and stops through `EmbeddedMpvNativeService`, so the manager
+  can stop a recording without knowing about MPV sessions — but only for rows
+  this process owns: session ids restart per process, so dispatching a
+  foreign row's id would stop an unrelated local recording. Remove keeps
+  finished files on disk (same contract as downloads) and cleans up a failed
+  row's leftover reservation only while no other row claims that path — a
+  retry within the same timestamp second reuses the freed name. Renderer gate: a separate
+  `supportsRecordings` capability allowlist — deliberately NOT folded into
+  `supportsDownloads`, which would strip older builds of the whole manager.
+- **UI**: `RecordingsService` mirrors `DownloadsService` (one global list,
+  coalesced refreshes via `DownloadListLoadState`, refetch on ping). The
+  manager adds a `recording` filter chip; `recording-manager.viewmodel.ts`
+  partitions rows into a "Recording now" queue section (pulsing REC chip with
+  elapsed time and live file size — never a percentage, the length is
+  unknown), a recordings-only Needs attention list (Remove only: a broadcast
+  cannot be re-recorded), and a "Recordings" library section of 16:9
+  channel-logo cards (`recording-queue.component.*`,
+  `recording-library.component.*`). Card titles use the captured program
+  title, falling back to channel + start time. The focused detail
+  (`recording-detail/`, route `/workspace/downloads/recording/:recordingId`,
+  context panel and route search hidden via `workspace-shell-route.utils.ts`)
+  shows the recorded time range, covered programs when a recording spans ≥2
+  shows, file path, and Play/Reveal/Stop/Remove; a missing file degrades to
+  Back + Remove.
+
 Keeping the backend queue, IPC handlers, shared schema, and renderer signals
 synchronized minimizes drift between platform rules and the UI. Future work
-might cover recordings, queue reordering, bulk pause/cancel actions, disk-free
-space telemetry, or playback analytics.
+might cover queue reordering, bulk pause/cancel actions, disk-free space
+telemetry, playback analytics, or frame-copy screenshot posters for
+recordings.

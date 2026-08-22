@@ -55,6 +55,7 @@ import type {
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
     PortalDebugEvent,
+    RecordingProgramSnapshot,
     ResolvedPortalPlayback,
     Settings,
     TmdbCacheEntry,
@@ -1065,6 +1066,29 @@ const electronApi: ElectronBridgeApi = {
         const handler = () => callback();
         ipcRenderer.on('DOWNLOADS_UPDATE_EVENT', handler);
         return () => ipcRenderer.off('DOWNLOADS_UPDATE_EVENT', handler);
+    },
+    // Live-TV recordings
+    recordingsGetList: (playlistId?: string) =>
+        ipcRenderer.invoke('RECORDINGS_GET_LIST', playlistId),
+    recordingsGet: (recordingId: number) =>
+        ipcRenderer.invoke('RECORDINGS_GET', recordingId),
+    recordingsStop: (recordingId: number) =>
+        ipcRenderer.invoke('RECORDINGS_STOP', recordingId),
+    recordingsRemove: (recordingId: number) =>
+        ipcRenderer.invoke('RECORDINGS_REMOVE', recordingId),
+    recordingsUpdatePrograms: (
+        targetPath: string,
+        programs: RecordingProgramSnapshot[]
+    ) =>
+        ipcRenderer.invoke('RECORDINGS_UPDATE_PROGRAMS', targetPath, programs),
+    recordingsRevealFile: (filePath: string) =>
+        ipcRenderer.invoke('RECORDINGS_REVEAL_FILE', filePath),
+    recordingsPlayFile: (filePath: string) =>
+        ipcRenderer.invoke('RECORDINGS_PLAY_FILE', filePath),
+    onRecordingsUpdate: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on('RECORDINGS_UPDATE_EVENT', handler);
+        return () => ipcRenderer.off('RECORDINGS_UPDATE_EVENT', handler);
     },
 };
 

@@ -86,11 +86,13 @@
             [playback]="resolvedPlayback()"
             [mediaTitle]="resolvedMediaTitle()"
             [recordingFolder]="recordingFolder()"
+            [recordingMetadata]="recordingMetadata()"
             [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="handleTimeUpdate($event, application)"
             (playbackEnded)="playbackEnded.emit()"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"
             (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+            (recordingStopped)="recordingStopped.emit($event)"
         />
     }
 }

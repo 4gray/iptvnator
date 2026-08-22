@@ -12,6 +12,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
@@ -43,6 +45,8 @@ export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
     readonly seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
     readonly recordingFolder: Signal<string>;
+    /** Channel/EPG snapshot the live host captured for the recording tracker. */
+    readonly recordingMetadata?: Signal<RecordingStartMetadata | null>;
 }
 
 interface MappedPlayerStatus {
@@ -345,6 +349,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             playback: context.playback(),
             playbackIdentity,
             session,
+            metadata: context.recordingMetadata?.() ?? null,
         });
     }
 }

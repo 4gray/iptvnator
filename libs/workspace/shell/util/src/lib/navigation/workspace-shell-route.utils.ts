@@ -303,8 +303,17 @@ export function parseWorkspaceShellRoute(url: string): WorkspaceShellRoute {
                       : page === 'downloads'
                         ? 'downloads'
                         : 'unknown';
+    // Focused detail pages hide the context panel and route search:
+    // /workspace/downloads/:downloadId (3 segments) and the recording detail
+    // /workspace/downloads/recording/:recordingId (4 segments).
     const isFocusedDownloadDetail =
-        kind === 'downloads' && segments.length === 3 && Boolean(segments[2]);
+        kind === 'downloads' &&
+        ((segments.length === 3 &&
+            segments[2] !== 'recording' &&
+            Boolean(segments[2])) ||
+            (segments.length === 4 &&
+                segments[2] === 'recording' &&
+                Boolean(segments[3])));
     const searchMode = isFocusedDownloadDetail
         ? 'none'
         : resolveRouteSearchMode(kind, null, null);
