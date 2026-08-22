@@ -553,7 +553,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Включить режим «картинка в картинке»",
             "EXIT_PICTURE_IN_PICTURE": "Выйти из режима «картинка в картинке»",
             "ENTER_FULLSCREEN": "Во весь экран",
-            "EXIT_FULLSCREEN": "Выйти из полноэкранного режима"
+            "EXIT_FULLSCREEN": "Выйти из полноэкранного режима",
+            "LOAD_SUBTITLE_FILE": "Загрузить файл субтитров…",
+            "SUBTITLE_DELAY": "Задержка субтитров",
+            "SUBTITLE_DELAY_DECREASE": "Показывать субтитры раньше",
+            "SUBTITLE_DELAY_INCREASE": "Показывать субтитры позже",
+            "SUBTITLE_DELAY_RESET": "Сбросить задержку субтитров",
+            "SUBTITLE_SIZE": "Размер субтитров",
+            "SUBTITLE_COLOR": "Цвет субтитров",
+            "SUBTITLE_COLOR_DEFAULT": "По умолчанию",
+            "SUBTITLE_COLOR_WHITE": "Белый",
+            "SUBTITLE_COLOR_YELLOW": "Жёлтый",
+            "SUBTITLE_COLOR_CYAN": "Голубой"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

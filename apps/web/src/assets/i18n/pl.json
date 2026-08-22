@@ -553,7 +553,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Włącz obraz w obrazie",
             "EXIT_PICTURE_IN_PICTURE": "Wyłącz obraz w obrazie",
             "ENTER_FULLSCREEN": "Włącz pełny ekran",
-            "EXIT_FULLSCREEN": "Wyłącz pełny ekran"
+            "EXIT_FULLSCREEN": "Wyłącz pełny ekran",
+            "LOAD_SUBTITLE_FILE": "Wczytaj plik napisów…",
+            "SUBTITLE_DELAY": "Opóźnienie napisów",
+            "SUBTITLE_DELAY_DECREASE": "Pokaż napisy wcześniej",
+            "SUBTITLE_DELAY_INCREASE": "Pokaż napisy później",
+            "SUBTITLE_DELAY_RESET": "Zresetuj opóźnienie napisów",
+            "SUBTITLE_SIZE": "Rozmiar napisów",
+            "SUBTITLE_COLOR": "Kolor napisów",
+            "SUBTITLE_COLOR_DEFAULT": "Domyślny",
+            "SUBTITLE_COLOR_WHITE": "Biały",
+            "SUBTITLE_COLOR_YELLOW": "Żółty",
+            "SUBTITLE_COLOR_CYAN": "Cyjan"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

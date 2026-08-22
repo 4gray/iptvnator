@@ -553,7 +553,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Ativar imagem em imagem",
             "EXIT_PICTURE_IN_PICTURE": "Sair de imagem em imagem",
             "ENTER_FULLSCREEN": "Entrar em tela cheia",
-            "EXIT_FULLSCREEN": "Sair da tela cheia"
+            "EXIT_FULLSCREEN": "Sair da tela cheia",
+            "LOAD_SUBTITLE_FILE": "Carregar ficheiro de legendas…",
+            "SUBTITLE_DELAY": "Atraso das legendas",
+            "SUBTITLE_DELAY_DECREASE": "Mostrar legendas mais cedo",
+            "SUBTITLE_DELAY_INCREASE": "Mostrar legendas mais tarde",
+            "SUBTITLE_DELAY_RESET": "Repor atraso das legendas",
+            "SUBTITLE_SIZE": "Tamanho das legendas",
+            "SUBTITLE_COLOR": "Cor das legendas",
+            "SUBTITLE_COLOR_DEFAULT": "Predefinição",
+            "SUBTITLE_COLOR_WHITE": "Branco",
+            "SUBTITLE_COLOR_YELLOW": "Amarelo",
+            "SUBTITLE_COLOR_CYAN": "Ciano"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

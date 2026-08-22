@@ -20,6 +20,22 @@ export interface EmbeddedMpvCapabilities {
     aspectOverride: boolean;
     screenshot: boolean;
     recording: boolean;
+    /** Loading an external subtitle file via `sub-add` (frame-copy engine). */
+    externalSubtitles?: boolean;
+    /** Adjusting `sub-delay` at runtime (frame-copy engine). */
+    subtitleDelay?: boolean;
+    /** Adjusting `sub-scale`/`sub-color` at runtime (frame-copy engine). */
+    subtitleStyle?: boolean;
+}
+
+/**
+ * Engine-neutral subtitle presentation preferences forwarded to mpv.
+ * `sizePercent` maps to `sub-scale` (100 = 1.0); `color` maps to `sub-color`,
+ * null restores mpv's default.
+ */
+export interface EmbeddedMpvSubtitleStyle {
+    sizePercent: number;
+    color: string | null;
 }
 
 export type EmbeddedMpvEngine = 'native' | 'frame-copy';

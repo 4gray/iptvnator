@@ -501,6 +501,95 @@
     height: 18px;
 }
 
+.player-controls__load-subtitle mat-icon {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.player-controls__subtitle-section {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.player-controls__subtitle-section-title {
+    padding: 0 2px 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.player-controls__subtitle-delay-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.player-controls__subtitle-delay-value {
+    min-width: 58px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    color: var(--pc-text);
+}
+
+.player-controls__subtitle-preset-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-bottom: 4px;
+}
+
+.player-controls__subtitle-chip {
+    padding: 4px 10px;
+    color: var(--pc-text);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+}
+
+.player-controls__subtitle-chip:hover,
+.player-controls__subtitle-chip:focus-visible,
+.player-controls__subtitle-chip--selected {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.player-controls__subtitle-swatch {
+    width: 26px;
+    height: 26px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    cursor: pointer;
+    background: var(--swatch-color, transparent);
+}
+
+// The "engine default" swatch has no color of its own: render a diagonal
+// slash so it reads as "no override".
+.player-controls__subtitle-swatch--default {
+    background:
+        linear-gradient(
+            135deg,
+            transparent 44%,
+            rgba(255, 255, 255, 0.7) 46%,
+            rgba(255, 255, 255, 0.7) 54%,
+            transparent 56%
+        ),
+        rgba(255, 255, 255, 0.08);
+}
+
+.player-controls__subtitle-swatch:hover,
+.player-controls__subtitle-swatch:focus-visible,
+.player-controls__subtitle-swatch--selected {
+    border-color: #ffffff;
+}
+
 @media (max-width: 720px) {
     // Keep the single-row layout when space is tight: the transport and action
     // buttons hold their natural width while the middle timeline column

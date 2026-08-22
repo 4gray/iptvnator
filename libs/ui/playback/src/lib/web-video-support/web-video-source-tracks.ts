@@ -1,6 +1,8 @@
 import type Hls from 'hls.js';
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
+import type { ExternalSubtitleFile } from './external-subtitle-cues.util';
+import { WebVideoExternalSubtitles } from './web-video-external-subtitles';
 import { WebVideoHlsControls } from './web-video-hls-controls';
 import { WebVideoNativeTextTracks } from './web-video-native-text-tracks';
 import { WebVideoShakaControls } from './web-video-shaka-controls';
@@ -41,6 +43,7 @@ export class WebVideoSourceTracks {
     private readonly hlsControls: WebVideoHlsControls;
     private readonly shakaControls: WebVideoShakaControls;
     private readonly nativeTextTracks: WebVideoNativeTextTracks;
+    private readonly externalSubtitles: WebVideoExternalSubtitles;
     private source: WebVideoControlsSource | null = null;
     private playbackStarted = false;
     private playingListener: (() => void) | null = null;
@@ -62,11 +65,17 @@ export class WebVideoSourceTracks {
             refresh,
             playbackStarted,
         });
+        this.externalSubtitles = new WebVideoExternalSubtitles({
+            getVideo: () => this.config.video,
+            deselectEngineSubtitles: () => this.applyEngineSubtitleTrack(-1),
+            refresh,
+        });
         this.nativeTextTracks = new WebVideoNativeTextTracks({
             video: config.video,
             showCaptions: config.showCaptions,
             refresh,
             playbackStarted,
+            excludeTrack: (track) => this.externalSubtitles.ownsTrack(track),
         });
         if (config.vendorCaptionControls) {
             const listener = () => {
@@ -157,6 +166,43 @@ export class WebVideoSourceTracks {
     }
 
     getSubtitleTracks(): PlayerTrack[] {
+        // The native enumeration excludes external tracks, so appending them
+        // here is collision-free for every source kind.
+        return [
+            ...this.getEngineSubtitleTracks(),
+            ...this.externalSubtitles.getTracks(),
+        ];
+    }
+
+    setSubtitleTrack(id: number): void {
+        if (this.externalSubtitles.ownsTrackId(id)) {
+            // select() also turns the engine-owned selection off.
+            this.externalSubtitles.select(id);
+            return;
+        }
+        this.externalSubtitles.deselectAll();
+        this.applyEngineSubtitleTrack(id);
+    }
+
+    /** Loads a user-picked subtitle file and selects it. */
+    addExternalSubtitleFile(file: ExternalSubtitleFile): boolean {
+        return this.externalSubtitles.addFromFile(file);
+    }
+
+    getExternalSubtitleDelay(): number {
+        return this.externalSubtitles.getDelay();
+    }
+
+    setExternalSubtitleDelay(seconds: number): void {
+        this.externalSubtitles.setDelay(seconds);
+    }
+
+    /** Delay applies to owned external cues only, so it needs a loaded file. */
+    canAdjustSubtitleDelay(): boolean {
+        return this.externalSubtitles.hasTracks();
+    }
+
+    private getEngineSubtitleTracks(): PlayerTrack[] {
         if (this.source?.kind === 'hls') {
             return this.hlsControls.getSubtitleTracks();
         }
@@ -166,7 +212,7 @@ export class WebVideoSourceTracks {
         return this.source ? this.nativeTextTracks.getSubtitleTracks() : [];
     }
 
-    setSubtitleTrack(id: number): void {
+    private applyEngineSubtitleTrack(id: number): void {
         if (this.source?.kind === 'hls') {
             this.hlsControls.setSubtitleTrack(id);
         } else if (this.source?.kind === 'shaka') {
@@ -177,6 +223,8 @@ export class WebVideoSourceTracks {
     }
 
     private clearActiveSource(): void {
+        // External files correct one specific stream; drop them with it.
+        this.externalSubtitles.clear();
         if (this.source?.kind === 'hls') {
             this.hlsControls.clear();
         } else if (this.source?.kind === 'shaka') {

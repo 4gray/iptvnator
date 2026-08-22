@@ -360,26 +360,33 @@
                                 }}
                             </div>
                             <div class="player-controls__track-list">
-                                <button
-                                    type="button"
-                                    role="menuitemradio"
-                                    [attr.aria-checked]="
-                                        !state().subtitlesEnabled
-                                    "
-                                    class="player-controls__track"
-                                    [class.player-controls__track--selected]="
-                                        !state().subtitlesEnabled
-                                    "
-                                    (click)="menuSelection.subtitleTrack(-1)"
-                                >
-                                    <span>{{
-                                        'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
-                                            | translate
-                                    }}</span>
-                                    @if (!state().subtitlesEnabled) {
-                                        <mat-icon>check</mat-icon>
-                                    }
-                                </button>
+                                @if (
+                                    capabilities().subtitles &&
+                                    state().subtitleTracks.length > 0
+                                ) {
+                                    <button
+                                        type="button"
+                                        role="menuitemradio"
+                                        [attr.aria-checked]="
+                                            !state().subtitlesEnabled
+                                        "
+                                        class="player-controls__track"
+                                        [class.player-controls__track--selected]="
+                                            !state().subtitlesEnabled
+                                        "
+                                        (click)="
+                                            menuSelection.subtitleTrack(-1)
+                                        "
+                                    >
+                                        <span>{{
+                                            'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
+                                                | translate
+                                        }}</span>
+                                        @if (!state().subtitlesEnabled) {
+                                            <mat-icon>check</mat-icon>
+                                        }
+                                    </button>
+                                }
                                 @for (
                                     track of state().subtitleTracks;
                                     track track.id
@@ -404,7 +411,214 @@
                                         }
                                     </button>
                                 }
+                                @if (capabilities().externalSubtitles) {
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        class="player-controls__track player-controls__load-subtitle"
+                                        data-test-id="player-controls-load-subtitle"
+                                        (click)="loadExternalSubtitle()"
+                                    >
+                                        <span>{{
+                                            'EMBEDDED_MPV.PLAYER.LOAD_SUBTITLE_FILE'
+                                                | translate
+                                        }}</span>
+                                        <mat-icon>upload_file</mat-icon>
+                                    </button>
+                                }
                             </div>
+                            @if (capabilities().subtitleDelay) {
+                                <div
+                                    class="player-controls__subtitle-section"
+                                    data-test-id="player-controls-subtitle-delay"
+                                >
+                                    <div
+                                        class="player-controls__subtitle-section-title"
+                                    >
+                                        {{
+                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY'
+                                                | translate
+                                        }}
+                                    </div>
+                                    <div
+                                        class="player-controls__subtitle-delay-row"
+                                    >
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            class="player-controls__button"
+                                            (click)="
+                                                subtitleSettings.adjustDelay(
+                                                    -subtitleDelayStep
+                                                )
+                                            "
+                                            [attr.aria-label]="
+                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
+                                                    | translate
+                                            "
+                                            [matTooltip]="
+                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
+                                                    | translate
+                                            "
+                                        >
+                                            <mat-icon>remove</mat-icon>
+                                        </button>
+                                        <span
+                                            class="player-controls__subtitle-delay-value"
+                                            aria-live="polite"
+                                            >{{
+                                                subtitleDelayLabel(
+                                                    state()
+                                                        .subtitleDelaySeconds
+                                                )
+                                            }}</span
+                                        >
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            class="player-controls__button"
+                                            (click)="
+                                                subtitleSettings.adjustDelay(
+                                                    subtitleDelayStep
+                                                )
+                                            "
+                                            [attr.aria-label]="
+                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
+                                                    | translate
+                                            "
+                                            [matTooltip]="
+                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
+                                                    | translate
+                                            "
+                                        >
+                                            <mat-icon>add</mat-icon>
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            type="button"
+                                            class="player-controls__button"
+                                            [disabled]="
+                                                state().subtitleDelaySeconds ===
+                                                0
+                                            "
+                                            (click)="subtitleSettings.resetDelay()"
+                                            [attr.aria-label]="
+                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
+                                                    | translate
+                                            "
+                                            [matTooltip]="
+                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
+                                                    | translate
+                                            "
+                                        >
+                                            <mat-icon>restart_alt</mat-icon>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                            @if (capabilities().subtitleStyle) {
+                                <div
+                                    class="player-controls__subtitle-section"
+                                    data-test-id="player-controls-subtitle-style"
+                                >
+                                    <div
+                                        class="player-controls__subtitle-section-title"
+                                    >
+                                        {{
+                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE'
+                                                | translate
+                                        }}
+                                    </div>
+                                    <div
+                                        class="player-controls__subtitle-preset-row"
+                                        role="radiogroup"
+                                        [attr.aria-label]="
+                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE'
+                                                | translate
+                                        "
+                                    >
+                                        @for (
+                                            preset of subtitleSizePresets;
+                                            track preset.value
+                                        ) {
+                                            <button
+                                                type="button"
+                                                role="radio"
+                                                class="player-controls__subtitle-chip"
+                                                [attr.aria-checked]="
+                                                    preset.value ===
+                                                    state().subtitleStyle
+                                                        .sizePercent
+                                                "
+                                                [class.player-controls__subtitle-chip--selected]="
+                                                    preset.value ===
+                                                    state().subtitleStyle
+                                                        .sizePercent
+                                                "
+                                                (click)="
+                                                    subtitleSettings.setSize(
+                                                        preset.value
+                                                    )
+                                                "
+                                            >
+                                                {{ preset.label }}
+                                            </button>
+                                        }
+                                    </div>
+                                    <div
+                                        class="player-controls__subtitle-section-title"
+                                    >
+                                        {{
+                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR'
+                                                | translate
+                                        }}
+                                    </div>
+                                    <div
+                                        class="player-controls__subtitle-preset-row"
+                                        role="radiogroup"
+                                        [attr.aria-label]="
+                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR'
+                                                | translate
+                                        "
+                                    >
+                                        @for (
+                                            preset of subtitleColorPresets;
+                                            track preset.label
+                                        ) {
+                                            <button
+                                                type="button"
+                                                role="radio"
+                                                class="player-controls__subtitle-swatch"
+                                                [class.player-controls__subtitle-swatch--default]="
+                                                    preset.value === null
+                                                "
+                                                [style.--swatch-color]="
+                                                    preset.value
+                                                "
+                                                [attr.aria-checked]="
+                                                    preset.value ===
+                                                    state().subtitleStyle.color
+                                                "
+                                                [class.player-controls__subtitle-swatch--selected]="
+                                                    preset.value ===
+                                                    state().subtitleStyle.color
+                                                "
+                                                [attr.aria-label]="
+                                                    preset.label | translate
+                                                "
+                                                [matTooltip]="
+                                                    preset.label | translate
+                                                "
+                                                (click)="
+                                                    subtitleSettings.setColor(
+                                                        preset.value
+                                                    )
+                                                "
+                                            ></button>
+                                        }
+                                    </div>
+                                </div>
+                            }
                         </div>
                     }
                 </div>

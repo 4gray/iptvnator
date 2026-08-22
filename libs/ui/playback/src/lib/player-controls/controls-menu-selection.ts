@@ -32,6 +32,11 @@ export class ControlsMenuSelection {
         this.apply('subtitle', (c) => c.setSubtitleTrack(trackId));
     }
 
+    /** Opens the engine's subtitle file picker and closes the popover. */
+    externalSubtitle(): void {
+        this.apply('subtitle', (c) => c.addExternalSubtitleFile());
+    }
+
     speed(value: number): void {
         this.apply('speed', (c) => c.setPlaybackSpeed(value));
     }

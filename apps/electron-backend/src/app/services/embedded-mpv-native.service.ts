@@ -19,6 +19,7 @@ import {
     EmbeddedMpvRecordingState,
     EmbeddedMpvSession,
     EmbeddedMpvSessionStatus,
+    EmbeddedMpvSubtitleStyle,
     EmbeddedMpvSubtitleTrack,
     EmbeddedMpvEngine,
     EmbeddedMpvFrameSource,
@@ -74,6 +75,9 @@ export interface NativeEmbeddedMpvAddon {
     setVolume(sessionId: string, volume: number): void;
     setAudioTrack(sessionId: string, trackId: number): void;
     setSubtitleTrack?(sessionId: string, trackId: number): void;
+    addSubtitle?(sessionId: string, filePath: string): void;
+    setSubtitleDelay?(sessionId: string, seconds: number): void;
+    setSubtitleStyle?(sessionId: string, style: EmbeddedMpvSubtitleStyle): void;
     setSpeed?(sessionId: string, speed: number): void;
     setAspect?(sessionId: string, aspect: string): void;
     startRecording?(sessionId: string, targetPath: string): void;
@@ -240,6 +244,9 @@ export class EmbeddedMpvNativeService {
                 aspectOverride: true,
                 screenshot: false,
                 recording: true,
+                externalSubtitles: true,
+                subtitleDelay: true,
+                subtitleStyle: true,
             };
         }
         const addon = this.addon;
@@ -251,6 +258,9 @@ export class EmbeddedMpvNativeService {
             recording:
                 typeof addon?.startRecording === 'function' &&
                 typeof addon?.stopRecording === 'function',
+            externalSubtitles: typeof addon?.addSubtitle === 'function',
+            subtitleDelay: typeof addon?.setSubtitleDelay === 'function',
+            subtitleStyle: typeof addon?.setSubtitleStyle === 'function',
         };
     }
 
@@ -559,6 +569,84 @@ export class EmbeddedMpvNativeService {
         }
         addon.setSubtitleTrack(sessionId, trackId);
         return this.refreshSession(sessionId);
+    }
+
+    addSubtitle(sessionId: string, filePath: string): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.addSubtitle !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support external subtitles. Rebuild the native addon to enable this feature.'
+            );
+        }
+        const normalized = typeof filePath === 'string' ? filePath.trim() : '';
+        if (!normalized || !existsSync(normalized)) {
+            throw new Error('The selected subtitle file was not found.');
+        }
+        addon.addSubtitle(sessionId, normalized);
+        return this.refreshSession(sessionId);
+    }
+
+    setSubtitleDelay(
+        sessionId: string,
+        seconds: number
+    ): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.setSubtitleDelay !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support subtitle delay. Rebuild the native addon to enable this feature.'
+            );
+        }
+        const clamped = Number.isFinite(seconds)
+            ? Math.max(-60, Math.min(60, seconds))
+            : 0;
+        addon.setSubtitleDelay(sessionId, clamped);
+        return this.refreshSession(sessionId);
+    }
+
+    setSubtitleStyle(
+        sessionId: string,
+        style: EmbeddedMpvSubtitleStyle
+    ): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.setSubtitleStyle !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support subtitle styling. Rebuild the native addon to enable this feature.'
+            );
+        }
+        const sizePercent =
+            typeof style?.sizePercent === 'number' &&
+            Number.isFinite(style.sizePercent)
+                ? Math.max(25, Math.min(400, Math.round(style.sizePercent)))
+                : 100;
+        const color =
+            typeof style?.color === 'string' &&
+            /^#[0-9a-f]{6}$/i.test(style.color)
+                ? style.color
+                : null;
+        addon.setSubtitleStyle(sessionId, { sizePercent, color });
+        return this.refreshSession(sessionId);
+    }
+
+    async selectSubtitleFile(): Promise<string | null> {
+        const result = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            title: 'Select Subtitle File',
+            filters: [
+                {
+                    name: 'Subtitle files',
+                    extensions: ['srt', 'ass', 'ssa', 'vtt', 'sub'],
+                },
+            ],
+        });
+
+        if (result.canceled || result.filePaths.length === 0) {
+            return null;
+        }
+
+        return result.filePaths[0];
     }
 
     setSpeed(sessionId: string, speed: number): EmbeddedMpvSession | null {

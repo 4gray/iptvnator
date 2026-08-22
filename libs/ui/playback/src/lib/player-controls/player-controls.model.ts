@@ -14,12 +14,28 @@ export interface PlayerControlsCapabilities {
     volume: boolean;
     audioTracks: boolean;
     subtitles: boolean;
+    /** Loading an external subtitle file (.srt/.vtt, mpv also .ass). */
+    externalSubtitles: boolean;
+    /** Adjusting the subtitle timing offset for the current playback. */
+    subtitleDelay: boolean;
+    /** Adjusting subtitle text size and color. */
+    subtitleStyle: boolean;
     playbackSpeed: boolean;
     aspectRatio: boolean;
     recording: boolean;
     pictureInPicture: boolean;
     fullscreen: boolean;
     seriesNavigation: boolean;
+}
+
+/**
+ * Engine-neutral subtitle presentation preferences. `sizePercent` is relative
+ * to the engine's default rendering size (100 = default); `color` is a CSS hex
+ * color or null for the engine default.
+ */
+export interface PlayerSubtitleStyle {
+    sizePercent: number;
+    color: string | null;
 }
 
 export interface PlayerTrack {
@@ -69,6 +85,10 @@ export interface PlayerControlsState {
     subtitleTracks: PlayerTrack[];
     /** True when a subtitle track is active (selected id !== null/off). */
     subtitlesEnabled: boolean;
+    /** Current subtitle timing offset; positive shows subtitles later. */
+    subtitleDelaySeconds: number;
+    /** Current subtitle presentation preferences. */
+    subtitleStyle: PlayerSubtitleStyle;
     playbackSpeed: number;
     speedPresets: ReadonlyArray<PlayerPreset<number>>;
     aspectRatio: string;
@@ -88,6 +108,10 @@ export interface PlayerControlsCommands {
     setVolume(value: number): void; // 0..1
     setAudioTrack(id: number): void;
     setSubtitleTrack(id: number): void; // -1 = off
+    /** Opens the engine's subtitle file picker; loads + selects the file. */
+    addExternalSubtitleFile(): void;
+    setSubtitleDelay(seconds: number): void;
+    setSubtitleStyle(style: PlayerSubtitleStyle): void;
     setPlaybackSpeed(speed: number): void;
     setAspectRatio(value: string): void;
     toggleRecording(): void;

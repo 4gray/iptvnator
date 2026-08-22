@@ -3,12 +3,16 @@ import type {
     PlayerControlsState,
     PlayerPreset,
 } from './player-controls.model';
+import { DEFAULT_SUBTITLE_STYLE } from './subtitle-style';
 
 export const DEFAULT_PLAYER_CAPABILITIES: PlayerControlsCapabilities = {
     seek: false,
     volume: false,
     audioTracks: false,
     subtitles: false,
+    externalSubtitles: false,
+    subtitleDelay: false,
+    subtitleStyle: false,
     playbackSpeed: false,
     aspectRatio: false,
     recording: false,
@@ -47,6 +51,8 @@ export function createEmptyControlsState(): PlayerControlsState {
         audioTracks: [],
         subtitleTracks: [],
         subtitlesEnabled: false,
+        subtitleDelaySeconds: 0,
+        subtitleStyle: { ...DEFAULT_SUBTITLE_STYLE },
         playbackSpeed: 1,
         speedPresets: DEFAULT_SPEED_PRESETS,
         aspectRatio: 'no',
