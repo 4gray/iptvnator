@@ -10,7 +10,7 @@ import * as schema from '../../database/schema';
 import { embeddedMpvNativeService } from '../../services/embedded-mpv-native.service';
 import { embeddedMpvRecordingTracker } from '../../services/embedded-mpv-recording-tracker';
 import {
-    getDownloadFileAvailabilityAsync,
+    getDownloadFileAvailabilityWithTimeoutAsync,
     isAvailableDownloadFile,
 } from './download-file-availability';
 import { broadcastRecordingsUpdate } from './recording-broadcast';
@@ -76,10 +76,14 @@ async function decorateRecordingItem(
     row: RecordingRow
 ): Promise<ElectronRecordingItem> {
     // Recordings reuse the download availability probe (bounded lstat with
-    // in-flight coalescing). 'interrupted' partials are playable files, so
-    // they are probed exactly like completed rows; 'recording' and 'failed'
-    // map to a non-completed status and come back 'not-applicable'.
-    const fileAvailability = await getDownloadFileAvailabilityAsync({
+    // in-flight coalescing) through the variant that preserves 'unknown':
+    // a timed-out or errored probe is not proof of absence, and collapsing
+    // it to 'missing' would move a good recording on a slow mount to Needs
+    // attention and hide its Play/Reveal actions. 'interrupted' partials
+    // are playable files, so they are probed exactly like completed rows;
+    // 'recording' and 'failed' map to a non-completed status and come back
+    // 'not-applicable'.
+    const fileAvailability = await getDownloadFileAvailabilityWithTimeoutAsync({
         filePath: row.filePath,
         status:
             row.status === 'completed' || row.status === 'interrupted'

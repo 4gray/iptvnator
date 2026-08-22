@@ -206,23 +206,31 @@ export async function reconcileStaleRecordings(): Promise<void> {
         // here cannot miss it.
         const liveRowIds = await embeddedMpvRecordingTracker.activeRowIds();
 
-        let repairedRows = 0;
-        for (const row of stale) {
+        const candidates = stale.filter((row) => {
             if (liveRowIds.has(row.id)) {
-                continue;
+                return false;
             }
-            if (
+            return !(
                 row.ownerPid !== null &&
                 row.ownerPid !== undefined &&
                 row.ownerPid !== process.pid &&
                 isProcessAlive(row.ownerPid) &&
                 processLooksLikeOwnInstance(row.ownerPid) &&
                 !provablyStartedAfter(row.ownerPid, row.startedAt)
-            ) {
-                continue;
-            }
+            );
+        });
 
-            const probe = await probeRecordedFile(row.filePath);
+        // Probe concurrently: each probe carries its own deadline, so a
+        // batch of rows on a dead mount costs one deadline for the whole
+        // pass instead of one per row (main.ts awaits this function).
+        const probes = await Promise.all(
+            candidates.map((row) => probeRecordedFile(row.filePath))
+        );
+
+        let repairedRows = 0;
+        for (let i = 0; i < candidates.length; i += 1) {
+            const row = candidates[i];
+            const probe = probes[i];
             if (probe.kind === 'unknown') {
                 // Cannot see the file right now — leave the row in
                 // 'recording' so a later startup can repair it honestly.

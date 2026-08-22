@@ -336,7 +336,12 @@ display snapshot via `playlistDisplayLabel`).
   absence): repair leaves an unjudgeable row in `recording` for a later
   startup, finalization keeps the requested status with an unknown size —
   a recording directory on a dead network mount must neither block the
-  main thread/queue nor brand a likely-good file `failed`. The focused
+  main thread/queue nor brand a likely-good file `failed`. Repair probes
+  its whole batch concurrently, so `main.ts` awaits roughly one deadline,
+  not one per row. List decoration likewise preserves an inconclusive
+  probe: `ElectronRecordingItem.fileAvailability` adds `'unknown'`, and
+  consumers gate on `=== 'missing'` so only proven absence reaches Needs
+  attention or hides file actions. The focused
   recording detail route is guarded by the `supportsRecordings` capability
   (redirect to the manager) since `RecordingsService` never becomes
   authoritative in the PWA. Tracker finalization is bound to the exact open entry, never the

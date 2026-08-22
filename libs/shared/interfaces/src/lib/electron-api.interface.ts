@@ -609,7 +609,11 @@ export interface ElectronDownloadItem {
  * Renderer-facing live-TV recording row. `fileAvailability` is derived at
  * read time (never persisted) and `programs` is the decoded `programs_json`
  * column. Recordings reuse the download availability vocabulary so the
- * manager UI can share its missing-file affordances.
+ * manager UI can share its missing-file affordances — extended by
+ * `'unknown'` for an inconclusive probe (timeout, permission or I/O error):
+ * only proven absence may move a recording to Needs attention or hide its
+ * file actions, so consumers gate on `=== 'missing'`, never on
+ * `!== 'available'`.
  */
 export interface ElectronRecordingItem {
     id: number;
@@ -633,7 +637,7 @@ export interface ElectronRecordingItem {
     endedAt?: string;
     createdAt?: string;
     updatedAt?: string;
-    fileAvailability: ElectronDownloadFileAvailability;
+    fileAvailability: ElectronDownloadFileAvailability | 'unknown';
 }
 
 export interface ElectronBridgeApi {

@@ -72,7 +72,7 @@ async function setupRecordingsEventsHarness(): Promise<void> {
         broadcastRecordingsUpdate: mockBroadcast,
     }));
     jest.doMock('./download-file-availability', () => ({
-        getDownloadFileAvailabilityAsync: mockGetAvailabilityAsync,
+        getDownloadFileAvailabilityWithTimeoutAsync: mockGetAvailabilityAsync,
         isAvailableDownloadFile: mockIsAvailableDownloadFile,
     }));
 
@@ -230,6 +230,20 @@ describe('recordings events', () => {
             )) as Array<Record<string, unknown>>;
 
             expect(result[0].fileSizeBytes).toBeUndefined();
+        });
+
+        it('passes an inconclusive availability probe through as unknown', async () => {
+            // Timeout/permission errors are not proof of absence; collapsing
+            // them to 'missing' would move a good recording on a slow mount
+            // to Needs attention and hide its file actions.
+            mockGetAvailabilityAsync.mockResolvedValue('unknown');
+            mockListDb([recordingRow()]);
+
+            const result = (await getHandler('RECORDINGS_GET_LIST')(
+                null
+            )) as Array<Record<string, unknown>>;
+
+            expect(result[0].fileAvailability).toBe('unknown');
         });
 
         it('bounds a hanging live-size stat so the list still resolves', async () => {
