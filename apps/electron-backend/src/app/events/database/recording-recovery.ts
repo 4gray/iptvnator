@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { statSync } from 'fs';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
+import { embeddedMpvRecordingTracker } from '../../services/embedded-mpv-recording-tracker';
 
 function recordedFileSize(filePath: string): number | null {
     try {
@@ -38,6 +39,11 @@ function isProcessAlive(pid: number): boolean {
  * and its startup must not terminate a recording the first one is actively
  * writing (the tracker's own update is guarded on status 'recording', so the
  * row would never get its real end time or size).
+ *
+ * Rows this process is itself tracking are skipped too: the renderer is
+ * interactive before this pass runs, so a recording started during bootstrap
+ * carries `ownerPid === process.pid` — indistinguishable by pid from a
+ * recycled-pid leftover, but alive by the tracker's own ledger.
  */
 export async function reconcileStaleRecordings(): Promise<void> {
     try {
@@ -46,8 +52,15 @@ export async function reconcileStaleRecordings(): Promise<void> {
             .select()
             .from(schema.recordings)
             .where(eq(schema.recordings.status, 'recording'));
+        // Resolved after the SELECT: any row the query saw was enqueued by a
+        // tracker entry that already exists, so awaiting the tracked row ids
+        // here cannot miss it.
+        const liveRowIds = await embeddedMpvRecordingTracker.activeRowIds();
 
         for (const row of stale) {
+            if (liveRowIds.has(row.id)) {
+                continue;
+            }
             if (
                 row.ownerPid !== null &&
                 row.ownerPid !== undefined &&

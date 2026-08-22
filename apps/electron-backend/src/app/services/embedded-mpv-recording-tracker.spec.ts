@@ -346,6 +346,81 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(mockUnlinkSync).not.toHaveBeenCalled();
     });
 
+    it('keeps a settle timer from finalizing a restarted recording', async () => {
+        // Stop → immediate restart on the same session: the old entry's
+        // settle timer must finalize the OLD row, and the new recording must
+        // still finalize on its own stop — session-id-bound finalization
+        // used to end the new row and strand the old one in 'recording'.
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        jest.useFakeTimers();
+        try {
+            tracker.observeSnapshot(inactiveSnapshot());
+            // Restart before the 1.5 s settle window expires.
+            tracker.onRecordingStarted({
+                sessionId: 'session-1',
+                targetPath: '/rec/News-20260815-213000.ts',
+                fallbackChannelName: 'Channel One',
+            });
+            await jest.advanceTimersByTimeAsync(1_600);
+
+            // Only the old recording finalized.
+            expect(db.updateSet).toHaveBeenCalledTimes(1);
+            expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+
+            // The new recording is still tracked: its own stop finalizes it.
+            tracker.observeSnapshot(
+                session({
+                    recording: {
+                        active: true,
+                        targetPath: '/rec/News-20260815-213000.ts',
+                    },
+                })
+            );
+            tracker.observeSnapshot(
+                session({
+                    recording: {
+                        active: false,
+                        targetPath: '/rec/News-20260815-213000.ts',
+                    },
+                })
+            );
+            await jest.advanceTimersByTimeAsync(1_600);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(2);
+        expect(db.insertValues).toHaveBeenCalledTimes(2);
+    });
+
+    it('finalizes a replaced recording even when no stop was ever observed', async () => {
+        // A new start on the same session replaces the map entry, so
+        // snapshots can never again reach the old entry — the replacement
+        // itself must arm the finalization.
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+
+        jest.useFakeTimers();
+        try {
+            tracker.onRecordingStarted({
+                sessionId: 'session-1',
+                targetPath: '/rec/News-20260815-213000.ts',
+                fallbackChannelName: 'Channel One',
+            });
+            await jest.advanceTimersByTimeAsync(1_600);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
+    });
+
     it('records the owning process so recovery can skip live rows', async () => {
         started(tracker);
         await flush();

@@ -1,5 +1,6 @@
 const mockGetDatabase = jest.fn();
 const mockStatSync = jest.fn();
+const mockActiveRowIds = jest.fn();
 
 jest.mock('../../database/connection', () => ({
     getDatabase: (...args: unknown[]) => mockGetDatabase(...args),
@@ -7,6 +8,11 @@ jest.mock('../../database/connection', () => ({
 jest.mock('fs', () => ({
     ...jest.requireActual<typeof import('fs')>('fs'),
     statSync: (...args: unknown[]) => mockStatSync(...args),
+}));
+jest.mock('../../services/embedded-mpv-recording-tracker', () => ({
+    embeddedMpvRecordingTracker: {
+        activeRowIds: (...args: unknown[]) => mockActiveRowIds(...args),
+    },
 }));
 
 import { reconcileStaleRecordings } from './recording-recovery';
@@ -41,6 +47,7 @@ function mockDb(rows: StaleRow[]) {
 describe('reconcileStaleRecordings', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockActiveRowIds.mockResolvedValue(new Set<number>());
     });
 
     it('repairs a playable partial as interrupted with its size', async () => {
@@ -126,6 +133,26 @@ describe('reconcileStaleRecordings', () => {
 
         expect(updateSet.mock.calls[0][0].status).toBe('interrupted');
         killSpy.mockRestore();
+    });
+
+    it('leaves a row this process is actively tracking alone', async () => {
+        // The renderer is interactive before this pass runs: a recording
+        // started during bootstrap has ownerPid === process.pid, so only the
+        // tracker's own ledger can prove it is live rather than a leftover.
+        const { updateSet } = mockDb([
+            {
+                id: 9,
+                filePath: '/rec/live-now.ts',
+                endedAt: null,
+                ownerPid: process.pid,
+            },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+        mockActiveRowIds.mockResolvedValue(new Set([9]));
+
+        await reconcileStaleRecordings();
+
+        expect(updateSet).not.toHaveBeenCalled();
     });
 
     it('repairs its own leftovers from a previous run', async () => {

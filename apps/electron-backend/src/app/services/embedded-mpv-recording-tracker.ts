@@ -31,6 +31,12 @@ interface OpenRecordingEntry {
     stopFallbackTimer?: ReturnType<typeof setTimeout>;
     /** Armed by an inactive snapshot; finalizes once the stop looks settled. */
     settleTimer?: ReturnType<typeof setTimeout>;
+    /**
+     * Set by the first finalize. Timers hold the entry itself, so an entry
+     * replaced in the map (stop → immediate restart on the same session) can
+     * still be finalized late — this flag keeps that from happening twice.
+     */
+    finalized: boolean;
     rowId: Promise<number | null>;
 }
 
@@ -77,6 +83,21 @@ export class EmbeddedMpvRecordingTracker {
     private chain: Promise<void> = Promise.resolve();
 
     onRecordingStarted(event: RecordingStartedEvent): void {
+        // A session runs at most one recording, so a new start means any
+        // recording still open on this session has stopped. Once the map
+        // entry is replaced, snapshots can no longer reach the old entry —
+        // make sure one of its own timers finalizes it (after the settle
+        // window, so mpv gets to flush the old file first).
+        const replaced = this.open.get(event.sessionId);
+        if (replaced && !replaced.finalized) {
+            if (replaced.settleTimer !== undefined) {
+                clearTimeout(replaced.settleTimer);
+            }
+            replaced.settleTimer = setTimeout(() => {
+                this.finalize(replaced, 'completed');
+            }, STOP_SETTLE_WINDOW_MS);
+        }
+
         const startedAt = new Date().toISOString();
         const metadata = event.metadata;
         const rowId = this.enqueue(async () => {
@@ -110,6 +131,7 @@ export class EmbeddedMpvRecordingTracker {
             startedAt,
             sawActive: false,
             stopRequested: false,
+            finalized: false,
             rowId,
         });
         void rowId.then((id) => {
@@ -134,7 +156,7 @@ export class EmbeddedMpvRecordingTracker {
         entry.stopFallbackTimer = setTimeout(() => {
             // mpv never confirmed; finalize anyway so the row cannot stay
             // `recording` for the rest of the session.
-            this.finalize(sessionId, 'completed');
+            this.finalize(entry, 'completed');
         }, STOP_ACKNOWLEDGEMENT_TIMEOUT_MS);
     }
 
@@ -149,7 +171,7 @@ export class EmbeddedMpvRecordingTracker {
         }
 
         if (session.status === 'error' || session.status === 'closed') {
-            this.finalize(session.id, 'interrupted');
+            this.finalize(entry, 'interrupted');
             return;
         }
 
@@ -178,12 +200,12 @@ export class EmbeddedMpvRecordingTracker {
             // Finalize only once it survived the settle window.
             if (entry.settleTimer === undefined) {
                 entry.settleTimer = setTimeout(() => {
-                    this.finalize(session.id, 'completed');
+                    this.finalize(entry, 'completed');
                 }, STOP_SETTLE_WINDOW_MS);
             }
         } else if (recording.error) {
             // The async start failed before the recording ever activated.
-            this.finalize(session.id, 'failed', recording.error);
+            this.finalize(entry, 'failed', recording.error);
         }
         // else: start still settling — a successful async start passes
         // through active:false snapshots before the property set applies.
@@ -202,16 +224,35 @@ export class EmbeddedMpvRecordingTracker {
         return this.chain;
     }
 
+    /**
+     * Row ids of the recordings this process is actively tracking.
+     *
+     * Startup recovery consults this because the renderer is interactive
+     * before the reconciliation pass runs: a recording started in that window
+     * carries `ownerPid === process.pid`, which the pid heuristic alone would
+     * misread as a recycled-pid leftover from a previous run.
+     */
+    async activeRowIds(): Promise<Set<number>> {
+        const entries = [...this.open.values()];
+        const ids = await Promise.all(entries.map((entry) => entry.rowId));
+        return new Set(ids.filter((id): id is number => id !== null));
+    }
+
     private finalize(
-        sessionId: string,
+        entry: OpenRecordingEntry,
         status: RecordingFinalStatus,
         errorMessage?: string
     ): void {
-        const entry = this.open.get(sessionId);
-        if (!entry) {
+        if (entry.finalized) {
             return;
         }
-        this.open.delete(sessionId);
+        entry.finalized = true;
+        // The map may already point at a newer recording on the same
+        // session (stop → immediate restart); only remove the mapping when
+        // it is still this entry's.
+        if (this.open.get(entry.sessionId) === entry) {
+            this.open.delete(entry.sessionId);
+        }
         if (entry.stopFallbackTimer !== undefined) {
             clearTimeout(entry.stopFallbackTimer);
         }

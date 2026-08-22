@@ -314,7 +314,15 @@ display snapshot via `playlistDisplayLabel`).
   once mpv owned the file, the bytes are left alone. Rows carry `owner_pid`,
   so startup repair (`recording-recovery.ts`, `reconcileStaleRecordings`)
   resolves what a hard kill left in `recording` while skipping rows another
-  live instance still owns (`IPTVNATOR_ALLOW_MULTIPLE_INSTANCES`).
+  live instance still owns (`IPTVNATOR_ALLOW_MULTIPLE_INSTANCES`) and rows
+  the tracker itself is still tracking (`activeRowIds()`) — the renderer is
+  interactive before this pass runs, so a recording started during bootstrap
+  carries this process's own pid and only the tracker's ledger proves it
+  live. Tracker finalization is bound to the exact open entry, never the
+  reusable session id: a stop → immediate restart on the same session leaves
+  the old entry to its own settle timer, and replacing the map entry arms
+  that timer if no stop was ever observed, so neither row can be finalized
+  by the other's lifecycle.
 - **Metadata is captured at recording start** (EPG is time-sensitive and
   Xtream/Stalker EPG never reaches SQLite): each live host — M3U player,
   Xtream live layout, Stalker ITV layout, unified live tab — assembles a
