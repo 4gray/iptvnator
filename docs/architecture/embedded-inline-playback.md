@@ -250,7 +250,10 @@ Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
 seasons-grid + "Back to seasons" level. A season is auto-selected
 (inline-playing episode's season → most recently updated in-progress
-episode's season → first) and the auto-selection emits `seasonSelected`,
+episode's season → earliest season with unwatched episodes → latest
+season; Stalker lazy-VOD series with unhydrated seasons pin the fallback
+to the first season because their watched state is unknown) and the
+auto-selection emits `seasonSelected`,
 so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
 TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open
 without a click. Switching tabs never stops playback; a "back to playing

@@ -56,8 +56,10 @@ import {
     getGlobalFavoriteLink as getGlobalFavoriteLinkUtil,
     getGlobalFavoriteNavigationState as getGlobalFavoriteNavigationStateUtil,
     getPlaylistLink as getPlaylistLinkUtil,
+    getRecentItemDetailNavigationState as getRecentItemDetailNavigationStateUtil,
     getRecentItemLink as getRecentItemLinkUtil,
     getRecentItemNavigationState as getRecentItemNavigationStateUtil,
+    getRecentItemResumeNavigation as getRecentItemResumeNavigationUtil,
     getRecentlyAddedLink as getRecentlyAddedLinkUtil,
     getRecentlyAddedNavigationState as getRecentlyAddedNavigationStateUtil,
     isTypeInKind as isTypeInKindUtil,
@@ -897,6 +899,46 @@ export class DashboardDataService {
             item,
             this.getPlaybackPositionForItem(item)
         );
+    }
+
+    getRecentItemDetailNavigationState(
+        item: GlobalRecentItem
+    ): WorkspaceNavigationTarget['state'] {
+        return getRecentItemDetailNavigationStateUtil(
+            item,
+            this.getPlaybackPositionForItem(item)
+        );
+    }
+
+    getRecentItemResumeNavigation(
+        item: GlobalRecentItem
+    ): WorkspaceNavigationTarget | null {
+        return getRecentItemResumeNavigationUtil(
+            item,
+            this.getPlaybackPositionForItem(item)
+        );
+    }
+
+    /**
+     * Mark the item's tracked position as fully watched by maxing out the
+     * existing row. Reusing the stored row keeps the provider-specific
+     * identity fields (Stalker scoped episode ids included) intact; without
+     * a row or a known duration there is nothing truthful to write, so the
+     * action reports false and the caller hides/ignores it.
+     */
+    async markRecentItemWatched(item: GlobalRecentItem): Promise<boolean> {
+        const position = this.getPlaybackPositionForItem(item);
+        if (!position?.durationSeconds || position.durationSeconds <= 0) {
+            return false;
+        }
+
+        await this.playbackPositions.savePlaybackPosition(item.playlist_id, {
+            ...position,
+            positionSeconds: position.durationSeconds,
+            updatedAt: new Date().toISOString(),
+        });
+        await this.reloadPlaybackPositions();
+        return true;
     }
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {

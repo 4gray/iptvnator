@@ -20,7 +20,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -78,6 +79,7 @@ import {
 } from './dashboard-playback.utils';
 import {
     buildDashboardCollectionViewState,
+    buildDashboardContinueWatchingActions,
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
@@ -87,7 +89,10 @@ import {
     SKELETON_CARDS_PER_RAIL,
     SKELETON_RAILS,
 } from './dashboard-rail.utils';
-import type { DashboardSourceActionId } from './dashboard-rail.utils';
+import type {
+    DashboardContinueWatchingActionId,
+    DashboardSourceActionId,
+} from './dashboard-rail.utils';
 
 @Component({
     selector: 'lib-workspace-dashboard-rails',
@@ -114,6 +119,7 @@ export class WorkspaceDashboardRailsComponent {
     private readonly playlistRefreshAction = inject(
         PlaylistRefreshActionService
     );
+    private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
@@ -538,6 +544,43 @@ export class WorkspaceDashboardRailsComponent {
         }
     }
 
+    onContinueWatchingActionSelected(
+        selection: DashboardRailActionSelection
+    ): void {
+        const item = this.data
+            .globalRecentVodItems()
+            .find(
+                (candidate) =>
+                    this.recentCardId(candidate) === selection.card.id
+            );
+
+        if (!item) {
+            return;
+        }
+
+        switch (selection.action.id as DashboardContinueWatchingActionId) {
+            case 'resume':
+                this.resumeRecentItem(item);
+                break;
+            case 'mark-watched':
+                void this.data.markRecentItemWatched(item);
+                break;
+            case 'remove-from-history':
+                void this.data.removeGlobalRecentItem(item);
+                break;
+        }
+    }
+
+    private resumeRecentItem(item: GlobalRecentItem): void {
+        const navigation = this.data.getRecentItemResumeNavigation(item);
+        if (!navigation) {
+            return;
+        }
+        void this.router.navigate(navigation.link, {
+            state: navigation.state,
+        });
+    }
+
     private enrichLiveCards(
         cards: readonly DashboardRailCard[]
     ): DashboardRailCard[] {
@@ -597,7 +640,7 @@ export class WorkspaceDashboardRailsComponent {
                   )
                 : null;
         return {
-            id: `recent-${item.id}-${item.playlist_id}-${item.viewed_at}`,
+            id: this.recentCardId(item),
             title: item.title,
             subtitle: `${this.data.getRecentItemProviderLabel(item)} · ${this.data.getRecentItemTypeLabel(item)}`,
             imageUrl: item.poster_url,
@@ -605,10 +648,30 @@ export class WorkspaceDashboardRailsComponent {
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
             link: this.data.getRecentItemLink(item),
-            state: this.data.getRecentItemNavigationState(item),
+            // Default click is detail-only for every card — an in-progress
+            // series no longer auto-plays on click (issue #1441); resuming
+            // moved to the ⋮ menu below. The hero CTA keeps the resume state.
+            state: this.data.getRecentItemDetailNavigationState(item),
             watchProgress,
             episodeBadge,
+            ...(item.type === 'movie' || item.type === 'series'
+                ? {
+                      actions: buildDashboardContinueWatchingActions({
+                          canResume:
+                              this.data.getRecentItemResumeNavigation(item) !==
+                              null,
+                          canMarkWatched:
+                              !!position?.durationSeconds &&
+                              position.durationSeconds > 0 &&
+                              !isPortalPlaybackWatched(position),
+                      }),
+                  }
+                : {}),
         };
+    }
+
+    private recentCardId(item: GlobalRecentItem): string {
+        return `recent-${item.id}-${item.playlist_id}-${item.viewed_at}`;
     }
 
     private toFavoriteCard(item: DashboardFavoriteItem): DashboardRailCard {

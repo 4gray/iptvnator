@@ -2,6 +2,7 @@ import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DEFAULT_DASHBOARD_RAILS_SETTINGS } from '@iptvnator/shared/interfaces';
 import {
     buildDashboardCollectionViewState,
+    buildDashboardContinueWatchingActions,
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
@@ -93,6 +94,51 @@ describe('buildDashboardSourceActions', () => {
             'account-info',
             'remove',
         ]);
+    });
+});
+
+describe('buildDashboardContinueWatchingActions', () => {
+    const actionIds = (options: {
+        canResume: boolean;
+        canMarkWatched: boolean;
+    }) =>
+        buildDashboardContinueWatchingActions(options).map(
+            (action) => action.id
+        );
+
+    it('exposes resume, mark-watched, and remove for a resumable series', () => {
+        expect(actionIds({ canResume: true, canMarkWatched: true })).toEqual([
+            'resume',
+            'mark-watched',
+            'remove-from-history',
+        ]);
+    });
+
+    it('keeps only remove when the card has no resumable or markable position', () => {
+        const actions = buildDashboardContinueWatchingActions({
+            canResume: false,
+            canMarkWatched: false,
+        });
+
+        expect(actions.map((action) => action.id)).toEqual([
+            'remove-from-history',
+        ]);
+        // Sole entry → no leading separator above it.
+        expect(actions[0].separatorBefore).toBe(false);
+        expect(actions[0].destructive).toBe(true);
+    });
+
+    it('separates the destructive remove entry from the content actions', () => {
+        const actions = buildDashboardContinueWatchingActions({
+            canResume: false,
+            canMarkWatched: true,
+        });
+
+        expect(actions.map((action) => action.id)).toEqual([
+            'mark-watched',
+            'remove-from-history',
+        ]);
+        expect(actions[1].separatorBefore).toBe(true);
     });
 });
 

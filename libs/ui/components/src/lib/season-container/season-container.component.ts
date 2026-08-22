@@ -144,8 +144,10 @@ export class SeasonContainerComponent implements OnInit {
     /**
      * Selected season. Auto-resolves when the season key set changes or when
      * playback positions first arrive (priority: inline-playing episode's
-     * season → most recently updated in-progress episode's season → first
-     * season); user tab clicks write to it and stick until the auto-select
+     * season → most recently updated in-progress episode's season → earliest
+     * season with unwatched episodes → latest season, with unhydrated
+     * lazy-VOD seasons pinning the fallback to the first season); user tab
+     * clicks write to it and stick until the auto-select
      * key changes. Ongoing position saves do not reset the selection — only
      * the empty→loaded transition of the positions map does.
      */
@@ -410,7 +412,28 @@ export class SeasonContainerComponent implements OnInit {
         }
 
         const resumeSeason = this.findMostRecentInProgressSeason();
-        return resumeSeason ?? keys[0];
+        return resumeSeason ?? this.resolveDefaultSeason(keys);
+    }
+
+    /**
+     * Fallback when nothing is playing or in progress: the earliest season
+     * with unwatched episodes, or — once everything loaded is watched — the
+     * latest season, where new episodes land (issue #1441). Stalker lazy-VOD
+     * series with unhydrated seasons keep the first season: their watched
+     * state is unknown, so skipping past them would be a guess.
+     */
+    private resolveDefaultSeason(keys: readonly string[]): string {
+        if (this.hasUnloadedSeasons()) {
+            return keys[0];
+        }
+
+        const episodeCounts = this.episodeCounts();
+        const watchedCounts = this.watchedCounts();
+        const firstUnwatched = keys.find((key) => {
+            const total = episodeCounts[key] ?? 0;
+            return total > 0 && (watchedCounts[key] ?? 0) < total;
+        });
+        return firstUnwatched ?? keys[keys.length - 1];
     }
 
     private findMostRecentInProgressSeason(): string | null {

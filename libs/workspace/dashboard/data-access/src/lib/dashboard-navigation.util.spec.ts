@@ -2,7 +2,11 @@ import type {
     PlaybackPositionData,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
-import { getRecentItemNavigationState } from './dashboard-navigation.util';
+import {
+    getRecentItemDetailNavigationState,
+    getRecentItemNavigationState,
+    getRecentItemResumeNavigation,
+} from './dashboard-navigation.util';
 
 const recentSeries: PortalRecentItem = {
     id: 200,
@@ -33,7 +37,7 @@ function episodePosition(
 
 type RecentNavigationState = {
     openCollectionDetailItem?: {
-        item?: unknown;
+        item?: { uid?: string; xtreamId?: number };
         seriesResume?: unknown;
     };
 };
@@ -64,5 +68,69 @@ describe('getRecentItemNavigationState series resume target', () => {
 
         expect(state.openCollectionDetailItem?.seriesResume).toBeUndefined();
         expect(state.openCollectionDetailItem?.item).toBeDefined();
+    });
+});
+
+describe('getRecentItemDetailNavigationState', () => {
+    it('never carries a resume target, even for an in-progress series', () => {
+        // Continue Watching default click is detail-only (issue #1441) —
+        // resuming is an explicit card action instead.
+        const state = getRecentItemDetailNavigationState(
+            recentSeries,
+            episodePosition()
+        ) as RecentNavigationState;
+
+        expect(state.openCollectionDetailItem?.seriesResume).toBeUndefined();
+        expect(state.openCollectionDetailItem?.item).toBeDefined();
+    });
+
+    it('still rewrites an episode-keyed row to the parent series identity', () => {
+        // Legacy recent rows can carry the EPISODE id in xtream_id; the
+        // position names the parent series, and the detail must target it
+        // even without the resume handoff — including for watched rows.
+        const state = getRecentItemDetailNavigationState(
+            { ...recentSeries, xtream_id: 4007 },
+            episodePosition({ positionSeconds: 1800 })
+        ) as RecentNavigationState;
+
+        expect(state.openCollectionDetailItem?.item?.xtreamId).toBe(4000);
+        expect(state.openCollectionDetailItem?.seriesResume).toBeUndefined();
+    });
+});
+
+describe('getRecentItemResumeNavigation', () => {
+    it('builds a full navigation target for an in-progress episode', () => {
+        const navigation = getRecentItemResumeNavigation(
+            recentSeries,
+            episodePosition()
+        );
+
+        expect(navigation?.link).toEqual(['/workspace', 'global-recent']);
+        const state = navigation?.state as RecentNavigationState;
+        expect(state.openCollectionDetailItem?.seriesResume).toEqual({
+            seriesXtreamId: 4000,
+            contentXtreamId: 4007,
+            seasonNumber: 3,
+            episodeNumber: 7,
+        });
+    });
+
+    it('returns null for watched rows', () => {
+        expect(
+            getRecentItemResumeNavigation(
+                recentSeries,
+                episodePosition({ positionSeconds: 1800 })
+            )
+        ).toBeNull();
+    });
+
+    it('returns null for non-Xtream sources and missing positions', () => {
+        expect(
+            getRecentItemResumeNavigation(
+                { ...recentSeries, source: 'stalker' },
+                episodePosition()
+            )
+        ).toBeNull();
+        expect(getRecentItemResumeNavigation(recentSeries, null)).toBeNull();
     });
 });
