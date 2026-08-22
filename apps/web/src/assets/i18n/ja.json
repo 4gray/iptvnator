@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "音声トラック",
             "SUBTITLES": "字幕",
             "SUBTITLES_OFF": "オフ",
+            "QUALITY": "画質",
+            "QUALITY_AUTO": "自動",
             "TRACK_DEFAULT": "デフォルト",
             "AUDIO_TRACK_FALLBACK": "音声 {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "字幕 {{index}}",

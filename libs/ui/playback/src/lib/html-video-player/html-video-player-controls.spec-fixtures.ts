@@ -17,11 +17,18 @@ interface FakeHlsTrack {
     lang?: string;
 }
 
+interface FakeHlsLevel {
+    height?: number;
+    width?: number;
+    bitrate?: number;
+}
+
 type FakeHlsListener = (...args: unknown[]) => void;
 
 export class FakeHls {
     audioTracks: FakeHlsTrack[] = [];
     subtitleTracks: FakeHlsTrack[] = [];
+    levels: FakeHlsLevel[] = [];
     readonly assignments: string[] = [];
     subtitleTrackSwitchEvents = 0;
     private readonly listeners = new Map<string, Set<FakeHlsListener>>();
@@ -29,6 +36,7 @@ export class FakeHls {
     private selectedAudioTrack = -1;
     private selectedSubtitleTrack = -1;
     private displaySubtitles = false;
+    private manualQualityLevel = -1;
 
     readonly on = jest.fn((event: string, listener: FakeHlsListener): void => {
         const eventListeners =
@@ -64,6 +72,24 @@ export class FakeHls {
             }
             this.emit(Hls.Events.SUBTITLE_TRACK_SWITCH);
         }
+    }
+
+    // Mirrors hls.js: assigning nextLevel records the manual level; -1 = auto.
+    get nextLevel(): number {
+        return this.manualQualityLevel;
+    }
+
+    set nextLevel(value: number) {
+        this.assignments.push(`nextLevel:${value}`);
+        this.manualQualityLevel = value;
+    }
+
+    get manualLevel(): number {
+        return this.manualQualityLevel;
+    }
+
+    get autoLevelEnabled(): boolean {
+        return this.manualQualityLevel === -1;
     }
 
     get subtitleDisplay(): boolean {

@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "오디오 트랙",
             "SUBTITLES": "자막",
             "SUBTITLES_OFF": "끄기",
+            "QUALITY": "화질",
+            "QUALITY_AUTO": "자동",
             "TRACK_DEFAULT": "기본",
             "AUDIO_TRACK_FALLBACK": "오디오 {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "자막 {{index}}",

@@ -1,9 +1,14 @@
-import type { PlayerTrack } from '../player-controls/player-controls.model';
+import {
+    AUTO_QUALITY_LEVEL_ID,
+    type PlayerTrack,
+} from '../player-controls/player-controls.model';
 import type {
     ShakaPlayerLike,
     ShakaTextTrackLike,
+    ShakaVariantTrackLike,
 } from '../shaka-engine/shaka-module.types';
 import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
+import { buildQualityLevelLabels } from './quality-level-labels';
 
 export interface WebVideoShakaControlsConfig {
     showCaptions: () => boolean;
@@ -29,6 +34,13 @@ export class WebVideoShakaControls {
     private session: ShakaVideoSession | null = null;
     private unsubscribe: (() => void) | null = null;
     private subtitleOverride: number | null = null;
+    /**
+     * The exact player a manual quality selection disabled ABR on. Each
+     * `ShakaVideoSession.start` creates a fresh player with ABR back on, so
+     * keying manual state to the instance (not a boolean) means a session
+     * restart can never render a stale manual selection.
+     */
+    private manualQualityPlayer: ShakaPlayerLike | null = null;
 
     constructor(private readonly config: WebVideoShakaControlsConfig) {}
 
@@ -47,6 +59,7 @@ export class WebVideoShakaControls {
         this.unsubscribe = null;
         this.session = null;
         this.subtitleOverride = null;
+        this.manualQualityPlayer = null;
     }
 
     refreshInputs(): void {
@@ -76,6 +89,56 @@ export class WebVideoShakaControls {
         if (track) {
             player.selectAudioTrack(track);
         }
+    }
+
+    getQualityLevels(): PlayerTrack[] {
+        const player = this.getPlayer();
+        if (!player) {
+            return [];
+        }
+
+        const candidates = listQualityCandidates(player);
+        const labels = buildQualityLevelLabels(
+            candidates.map((track) => ({
+                height: track.height,
+                width: track.width,
+                bitrate: track.bandwidth,
+            }))
+        );
+        const manual = !this.isAutoQualityEnabled();
+        return candidates.map((track, index) => ({
+            id: index,
+            label: labels[index],
+            selected: manual && track.active,
+        }));
+    }
+
+    setQualityLevel(id: number): void {
+        const player = this.getPlayer();
+        if (!player || !Number.isInteger(id)) {
+            return;
+        }
+
+        if (id === AUTO_QUALITY_LEVEL_ID) {
+            player.configure({ abr: { enabled: true } });
+            this.manualQualityPlayer = null;
+            return;
+        }
+
+        const track = listQualityCandidates(player)[id];
+        if (!track) {
+            return;
+        }
+
+        // ABR must be off first or the ABR manager overrides the selection.
+        player.configure({ abr: { enabled: false } });
+        player.selectVariantTrack(track, true);
+        this.manualQualityPlayer = player;
+    }
+
+    isAutoQualityEnabled(): boolean {
+        const player = this.getPlayer();
+        return !player || this.manualQualityPlayer !== player;
     }
 
     getSubtitleTracks(): PlayerTrack[] {
@@ -145,4 +208,25 @@ function formatTextTrackLabel(
     index: number
 ): string {
     return track.label || track.language || `Subtitle ${index + 1}`;
+}
+
+/**
+ * Variants are audio+video combinations; picking a quality must not switch
+ * the spoken language, so only variants matching the active audio language
+ * are selectable. Sorting (resolution, then bandwidth, descending) keeps the
+ * ids deterministic across refreshes of the same track set.
+ */
+function listQualityCandidates(
+    player: ShakaPlayerLike
+): ShakaVariantTrackLike[] {
+    const variants = player.getVariantTracks();
+    const activeLanguage = variants.find((track) => track.active)?.language;
+    const candidates = activeLanguage
+        ? variants.filter((track) => track.language === activeLanguage)
+        : [...variants];
+    return candidates.sort(
+        (a, b) =>
+            (b.height ?? 0) - (a.height ?? 0) ||
+            (b.bandwidth ?? 0) - (a.bandwidth ?? 0)
+    );
 }

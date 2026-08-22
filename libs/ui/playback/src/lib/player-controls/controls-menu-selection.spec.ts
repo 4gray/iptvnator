@@ -18,6 +18,7 @@ describe('ControlsMenuSelection', () => {
             setVolume: jest.fn(),
             setAudioTrack: jest.fn(),
             setSubtitleTrack: jest.fn(),
+            setQualityLevel: jest.fn(),
             setPlaybackSpeed: jest.fn(),
             setAspectRatio: jest.fn(),
             toggleRecording: jest.fn(),
@@ -59,6 +60,15 @@ describe('ControlsMenuSelection', () => {
 
         expect(commands.setSubtitleTrack).toHaveBeenCalledWith(-1);
         expect(menus.subtitleOpen()).toBe(false);
+        expect(visibility.scheduleHide).toHaveBeenCalled();
+    });
+
+    it('selects a quality level and closes the quality menu', () => {
+        menus.open('quality');
+        selection.qualityLevel(-1);
+
+        expect(commands.setQualityLevel).toHaveBeenCalledWith(-1);
+        expect(menus.qualityOpen()).toBe(false);
         expect(visibility.scheduleHide).toHaveBeenCalled();
     });
 

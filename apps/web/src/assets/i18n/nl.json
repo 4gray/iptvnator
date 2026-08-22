@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Audiosporen",
             "SUBTITLES": "Ondertiteling",
             "SUBTITLES_OFF": "Uit",
+            "QUALITY": "Kwaliteit",
+            "QUALITY_AUTO": "Automatisch",
             "TRACK_DEFAULT": "Standaard",
             "AUDIO_TRACK_FALLBACK": "Audio {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Ondertitel {{index}}",

@@ -28,7 +28,14 @@ describe('ControlsMenuState', () => {
         expect(menus.anyOpen()).toBe(false);
     });
 
-    it.each(['volume', 'audio', 'subtitle', 'speed', 'aspect'] as const)(
+    it.each([
+        'volume',
+        'audio',
+        'subtitle',
+        'quality',
+        'speed',
+        'aspect',
+    ] as const)(
         'closes an open %s menu when it becomes unavailable',
         (menu) => {
             const menus = new ControlsMenuState();
@@ -38,6 +45,7 @@ describe('ControlsMenuState', () => {
                 volume: menu !== 'volume',
                 audio: menu !== 'audio',
                 subtitle: menu !== 'subtitle',
+                quality: menu !== 'quality',
                 speed: menu !== 'speed',
                 aspect: menu !== 'aspect',
             });
@@ -56,6 +64,7 @@ describe('ControlsMenuState', () => {
                 volume: true,
                 audio: true,
                 subtitle: true,
+                quality: true,
                 speed: true,
                 aspect: true,
             })
@@ -73,6 +82,7 @@ describe('ControlsMenuState', () => {
                 volume: false,
                 audio: false,
                 subtitle: false,
+                quality: false,
                 speed: false,
                 aspect: false,
             })
@@ -84,6 +94,7 @@ describe('ControlsMenuState', () => {
         ['volume', { volume: false }, {}],
         ['audio', {}, { audioTracks: [] }],
         ['subtitle', {}, { subtitleTracks: [] }],
+        ['quality', {}, { qualityLevels: [] }],
         ['speed', { playbackSpeed: false }, {}],
         ['aspect', { aspectRatio: false }, {}],
     ] as const)(
@@ -99,6 +110,7 @@ describe('ControlsMenuState', () => {
                     volume: true,
                     audioTracks: true,
                     subtitles: true,
+                    qualityLevels: true,
                     playbackSpeed: true,
                     aspectRatio: true,
                     ...capabilityOverrides,
@@ -111,6 +123,10 @@ describe('ControlsMenuState', () => {
                     ],
                     subtitleTracks: [
                         { id: 1, label: 'English', selected: true },
+                    ],
+                    qualityLevels: [
+                        { id: 0, label: '1080p', selected: false },
+                        { id: 1, label: '720p', selected: false },
                     ],
                     ...stateOverrides,
                 }

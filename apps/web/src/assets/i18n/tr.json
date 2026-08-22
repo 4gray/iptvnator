@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Ses parçaları",
             "SUBTITLES": "Altyazılar",
             "SUBTITLES_OFF": "Kapalı",
+            "QUALITY": "Kalite",
+            "QUALITY_AUTO": "Otomatik",
             "TRACK_DEFAULT": "Varsayılan",
             "AUDIO_TRACK_FALLBACK": "Ses {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Altyazı {{index}}",

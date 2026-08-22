@@ -41,6 +41,9 @@ export class WebVideoSourceControlsBridge {
             setAudioTrack: (id) => this.setAudioTrack(id),
             getSubtitleTracks: () => this.getSubtitleTracks(),
             setSubtitleTrack: (id) => this.setSubtitleTrack(id),
+            getQualityLevels: () => this.tracks.getQualityLevels(),
+            setQualityLevel: (id) => this.tracks.setQualityLevel(id),
+            isAutoQualityEnabled: () => this.tracks.isAutoQualityEnabled(),
         });
         this.attached = true;
     }

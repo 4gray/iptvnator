@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Hangsávok",
             "SUBTITLES": "Feliratok",
             "SUBTITLES_OFF": "Kikapcsolva",
+            "QUALITY": "Minőség",
+            "QUALITY_AUTO": "Automatikus",
             "TRACK_DEFAULT": "Alapértelmezett",
             "AUDIO_TRACK_FALLBACK": "{{index}}. hangsáv",
             "SUBTITLE_TRACK_FALLBACK": "{{index}}. feliratsáv",

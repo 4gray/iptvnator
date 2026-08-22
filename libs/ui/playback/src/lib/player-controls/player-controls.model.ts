@@ -14,6 +14,8 @@ export interface PlayerControlsCapabilities {
     volume: boolean;
     audioTracks: boolean;
     subtitles: boolean;
+    /** Manifest-driven: true only when the source exposes >1 video rendition. */
+    qualityLevels: boolean;
     playbackSpeed: boolean;
     aspectRatio: boolean;
     recording: boolean;
@@ -27,6 +29,12 @@ export interface PlayerTrack {
     label: string; // adapter pre-computes the display label
     selected: boolean;
 }
+
+/**
+ * `setQualityLevel(AUTO_QUALITY_LEVEL_ID)` re-enables the engine's adaptive
+ * (ABR) selection, mirroring how `setSubtitleTrack(-1)` means "off".
+ */
+export const AUTO_QUALITY_LEVEL_ID = -1;
 
 /**
  * Content title lines rendered over the player while the controls are visible
@@ -69,6 +77,13 @@ export interface PlayerControlsState {
     subtitleTracks: PlayerTrack[];
     /** True when a subtitle track is active (selected id !== null/off). */
     subtitlesEnabled: boolean;
+    /**
+     * Per-level quality options ("1080p", …). A level reports `selected` only
+     * while a manual selection is active; with ABR on, none is selected.
+     */
+    qualityLevels: PlayerTrack[];
+    /** True while the engine picks the quality level itself (ABR/auto). */
+    qualityAutoEnabled: boolean;
     playbackSpeed: number;
     speedPresets: ReadonlyArray<PlayerPreset<number>>;
     aspectRatio: string;
@@ -88,6 +103,7 @@ export interface PlayerControlsCommands {
     setVolume(value: number): void; // 0..1
     setAudioTrack(id: number): void;
     setSubtitleTrack(id: number): void; // -1 = off
+    setQualityLevel(id: number): void; // AUTO_QUALITY_LEVEL_ID (-1) = auto
     setPlaybackSpeed(speed: number): void;
     setAspectRatio(value: string): void;
     toggleRecording(): void;

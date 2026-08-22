@@ -8,6 +8,7 @@ const CONTROL_MENUS = [
     'volume',
     'audio',
     'subtitle',
+    'quality',
     'speed',
     'aspect',
 ] as const;
@@ -30,6 +31,10 @@ function getControlsMenuAvailability(
             showControls &&
             capabilities.subtitles &&
             state.subtitleTracks.length > 0,
+        quality:
+            showControls &&
+            capabilities.qualityLevels &&
+            state.qualityLevels.length > 1,
         speed: showControls && capabilities.playbackSpeed,
         aspect: showControls && capabilities.aspectRatio,
     };
@@ -43,6 +48,7 @@ export class ControlsMenuState {
     readonly volumeOpen = signal(false);
     readonly audioOpen = signal(false);
     readonly subtitleOpen = signal(false);
+    readonly qualityOpen = signal(false);
     readonly speedOpen = signal(false);
     readonly aspectOpen = signal(false);
 
@@ -51,6 +57,7 @@ export class ControlsMenuState {
             this.volumeOpen() ||
             this.audioOpen() ||
             this.subtitleOpen() ||
+            this.qualityOpen() ||
             this.speedOpen() ||
             this.aspectOpen()
     );
@@ -78,6 +85,7 @@ export class ControlsMenuState {
         this.volumeOpen.set(false);
         this.audioOpen.set(false);
         this.subtitleOpen.set(false);
+        this.qualityOpen.set(false);
         this.speedOpen.set(false);
         this.aspectOpen.set(false);
     }
@@ -112,6 +120,8 @@ export class ControlsMenuState {
                 return this.audioOpen;
             case 'subtitle':
                 return this.subtitleOpen;
+            case 'quality':
+                return this.qualityOpen;
             case 'speed':
                 return this.speedOpen;
             case 'aspect':

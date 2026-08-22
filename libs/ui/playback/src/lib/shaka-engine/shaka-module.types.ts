@@ -22,6 +22,16 @@ export interface ShakaTextTrackLike {
     kind: string | null;
 }
 
+export interface ShakaVariantTrackLike {
+    id: number;
+    active: boolean;
+    language: string;
+    label: string | null;
+    height: number | null;
+    width: number | null;
+    bandwidth: number;
+}
+
 export type { ShakaErrorLike } from '@iptvnator/playback/util';
 
 export interface ShakaPlayerLike {
@@ -33,6 +43,16 @@ export interface ShakaPlayerLike {
     removeEventListener(type: string, listener: (event: Event) => void): void;
     getAudioTracks(): ShakaAudioTrackLike[];
     selectAudioTrack(track: ShakaAudioTrackLike): void;
+    getVariantTracks(): ShakaVariantTrackLike[];
+    /**
+     * Manual quality selection. Callers must disable ABR first via
+     * `configure({abr: {enabled: false}})` or the ABR manager immediately
+     * overrides the choice. `clearBuffer` keeps the switch immediate.
+     */
+    selectVariantTrack(
+        track: ShakaVariantTrackLike,
+        clearBuffer?: boolean
+    ): void;
     getTextTracks(): ShakaTextTrackLike[];
     /**
      * Shaka 5 visibility model: selecting a track shows it, `null` unloads
