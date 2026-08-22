@@ -173,21 +173,41 @@ describe('VjsQualityLevels', () => {
         ).toBe(false);
     });
 
-    it('reverts to auto when the manually picked level leaves the list', () => {
+    it('reverts to auto and re-enables survivors when the picked level leaves the list', () => {
+        const survivorA = level({ height: 1080 });
         const picked = level({ height: 720 });
+        const survivorB = level({ height: 480 });
         const { helper, levelList } = createHarness([
-            level({ height: 1080 }),
+            survivorA,
             picked,
+            survivorB,
         ]);
 
         helper.setQualityLevel(1);
-        expect(helper.isAutoQualityEnabled()).toBe(false);
+        expect([survivorA.enabled, survivorB.enabled]).toEqual([false, false]);
 
-        levelList.replace([level({ height: 1080 }), level({ height: 480 })]);
+        // The list drops the picked rendition but keeps the (still disabled)
+        // survivors; reverting to auto must give ABR renditions back.
+        levelList.replace([survivorA, survivorB]);
+        levelList.emit('removequalitylevel');
+
         expect(helper.isAutoQualityEnabled()).toBe(true);
+        expect([survivorA.enabled, survivorB.enabled]).toEqual([true, true]);
         expect(
             helper.getQualityLevels().some((entry) => entry.selected)
         ).toBe(false);
+    });
+
+    it('re-enables survivors lazily when no removal event was observed', () => {
+        const survivor = level({ height: 1080 });
+        const picked = level({ height: 720 });
+        const { helper, levelList } = createHarness([survivor, picked]);
+
+        helper.setQualityLevel(1);
+        levelList.replace([survivor]);
+
+        expect(helper.isAutoQualityEnabled()).toBe(true);
+        expect(survivor.enabled).toBe(true);
     });
 
     it('forgets manual intent on resetSource', () => {

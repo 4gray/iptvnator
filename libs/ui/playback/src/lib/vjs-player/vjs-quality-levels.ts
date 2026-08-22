@@ -37,6 +37,7 @@ export class VjsQualityLevels {
     private levelList: VideoJsQualityLevelList | null = null;
     private manualLevel: VideoJsQualityLevel | null = null;
     private readonly handleListChange: EventListener = () => {
+        this.readManualLevel(this.listLevels());
         this.config.refresh();
     };
 
@@ -113,8 +114,13 @@ export class VjsQualityLevels {
     ): VideoJsQualityLevel | null {
         if (this.manualLevel && !levels.includes(this.manualLevel)) {
             // The picked rendition left the list (source change or removal):
-            // there is nothing the intent can hold on to, so revert to auto.
+            // there is nothing the intent can hold on to, so revert to auto —
+            // including re-enabling the survivors the manual pick disabled,
+            // or ABR would be left with no selectable rendition.
             this.manualLevel = null;
+            for (const level of levels) {
+                level.enabled = true;
+            }
         }
         return this.manualLevel;
     }
