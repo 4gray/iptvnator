@@ -44,7 +44,7 @@ jobs:
     # commit checked out above (the modern default); JavaScript is
     # interpreted, so no build step is needed before analysis.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4.37.6
+      uses: github/codeql-action/init@v4.37.7
       with:
         languages: ${{ matrix.language }}
         # Excludes the localhost dev/E2E mock servers from analysis; see the
@@ -56,4 +56,4 @@ jobs:
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4.37.6
+      uses: github/codeql-action/analyze@v4.37.7
