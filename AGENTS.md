@@ -176,6 +176,22 @@ Key files:
   engine-neutral `PlayerController` contract, standalone
   `app-player-controls`, generic web-video adapter/helper, and component-scoped
   `WEB_PLAYER_SHARED_CONTROLS` rollout token.
+- The subtitle menu carries capability-gated advanced subtitle support
+  (#1408): external subtitle file loading, a ±0.5 s timing-offset row, and
+  size/color styling persisted in the shared `subtitleStyle` localStorage key.
+  HTML5/ArtPlayer implement it through the neutral source bridge (`.srt`/`.vtt`
+  via a DOM file picker with encoding detection, native `TextTrack` rendering,
+  `::cue` styling, delay only while the loaded file is the selected track;
+  picks are source-generation-guarded and engine deselection precedes external
+  track activation). The canonical style shape and clamp/normalize rules are
+  shared with the main process via `@iptvnator/shared/interfaces`
+  (`subtitle-style.util.ts`). Embedded MPV frame-copy implements it through
+  helper protocol commands (`sub-add`/`sub-delay`/`sub-scale`/`sub-color`,
+  main-process file dialog, ASS supported, delay for all tracks). Video.js
+  shared mode, vendor-chrome paths, native-view, and the Linux out-of-process
+  path advertise no such capability and render no UI. Contract details:
+  `docs/architecture/player-controls-contract.md` ("Advanced subtitle
+  support").
 - In fullscreen, `app-player-controls` shows a pointer-transparent media-title
   overlay at the top while controls are revealed (`mediaTitle` input:
   movie/channel/series name, plus an `S01E03` second line for episodes). Series
