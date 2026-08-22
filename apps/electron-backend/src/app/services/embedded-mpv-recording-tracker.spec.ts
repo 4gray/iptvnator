@@ -11,10 +11,12 @@ jest.mock('../database/connection', () => ({
 jest.mock('../events/database/recording-broadcast', () => ({
     broadcastRecordingsUpdate: (...args: unknown[]) => mockBroadcast(...args),
 }));
-jest.mock('fs', () => ({
-    ...jest.requireActual<typeof import('fs')>('fs'),
-    statSync: (...args: unknown[]) => mockStatSync(...args),
-    unlinkSync: (...args: unknown[]) => mockUnlinkSync(...args),
+jest.mock('node:fs/promises', () => ({
+    ...jest.requireActual<typeof import('node:fs/promises')>(
+        'node:fs/promises'
+    ),
+    stat: (...args: unknown[]) => mockStatSync(...args),
+    unlink: (...args: unknown[]) => mockUnlinkSync(...args),
 }));
 
 import { EmbeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';
@@ -129,7 +131,8 @@ describe('EmbeddedMpvRecordingTracker', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         db = mockDb();
-        mockStatSync.mockReturnValue({ isFile: () => true, size: 1024 });
+        mockStatSync.mockResolvedValue({ isFile: () => true, size: 1024 });
+        mockUnlinkSync.mockResolvedValue(undefined);
         tracker = new EmbeddedMpvRecordingTracker();
     });
 
@@ -240,7 +243,7 @@ describe('EmbeddedMpvRecordingTracker', () => {
     });
 
     it('marks a failed async start and unlinks the empty reservation', async () => {
-        mockStatSync.mockReturnValue({ isFile: () => true, size: 0 });
+        mockStatSync.mockResolvedValue({ isFile: () => true, size: 0 });
         started(tracker);
         tracker.observeSnapshot(
             session({
@@ -353,15 +356,36 @@ describe('EmbeddedMpvRecordingTracker', () => {
     });
 
     it('degrades an interrupted stop to failed when the file is gone', async () => {
-        mockStatSync.mockImplementation(() => {
-            throw Object.assign(new Error('gone'), { code: 'ENOENT' });
-        });
+        mockStatSync.mockRejectedValue(
+            Object.assign(new Error('gone'), { code: 'ENOENT' })
+        );
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
         await settleTeardown(() =>
             tracker.observeSnapshot(session({ status: 'closed' }))
         );
         expect(db.updateSet.mock.calls[0][0].status).toBe('failed');
+    });
+
+    it('keeps the requested status when the file cannot be judged', async () => {
+        // Only proven absence may fail the row; a permission/I-O error (or
+        // a stat stalled past its deadline) must not brand a likely-good
+        // recording on an unreachable mount as failed.
+        mockStatSync.mockRejectedValue(
+            Object.assign(new Error('denied'), { code: 'EACCES' })
+        );
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+        await settleStop(tracker);
+
+        expect(db.updateSet.mock.calls[0][0]).toEqual(
+            expect.objectContaining({
+                status: 'completed',
+                fileSizeBytes: null,
+            })
+        );
+        expect(mockUnlinkSync).not.toHaveBeenCalled();
     });
 
     it('is idempotent: only the first finalize writes', async () => {
@@ -400,7 +424,7 @@ describe('EmbeddedMpvRecordingTracker', () => {
     });
 
     it('keeps the file of a recording that went active even when it looks empty', async () => {
-        mockStatSync.mockReturnValue({ isFile: () => true, size: 0 });
+        mockStatSync.mockResolvedValue({ isFile: () => true, size: 0 });
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());
         tracker.onRecordingStopped('session-1');

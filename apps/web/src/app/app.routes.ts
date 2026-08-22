@@ -33,6 +33,28 @@ const electronOnlyGlobalSearchGuard = () => {
     );
 };
 
+/**
+ * The focused recording detail depends on `RecordingsService`, whose list
+ * never becomes authoritative without the recordings capability — the PWA
+ * would render a permanently blank workspace instead of the not-found
+ * redirect. Send it to the manager, which owns its own unavailable state.
+ */
+export function resolveRecordingsCapabilityRoute(
+    runtime: Pick<RuntimeCapabilitiesService, 'supportsRecordings'>,
+    router: Pick<Router, 'parseUrl'>
+) {
+    return runtime.supportsRecordings
+        ? true
+        : router.parseUrl('/workspace/downloads');
+}
+
+const recordingsCapabilityGuard = () => {
+    return resolveRecordingsCapabilityRoute(
+        inject(RuntimeCapabilitiesService),
+        inject(Router)
+    );
+};
+
 export const routes: Routes = [
     {
         path: '',
@@ -114,6 +136,7 @@ export const routes: Routes = [
             },
             {
                 path: 'downloads/recording/:recordingId',
+                canActivate: [recordingsCapabilityGuard],
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(
                         (c) => c.RecordingDetailComponent

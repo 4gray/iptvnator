@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { statSync, unlinkSync } from 'fs';
+import { stat, unlink } from 'node:fs/promises';
 import {
     EmbeddedMpvSession,
     RecordingStartMetadata,
@@ -74,6 +74,21 @@ const STOP_SETTLE_WINDOW_MS = 1_500;
  * that outruns the timer loses nothing.
  */
 const TEARDOWN_FLUSH_WINDOW_MS = 2_500;
+
+/**
+ * Deadline for the finalization stat. The recording directory is
+ * user-selected and may sit on a network filesystem; an unbounded stat
+ * would stall the tracker's serialized queue (blocking new inserts and stop
+ * enrichment's `whenSettled`). A timed-out or error-shaped probe reports
+ * `unknown` — the recording is then finalized without branding a
+ * likely-good file as failed.
+ */
+const FINALIZE_STAT_TIMEOUT_MS = 3_000;
+
+type FinalizeFileProbe =
+    | { kind: 'size'; size: number }
+    | { kind: 'missing' }
+    | { kind: 'unknown' };
 
 /**
  * Persists the lifecycle of embedded-MPV live recordings into the
@@ -287,13 +302,24 @@ export class EmbeddedMpvRecordingTracker {
                 return null;
             }
 
-            const fileSize = this.safeFileSize(entry.targetPath);
+            const probe = await this.probeFinalFile(entry.targetPath);
             let finalStatus: RecordingFinalStatus = status;
-            if (fileSize === null || fileSize === 0) {
-                // Nothing usable reached the disk — whatever the trigger,
-                // the honest terminal state is 'failed'.
+            let fileSize: number | null = null;
+            if (probe.kind === 'size' && probe.size > 0) {
+                fileSize = probe.size;
+            } else if (probe.kind === 'unknown') {
+                // The stat timed out or errored (slow or unreachable
+                // filesystem): keep the requested status with an unknown
+                // size instead of branding a likely-good recording failed.
+            } else {
+                // Absent or empty — nothing usable reached the disk, so the
+                // honest terminal state is 'failed'.
                 finalStatus = 'failed';
-                if (fileSize === 0 && !entry.sawActive) {
+                if (
+                    probe.kind === 'size' &&
+                    probe.size === 0 &&
+                    !entry.sawActive
+                ) {
                     // The empty file is the pre-reserved target of a
                     // recording that never started; a recording that did go
                     // active keeps its file even when it looks empty, since
@@ -308,7 +334,7 @@ export class EmbeddedMpvRecordingTracker {
                 .set({
                     status: finalStatus,
                     endedAt: new Date().toISOString(),
-                    fileSizeBytes: fileSize && fileSize > 0 ? fileSize : null,
+                    fileSizeBytes: fileSize,
                     ...(errorMessage ? { errorMessage } : {}),
                     updatedAt: new Date().toISOString(),
                 })
@@ -335,21 +361,41 @@ export class EmbeddedMpvRecordingTracker {
         return result;
     }
 
-    private safeFileSize(filePath: string): number | null {
+    private async probeFinalFile(filePath: string): Promise<FinalizeFileProbe> {
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        const timedOut = new Promise<FinalizeFileProbe>((resolve) => {
+            timeout = setTimeout(
+                () => resolve({ kind: 'unknown' }),
+                FINALIZE_STAT_TIMEOUT_MS
+            );
+        });
+        const probe = stat(filePath).then(
+            (stats): FinalizeFileProbe =>
+                stats.isFile()
+                    ? { kind: 'size', size: stats.size }
+                    : { kind: 'missing' },
+            (error): FinalizeFileProbe => {
+                const code = (error as NodeJS.ErrnoException)?.code;
+                // Only proven absence may fail the row; every other error
+                // (permissions, I/O, unreachable mount) stays unknown.
+                return code === 'ENOENT' || code === 'ENOTDIR'
+                    ? { kind: 'missing' }
+                    : { kind: 'unknown' };
+            }
+        );
         try {
-            const stats = statSync(filePath);
-            return stats.isFile() ? stats.size : null;
-        } catch {
-            return null;
+            return await Promise.race([probe, timedOut]);
+        } finally {
+            if (timeout !== undefined) {
+                clearTimeout(timeout);
+            }
         }
     }
 
     private safeUnlink(filePath: string): void {
-        try {
-            unlinkSync(filePath);
-        } catch {
-            // Best-effort cleanup of the 0-byte reservation.
-        }
+        // Fire-and-forget: best-effort cleanup of the 0-byte reservation
+        // must not stall the serialized queue on a hung filesystem.
+        void unlink(filePath).catch(() => undefined);
     }
 }
 

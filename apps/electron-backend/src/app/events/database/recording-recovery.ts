@@ -1,18 +1,52 @@
 import { execFileSync } from 'child_process';
 import { eq } from 'drizzle-orm';
-import { statSync } from 'fs';
+import { stat } from 'node:fs/promises';
 import { basename } from 'path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { embeddedMpvRecordingTracker } from '../../services/embedded-mpv-recording-tracker';
 import { broadcastRecordingsUpdate } from './recording-broadcast';
 
-function recordedFileSize(filePath: string): number | null {
+const RECOVERY_STAT_TIMEOUT_MS = 3_000;
+
+type RecordedFileProbe =
+    | { kind: 'size'; size: number }
+    | { kind: 'missing' }
+    | { kind: 'unknown' };
+
+/**
+ * Bounded, asynchronous stat: the recording directory is user-selected and
+ * can sit on an unreachable network filesystem, which must not block startup
+ * or fail a row it cannot actually see. Only proven absence
+ * (`ENOENT`/`ENOTDIR`) reports `missing`; timeouts and every other error
+ * stay `unknown`.
+ */
+async function probeRecordedFile(filePath: string): Promise<RecordedFileProbe> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<RecordedFileProbe>((resolve) => {
+        timeout = setTimeout(
+            () => resolve({ kind: 'unknown' }),
+            RECOVERY_STAT_TIMEOUT_MS
+        );
+    });
+    const probe = stat(filePath).then(
+        (stats): RecordedFileProbe =>
+            stats.isFile()
+                ? { kind: 'size', size: stats.size }
+                : { kind: 'missing' },
+        (error): RecordedFileProbe => {
+            const code = (error as NodeJS.ErrnoException)?.code;
+            return code === 'ENOENT' || code === 'ENOTDIR'
+                ? { kind: 'missing' }
+                : { kind: 'unknown' };
+        }
+    );
     try {
-        const stats = statSync(filePath);
-        return stats.isFile() ? stats.size : null;
-    } catch {
-        return null;
+        return await Promise.race([probe, timedOut]);
+    } finally {
+        if (timeout !== undefined) {
+            clearTimeout(timeout);
+        }
     }
 }
 
@@ -66,15 +100,90 @@ function processLooksLikeOwnInstance(pid: number): boolean {
 }
 
 /**
+ * Milliseconds tolerance before a process start time counts as "after" the
+ * recording start — absorbs `etime`'s one-second granularity and small clock
+ * drift without weakening the recycled-pid discrimination.
+ */
+const START_TIME_TOLERANCE_MS = 5_000;
+
+/** `[[dd-]hh:]mm:ss` from `ps -o etime=` → seconds, or null. */
+function parseEtimeSeconds(etime: string): number | null {
+    const match = /^(?:(\d+)-)?(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(etime);
+    if (!match) {
+        return null;
+    }
+    const [, days, hours, minutes, seconds] = match;
+    return (
+        (days ? Number(days) * 86_400 : 0) +
+        (hours ? Number(hours) * 3_600 : 0) +
+        Number(minutes) * 60 +
+        Number(seconds)
+    );
+}
+
+function processStartTimeMs(pid: number): number | null {
+    try {
+        if (process.platform === 'win32') {
+            const iso = execFileSync(
+                'powershell.exe',
+                [
+                    '-NoProfile',
+                    '-Command',
+                    `(Get-Process -Id ${pid}).StartTime.ToUniversalTime().ToString('o')`,
+                ],
+                { encoding: 'utf8' }
+            ).trim();
+            const parsed = Date.parse(iso);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+        const etime = execFileSync(
+            'ps',
+            ['-p', String(pid), '-o', 'etime='],
+            { encoding: 'utf8' }
+        ).trim();
+        const elapsedSeconds = parseEtimeSeconds(etime);
+        return elapsedSeconds === null
+            ? null
+            : Date.now() - elapsedSeconds * 1_000;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * True only when the process behind `pid` PROVABLY started after the
+ * recording did. A pid can only be recycled once its previous holder died,
+ * and the recording's real owner was necessarily already running when it
+ * created the row — so a same-family process name (any Electron app) cannot
+ * shield a recycled pid whose holder is younger than the recording.
+ * Unreadable start times return false (conservative: keep the skip).
+ */
+function provablyStartedAfter(pid: number, startedAt: string): boolean {
+    const recordingStartMs = Date.parse(startedAt);
+    if (!Number.isFinite(recordingStartMs)) {
+        return false;
+    }
+    const processStartMs = processStartTimeMs(pid);
+    if (processStartMs === null) {
+        return false;
+    }
+    return processStartMs > recordingStartMs + START_TIME_TOLERANCE_MS;
+}
+
+/**
  * Startup repair for recordings the previous app run left in status
  * 'recording' (hard kill, crash, power loss). mpv muxes MPEG-TS
  * continuously, so a file with real bytes is a playable partial recording
  * ('interrupted'); an absent or empty file means nothing usable was captured
  * ('failed').
  *
- * Rows whose owner process is still alive (and still looks like an
- * IPTVnator/Electron process — a recycled pid must not shield the row) are
- * skipped: with
+ * Rows whose owner process is still alive are skipped — but only when it
+ * also looks like an IPTVnator/Electron process AND cannot be proven to have
+ * started after the recording did. A recycled pid's holder is necessarily
+ * younger than the recording (the pid frees only when its previous owner
+ * dies), so the start-time check unmasks even a recycled pid that landed on
+ * another Electron app; unreadable names or start times stay conservative
+ * and keep the skip. The skip matters with
  * IPTVNATOR_ALLOW_MULTIPLE_INSTANCES a second instance shares this database,
  * and its startup must not terminate a recording the first one is actively
  * writing (the tracker's own update is guarded on status 'recording', so the
@@ -107,18 +216,25 @@ export async function reconcileStaleRecordings(): Promise<void> {
                 row.ownerPid !== undefined &&
                 row.ownerPid !== process.pid &&
                 isProcessAlive(row.ownerPid) &&
-                processLooksLikeOwnInstance(row.ownerPid)
+                processLooksLikeOwnInstance(row.ownerPid) &&
+                !provablyStartedAfter(row.ownerPid, row.startedAt)
             ) {
                 continue;
             }
 
-            const fileSize = recordedFileSize(row.filePath);
-            const playable = fileSize !== null && fileSize > 0;
+            const probe = await probeRecordedFile(row.filePath);
+            if (probe.kind === 'unknown') {
+                // Cannot see the file right now — leave the row in
+                // 'recording' so a later startup can repair it honestly.
+                continue;
+            }
+            const size = probe.kind === 'size' ? probe.size : null;
+            const playable = size !== null && size > 0;
             await db
                 .update(schema.recordings)
                 .set({
                     status: playable ? 'interrupted' : 'failed',
-                    fileSizeBytes: playable ? fileSize : null,
+                    fileSizeBytes: playable ? size : null,
                     endedAt: row.endedAt ?? new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
                 })

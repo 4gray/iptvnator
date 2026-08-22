@@ -323,7 +323,23 @@ display snapshot via `playlistDisplayLabel`).
   the tracker itself is still tracking (`activeRowIds()`) — the renderer is
   interactive before this pass runs, so a recording started during bootstrap
   carries this process's own pid and only the tracker's ledger proves it
-  live. Tracker finalization is bound to the exact open entry, never the
+  live. Bare pid liveness is not ownership: the holder must also look like
+  an IPTVnator/Electron process (`ps`/`tasklist` name, best-effort) and must
+  not provably have started after the recording did (`ps -o etime=` /
+  PowerShell `StartTime`) — a pid frees only when its previous owner dies,
+  so a recycled pid's holder is always younger than the recording, even
+  when it landed on another Electron app; unreadable evidence stays
+  conservative and keeps the skip. Repair changes broadcast one
+  `RECORDINGS_UPDATE_EVENT` because the renderer may already hold the
+  pre-repair list. Both repair and tracker finalization stat through a
+  bounded async probe (3 s deadline; only `ENOENT`/`ENOTDIR` proves
+  absence): repair leaves an unjudgeable row in `recording` for a later
+  startup, finalization keeps the requested status with an unknown size —
+  a recording directory on a dead network mount must neither block the
+  main thread/queue nor brand a likely-good file `failed`. The focused
+  recording detail route is guarded by the `supportsRecordings` capability
+  (redirect to the manager) since `RecordingsService` never becomes
+  authoritative in the PWA. Tracker finalization is bound to the exact open entry, never the
   reusable session id: a stop → immediate restart on the same session leaves
   the old entry to its own settle timer, and replacing the map entry arms
   that timer if no stop was ever observed, so neither row can be finalized
