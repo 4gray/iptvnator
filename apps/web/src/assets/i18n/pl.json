@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "Kolejność serwera",
         "CATEGORY_SORT_ARIA": "Sortuj kategorie",
         "DASHBOARD": {
+            "ACTION_FAILED": "Nie udało się wykonać akcji. Spróbuj ponownie.",
             "CONTINUE_WATCHING": "Kontynuuj oglądanie",
             "LIVE_FAVORITES": "Na żywo w Twoich ulubionych",
             "LIVE_RECENT": "Kontynuuj oglądanie na żywo",

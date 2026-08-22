@@ -924,7 +924,10 @@ export class DashboardDataService {
      * existing row. Reusing the stored row keeps the provider-specific
      * identity fields (Stalker scoped episode ids included) intact; without
      * a row or a known duration there is nothing truthful to write, so the
-     * action reports false and the caller hides/ignores it.
+     * action reports false and the caller hides/ignores it. Uses the strict
+     * save boundary and rethrows persistence failures — the non-strict save
+     * swallows them, and reloading an unchanged position while reporting
+     * success would silently lie to the user.
      */
     async markRecentItemWatched(item: GlobalRecentItem): Promise<boolean> {
         const position = this.getPlaybackPositionForItem(item);
@@ -932,11 +935,14 @@ export class DashboardDataService {
             return false;
         }
 
-        await this.playbackPositions.savePlaybackPosition(item.playlist_id, {
-            ...position,
-            positionSeconds: position.durationSeconds,
-            updatedAt: new Date().toISOString(),
-        });
+        await this.playbackPositions.savePlaybackPositionOrThrow(
+            item.playlist_id,
+            {
+                ...position,
+                positionSeconds: position.durationSeconds,
+                updatedAt: new Date().toISOString(),
+            }
+        );
         await this.reloadPlaybackPositions();
         return true;
     }

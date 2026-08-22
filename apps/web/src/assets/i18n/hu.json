@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "Kiszolgálóoldali rendezés",
         "CATEGORY_SORT_ARIA": "Kategóriák rendezése",
         "DASHBOARD": {
+            "ACTION_FAILED": "A műveletet nem sikerült végrehajtani. Próbáld újra.",
             "CONTINUE_WATCHING": "Lejátszás folytatása",
             "LIVE_FAVORITES": "Most a kedvenc csatornákon",
             "LIVE_RECENT": "Élő tévénézés folytatása",

@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "ترتيب السيرفر",
         "CATEGORY_SORT_ARIA": "ترتيب التصنيفات",
         "DASHBOARD": {
+            "ACTION_FAILED": "ما قدرناش نكملو العملية. عاود حاول مرة أخرى.",
             "CONTINUE_WATCHING": "كمل المشاهدة",
             "LIVE_FAVORITES": "مباشر دابا على المفضلة ديالك",
             "LIVE_RECENT": "كمل مع المباشر",

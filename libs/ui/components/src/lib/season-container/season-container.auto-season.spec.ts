@@ -139,6 +139,49 @@ describe('SeasonContainerComponent default-season fallback', () => {
         expect(component.selectedSeason()).toBe('1');
     });
 
+    it('skips loaded-but-empty seasons in the all-watched fallback', () => {
+        // A trailing empty season is a valid Stalker answer; the latest
+        // season WITH episodes wins over it.
+        fixture.componentRef.setInput(
+            'playbackPositions',
+            new Map([
+                [101, watchedPosition(101)],
+                [201, watchedPosition(201)],
+            ])
+        );
+        setRequiredInputs({
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+            '3': [],
+        });
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('2');
+    });
+
+    it('keeps the selected season when a local watched toggle fills the positions map', () => {
+        // Marking season 1 watched on a fresh profile flips the positions
+        // map empty→non-empty; that echo of the user's own action must not
+        // re-resolve the selection and jump to season 2 (issue #1441 CI
+        // regression).
+        const episode = createEpisode();
+        setRequiredInputs({
+            '1': [episode],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        });
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('1');
+
+        component.toggleWatched(new Event('click'), episode);
+        fixture.componentRef.setInput(
+            'playbackPositions',
+            new Map([[101, watchedPosition(101)]])
+        );
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('1');
+    });
+
     it('still prefers an in-progress season over the unwatched fallback', () => {
         // Season 1 has an in-progress episode; season 2 is unwatched — the
         // resume rule outranks the fallback.

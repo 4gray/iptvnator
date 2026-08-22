@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "Server sorting",
         "CATEGORY_SORT_ARIA": "Sort categories",
         "DASHBOARD": {
+            "ACTION_FAILED": "The action could not be completed. Please try again.",
             "CONTINUE_WATCHING": "Continue Watching",
             "LIVE_FAVORITES": "Live now on your favorites",
             "LIVE_RECENT": "Continue with live TV",

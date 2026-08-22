@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "伺服器排序",
         "CATEGORY_SORT_ARIA": "排序分類",
         "DASHBOARD": {
+            "ACTION_FAILED": "無法完成該操作。請重試。",
             "CONTINUE_WATCHING": "繼續觀看",
             "LIVE_FAVORITES": "我的最愛正在直播",
             "LIVE_RECENT": "繼續觀看直播電視",

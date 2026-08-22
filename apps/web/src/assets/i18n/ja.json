@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "サーバー順",
         "CATEGORY_SORT_ARIA": "カテゴリを並び替え",
         "DASHBOARD": {
+            "ACTION_FAILED": "操作を完了できませんでした。もう一度お試しください。",
             "CONTINUE_WATCHING": "視聴を再開",
             "LIVE_FAVORITES": "お気に入りで現在放送中",
             "LIVE_RECENT": "ライブTVの視聴を再開",

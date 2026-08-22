@@ -1291,6 +1291,7 @@
         "SORT_SERVER": "ترتيب الخادم",
         "CATEGORY_SORT_ARIA": "ترتيب الفئات",
         "DASHBOARD": {
+            "ACTION_FAILED": "تعذر إكمال الإجراء. يرجى المحاولة مرة أخرى.",
             "CONTINUE_WATCHING": "متابعة المشاهدة",
             "LIVE_FAVORITES": "يُبث الآن على المفضلة لديك",
             "LIVE_RECENT": "متابعة البث المباشر",

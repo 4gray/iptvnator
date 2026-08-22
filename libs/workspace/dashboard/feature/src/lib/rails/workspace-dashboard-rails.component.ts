@@ -563,10 +563,14 @@ export class WorkspaceDashboardRailsComponent {
                 this.resumeRecentItem(item);
                 break;
             case 'mark-watched':
-                void this.data.markRecentItemWatched(item);
+                this.runContinueWatchingMutation(() =>
+                    this.data.markRecentItemWatched(item)
+                );
                 break;
             case 'remove-from-history':
-                void this.data.removeGlobalRecentItem(item);
+                this.runContinueWatchingMutation(() =>
+                    this.data.removeGlobalRecentItem(item)
+                );
                 break;
         }
     }
@@ -578,6 +582,22 @@ export class WorkspaceDashboardRailsComponent {
         }
         void this.router.navigate(navigation.link, {
             state: navigation.state,
+        });
+    }
+
+    /**
+     * A rejected persistence write leaves the card unchanged, so tell the
+     * user instead of failing silently with an unhandled rejection.
+     */
+    private runContinueWatchingMutation(
+        mutation: () => Promise<unknown>
+    ): void {
+        mutation().catch(() => {
+            this.snackBar.open(
+                this.t('WORKSPACE.DASHBOARD.ACTION_FAILED'),
+                undefined,
+                { duration: 5000 }
+            );
         });
     }
 

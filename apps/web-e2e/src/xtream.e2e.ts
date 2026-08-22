@@ -754,14 +754,23 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
     );
 
     // PWA persistence: positions live in localStorage, so a reload of the
-    // detail route must come back fully watched.
+    // detail route must come back fully watched. With season 1 completed the
+    // fresh mount auto-selects the earliest season with unwatched episodes
+    // (issue #1441), so season 2 opens while season 1's tab keeps the check.
     await page.reload();
     await expect(seasonToggle).toBeVisible({ timeout: 20_000 });
-    await expect(seasonToggle).toContainText('Mark season as unwatched');
-    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
+    await expect(seasonToggle).toContainText('Mark season as watched (8)');
+    await expect(watchedCards).toHaveCount(0, { timeout: 10_000 });
     await expect(
         seasonTabs.first().locator('.season-tabs__done')
     ).toBeVisible();
+
+    // Season 1 itself still holds the 8 persisted rows.
+    await seasonTabs.first().click();
+    await expect(seasonToggle).toContainText('Mark season as unwatched', {
+        timeout: 15_000,
+    });
+    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
 
     // Second click clears every episode's position again.
     await seasonToggle.click();
