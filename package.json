@@ -194,7 +194,7 @@
         "electron": "^43.3.0",
         "electron-builder": "^26.15.7",
         "electron-playwright-helpers": "1.8.2",
-        "esbuild": "0.28.1",
+        "esbuild": "0.28.2",
         "eslint": "^9.8.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-import": "2.32.0",
