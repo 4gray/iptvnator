@@ -575,10 +575,13 @@ function getClientOrigins(): string[] {
         return configured;
     }
 
+    // Production default matches the documented self-hosted setup
+    // (docker/docker-compose.yml maps the PWA to port 4333). The Docker image
+    // sets CLIENT_URL explicitly; this fallback only covers manual runs.
     return process.env['NODE_ENV'] === 'development' ||
         process.env['NODE_ENV'] === 'dev'
         ? ['http://localhost:4200']
-        : ['https://iptvnator.vercel.app'];
+        : ['http://localhost:4333'];
 }
 
 function getQueryString(req: Request, key: string): string | undefined {
