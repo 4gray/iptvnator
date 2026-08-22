@@ -212,21 +212,37 @@ function formatTextTrackLabel(
 
 /**
  * Variants are audio+video combinations; picking a quality must not switch
- * the spoken language, so only variants matching the active audio language
- * are selectable. Sorting (resolution, then bandwidth, descending) keeps the
- * ids deterministic across refreshes of the same track set.
+ * the audio track. Candidates are pinned to the active variant's exact
+ * `audioId` when Shaka reports one — two same-language audio tracks (main vs.
+ * commentary, stereo vs. 5.1) share a language but never an id — falling back
+ * to the language only when no id is available. Sorting (resolution, then
+ * bandwidth, descending) keeps the ids deterministic across refreshes of the
+ * same track set.
  */
 function listQualityCandidates(
     player: ShakaPlayerLike
 ): ShakaVariantTrackLike[] {
     const variants = player.getVariantTracks();
-    const activeLanguage = variants.find((track) => track.active)?.language;
-    const candidates = activeLanguage
-        ? variants.filter((track) => track.language === activeLanguage)
-        : [...variants];
+    const active = variants.find((track) => track.active);
+    const candidates = variants.filter((track) =>
+        sharesAudioStream(track, active)
+    );
     return candidates.sort(
         (a, b) =>
             (b.height ?? 0) - (a.height ?? 0) ||
             (b.bandwidth ?? 0) - (a.bandwidth ?? 0)
     );
+}
+
+function sharesAudioStream(
+    track: ShakaVariantTrackLike,
+    active: ShakaVariantTrackLike | undefined
+): boolean {
+    if (!active) {
+        return true;
+    }
+    if (typeof active.audioId === 'number') {
+        return track.audioId === active.audioId;
+    }
+    return track.language === active.language;
 }

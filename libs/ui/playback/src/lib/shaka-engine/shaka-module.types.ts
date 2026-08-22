@@ -30,6 +30,12 @@ export interface ShakaVariantTrackLike {
     height: number | null;
     width: number | null;
     bandwidth: number;
+    /**
+     * Identifies the exact audio stream inside the variant. Two same-language
+     * audio tracks (main vs. commentary, stereo vs. 5.1) have different ids,
+     * so quality filtering pins to it rather than to `language`.
+     */
+    audioId?: number | null;
 }
 
 export type { ShakaErrorLike } from '@iptvnator/playback/util';

@@ -118,6 +118,23 @@ describe('WebVideoShakaControls', () => {
 describe('WebVideoShakaControls quality levels', () => {
     const video = {} as HTMLVideoElement;
 
+    function makeVariant(overrides: {
+        id: number;
+        height: number;
+        bandwidth: number;
+        audioId?: number;
+        active?: boolean;
+        language?: string;
+    }) {
+        return {
+            active: false,
+            language: 'en',
+            label: null,
+            width: Math.round((overrides.height * 16) / 9),
+            ...overrides,
+        };
+    }
+
     function createHarness() {
         const environment = createFakeShakaEnvironment({
             onCreate: (player) => {
@@ -238,6 +255,43 @@ describe('WebVideoShakaControls quality levels', () => {
         expect(player.configureCalls.length).toBe(configureCountBefore);
         expect(player.selectVariantTrackCalls).toEqual([]);
         expect(controls.isAutoQualityEnabled()).toBe(true);
+    });
+
+    it('pins candidates to the active audio id, not just the language', async () => {
+        const { environment, session, controls } = createHarness();
+        controls.bind(session);
+        session.start(video, 'http://example.com/movie.mpd');
+        await flush();
+
+        // Same language twice: main (audioId 10, active) vs. commentary
+        // (audioId 20). Quality choices must never leak onto the commentary
+        // track's variants.
+        const player = environment.instances[0];
+        player.variantTracks = [
+            makeVariant({ id: 1, height: 720, bandwidth: 4e6, audioId: 10 }),
+            makeVariant({
+                id: 2,
+                height: 1080,
+                bandwidth: 8e6,
+                audioId: 10,
+                active: true,
+            }),
+            makeVariant({ id: 3, height: 720, bandwidth: 4e6, audioId: 20 }),
+            makeVariant({ id: 4, height: 1080, bandwidth: 8e6, audioId: 20 }),
+        ];
+
+        expect(controls.getQualityLevels()).toEqual([
+            { id: 0, label: '1080p', selected: false },
+            { id: 1, label: '720p', selected: false },
+        ]);
+
+        controls.setQualityLevel(1);
+        expect(player.selectVariantTrackCalls).toEqual([
+            {
+                track: expect.objectContaining({ id: 1, audioId: 10 }),
+                clearBuffer: true,
+            },
+        ]);
     });
 
     it('forgets a manual selection when the session restarts with a fresh player', async () => {

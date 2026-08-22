@@ -521,9 +521,13 @@ Engine mechanics:
   auto, and the selected level is read from the public `manualLevel`. The HLS
   refresh-event list additionally observes `MANIFEST_PARSED`,
   `LEVELS_UPDATED`, and `LEVEL_SWITCHED`.
-- **Shaka (DASH)**: options are variant tracks filtered to the active audio
-  language — variants are audio+video combinations, and picking a quality must
-  not switch the spoken language — sorted by resolution then bandwidth. Manual
+- **Shaka (DASH)**: options are variant tracks pinned to the active variant's
+  exact audio stream — variants are audio+video combinations, and picking a
+  quality must not switch the audio track. The filter matches the active
+  variant's `audioId` when Shaka reports one (two same-language audio tracks
+  such as main vs. commentary share a language but never an id) and falls back
+  to the language only when no id is available — sorted by resolution then
+  bandwidth. Manual
   selection disables ABR via `configure({abr: {enabled: false}})` before
   `selectVariantTrack(track, true)`; the auto sentinel re-enables ABR. Manual
   state is keyed to the exact player instance, so a session restart (which
