@@ -1,6 +1,7 @@
 import type { RecordingItem } from '@iptvnator/services';
 import {
     buildRecordingManagerViewModel,
+    recordingDurationLabel,
     recordingDurationSeconds,
 } from './recording-manager.viewmodel';
 
@@ -163,5 +164,16 @@ describe('buildRecordingManagerViewModel', () => {
             '2026-08-14T10:00:00Z',
             '2026-08-13T10:00:00Z',
         ]);
+    });
+
+    it('rounds duration minutes on the total before splitting hours', () => {
+        // 59:45 must read "1 h", never "60 min" — and 1:59:45 must read
+        // "2 h", never "1 h 60 min".
+        expect(recordingDurationLabel(59 * 60 + 45)).toBe('1 h');
+        expect(recordingDurationLabel(3600 + 59 * 60 + 45)).toBe('2 h');
+        expect(recordingDurationLabel(3600 + 5 * 60)).toBe('1 h 5 min');
+        expect(recordingDurationLabel(45)).toBe('1 min');
+        expect(recordingDurationLabel(0)).toBe('');
+        expect(recordingDurationLabel(null)).toBe('');
     });
 });

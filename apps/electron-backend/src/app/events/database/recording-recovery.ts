@@ -72,6 +72,14 @@ function isProcessAlive(pid: number): boolean {
  * instance can ever finalize it. When the name cannot be read the answer
  * stays `true` — never repair a row a live peer might still own.
  */
+/**
+ * Bound for each synchronous `ps`/`tasklist`/PowerShell spawn. The probes
+ * run on the main thread once per unique pid (memoized per pass), so a hung
+ * process query degrades to the conservative fallback instead of blocking
+ * startup indefinitely.
+ */
+const PROCESS_PROBE_TIMEOUT_MS = 2_000;
+
 function processLooksLikeOwnInstance(pid: number): boolean {
     try {
         const output =
@@ -79,10 +87,11 @@ function processLooksLikeOwnInstance(pid: number): boolean {
                 ? execFileSync(
                       'tasklist',
                       ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'],
-                      { encoding: 'utf8' }
+                      { encoding: 'utf8', timeout: PROCESS_PROBE_TIMEOUT_MS }
                   )
                 : execFileSync('ps', ['-p', String(pid), '-o', 'comm='], {
                       encoding: 'utf8',
+                      timeout: PROCESS_PROBE_TIMEOUT_MS,
                   });
         const name = output.trim().toLowerCase();
         if (!name) {
@@ -131,7 +140,7 @@ function processStartTimeMs(pid: number): number | null {
                     '-Command',
                     `(Get-Process -Id ${pid}).StartTime.ToUniversalTime().ToString('o')`,
                 ],
-                { encoding: 'utf8' }
+                { encoding: 'utf8', timeout: PROCESS_PROBE_TIMEOUT_MS }
             ).trim();
             const parsed = Date.parse(iso);
             return Number.isFinite(parsed) ? parsed : null;
@@ -139,7 +148,7 @@ function processStartTimeMs(pid: number): number | null {
         const etime = execFileSync(
             'ps',
             ['-p', String(pid), '-o', 'etime='],
-            { encoding: 'utf8' }
+            { encoding: 'utf8', timeout: PROCESS_PROBE_TIMEOUT_MS }
         ).trim();
         const elapsedSeconds = parseEtimeSeconds(etime);
         return elapsedSeconds === null
@@ -158,12 +167,14 @@ function processStartTimeMs(pid: number): number | null {
  * shield a recycled pid whose holder is younger than the recording.
  * Unreadable start times return false (conservative: keep the skip).
  */
-function provablyStartedAfter(pid: number, startedAt: string): boolean {
+function provablyStartedAfter(
+    processStartMs: number | null,
+    startedAt: string
+): boolean {
     const recordingStartMs = Date.parse(startedAt);
     if (!Number.isFinite(recordingStartMs)) {
         return false;
     }
-    const processStartMs = processStartTimeMs(pid);
     if (processStartMs === null) {
         return false;
     }
@@ -206,6 +217,26 @@ export async function reconcileStaleRecordings(): Promise<void> {
         // here cannot miss it.
         const liveRowIds = await embeddedMpvRecordingTracker.activeRowIds();
 
+        // Rows from one crashed instance share a pid: memoize the (bounded,
+        // synchronous) process probes so each unique pid costs at most one
+        // name query and one start-time query per pass.
+        const nameVerdicts = new Map<number, boolean>();
+        const startTimes = new Map<number, number | null>();
+        const looksLikeOwnInstance = (pid: number): boolean => {
+            let verdict = nameVerdicts.get(pid);
+            if (verdict === undefined) {
+                verdict = processLooksLikeOwnInstance(pid);
+                nameVerdicts.set(pid, verdict);
+            }
+            return verdict;
+        };
+        const startTimeOf = (pid: number): number | null => {
+            if (!startTimes.has(pid)) {
+                startTimes.set(pid, processStartTimeMs(pid));
+            }
+            return startTimes.get(pid) ?? null;
+        };
+
         const candidates = stale.filter((row) => {
             if (liveRowIds.has(row.id)) {
                 return false;
@@ -215,8 +246,11 @@ export async function reconcileStaleRecordings(): Promise<void> {
                 row.ownerPid !== undefined &&
                 row.ownerPid !== process.pid &&
                 isProcessAlive(row.ownerPid) &&
-                processLooksLikeOwnInstance(row.ownerPid) &&
-                !provablyStartedAfter(row.ownerPid, row.startedAt)
+                looksLikeOwnInstance(row.ownerPid) &&
+                !provablyStartedAfter(
+                    startTimeOf(row.ownerPid),
+                    row.startedAt
+                )
             );
         });
 

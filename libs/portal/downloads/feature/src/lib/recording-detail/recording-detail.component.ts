@@ -23,7 +23,10 @@ import { map } from 'rxjs';
 import { formatDownloadBytes } from '../download-queue.component';
 import type { RecordingItemActionType } from '../recording-actions';
 import { RecordingManagerActionsService } from '../recording-manager-actions.service';
-import { recordingDurationSeconds } from '../recording-manager.viewmodel';
+import {
+    recordingDurationLabel,
+    recordingDurationSeconds,
+} from '../recording-manager.viewmodel';
 
 /**
  * Focused detail for one live-TV recording
@@ -92,18 +95,9 @@ export class RecordingDetailComponent {
         const item = this.item();
         return item ? recordingDurationSeconds(item) : null;
     });
-    readonly durationLabel = computed(() => {
-        const total = this.durationSeconds();
-        if (total === null || total <= 0) {
-            return '';
-        }
-        const hours = Math.floor(total / 3600);
-        const minutes = Math.round((total % 3600) / 60);
-        if (hours > 0) {
-            return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`;
-        }
-        return `${Math.max(1, minutes)} min`;
-    });
+    readonly durationLabel = computed(() =>
+        recordingDurationLabel(this.durationSeconds())
+    );
     readonly sizeLabel = computed(() => {
         const bytes = this.item()?.fileSizeBytes;
         return bytes ? formatDownloadBytes(bytes) : '';

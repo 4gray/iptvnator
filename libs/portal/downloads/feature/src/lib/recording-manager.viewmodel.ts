@@ -48,6 +48,26 @@ export function recordingDurationSeconds(
     return Math.floor((ended - started) / 1000);
 }
 
+/**
+ * Shared "1 h 5 min" formatter for recording durations. Minutes are rounded
+ * on the TOTAL before splitting into hours, so a 59:45 recording reads
+ * "1 h", never "60 min" (or "1 h 60 min" an hour later).
+ */
+export function recordingDurationLabel(
+    totalSeconds: number | null
+): string {
+    if (totalSeconds === null || totalSeconds <= 0) {
+        return '';
+    }
+    const totalMinutes = Math.round(totalSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) {
+        return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`;
+    }
+    return `${Math.max(1, minutes)} min`;
+}
+
 function isPlayableStatus(item: RecordingItem): boolean {
     return item.status === 'completed' || item.status === 'interrupted';
 }

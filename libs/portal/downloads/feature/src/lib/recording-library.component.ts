@@ -16,7 +16,10 @@ import type {
     RecordingItemAction,
     RecordingItemActionType,
 } from './recording-actions';
-import type { RecordingRowViewModel } from './recording-manager.viewmodel';
+import {
+    recordingDurationLabel,
+    type RecordingRowViewModel,
+} from './recording-manager.viewmodel';
 
 /**
  * "Recordings" library section: 16:9 channel-logo cards in the manager's
@@ -61,16 +64,7 @@ export class RecordingLibraryComponent {
     }
 
     durationLabel(row: RecordingRowViewModel): string {
-        const total = row.durationSeconds;
-        if (total === null || total <= 0) {
-            return '';
-        }
-        const hours = Math.floor(total / 3600);
-        const minutes = Math.round((total % 3600) / 60);
-        if (hours > 0) {
-            return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`;
-        }
-        return `${Math.max(1, minutes)} min`;
+        return recordingDurationLabel(row.durationSeconds);
     }
 
     formatBytes(bytes: number | undefined): string {
