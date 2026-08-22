@@ -129,7 +129,7 @@
     },
     "devDependencies": {
         "@angular-devkit/core": "21.2.19",
-        "@angular-devkit/schematics": "21.2.19",
+        "@angular-devkit/schematics": "21.2.21",
         "@angular-eslint/builder": "21.3.1",
         "@angular-eslint/eslint-plugin": "21.3.1",
         "@angular-eslint/eslint-plugin-template": "21.3.1",
