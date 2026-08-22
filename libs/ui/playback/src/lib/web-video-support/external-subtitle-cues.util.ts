@@ -39,6 +39,49 @@ export function detectExternalSubtitleFormat(
     return null;
 }
 
+/**
+ * Decodes a picked subtitle file's bytes. `Blob.text()` is strictly UTF-8 with
+ * silent U+FFFD substitution, which turns the still-common legacy-encoded SRT
+ * files (Windows-1251 Cyrillic, Windows-1252 Western European) and Windows'
+ * UTF-16 saves into mojibake that parses "successfully". Best-effort order:
+ * UTF-16 BOMs, then strict UTF-8, then a single-byte fallback chosen by how
+ * much of the text is non-ASCII — a non-Latin script (Cyrillic) makes high
+ * bytes dominate, while Latin text with accents stays mostly ASCII.
+ */
+export function decodeExternalSubtitleBytes(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length >= 2) {
+        if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+            return new TextDecoder('utf-16le').decode(buffer);
+        }
+        if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+            return new TextDecoder('utf-16be').decode(buffer);
+        }
+    }
+    try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+    } catch {
+        // Not valid UTF-8: a legacy single-byte encoding.
+    }
+
+    let highBytes = 0;
+    for (const byte of bytes) {
+        if (byte >= 0x80) {
+            highBytes += 1;
+        }
+    }
+    const encoding =
+        highBytes / Math.max(1, bytes.length) > 0.15
+            ? 'windows-1251'
+            : 'windows-1252';
+    try {
+        return new TextDecoder(encoding).decode(buffer);
+    } catch {
+        // Runtime without legacy decoders: non-fatal UTF-8 is the last resort.
+        return new TextDecoder().decode(buffer);
+    }
+}
+
 // SRT uses "00:00:01,500"; VTT uses "00:00:01.500" and allows a missing hour
 // part ("01:23.456"). One pattern covers both.
 const TIMESTAMP_PATTERN =

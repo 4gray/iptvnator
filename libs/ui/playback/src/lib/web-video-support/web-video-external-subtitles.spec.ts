@@ -121,9 +121,11 @@ describe('WebVideoExternalSubtitles', () => {
             [12.5, 14.5],
         ]);
 
-        // Negative delay clamps a cue start at zero without inverting it.
+        // Negative delay keeps real cue times: negative values are legal and
+        // simply never active. Clamping to [0, ~0] would stack every pre-roll
+        // cue simultaneously at t=0.
         session.setDelay(-2);
-        expect(track.added[0].startTime).toBe(0);
+        expect(track.added[0].startTime).toBe(-1);
         expect(track.added[0].endTime).toBe(1);
 
         session.setDelay(0);
@@ -162,6 +164,60 @@ describe('WebVideoExternalSubtitles', () => {
         expect(track.added).toHaveLength(0);
         expect(session.hasTracks()).toBe(false);
         expect(session.getDelay()).toBe(0);
+        // addTextTrack tracks cannot leave the element: ownership must
+        // survive clear() so the native enumeration keeps excluding them
+        // instead of listing ghost tracks on the next source.
+        expect(session.ownsTrack(track as unknown as TextTrack)).toBe(true);
+    });
+
+    it('keeps the external track showing when engine deselect disables all tracks (hls.js)', () => {
+        // hls.js reacts to `subtitleTrack = -1` by disabling every
+        // subtitle-kind TextTrack on the element. select() must deselect the
+        // engine BEFORE setting its own modes so its writes win.
+        deselectEngineSubtitles.mockImplementation(() => {
+            for (const result of video.addTextTrack.mock.results) {
+                (result.value as FakeTextTrack).mode = 'disabled';
+            }
+        });
+
+        expect(session.addFromFile(SRT_FILE)).toBe(true);
+        expect(lastTrack().mode).toBe('showing');
+    });
+
+    it('reports selection separately from loaded files', () => {
+        session.addFromFile(SRT_FILE);
+        expect(session.hasTracks()).toBe(true);
+        expect(session.hasSelectedTrack()).toBe(true);
+
+        session.deselectAll();
+        expect(session.hasTracks()).toBe(true);
+        expect(session.hasSelectedTrack()).toBe(false);
+    });
+
+    it('silences and retains ownership of a track whose attach fails mid-file', () => {
+        const failingTrack = new FakeTextTrack('broken.srt');
+        let added = 0;
+        failingTrack.addCue = (cue: FakeVTTCue) => {
+            added += 1;
+            if (added > 1) {
+                throw new Error('addCue rejected');
+            }
+            failingTrack.added.push(cue);
+        };
+        video.addTextTrack.mockReturnValueOnce(failingTrack);
+
+        expect(
+            session.addFromFile({ ...SRT_FILE, name: 'broken.srt' })
+        ).toBe(false);
+
+        expect(session.hasTracks()).toBe(false);
+        // The half-populated track is silenced, emptied, and stays owned so
+        // the native enumeration cannot surface it as a phantom engine track.
+        expect(failingTrack.mode).toBe('disabled');
+        expect(failingTrack.added).toHaveLength(0);
+        expect(
+            session.ownsTrack(failingTrack as unknown as TextTrack)
+        ).toBe(true);
     });
 
     it('fails closed when the runtime lacks addTextTrack or VTTCue', () => {

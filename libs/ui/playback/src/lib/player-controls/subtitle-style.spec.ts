@@ -95,5 +95,10 @@ describe('subtitle-style', () => {
             expect(subtitleDelayLabel(0.5)).toBe('+0.5 s');
             expect(subtitleDelayLabel(-1.5)).toBe('−1.5 s');
         });
+
+        it('never shows a signed negative zero for sub-tenth values', () => {
+            expect(subtitleDelayLabel(0.02)).toBe('0 s');
+            expect(subtitleDelayLabel(-0.04)).toBe('0 s');
+        });
     });
 });

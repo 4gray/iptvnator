@@ -99,8 +99,15 @@ export class WebVideoSourceControlsBridge {
     }
 
     private pickExternalSubtitle(): void {
+        // The picker is modal-slow: the stream can change (Up Next, zapping,
+        // failover) before the user confirms. A pick made for one source must
+        // never attach to its successor.
+        const generation = this.tracks.getSourceGeneration();
         pickExternalSubtitleFile(this.config.video.ownerDocument, (file) => {
-            if (this.destroyed) {
+            if (
+                this.destroyed ||
+                this.tracks.getSourceGeneration() !== generation
+            ) {
                 return;
             }
             this.tracks.addExternalSubtitleFile(file);

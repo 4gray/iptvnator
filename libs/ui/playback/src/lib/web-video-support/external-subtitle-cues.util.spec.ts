@@ -1,4 +1,5 @@
 import {
+    decodeExternalSubtitleBytes,
     detectExternalSubtitleFormat,
     parseExternalSubtitleCues,
 } from './external-subtitle-cues.util';
@@ -15,6 +16,54 @@ describe('external-subtitle-cues.util', () => {
             expect(detectExternalSubtitleFormat('movie.ass')).toBeNull();
             expect(detectExternalSubtitleFormat('movie.sub')).toBeNull();
             expect(detectExternalSubtitleFormat('movie')).toBeNull();
+        });
+    });
+
+    describe('decodeExternalSubtitleBytes', () => {
+        const toBuffer = (bytes: number[]): ArrayBuffer =>
+            Uint8Array.from(bytes).buffer;
+
+        it('decodes valid UTF-8 as-is', () => {
+            const utf8 = new TextEncoder().encode('Привет\nmonde');
+            expect(decodeExternalSubtitleBytes(utf8.buffer)).toBe(
+                'Привет\nmonde'
+            );
+        });
+
+        it('decodes Cyrillic Windows-1251 bytes (high-byte-heavy text)', () => {
+            // "Привет мир" in CP1251: every letter is a high byte.
+            const cp1251 = [
+                0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2, 0x20, 0xec, 0xe8, 0xf0,
+            ];
+            expect(decodeExternalSubtitleBytes(toBuffer(cp1251))).toBe(
+                'Привет мир'
+            );
+        });
+
+        it('decodes mostly-ASCII Windows-1252 bytes (sparse accents)', () => {
+            // "resume: cafe" with two accented letters among ASCII.
+            const cp1252 = [
+                ...Array.from('r').map((c) => c.charCodeAt(0)),
+                0xe9, // é
+                ...Array.from('sum').map((c) => c.charCodeAt(0)),
+                0xe9, // é
+                ...Array.from(': cafe and plain ascii words').map((c) =>
+                    c.charCodeAt(0)
+                ),
+            ];
+            expect(decodeExternalSubtitleBytes(toBuffer(cp1252))).toBe(
+                'résumé: cafe and plain ascii words'
+            );
+        });
+
+        it('honors a UTF-16LE byte-order mark', () => {
+            const text = '1\n00:00:01,000';
+            const bytes: number[] = [0xff, 0xfe];
+            for (const char of text) {
+                const code = char.charCodeAt(0);
+                bytes.push(code & 0xff, code >> 8);
+            }
+            expect(decodeExternalSubtitleBytes(toBuffer(bytes))).toBe(text);
         });
     });
 

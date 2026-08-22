@@ -618,23 +618,44 @@ as the shared `volume` key, and is normalized/clamped on every read and write.
 The delay and any loaded file are deliberately per-session/per-source — they
 correct one specific stream.
 
+The canonical `PlayerSubtitleStyle` shape and the clamp/normalize rules
+(delay limit, size bounds, color validation) live in
+`@iptvnator/shared/interfaces` (`subtitle-style.util.ts`). The renderer
+applies them to user input and the Electron main process re-applies the exact
+same implementation to untrusted IPC payloads — deliberate defense-in-depth
+with a single source of truth, so widening a limit on one side cannot
+silently re-clamp on the other.
+
 Per-engine implementations:
 
 - **HTML5 + ArtPlayer (shared-controls mode, neutral source bridge).** The
   picker is a renderer-side DOM file input (`.srt`/`.vtt` only; works in the
-  PWA and Electron alike, and no filesystem path ever enters the app).
-  `WebVideoExternalSubtitles` parses the file
-  (`external-subtitle-cues.util.ts`) and renders it through a native
+  PWA and Electron alike, and no filesystem path ever enters the app). File
+  bytes are decoded encoding-aware (`decodeExternalSubtitleBytes`: UTF-16
+  BOMs, strict UTF-8, then a Windows-1251/1252 heuristic keyed on high-byte
+  density), because `Blob.text()`'s silent UTF-8 substitution turns common
+  legacy-encoded SRT files into mojibake. `WebVideoExternalSubtitles` parses
+  the file (`external-subtitle-cues.util.ts`) and renders it through a native
   `TextTrack` on the video element, so it works under every source kind. The
-  native track enumeration excludes externally owned tracks, and
-  `WebVideoSourceTracks` merges them into the subtitle listing with IDs from
-  100000 up, routing selection so exactly one owner (engine or external) is
-  active. The delay capability is runtime-gated on a loaded file: only owned
-  cues can be re-timed exactly, while engine/stream cues arrive incrementally
-  and are left untouched. Style applies through a scoped `::cue` rule
-  (`WebVideoSubtitleStyle`), which covers embedded, hls.js-managed, and
-  external native cues. ASS rendering would need libass and is out of scope
-  for the web engines.
+  native track enumeration excludes externally owned tracks — ownership is
+  tracked for every track the session EVER created, because `addTextTrack`
+  tracks cannot leave the element and per-source ownership would let stale or
+  attach-failed tracks reappear as ghost engine tracks. `WebVideoSourceTracks`
+  merges external tracks into the subtitle listing with IDs from 100000 up,
+  routing selection so exactly one owner (engine or external) is active;
+  external selection deselects the engine BEFORE setting track modes, since
+  hls.js reacts to `subtitleTrack = -1` by disabling every subtitle-kind
+  `TextTrack` on the element. A pick captures the source generation and is
+  discarded if the stream changed while the dialog was open (mirroring the
+  Embedded MPV runner's session recheck). The delay capability is
+  runtime-gated on an external track being the SELECTED one — only owned cues
+  can be re-timed exactly, and with an engine track active the row would be
+  enabled yet visually inert. Negatively shifted cues keep their real
+  (possibly negative) times, which are valid and simply never active;
+  clamping them to t≈0 would stack every pre-roll cue at playback start.
+  Style applies through a scoped `::cue` rule (`WebVideoSubtitleStyle`),
+  which covers embedded, hls.js-managed, and external native cues. ASS
+  rendering would need libass and is out of scope for the web engines.
 - **Embedded MPV frame-copy.** The helper protocol gained `sub-add`,
   `sub-delay`, `sub-scale`, and `sub-color` commands. The picker is a
   main-process open dialog (`.srt/.ass/.ssa/.vtt/.sub` — mpv renders ASS

@@ -1,3 +1,5 @@
+import type { PlayerSubtitleStyle } from './subtitle-style.util';
+
 export type EmbeddedMpvSessionStatus =
     | 'idle'
     | 'loading'
@@ -29,14 +31,12 @@ export interface EmbeddedMpvCapabilities {
 }
 
 /**
- * Engine-neutral subtitle presentation preferences forwarded to mpv.
- * `sizePercent` maps to `sub-scale` (100 = 1.0); `color` maps to `sub-color`,
- * null restores mpv's default.
+ * Subtitle presentation preferences forwarded to mpv: `sizePercent` maps to
+ * `sub-scale` (100 = 1.0); `color` maps to `sub-color`, null restores mpv's
+ * default. Alias of the canonical shared shape so the renderer controls and
+ * the IPC contract cannot drift structurally.
  */
-export interface EmbeddedMpvSubtitleStyle {
-    sizePercent: number;
-    color: string | null;
-}
+export type EmbeddedMpvSubtitleStyle = PlayerSubtitleStyle;
 
 export type EmbeddedMpvEngine = 'native' | 'frame-copy';
 

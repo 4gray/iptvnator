@@ -1,4 +1,5 @@
 import type { Signal } from '@angular/core';
+import type { PlayerSubtitleStyle } from '@iptvnator/shared/interfaces';
 
 export type PlayerStatus =
     | 'idle'
@@ -28,15 +29,9 @@ export interface PlayerControlsCapabilities {
     seriesNavigation: boolean;
 }
 
-/**
- * Engine-neutral subtitle presentation preferences. `sizePercent` is relative
- * to the engine's default rendering size (100 = default); `color` is a CSS hex
- * color or null for the engine default.
- */
-export interface PlayerSubtitleStyle {
-    sizePercent: number;
-    color: string | null;
-}
+// Canonical shape lives in @iptvnator/shared/interfaces so the Electron main
+// process validates IPC payloads against the identical contract.
+export type { PlayerSubtitleStyle };
 
 export interface PlayerTrack {
     id: number;

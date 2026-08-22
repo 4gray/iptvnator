@@ -45,6 +45,7 @@ export class WebVideoSourceTracks {
     private readonly nativeTextTracks: WebVideoNativeTextTracks;
     private readonly externalSubtitles: WebVideoExternalSubtitles;
     private source: WebVideoControlsSource | null = null;
+    private sourceGeneration = 0;
     private playbackStarted = false;
     private playingListener: (() => void) | null = null;
     private destroyed = false;
@@ -90,11 +91,21 @@ export class WebVideoSourceTracks {
         return this.source?.kind ?? null;
     }
 
+    /**
+     * Changes whenever the bound source changes. Asynchronous work started
+     * against one source (the external subtitle file picker) captures this and
+     * bails when it no longer matches, so a pick cannot land on a later stream.
+     */
+    getSourceGeneration(): number {
+        return this.sourceGeneration;
+    }
+
     setSource(source: WebVideoControlsSource): void {
         if (this.destroyed) {
             return;
         }
 
+        this.sourceGeneration += 1;
         this.clearActiveSource();
         this.source = source;
         // A new source starts unsettled so its own defaults are seeded again.
@@ -127,6 +138,7 @@ export class WebVideoSourceTracks {
             return;
         }
 
+        this.sourceGeneration += 1;
         this.clearActiveSource();
         this.source = null;
     }
@@ -197,9 +209,13 @@ export class WebVideoSourceTracks {
         this.externalSubtitles.setDelay(seconds);
     }
 
-    /** Delay applies to owned external cues only, so it needs a loaded file. */
+    /**
+     * Delay re-times owned external cues only, so the UI is offered exactly
+     * while an external track is the one rendering — with an engine track
+     * selected the row would be enabled yet visually inert.
+     */
     canAdjustSubtitleDelay(): boolean {
-        return this.externalSubtitles.hasTracks();
+        return this.externalSubtitles.hasSelectedTrack();
     }
 
     private getEngineSubtitleTracks(): PlayerTrack[] {

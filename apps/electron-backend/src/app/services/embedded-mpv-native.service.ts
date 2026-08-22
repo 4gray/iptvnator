@@ -27,6 +27,8 @@ import {
     EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
+    clampSubtitleDelay,
+    normalizeSubtitleStyle,
 } from '@iptvnator/shared/interfaces';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
@@ -598,10 +600,9 @@ export class EmbeddedMpvNativeService {
                 'Embedded MPV addon does not support subtitle delay. Rebuild the native addon to enable this feature.'
             );
         }
-        const clamped = Number.isFinite(seconds)
-            ? Math.max(-60, Math.min(60, seconds))
-            : 0;
-        addon.setSubtitleDelay(sessionId, clamped);
+        // Same rules as the renderer, same implementation: the shared helper
+        // is the one place the limits are defined.
+        addon.setSubtitleDelay(sessionId, clampSubtitleDelay(seconds));
         return this.refreshSession(sessionId);
     }
 
@@ -616,17 +617,8 @@ export class EmbeddedMpvNativeService {
                 'Embedded MPV addon does not support subtitle styling. Rebuild the native addon to enable this feature.'
             );
         }
-        const sizePercent =
-            typeof style?.sizePercent === 'number' &&
-            Number.isFinite(style.sizePercent)
-                ? Math.max(25, Math.min(400, Math.round(style.sizePercent)))
-                : 100;
-        const color =
-            typeof style?.color === 'string' &&
-            /^#[0-9a-f]{6}$/i.test(style.color)
-                ? style.color
-                : null;
-        addon.setSubtitleStyle(sessionId, { sizePercent, color });
+        // Re-validate untrusted IPC input with the exact renderer rules.
+        addon.setSubtitleStyle(sessionId, normalizeSubtitleStyle(style));
         return this.refreshSession(sessionId);
     }
 

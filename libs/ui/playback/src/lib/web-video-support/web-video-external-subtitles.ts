@@ -4,6 +4,7 @@ import {
     type ExternalSubtitleFile,
     type ParsedSubtitleCue,
     WEB_SUBTITLE_FILE_EXTENSIONS,
+    decodeExternalSubtitleBytes,
     detectExternalSubtitleFormat,
     parseExternalSubtitleCues,
 } from './external-subtitle-cues.util';
@@ -43,6 +44,13 @@ export class WebVideoExternalSubtitles {
     private entries: ExternalSubtitleEntry[] = [];
     private delaySeconds = 0;
     private nextId = EXTERNAL_SUBTITLE_TRACK_ID_BASE;
+    /**
+     * Every TextTrack this session ever created. `addTextTrack` tracks cannot
+     * be removed from the element, so ownership must outlive `clear()` — a
+     * dropped-per-source set would let stale (or attach-failed) tracks
+     * reappear in the native enumeration as ghost engine tracks.
+     */
+    private readonly createdTracks = new Set<TextTrack>();
 
     constructor(private readonly config: WebVideoExternalSubtitlesConfig) {}
 
@@ -50,8 +58,13 @@ export class WebVideoExternalSubtitles {
         return this.entries.length > 0;
     }
 
+    /** True while an external track is the one actually rendering. */
+    hasSelectedTrack(): boolean {
+        return this.entries.some((entry) => entry.track?.mode === 'showing');
+    }
+
     ownsTrack(track: TextTrack): boolean {
-        return this.entries.some((entry) => entry.track === track);
+        return this.createdTracks.has(track);
     }
 
     ownsTrackId(id: number): boolean {
@@ -94,12 +107,15 @@ export class WebVideoExternalSubtitles {
         if (!this.ownsTrackId(id)) {
             return;
         }
+        // Deselect the engine FIRST: hls.js reacts to `subtitleTrack = -1` by
+        // disabling every subtitle-kind TextTrack on the element, which would
+        // immediately undo a mode we had already set.
+        this.config.deselectEngineSubtitles();
         for (const entry of this.entries) {
             if (entry.track) {
                 entry.track.mode = entry.id === id ? 'showing' : 'hidden';
             }
         }
-        this.config.deselectEngineSubtitles();
         this.config.refresh();
     }
 
@@ -151,8 +167,11 @@ export class WebVideoExternalSubtitles {
 
         try {
             const track = video.addTextTrack('subtitles', entry.label);
+            this.createdTracks.add(track);
             entry.track = track;
-            entry.trackCues = entry.cues.map((cue) => {
+            // Push incrementally so the catch below can remove exactly the
+            // cues that made it onto the track before a mid-loop failure.
+            for (const cue of entry.cues) {
                 const shifted = this.shiftCueTimes(cue);
                 const vttCue = new CueCtor(
                     shifted.startSeconds,
@@ -160,10 +179,14 @@ export class WebVideoExternalSubtitles {
                     cue.text
                 );
                 track.addCue(vttCue);
-                return vttCue;
-            });
+                entry.trackCues.push(vttCue);
+            }
             return true;
         } catch {
+            // A mid-loop failure leaves an unremovable track on the element:
+            // silence it so the half-populated cue set can never render. It
+            // stays in `createdTracks`, so the enumeration keeps excluding it.
+            this.detachEntry(entry);
             return false;
         }
     }
@@ -197,12 +220,13 @@ export class WebVideoExternalSubtitles {
         startSeconds: number;
         endSeconds: number;
     } {
-        const startSeconds = Math.max(0, cue.startSeconds + this.delaySeconds);
-        const endSeconds = Math.max(
-            startSeconds + 0.001,
-            cue.endSeconds + this.delaySeconds
-        );
-        return { startSeconds, endSeconds };
+        // No clamping: negative cue times are valid VTTCue values that are
+        // simply never active. Clamping early cues to [0, ~0] would stack
+        // every pre-roll cue simultaneously at t=0 under a negative delay.
+        return {
+            startSeconds: cue.startSeconds + this.delaySeconds,
+            endSeconds: cue.endSeconds + this.delaySeconds,
+        };
     }
 }
 
@@ -227,8 +251,15 @@ export function pickExternalSubtitleFile(
         if (!format) {
             return;
         }
-        void file.text().then(
-            (content) => onPicked({ name: file.name, format, content }),
+        // Raw bytes, not file.text(): legacy encodings (CP1251/1252, UTF-16)
+        // are still common for downloaded subtitles and need detection.
+        void file.arrayBuffer().then(
+            (buffer) =>
+                onPicked({
+                    name: file.name,
+                    format,
+                    content: decodeExternalSubtitleBytes(buffer),
+                }),
             () => undefined
         );
     });
