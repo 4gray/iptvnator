@@ -1,6 +1,8 @@
 const mockGetDatabase = jest.fn();
 const mockStatSync = jest.fn();
 const mockActiveRowIds = jest.fn();
+const mockExecFileSync = jest.fn();
+const mockBroadcast = jest.fn();
 
 jest.mock('../../database/connection', () => ({
     getDatabase: (...args: unknown[]) => mockGetDatabase(...args),
@@ -9,10 +11,17 @@ jest.mock('fs', () => ({
     ...jest.requireActual<typeof import('fs')>('fs'),
     statSync: (...args: unknown[]) => mockStatSync(...args),
 }));
+jest.mock('child_process', () => ({
+    ...jest.requireActual<typeof import('child_process')>('child_process'),
+    execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
+}));
 jest.mock('../../services/embedded-mpv-recording-tracker', () => ({
     embeddedMpvRecordingTracker: {
         activeRowIds: (...args: unknown[]) => mockActiveRowIds(...args),
     },
+}));
+jest.mock('./recording-broadcast', () => ({
+    broadcastRecordingsUpdate: (...args: unknown[]) => mockBroadcast(...args),
 }));
 
 import { reconcileStaleRecordings } from './recording-recovery';
@@ -48,6 +57,9 @@ describe('reconcileStaleRecordings', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockActiveRowIds.mockResolvedValue(new Set<number>());
+        // A live peer pid resolves to an IPTVnator-looking process name
+        // unless a test says otherwise.
+        mockExecFileSync.mockReturnValue('iptvnator');
     });
 
     it('repairs a playable partial as interrupted with its size', async () => {
@@ -115,7 +127,75 @@ describe('reconcileStaleRecordings', () => {
 
         expect(killSpy).toHaveBeenCalledWith(4242, 0);
         expect(updateSet).not.toHaveBeenCalled();
+        expect(mockBroadcast).not.toHaveBeenCalled();
         killSpy.mockRestore();
+    });
+
+    it('repairs a row whose pid was recycled by an unrelated process', async () => {
+        // kill(pid, 0) alone would report the recycled pid as a live peer
+        // forever; the process-name check breaks that deadlock.
+        const { updateSet } = mockDb([
+            {
+                id: 1,
+                filePath: '/rec/stale.ts',
+                endedAt: null,
+                ownerPid: 4242,
+            },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+        const killSpy = jest
+            .spyOn(process, 'kill')
+            .mockImplementation(() => true);
+        mockExecFileSync.mockReturnValue('postgres');
+
+        await reconcileStaleRecordings();
+
+        expect(updateSet.mock.calls[0][0].status).toBe('interrupted');
+        killSpy.mockRestore();
+    });
+
+    it('keeps skipping when the peer process name cannot be read', async () => {
+        // Conservative fallback: never repair a row a live peer might own.
+        const { updateSet } = mockDb([
+            {
+                id: 1,
+                filePath: '/rec/live.ts',
+                endedAt: null,
+                ownerPid: 4242,
+            },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+        const killSpy = jest
+            .spyOn(process, 'kill')
+            .mockImplementation(() => true);
+        mockExecFileSync.mockImplementation(() => {
+            throw new Error('ps unavailable');
+        });
+
+        await reconcileStaleRecordings();
+
+        expect(updateSet).not.toHaveBeenCalled();
+        killSpy.mockRestore();
+    });
+
+    it('broadcasts once after repairing rows so a loaded renderer refetches', async () => {
+        mockDb([
+            { id: 1, filePath: '/rec/a.ts', endedAt: null },
+            { id: 2, filePath: '/rec/b.ts', endedAt: null },
+        ]);
+        mockStatSync.mockReturnValue({ isFile: () => true, size: 2048 });
+
+        await reconcileStaleRecordings();
+
+        expect(mockBroadcast).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not broadcast when nothing needed repair', async () => {
+        mockDb([]);
+
+        await reconcileStaleRecordings();
+
+        expect(mockBroadcast).not.toHaveBeenCalled();
     });
 
     it('repairs rows whose owner process is gone', async () => {
