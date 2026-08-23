@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Ścieżki audio",
             "SUBTITLES": "Napisy",
             "SUBTITLES_OFF": "Wyłączone",
+            "QUALITY": "Jakość",
+            "QUALITY_AUTO": "Automatycznie",
             "TRACK_DEFAULT": "Domyślna",
             "AUDIO_TRACK_FALLBACK": "Audio {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Napisy {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "Niepowodzenie",
             "CANCELED": "Anulowane",
             "PAUSED": "Wstrzymane",
-            "FILE_MISSING": "Brak pliku"
+            "FILE_MISSING": "Brak pliku",
+            "RECORDING": "Nagrywanie",
+            "INTERRUPTED": "Przerwane"
         },
         "ACTIVE_COUNT": "{{count}} aktywnych",
         "TRACKED_DOWNLOADS": "Śledzone pobrania",
@@ -1220,7 +1224,22 @@
             "ALL": "Wszystkie",
             "MOVIES": "Filmy",
             "SERIES": "Seriale",
-            "IN_PROGRESS": "W toku"
+            "IN_PROGRESS": "W toku",
+            "RECORDINGS": "Nagrania"
+        },
+        "RECORDING_NOW": "Trwa nagrywanie",
+        "RECORDINGS": "Nagrania",
+        "RECORDING_BADGE": "Nagrywanie",
+        "STOP_RECORDING": "Zatrzymaj nagrywanie",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Usunąć nagranie z menedżera?",
+            "MESSAGE": "Spowoduje to usunięcie wpisu z IPTVnator. Nagrany plik pozostanie na dysku."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Nagrane programy",
+            "RECORDED_FROM": "Nagrano z {{playlist}}",
+            "MISSING_BODY": "Plik nagrania nie znajduje się już na dysku. Transmisji na żywo nie można nagrać ponownie, ale wpis można usunąć z menedżera.",
+            "FAILED_BODY": "To nagrywanie nie powiodło się i nie powstał plik możliwy do odtworzenia."
         },
         "REMOVE_FROM_MANAGER": "Usuń z menedżera pobierania",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "Kolejność serwera",
         "CATEGORY_SORT_ARIA": "Sortuj kategorie",
         "DASHBOARD": {
+            "ACTION_FAILED": "Nie udało się wykonać akcji. Spróbuj ponownie.",
             "CONTINUE_WATCHING": "Kontynuuj oglądanie",
             "LIVE_FAVORITES": "Na żywo w Twoich ulubionych",
             "LIVE_RECENT": "Kontynuuj oglądanie na żywo",

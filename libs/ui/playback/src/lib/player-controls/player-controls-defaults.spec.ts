@@ -11,4 +11,12 @@ describe('player-controls defaults', () => {
             canPictureInPicture: false,
         });
     });
+
+    it('defaults quality selection to unsupported with auto enabled', () => {
+        expect(DEFAULT_PLAYER_CAPABILITIES.qualityLevels).toBe(false);
+        expect(createEmptyControlsState()).toMatchObject({
+            qualityLevels: [],
+            qualityAutoEnabled: true,
+        });
+    });
 });

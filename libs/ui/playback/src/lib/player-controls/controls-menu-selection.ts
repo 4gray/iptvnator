@@ -2,7 +2,7 @@ import type { ControlsMenuState } from './controls-menu-state';
 import type { ControlsVisibility } from './controls-visibility';
 import type { PlayerControlsCommands } from './player-controls.model';
 
-type MenuKey = 'audio' | 'subtitle' | 'speed' | 'aspect';
+type MenuKey = 'audio' | 'subtitle' | 'quality' | 'speed' | 'aspect';
 
 export interface MenuSelectionDeps {
     commands: () => PlayerControlsCommands;
@@ -35,6 +35,10 @@ export class ControlsMenuSelection {
     /** Opens the engine's subtitle file picker and closes the popover. */
     externalSubtitle(): void {
         this.apply('subtitle', (c) => c.addExternalSubtitleFile());
+    }
+
+    qualityLevel(levelId: number): void {
+        this.apply('quality', (c) => c.setQualityLevel(levelId));
     }
 
     speed(value: number): void {

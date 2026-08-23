@@ -1,5 +1,9 @@
 import { Component, input, output } from '@angular/core';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
+import type {
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Player stand-ins for WebPlayerViewComponent specs. They mirror the real
@@ -74,9 +78,11 @@ export class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
     readonly mediaTitle = input<unknown>(null);
     readonly recordingFolder = input('');
+    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
+    readonly recordingStopped = output<RecordingStoppedEvent>();
 }

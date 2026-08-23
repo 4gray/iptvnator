@@ -52,6 +52,9 @@ export class WebVideoSourceControlsBridge {
             canAdjustSubtitleDelay: () => this.tracks.canAdjustSubtitleDelay(),
             getSubtitleStyle: () => this.subtitleStyle.current(),
             setSubtitleStyle: (style) => this.subtitleStyle.set(style),
+            getQualityLevels: () => this.tracks.getQualityLevels(),
+            setQualityLevel: (id) => this.tracks.setQualityLevel(id),
+            isAutoQualityEnabled: () => this.tracks.isAutoQualityEnabled(),
         });
         this.attached = true;
     }

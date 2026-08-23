@@ -177,6 +177,35 @@ export class WebVideoSourceTracks {
         }
     }
 
+    getQualityLevels(): PlayerTrack[] {
+        if (this.source?.kind === 'hls') {
+            return this.hlsControls.getQualityLevels();
+        }
+        if (this.source?.kind === 'shaka') {
+            return this.shakaControls.getQualityLevels();
+        }
+        // Native and raw MPEG-TS sources carry a single video rendition.
+        return [];
+    }
+
+    setQualityLevel(id: number): void {
+        if (this.source?.kind === 'hls') {
+            this.hlsControls.setQualityLevel(id);
+        } else if (this.source?.kind === 'shaka') {
+            this.shakaControls.setQualityLevel(id);
+        }
+    }
+
+    isAutoQualityEnabled(): boolean {
+        if (this.source?.kind === 'hls') {
+            return this.hlsControls.isAutoQualityEnabled();
+        }
+        if (this.source?.kind === 'shaka') {
+            return this.shakaControls.isAutoQualityEnabled();
+        }
+        return true;
+    }
+
     getSubtitleTracks(): PlayerTrack[] {
         // The native enumeration excludes external tracks, so appending them
         // here is collision-free for every source kind.

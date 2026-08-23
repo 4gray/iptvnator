@@ -1,0 +1,279 @@
+:host {
+    display: block;
+    container-type: inline-size;
+}
+
+.recording-queue {
+    & + & {
+        margin-top: 20px;
+    }
+
+    // Mirrors .download-queue__heading (dashboard rail title contract).
+    &__heading {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0 0 10px;
+        padding: 0 2px;
+        color: var(--app-heading-color, var(--mat-sys-on-surface));
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.012em;
+        line-height: 1.2;
+    }
+
+    &__list {
+        display: grid;
+        overflow: hidden;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--app-separator, var(--mat-sys-outline-variant)) 78%,
+                transparent
+            );
+        border-radius: 14px;
+        background: var(--mat-sys-surface-container-low);
+    }
+
+    &__item {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        padding: 12px 14px;
+
+        & + & {
+            border-top: 1px solid
+                color-mix(
+                    in srgb,
+                    var(--app-separator, var(--mat-sys-outline-variant)) 64%,
+                    transparent
+                );
+        }
+
+        &--pending {
+            cursor: progress;
+
+            .recording-queue__artwork,
+            .recording-queue__actions {
+                opacity: 0.68;
+            }
+        }
+
+        &--attention {
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-tertiary-container) 18%,
+                var(--mat-sys-surface-container-low)
+            );
+
+            .recording-queue__artwork {
+                filter: saturate(0.42);
+            }
+        }
+    }
+
+    // 16:9 channel-logo tile — recordings carry a channel logo, not a poster.
+    &__artwork {
+        position: relative;
+        width: 86px;
+        height: 52px;
+        overflow: hidden;
+        padding: 0;
+        border: 0;
+        border-radius: 9px;
+        background: var(--mat-sys-surface-container-highest);
+        color: var(--mat-sys-on-surface-variant);
+        cursor: pointer;
+        transition:
+            transform 140ms ease,
+            box-shadow 140ms ease;
+
+        img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 6px;
+            box-sizing: border-box;
+        }
+
+        &:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--mat-sys-level1);
+        }
+    }
+
+    &__logo-placeholder {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        place-items: center;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-primary-container) 44%,
+            var(--mat-sys-surface-container-highest)
+        );
+        color: var(--mat-sys-on-primary-container);
+    }
+
+    &__content {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    &__title-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    &__title {
+        overflow: hidden;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--mat-sys-on-surface);
+        font: inherit;
+        font-weight: 600;
+        text-align: start;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            text-decoration: underline;
+        }
+    }
+
+    &__rec-chip {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-error) 16%,
+            transparent
+        );
+        color: var(--mat-sys-error);
+        font-size: 0.74rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+
+    &__rec-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mat-sys-error);
+        animation: recording-queue-pulse 1.4s ease-in-out infinite;
+    }
+
+    &__warn-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: var(--mat-sys-on-tertiary-container);
+        font-size: 0.8rem;
+        font-weight: 600;
+
+        mat-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 16px;
+        }
+    }
+
+    &__metadata {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 12px;
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 0.82rem;
+    }
+
+    &__bytes {
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__error {
+        overflow: hidden;
+        max-width: 100%;
+        color: var(--mat-sys-error);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // Indeterminate strip: the recording length is unknown by nature, so a
+    // percentage can never exist — a sliding pulse communicates "running".
+    &__progress {
+        position: relative;
+        overflow: hidden;
+        height: 3px;
+        margin-top: 4px;
+        border-radius: 2px;
+        background: color-mix(in srgb, var(--mat-sys-error) 18%, transparent);
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            width: 32%;
+            border-radius: 2px;
+            background: var(--mat-sys-error);
+            animation: recording-queue-slide 1.6s ease-in-out infinite;
+        }
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    &__stop {
+        background: color-mix(in srgb, var(--mat-sys-error) 14%, transparent);
+        color: var(--mat-sys-error);
+    }
+}
+
+@keyframes recording-queue-pulse {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.35;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes recording-queue-slide {
+    0% {
+        left: -32%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .recording-queue {
+        &__rec-dot,
+        &__progress::after {
+            animation: none;
+        }
+    }
+}

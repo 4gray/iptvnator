@@ -1,0 +1,162 @@
+@if (items().length > 0) {
+    <section
+        class="recording-library"
+        data-test-id="recordings-library-section"
+        aria-labelledby="recordings-library-heading"
+    >
+        <header class="recording-library__header">
+            <h2 id="recordings-library-heading">
+                <span>{{ 'DOWNLOADS.RECORDINGS' | translate }}</span>
+                <span class="app-count-badge" aria-hidden="true">
+                    {{ items().length }}
+                </span>
+            </h2>
+        </header>
+
+        <div class="recording-library__grid" role="list">
+            @for (row of items(); track row.item.id) {
+                <article
+                    class="recording-library__card"
+                    role="listitem"
+                    [attr.data-test-id]="'recording-card-' + row.item.id"
+                    [attr.aria-busy]="isPending(row.item.id) ? 'true' : null"
+                >
+                    <div class="recording-library__artwork">
+                        <button
+                            type="button"
+                            class="recording-library__artwork-button"
+                            [attr.aria-label]="
+                                'DOWNLOADS.ARIA.OPEN'
+                                    | translate
+                                        : {
+                                              title:
+                                                  row.programTitle ||
+                                                  row.channelName,
+                                          }
+                            "
+                            [disabled]="isPending(row.item.id)"
+                            (click)="requestOpen(row.item)"
+                        >
+                            @if (row.item.channelLogoUrl) {
+                                <img
+                                    [src]="row.item.channelLogoUrl"
+                                    alt=""
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            } @else {
+                                <span
+                                    class="recording-library__placeholder"
+                                    aria-hidden="true"
+                                >
+                                    <mat-icon>live_tv</mat-icon>
+                                </span>
+                            }
+                        </button>
+                        <span
+                            class="recording-library__type"
+                            aria-hidden="true"
+                        >
+                            {{ 'DOWNLOADS.RECORDING_BADGE' | translate }}
+                        </span>
+                        @if (durationLabel(row)) {
+                            <span
+                                class="recording-library__duration"
+                                aria-hidden="true"
+                            >
+                                {{ durationLabel(row) }}
+                                @if (row.interrupted) {
+                                    · {{ 'DOWNLOADS.STATUS.INTERRUPTED' | translate }}
+                                }
+                            </span>
+                        } @else if (row.interrupted) {
+                            <span
+                                class="recording-library__duration"
+                                aria-hidden="true"
+                            >
+                                {{ 'DOWNLOADS.STATUS.INTERRUPTED' | translate }}
+                            </span>
+                        }
+                        <button
+                            type="button"
+                            mat-icon-button
+                            class="recording-library__more"
+                            [matMenuTriggerFor]="cardMenu"
+                            [attr.aria-label]="
+                                'DOWNLOADS.MORE_ACTIONS' | translate
+                            "
+                            [disabled]="isPending(row.item.id)"
+                        >
+                            <mat-icon>more_vert</mat-icon>
+                        </button>
+                        <mat-menu #cardMenu="matMenu" xPosition="before">
+                            <app-download-source-menu-header
+                                [sourceName]="row.item.playlistName ?? ''"
+                            />
+                            <button
+                                mat-menu-item
+                                data-test-action="play-recording"
+                                (click)="emitAction('play', row.item)"
+                            >
+                                <mat-icon>play_arrow</mat-icon>
+                                <span>{{ 'DOWNLOADS.PLAY' | translate }}</span>
+                            </button>
+                            <button
+                                mat-menu-item
+                                data-test-action="reveal-recording"
+                                (click)="emitAction('reveal', row.item)"
+                            >
+                                <mat-icon>folder_open</mat-icon>
+                                <span>{{ 'DOWNLOADS.REVEAL' | translate }}</span>
+                            </button>
+                            <button
+                                mat-menu-item
+                                data-test-action="open-recording-detail"
+                                (click)="requestOpen(row.item)"
+                            >
+                                <mat-icon>info_outline</mat-icon>
+                                <span>
+                                    {{ 'DOWNLOADS.OPEN_DETAILS' | translate }}
+                                </span>
+                            </button>
+                            <button
+                                mat-menu-item
+                                data-test-action="remove-recording"
+                                (click)="emitAction('remove', row.item)"
+                            >
+                                <mat-icon>remove_circle_outline</mat-icon>
+                                <span>
+                                    {{ 'DOWNLOADS.REMOVE_FROM_MANAGER' | translate }}
+                                </span>
+                            </button>
+                        </mat-menu>
+                    </div>
+
+                    <div class="recording-library__body">
+                        <button
+                            type="button"
+                            class="recording-library__title-button"
+                            [disabled]="isPending(row.item.id)"
+                            (click)="requestOpen(row.item)"
+                        >
+                            {{
+                                row.programTitle ||
+                                    row.channelName +
+                                        ' — ' +
+                                        (row.item.startedAt
+                                            | date: 'd MMM, HH:mm')
+                            }}
+                        </button>
+                        <span class="recording-library__facts">
+                            {{ row.channelName }}
+                            · {{ row.item.startedAt | date: 'd MMM' }}
+                            @if (row.item.fileSizeBytes) {
+                                · {{ formatBytes(row.item.fileSizeBytes) }}
+                            }
+                        </span>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+}

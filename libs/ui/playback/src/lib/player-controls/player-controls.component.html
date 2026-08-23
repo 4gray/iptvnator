@@ -624,6 +624,83 @@
                 </div>
             }
 
+            @if (hasQualityLevels()) {
+                <div class="player-controls__popover-anchor">
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button"
+                        data-test-id="player-controls-quality"
+                        (click)="toggleMenu('quality')"
+                        [attr.aria-expanded]="menus.qualityOpen()"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.QUALITY' | translate
+                        "
+                        [matTooltip]="'EMBEDDED_MPV.PLAYER.QUALITY' | translate"
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>high_quality</mat-icon>
+                    </button>
+                    @if (menus.qualityOpen()) {
+                        <div
+                            class="player-controls__panel player-controls__track-popover"
+                            role="menu"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.QUALITY' | translate
+                            "
+                        >
+                            <div class="player-controls__menu-title">
+                                {{ 'EMBEDDED_MPV.PLAYER.QUALITY' | translate }}
+                            </div>
+                            <div class="player-controls__track-list">
+                                <button
+                                    type="button"
+                                    role="menuitemradio"
+                                    [attr.aria-checked]="
+                                        state().qualityAutoEnabled
+                                    "
+                                    class="player-controls__track"
+                                    [class.player-controls__track--selected]="
+                                        state().qualityAutoEnabled
+                                    "
+                                    (click)="menuSelection.qualityLevel(-1)"
+                                >
+                                    <span>{{
+                                        'EMBEDDED_MPV.PLAYER.QUALITY_AUTO'
+                                            | translate
+                                    }}</span>
+                                    @if (state().qualityAutoEnabled) {
+                                        <mat-icon>check</mat-icon>
+                                    }
+                                </button>
+                                @for (
+                                    level of state().qualityLevels;
+                                    track level.id
+                                ) {
+                                    <button
+                                        type="button"
+                                        role="menuitemradio"
+                                        [attr.aria-checked]="level.selected"
+                                        class="player-controls__track"
+                                        [class.player-controls__track--selected]="
+                                            level.selected
+                                        "
+                                        (click)="
+                                            menuSelection.qualityLevel(level.id)
+                                        "
+                                    >
+                                        <span>{{ level.label }}</span>
+                                        @if (level.selected) {
+                                            <mat-icon>check</mat-icon>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
             @if (capabilities().playbackSpeed) {
                 <div class="player-controls__popover-anchor">
                     <button

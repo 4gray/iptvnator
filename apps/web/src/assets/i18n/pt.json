@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Faixas de áudio",
             "SUBTITLES": "Legendas",
             "SUBTITLES_OFF": "Desativadas",
+            "QUALITY": "Qualidade",
+            "QUALITY_AUTO": "Automática",
             "TRACK_DEFAULT": "Padrão",
             "AUDIO_TRACK_FALLBACK": "Áudio {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Legenda {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "Falhou",
             "CANCELED": "Cancelado",
             "PAUSED": "Pausado",
-            "FILE_MISSING": "Arquivo ausente"
+            "FILE_MISSING": "Arquivo ausente",
+            "RECORDING": "Gravando",
+            "INTERRUPTED": "Interrompida"
         },
         "ACTIVE_COUNT": "{{count}} ativos",
         "TRACKED_DOWNLOADS": "Downloads acompanhados",
@@ -1220,7 +1224,22 @@
             "ALL": "Todos",
             "MOVIES": "Filmes",
             "SERIES": "Séries",
-            "IN_PROGRESS": "Em andamento"
+            "IN_PROGRESS": "Em andamento",
+            "RECORDINGS": "Gravações"
+        },
+        "RECORDING_NOW": "Gravando agora",
+        "RECORDINGS": "Gravações",
+        "RECORDING_BADGE": "Gravação",
+        "STOP_RECORDING": "Parar gravação",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Remover gravação do gerenciador?",
+            "MESSAGE": "Isso remove a entrada do IPTVnator. O arquivo gravado permanece no disco."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Programas gravados",
+            "RECORDED_FROM": "Gravado a partir de {{playlist}}",
+            "MISSING_BODY": "O arquivo da gravação não está mais no disco. Uma transmissão ao vivo não pode ser gravada novamente, mas você pode remover a entrada do gerenciador.",
+            "FAILED_BODY": "Esta gravação falhou e não gerou nenhum arquivo reproduzível."
         },
         "REMOVE_FROM_MANAGER": "Remover do gerenciador",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "Ordem do servidor",
         "CATEGORY_SORT_ARIA": "Ordenar categorias",
         "DASHBOARD": {
+            "ACTION_FAILED": "Não foi possível concluir a ação. Tente novamente.",
             "CONTINUE_WATCHING": "Continuar assistindo",
             "LIVE_FAVORITES": "Ao vivo agora nos seus favoritos",
             "LIVE_RECENT": "Continuar com TV ao vivo",

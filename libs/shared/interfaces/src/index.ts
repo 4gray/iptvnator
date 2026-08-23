@@ -41,6 +41,8 @@ export * from './lib/portal-playback.interface';
 export * from './lib/provider-import-detection.util';
 export * from './lib/provider-overview.util';
 export * from './lib/random-id.util';
+export * from './lib/recording-metadata.interface';
+export * from './lib/recording-program-overlap.util';
 export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
 export * from './lib/stalker-auth-failure.util';

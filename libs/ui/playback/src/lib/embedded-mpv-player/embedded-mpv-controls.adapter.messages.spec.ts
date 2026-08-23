@@ -248,6 +248,35 @@ describe('EmbeddedMpvControlsAdapter recording messages and lifecycle', () => {
         expect(adapter.state().audioTracks[0].label).toBe('DE Audio 1');
     });
 
+    it('forwards the host recording metadata into the start command', async () => {
+        const metadata = {
+            channelName: 'Channel One',
+            playlistId: 'playlist-a',
+            sourceType: 'm3u' as const,
+            currentProgram: {
+                title: 'Evening News',
+                start: '2026-07-16T10:00:00.000Z',
+                stop: '2026-07-16T11:00:00.000Z',
+            },
+        };
+        adapter.configure({
+            playback,
+            seriesNavigation,
+            recordingFolder,
+            recordingMetadata: signal(metadata),
+        });
+        TestBed.tick();
+
+        adapter.commands.toggleRecording();
+        await flushPromises();
+
+        expect(controller.startRecording).toHaveBeenCalledWith(
+            '/recordings',
+            LIVE_PLAYBACK.title,
+            metadata
+        );
+    });
+
     it('relocalizes saved feedback for every translate event source', async () => {
         const targetPath = '/recordings/live.ts';
         controller.session.set(

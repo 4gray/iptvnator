@@ -52,6 +52,21 @@ export type VideoJsTrackList<TTrack> = {
 export type VideoJsAudioTrackList = VideoJsTrackList<VideoJsAudioTrack>;
 export type VideoJsTextTrackList = VideoJsTrackList<VideoJsTextTrack>;
 
+/** One rendition from videojs-contrib-quality-levels. */
+export type VideoJsQualityLevel = {
+    id?: string;
+    width?: number;
+    height?: number;
+    bitrate?: number;
+    /** Property accessor: assigning false excludes the level from ABR. */
+    enabled: boolean;
+};
+
+export type VideoJsQualityLevelList =
+    VideoJsTrackList<VideoJsQualityLevel> & {
+        selectedIndex?: number;
+    };
+
 export type VideoJsTech = {
     el?: () => Element | null;
     vhs?: {
@@ -79,6 +94,8 @@ export type VideoJsPlayer = Omit<
     qualitySelectorHls?: (options?: {
         displayCurrentQuality?: boolean;
     }) => void;
+    /** Registered by the videojs-contrib-quality-levels plugin import. */
+    qualityLevels?: () => VideoJsQualityLevelList | null;
     aspectRatioPanel?: () => void;
     audioTracks: () => VideoJsAudioTrackList | null;
     textTracks: () => VideoJsTextTrackList | null;

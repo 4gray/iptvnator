@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "مسارات الصوت",
             "SUBTITLES": "الترجمات",
             "SUBTITLES_OFF": "إيقاف",
+            "QUALITY": "الجودة",
+            "QUALITY_AUTO": "تلقائي",
             "TRACK_DEFAULT": "افتراضي",
             "AUDIO_TRACK_FALLBACK": "صوت {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "ترجمة {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "فشل",
             "CANCELED": "ملغى",
             "PAUSED": "متوقف مؤقتًا",
-            "FILE_MISSING": "الملف مفقود"
+            "FILE_MISSING": "الملف مفقود",
+            "RECORDING": "جارٍ التسجيل",
+            "INTERRUPTED": "انقطع"
         },
         "ACTIVE_COUNT": "{{count}} نشط",
         "TRACKED_DOWNLOADS": "التنزيلات المتتبعة",
@@ -1220,7 +1224,22 @@
             "ALL": "الكل",
             "MOVIES": "الأفلام",
             "SERIES": "المسلسلات",
-            "IN_PROGRESS": "قيد التقدم"
+            "IN_PROGRESS": "قيد التقدم",
+            "RECORDINGS": "التسجيلات"
+        },
+        "RECORDING_NOW": "جارٍ التسجيل الآن",
+        "RECORDINGS": "التسجيلات",
+        "RECORDING_BADGE": "جارٍ التسجيل",
+        "STOP_RECORDING": "إيقاف التسجيل",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "إزالة التسجيل من مدير التنزيلات؟",
+            "MESSAGE": "يؤدي هذا إلى إزالة الإدخال من IPTVnator. ويبقى الملف المسجّل على القرص."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "البرامج المسجّلة",
+            "RECORDED_FROM": "تم التسجيل من {{playlist}}",
+            "MISSING_BODY": "لم يعد ملف التسجيل موجودًا على القرص. لا يمكن إعادة تسجيل البث المباشر، لكن يمكنك إزالة الإدخال من مدير التنزيلات.",
+            "FAILED_BODY": "فشل هذا التسجيل ولم ينتج عنه أي ملف قابل للتشغيل."
         },
         "REMOVE_FROM_MANAGER": "إزالة من مدير التنزيلات",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "ترتيب الخادم",
         "CATEGORY_SORT_ARIA": "ترتيب الفئات",
         "DASHBOARD": {
+            "ACTION_FAILED": "تعذر إكمال الإجراء. يرجى المحاولة مرة أخرى.",
             "CONTINUE_WATCHING": "متابعة المشاهدة",
             "LIVE_FAVORITES": "يُبث الآن على المفضلة لديك",
             "LIVE_RECENT": "متابعة البث المباشر",

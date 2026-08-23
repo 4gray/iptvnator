@@ -33,6 +33,7 @@ function createFakeController(): FakeController {
         addExternalSubtitleFile: jest.fn(),
         setSubtitleDelay: jest.fn(),
         setSubtitleStyle: jest.fn(),
+        setQualityLevel: jest.fn(),
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
@@ -241,6 +242,63 @@ describe('PlayerControlsComponent capability contract', () => {
         fixture.componentRef.setInput('showControls', false);
         fixture.detectChanges();
         expect(component.anyMenuOpen()).toBe(false);
+    });
+
+    it('renders the quality menu with Auto and routes level selection', () => {
+        const fake = createFakeController();
+        const fixture = createControls(fake);
+        const component = fixture.componentInstance;
+
+        fake.capabilities.set({
+            ...DEFAULT_PLAYER_CAPABILITIES,
+            qualityLevels: true,
+        });
+        fake.state.set({
+            ...createEmptyControlsState(),
+            qualityLevels: [
+                { id: 0, label: '1080p', selected: false },
+                { id: 1, label: '720p', selected: false },
+            ],
+            qualityAutoEnabled: true,
+        });
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        const trigger = root.querySelector<HTMLButtonElement>(
+            '[data-test-id="player-controls-quality"]'
+        );
+        expect(trigger).not.toBeNull();
+        trigger?.click();
+        fixture.detectChanges();
+        expect(component.menus.qualityOpen()).toBe(true);
+
+        const entries = Array.from(
+            root.querySelectorAll<HTMLButtonElement>(
+                '.player-controls__track-popover .player-controls__track'
+            )
+        );
+        expect(entries.map((entry) => entry.textContent?.trim())).toEqual([
+            'EMBEDDED_MPV.PLAYER.QUALITY_AUTOcheck',
+            '1080p',
+            '720p',
+        ]);
+        expect(entries[0].getAttribute('aria-checked')).toBe('true');
+
+        entries[2].click();
+        fixture.detectChanges();
+        expect(fake.commands.setQualityLevel).toHaveBeenCalledWith(1);
+        expect(component.menus.qualityOpen()).toBe(false);
+
+        component.toggleMenu('quality');
+        fake.state.set({
+            ...createEmptyControlsState(),
+            qualityLevels: [{ id: 0, label: '1080p', selected: false }],
+        });
+        fixture.detectChanges();
+        expect(component.anyMenuOpen()).toBe(false);
+        expect(
+            root.querySelector('[data-test-id="player-controls-quality"]')
+        ).toBeNull();
     });
 
     it('hides the scrub slider without hiding live and recording status', () => {

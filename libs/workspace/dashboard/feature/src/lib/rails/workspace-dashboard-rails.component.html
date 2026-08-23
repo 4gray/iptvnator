@@ -215,6 +215,7 @@
                 [seeAllLink]="['/workspace/global-recent']"
                 [seeAllState]="continueWatchingSeeAllState()"
                 [testId]="'dashboard-continue-watching-rail'"
+                (actionSelected)="onContinueWatchingActionSelected($event)"
             />
         }
 

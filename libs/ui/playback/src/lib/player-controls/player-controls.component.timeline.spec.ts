@@ -27,6 +27,7 @@ function createFakeController() {
         addExternalSubtitleFile: jest.fn(),
         setSubtitleDelay: jest.fn(),
         setSubtitleStyle: jest.fn(),
+        setQualityLevel: jest.fn(),
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),

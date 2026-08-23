@@ -5,14 +5,14 @@
                 <h1 id="downloads-title">
                     {{ 'DOWNLOADS.TITLE' | translate }}
                 </h1>
-                @if (model().activeCount > 0) {
+                @if (activeCount() > 0) {
                     <span
                         class="downloads__active-count"
                         data-test-id="downloads-active-count"
                     >
                         {{
                             'DOWNLOADS.ACTIVE_COUNT'
-                                | translate: { count: model().activeCount }
+                                | translate: { count: activeCount() }
                         }}
                     </span>
                 }
@@ -227,6 +227,13 @@
                 <p>{{ 'DOWNLOADS.NO_FILTER_MATCH_HINT' | translate }}</p>
             </div>
         } @else {
+            <app-recording-queue
+                [activeItems]="recordingModel().active"
+                [attentionItems]="recordingModel().attention"
+                [pendingIds]="recordingPendingIds()"
+                (itemAction)="runRecordingAction($event)"
+                (openRequested)="openRecordingDetail($event)"
+            />
             <app-download-queue
                 [activeItems]="model().active"
                 [attentionItems]="model().attention"
@@ -240,6 +247,12 @@
                 (itemAction)="runAction($event)"
                 (openRequested)="openOfflineDetail($event)"
                 (episodesOpened)="openDownloadedSeries($event)"
+            />
+            <app-recording-library
+                [items]="recordingModel().library"
+                [pendingIds]="recordingPendingIds()"
+                (itemAction)="runRecordingAction($event)"
+                (openRequested)="openRecordingDetail($event)"
             />
         }
     </main>

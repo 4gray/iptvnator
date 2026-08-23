@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Аудиодорожки",
             "SUBTITLES": "Субтитры",
             "SUBTITLES_OFF": "Выкл.",
+            "QUALITY": "Качество",
+            "QUALITY_AUTO": "Авто",
             "TRACK_DEFAULT": "По умолчанию",
             "AUDIO_TRACK_FALLBACK": "Аудио {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Субтитры {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "Ошибка",
             "CANCELED": "Отменено",
             "PAUSED": "На паузе",
-            "FILE_MISSING": "Файл отсутствует"
+            "FILE_MISSING": "Файл отсутствует",
+            "RECORDING": "Идёт запись",
+            "INTERRUPTED": "Прервано"
         },
         "ACTIVE_COUNT": "{{count}} активно",
         "TRACKED_DOWNLOADS": "Отслеживаемые загрузки",
@@ -1220,7 +1224,22 @@
             "ALL": "Все",
             "MOVIES": "Фильмы",
             "SERIES": "Сериалы",
-            "IN_PROGRESS": "В процессе"
+            "IN_PROGRESS": "В процессе",
+            "RECORDINGS": "Записи"
+        },
+        "RECORDING_NOW": "Записываются сейчас",
+        "RECORDINGS": "Записи",
+        "RECORDING_BADGE": "Запись",
+        "STOP_RECORDING": "Остановить запись",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Убрать запись из менеджера?",
+            "MESSAGE": "Запись исчезнет из IPTVnator, но записанный файл останется на диске."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Записанные передачи",
+            "RECORDED_FROM": "Записано из {{playlist}}",
+            "MISSING_BODY": "Файл записи больше недоступен на диске. Прямой эфир нельзя записать заново, но запись можно убрать из менеджера.",
+            "FAILED_BODY": "Эта запись завершилась ошибкой, и файл для воспроизведения не был создан."
         },
         "REMOVE_FROM_MANAGER": "Удалить из менеджера загрузок",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "Порядок сервера",
         "CATEGORY_SORT_ARIA": "Сортировать категории",
         "DASHBOARD": {
+            "ACTION_FAILED": "Не удалось выполнить действие. Попробуйте ещё раз.",
             "CONTINUE_WATCHING": "Продолжить просмотр",
             "LIVE_FAVORITES": "Сейчас в эфире на избранных каналах",
             "LIVE_RECENT": "Продолжить просмотр прямого эфира",

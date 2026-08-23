@@ -4,6 +4,7 @@ import type {
     ShakaModuleLoader,
     ShakaPlayerLike,
     ShakaTextTrackLike,
+    ShakaVariantTrackLike,
 } from './shaka-module.types';
 
 /**
@@ -31,6 +32,11 @@ export class FakeShakaPlayer implements ShakaPlayerLike {
     destroyCount = 0;
     audioTracks: ShakaAudioTrackLike[] = [];
     textTracks: ShakaTextTrackLike[] = [];
+    variantTracks: ShakaVariantTrackLike[] = [];
+    readonly selectVariantTrackCalls: {
+        track: ShakaVariantTrackLike;
+        clearBuffer: boolean | undefined;
+    }[] = [];
     /** When true, the next `load()` stays pending until `destroy()`. */
     stallNextLoad = false;
     loadResult: Promise<unknown> = Promise.resolve();
@@ -86,6 +92,20 @@ export class FakeShakaPlayer implements ShakaPlayerLike {
 
     selectAudioTrack(track: ShakaAudioTrackLike): void {
         this.selectedAudioTracks.push(track);
+    }
+
+    getVariantTracks(): ShakaVariantTrackLike[] {
+        return this.variantTracks;
+    }
+
+    selectVariantTrack(
+        track: ShakaVariantTrackLike,
+        clearBuffer?: boolean
+    ): void {
+        this.selectVariantTrackCalls.push({ track, clearBuffer });
+        for (const candidate of this.variantTracks) {
+            candidate.active = candidate === track;
+        }
     }
 
     getTextTracks(): ShakaTextTrackLike[] {

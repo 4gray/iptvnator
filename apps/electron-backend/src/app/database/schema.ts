@@ -15,6 +15,7 @@ export {
   epgPrograms,
   playbackPositions,
   downloads,
+  recordings,
   appState,
   // Types
   type Playlist,
@@ -37,4 +38,6 @@ export {
   type NewPlaybackPosition,
   type Download,
   type NewDownload,
+  type Recording,
+  type NewRecording,
 } from '@iptvnator/shared/database';

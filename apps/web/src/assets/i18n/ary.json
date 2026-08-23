@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "مسارات الصوت",
             "SUBTITLES": "الترجمة",
             "SUBTITLES_OFF": "معطلة",
+            "QUALITY": "الجودة",
+            "QUALITY_AUTO": "تلقائي",
             "TRACK_DEFAULT": "افتراضي",
             "AUDIO_TRACK_FALLBACK": "صوت {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "ترجمة {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "فشل",
             "CANCELED": "تلغى",
             "PAUSED": "موقوف مؤقتاً",
-            "FILE_MISSING": "الملف ناقص"
+            "FILE_MISSING": "الملف ناقص",
+            "RECORDING": "جاري التسجيل",
+            "INTERRUPTED": "تقطع"
         },
         "ACTIVE_COUNT": "{{count}} نشيط",
         "TRACKED_DOWNLOADS": "التحميلات المتتبعة",
@@ -1220,7 +1224,22 @@
             "ALL": "الكل",
             "MOVIES": "الأفلام",
             "SERIES": "السلاسل",
-            "IN_PROGRESS": "كيتم التحميل"
+            "IN_PROGRESS": "كيتم التحميل",
+            "RECORDINGS": "التسجيلات"
+        },
+        "RECORDING_NOW": "كيتسجل دابا",
+        "RECORDINGS": "التسجيلات",
+        "RECORDING_BADGE": "تسجيل",
+        "STOP_RECORDING": "وقّف التسجيل",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "نحيدو التسجيل من مدير التحميلات؟",
+            "MESSAGE": "هاد العملية كتحيد هاد العنصر من IPTVnator. الملف المسجل كيبقى على القرص."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "البرامج المسجلة",
+            "RECORDED_FROM": "تسجل من {{playlist}}",
+            "MISSING_BODY": "ملف التسجيل ما بقاش على القرص. البث المباشر ما يمكنش يتعاود تسجيلو، ولكن تقدر تحيد هاد العنصر من مدير التحميلات.",
+            "FAILED_BODY": "هاد التسجيل فشل وما عطى حتى ملف يقدر يتشغل."
         },
         "REMOVE_FROM_MANAGER": "حيد من مسير التحميلات",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "ترتيب السيرفر",
         "CATEGORY_SORT_ARIA": "ترتيب التصنيفات",
         "DASHBOARD": {
+            "ACTION_FAILED": "ما قدرناش نكملو العملية. عاود حاول مرة أخرى.",
             "CONTINUE_WATCHING": "كمل المشاهدة",
             "LIVE_FAVORITES": "مباشر دابا على المفضلة ديالك",
             "LIVE_RECENT": "كمل مع المباشر",

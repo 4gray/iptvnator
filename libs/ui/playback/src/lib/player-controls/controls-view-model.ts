@@ -57,6 +57,9 @@ export function createControlsViewModel(deps: ControlsViewModelDeps) {
             (capabilities().subtitles && state().subtitleTracks.length > 0) ||
             capabilities().externalSubtitles
     );
+    const hasQualityLevels = computed(
+        () => capabilities().qualityLevels && state().qualityLevels.length > 1
+    );
     const canRecord = computed(
         () =>
             capabilities().recording &&
@@ -107,6 +110,7 @@ export function createControlsViewModel(deps: ControlsViewModelDeps) {
         canTogglePlay,
         hasAudioTracks,
         hasSubtitleTracks,
+        hasQualityLevels,
         canRecord,
         isRecording,
         recordingStatusText,

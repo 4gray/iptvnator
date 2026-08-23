@@ -1,4 +1,5 @@
 import type { PlayerSubtitleStyle } from './subtitle-style.util';
+import type { RecordingStartMetadata } from './recording-metadata.interface';
 
 export type EmbeddedMpvSessionStatus =
     | 'idle'
@@ -99,6 +100,12 @@ export interface EmbeddedMpvRecordingState {
 export interface EmbeddedMpvRecordingStartOptions {
     directory?: string;
     title?: string;
+    /**
+     * Channel/EPG snapshot captured by the live host at recording start; the
+     * main-process recording tracker persists it. See
+     * recording-metadata.interface.ts for why capture must happen up front.
+     */
+    metadata?: RecordingStartMetadata;
 }
 
 export interface EmbeddedMpvSession {

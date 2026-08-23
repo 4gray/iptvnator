@@ -31,6 +31,7 @@ import {
     normalizeSubtitleStyle,
 } from '@iptvnator/shared/interfaces';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
+import { embeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
     getFrameCopyRuntimeAvailability,
@@ -685,9 +686,11 @@ export class EmbeddedMpvNativeService {
             options.directory?.trim() || this.getDefaultRecordingFolder();
         mkdirSync(directory, { recursive: true });
 
+        const fallbackChannelName =
+            options.title || session.title || 'IPTVnator recording';
         const targetPath = this.reserveRecordingTargetPath(
             directory,
-            options.title || session.title || 'IPTVnator recording'
+            fallbackChannelName
         );
         try {
             addon.startRecording(sessionId, targetPath);
@@ -695,6 +698,15 @@ export class EmbeddedMpvNativeService {
             this.releaseReservedRecordingTargetPath(targetPath);
             throw error;
         }
+        // Register with the tracker before the refresh below broadcasts the
+        // first snapshot, so an immediately-active recording (frame-copy) is
+        // observed as such.
+        embeddedMpvRecordingTracker.onRecordingStarted({
+            sessionId,
+            targetPath,
+            fallbackChannelName,
+            metadata: options.metadata,
+        });
         return this.refreshSession(sessionId);
     }
 
@@ -707,6 +719,7 @@ export class EmbeddedMpvNativeService {
             );
         }
         addon.stopRecording(sessionId);
+        embeddedMpvRecordingTracker.onRecordingStopped(sessionId);
         return this.refreshSession(sessionId);
     }
 
@@ -978,6 +991,12 @@ export class EmbeddedMpvNativeService {
     }
 
     private sendSessionUpdate(session: EmbeddedMpvSession): void {
+        // The tracker must see every snapshot — including the synthetic
+        // closed/error payloads — even when no window is left to notify:
+        // implicit stops (stream replacement, helper crash, dispose) are only
+        // observable here.
+        embeddedMpvRecordingTracker.observeSnapshot(session);
+
         if (!App.mainWindow || App.mainWindow.isDestroyed()) {
             return;
         }

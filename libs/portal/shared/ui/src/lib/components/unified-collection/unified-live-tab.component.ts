@@ -62,8 +62,21 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    RecordingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
+import {
+    buildStalkerEpgMappingKey,
+    buildXtreamEpgMappingKey,
+    EpgProgram,
+    filterRecordingProgramsOverlap,
+    playlistDisplayLabel,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
+    toRecordingProgramSnapshot,
+} from '@iptvnator/shared/interfaces';
 import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 
 @Component({
@@ -274,6 +287,96 @@ export class UnifiedLiveTabComponent {
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
         this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
     );
+    private readonly recordingsService = inject(RecordingsService);
+    /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
+    readonly recordingMetadata = computed<RecordingStartMetadata | null>(() => {
+        const item = this.activeItem();
+        if (!item) {
+            return null;
+        }
+        // Track the 30 s tick: without it this computed caches its
+        // Date.now() verdict, and a recording started after an EPG boundary
+        // would snapshot the previous show.
+        this.progressTick();
+        const now = Date.now();
+        const program =
+            this.timelinePrograms().find((candidate) => {
+                const start = Date.parse(candidate.start);
+                const stop = Date.parse(candidate.stop);
+                return (
+                    Number.isFinite(start) &&
+                    Number.isFinite(stop) &&
+                    start <= now &&
+                    now < stop
+                );
+            }) ?? null;
+        return {
+            channelName: item.name?.trim() || 'Live TV',
+            channelLogoUrl:
+                this.timelineChannelLogo() || item.logo || undefined,
+            playlistId: item.playlistId,
+            playlistName: playlistDisplayLabel(item.playlistName) || undefined,
+            sourceType: item.sourceType,
+            epgChannelId: this.recordingEpgChannelId(item),
+            // The EPG key is not unique for M3U items (shared tvgId, or the
+            // display-name fallback); the uid names the exact selection.
+            sourceItemKey: item.uid,
+            currentProgram: program
+                ? toRecordingProgramSnapshot(program)
+                : undefined,
+        };
+    });
+
+    /** Stop enrichment: programs overlapping the recorded window. */
+    onRecordingStopped(event: RecordingStoppedEvent): void {
+        // A channel switch auto-stops the recording, and by now this host
+        // already describes the new channel — enriching then would attach the
+        // wrong schedule (and could promote an unrelated program to the
+        // recording's title).
+        if (
+            event.epgChannelId &&
+            event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
+        // The EPG key alone cannot tell two same-keyed M3U items apart —
+        // the uid must also match the exact recorded selection.
+        if (
+            event.sourceItemKey &&
+            event.sourceItemKey !== this.recordingMetadata()?.sourceItemKey
+        ) {
+            return;
+        }
+        const programs = filterRecordingProgramsOverlap(
+            this.timelinePrograms().map(toRecordingProgramSnapshot),
+            event.startedAt,
+            event.endedAt
+        );
+        if (programs.length === 0) {
+            return;
+        }
+        void this.recordingsService.updatePrograms(event.targetPath, programs);
+    }
+
+    private recordingEpgChannelId(
+        item: UnifiedCollectionItem
+    ): string | undefined {
+        switch (item.sourceType) {
+            case 'm3u':
+                return item.tvgId?.trim() || item.name?.trim() || undefined;
+            case 'xtream':
+                return item.xtreamId !== undefined
+                    ? buildXtreamEpgMappingKey(item.playlistId, item.xtreamId)
+                    : undefined;
+            case 'stalker':
+                return item.stalkerId !== undefined
+                    ? buildStalkerEpgMappingKey(
+                          item.playlistId,
+                          String(item.stalkerId)
+                      )
+                    : undefined;
+        }
+    }
 
     /**
      * The channel list in exactly the order the sidebar renders it

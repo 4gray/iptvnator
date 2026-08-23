@@ -380,4 +380,133 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
 
         expect(startRecording).not.toHaveBeenCalled();
     });
+
+    it('emits recordingStopped once when an active recording goes inactive', () => {
+        const { fixture, component, controller } = render();
+        const stopped: Array<{
+            targetPath: string;
+            startedAt: string | null;
+        }> = [];
+        component.recordingStopped.subscribe((event) =>
+            stopped.push({
+                targetPath: event.targetPath,
+                startedAt: event.startedAt,
+            })
+        );
+
+        controller.session.set({
+            ...READY_SESSION,
+            recording: {
+                active: true,
+                targetPath: '/rec/news.ts',
+                startedAt: '2026-07-16T21:00:00Z',
+            },
+        });
+        fixture.detectChanges();
+        expect(stopped).toHaveLength(0);
+
+        // Stopping from the download manager talks to the main process
+        // directly, so the only signal this component sees is the snapshot
+        // flipping inactive — it must still drive stop enrichment.
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: false, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        expect(stopped).toEqual([
+            { targetPath: '/rec/news.ts', startedAt: '2026-07-16T21:00:00Z' },
+        ]);
+
+        // Later inactive snapshots are not another stop.
+        controller.session.set({
+            ...READY_SESSION,
+            positionSeconds: 44,
+            recording: { active: false, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+        expect(stopped).toHaveLength(1);
+    });
+
+    it('carries the recorded channel identity through the stop event', () => {
+        const { fixture, component, controller } = render();
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'Channel One',
+            epgChannelId: 'channel.one',
+        });
+        const stopped: Array<string | null | undefined> = [];
+        component.recordingStopped.subscribe((event) =>
+            stopped.push(event.epgChannelId)
+        );
+
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: true, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        // A channel switch auto-stops the recording and moves the host on;
+        // the event must still name the channel that was recorded.
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'Channel Two',
+            epgChannelId: 'channel.two',
+        });
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: false, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        expect(stopped).toEqual(['channel.one']);
+    });
+
+    it('carries the recorded source-item key through the stop event', () => {
+        // The EPG key is not unique for M3U items (shared tvgId or the
+        // name fallback): two list entries can share it, so the exact
+        // selection identity must survive the switch the same way.
+        const { fixture, component, controller } = render();
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'News HD',
+            epgChannelId: 'news.hd',
+            sourceItemKey: 'item-1',
+        });
+        const stopped: Array<string | null | undefined> = [];
+        component.recordingStopped.subscribe((event) =>
+            stopped.push(event.sourceItemKey)
+        );
+
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: true, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        // Same EPG key, different list item — the uid must not follow.
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'News HD',
+            epgChannelId: 'news.hd',
+            sourceItemKey: 'item-2',
+        });
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: false, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        expect(stopped).toEqual(['item-1']);
+    });
+
+    it('does not emit recordingStopped without a preceding active recording', () => {
+        const { fixture, component, controller } = render();
+        const stopped: unknown[] = [];
+        component.recordingStopped.subscribe((event) => stopped.push(event));
+
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: false, targetPath: '/rec/stale.ts' },
+        });
+        fixture.detectChanges();
+
+        expect(stopped).toHaveLength(0);
+    });
 });

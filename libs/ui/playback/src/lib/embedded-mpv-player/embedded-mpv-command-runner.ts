@@ -2,6 +2,7 @@ import { Signal, WritableSignal } from '@angular/core';
 import {
     EmbeddedMpvSession,
     EmbeddedMpvSubtitleStyle,
+    RecordingStartMetadata,
 } from '@iptvnator/shared/interfaces';
 
 type ElectronBridge = Window['electron'];
@@ -152,7 +153,8 @@ export class EmbeddedMpvCommandRunner {
 
     async startRecording(
         directory: string | undefined,
-        title: string
+        title: string,
+        metadata?: RecordingStartMetadata
     ): Promise<EmbeddedMpvSession['recording'] | null> {
         const id = this.ctx.sessionId();
         const electron = this.bridge();
@@ -171,6 +173,7 @@ export class EmbeddedMpvCommandRunner {
             startEmbeddedMpvRecording(id, {
                 directory: resolvedDirectory,
                 title,
+                ...(metadata ? { metadata } : {}),
             })
         );
         return updated?.recording ?? null;

@@ -121,6 +121,80 @@ describe('HtmlVideoPlayerControlsBridge HLS tracks', () => {
     });
 });
 
+describe('HtmlVideoPlayerControlsBridge HLS quality levels', () => {
+    it('projects labelled levels and advertises the capability above one level', () => {
+        const hls = new FakeHls();
+        hls.levels = [
+            { height: 1080, width: 1920, bitrate: 8_000_000 },
+            { height: 720, width: 1280, bitrate: 4_000_000 },
+        ];
+        const { adapter, bridge } = bindHls(hls);
+
+        expect(adapter.capabilities().qualityLevels).toBe(true);
+        expect(adapter.state().qualityAutoEnabled).toBe(true);
+        expect(adapter.state().qualityLevels).toEqual([
+            { id: 0, label: '1080p', selected: false },
+            { id: 1, label: '720p', selected: false },
+        ]);
+        bridge.destroy();
+    });
+
+    it('hides the capability for a single-rendition manifest', () => {
+        const hls = new FakeHls();
+        hls.levels = [{ height: 720, bitrate: 2_000_000 }];
+        const { adapter, bridge } = bindHls(hls);
+
+        expect(adapter.capabilities().qualityLevels).toBe(false);
+        bridge.destroy();
+    });
+
+    it('switches through nextLevel and marks the manual selection', () => {
+        const hls = new FakeHls();
+        hls.levels = [{ height: 1080 }, { height: 720 }];
+        const { adapter, bridge } = bindHls(hls);
+        hls.assignments.length = 0;
+
+        adapter.commands.setQualityLevel(1);
+        expect(hls.assignments).toEqual(['nextLevel:1']);
+        expect(adapter.state().qualityAutoEnabled).toBe(false);
+        expect(adapter.state().qualityLevels[1].selected).toBe(true);
+        expect(adapter.state().qualityLevels[0].selected).toBe(false);
+        bridge.destroy();
+    });
+
+    it('returns to auto with the sentinel id', () => {
+        const hls = new FakeHls();
+        hls.levels = [{ height: 1080 }, { height: 720 }];
+        const { adapter, bridge } = bindHls(hls);
+        adapter.commands.setQualityLevel(0);
+        hls.assignments.length = 0;
+
+        adapter.commands.setQualityLevel(-1);
+        expect(hls.assignments).toEqual(['nextLevel:-1']);
+        expect(adapter.state().qualityAutoEnabled).toBe(true);
+        expect(
+            adapter.state().qualityLevels.some((level) => level.selected)
+        ).toBe(false);
+        bridge.destroy();
+    });
+
+    it('ignores invalid and out-of-range level ids', () => {
+        const hls = new FakeHls();
+        hls.levels = [{ height: 1080 }, { height: 720 }];
+        const { adapter, bridge } = bindHls(hls);
+        hls.assignments.length = 0;
+
+        adapter.commands.setQualityLevel(-2);
+        adapter.commands.setQualityLevel(0.5);
+        adapter.commands.setQualityLevel(2);
+        adapter.commands.setQualityLevel(NaN);
+
+        expect(hls.assignments).toEqual([]);
+        expect(adapter.state().qualityAutoEnabled).toBe(true);
+        bridge.destroy();
+    });
+});
+
 describe('HtmlVideoPlayerControlsBridge HLS listener lifecycle', () => {
     const refreshEvents = [
         Hls.Events.AUDIO_TRACKS_UPDATED,
@@ -130,6 +204,9 @@ describe('HtmlVideoPlayerControlsBridge HLS listener lifecycle', () => {
         Hls.Events.SUBTITLE_TRACKS_CLEARED,
         Hls.Events.SUBTITLE_TRACK_SWITCH,
         Hls.Events.MANIFEST_LOADING,
+        Hls.Events.MANIFEST_PARSED,
+        Hls.Events.LEVELS_UPDATED,
+        Hls.Events.LEVEL_SWITCHED,
     ];
 
     it('refreshes from every relevant HLS event with one callback reference', () => {

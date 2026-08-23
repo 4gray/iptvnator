@@ -15,6 +15,10 @@ describe('app routes', () => {
         runtime: { isElectron: boolean },
         router: { parseUrl: (url: string) => unknown }
     ) => unknown;
+    let resolveRecordingsCapabilityRoute: (
+        runtime: { supportsRecordings: boolean },
+        router: { parseUrl: (url: string) => unknown }
+    ) => unknown;
 
     beforeAll(async () => {
         jest.unstable_mockModule(
@@ -55,6 +59,8 @@ describe('app routes', () => {
         workspaceChildren = workspaceRoute?.children ?? [];
         resolveElectronOnlyGlobalSearchRoute =
             appRoutes.resolveElectronOnlyGlobalSearchRoute;
+        resolveRecordingsCapabilityRoute =
+            appRoutes.resolveRecordingsCapabilityRoute;
     });
 
     afterEach(() => {
@@ -174,6 +180,33 @@ describe('app routes', () => {
 
         expect(parseUrl).toHaveBeenCalledWith('/workspace/sources');
         expect(result).toBe(redirectTree);
+    });
+
+    it('guards the focused recording detail behind the recordings capability', async () => {
+        const recordingRoute = workspaceChildren.find(
+            (route) => route.path === 'downloads/recording/:recordingId'
+        );
+
+        expect(recordingRoute?.canActivate).toHaveLength(1);
+    });
+
+    it('redirects the recording detail to the manager without the capability', async () => {
+        const redirectTree = { url: '/workspace/downloads' };
+        const parseUrl = jest.fn().mockReturnValue(redirectTree);
+
+        const result = resolveRecordingsCapabilityRoute(
+            { supportsRecordings: false },
+            { parseUrl }
+        );
+
+        expect(parseUrl).toHaveBeenCalledWith('/workspace/downloads');
+        expect(result).toBe(redirectTree);
+        expect(
+            resolveRecordingsCapabilityRoute(
+                { supportsRecordings: true },
+                { parseUrl }
+            )
+        ).toBe(true);
     });
 
     it('uses a dynamic redirect for the default /workspace child route', async () => {

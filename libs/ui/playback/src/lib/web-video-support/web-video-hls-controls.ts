@@ -1,5 +1,9 @@
 import Hls from 'hls.js';
-import type { PlayerTrack } from '../player-controls/player-controls.model';
+import {
+    AUTO_QUALITY_LEVEL_ID,
+    type PlayerTrack,
+} from '../player-controls/player-controls.model';
+import { buildQualityLevelLabels } from './quality-level-labels';
 
 export interface WebVideoHlsControlsConfig {
     showCaptions: () => boolean;
@@ -75,6 +79,46 @@ export class WebVideoHlsControls {
         ) {
             this.hls.audioTrack = id;
         }
+    }
+
+    getQualityLevels(): PlayerTrack[] {
+        const hls = this.hls;
+        if (!hls) {
+            return [];
+        }
+
+        const levels = hls.levels ?? [];
+        const labels = buildQualityLevelLabels(levels);
+        // `manualLevel` is -1 in auto mode, so no level reports selected then.
+        const manualLevel =
+            typeof hls.manualLevel === 'number' ? hls.manualLevel : -1;
+        return levels.map((_level, index) => ({
+            id: index,
+            label: labels[index],
+            selected: index === manualLevel,
+        }));
+    }
+
+    setQualityLevel(id: number): void {
+        const hls = this.hls;
+        if (!hls || !Number.isInteger(id)) {
+            return;
+        }
+
+        // `nextLevel` switches at the next fragment instead of flushing the
+        // buffer (`currentLevel` would), so the picture never stalls.
+        if (id === AUTO_QUALITY_LEVEL_ID) {
+            hls.nextLevel = -1;
+            return;
+        }
+        if (id >= 0 && id < (hls.levels?.length ?? 0)) {
+            hls.nextLevel = id;
+        }
+    }
+
+    isAutoQualityEnabled(): boolean {
+        // A fake or torn-down instance without the flag counts as auto.
+        return this.hls ? this.hls.autoLevelEnabled !== false : true;
     }
 
     getSubtitleTracks(): PlayerTrack[] {
@@ -204,5 +248,8 @@ function getHlsRefreshEvents() {
         Hls.Events.SUBTITLE_TRACKS_CLEARED,
         Hls.Events.SUBTITLE_TRACK_SWITCH,
         Hls.Events.MANIFEST_LOADING,
+        Hls.Events.MANIFEST_PARSED,
+        Hls.Events.LEVELS_UPDATED,
+        Hls.Events.LEVEL_SWITCHED,
     ] as const;
 }

@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Hangsávok",
             "SUBTITLES": "Feliratok",
             "SUBTITLES_OFF": "Kikapcsolva",
+            "QUALITY": "Minőség",
+            "QUALITY_AUTO": "Automatikus",
             "TRACK_DEFAULT": "Alapértelmezett",
             "AUDIO_TRACK_FALLBACK": "{{index}}. hangsáv",
             "SUBTITLE_TRACK_FALLBACK": "{{index}}. feliratsáv",
@@ -1205,7 +1207,9 @@
             "FAILED": "Sikertelen",
             "CANCELED": "Megszakítva",
             "PAUSED": "Paused",
-            "FILE_MISSING": "Hiányzik a fájl"
+            "FILE_MISSING": "Hiányzik a fájl",
+            "RECORDING": "Felvétel folyamatban",
+            "INTERRUPTED": "Megszakadt"
         },
         "ACTIVE_COUNT": "{{count}} folyamatban",
         "TRACKED_DOWNLOADS": "Letöltési feladatok",
@@ -1220,7 +1224,22 @@
             "ALL": "Összes",
             "MOVIES": "Filmek",
             "SERIES": "Sorozatok",
-            "IN_PROGRESS": "Folyamatban"
+            "IN_PROGRESS": "Folyamatban",
+            "RECORDINGS": "Felvételek"
+        },
+        "RECORDING_NOW": "Folyamatban lévő felvételek",
+        "RECORDINGS": "Felvételek",
+        "RECORDING_BADGE": "Felvétel",
+        "STOP_RECORDING": "Felvétel leállítása",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Eltávolítja a felvételt a kezelőből?",
+            "MESSAGE": "A művelet eltávolítja a bejegyzést az IPTVnator alkalmazásból. A felvett fájl a lemezen marad."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Felvett műsorok",
+            "RECORDED_FROM": "Felvétel forrása: {{playlist}}",
+            "MISSING_BODY": "A felvett fájl már nem érhető el a lemezen. Az élő adás nem vehető fel újra, de a bejegyzést eltávolíthatja a kezelőből.",
+            "FAILED_BODY": "Ez a felvétel meghiúsult, és nem jött létre lejátszható fájl."
         },
         "REMOVE_FROM_MANAGER": "Eltávolítás a letöltéskezelőből",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "Kiszolgálóoldali rendezés",
         "CATEGORY_SORT_ARIA": "Kategóriák rendezése",
         "DASHBOARD": {
+            "ACTION_FAILED": "A műveletet nem sikerült végrehajtani. Próbáld újra.",
             "CONTINUE_WATCHING": "Lejátszás folytatása",
             "LIVE_FAVORITES": "Most a kedvenc csatornákon",
             "LIVE_RECENT": "Élő tévénézés folytatása",

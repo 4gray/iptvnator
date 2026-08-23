@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Pistes audio",
             "SUBTITLES": "Sous-titres",
             "SUBTITLES_OFF": "Désactivés",
+            "QUALITY": "Qualité",
+            "QUALITY_AUTO": "Auto",
             "TRACK_DEFAULT": "Par défaut",
             "AUDIO_TRACK_FALLBACK": "Audio {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Sous-titre {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "Échec",
             "CANCELED": "Annulé",
             "PAUSED": "En pause",
-            "FILE_MISSING": "Fichier manquant"
+            "FILE_MISSING": "Fichier manquant",
+            "RECORDING": "Enregistrement",
+            "INTERRUPTED": "Interrompu"
         },
         "ACTIVE_COUNT": "{{count}} actifs",
         "TRACKED_DOWNLOADS": "Téléchargements suivis",
@@ -1220,7 +1224,22 @@
             "ALL": "Tous",
             "MOVIES": "Films",
             "SERIES": "Séries",
-            "IN_PROGRESS": "En cours"
+            "IN_PROGRESS": "En cours",
+            "RECORDINGS": "Enregistrements"
+        },
+        "RECORDING_NOW": "Enregistrement en cours",
+        "RECORDINGS": "Enregistrements",
+        "RECORDING_BADGE": "Enregistrement",
+        "STOP_RECORDING": "Arrêter l'enregistrement",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Retirer l'enregistrement du gestionnaire ?",
+            "MESSAGE": "Cela retire l'entrée d'IPTVnator. Le fichier enregistré reste sur le disque."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Programmes enregistrés",
+            "RECORDED_FROM": "Enregistré depuis {{playlist}}",
+            "MISSING_BODY": "Le fichier d'enregistrement n'est plus sur le disque. Une diffusion en direct ne peut pas être réenregistrée, mais vous pouvez retirer l'entrée du gestionnaire.",
+            "FAILED_BODY": "Cet enregistrement a échoué et n'a produit aucun fichier lisible."
         },
         "REMOVE_FROM_MANAGER": "Retirer du gestionnaire de téléchargements",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "Ordre du serveur",
         "CATEGORY_SORT_ARIA": "Trier les catégories",
         "DASHBOARD": {
+            "ACTION_FAILED": "L'action n'a pas pu être effectuée. Veuillez réessayer.",
             "CONTINUE_WATCHING": "Reprendre la lecture",
             "LIVE_FAVORITES": "En direct sur vos favoris",
             "LIVE_RECENT": "Reprendre la TV en direct",

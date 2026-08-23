@@ -371,6 +371,61 @@ export const downloads = sqliteTable(
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 
+// Live-TV recordings table. Rows are created by the embedded-MPV recording
+// tracker, not by the download queue: a recording has no source URL to
+// re-fetch, no byte totals, and no retry/resume semantics, so it lives beside
+// `downloads` instead of inside it. playlist_id has no FK on purpose —
+// recordings outlive the deletion of their source playlist.
+export const recordings = sqliteTable(
+    'recordings',
+    {
+        id: integer('id').primaryKey({ autoIncrement: true }),
+        // Transient embedded-MPV session id, correlation/debugging only.
+        sessionId: text('session_id'),
+        // PID of the process that opened the recording. Startup recovery uses
+        // it to leave rows owned by another live instance alone
+        // (IPTVNATOR_ALLOW_MULTIPLE_INSTANCES).
+        ownerPid: integer('owner_pid'),
+        status: text('status', {
+            enum: ['recording', 'completed', 'interrupted', 'failed'],
+        })
+            .notNull()
+            .default('recording'),
+        filePath: text('file_path').notNull(),
+        fileSizeBytes: integer('file_size_bytes'),
+        // Metadata snapshot captured at recording start (EPG is
+        // time-sensitive; it cannot be reconstructed after the fact).
+        channelName: text('channel_name').notNull(),
+        channelLogoUrl: text('channel_logo_url'),
+        playlistId: text('playlist_id'),
+        playlistName: text('playlist_name'),
+        sourceType: text('source_type', {
+            enum: ['m3u', 'xtream', 'stalker'],
+        }),
+        epgChannelId: text('epg_channel_id'),
+        programTitle: text('program_title'),
+        programDescription: text('program_description'),
+        programStart: text('program_start'),
+        programStop: text('program_stop'),
+        // Stop-time enrichment: JSON array of program snapshots overlapping
+        // [started_at, ended_at] (a recording can span program boundaries).
+        programsJson: text('programs_json'),
+        errorMessage: text('error_message'),
+        startedAt: text('started_at').notNull(),
+        endedAt: text('ended_at'),
+        createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+        updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+    },
+    (table) => ({
+        statusIdx: index('recordings_status_idx').on(table.status),
+        filePathIdx: index('recordings_file_path_idx').on(table.filePath),
+        playlistIdx: index('recordings_playlist_idx').on(table.playlistId),
+    })
+);
+
+export type Recording = typeof recordings.$inferSelect;
+export type NewRecording = typeof recordings.$inferInsert;
+
 // TMDB metadata cache table.
 // Two row kinds share the table, discriminated by the lookup_key prefix:
 // - 'id:<tmdbId>'                 → full TMDB details payload (JSON)

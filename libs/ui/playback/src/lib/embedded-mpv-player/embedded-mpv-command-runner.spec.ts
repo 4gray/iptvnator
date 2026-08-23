@@ -259,6 +259,19 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(session()?.recording?.active).toBe(true);
     });
 
+    it('startRecording forwards the channel metadata snapshot in the options', async () => {
+        const metadata = {
+            channelName: 'Channel One',
+            playlistId: 'playlist-a',
+            sourceType: 'xtream' as const,
+        };
+        await runner.startRecording('/custom', 'My Show', metadata);
+        expect(electron.startEmbeddedMpvRecording).toHaveBeenCalledWith(
+            'mpv-1',
+            { directory: '/custom', title: 'My Show', metadata }
+        );
+    });
+
     it('does not start recording after the session changes during folder lookup', async () => {
         let resolveFolder: ((folder: string) => void) | null = null;
         electron.getEmbeddedMpvDefaultRecordingFolder.mockImplementationOnce(

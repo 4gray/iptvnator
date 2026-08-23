@@ -1,0 +1,191 @@
+@if (item(); as recording) {
+    <app-portal-detail-shell
+        [title]="title()"
+        [description]="recording.programDescription ?? ''"
+        [posterUrl]="recording.channelLogoUrl ?? ''"
+        [backLabel]="'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate"
+        [errorMessage]="
+            isMissing() || isFailed()
+                ? ((isMissing()
+                      ? 'DOWNLOADS.RECORDING_DETAIL.MISSING_BODY'
+                      : 'DOWNLOADS.RECORDING_DETAIL.FAILED_BODY'
+                  ) | translate)
+                : undefined
+        "
+        (backClicked)="goBack()"
+    >
+        @if (isMissing() || isFailed()) {
+            <div
+                hero-error-actions
+                class="recording-detail__error-actions"
+                data-testid="recording-error-actions"
+            >
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-testid="recording-error-back"
+                    (click)="goBack()"
+                >
+                    <mat-icon aria-hidden="true">arrow_back</mat-icon>
+                    {{ 'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate }}
+                </button>
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-testid="recording-error-remove"
+                    [disabled]="isPending()"
+                    (click)="runAction('remove')"
+                >
+                    <mat-icon aria-hidden="true">remove_circle_outline</mat-icon>
+                    {{ 'DOWNLOADS.REMOVE_FROM_MANAGER' | translate }}
+                </button>
+            </div>
+        } @else {
+            <ng-template appDetailTags>
+                <span class="details__tag recording-detail__badge">
+                    <mat-icon aria-hidden="true">fiber_manual_record</mat-icon>
+                    {{ 'DOWNLOADS.RECORDING_BADGE' | translate }}
+                </span>
+                <span class="details__tag">{{ recording.channelName }}</span>
+                @if (durationLabel()) {
+                    <span class="details__tag">{{ durationLabel() }}</span>
+                }
+                @if (sizeLabel()) {
+                    <span class="details__tag">{{ sizeLabel() }}</span>
+                }
+                <span class="details__tag">MPEG-TS</span>
+                @if (recording.status === 'interrupted') {
+                    <span class="details__tag details__tag--status">
+                        {{ 'DOWNLOADS.STATUS.INTERRUPTED' | translate }}
+                    </span>
+                }
+            </ng-template>
+
+            <ng-template appDetailMeta>
+                <div class="details__meta-item">
+                    <span class="value">
+                        {{ recording.startedAt | date: 'longDate' }}
+                        · {{ recording.startedAt | date: 'HH:mm' }}
+                        @if (recording.endedAt) {
+                            – {{ recording.endedAt | date: 'HH:mm' }}
+                        }
+                    </span>
+                </div>
+                @if (recording.playlistName; as playlistName) {
+                    <div class="details__meta-item">
+                        <span class="value">
+                            {{
+                                'DOWNLOADS.RECORDING_DETAIL.RECORDED_FROM'
+                                    | translate: { playlist: playlistName }
+                            }}
+                        </span>
+                    </div>
+                }
+                <div class="details__meta-item">
+                    <span class="value recording-detail__path">
+                        {{ recording.filePath }}
+                    </span>
+                </div>
+            </ng-template>
+
+            <ng-template appDetailActions>
+                @if (isActive()) {
+                    <button
+                        mat-flat-button
+                        class="recording-detail__stop-action"
+                        type="button"
+                        data-testid="recording-stop"
+                        [disabled]="isPending()"
+                        (click)="runAction('stop')"
+                    >
+                        <mat-icon aria-hidden="true">stop</mat-icon>
+                        {{ 'DOWNLOADS.STOP_RECORDING' | translate }}
+                    </button>
+                } @else {
+                    <button
+                        mat-flat-button
+                        class="recording-detail__primary-action"
+                        type="button"
+                        data-testid="recording-play"
+                        [disabled]="isPending()"
+                        (click)="runAction('play')"
+                    >
+                        <mat-icon aria-hidden="true">play_arrow</mat-icon>
+                        {{ 'DOWNLOADS.OFFLINE_DETAIL.PLAY' | translate }}
+                    </button>
+                }
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-testid="recording-reveal"
+                    [disabled]="isPending()"
+                    (click)="runAction('reveal')"
+                >
+                    <mat-icon aria-hidden="true">folder_open</mat-icon>
+                    {{ 'DOWNLOADS.REVEAL' | translate }}
+                </button>
+                <button
+                    mat-icon-button
+                    type="button"
+                    data-testid="recording-overflow"
+                    [matMenuTriggerFor]="detailMenu"
+                    [attr.aria-label]="
+                        'DOWNLOADS.MORE_ACTIONS' | translate
+                    "
+                >
+                    <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #detailMenu="matMenu" xPosition="before">
+                    <button
+                        mat-menu-item
+                        data-testid="recording-remove"
+                        [disabled]="isActive()"
+                        (click)="runAction('remove')"
+                    >
+                        <mat-icon>remove_circle_outline</mat-icon>
+                        <span>
+                            {{ 'DOWNLOADS.REMOVE_FROM_MANAGER' | translate }}
+                        </span>
+                    </button>
+                </mat-menu>
+            </ng-template>
+        }
+
+        @if (coveredPrograms().length > 0) {
+            <section
+                detail-episodes
+                class="recording-detail__programs"
+                data-testid="recording-programs"
+            >
+                <h3>
+                    {{ 'DOWNLOADS.RECORDING_DETAIL.PROGRAMS' | translate }}
+                    <span class="app-count-badge" aria-hidden="true">
+                        {{ coveredPrograms().length }}
+                    </span>
+                </h3>
+                <ol class="recording-detail__program-list">
+                    @for (program of coveredPrograms(); track program.start) {
+                        <li class="recording-detail__program">
+                            <time>
+                                {{ program.start | date: 'HH:mm' }} –
+                                {{ program.stop | date: 'HH:mm' }}
+                            </time>
+                            <div>
+                                <div class="recording-detail__program-title">
+                                    {{ program.title }}
+                                </div>
+                                @if (program.description) {
+                                    <div
+                                        class="recording-detail__program-desc"
+                                    >
+                                        {{ program.description }}
+                                    </div>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ol>
+            </section>
+        }
+    </app-portal-detail-shell>
+}

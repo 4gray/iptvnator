@@ -53,7 +53,15 @@ export interface CollectionViewState {
 
 export function getRecentItemNavigation(
     item: PortalRecentItem,
-    seriesResume?: SeriesResumeTarget | null
+    seriesResume?: SeriesResumeTarget | null,
+    options?: {
+        /**
+         * Use `seriesResume` only to rewrite an episode-keyed recent row to
+         * its parent series identity, without carrying the auto-play resume
+         * handoff in the navigation state (detail-only clicks, issue #1441).
+         */
+        resumeIdentityOnly?: boolean;
+    }
 ): WorkspaceNavigationTarget {
     if (item.type === 'live') {
         return buildLiveCollectionNavigationTarget({
@@ -85,7 +93,9 @@ export function getRecentItemNavigation(
         return buildGlobalCollectionDetailNavigationTarget(
             'recent',
             detailItem,
-            item.type === 'series' ? seriesResume : null
+            item.type === 'series' && !options?.resumeIdentityOnly
+                ? seriesResume
+                : null
         );
     }
 

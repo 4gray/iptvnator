@@ -70,7 +70,60 @@ export function getRecentItemNavigationState(
     ).state;
 }
 
-function buildRecentSeriesResumeTarget(
+/**
+ * Detail-only navigation state: never carries a series resume target, so the
+ * handoff opens the detail page without auto-playing. Used by the Continue
+ * Watching cards' default click (movie-like behavior, issue #1441); the hero
+ * CTA and the cards' explicit Resume action keep the resume handoff. The
+ * position still matters here: a legacy episode-keyed recent row needs its
+ * identity rewritten to the parent series the position names, or the detail
+ * would target the episode id.
+ */
+export function getRecentItemDetailNavigationState(
+    item: PortalRecentItem,
+    playbackPosition?: PlaybackPositionData | null
+): WorkspaceNavigationTarget['state'] {
+    return getRecentItemNavigation(
+        item,
+        buildRecentSeriesIdentityTarget(item, playbackPosition),
+        { resumeIdentityOnly: true }
+    ).state;
+}
+
+/**
+ * Full navigation target carrying the one-shot resume handoff, or null when
+ * the item/position cannot produce one (non-Xtream, non-series, watched or
+ * coordinate-less rows). Powers the card's explicit "Resume episode" action.
+ */
+export function getRecentItemResumeNavigation(
+    item: PortalRecentItem,
+    playbackPosition?: PlaybackPositionData | null
+): WorkspaceNavigationTarget | null {
+    const resumeTarget = buildRecentSeriesResumeTarget(item, playbackPosition);
+    return resumeTarget ? getRecentItemNavigation(item, resumeTarget) : null;
+}
+
+export function buildRecentSeriesResumeTarget(
+    item: PortalRecentItem,
+    playbackPosition?: PlaybackPositionData | null
+): SeriesResumeTarget | null {
+    // A watched row is a completion marker (natural finish or a manual/bulk
+    // "mark watched"), not resumable progress — auto-playing it would start
+    // the episode at its end. Detail-only handoff lets the series page's
+    // quick-start pick the first unwatched episode instead.
+    if (isPortalPlaybackWatched(playbackPosition)) {
+        return null;
+    }
+
+    return buildRecentSeriesIdentityTarget(item, playbackPosition);
+}
+
+/**
+ * Series coordinates named by an episode position, without the watched
+ * guard: even a finished episode still identifies its parent series, which
+ * the detail-only click needs for the episode-keyed-row identity rewrite.
+ */
+function buildRecentSeriesIdentityTarget(
     item: PortalRecentItem,
     playbackPosition?: PlaybackPositionData | null
 ): SeriesResumeTarget | null {
@@ -79,14 +132,6 @@ function buildRecentSeriesResumeTarget(
         item.source !== 'xtream' ||
         playbackPosition?.contentType !== 'episode'
     ) {
-        return null;
-    }
-
-    // A watched row is a completion marker (natural finish or a manual/bulk
-    // "mark watched"), not resumable progress — auto-playing it would start
-    // the episode at its end. Detail-only handoff lets the series page's
-    // quick-start pick the first unwatched episode instead.
-    if (isPortalPlaybackWatched(playbackPosition)) {
         return null;
     }
 

@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Κομμάτια ήχου",
             "SUBTITLES": "Υπότιτλοι",
             "SUBTITLES_OFF": "Ανενεργοί",
+            "QUALITY": "Ποιότητα",
+            "QUALITY_AUTO": "Αυτόματη",
             "TRACK_DEFAULT": "Προεπιλογή",
             "AUDIO_TRACK_FALLBACK": "Ήχος {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Υπότιτλος {{index}}",
@@ -1205,7 +1207,9 @@
             "FAILED": "Απέτυχε",
             "CANCELED": "Ακυρώθηκε",
             "PAUSED": "Σε παύση",
-            "FILE_MISSING": "Λείπει το αρχείο"
+            "FILE_MISSING": "Λείπει το αρχείο",
+            "RECORDING": "Εγγραφή",
+            "INTERRUPTED": "Διακόπηκε"
         },
         "ACTIVE_COUNT": "{{count}} ενεργά",
         "TRACKED_DOWNLOADS": "Παρακολουθούμενες λήψεις",
@@ -1220,7 +1224,22 @@
             "ALL": "Όλα",
             "MOVIES": "Ταινίες",
             "SERIES": "Σειρές",
-            "IN_PROGRESS": "Σε εξέλιξη"
+            "IN_PROGRESS": "Σε εξέλιξη",
+            "RECORDINGS": "Εγγραφές"
+        },
+        "RECORDING_NOW": "Εγγραφή σε εξέλιξη",
+        "RECORDINGS": "Εγγραφές",
+        "RECORDING_BADGE": "Εγγραφή",
+        "STOP_RECORDING": "Διακοπή εγγραφής",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Αφαίρεση εγγραφής από τη διαχείριση;",
+            "MESSAGE": "Αυτό αφαιρεί την καταχώριση από το IPTVnator. Το αρχείο εγγραφής παραμένει στον δίσκο."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Εγγεγραμμένα προγράμματα",
+            "RECORDED_FROM": "Εγγράφηκε από {{playlist}}",
+            "MISSING_BODY": "Το αρχείο εγγραφής δεν βρίσκεται πλέον στον δίσκο. Μια ζωντανή μετάδοση δεν μπορεί να εγγραφεί ξανά, αλλά μπορείτε να αφαιρέσετε την καταχώριση από τη διαχείριση.",
+            "FAILED_BODY": "Αυτή η εγγραφή απέτυχε και δεν δημιούργησε αρχείο που να μπορεί να αναπαραχθεί."
         },
         "REMOVE_FROM_MANAGER": "Αφαίρεση από τον διαχειριστή λήψεων",
         "REMOVE_COMPLETED_DIALOG": {
@@ -1302,6 +1321,7 @@
         "SORT_SERVER": "Σειρά διακομιστή",
         "CATEGORY_SORT_ARIA": "Ταξινόμηση κατηγοριών",
         "DASHBOARD": {
+            "ACTION_FAILED": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας. Δοκιμάστε ξανά.",
             "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
             "LIVE_FAVORITES": "Ζωντανά τώρα στα αγαπημένα σας",
             "LIVE_RECENT": "Συνέχιση με ζωντανή TV",

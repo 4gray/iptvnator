@@ -17,7 +17,12 @@ export type {
     DownloadSeriesCardViewModel,
 } from './download-library.viewmodel';
 
-export type DownloadFilterId = 'all' | 'movie' | 'series' | 'in-progress';
+export type DownloadFilterId =
+    | 'all'
+    | 'movie'
+    | 'series'
+    | 'in-progress'
+    | 'recording';
 
 export type DownloadAttentionReason = 'file-missing' | 'transfer';
 
@@ -59,6 +64,7 @@ export function normalizeDownloadFilter(
         case 'movie':
         case 'series':
         case 'in-progress':
+        case 'recording':
             return value;
         default:
             return 'all';
@@ -146,6 +152,11 @@ function matchesFilter(
     }
     if (filter === 'series') {
         return row.item.contentType === 'episode';
+    }
+    // Recordings live in their own view model; the chip hides download rows
+    // symmetrically to how the download chips hide recordings.
+    if (filter === 'recording') {
+        return false;
     }
     return true;
 }

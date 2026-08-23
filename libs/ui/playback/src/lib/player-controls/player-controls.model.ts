@@ -21,6 +21,8 @@ export interface PlayerControlsCapabilities {
     subtitleDelay: boolean;
     /** Adjusting subtitle text size and color. */
     subtitleStyle: boolean;
+    /** Manifest-driven: true only when the source exposes >1 video rendition. */
+    qualityLevels: boolean;
     playbackSpeed: boolean;
     aspectRatio: boolean;
     recording: boolean;
@@ -38,6 +40,12 @@ export interface PlayerTrack {
     label: string; // adapter pre-computes the display label
     selected: boolean;
 }
+
+/**
+ * `setQualityLevel(AUTO_QUALITY_LEVEL_ID)` re-enables the engine's adaptive
+ * (ABR) selection, mirroring how `setSubtitleTrack(-1)` means "off".
+ */
+export const AUTO_QUALITY_LEVEL_ID = -1;
 
 /**
  * Content title lines rendered over the player while the controls are visible
@@ -84,6 +92,13 @@ export interface PlayerControlsState {
     subtitleDelaySeconds: number;
     /** Current subtitle presentation preferences. */
     subtitleStyle: PlayerSubtitleStyle;
+    /**
+     * Per-level quality options ("1080p", …). A level reports `selected` only
+     * while a manual selection is active; with ABR on, none is selected.
+     */
+    qualityLevels: PlayerTrack[];
+    /** True while the engine picks the quality level itself (ABR/auto). */
+    qualityAutoEnabled: boolean;
     playbackSpeed: number;
     speedPresets: ReadonlyArray<PlayerPreset<number>>;
     aspectRatio: string;
@@ -107,6 +122,7 @@ export interface PlayerControlsCommands {
     addExternalSubtitleFile(): void;
     setSubtitleDelay(seconds: number): void;
     setSubtitleStyle(style: PlayerSubtitleStyle): void;
+    setQualityLevel(id: number): void; // AUTO_QUALITY_LEVEL_ID (-1) = auto
     setPlaybackSpeed(speed: number): void;
     setAspectRatio(value: string): void;
     toggleRecording(): void;

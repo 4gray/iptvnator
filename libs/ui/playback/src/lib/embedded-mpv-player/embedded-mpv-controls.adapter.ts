@@ -12,6 +12,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
@@ -44,6 +46,8 @@ export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
     readonly seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
     readonly recordingFolder: Signal<string>;
+    /** Channel/EPG snapshot the live host captured for the recording tracker. */
+    readonly recordingMetadata?: Signal<RecordingStartMetadata | null>;
 }
 
 interface MappedPlayerStatus {
@@ -186,6 +190,9 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             subtitlesEnabled: (session?.selectedSubtitleTrackId ?? -1) >= 0,
             subtitleDelaySeconds: this.subtitleSettings.delaySeconds(),
             subtitleStyle: this.subtitleSettings.style(),
+            // MPV demuxes one program; no HLS/DASH rendition list is surfaced.
+            qualityLevels: [],
+            qualityAutoEnabled: true,
             playbackSpeed: session?.playbackSpeed ?? 1,
             speedPresets: DEFAULT_SPEED_PRESETS,
             aspectRatio: session?.aspectOverride ?? 'no',
@@ -221,6 +228,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             this.subtitleSettings.addExternalSubtitle(),
         setSubtitleDelay: (seconds) => this.subtitleSettings.setDelay(seconds),
         setSubtitleStyle: (style) => this.subtitleSettings.setStyle(style),
+        setQualityLevel: () => undefined,
         setPlaybackSpeed: (speed) => void this.controller.setSpeed(speed),
         setAspectRatio: (value) => void this.controller.setAspect(value),
         toggleRecording: () => void this.toggleRecording(),
@@ -365,6 +373,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             playback: context.playback(),
             playbackIdentity,
             session,
+            metadata: context.recordingMetadata?.() ?? null,
         });
     }
 }

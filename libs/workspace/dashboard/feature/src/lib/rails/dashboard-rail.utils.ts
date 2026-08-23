@@ -68,6 +68,50 @@ export function buildDashboardSourceActions(
     return actions;
 }
 
+export type DashboardContinueWatchingActionId =
+    | 'resume'
+    | 'mark-watched'
+    | 'remove-from-history';
+
+/**
+ * ⋮ menu for Continue Watching cards (issue #1441). The default card click is
+ * detail-only (movie-like); the explicit Resume action carries the one-shot
+ * auto-play handoff instead. Reuses existing translation keys so no new
+ * strings are needed across the language files.
+ */
+export function buildDashboardContinueWatchingActions(options: {
+    canResume: boolean;
+    canMarkWatched: boolean;
+}): DashboardRailAction[] {
+    const actions: DashboardRailAction[] = [];
+
+    if (options.canResume) {
+        actions.push({
+            id: 'resume',
+            icon: 'play_arrow',
+            labelKey: 'XTREAM.RESUME_EPISODE',
+        });
+    }
+
+    if (options.canMarkWatched) {
+        actions.push({
+            id: 'mark-watched',
+            icon: 'check_circle',
+            labelKey: 'XTREAM.MARK_WATCHED',
+        });
+    }
+
+    actions.push({
+        id: 'remove-from-history',
+        icon: 'delete',
+        labelKey: 'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY',
+        destructive: true,
+        separatorBefore: actions.length > 0,
+    });
+
+    return actions;
+}
+
 export function liveRailTitleKeyForSource(
     source: 'favorites' | 'recent'
 ): string {

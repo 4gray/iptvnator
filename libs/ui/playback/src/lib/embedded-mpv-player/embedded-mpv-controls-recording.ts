@@ -1,5 +1,6 @@
 import type {
     EmbeddedMpvSession,
+    RecordingStartMetadata,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -44,6 +45,8 @@ export interface RecordingToggleContext {
     readonly playback: ResolvedPortalPlayback;
     readonly playbackIdentity: string;
     readonly session: EmbeddedMpvSession;
+    /** Channel/EPG snapshot forwarded to the main-process recording tracker. */
+    readonly metadata?: RecordingStartMetadata | null;
 }
 
 export class EmbeddedMpvControlsRecording {
@@ -94,7 +97,8 @@ export class EmbeddedMpvControlsRecording {
             kind === RECORDING_OPERATION.START
                 ? this.controller.startRecording(
                       context.folder,
-                      context.playback.title
+                      context.playback.title,
+                      context.metadata ?? undefined
                   )
                 : this.controller.stopRecording();
         void command.then(

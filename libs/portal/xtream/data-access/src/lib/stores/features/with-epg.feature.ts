@@ -37,6 +37,35 @@ const initialEpgState: EpgState = {
  * - Loading EPG for selected stream
  * - Loading channel EPG for preview
  */
+/**
+ * Pure current-program selection over `epgItems`: first item (by start) with
+ * `start <= now < stop`. Exported for clock-driven callers — the live
+ * layout's recording start snapshot re-evaluates it against its own 30 s
+ * tick, because the `currentEpgItem` computed below caches its `Date.now()`
+ * verdict until `epgItems` changes and would hand a recording started after
+ * an EPG boundary the previous show.
+ */
+export function findCurrentEpgItem(
+    items: readonly EpgItem[],
+    nowMs: number
+): EpgItem | null {
+    const sorted = [...items].sort(
+        (left, right) =>
+            getEpgTimestampMs(left.start, left.start_timestamp) -
+            getEpgTimestampMs(right.start, right.start_timestamp)
+    );
+    return (
+        sorted.find((item) => {
+            const start = getEpgTimestampMs(item.start, item.start_timestamp);
+            const stop = getEpgTimestampMs(
+                item.stop ?? item.end,
+                item.stop_timestamp
+            );
+            return nowMs >= start && nowMs < stop;
+        }) ?? null
+    );
+}
+
 export function withEpg() {
     const logger = createLogger('withEpg');
     type ParentSelectionStoreLike = {
@@ -50,28 +79,9 @@ export function withEpg() {
     return signalStoreFeature(
         withState<EpgState>(initialEpgState),
         withComputed((store) => ({
-            currentEpgItem: computed(() => {
-                const now = Date.now();
-                const items = [...store.epgItems()].sort(
-                    (left, right) =>
-                        getEpgTimestampMs(left.start, left.start_timestamp) -
-                        getEpgTimestampMs(right.start, right.start_timestamp)
-                );
-
-                return (
-                    items.find((item) => {
-                        const start = getEpgTimestampMs(
-                            item.start,
-                            item.start_timestamp
-                        );
-                        const stop = getEpgTimestampMs(
-                            item.stop ?? item.end,
-                            item.stop_timestamp
-                        );
-                        return now >= start && now < stop;
-                    }) ?? null
-                );
-            }),
+            currentEpgItem: computed(() =>
+                findCurrentEpgItem(store.epgItems(), Date.now())
+            ),
         })),
 
         withMethods((store) => {
