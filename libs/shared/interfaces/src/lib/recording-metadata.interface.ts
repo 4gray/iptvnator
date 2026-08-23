@@ -31,6 +31,15 @@ export interface RecordingStartMetadata {
     sourceType?: RecordingSourceType;
     /** Resolved EPG lookup/mapping key, when the host knows one. */
     epgChannelId?: string;
+    /**
+     * Host-scoped identity of the exact recorded selection. The EPG key is
+     * not unique for M3U items (`tvgId`, or the display-name fallback, can
+     * be shared by several list entries), so stop enrichment additionally
+     * compares this key — otherwise switching between two same-keyed items
+     * while recording would attach the second item's schedule to the first
+     * item's recording. Opaque to everything below the host.
+     */
+    sourceItemKey?: string;
     /** The program airing when the recording started, if EPG knew it. */
     currentProgram?: RecordingProgramSnapshot;
 }
@@ -55,6 +64,12 @@ export interface RecordingStoppedEvent {
      * recording is never given another channel's schedule.
      */
     epgChannelId?: string | null;
+    /**
+     * `RecordingStartMetadata.sourceItemKey` captured the same way. The EPG
+     * key alone cannot tell two same-keyed M3U items apart, so hosts that
+     * set a source-item key also compare it before enriching.
+     */
+    sourceItemKey?: string | null;
 }
 
 export const RECORDING_STATUSES = [

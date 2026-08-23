@@ -363,7 +363,14 @@ display snapshot via `playlistDisplayLabel`).
   toggle. The event carries the EPG key captured while the recording was
   active, because a channel switch auto-stops the recording and the host's own
   state already describes the new channel by the time the stop is handled;
-  each host enriches only when that key still matches its current channel. The host answers with **stop enrichment**: it filters its in-memory
+  each host enriches only when that key still matches its current channel.
+  The EPG key is not unique for M3U items (a `tvgId`, or the display-name
+  fallback, can be shared by several list entries), so hosts with M3U
+  selections additionally set `RecordingStartMetadata.sourceItemKey` (the
+  unified tab's `item.uid`, the M3U player's `channel.id`) — captured and
+  carried through the stop event the same way, and compared before
+  enriching, so switching between two same-keyed items cannot attach the
+  second item's schedule to the first item's recording. The host answers with **stop enrichment**: it filters its in-memory
   program list to the programs overlapping `[startedAt, endedAt]`
   (`filterRecordingProgramsOverlap` in `@iptvnator/shared/interfaces`) and
   sends them through `RECORDINGS_UPDATE_PROGRAMS`, keyed by the unique

@@ -460,6 +460,42 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(stopped).toEqual(['channel.one']);
     });
 
+    it('carries the recorded source-item key through the stop event', () => {
+        // The EPG key is not unique for M3U items (shared tvgId or the
+        // name fallback): two list entries can share it, so the exact
+        // selection identity must survive the switch the same way.
+        const { fixture, component, controller } = render();
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'News HD',
+            epgChannelId: 'news.hd',
+            sourceItemKey: 'item-1',
+        });
+        const stopped: Array<string | null | undefined> = [];
+        component.recordingStopped.subscribe((event) =>
+            stopped.push(event.sourceItemKey)
+        );
+
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: true, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        // Same EPG key, different list item — the uid must not follow.
+        fixture.componentRef.setInput('recordingMetadata', {
+            channelName: 'News HD',
+            epgChannelId: 'news.hd',
+            sourceItemKey: 'item-2',
+        });
+        controller.session.set({
+            ...READY_SESSION,
+            recording: { active: false, targetPath: '/rec/news.ts' },
+        });
+        fixture.detectChanges();
+
+        expect(stopped).toEqual(['item-1']);
+    });
+
     it('does not emit recordingStopped without a preceding active recording', () => {
         const { fixture, component, controller } = render();
         const stopped: unknown[] = [];

@@ -439,6 +439,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             playlistName: playlistName || undefined,
             sourceType: 'm3u',
             epgChannelId: resolveChannelEpgLookupKey(channel) || undefined,
+            // The EPG lookup key can be shared by several channels (same
+            // tvgId, or the name fallback); the channel id is unique.
+            sourceItemKey: channel.id,
             currentProgram: program
                 ? toRecordingProgramSnapshot(program)
                 : undefined,
@@ -458,6 +461,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         if (
             event.epgChannelId &&
             event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
+        // The EPG key alone cannot tell two same-keyed channels apart —
+        // the channel id must also match the exact recorded selection.
+        if (
+            event.sourceItemKey &&
+            event.sourceItemKey !== this.recordingMetadata()?.sourceItemKey
         ) {
             return;
         }

@@ -318,6 +318,9 @@ export class UnifiedLiveTabComponent {
             playlistName: playlistDisplayLabel(item.playlistName) || undefined,
             sourceType: item.sourceType,
             epgChannelId: this.recordingEpgChannelId(item),
+            // The EPG key is not unique for M3U items (shared tvgId, or the
+            // display-name fallback); the uid names the exact selection.
+            sourceItemKey: item.uid,
             currentProgram: program
                 ? toRecordingProgramSnapshot(program)
                 : undefined,
@@ -333,6 +336,14 @@ export class UnifiedLiveTabComponent {
         if (
             event.epgChannelId &&
             event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
+        // The EPG key alone cannot tell two same-keyed M3U items apart —
+        // the uid must also match the exact recorded selection.
+        if (
+            event.sourceItemKey &&
+            event.sourceItemKey !== this.recordingMetadata()?.sourceItemKey
         ) {
             return;
         }
