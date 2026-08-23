@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { stat } from 'node:fs/promises';
 import { basename } from 'path';
 import { getDatabase } from '../../database/connection';
@@ -296,7 +296,15 @@ export async function reconcileStaleRecordings(): Promise<void> {
                     endedAt: row.endedAt ?? capturedEndedAt,
                     updatedAt: new Date().toISOString(),
                 })
-                .where(eq(schema.recordings.id, row.id));
+                // Guarded on the status this pass observed: if the tracker's
+                // finalization committed between the SELECT and here, the
+                // row is already terminal and must not be relabelled.
+                .where(
+                    and(
+                        eq(schema.recordings.id, row.id),
+                        eq(schema.recordings.status, 'recording')
+                    )
+                );
             repairedRows += 1;
         }
 

@@ -511,6 +511,37 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
     });
 
+    it('keeps a finalizing row in the ledger until its update commits', async () => {
+        // finalize() removes the entry from the open map immediately, but
+        // the row stays persisted as 'recording' until the queued terminal
+        // update commits — startup recovery must still see it as live.
+        let releaseUpdate!: () => void;
+        db.updateWhere.mockReturnValue(
+            new Promise<void>((resolve) => {
+                releaseUpdate = () => resolve();
+            })
+        );
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+        tracker.onRecordingStopped('session-1');
+
+        jest.useFakeTimers();
+        try {
+            tracker.observeSnapshot(inactiveSnapshot());
+            await jest.advanceTimersByTimeAsync(1_600);
+        } finally {
+            jest.useRealTimers();
+        }
+
+        // The update is dispatched but not committed: still in the ledger.
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        await expect(tracker.activeRowIds()).resolves.toEqual(new Set([7]));
+
+        releaseUpdate();
+        await flush();
+        await expect(tracker.activeRowIds()).resolves.toEqual(new Set());
+    });
+
     it('records the owning process so recovery can skip live rows', async () => {
         started(tracker);
         await flush();

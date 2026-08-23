@@ -106,6 +106,14 @@ type FinalizeFileProbe =
  */
 export class EmbeddedMpvRecordingTracker {
     private readonly open = new Map<string, OpenRecordingEntry>();
+    /**
+     * Entries whose finalization is queued but whose terminal database
+     * update has not committed yet. `finalize()` removes an entry from
+     * `open` immediately, so without this ledger `activeRowIds()` would
+     * omit a row still persisted as `recording` and startup recovery could
+     * repair it mid-finalization.
+     */
+    private readonly finalizing = new Set<OpenRecordingEntry>();
     /** Serializes DB mutations so a fast stop cannot outrun its insert. */
     private chain: Promise<void> = Promise.resolve();
 
@@ -269,7 +277,10 @@ export class EmbeddedMpvRecordingTracker {
      * misread as a recycled-pid leftover from a previous run.
      */
     async activeRowIds(): Promise<Set<number>> {
-        const entries = [...this.open.values()];
+        // Open recordings AND rows whose finalization has not committed yet
+        // — both are still persisted as `recording` and must not be
+        // repaired by startup recovery.
+        const entries = [...this.open.values(), ...this.finalizing];
         const ids = await Promise.all(entries.map((entry) => entry.rowId));
         return new Set(ids.filter((id): id is number => id !== null));
     }
@@ -283,6 +294,9 @@ export class EmbeddedMpvRecordingTracker {
             return;
         }
         entry.finalized = true;
+        // Keep the row visible to activeRowIds() until the terminal update
+        // commits — it is still persisted as 'recording' meanwhile.
+        this.finalizing.add(entry);
         // The map may already point at a newer recording on the same
         // session (stop → immediate restart); only remove the mapping when
         // it is still this entry's.
@@ -346,6 +360,7 @@ export class EmbeddedMpvRecordingTracker {
                 );
             return rowId;
         }).then((rowId) => {
+            this.finalizing.delete(entry);
             if (rowId !== null) {
                 broadcastRecordingsUpdate();
             }
