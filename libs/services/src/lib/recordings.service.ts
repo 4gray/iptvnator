@@ -45,10 +45,16 @@ export class RecordingsService implements OnDestroy {
             return;
         }
 
-        await this.loadRecordings();
+        // Subscribe BEFORE the initial load: a recording transition during
+        // that request pings while the response still reflects the older
+        // database state, and the load-state coalescing can only queue the
+        // trailing refresh if the listener already exists. Recording pings
+        // are rare, so a missed one would not self-heal until the 15 s poll
+        // (armed only once an active row is already visible).
         this.unsubscribe = window.electron.onRecordingsUpdate?.(() => {
             this.loadRecordings();
         });
+        await this.loadRecordings();
     }
 
     ngOnDestroy() {
