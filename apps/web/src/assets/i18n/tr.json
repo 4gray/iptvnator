@@ -1310,6 +1310,7 @@
         "SORT_SERVER": "Sunucu sıralaması",
         "CATEGORY_SORT_ARIA": "Kategorileri sırala",
         "DASHBOARD": {
+            "ACTION_FAILED": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
             "CONTINUE_WATCHING": "İzlemeye Devam Et",
             "LIVE_FAVORITES": "Favorilerinizde şu an canlı",
             "LIVE_RECENT": "Canlı TV ile devam et",

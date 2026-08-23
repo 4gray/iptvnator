@@ -144,10 +144,14 @@ export class SeasonContainerComponent implements OnInit {
     /**
      * Selected season. Auto-resolves when the season key set changes or when
      * playback positions first arrive (priority: inline-playing episode's
-     * season → most recently updated in-progress episode's season → first
-     * season); user tab clicks write to it and stick until the auto-select
+     * season → most recently updated in-progress episode's season → earliest
+     * season with unwatched episodes → latest season, with unhydrated
+     * lazy-VOD seasons pinning the fallback to the first season); user tab
+     * clicks write to it and stick until the auto-select
      * key changes. Ongoing position saves do not reset the selection — only
-     * the empty→loaded transition of the positions map does.
+     * the empty→loaded transition of the positions map does, and even that
+     * is ignored once this session toggled watched state itself (the flip is
+     * then an echo of the local action, not an initial load).
      */
     readonly selectedSeason = signal<string | undefined>(undefined);
 
@@ -163,6 +167,14 @@ export class SeasonContainerComponent implements OnInit {
             }`
     );
     private lastAutoSelectKey: string | null = null;
+    private lastAutoSelectSeasonSet: string | null = null;
+    /**
+     * True once this session toggled watched state itself. From then on an
+     * empty↔loaded flip of the positions map is the echo of that action, not
+     * an async initial load — re-resolving on it would yank the user off the
+     * season they just marked (e.g. all-watched season 1 → jump to season 2).
+     */
+    private hasLocalWatchedMutation = false;
 
     /**
      * Show thumbnails in the list view only when episodes have genuinely
@@ -210,10 +222,14 @@ export class SeasonContainerComponent implements OnInit {
             activeEpisodeId: this.activeEpisodeId,
             openingEpisodeId: this.openingEpisodeId,
             isEpisodeWatched: (episode) => this.isEpisodeWatched(episode),
-            emitSeasonToggle: (request) =>
-                this.seasonPlaybackToggleRequested.emit(request),
-            emitSeriesToggle: (request) =>
-                this.seriesPlaybackToggleRequested.emit(request),
+            emitSeasonToggle: (request) => {
+                this.hasLocalWatchedMutation = true;
+                this.seasonPlaybackToggleRequested.emit(request);
+            },
+            emitSeriesToggle: (request) => {
+                this.hasLocalWatchedMutation = true;
+                this.seriesPlaybackToggleRequested.emit(request);
+            },
         });
 
         effect(() => {
@@ -221,7 +237,19 @@ export class SeasonContainerComponent implements OnInit {
             if (key === this.lastAutoSelectKey) {
                 return;
             }
+            const seasonSet = untracked(() =>
+                this.sortedSeasonKeys().join('|')
+            );
+            const seasonSetUnchanged =
+                seasonSet === this.lastAutoSelectSeasonSet;
             this.lastAutoSelectKey = key;
+            this.lastAutoSelectSeasonSet = seasonSet;
+            // A positions-emptiness flip after a local watched toggle keeps
+            // the current selection; only the async initial positions load
+            // (or a season-set change) re-resolves the season.
+            if (seasonSetUnchanged && this.hasLocalWatchedMutation) {
+                return;
+            }
             this.selectedSeason.set(untracked(() => this.resolveAutoSeason()));
         });
 
@@ -313,6 +341,7 @@ export class SeasonContainerComponent implements OnInit {
             this.logger.warn('Cannot toggle watched: no playlist ID');
             return;
         }
+        this.hasLocalWatchedMutation = true;
 
         const contentXtreamId = this.getEpisodeContentId(episode);
         const currentPosition = this.getEpisodePosition(episode);
@@ -410,7 +439,36 @@ export class SeasonContainerComponent implements OnInit {
         }
 
         const resumeSeason = this.findMostRecentInProgressSeason();
-        return resumeSeason ?? keys[0];
+        return resumeSeason ?? this.resolveDefaultSeason(keys);
+    }
+
+    /**
+     * Fallback when nothing is playing or in progress: the earliest season
+     * with unwatched episodes, or — once everything loaded is watched — the
+     * latest non-empty season, where new episodes land (issue #1441).
+     * Loaded-but-empty seasons (a valid Stalker answer) are never picked over
+     * one that has episodes. Stalker lazy-VOD series with unhydrated seasons
+     * keep the first season: their watched state is unknown, so skipping
+     * past them would be a guess.
+     */
+    private resolveDefaultSeason(keys: readonly string[]): string {
+        if (this.hasUnloadedSeasons()) {
+            return keys[0];
+        }
+
+        const episodeCounts = this.episodeCounts();
+        const watchedCounts = this.watchedCounts();
+        const firstUnwatched = keys.find((key) => {
+            const total = episodeCounts[key] ?? 0;
+            return total > 0 && (watchedCounts[key] ?? 0) < total;
+        });
+        if (firstUnwatched) {
+            return firstUnwatched;
+        }
+        const latestWithEpisodes = [...keys]
+            .reverse()
+            .find((key) => (episodeCounts[key] ?? 0) > 0);
+        return latestWithEpisodes ?? keys[0];
     }
 
     private findMostRecentInProgressSeason(): string | null {

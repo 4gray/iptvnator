@@ -23,12 +23,15 @@ Related:
 - Dashboard `Global Favorites` and `Recently Watched` widgets hand off Xtream and
   Stalker movies/series into the matching global collection route with detail
   pre-opened.
-- Dashboard Continue Watching handoffs for Xtream series may additionally carry
-  a one-shot season/episode resume target. The collection-owned Xtream detail
-  consumes it after its episode positions load and starts that exact episode;
-  opening the series from the collection grid itself remains detail-only. If the
-  positions load fails, the target stays unconsumed and the handoff degrades to
-  detail-only rather than starting the episode at offset zero.
+- The dashboard hero CTA and the Continue Watching cards' explicit "Resume
+  episode" ⋮ action for Xtream series carry a one-shot season/episode resume
+  target. The collection-owned Xtream detail consumes it after its episode
+  positions load and starts that exact episode; the cards' default click is
+  detail-only (movie-like), as is opening the series from the collection grid
+  itself. If the positions load fails, the target stays unconsumed and the
+  handoff degrades to detail-only rather than starting the episode at offset
+  zero. Continue Watching cards also expose "Mark as Watched" (maxes out the
+  tracked position row) and "Remove from history" in the same ⋮ menu.
 - Ready Download Manager cards open one of the three focused
   `downloads/:downloadId` routes. These local details hide the workspace
   context panel, play only finalized local files, and show only locally

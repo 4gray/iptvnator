@@ -223,20 +223,32 @@ test.describe('Electron Season Watched Toggle', () => {
             const restartedWatchedCards = app.mainWindow.locator(
                 '.episode-card--watched'
             );
+            // With season 1 completed, the fresh mount auto-selects the
+            // earliest season with unwatched episodes (issue #1441): season 2
+            // opens unwatched while season 1's tab keeps the check.
             await expect(restartedToggle).toBeVisible({ timeout: 20_000 });
             await expect(restartedToggle).toContainText(
-                'Mark season as unwatched'
+                `Mark season as watched (${seasonEpisodeCount})`
+            );
+            await expect(restartedWatchedCards).toHaveCount(0, {
+                timeout: 10_000,
+            });
+            const restartedSeasonTabs =
+                app.mainWindow.locator('.season-tabs__pill');
+            await expect(
+                restartedSeasonTabs.first().locator('.season-tabs__done')
+            ).toBeVisible();
+
+            // Season 1 itself was re-read from SQLite fully watched.
+            await restartedSeasonTabs.first().click();
+            await expect(restartedToggle).toContainText(
+                'Mark season as unwatched',
+                { timeout: 15_000 }
             );
             await expect(restartedWatchedCards).toHaveCount(
                 seasonEpisodeCount,
                 { timeout: 10_000 }
             );
-            await expect(
-                app.mainWindow
-                    .locator('.season-tabs__pill')
-                    .first()
-                    .locator('.season-tabs__done')
-            ).toBeVisible();
 
             // Unmark: the clear batch removes every row again, in the DOM and
             // in SQLite.
