@@ -40,6 +40,25 @@ describe('external-subtitle-cues.util', () => {
             );
         });
 
+        it('detects CP1251 in a short-dialogue SRT where ASCII timing bytes dominate', () => {
+            // "Да" / "Нет" in CP1251 among full SRT timing scaffolding: only
+            // 5 of ~70 bytes are high, but ALL letter bytes are — the
+            // discriminator must ignore the timing lines.
+            const ascii = (text: string) =>
+                Array.from(text).map((c) => c.charCodeAt(0));
+            const srt = [
+                ...ascii('1\n00:00:01,000 --> 00:00:02,000\n'),
+                0xc4, 0xe0, // Да
+                ...ascii('\n\n2\n00:00:03,000 --> 00:00:04,000\n'),
+                0xcd, 0xe5, 0xf2, // Нет
+                ...ascii('\n'),
+            ];
+            expect(decodeExternalSubtitleBytes(toBuffer(srt))).toContain('Да');
+            expect(decodeExternalSubtitleBytes(toBuffer(srt))).toContain(
+                'Нет'
+            );
+        });
+
         it('decodes mostly-ASCII Windows-1252 bytes (sparse accents)', () => {
             // "resume: cafe" with two accented letters among ASCII.
             const cp1252 = [

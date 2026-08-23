@@ -64,14 +64,25 @@ export function decodeExternalSubtitleBytes(buffer: ArrayBuffer): string {
         // Not valid UTF-8: a legacy single-byte encoding.
     }
 
+    // Compare only letter-carrying bytes: cue counters and timing lines are
+    // ASCII digits/punctuation and identical in every candidate encoding, so
+    // ratios over the whole file would drown short dialogue ("Да"/"Нет") in
+    // timing bytes. In a non-Latin-script file virtually every letter is a
+    // high byte; Latin text with accents stays dominated by ASCII letters.
     let highBytes = 0;
+    let asciiLetters = 0;
     for (const byte of bytes) {
         if (byte >= 0x80) {
             highBytes += 1;
+        } else if (
+            (byte >= 0x41 && byte <= 0x5a) ||
+            (byte >= 0x61 && byte <= 0x7a)
+        ) {
+            asciiLetters += 1;
         }
     }
     const encoding =
-        highBytes / Math.max(1, bytes.length) > 0.15
+        highBytes / Math.max(1, highBytes + asciiLetters) > 0.3
             ? 'windows-1251'
             : 'windows-1252';
     try {
