@@ -45,6 +45,7 @@ import {
 import {
     FavoriteItem,
     FavoritesService,
+    findCurrentEpgItem,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -63,13 +64,23 @@ import {
 } from '@iptvnator/ui/playback';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import {
+    buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
+    filterRecordingProgramsOverlap,
+    playlistDisplayLabel,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
+    toRecordingProgramSnapshot,
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    RecordingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
@@ -169,6 +180,67 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly controlledEpgPrograms = computed<EpgProgram[]>(() =>
         this.epgItems().map((program) => this.toControlledEpgProgram(program))
     );
+    private readonly recordingsService = inject(RecordingsService);
+    /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
+    readonly recordingMetadata = computed<RecordingStartMetadata | null>(() => {
+        const item = this.selectedLiveItem();
+        if (!item) {
+            return null;
+        }
+        const playlist = this.xtreamStore.currentPlaylist();
+        // Re-select against the 30 s tick: the store's `currentEpgItem`
+        // caches its Date.now() verdict until epgItems changes, so a
+        // recording started after an EPG boundary would snapshot the
+        // previous show.
+        const program = findCurrentEpgItem(
+            this.epgItems(),
+            this.currentTimeMs()
+        );
+        return {
+            channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
+            channelLogoUrl:
+                item.poster_url?.trim() || item.stream_icon?.trim() || undefined,
+            playlistId: playlist?.id,
+            playlistName:
+                playlistDisplayLabel(playlist?.name ?? playlist?.title) ||
+                undefined,
+            sourceType: 'xtream',
+            epgChannelId: playlist
+                ? buildXtreamEpgMappingKey(playlist.id, item.xtream_id)
+                : undefined,
+            currentProgram: program
+                ? toRecordingProgramSnapshot({
+                      title: program.title,
+                      description: program.description,
+                      start: program.start,
+                      stop: program.stop ?? program.end,
+                  })
+                : undefined,
+        };
+    });
+
+    /** Stop enrichment: programs overlapping the recorded window. */
+    onRecordingStopped(event: RecordingStoppedEvent): void {
+        // A channel switch auto-stops the recording, and by now this host
+        // already describes the new channel — enriching then would attach the
+        // wrong schedule (and could promote an unrelated program to the
+        // recording's title).
+        if (
+            event.epgChannelId &&
+            event.epgChannelId !== this.recordingMetadata()?.epgChannelId
+        ) {
+            return;
+        }
+        const programs = filterRecordingProgramsOverlap(
+            this.controlledEpgPrograms().map(toRecordingProgramSnapshot),
+            event.startedAt,
+            event.endedAt
+        );
+        if (programs.length === 0) {
+            return;
+        }
+        void this.recordingsService.updatePrograms(event.targetPath, programs);
+    }
     private readonly currentTimeMs = signal(Date.now());
     readonly activeCatchupProgram = signal<EpgProgram | null>(null);
     readonly controlledArchiveDays = computed(() =>

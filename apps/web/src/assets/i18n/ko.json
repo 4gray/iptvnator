@@ -1196,7 +1196,9 @@
             "FAILED": "실패",
             "CANCELED": "취소됨",
             "PAUSED": "일시정지됨",
-            "FILE_MISSING": "파일이 없습니다"
+            "FILE_MISSING": "파일이 없습니다",
+            "RECORDING": "녹화 중",
+            "INTERRUPTED": "중단됨"
         },
         "ACTIVE_COUNT": "{{count}}개 진행 중",
         "TRACKED_DOWNLOADS": "관리 중인 다운로드",
@@ -1211,7 +1213,22 @@
             "ALL": "전체",
             "MOVIES": "영화",
             "SERIES": "시리즈",
-            "IN_PROGRESS": "진행 중"
+            "IN_PROGRESS": "진행 중",
+            "RECORDINGS": "녹화"
+        },
+        "RECORDING_NOW": "지금 녹화 중",
+        "RECORDINGS": "녹화",
+        "RECORDING_BADGE": "녹화 중",
+        "STOP_RECORDING": "녹화 중지",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "관리 목록에서 녹화를 제거하시겠습니까?",
+            "MESSAGE": "IPTVnator에서 항목을 제거합니다. 녹화된 파일은 디스크에 그대로 남아 있습니다."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "녹화된 프로그램",
+            "RECORDED_FROM": "{{playlist}}에서 녹화됨",
+            "MISSING_BODY": "녹화 파일이 더 이상 디스크에 없습니다. 라이브 방송은 다시 녹화할 수 없지만, 관리 목록에서 항목을 제거할 수 있습니다.",
+            "FAILED_BODY": "이 녹화는 실패하여 재생 가능한 파일이 생성되지 않았습니다."
         },
         "REMOVE_FROM_MANAGER": "다운로드 관리자에서 제거",
         "REMOVE_COMPLETED_DIALOG": {

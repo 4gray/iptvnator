@@ -1196,7 +1196,9 @@
             "FAILED": "Fehlgeschlagen",
             "CANCELED": "Abgebrochen",
             "PAUSED": "Pausiert",
-            "FILE_MISSING": "Datei fehlt"
+            "FILE_MISSING": "Datei fehlt",
+            "RECORDING": "Wird aufgenommen",
+            "INTERRUPTED": "Unterbrochen"
         },
         "ACTIVE_COUNT": "{{count}} aktiv",
         "TRACKED_DOWNLOADS": "Überwachte Downloads",
@@ -1211,7 +1213,22 @@
             "ALL": "Alle",
             "MOVIES": "Filme",
             "SERIES": "Serien",
-            "IN_PROGRESS": "In Bearbeitung"
+            "IN_PROGRESS": "In Bearbeitung",
+            "RECORDINGS": "Aufnahmen"
+        },
+        "RECORDING_NOW": "Aufnahme läuft",
+        "RECORDINGS": "Aufnahmen",
+        "RECORDING_BADGE": "Aufnahme",
+        "STOP_RECORDING": "Aufnahme stoppen",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Aufnahme aus dem Manager entfernen?",
+            "MESSAGE": "Dadurch wird der Eintrag aus IPTVnator entfernt. Die aufgenommene Datei bleibt auf der Festplatte erhalten."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Aufgenommene Sendungen",
+            "RECORDED_FROM": "Aufgenommen aus {{playlist}}",
+            "MISSING_BODY": "Die Aufnahmedatei ist nicht mehr auf der Festplatte vorhanden. Eine Live-Übertragung kann nicht erneut aufgenommen werden, aber Sie können den Eintrag aus dem Manager entfernen.",
+            "FAILED_BODY": "Diese Aufnahme ist fehlgeschlagen und hat keine abspielbare Datei erzeugt."
         },
         "REMOVE_FROM_MANAGER": "Aus dem Download-Manager entfernen",
         "REMOVE_COMPLETED_DIALOG": {

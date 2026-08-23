@@ -71,16 +71,18 @@ export class DownloadsService implements OnDestroy {
             return;
         }
 
+        // Subscribe BEFORE the initial load, so a transition pinged while
+        // that request is pending is coalesced into a trailing refresh
+        // instead of being lost with the pre-transition response.
+        this.unsubscribe = window.electron.onDownloadsUpdate(() => {
+            this.loadDownloads();
+        });
+
         // Load initial download list
         await this.loadDownloads();
 
         // Load download folder
         await this.loadDownloadFolder();
-
-        // Subscribe to download updates
-        this.unsubscribe = window.electron.onDownloadsUpdate(() => {
-            this.loadDownloads();
-        });
     }
 
     ngOnDestroy() {

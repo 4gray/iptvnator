@@ -100,9 +100,11 @@
                     [streamUrl]="streamUrl"
                     [title]="activePlayback()?.title ?? ''"
                     [playback]="activePlayback()"
+                    [recordingMetadata]="recordingMetadata()"
                     (externalFallbackRequested)="
                         handleExternalFallbackRequest($event)
                     "
+                    (recordingStopped)="onRecordingStopped($event)"
                 />
             </div>
         }

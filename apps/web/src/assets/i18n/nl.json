@@ -1196,7 +1196,9 @@
             "FAILED": "Mislukt",
             "CANCELED": "Geannuleerd",
             "PAUSED": "Gepauzeerd",
-            "FILE_MISSING": "Bestand ontbreekt"
+            "FILE_MISSING": "Bestand ontbreekt",
+            "RECORDING": "Opnemen",
+            "INTERRUPTED": "Onderbroken"
         },
         "ACTIVE_COUNT": "{{count}} actief",
         "TRACKED_DOWNLOADS": "Bijgehouden downloads",
@@ -1211,7 +1213,22 @@
             "ALL": "Alles",
             "MOVIES": "Films",
             "SERIES": "Reeksen",
-            "IN_PROGRESS": "Bezig"
+            "IN_PROGRESS": "Bezig",
+            "RECORDINGS": "Opnames"
+        },
+        "RECORDING_NOW": "Nu aan het opnemen",
+        "RECORDINGS": "Opnames",
+        "RECORDING_BADGE": "Opname",
+        "STOP_RECORDING": "Opname stoppen",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Opname uit downloadbeheer verwijderen?",
+            "MESSAGE": "Hiermee wordt het item uit IPTVnator verwijderd. Het opgenomen bestand blijft op de schijf staan."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Opgenomen programma's",
+            "RECORDED_FROM": "Opgenomen van {{playlist}}",
+            "MISSING_BODY": "Het opnamebestand staat niet meer op de schijf. Een live-uitzending kan niet opnieuw worden opgenomen, maar je kunt het item uit downloadbeheer verwijderen.",
+            "FAILED_BODY": "Deze opname is mislukt en heeft geen afspeelbaar bestand opgeleverd."
         },
         "REMOVE_FROM_MANAGER": "Uit de downloadbeheerder verwijderen",
         "REMOVE_COMPLETED_DIALOG": {

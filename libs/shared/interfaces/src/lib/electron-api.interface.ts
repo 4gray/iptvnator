@@ -15,6 +15,11 @@ import {
     GlobalSearchResultSource,
 } from './global-search-result.interface';
 import { M3uFavoriteChannel } from './m3u-favorite-channel.interface';
+import {
+    RecordingProgramSnapshot,
+    RecordingSourceType,
+    RecordingStatus,
+} from './recording-metadata.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 import { AutoUpdatePlaylistsResult } from './playlist-auto-update.interface';
 import {
@@ -598,6 +603,41 @@ export interface ElectronDownloadItem {
     errorMessage?: string;
     createdAt?: string;
     updatedAt?: string;
+}
+
+/**
+ * Renderer-facing live-TV recording row. `fileAvailability` is derived at
+ * read time (never persisted) and `programs` is the decoded `programs_json`
+ * column. Recordings reuse the download availability vocabulary so the
+ * manager UI can share its missing-file affordances — extended by
+ * `'unknown'` for an inconclusive probe (timeout, permission or I/O error):
+ * only proven absence may move a recording to Needs attention or hide its
+ * file actions, so consumers gate on `=== 'missing'`, never on
+ * `!== 'available'`.
+ */
+export interface ElectronRecordingItem {
+    id: number;
+    sessionId?: string;
+    status: RecordingStatus;
+    filePath: string;
+    fileSizeBytes?: number;
+    channelName: string;
+    channelLogoUrl?: string;
+    playlistId?: string;
+    playlistName?: string;
+    sourceType?: RecordingSourceType;
+    epgChannelId?: string;
+    programTitle?: string;
+    programDescription?: string;
+    programStart?: string;
+    programStop?: string;
+    programs?: RecordingProgramSnapshot[];
+    errorMessage?: string;
+    startedAt: string;
+    endedAt?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    fileAvailability: ElectronDownloadFileAvailability | 'unknown';
 }
 
 export interface ElectronBridgeApi {
@@ -1185,4 +1225,28 @@ export interface ElectronBridgeApi {
         playlistId?: string
     ) => Promise<ElectronBridgeResult>;
     onDownloadsUpdate: (callback: () => void) => () => void;
+    // Live-TV recordings surface. Optional: older Electron builds have no
+    // recordings bridge, and `supportsRecordings` (not `supportsDownloads`)
+    // gates every consumer.
+    recordingsGetList?: (
+        playlistId?: string
+    ) => Promise<ElectronRecordingItem[]>;
+    recordingsGet?: (
+        recordingId: number
+    ) => Promise<ElectronRecordingItem | null>;
+    recordingsStop?: (recordingId: number) => Promise<ElectronBridgeErrorResult>;
+    recordingsRemove?: (
+        recordingId: number
+    ) => Promise<ElectronBridgeErrorResult>;
+    recordingsUpdatePrograms?: (
+        targetPath: string,
+        programs: RecordingProgramSnapshot[]
+    ) => Promise<ElectronBridgeErrorResult>;
+    recordingsRevealFile?: (
+        filePath: string
+    ) => Promise<ElectronBridgeErrorResult>;
+    recordingsPlayFile?: (
+        filePath: string
+    ) => Promise<ElectronBridgeErrorResult>;
+    onRecordingsUpdate?: (callback: () => void) => () => void;
 }

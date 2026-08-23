@@ -204,6 +204,22 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    // Deliberately separate from supportsDownloads: that allowlist is
+    // all-or-nothing, and folding the recordings bridge into it would make
+    // older Electron builds lose the entire download manager.
+    get supportsRecordings(): boolean {
+        return [
+            'recordingsGetList',
+            'recordingsGet',
+            'recordingsStop',
+            'recordingsRemove',
+            'recordingsUpdatePrograms',
+            'recordingsRevealFile',
+            'recordingsPlayFile',
+            'onRecordingsUpdate',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsPortalActivityStorage(): boolean {
         return [
             'dbGetRecentlyViewed',

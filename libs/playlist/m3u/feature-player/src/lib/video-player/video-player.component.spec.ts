@@ -42,6 +42,8 @@ import {
     Channel,
     EpgProgram,
     ExternalPlayerSession,
+    RecordingStartMetadata,
+    RecordingStoppedEvent,
     ResolvedPortalPlayback,
     Settings,
     VideoPlayer,
@@ -122,7 +124,9 @@ class StubWebPlayerViewComponent {
     readonly playback = input<unknown>(null);
     readonly playerOverride = input<VideoPlayer | null>(null);
     readonly volume = input(1);
+    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 
 // Matches both live-panel selectors so the host's timeline ↔ list swap can be

@@ -119,6 +119,37 @@ const DOWNLOADS_INDEX_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
 ];
+// No unique index: re-recording the same channel is a normal workflow, and
+// playlist_id carries no FK so recordings survive source deletion.
+const RECORDINGS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS recordings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT,
+      owner_pid INTEGER,
+      status TEXT NOT NULL DEFAULT 'recording' CHECK (status IN ('recording', 'completed', 'interrupted', 'failed')),
+      file_path TEXT NOT NULL,
+      file_size_bytes INTEGER,
+      channel_name TEXT NOT NULL,
+      channel_logo_url TEXT,
+      playlist_id TEXT,
+      playlist_name TEXT,
+      source_type TEXT CHECK (source_type IN ('m3u', 'xtream', 'stalker')),
+      epg_channel_id TEXT,
+      program_title TEXT,
+      program_description TEXT,
+      program_start TEXT,
+      program_stop TEXT,
+      programs_json TEXT,
+      error_message TEXT,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+  )`;
+const RECORDINGS_INDEX_STATEMENTS = [
+    `CREATE INDEX IF NOT EXISTS recordings_status_idx ON recordings(status)`,
+    `CREATE INDEX IF NOT EXISTS recordings_file_path_idx ON recordings(file_path)`,
+    `CREATE INDEX IF NOT EXISTS recordings_playlist_idx ON recordings(playlist_id)`,
+];
 
 const CREATE_TABLE_STATEMENTS = [
     `CREATE TABLE IF NOT EXISTS playlists (
@@ -344,6 +375,9 @@ const CREATE_TABLE_STATEMENTS = [
     // Downloads table
     DOWNLOADS_TABLE_SQL,
     ...DOWNLOADS_INDEX_STATEMENTS,
+    // Live-TV recordings table
+    RECORDINGS_TABLE_SQL,
+    ...RECORDINGS_INDEX_STATEMENTS,
     // TMDB metadata cache (details payloads + search match resolutions)
     TMDB_METADATA_TABLE_SQL,
     TMDB_METADATA_INDEX_SQL,

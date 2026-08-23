@@ -16,6 +16,8 @@ import {
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
+    type RecordingItem,
+    RecordingsService,
 } from '@iptvnator/services';
 import {
     PORTAL_SHELL_ACTIONS,
@@ -27,6 +29,7 @@ import { BehaviorSubject, type Observable, Subject } from 'rxjs';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
 import type { DownloadActionResult } from './download-actions';
 import { DownloadManagerActionsService } from './download-manager-actions.service';
+import { RecordingManagerActionsService } from './recording-manager-actions.service';
 import type { DownloadSeriesCardViewModel } from './download-manager.viewmodel';
 import { DownloadsComponent } from './downloads.component';
 
@@ -65,6 +68,23 @@ function deferred<T>(): Deferred<T> {
         resolve = settle;
     });
     return { promise, resolve };
+}
+
+function recording(
+    id: number,
+    overrides: Partial<RecordingItem> = {}
+): RecordingItem {
+    return {
+        id,
+        status: 'completed',
+        filePath: `/recordings/${id}.ts`,
+        channelName: `Channel ${id}`,
+        startedAt: '2026-08-15T21:00:00Z',
+        endedAt: '2026-08-15T21:58:00Z',
+        fileAvailability: 'available',
+        playlistId: 'playlist-a',
+        ...overrides,
+    };
 }
 
 function download(
@@ -141,11 +161,39 @@ describe('DownloadsComponent', () => {
     };
     let snackBar: { open: jest.Mock };
     let matDialog: { open: jest.Mock };
+    let recordings: ReturnType<typeof signal<RecordingItem[]>>;
+    let recordingsService: {
+        readonly recordings: typeof recordings;
+        readonly isAvailable: ReturnType<typeof signal<boolean>>;
+        readonly hasLoadedRecordings: ReturnType<typeof signal<boolean>>;
+        readonly hasAuthoritativeRecordingList: ReturnType<
+            typeof signal<boolean>
+        >;
+        readonly isLoadingRecordings: ReturnType<typeof signal<boolean>>;
+        loadRecordings: jest.Mock;
+        stopRecording: jest.Mock;
+        removeRecording: jest.Mock;
+        playFile: jest.Mock;
+        revealFile: jest.Mock;
+    };
 
     const success = async () => ({ success: true });
 
     beforeEach(async () => {
         downloads = signal<DownloadItem[]>([]);
+        recordings = signal<RecordingItem[]>([]);
+        recordingsService = {
+            recordings,
+            isAvailable: signal(false),
+            hasLoadedRecordings: signal(true),
+            hasAuthoritativeRecordingList: signal(true),
+            isLoadingRecordings: signal(false),
+            loadRecordings: jest.fn(async () => undefined),
+            stopRecording: jest.fn(success),
+            removeRecording: jest.fn(success),
+            playFile: jest.fn(success),
+            revealFile: jest.fn(success),
+        };
         routeParams = new BehaviorSubject(convertToParamMap({}));
         queryParams = new BehaviorSubject(convertToParamMap({}));
         activatedRoute = {
@@ -245,6 +293,10 @@ describe('DownloadsComponent', () => {
                     useValue: downloadsService,
                 },
                 {
+                    provide: RecordingsService,
+                    useValue: recordingsService,
+                },
+                {
                     provide: PlaylistsService,
                     useValue: {
                         getAllPlaylists: () => playlistItems.asObservable(),
@@ -275,6 +327,7 @@ describe('DownloadsComponent', () => {
                         },
                         { provide: MatDialog, useValue: matDialog },
                         DownloadManagerActionsService,
+                        RecordingManagerActionsService,
                     ],
                 },
             })
@@ -427,6 +480,32 @@ describe('DownloadsComponent', () => {
         expect(component.model().activeCount).toBe(1);
         expect(downloadsService.activeCount()).toBe(2);
         expect(downloads()).toBe(globalItems);
+    });
+
+    it('counts recordings in the All chip and the active badge', () => {
+        // A manager listing only recordings must not read "All 0", and an
+        // active recording belongs in the header badge.
+        recordingsService.isAvailable.set(true);
+        recordings.set([
+            recording(1),
+            recording(2, { status: 'recording', endedAt: undefined }),
+        ]);
+        fixture.detectChanges();
+
+        const all = component
+            .categories()
+            .find(({ category_id }) => category_id === 'all');
+        const inProgress = component
+            .categories()
+            .find(({ category_id }) => category_id === 'in-progress');
+        const recordingsChip = component
+            .categories()
+            .find(({ category_id }) => category_id === 'recording');
+
+        expect(all?.count).toBe(2);
+        expect(inProgress?.count).toBe(1);
+        expect(recordingsChip?.count).toBe(2);
+        expect(component.activeCount()).toBe(1);
     });
 
     it('keeps retained offline downloads visible after the last source is removed', () => {

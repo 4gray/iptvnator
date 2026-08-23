@@ -1196,7 +1196,9 @@
             "FAILED": "Başarısız",
             "CANCELED": "İptal Edildi",
             "PAUSED": "Duraklatıldı",
-            "FILE_MISSING": "Dosya eksik"
+            "FILE_MISSING": "Dosya eksik",
+            "RECORDING": "Kaydediliyor",
+            "INTERRUPTED": "Kesildi"
         },
         "ACTIVE_COUNT": "{{count}} etkin",
         "TRACKED_DOWNLOADS": "İzlenen indirmeler",
@@ -1211,7 +1213,22 @@
             "ALL": "Tümü",
             "MOVIES": "Filmler",
             "SERIES": "Diziler",
-            "IN_PROGRESS": "Devam ediyor"
+            "IN_PROGRESS": "Devam ediyor",
+            "RECORDINGS": "Kayıtlar"
+        },
+        "RECORDING_NOW": "Şu anda kaydediliyor",
+        "RECORDINGS": "Kayıtlar",
+        "RECORDING_BADGE": "Kaydediliyor",
+        "STOP_RECORDING": "Kaydı durdur",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Kayıt yöneticiden kaldırılsın mı?",
+            "MESSAGE": "Bu işlem, kaydı IPTVnator'dan kaldırır. Kaydedilen dosya diskte kalır."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Kaydedilen programlar",
+            "RECORDED_FROM": "{{playlist}} kaynağından kaydedildi",
+            "MISSING_BODY": "Kayıt dosyası artık diskte mevcut değil. Canlı yayın yeniden kaydedilemez, ancak kaydı yöneticiden kaldırabilirsiniz.",
+            "FAILED_BODY": "Bu kayıt başarısız oldu ve oynatılabilir bir dosya oluşmadı."
         },
         "REMOVE_FROM_MANAGER": "İndirme yöneticisinden kaldır",
         "REMOVE_COMPLETED_DIALOG": {

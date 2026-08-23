@@ -696,6 +696,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `epgChannelMappings` (`epg_channel_mappings`) - Manual EPG channel mappings (defined in `epg-mapping.schema.ts`, re-exported by `schema.ts`)
     - `playbackPositions` - Resume positions
     - `downloads` - Download manager state
+    - `recordings` - Live-TV recording lifecycle + start-time channel/EPG snapshot (defined in `schema.ts` beside `downloads`)
     - `appState` - Key-value app state (also tracks one-off data migrations)
     - `tmdbMetadata` - TMDB enrichment cache (details payloads + search match resolutions, keyed by media type/lookup key/language)
     - `vodSourcePins` (`vod_source_pins`) - VOD multi-source per-movie preferred playlist, keyed by a portal-agnostic match key (defined in `vod-source-pins.schema.ts`, re-exported by `schema.ts`)
@@ -1245,6 +1246,38 @@ engine` (restart required) or
 - If a finalized file disappears while a focused detail is open, the
   authoritative download list refreshes and returns to the manager. A failed
   redirect leaves an actionable missing-file state with Back and Retry.
+- Live-TV recordings (Embedded MPV `stream-record`) are tracked beside
+  downloads in their own `recordings` table (no unique index, no playlist FK —
+  recordings survive source deletion with a `playlistDisplayLabel` name
+  snapshot). `EmbeddedMpvRecordingTracker` persists the lifecycle: start/stop
+  hooks in `EmbeddedMpvNativeService` plus a session-snapshot observer. The
+  stop hook only REQUESTS a stop (`addon.stopRecording()` dispatches
+  asynchronously), so finalization waits for the snapshot reporting the
+  recording inactive — bounded at 10s — and only a recording that never went
+  active has its empty reservation unlinked; mpv's bytes are never deleted.
+  The same observer covers the implicit stops (stream-replacement auto-stop,
+  helper crash, session error/close). Rows carry `owner_pid`, so startup
+  repair turns a hard kill's leftovers into playable `interrupted` partials or
+  `failed` while skipping rows another live instance owns. Channel/EPG metadata is
+  snapshotted at recording START (each live host passes
+  `RecordingStartMetadata` down through the player chain; provider EPG never
+  reaches SQLite so post-hoc lookup is impossible). `EmbeddedMpvPlayerComponent`
+  owns the active→inactive recording edge and emits `recordingStopped` for
+  every trigger (including the manager's Stop, which bypasses the player's own
+  toggle); the host answers with enrichment: programs overlapping the recorded
+  window, keyed by target path (`RECORDINGS_UPDATE_PROGRAMS`, which awaits only
+  the tracker's write queue and then matches the newest row for that path in
+  ANY status — `finalize()` never touches `programs_json`, so the two writes
+  are order-independent and no deadline can drop the programs) — that covers
+  recordings spanning a program boundary. Own `RECORDINGS_*` IPC + `RECORDINGS_UPDATE_EVENT` ping
+  and a separate `supportsRecordings` capability gate (never folded into the
+  all-or-nothing `supportsDownloads` allowlist). Manager UI: `recording`
+  filter chip, "Recording now" queue section (REC pulse + elapsed, live size,
+  Stop, no percentage), 16:9 channel-logo "Recordings" library cards, Needs
+  attention with Remove only (a broadcast cannot be re-recorded), focused
+  detail at `/workspace/downloads/recording/:recordingId` listing covered
+  programs. Reveal/play shell IPCs are gated on the recordings table
+  (`isManagedRecordingFile`).
 - Canonical contract: `docs/architecture/download-manager.md`; provider handoff:
   `docs/architecture/portal-detail-navigation.md`.
 

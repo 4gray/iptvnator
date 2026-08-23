@@ -1196,7 +1196,9 @@
             "FAILED": "失敗",
             "CANCELED": "キャンセル済み",
             "PAUSED": "一時停止中",
-            "FILE_MISSING": "ファイルが見つかりません"
+            "FILE_MISSING": "ファイルが見つかりません",
+            "RECORDING": "録画中",
+            "INTERRUPTED": "中断"
         },
         "ACTIVE_COUNT": "{{count}} 件が進行中",
         "TRACKED_DOWNLOADS": "管理中のダウンロード",
@@ -1211,7 +1213,22 @@
             "ALL": "すべて",
             "MOVIES": "映画",
             "SERIES": "シリーズ",
-            "IN_PROGRESS": "進行中"
+            "IN_PROGRESS": "進行中",
+            "RECORDINGS": "録画"
+        },
+        "RECORDING_NOW": "現在録画中",
+        "RECORDINGS": "録画",
+        "RECORDING_BADGE": "録画",
+        "STOP_RECORDING": "録画を停止",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "録画をマネージャーから削除しますか？",
+            "MESSAGE": "IPTVnatorから項目を削除します。録画ファイルはディスクに残ります。"
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "録画された番組",
+            "RECORDED_FROM": "{{playlist}}から録画",
+            "MISSING_BODY": "録画ファイルはディスク上で見つかりませんでした。ライブ放送は再録画できませんが、項目をマネージャーから削除できます。",
+            "FAILED_BODY": "この録画は失敗し、再生可能なファイルは作成されませんでした。"
         },
         "REMOVE_FROM_MANAGER": "マネージャーから削除",
         "REMOVE_COMPLETED_DIALOG": {

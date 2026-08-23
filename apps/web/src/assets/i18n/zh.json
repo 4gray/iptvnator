@@ -1196,7 +1196,9 @@
             "FAILED": "失败",
             "CANCELED": "已取消",
             "PAUSED": "已暂停",
-            "FILE_MISSING": "文件缺失"
+            "FILE_MISSING": "文件缺失",
+            "RECORDING": "录制中",
+            "INTERRUPTED": "已中断"
         },
         "ACTIVE_COUNT": "{{count}} 个进行中",
         "TRACKED_DOWNLOADS": "下载任务",
@@ -1211,7 +1213,22 @@
             "ALL": "全部",
             "MOVIES": "电影",
             "SERIES": "剧集",
-            "IN_PROGRESS": "进行中"
+            "IN_PROGRESS": "进行中",
+            "RECORDINGS": "录制"
+        },
+        "RECORDING_NOW": "正在录制",
+        "RECORDINGS": "录制内容",
+        "RECORDING_BADGE": "录制中",
+        "STOP_RECORDING": "停止录制",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "从管理器中移除录制？",
+            "MESSAGE": "此操作将从 IPTVnator 中移除该条目。录制文件仍保留在磁盘上。"
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "已录制的节目",
+            "RECORDED_FROM": "录制自 {{playlist}}",
+            "MISSING_BODY": "录制文件已不在磁盘上。直播无法重新录制，但您可以从管理器中移除该条目。",
+            "FAILED_BODY": "此次录制失败，未生成可播放的文件。"
         },
         "REMOVE_FROM_MANAGER": "从管理器中移除",
         "REMOVE_COMPLETED_DIALOG": {

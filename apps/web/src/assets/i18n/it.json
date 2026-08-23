@@ -1196,7 +1196,9 @@
             "FAILED": "Non riuscito",
             "CANCELED": "Annullato",
             "PAUSED": "In pausa",
-            "FILE_MISSING": "File mancante"
+            "FILE_MISSING": "File mancante",
+            "RECORDING": "In registrazione",
+            "INTERRUPTED": "Interrotto"
         },
         "ACTIVE_COUNT": "{{count}} attivi",
         "TRACKED_DOWNLOADS": "Download tracciati",
@@ -1211,7 +1213,22 @@
             "ALL": "Tutti",
             "MOVIES": "Film",
             "SERIES": "Serie",
-            "IN_PROGRESS": "In corso"
+            "IN_PROGRESS": "In corso",
+            "RECORDINGS": "Registrazioni"
+        },
+        "RECORDING_NOW": "Registrazione in corso",
+        "RECORDINGS": "Registrazioni",
+        "RECORDING_BADGE": "In registrazione",
+        "STOP_RECORDING": "Interrompi registrazione",
+        "REMOVE_RECORDING_DIALOG": {
+            "TITLE": "Rimuovere la registrazione dal gestore?",
+            "MESSAGE": "L'elemento viene rimosso da IPTVnator. Il file registrato rimane su disco."
+        },
+        "RECORDING_DETAIL": {
+            "PROGRAMS": "Programmi registrati",
+            "RECORDED_FROM": "Registrato da {{playlist}}",
+            "MISSING_BODY": "Il file della registrazione non è più disponibile su disco. Una trasmissione in diretta non può essere registrata di nuovo, ma è possibile rimuovere l'elemento dal gestore.",
+            "FAILED_BODY": "Questa registrazione non è riuscita e non ha prodotto alcun file riproducibile."
         },
         "REMOVE_FROM_MANAGER": "Rimuovi dal gestore download",
         "REMOVE_COMPLETED_DIALOG": {
