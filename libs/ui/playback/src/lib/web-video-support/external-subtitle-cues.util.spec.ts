@@ -59,6 +59,23 @@ describe('external-subtitle-cues.util', () => {
             );
         });
 
+        it('keeps accent-dense CP1252 words Latin ("Été" must not become Cyrillic)', () => {
+            // É=0xC9, t, é=0xE9 — more accented than ASCII letters, so a
+            // byte-ratio heuristic flips to CP1251 and renders "Йtй". The
+            // mixed-script plausibility check must keep this Windows-1252.
+            const cp1252 = [
+                0xc9, 0x74, 0xe9, // Été
+                ...Array.from(' 1\n00:00:01,000 --> 00:00:02,000\n').map((c) =>
+                    c.charCodeAt(0)
+                ),
+                0xc0, // À
+                ...Array.from(' table !').map((c) => c.charCodeAt(0)),
+            ];
+            const decoded = decodeExternalSubtitleBytes(toBuffer(cp1252));
+            expect(decoded).toContain('Été');
+            expect(decoded).toContain('À table');
+        });
+
         it('decodes mostly-ASCII Windows-1252 bytes (sparse accents)', () => {
             // "resume: cafe" with two accented letters among ASCII.
             const cp1252 = [

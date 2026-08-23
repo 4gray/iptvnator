@@ -5,6 +5,7 @@ import {
     test,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
+import { writeFileSync } from 'fs';
 import { join } from 'path';
 import {
     assertNativeFallbackPrerequisites,
@@ -196,6 +197,58 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     { timeout: 10000 }
                 )
                 .toBe('playing');
+
+            // Advanced subtitle support (#1408): exercise the real preload
+            // IPC, main-process validation, and the helper's `sub-add`
+            // protocol command against the packaged runtime. The native file
+            // dialog cannot be automated, so the path-based IPC is driven
+            // directly with a fixture file; mpv parses and auto-selects it,
+            // and the helper's track-list observation must report it back.
+            const subtitlePath = join(dataDir, 'packaged-smoke.srt');
+            writeFileSync(
+                subtitlePath,
+                '1\n00:00:00,000 --> 00:00:10,000\nPackaged subtitle smoke\n'
+            );
+            const withSubtitle = await launchedFrameCopyApp.mainWindow.evaluate(
+                async ({ sessionId, path }) =>
+                    window.electron.addEmbeddedMpvSubtitle?.(sessionId, path),
+                { sessionId: created.id, path: subtitlePath }
+            );
+            expect(withSubtitle?.id).toBe(created.id);
+            await expect
+                .poll(
+                    async () => {
+                        const session = await getLatestSession(
+                            launchedFrameCopyApp,
+                            created.id
+                        );
+                        return session?.subtitleTracks?.length ?? 0;
+                    },
+                    { timeout: 15000 }
+                )
+                .toBeGreaterThan(0);
+
+            // Delay and style ride the same session-guarded IPC; mpv does not
+            // echo the values in the snapshot, so a session reply for the live
+            // session (instead of a rejection) is the observable contract.
+            const delayReply = await launchedFrameCopyApp.mainWindow.evaluate(
+                (sessionId) =>
+                    window.electron.setEmbeddedMpvSubtitleDelay?.(
+                        sessionId,
+                        1.5
+                    ),
+                created.id
+            );
+            expect(delayReply?.id).toBe(created.id);
+            const styleReply = await launchedFrameCopyApp.mainWindow.evaluate(
+                (sessionId) =>
+                    window.electron.setEmbeddedMpvSubtitleStyle?.(sessionId, {
+                        sizePercent: 150,
+                        color: '#ffe94f',
+                    }),
+                created.id
+            );
+            expect(styleReply?.id).toBe(created.id);
 
             await launchedFrameCopyApp.mainWindow.evaluate(
                 (sessionId) =>

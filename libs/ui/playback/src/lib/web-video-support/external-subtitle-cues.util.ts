@@ -44,9 +44,8 @@ export function detectExternalSubtitleFormat(
  * silent U+FFFD substitution, which turns the still-common legacy-encoded SRT
  * files (Windows-1251 Cyrillic, Windows-1252 Western European) and Windows'
  * UTF-16 saves into mojibake that parses "successfully". Best-effort order:
- * UTF-16 BOMs, then strict UTF-8, then a single-byte fallback chosen by how
- * much of the text is non-ASCII — a non-Latin script (Cyrillic) makes high
- * bytes dominate, while Latin text with accents stays mostly ASCII.
+ * UTF-16 BOMs, then strict UTF-8, then a single-byte fallback chosen by the
+ * plausibility of the decoded text (see {@link chooseLegacySingleByteDecode}).
  */
 export function decodeExternalSubtitleBytes(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
@@ -64,33 +63,35 @@ export function decodeExternalSubtitleBytes(buffer: ArrayBuffer): string {
         // Not valid UTF-8: a legacy single-byte encoding.
     }
 
-    // Compare only letter-carrying bytes: cue counters and timing lines are
-    // ASCII digits/punctuation and identical in every candidate encoding, so
-    // ratios over the whole file would drown short dialogue ("Да"/"Нет") in
-    // timing bytes. In a non-Latin-script file virtually every letter is a
-    // high byte; Latin text with accents stays dominated by ASCII letters.
-    let highBytes = 0;
-    let asciiLetters = 0;
-    for (const byte of bytes) {
-        if (byte >= 0x80) {
-            highBytes += 1;
-        } else if (
-            (byte >= 0x41 && byte <= 0x5a) ||
-            (byte >= 0x61 && byte <= 0x7a)
-        ) {
-            asciiLetters += 1;
-        }
-    }
-    const encoding =
-        highBytes / Math.max(1, highBytes + asciiLetters) > 0.3
-            ? 'windows-1251'
-            : 'windows-1252';
     try {
-        return new TextDecoder(encoding).decode(buffer);
+        return chooseLegacySingleByteDecode(buffer);
     } catch {
         // Runtime without legacy decoders: non-fatal UTF-8 is the last resort.
         return new TextDecoder().decode(buffer);
     }
+}
+
+/**
+ * Picks between the two dominant legacy encodings by the PLAUSIBILITY of the
+ * Windows-1251 candidate, not a byte ratio (a ratio drowns short dialogue in
+ * ASCII timing bytes one way, and over-weights accent-dense Latin words like
+ * "Été" the other way). CP1251 maps every high letter byte into the Cyrillic
+ * block, so a genuinely Cyrillic file decodes into pure-Cyrillic words, while
+ * misread Latin text decodes into words that MIX Cyrillic and ASCII letters
+ * ("était" → "йtait") — a shape real subtitles never contain.
+ */
+function chooseLegacySingleByteDecode(buffer: ArrayBuffer): string {
+    const decoded1251 = new TextDecoder('windows-1251').decode(buffer);
+    let score = 0;
+    for (const word of decoded1251.split(/[^\p{L}]+/u)) {
+        if (!/[\u0400-\u04ff]/.test(word)) {
+            continue;
+        }
+        score += /[A-Za-z]/.test(word) ? -word.length : word.length;
+    }
+    return score > 0
+        ? decoded1251
+        : new TextDecoder('windows-1252').decode(buffer);
 }
 
 // SRT uses "00:00:01,500"; VTT uses "00:00:01.500" and allows a missing hour

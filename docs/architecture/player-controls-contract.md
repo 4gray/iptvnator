@@ -728,6 +728,13 @@ Per-engine implementations:
   renderer-side values: the delay resets per session, and a non-default
   persisted style is re-applied to each new session. `sub-color` affects
   mpv's text-subtitle rendering; ASS files keep their embedded styling.
+  Runtime coverage: the packaged Linux frame-copy smoke
+  (`apps/electron-backend-e2e/src/embedded-mpv-frame-copy-packaged.e2e.ts`)
+  drives `addEmbeddedMpvSubtitle` with a fixture file against the real
+  packaged helper and asserts the track appears in the session snapshot,
+  plus round-trips the delay/style IPC. The native file dialog itself
+  (`selectEmbeddedMpvSubtitleFile`) cannot be automated and is verified
+  manually.
 - **Not wired (capabilities stay false):** Video.js shared mode (its emulated
   text-track display needs a separate remote-track + CSS integration — a
   follow-up), the vendor-chrome (preference-off) web players by design, the
