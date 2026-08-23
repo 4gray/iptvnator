@@ -162,10 +162,14 @@ export class WorkspaceShellSearchSyncService {
         // so back/forward re-applies what the entry carries even mid-typing.
         // `lastSuccessfulNavigation` is set immediately before `NavigationEnd`
         // is emitted, so it describes the navigation being handled here.
+        //
+        // The comparison trims `nextTerm` because adoption would too: a URL
+        // still carrying a not-yet-rewritten untrimmed `q` adopts to exactly
+        // the applied state, so syncing could only cancel a pending debounce.
         if (
             previousUrl !== null &&
             getRoutePath(url) === getRoutePath(previousUrl) &&
-            nextTerm === this.appliedSearchQuery() &&
+            nextTerm.trim() === this.appliedSearchQuery() &&
             this.router.lastSuccessfulNavigation()?.trigger === 'imperative'
         ) {
             return;
