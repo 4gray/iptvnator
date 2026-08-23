@@ -19,6 +19,7 @@ import {
     EmbeddedMpvRecordingState,
     EmbeddedMpvSession,
     EmbeddedMpvSessionStatus,
+    EmbeddedMpvSubtitleStyle,
     EmbeddedMpvSubtitleTrack,
     EmbeddedMpvEngine,
     EmbeddedMpvFrameSource,
@@ -26,6 +27,8 @@ import {
     EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
+    clampSubtitleDelay,
+    normalizeSubtitleStyle,
 } from '@iptvnator/shared/interfaces';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { embeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';
@@ -75,6 +78,9 @@ export interface NativeEmbeddedMpvAddon {
     setVolume(sessionId: string, volume: number): void;
     setAudioTrack(sessionId: string, trackId: number): void;
     setSubtitleTrack?(sessionId: string, trackId: number): void;
+    addSubtitle?(sessionId: string, filePath: string): void;
+    setSubtitleDelay?(sessionId: string, seconds: number): void;
+    setSubtitleStyle?(sessionId: string, style: EmbeddedMpvSubtitleStyle): void;
     setSpeed?(sessionId: string, speed: number): void;
     setAspect?(sessionId: string, aspect: string): void;
     startRecording?(sessionId: string, targetPath: string): void;
@@ -241,6 +247,9 @@ export class EmbeddedMpvNativeService {
                 aspectOverride: true,
                 screenshot: false,
                 recording: true,
+                externalSubtitles: true,
+                subtitleDelay: true,
+                subtitleStyle: true,
             };
         }
         const addon = this.addon;
@@ -252,6 +261,9 @@ export class EmbeddedMpvNativeService {
             recording:
                 typeof addon?.startRecording === 'function' &&
                 typeof addon?.stopRecording === 'function',
+            externalSubtitles: typeof addon?.addSubtitle === 'function',
+            subtitleDelay: typeof addon?.setSubtitleDelay === 'function',
+            subtitleStyle: typeof addon?.setSubtitleStyle === 'function',
         };
     }
 
@@ -560,6 +572,74 @@ export class EmbeddedMpvNativeService {
         }
         addon.setSubtitleTrack(sessionId, trackId);
         return this.refreshSession(sessionId);
+    }
+
+    addSubtitle(sessionId: string, filePath: string): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.addSubtitle !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support external subtitles. Rebuild the native addon to enable this feature.'
+            );
+        }
+        const normalized = typeof filePath === 'string' ? filePath.trim() : '';
+        if (!normalized || !existsSync(normalized)) {
+            throw new Error('The selected subtitle file was not found.');
+        }
+        addon.addSubtitle(sessionId, normalized);
+        return this.refreshSession(sessionId);
+    }
+
+    setSubtitleDelay(
+        sessionId: string,
+        seconds: number
+    ): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.setSubtitleDelay !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support subtitle delay. Rebuild the native addon to enable this feature.'
+            );
+        }
+        // Same rules as the renderer, same implementation: the shared helper
+        // is the one place the limits are defined.
+        addon.setSubtitleDelay(sessionId, clampSubtitleDelay(seconds));
+        return this.refreshSession(sessionId);
+    }
+
+    setSubtitleStyle(
+        sessionId: string,
+        style: EmbeddedMpvSubtitleStyle
+    ): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (typeof addon.setSubtitleStyle !== 'function') {
+            throw new Error(
+                'Embedded MPV addon does not support subtitle styling. Rebuild the native addon to enable this feature.'
+            );
+        }
+        // Re-validate untrusted IPC input with the exact renderer rules.
+        addon.setSubtitleStyle(sessionId, normalizeSubtitleStyle(style));
+        return this.refreshSession(sessionId);
+    }
+
+    async selectSubtitleFile(): Promise<string | null> {
+        const result = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            title: 'Select Subtitle File',
+            filters: [
+                {
+                    name: 'Subtitle files',
+                    extensions: ['srt', 'ass', 'ssa', 'vtt', 'sub'],
+                },
+            ],
+        });
+
+        if (result.canceled || result.filePaths.length === 0) {
+            return null;
+        }
+
+        return result.filePaths[0];
     }
 
     setSpeed(sessionId: string, speed: number): EmbeddedMpvSession | null {

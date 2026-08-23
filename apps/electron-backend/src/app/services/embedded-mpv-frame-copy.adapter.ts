@@ -192,6 +192,30 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         this.send(sessionId, `sid\tvalue=${trackId}`);
     }
 
+    addSubtitle(sessionId: string, filePath: string): void {
+        this.send(
+            sessionId,
+            `sub-add\tpath=${encodeProtocolValue(filePath)}`
+        );
+    }
+
+    setSubtitleDelay(sessionId: string, seconds: number): void {
+        this.send(sessionId, `sub-delay\tvalue=${seconds}`);
+    }
+
+    setSubtitleStyle(
+        sessionId: string,
+        style: { sizePercent: number; color: string | null }
+    ): void {
+        this.send(sessionId, `sub-scale\tvalue=${style.sizePercent / 100}`);
+        // mpv's default sub-color; an explicit reset keeps a previous pick
+        // from lingering after the user returns to "default".
+        this.send(
+            sessionId,
+            `sub-color\tvalue=${encodeProtocolValue(style.color ?? '#FFFFFF')}`
+        );
+    }
+
     setSpeed(sessionId: string, speed: number): void {
         this.send(sessionId, `speed\tvalue=${speed}`);
     }

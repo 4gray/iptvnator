@@ -1,4 +1,5 @@
 import type { Signal } from '@angular/core';
+import type { PlayerSubtitleStyle } from '@iptvnator/shared/interfaces';
 
 export type PlayerStatus =
     | 'idle'
@@ -14,6 +15,12 @@ export interface PlayerControlsCapabilities {
     volume: boolean;
     audioTracks: boolean;
     subtitles: boolean;
+    /** Loading an external subtitle file (.srt/.vtt, mpv also .ass). */
+    externalSubtitles: boolean;
+    /** Adjusting the subtitle timing offset for the current playback. */
+    subtitleDelay: boolean;
+    /** Adjusting subtitle text size and color. */
+    subtitleStyle: boolean;
     /** Manifest-driven: true only when the source exposes >1 video rendition. */
     qualityLevels: boolean;
     playbackSpeed: boolean;
@@ -23,6 +30,10 @@ export interface PlayerControlsCapabilities {
     fullscreen: boolean;
     seriesNavigation: boolean;
 }
+
+// Canonical shape lives in @iptvnator/shared/interfaces so the Electron main
+// process validates IPC payloads against the identical contract.
+export type { PlayerSubtitleStyle };
 
 export interface PlayerTrack {
     id: number;
@@ -77,6 +88,10 @@ export interface PlayerControlsState {
     subtitleTracks: PlayerTrack[];
     /** True when a subtitle track is active (selected id !== null/off). */
     subtitlesEnabled: boolean;
+    /** Current subtitle timing offset; positive shows subtitles later. */
+    subtitleDelaySeconds: number;
+    /** Current subtitle presentation preferences. */
+    subtitleStyle: PlayerSubtitleStyle;
     /**
      * Per-level quality options ("1080p", …). A level reports `selected` only
      * while a manual selection is active; with ABR on, none is selected.
@@ -103,6 +118,10 @@ export interface PlayerControlsCommands {
     setVolume(value: number): void; // 0..1
     setAudioTrack(id: number): void;
     setSubtitleTrack(id: number): void; // -1 = off
+    /** Opens the engine's subtitle file picker; loads + selects the file. */
+    addExternalSubtitleFile(): void;
+    setSubtitleDelay(seconds: number): void;
+    setSubtitleStyle(style: PlayerSubtitleStyle): void;
     setQualityLevel(id: number): void; // AUTO_QUALITY_LEVEL_ID (-1) = auto
     setPlaybackSpeed(speed: number): void;
     setAspectRatio(value: string): void;

@@ -96,9 +96,9 @@ export function applyVideoSpeed(
     }
 }
 
-export function applyTrackSelection(
-    setter: ((id: number) => void | Promise<void>) | undefined,
-    id: number,
+export function applyTrackSelection<T = number>(
+    setter: ((value: T) => void | Promise<void>) | undefined,
+    id: T,
     refresh: () => void
 ): void {
     if (!setter) {

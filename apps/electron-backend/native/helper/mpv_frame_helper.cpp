@@ -569,6 +569,25 @@ void handleCommand(const Command& command) {
         const std::string value = command.get("value");
         setPropertyString(command.name.c_str(),
                           value == "-1" ? "no" : value);
+    } else if (command.name == "sub-add") {
+        /* External subtitle file (.srt/.ass/.vtt/…): mpv parses and renders
+         * it natively; "select" makes it the active subtitle track. */
+        const std::string path = command.get("path");
+        if (!path.empty()) {
+            const char* args[] = {"sub-add", path.c_str(), "select", nullptr};
+            mpv_command(g_state.mpv, args);
+        }
+    } else if (command.name == "sub-delay") {
+        double delay =
+            std::clamp(command.getDouble("value", 0), -60.0, 60.0);
+        mpv_set_property(g_state.mpv, "sub-delay", MPV_FORMAT_DOUBLE, &delay);
+    } else if (command.name == "sub-scale") {
+        double scale = std::clamp(command.getDouble("value", 1), 0.25, 4.0);
+        mpv_set_property(g_state.mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale);
+    } else if (command.name == "sub-color") {
+        /* Affects text subtitles rendered by mpv's OSD path; ASS files keep
+         * their own embedded styling. */
+        setPropertyString("sub-color", command.get("value", "#FFFFFF"));
     } else if (command.name == "speed") {
         double speed = std::clamp(command.getDouble("value", 1), 0.25, 4.0);
         mpv_set_property(g_state.mpv, "speed", MPV_FORMAT_DOUBLE, &speed);

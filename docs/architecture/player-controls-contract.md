@@ -172,7 +172,8 @@ interface PlayerController {
 ### Capabilities
 
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
-`audioTracks`, `subtitles`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
+`audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
+`subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
 `recording`, `pictureInPicture`, `fullscreen`, and `seriesNavigation`.
 
 The default is all-false. An adapter enables only features that its engine and
@@ -209,6 +210,7 @@ owner.
 - `seekTo` / `seekBy`
 - `setVolume`
 - `setAudioTrack` / `setSubtitleTrack`
+- `addExternalSubtitleFile` / `setSubtitleDelay` / `setSubtitleStyle`
 - `setQualityLevel` (`AUTO_QUALITY_LEVEL_ID` = `-1` re-enables auto)
 - `setPlaybackSpeed`
 - `setAspectRatio`
@@ -646,6 +648,103 @@ directly to `player.video` after ArtPlayer restores `artplayer_settings.volume`,
 so vendor storage cannot override the app-wide preference. With the token
 disabled, the existing ArtPlayer options, HLS audio settings, skin, source
 semantics, stored volume behavior, and series navigation remain unchanged.
+
+## Advanced subtitle support
+
+The subtitle popover carries three capability-gated extensions beyond track
+selection (#1408): loading an external subtitle file, adjusting the subtitle
+timing offset, and styling subtitle text (size + color). Each is honest per
+engine — an engine that cannot support a control simply never advertises the
+capability, and the UI is not rendered.
+
+Contract surface:
+
+- capabilities `externalSubtitles`, `subtitleDelay`, `subtitleStyle`;
+- state `subtitleDelaySeconds` (positive = subtitles appear later) and
+  `subtitleStyle` (`PlayerSubtitleStyle { sizePercent, color }`); and
+- commands `addExternalSubtitleFile()` (fire-and-forget; the adapter owns its
+  environment's picker), `setSubtitleDelay(seconds)`, and
+  `setSubtitleStyle(style)`.
+
+The subtitle menu stays reachable with an empty track list whenever
+`externalSubtitles` is set — loading a file is what creates the first track.
+Delay and style rows keep the popover open, because these settings are tuned
+iteratively against the running video (`ControlsSubtitleSettings` owns those
+interactions); the load action closes it because a file dialog opens on top.
+
+Persistence: the style (size/color) is a cross-engine preference stored under
+the `subtitleStyle` localStorage key (`subtitle-style.ts`), the same mechanism
+as the shared `volume` key, and is normalized/clamped on every read and write.
+The delay and any loaded file are deliberately per-session/per-source — they
+correct one specific stream.
+
+The canonical `PlayerSubtitleStyle` shape and the clamp/normalize rules
+(delay limit, size bounds, color validation) live in
+`@iptvnator/shared/interfaces` (`subtitle-style.util.ts`). The renderer
+applies them to user input and the Electron main process re-applies the exact
+same implementation to untrusted IPC payloads — deliberate defense-in-depth
+with a single source of truth, so widening a limit on one side cannot
+silently re-clamp on the other.
+
+Per-engine implementations:
+
+- **HTML5 + ArtPlayer (shared-controls mode, neutral source bridge).** The
+  picker is a renderer-side DOM file input (`.srt`/`.vtt` only; works in the
+  PWA and Electron alike, and no filesystem path ever enters the app). File
+  bytes are decoded encoding-aware (`decodeExternalSubtitleBytes`: UTF-16
+  BOMs, strict UTF-8, then `chooseLegacySingleByteDecode`, which picks
+  between Windows-1251 and Windows-1252 by the plausibility of the 1251
+  candidate's decoded words — pure-Cyrillic words vote for 1251, words
+  mixing Cyrillic with ASCII letters vote against (misread Latin text like
+  "était" decodes to the mixed-script "йtait" that real subtitles never
+  contain), and Cyrillic must also carry a meaningful share of all letters
+  so an isolated accented CP1252 word ("À table" → "А table") cannot flip
+  the file), because `Blob.text()`'s silent UTF-8 substitution turns common
+  legacy-encoded SRT files into mojibake. `WebVideoExternalSubtitles` parses
+  the file (`external-subtitle-cues.util.ts`) and renders it through a native
+  `TextTrack` on the video element, so it works under every source kind. The
+  native track enumeration excludes externally owned tracks — ownership is
+  tracked for every track the session EVER created, because `addTextTrack`
+  tracks cannot leave the element and per-source ownership would let stale or
+  attach-failed tracks reappear as ghost engine tracks. `WebVideoSourceTracks`
+  merges external tracks into the subtitle listing with IDs from 100000 up,
+  routing selection so exactly one owner (engine or external) is active;
+  external selection deselects the engine BEFORE setting track modes, since
+  hls.js reacts to `subtitleTrack = -1` by disabling every subtitle-kind
+  `TextTrack` on the element. A pick captures the source generation and is
+  discarded if the stream changed while the dialog was open (mirroring the
+  Embedded MPV runner's session recheck). The delay capability is
+  runtime-gated on an external track being the SELECTED one — only owned cues
+  can be re-timed exactly, and with an engine track active the row would be
+  enabled yet visually inert. Negatively shifted cues keep their real
+  (possibly negative) times, which are valid and simply never active;
+  clamping them to t≈0 would stack every pre-roll cue at playback start.
+  Style applies through a scoped `::cue` rule (`WebVideoSubtitleStyle`),
+  which covers embedded, hls.js-managed, and external native cues. ASS
+  rendering would need libass and is out of scope for the web engines.
+- **Embedded MPV frame-copy.** The helper protocol gained `sub-add`,
+  `sub-delay`, `sub-scale`, and `sub-color` commands. The picker is a
+  main-process open dialog (`.srt/.ass/.ssa/.vtt/.sub` — mpv renders ASS
+  natively), and the renderer only ever forwards the returned path over the
+  dedicated IPC (`EMBEDDED_MPV_ADD_SUBTITLE` etc.); delay applies to every
+  subtitle track. mpv does not report these values back through the session
+  snapshot, so `EmbeddedMpvSubtitleSettings` keeps the authoritative
+  renderer-side values: the delay resets per session, and a non-default
+  persisted style is re-applied to each new session. `sub-color` affects
+  mpv's text-subtitle rendering; ASS files keep their embedded styling.
+  Runtime coverage: the packaged Linux frame-copy smoke
+  (`apps/electron-backend-e2e/src/embedded-mpv-frame-copy-packaged.e2e.ts`)
+  drives `addEmbeddedMpvSubtitle` with a fixture file against the real
+  packaged helper and asserts the track appears in the session snapshot,
+  plus round-trips the delay/style IPC. The native file dialog itself
+  (`selectEmbeddedMpvSubtitleFile`) cannot be automated and is verified
+  manually.
+- **Not wired (capabilities stay false):** Video.js shared mode (its emulated
+  text-track display needs a separate remote-track + CSS integration — a
+  follow-up), the vendor-chrome (preference-off) web players by design, the
+  Embedded MPV native-view legacy dock, the Linux out-of-process native path
+  (which exports no subtitle commands), and external MPV/VLC, which own their
+  own UI.
 
 ## Embedded MPV rendering constraints
 

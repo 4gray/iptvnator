@@ -2,6 +2,7 @@ import {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
+    EmbeddedMpvSubtitleStyle,
     EmbeddedMpvSupport,
 } from './embedded-mpv-session.interface';
 import { ContentMetadataPatch } from './content-metadata.interface';
@@ -1164,6 +1165,21 @@ export interface ElectronBridgeApi {
         sessionId: string,
         trackId: number
     ) => Promise<EmbeddedMpvSession | null>;
+    /** Loads an external subtitle file (absolute path) via mpv `sub-add`. */
+    addEmbeddedMpvSubtitle?: (
+        sessionId: string,
+        filePath: string
+    ) => Promise<EmbeddedMpvSession | null>;
+    setEmbeddedMpvSubtitleDelay?: (
+        sessionId: string,
+        seconds: number
+    ) => Promise<EmbeddedMpvSession | null>;
+    setEmbeddedMpvSubtitleStyle?: (
+        sessionId: string,
+        style: EmbeddedMpvSubtitleStyle
+    ) => Promise<EmbeddedMpvSession | null>;
+    /** Opens the main-process subtitle file dialog; null when cancelled. */
+    selectEmbeddedMpvSubtitleFile?: () => Promise<string | null>;
     setEmbeddedMpvSpeed?: (
         sessionId: string,
         speed: number

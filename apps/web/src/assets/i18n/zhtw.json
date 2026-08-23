@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "進入子母畫面",
             "EXIT_PICTURE_IN_PICTURE": "退出子母畫面",
             "ENTER_FULLSCREEN": "進入全螢幕",
-            "EXIT_FULLSCREEN": "離開全螢幕"
+            "EXIT_FULLSCREEN": "離開全螢幕",
+            "LOAD_SUBTITLE_FILE": "載入字幕檔案…",
+            "SUBTITLE_DELAY": "字幕延遲",
+            "SUBTITLE_DELAY_DECREASE": "提前顯示字幕",
+            "SUBTITLE_DELAY_INCREASE": "延後顯示字幕",
+            "SUBTITLE_DELAY_RESET": "重設字幕延遲",
+            "SUBTITLE_SIZE": "字幕大小",
+            "SUBTITLE_COLOR": "字幕顏色",
+            "SUBTITLE_COLOR_DEFAULT": "預設",
+            "SUBTITLE_COLOR_WHITE": "白色",
+            "SUBTITLE_COLOR_YELLOW": "黃色",
+            "SUBTITLE_COLOR_CYAN": "青色"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

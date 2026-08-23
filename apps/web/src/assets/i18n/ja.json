@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを開始",
             "EXIT_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを終了",
             "ENTER_FULLSCREEN": "全画面表示",
-            "EXIT_FULLSCREEN": "全画面表示を終了"
+            "EXIT_FULLSCREEN": "全画面表示を終了",
+            "LOAD_SUBTITLE_FILE": "字幕ファイルを読み込む…",
+            "SUBTITLE_DELAY": "字幕の遅延",
+            "SUBTITLE_DELAY_DECREASE": "字幕を早く表示",
+            "SUBTITLE_DELAY_INCREASE": "字幕を遅く表示",
+            "SUBTITLE_DELAY_RESET": "字幕の遅延をリセット",
+            "SUBTITLE_SIZE": "字幕サイズ",
+            "SUBTITLE_COLOR": "字幕の色",
+            "SUBTITLE_COLOR_DEFAULT": "デフォルト",
+            "SUBTITLE_COLOR_WHITE": "白",
+            "SUBTITLE_COLOR_YELLOW": "黄色",
+            "SUBTITLE_COLOR_CYAN": "シアン"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

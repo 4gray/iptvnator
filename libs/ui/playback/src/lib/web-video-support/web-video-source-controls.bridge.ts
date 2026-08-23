@@ -1,5 +1,7 @@
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 import type { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
+import { pickExternalSubtitleFile } from './web-video-external-subtitles';
+import { WebVideoSubtitleStyle } from './web-video-subtitle-style';
 import {
     type WebVideoControlsSource,
     WebVideoSourceTracks,
@@ -17,6 +19,7 @@ export interface WebVideoSourceControlsBridgeConfig {
 export class WebVideoSourceControlsBridge {
     private readonly config: WebVideoSourceControlsBridgeConfig;
     private readonly tracks: WebVideoSourceTracks;
+    private readonly subtitleStyle = new WebVideoSubtitleStyle();
     private attached = false;
     private destroyed = false;
 
@@ -34,6 +37,7 @@ export class WebVideoSourceControlsBridge {
             return;
         }
 
+        this.subtitleStyle.attach(this.config.video);
         this.config.adapter.attach(this.config.video, {
             isLive: this.config.isLive,
             getDuration: () => this.readDuration(),
@@ -41,6 +45,13 @@ export class WebVideoSourceControlsBridge {
             setAudioTrack: (id) => this.setAudioTrack(id),
             getSubtitleTracks: () => this.getSubtitleTracks(),
             setSubtitleTrack: (id) => this.setSubtitleTrack(id),
+            addExternalSubtitleFile: () => this.pickExternalSubtitle(),
+            getSubtitleDelay: () => this.tracks.getExternalSubtitleDelay(),
+            setSubtitleDelay: (seconds) =>
+                this.tracks.setExternalSubtitleDelay(seconds),
+            canAdjustSubtitleDelay: () => this.tracks.canAdjustSubtitleDelay(),
+            getSubtitleStyle: () => this.subtitleStyle.current(),
+            setSubtitleStyle: (style) => this.subtitleStyle.set(style),
             getQualityLevels: () => this.tracks.getQualityLevels(),
             setQualityLevel: (id) => this.tracks.setQualityLevel(id),
             isAutoQualityEnabled: () => this.tracks.isAutoQualityEnabled(),
@@ -82,11 +93,29 @@ export class WebVideoSourceControlsBridge {
 
         this.clearSource();
         this.tracks.destroy();
+        this.subtitleStyle.destroy();
         if (this.attached) {
             this.config.adapter.detach();
             this.attached = false;
         }
         this.destroyed = true;
+    }
+
+    private pickExternalSubtitle(): void {
+        // The picker is modal-slow: the stream can change (Up Next, zapping,
+        // failover) before the user confirms. A pick made for one source must
+        // never attach to its successor.
+        const generation = this.tracks.getSourceGeneration();
+        pickExternalSubtitleFile(this.config.video.ownerDocument, (file) => {
+            if (
+                this.destroyed ||
+                this.tracks.getSourceGeneration() !== generation
+            ) {
+                return;
+            }
+            this.tracks.addExternalSubtitleFile(file);
+            this.config.adapter.refresh();
+        });
     }
 
     readDuration(): number {

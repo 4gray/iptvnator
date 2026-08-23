@@ -339,4 +339,75 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(recording).toEqual({ active: false, targetPath: '/tmp/rec.ts' });
         expect(session()?.recording).toEqual(recording);
     });
+
+    it('addExternalSubtitle loads the picked file into the session', async () => {
+        electron.selectEmbeddedMpvSubtitleFile = jest
+            .fn()
+            .mockResolvedValue('/subs/movie.srt');
+        electron.addEmbeddedMpvSubtitle = jest
+            .fn()
+            .mockResolvedValue(createSession());
+
+        await expect(runner.addExternalSubtitle()).resolves.toBe(true);
+        expect(electron.addEmbeddedMpvSubtitle).toHaveBeenCalledWith(
+            'mpv-1',
+            '/subs/movie.srt'
+        );
+    });
+
+    it('addExternalSubtitle is a no-op on dialog cancel', async () => {
+        electron.selectEmbeddedMpvSubtitleFile = jest
+            .fn()
+            .mockResolvedValue(null);
+        electron.addEmbeddedMpvSubtitle = jest.fn();
+
+        await expect(runner.addExternalSubtitle()).resolves.toBe(false);
+        expect(electron.addEmbeddedMpvSubtitle).not.toHaveBeenCalled();
+    });
+
+    it('addExternalSubtitle drops a pick that outlived its session', async () => {
+        let resolveDialog!: (value: string) => void;
+        electron.selectEmbeddedMpvSubtitleFile = jest.fn().mockReturnValue(
+            new Promise<string>((resolve) => {
+                resolveDialog = resolve;
+            })
+        );
+        electron.addEmbeddedMpvSubtitle = jest.fn();
+
+        const pending = runner.addExternalSubtitle();
+        sessionId.set('mpv-2');
+        resolveDialog('/subs/movie.srt');
+
+        await expect(pending).resolves.toBe(false);
+        expect(electron.addEmbeddedMpvSubtitle).not.toHaveBeenCalled();
+    });
+
+    it('forwards subtitle delay and style to the bridge', async () => {
+        electron.setEmbeddedMpvSubtitleDelay = jest
+            .fn()
+            .mockResolvedValue(createSession());
+        electron.setEmbeddedMpvSubtitleStyle = jest
+            .fn()
+            .mockResolvedValue(createSession());
+
+        await runner.setSubtitleDelay(1.5);
+        expect(electron.setEmbeddedMpvSubtitleDelay).toHaveBeenCalledWith(
+            'mpv-1',
+            1.5
+        );
+
+        await runner.setSubtitleStyle({ sizePercent: 150, color: '#ffffff' });
+        expect(electron.setEmbeddedMpvSubtitleStyle).toHaveBeenCalledWith(
+            'mpv-1',
+            { sizePercent: 150, color: '#ffffff' }
+        );
+    });
+
+    it('subtitle commands no-op on bridges without the new methods', async () => {
+        await expect(runner.addExternalSubtitle()).resolves.toBe(false);
+        await expect(runner.setSubtitleDelay(1)).resolves.toBeUndefined();
+        await expect(
+            runner.setSubtitleStyle({ sizePercent: 100, color: null })
+        ).resolves.toBeUndefined();
+    });
 });

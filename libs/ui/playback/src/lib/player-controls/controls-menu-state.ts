@@ -27,10 +27,13 @@ function getControlsMenuAvailability(
             showControls &&
             capabilities.audioTracks &&
             state.audioTracks.length > 1,
+        // External subtitle loading keeps the menu reachable with an empty
+        // track list — the "Load subtitle file…" action is how the first
+        // track appears.
         subtitle:
             showControls &&
-            capabilities.subtitles &&
-            state.subtitleTracks.length > 0,
+            ((capabilities.subtitles && state.subtitleTracks.length > 0) ||
+                capabilities.externalSubtitles),
         quality:
             showControls &&
             capabilities.qualityLevels &&

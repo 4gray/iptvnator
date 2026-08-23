@@ -25,11 +25,18 @@ import { ControlsTimeline } from './controls-timeline';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
+import { ControlsSubtitleSettings } from './controls-subtitle-settings';
 import { formatTime, speedLabel } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
 } from './player-controls.model';
+import {
+    SUBTITLE_COLOR_PRESETS,
+    SUBTITLE_DELAY_STEP_SECONDS,
+    SUBTITLE_SIZE_PRESETS,
+    subtitleDelayLabel,
+} from './subtitle-style';
 
 @Component({
     selector: 'app-player-controls',
@@ -81,6 +88,10 @@ export class PlayerControlsComponent implements OnDestroy {
         },
         this.host
     );
+    readonly subtitleSettings = new ControlsSubtitleSettings({
+        controller: () => this.controller(),
+        revealSticky: () => this.reveal({ scheduleHide: false }),
+    });
     readonly menuSelection = new ControlsMenuSelection({
         commands: () => this.controller().commands,
         menus: this.menus,
@@ -229,6 +240,10 @@ export class PlayerControlsComponent implements OnDestroy {
     }
     formatTime = formatTime;
     speedLabel = speedLabel;
+    subtitleDelayLabel = subtitleDelayLabel;
+    readonly subtitleSizePresets = SUBTITLE_SIZE_PRESETS;
+    readonly subtitleColorPresets = SUBTITLE_COLOR_PRESETS;
+    readonly subtitleDelayStep = SUBTITLE_DELAY_STEP_SECONDS;
     togglePlay(): void {
         this.reveal();
         if (!this.canTogglePlay()) {
@@ -306,6 +321,13 @@ export class PlayerControlsComponent implements OnDestroy {
     ): void {
         this.menus.toggle(menu);
         this.reveal();
+    }
+
+    loadExternalSubtitle(): void {
+        if (!this.capabilities().externalSubtitles) {
+            return;
+        }
+        this.menuSelection.externalSubtitle();
     }
     toggleRecording(): void {
         if (!this.canRecord()) {

@@ -10,6 +10,7 @@ import {
 import {
     EmbeddedMpvBounds,
     EmbeddedMpvSession,
+    EmbeddedMpvSubtitleStyle,
     EmbeddedMpvSupport,
     RecordingStartMetadata,
     ResolvedPortalPlayback,
@@ -301,6 +302,13 @@ export class EmbeddedMpvSessionController {
         this.commands.setAudioTrack(trackId);
     readonly setSubtitleTrack = (trackId: number): Promise<void> =>
         this.commands.setSubtitleTrack(trackId);
+    readonly addExternalSubtitle = (): Promise<boolean> =>
+        this.commands.addExternalSubtitle();
+    readonly setSubtitleDelay = (seconds: number): Promise<void> =>
+        this.commands.setSubtitleDelay(seconds);
+    readonly setSubtitleStyle = (
+        style: EmbeddedMpvSubtitleStyle
+    ): Promise<void> => this.commands.setSubtitleStyle(style);
     readonly setSpeed = (speed: number): Promise<void> =>
         this.commands.setSpeed(speed);
     readonly setAspect = (aspect: string): Promise<void> =>

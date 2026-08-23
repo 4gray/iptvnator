@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Kép a képben mód bekapcsolása",
             "EXIT_PICTURE_IN_PICTURE": "Kilépés a kép a képben módból",
             "ENTER_FULLSCREEN": "Váltás teljes képernyőre",
-            "EXIT_FULLSCREEN": "Kilépés a teljes képernyős módból"
+            "EXIT_FULLSCREEN": "Kilépés a teljes képernyős módból",
+            "LOAD_SUBTITLE_FILE": "Feliratfájl betöltése…",
+            "SUBTITLE_DELAY": "Felirat késleltetése",
+            "SUBTITLE_DELAY_DECREASE": "Feliratok megjelenítése korábban",
+            "SUBTITLE_DELAY_INCREASE": "Feliratok megjelenítése később",
+            "SUBTITLE_DELAY_RESET": "Feliratkésleltetés visszaállítása",
+            "SUBTITLE_SIZE": "Felirat mérete",
+            "SUBTITLE_COLOR": "Felirat színe",
+            "SUBTITLE_COLOR_DEFAULT": "Alapértelmezett",
+            "SUBTITLE_COLOR_WHITE": "Fehér",
+            "SUBTITLE_COLOR_YELLOW": "Sárga",
+            "SUBTITLE_COLOR_CYAN": "Cián"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

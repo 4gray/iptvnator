@@ -10,8 +10,10 @@ import type {
     PlayerControlsCapabilities,
     PlayerControlsCommands,
     PlayerControlsState,
+    PlayerSubtitleStyle,
     PlayerTrack,
 } from './player-controls.model';
+import { DEFAULT_SUBTITLE_STYLE } from './subtitle-style';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import {
     applyTrackSelection,
@@ -40,6 +42,14 @@ export interface WebVideoControlsOptions extends WebVideoMetadataOptions {
     setAudioTrack?: (id: number) => void | Promise<void>;
     getSubtitleTracks?: () => PlayerTrack[];
     setSubtitleTrack?: (id: number) => void | Promise<void>;
+    /** Opens the engine's subtitle file picker; loads + selects the pick. */
+    addExternalSubtitleFile?: () => void;
+    getSubtitleDelay?: () => number;
+    setSubtitleDelay?: (seconds: number) => void | Promise<void>;
+    /** Runtime gate for the delay UI (e.g. only once a file is loaded). */
+    canAdjustSubtitleDelay?: () => boolean;
+    getSubtitleStyle?: () => PlayerSubtitleStyle;
+    setSubtitleStyle?: (style: PlayerSubtitleStyle) => void | Promise<void>;
     getQualityLevels?: () => PlayerTrack[];
     setQualityLevel?: (id: number) => void | Promise<void>;
     isAutoQualityEnabled?: () => boolean;
@@ -107,6 +117,12 @@ export class WebVideoControlsAdapter implements PlayerController {
             fullscreen: true,
             audioTracks: hasAudioTracks,
             subtitles: hasSubtitles,
+            externalSubtitles:
+                typeof this.opts.addExternalSubtitleFile === 'function',
+            subtitleDelay:
+                typeof this.opts.setSubtitleDelay === 'function' &&
+                (this.opts.canAdjustSubtitleDelay?.() ?? true),
+            subtitleStyle: typeof this.opts.setSubtitleStyle === 'function',
             qualityLevels: hasQualityLevels,
             aspectRatio: false,
             recording: false,
@@ -147,6 +163,9 @@ export class WebVideoControlsAdapter implements PlayerController {
             audioTracks,
             subtitleTracks,
             subtitlesEnabled: subtitleTracks.some((track) => track.selected),
+            subtitleDelaySeconds: this.opts.getSubtitleDelay?.() ?? 0,
+            subtitleStyle:
+                this.opts.getSubtitleStyle?.() ?? DEFAULT_SUBTITLE_STYLE,
             qualityLevels,
             qualityAutoEnabled: this.opts.isAutoQualityEnabled?.() ?? true,
             playbackSpeed: video?.playbackRate ?? 1,
@@ -181,6 +200,23 @@ export class WebVideoControlsAdapter implements PlayerController {
             ),
         setSubtitleTrack: (id) =>
             applyTrackSelection(this.opts.setSubtitleTrack, id, () =>
+                this.refresh()
+            ),
+        addExternalSubtitleFile: () => {
+            try {
+                // The picker refreshes through its own callback once the
+                // asynchronous file read lands.
+                this.opts.addExternalSubtitleFile?.();
+            } catch {
+                // A failed picker leaves the current tracks untouched.
+            }
+        },
+        setSubtitleDelay: (seconds) =>
+            applyTrackSelection(this.opts.setSubtitleDelay, seconds, () =>
+                this.refresh()
+            ),
+        setSubtitleStyle: (style) =>
+            applyTrackSelection(this.opts.setSubtitleStyle, style, () =>
                 this.refresh()
             ),
         setQualityLevel: (id) =>

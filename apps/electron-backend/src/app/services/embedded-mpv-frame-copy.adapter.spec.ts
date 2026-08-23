@@ -110,6 +110,42 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(line).toContain('opt.http-header-fields=X-Token: abc');
     });
 
+    it('sends the subtitle protocol commands over stdin', () => {
+        const sessionId = createSession();
+
+        adapter.addSubtitle(sessionId, '/subs/movie subs.srt');
+        expect(child.stdin.written.at(-1)).toBe(
+            'sub-add\tpath=/subs/movie subs.srt\n'
+        );
+
+        adapter.setSubtitleDelay(sessionId, 1.5);
+        expect(child.stdin.written.at(-1)).toBe('sub-delay\tvalue=1.5\n');
+
+        adapter.setSubtitleStyle(sessionId, {
+            sizePercent: 150,
+            color: '#ffe94f',
+        });
+        expect(child.stdin.written.slice(-2)).toEqual([
+            'sub-scale\tvalue=1.5\n',
+            'sub-color\tvalue=#ffe94f\n',
+        ]);
+
+        // A null color resets mpv's default so a previous pick cannot linger.
+        adapter.setSubtitleStyle(sessionId, { sizePercent: 100, color: null });
+        expect(child.stdin.written.slice(-2)).toEqual([
+            'sub-scale\tvalue=1\n',
+            'sub-color\tvalue=#FFFFFF\n',
+        ]);
+    });
+
+    it('percent-escapes protocol-reserved characters in subtitle paths', () => {
+        const sessionId = createSession();
+        adapter.addSubtitle(sessionId, '/subs/tab\tname.srt');
+        expect(child.stdin.written.at(-1)).toBe(
+            'sub-add\tpath=/subs/tab%09name.srt\n'
+        );
+    });
+
     it('scales bounds and ignores hidden/degenerate bounds', () => {
         const sessionId = createSession();
         adapter.setBounds(sessionId, { x: 0, y: 0, width: 800, height: 450 });

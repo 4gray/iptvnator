@@ -1,6 +1,8 @@
 import type Hls from 'hls.js';
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
+import type { ExternalSubtitleFile } from './external-subtitle-cues.util';
+import { WebVideoExternalSubtitles } from './web-video-external-subtitles';
 import { WebVideoHlsControls } from './web-video-hls-controls';
 import { WebVideoNativeTextTracks } from './web-video-native-text-tracks';
 import { WebVideoShakaControls } from './web-video-shaka-controls';
@@ -41,7 +43,9 @@ export class WebVideoSourceTracks {
     private readonly hlsControls: WebVideoHlsControls;
     private readonly shakaControls: WebVideoShakaControls;
     private readonly nativeTextTracks: WebVideoNativeTextTracks;
+    private readonly externalSubtitles: WebVideoExternalSubtitles;
     private source: WebVideoControlsSource | null = null;
+    private sourceGeneration = 0;
     private playbackStarted = false;
     private playingListener: (() => void) | null = null;
     private destroyed = false;
@@ -62,11 +66,17 @@ export class WebVideoSourceTracks {
             refresh,
             playbackStarted,
         });
+        this.externalSubtitles = new WebVideoExternalSubtitles({
+            getVideo: () => this.config.video,
+            deselectEngineSubtitles: () => this.applyEngineSubtitleTrack(-1),
+            refresh,
+        });
         this.nativeTextTracks = new WebVideoNativeTextTracks({
             video: config.video,
             showCaptions: config.showCaptions,
             refresh,
             playbackStarted,
+            excludeTrack: (track) => this.externalSubtitles.ownsTrack(track),
         });
         if (config.vendorCaptionControls) {
             const listener = () => {
@@ -81,11 +91,21 @@ export class WebVideoSourceTracks {
         return this.source?.kind ?? null;
     }
 
+    /**
+     * Changes whenever the bound source changes. Asynchronous work started
+     * against one source (the external subtitle file picker) captures this and
+     * bails when it no longer matches, so a pick cannot land on a later stream.
+     */
+    getSourceGeneration(): number {
+        return this.sourceGeneration;
+    }
+
     setSource(source: WebVideoControlsSource): void {
         if (this.destroyed) {
             return;
         }
 
+        this.sourceGeneration += 1;
         this.clearActiveSource();
         this.source = source;
         // A new source starts unsettled so its own defaults are seeded again.
@@ -118,6 +138,7 @@ export class WebVideoSourceTracks {
             return;
         }
 
+        this.sourceGeneration += 1;
         this.clearActiveSource();
         this.source = null;
     }
@@ -186,6 +207,47 @@ export class WebVideoSourceTracks {
     }
 
     getSubtitleTracks(): PlayerTrack[] {
+        // The native enumeration excludes external tracks, so appending them
+        // here is collision-free for every source kind.
+        return [
+            ...this.getEngineSubtitleTracks(),
+            ...this.externalSubtitles.getTracks(),
+        ];
+    }
+
+    setSubtitleTrack(id: number): void {
+        if (this.externalSubtitles.ownsTrackId(id)) {
+            // select() also turns the engine-owned selection off.
+            this.externalSubtitles.select(id);
+            return;
+        }
+        this.externalSubtitles.deselectAll();
+        this.applyEngineSubtitleTrack(id);
+    }
+
+    /** Loads a user-picked subtitle file and selects it. */
+    addExternalSubtitleFile(file: ExternalSubtitleFile): boolean {
+        return this.externalSubtitles.addFromFile(file);
+    }
+
+    getExternalSubtitleDelay(): number {
+        return this.externalSubtitles.getDelay();
+    }
+
+    setExternalSubtitleDelay(seconds: number): void {
+        this.externalSubtitles.setDelay(seconds);
+    }
+
+    /**
+     * Delay re-times owned external cues only, so the UI is offered exactly
+     * while an external track is the one rendering — with an engine track
+     * selected the row would be enabled yet visually inert.
+     */
+    canAdjustSubtitleDelay(): boolean {
+        return this.externalSubtitles.hasSelectedTrack();
+    }
+
+    private getEngineSubtitleTracks(): PlayerTrack[] {
         if (this.source?.kind === 'hls') {
             return this.hlsControls.getSubtitleTracks();
         }
@@ -195,7 +257,7 @@ export class WebVideoSourceTracks {
         return this.source ? this.nativeTextTracks.getSubtitleTracks() : [];
     }
 
-    setSubtitleTrack(id: number): void {
+    private applyEngineSubtitleTrack(id: number): void {
         if (this.source?.kind === 'hls') {
             this.hlsControls.setSubtitleTrack(id);
         } else if (this.source?.kind === 'shaka') {
@@ -206,6 +268,8 @@ export class WebVideoSourceTracks {
     }
 
     private clearActiveSource(): void {
+        // External files correct one specific stream; drop them with it.
+        this.externalSubtitles.clear();
         if (this.source?.kind === 'hls') {
             this.hlsControls.clear();
         } else if (this.source?.kind === 'shaka') {

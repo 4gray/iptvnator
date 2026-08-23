@@ -40,6 +40,7 @@ import {
 import { resolveRecordingFeedback } from './embedded-mpv-controls-recording-feedback';
 import { EmbeddedMpvControlsRecording } from './embedded-mpv-controls-recording';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
+import { EmbeddedMpvSubtitleSettings } from './embedded-mpv-subtitle-settings';
 
 export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
@@ -91,6 +92,9 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     private readonly activeSessionId = computed(
         () => this.controller.session()?.id ?? null
     );
+    private readonly subtitleSettings = new EmbeddedMpvSubtitleSettings(
+        this.controller
+    );
     private readonly recordingTransitionKey = computed(() => {
         const playbackIdentity = this.recordingPlaybackIdentity();
         const sessionId = this.activeSessionId();
@@ -115,6 +119,10 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             volume: true,
             audioTracks: true,
             subtitles: optionalCapabilities?.subtitles ?? false,
+            externalSubtitles:
+                optionalCapabilities?.externalSubtitles ?? false,
+            subtitleDelay: optionalCapabilities?.subtitleDelay ?? false,
+            subtitleStyle: optionalCapabilities?.subtitleStyle ?? false,
             playbackSpeed: optionalCapabilities?.playbackSpeed ?? false,
             aspectRatio: optionalCapabilities?.aspectOverride ?? false,
             recording: optionalCapabilities?.recording ?? false,
@@ -180,6 +188,8 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 })
             ),
             subtitlesEnabled: (session?.selectedSubtitleTrackId ?? -1) >= 0,
+            subtitleDelaySeconds: this.subtitleSettings.delaySeconds(),
+            subtitleStyle: this.subtitleSettings.style(),
             // MPV demuxes one program; no HLS/DASH rendition list is surfaced.
             qualityLevels: [],
             qualityAutoEnabled: true,
@@ -214,6 +224,10 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         setVolume: (value) => void this.controller.applyVolume(value),
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
         setSubtitleTrack: (id) => void this.controller.setSubtitleTrack(id),
+        addExternalSubtitleFile: () =>
+            this.subtitleSettings.addExternalSubtitle(),
+        setSubtitleDelay: (seconds) => this.subtitleSettings.setDelay(seconds),
+        setSubtitleStyle: (style) => this.subtitleSettings.setStyle(style),
         setQualityLevel: () => undefined,
         setPlaybackSpeed: (speed) => void this.controller.setSpeed(speed),
         setAspectRatio: (value) => void this.controller.setAspect(value),
@@ -241,6 +255,12 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             untracked(() =>
                 this.recordingControls.syncOwner(playbackIdentity, sessionId)
             );
+        });
+
+        // Delay is per-session; the persisted style is re-applied per session.
+        effect(() => {
+            const sessionId = this.activeSessionId();
+            untracked(() => this.subtitleSettings.syncSession(sessionId));
         });
 
         effect(() => {

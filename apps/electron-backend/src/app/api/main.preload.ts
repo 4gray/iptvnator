@@ -28,6 +28,7 @@ import type {
     DownloadMetadataSnapshot,
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
+    EmbeddedMpvSubtitleStyle,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     ElectronBridgeApi,
@@ -587,6 +588,31 @@ const electronApi: ElectronBridgeApi = {
             sessionId,
             trackId
         ),
+    addEmbeddedMpvSubtitle: (
+        sessionId: string,
+        filePath: string
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_ADD_SUBTITLE', sessionId, filePath),
+    setEmbeddedMpvSubtitleDelay: (
+        sessionId: string,
+        seconds: number
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke(
+            'EMBEDDED_MPV_SET_SUBTITLE_DELAY',
+            sessionId,
+            seconds
+        ),
+    setEmbeddedMpvSubtitleStyle: (
+        sessionId: string,
+        style: EmbeddedMpvSubtitleStyle
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke(
+            'EMBEDDED_MPV_SET_SUBTITLE_STYLE',
+            sessionId,
+            style
+        ),
+    selectEmbeddedMpvSubtitleFile: (): Promise<string | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SELECT_SUBTITLE_FILE'),
     setEmbeddedMpvSpeed: (
         sessionId: string,
         speed: number

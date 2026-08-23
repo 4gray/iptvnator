@@ -1,18 +1,23 @@
 import { ipcMain } from 'electron';
 import {
+    EMBEDDED_MPV_ADD_SUBTITLE,
     EMBEDDED_MPV_CREATE_SESSION,
     EMBEDDED_MPV_DISPOSE_SESSION,
     EMBEDDED_MPV_GET_FRAME_SOURCE,
     EMBEDDED_MPV_LOAD_PLAYBACK,
     EMBEDDED_MPV_PREPARE,
     EMBEDDED_MPV_SEEK,
+    EMBEDDED_MPV_SELECT_SUBTITLE_FILE,
     EMBEDDED_MPV_SET_ASPECT,
     EMBEDDED_MPV_SET_AUDIO_TRACK,
     EMBEDDED_MPV_SET_BOUNDS,
     EMBEDDED_MPV_SET_PAUSED,
     EMBEDDED_MPV_SET_SPEED,
+    EMBEDDED_MPV_SET_SUBTITLE_DELAY,
+    EMBEDDED_MPV_SET_SUBTITLE_STYLE,
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
     EMBEDDED_MPV_SET_VOLUME,
+    EmbeddedMpvSubtitleStyle,
     EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER,
     EMBEDDED_MPV_SELECT_RECORDING_FOLDER,
     EMBEDDED_MPV_START_RECORDING,
@@ -108,6 +113,28 @@ handleEmbeddedMpv(
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
     (sessionId: string, trackId: number) =>
         getService().setSubtitleTrack(sessionId, trackId)
+);
+
+handleEmbeddedMpv(
+    EMBEDDED_MPV_ADD_SUBTITLE,
+    (sessionId: string, filePath: string) =>
+        getService().addSubtitle(sessionId, filePath)
+);
+
+handleEmbeddedMpv(
+    EMBEDDED_MPV_SET_SUBTITLE_DELAY,
+    (sessionId: string, seconds: number) =>
+        getService().setSubtitleDelay(sessionId, seconds)
+);
+
+handleEmbeddedMpv(
+    EMBEDDED_MPV_SET_SUBTITLE_STYLE,
+    (sessionId: string, style: EmbeddedMpvSubtitleStyle) =>
+        getService().setSubtitleStyle(sessionId, style)
+);
+
+handleEmbeddedMpv(EMBEDDED_MPV_SELECT_SUBTITLE_FILE, () =>
+    getService().selectSubtitleFile()
 );
 
 handleEmbeddedMpv(

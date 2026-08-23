@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "进入画中画",
             "EXIT_PICTURE_IN_PICTURE": "退出画中画",
             "ENTER_FULLSCREEN": "进入全屏",
-            "EXIT_FULLSCREEN": "退出全屏"
+            "EXIT_FULLSCREEN": "退出全屏",
+            "LOAD_SUBTITLE_FILE": "加载字幕文件…",
+            "SUBTITLE_DELAY": "字幕延迟",
+            "SUBTITLE_DELAY_DECREASE": "提前显示字幕",
+            "SUBTITLE_DELAY_INCREASE": "延后显示字幕",
+            "SUBTITLE_DELAY_RESET": "重置字幕延迟",
+            "SUBTITLE_SIZE": "字幕大小",
+            "SUBTITLE_COLOR": "字幕颜色",
+            "SUBTITLE_COLOR_DEFAULT": "默认",
+            "SUBTITLE_COLOR_WHITE": "白色",
+            "SUBTITLE_COLOR_YELLOW": "黄色",
+            "SUBTITLE_COLOR_CYAN": "青色"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

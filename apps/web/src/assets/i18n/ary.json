@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "شغّل صورة داخل صورة",
             "EXIT_PICTURE_IN_PICTURE": "خرج من صورة داخل صورة",
             "ENTER_FULLSCREEN": "دخل لملء الشاشة",
-            "EXIT_FULLSCREEN": "خرج من ملء الشاشة"
+            "EXIT_FULLSCREEN": "خرج من ملء الشاشة",
+            "LOAD_SUBTITLE_FILE": "تحميل ملف الترجمة…",
+            "SUBTITLE_DELAY": "تأخير الترجمة",
+            "SUBTITLE_DELAY_DECREASE": "ورّي الترجمة قبل",
+            "SUBTITLE_DELAY_INCREASE": "ورّي الترجمة من بعد",
+            "SUBTITLE_DELAY_RESET": "رجّع تأخير الترجمة",
+            "SUBTITLE_SIZE": "حجم الترجمة",
+            "SUBTITLE_COLOR": "لون الترجمة",
+            "SUBTITLE_COLOR_DEFAULT": "افتراضي",
+            "SUBTITLE_COLOR_WHITE": "أبيض",
+            "SUBTITLE_COLOR_YELLOW": "أصفر",
+            "SUBTITLE_COLOR_CYAN": "سماوي"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

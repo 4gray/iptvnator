@@ -1,3 +1,4 @@
+import type { PlayerSubtitleStyle } from './subtitle-style.util';
 import type { RecordingStartMetadata } from './recording-metadata.interface';
 
 export type EmbeddedMpvSessionStatus =
@@ -22,7 +23,21 @@ export interface EmbeddedMpvCapabilities {
     aspectOverride: boolean;
     screenshot: boolean;
     recording: boolean;
+    /** Loading an external subtitle file via `sub-add` (frame-copy engine). */
+    externalSubtitles?: boolean;
+    /** Adjusting `sub-delay` at runtime (frame-copy engine). */
+    subtitleDelay?: boolean;
+    /** Adjusting `sub-scale`/`sub-color` at runtime (frame-copy engine). */
+    subtitleStyle?: boolean;
 }
+
+/**
+ * Subtitle presentation preferences forwarded to mpv: `sizePercent` maps to
+ * `sub-scale` (100 = 1.0); `color` maps to `sub-color`, null restores mpv's
+ * default. Alias of the canonical shared shape so the renderer controls and
+ * the IPC contract cannot drift structurally.
+ */
+export type EmbeddedMpvSubtitleStyle = PlayerSubtitleStyle;
 
 export type EmbeddedMpvEngine = 'native' | 'frame-copy';
 

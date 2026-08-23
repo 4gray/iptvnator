@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Enter picture-in-picture",
             "EXIT_PICTURE_IN_PICTURE": "Exit picture-in-picture",
             "ENTER_FULLSCREEN": "Enter fullscreen",
-            "EXIT_FULLSCREEN": "Exit fullscreen"
+            "EXIT_FULLSCREEN": "Exit fullscreen",
+            "LOAD_SUBTITLE_FILE": "Load subtitle file…",
+            "SUBTITLE_DELAY": "Subtitle delay",
+            "SUBTITLE_DELAY_DECREASE": "Show subtitles earlier",
+            "SUBTITLE_DELAY_INCREASE": "Show subtitles later",
+            "SUBTITLE_DELAY_RESET": "Reset subtitle delay",
+            "SUBTITLE_SIZE": "Subtitle size",
+            "SUBTITLE_COLOR": "Subtitle color",
+            "SUBTITLE_COLOR_DEFAULT": "Default",
+            "SUBTITLE_COLOR_WHITE": "White",
+            "SUBTITLE_COLOR_YELLOW": "Yellow",
+            "SUBTITLE_COLOR_CYAN": "Cyan"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

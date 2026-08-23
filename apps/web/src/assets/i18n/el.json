@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Έναρξη εικόνας εντός εικόνας",
             "EXIT_PICTURE_IN_PICTURE": "Έξοδος από εικόνα εντός εικόνας",
             "ENTER_FULLSCREEN": "Μετάβαση σε πλήρη οθόνη",
-            "EXIT_FULLSCREEN": "Έξοδος από πλήρη οθόνη"
+            "EXIT_FULLSCREEN": "Έξοδος από πλήρη οθόνη",
+            "LOAD_SUBTITLE_FILE": "Φόρτωση αρχείου υποτίτλων…",
+            "SUBTITLE_DELAY": "Καθυστέρηση υποτίτλων",
+            "SUBTITLE_DELAY_DECREASE": "Εμφάνιση υποτίτλων νωρίτερα",
+            "SUBTITLE_DELAY_INCREASE": "Εμφάνιση υποτίτλων αργότερα",
+            "SUBTITLE_DELAY_RESET": "Επαναφορά καθυστέρησης υποτίτλων",
+            "SUBTITLE_SIZE": "Μέγεθος υποτίτλων",
+            "SUBTITLE_COLOR": "Χρώμα υποτίτλων",
+            "SUBTITLE_COLOR_DEFAULT": "Προεπιλογή",
+            "SUBTITLE_COLOR_WHITE": "Λευκό",
+            "SUBTITLE_COLOR_YELLOW": "Κίτρινο",
+            "SUBTITLE_COLOR_CYAN": "Κυανό"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

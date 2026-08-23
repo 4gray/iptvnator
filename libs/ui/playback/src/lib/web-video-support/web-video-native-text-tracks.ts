@@ -19,6 +19,12 @@ export interface WebVideoNativeTextTracksConfig {
      * menu keeps working. Shared controls omit it.
      */
     playbackStarted?: () => boolean;
+    /**
+     * Tracks another owner manages (user-loaded external subtitle files) are
+     * excluded from this enumeration so they are neither double-listed nor
+     * touched by the caption-preference suppression.
+     */
+    excludeTrack?: (track: TextTrack) => boolean;
 }
 
 export class WebVideoNativeTextTracks {
@@ -115,7 +121,8 @@ export class WebVideoNativeTextTracks {
                 const track = tracks[index];
                 if (
                     !track ||
-                    (track.kind !== 'captions' && track.kind !== 'subtitles')
+                    (track.kind !== 'captions' && track.kind !== 'subtitles') ||
+                    this.config.excludeTrack?.(track) === true
                 ) {
                     continue;
                 }

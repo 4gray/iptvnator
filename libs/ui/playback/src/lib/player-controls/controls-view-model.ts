@@ -50,8 +50,12 @@ export function createControlsViewModel(deps: ControlsViewModelDeps) {
     const hasAudioTracks = computed(
         () => capabilities().audioTracks && state().audioTracks.length > 1
     );
+    // External subtitle loading renders the button even with no embedded
+    // tracks yet — loading a file is what creates the first one.
     const hasSubtitleTracks = computed(
-        () => capabilities().subtitles && state().subtitleTracks.length > 0
+        () =>
+            (capabilities().subtitles && state().subtitleTracks.length > 0) ||
+            capabilities().externalSubtitles
     );
     const hasQualityLevels = computed(
         () => capabilities().qualityLevels && state().qualityLevels.length > 1

@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Resim içinde resim modunu aç",
             "EXIT_PICTURE_IN_PICTURE": "Resim içinde resim modundan çık",
             "ENTER_FULLSCREEN": "Tam ekrana geç",
-            "EXIT_FULLSCREEN": "Tam ekrandan çık"
+            "EXIT_FULLSCREEN": "Tam ekrandan çık",
+            "LOAD_SUBTITLE_FILE": "Altyazı dosyası yükle…",
+            "SUBTITLE_DELAY": "Altyazı gecikmesi",
+            "SUBTITLE_DELAY_DECREASE": "Altyazıları daha erken göster",
+            "SUBTITLE_DELAY_INCREASE": "Altyazıları daha geç göster",
+            "SUBTITLE_DELAY_RESET": "Altyazı gecikmesini sıfırla",
+            "SUBTITLE_SIZE": "Altyazı boyutu",
+            "SUBTITLE_COLOR": "Altyazı rengi",
+            "SUBTITLE_COLOR_DEFAULT": "Varsayılan",
+            "SUBTITLE_COLOR_WHITE": "Beyaz",
+            "SUBTITLE_COLOR_YELLOW": "Sarı",
+            "SUBTITLE_COLOR_CYAN": "Camgöbeği"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

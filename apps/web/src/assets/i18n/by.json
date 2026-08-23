@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Уключыць рэжым «выява ў выяве»",
             "EXIT_PICTURE_IN_PICTURE": "Выйсці з рэжыму «выява ў выяве»",
             "ENTER_FULLSCREEN": "Увайсці ў поўнаэкранны рэжым",
-            "EXIT_FULLSCREEN": "Выйсці з поўнаэкраннага рэжыму"
+            "EXIT_FULLSCREEN": "Выйсці з поўнаэкраннага рэжыму",
+            "LOAD_SUBTITLE_FILE": "Загрузіць файл субтытраў…",
+            "SUBTITLE_DELAY": "Затрымка субтытраў",
+            "SUBTITLE_DELAY_DECREASE": "Паказваць субтытры раней",
+            "SUBTITLE_DELAY_INCREASE": "Паказваць субтытры пазней",
+            "SUBTITLE_DELAY_RESET": "Скінуць затрымку субтытраў",
+            "SUBTITLE_SIZE": "Памер субтытраў",
+            "SUBTITLE_COLOR": "Колер субтытраў",
+            "SUBTITLE_COLOR_DEFAULT": "Па змаўчанні",
+            "SUBTITLE_COLOR_WHITE": "Белы",
+            "SUBTITLE_COLOR_YELLOW": "Жоўты",
+            "SUBTITLE_COLOR_CYAN": "Блакітны"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

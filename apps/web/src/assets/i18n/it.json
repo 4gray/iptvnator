@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Attiva Picture-in-Picture",
             "EXIT_PICTURE_IN_PICTURE": "Esci da Picture-in-Picture",
             "ENTER_FULLSCREEN": "Attiva schermo intero",
-            "EXIT_FULLSCREEN": "Esci dallo schermo intero"
+            "EXIT_FULLSCREEN": "Esci dallo schermo intero",
+            "LOAD_SUBTITLE_FILE": "Carica file sottotitoli…",
+            "SUBTITLE_DELAY": "Ritardo sottotitoli",
+            "SUBTITLE_DELAY_DECREASE": "Mostra i sottotitoli prima",
+            "SUBTITLE_DELAY_INCREASE": "Mostra i sottotitoli dopo",
+            "SUBTITLE_DELAY_RESET": "Reimposta il ritardo dei sottotitoli",
+            "SUBTITLE_SIZE": "Dimensione sottotitoli",
+            "SUBTITLE_COLOR": "Colore sottotitoli",
+            "SUBTITLE_COLOR_DEFAULT": "Predefinito",
+            "SUBTITLE_COLOR_WHITE": "Bianco",
+            "SUBTITLE_COLOR_YELLOW": "Giallo",
+            "SUBTITLE_COLOR_CYAN": "Ciano"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

@@ -1,6 +1,7 @@
 import { Signal, WritableSignal } from '@angular/core';
 import {
     EmbeddedMpvSession,
+    EmbeddedMpvSubtitleStyle,
     RecordingStartMetadata,
 } from '@iptvnator/shared/interfaces';
 
@@ -86,6 +87,48 @@ export class EmbeddedMpvCommandRunner {
         }
         const setSubtitleTrack = electron.setEmbeddedMpvSubtitleTrack;
         await this.run(id, () => setSubtitleTrack(id, trackId));
+    }
+
+    /**
+     * Opens the main-process subtitle file dialog and, when the user picks a
+     * file, hands its path to mpv. Returns true when a file was loaded.
+     */
+    async addExternalSubtitle(): Promise<boolean> {
+        const id = this.ctx.sessionId();
+        const electron = this.bridge();
+        const selectSubtitleFile = electron?.selectEmbeddedMpvSubtitleFile;
+        const addSubtitle = electron?.addEmbeddedMpvSubtitle;
+        if (!id || !selectSubtitleFile || !addSubtitle) {
+            return false;
+        }
+        const filePath = await this.guardIpc(selectSubtitleFile);
+        // The dialog is modal-slow; the session may be gone by the time the
+        // user picked a file.
+        if (!filePath || this.ctx.sessionId() !== id) {
+            return false;
+        }
+        const updated = await this.run(id, () => addSubtitle(id, filePath));
+        return updated !== null;
+    }
+
+    async setSubtitleDelay(seconds: number): Promise<void> {
+        const id = this.ctx.sessionId();
+        const electron = this.bridge();
+        if (!id || !electron?.setEmbeddedMpvSubtitleDelay) {
+            return;
+        }
+        const setSubtitleDelay = electron.setEmbeddedMpvSubtitleDelay;
+        await this.run(id, () => setSubtitleDelay(id, seconds));
+    }
+
+    async setSubtitleStyle(style: EmbeddedMpvSubtitleStyle): Promise<void> {
+        const id = this.ctx.sessionId();
+        const electron = this.bridge();
+        if (!id || !electron?.setEmbeddedMpvSubtitleStyle) {
+            return;
+        }
+        const setSubtitleStyle = electron.setEmbeddedMpvSubtitleStyle;
+        await this.run(id, () => setSubtitleStyle(id, style));
     }
 
     async setSpeed(speed: number): Promise<void> {

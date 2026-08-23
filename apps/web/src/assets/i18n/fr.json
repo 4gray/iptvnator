@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Activer le mode image dans l’image",
             "EXIT_PICTURE_IN_PICTURE": "Quitter le mode image dans l’image",
             "ENTER_FULLSCREEN": "Passer en plein écran",
-            "EXIT_FULLSCREEN": "Quitter le plein écran"
+            "EXIT_FULLSCREEN": "Quitter le plein écran",
+            "LOAD_SUBTITLE_FILE": "Charger un fichier de sous-titres…",
+            "SUBTITLE_DELAY": "Décalage des sous-titres",
+            "SUBTITLE_DELAY_DECREASE": "Afficher les sous-titres plus tôt",
+            "SUBTITLE_DELAY_INCREASE": "Afficher les sous-titres plus tard",
+            "SUBTITLE_DELAY_RESET": "Réinitialiser le décalage des sous-titres",
+            "SUBTITLE_SIZE": "Taille des sous-titres",
+            "SUBTITLE_COLOR": "Couleur des sous-titres",
+            "SUBTITLE_COLOR_DEFAULT": "Par défaut",
+            "SUBTITLE_COLOR_WHITE": "Blanc",
+            "SUBTITLE_COLOR_YELLOW": "Jaune",
+            "SUBTITLE_COLOR_CYAN": "Cyan"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

@@ -555,7 +555,18 @@
             "ENTER_PICTURE_IN_PICTURE": "Beeld-in-beeld starten",
             "EXIT_PICTURE_IN_PICTURE": "Beeld-in-beeld sluiten",
             "ENTER_FULLSCREEN": "Volledig scherm openen",
-            "EXIT_FULLSCREEN": "Volledig scherm sluiten"
+            "EXIT_FULLSCREEN": "Volledig scherm sluiten",
+            "LOAD_SUBTITLE_FILE": "Ondertitelbestand laden…",
+            "SUBTITLE_DELAY": "Ondertitelvertraging",
+            "SUBTITLE_DELAY_DECREASE": "Ondertitels eerder tonen",
+            "SUBTITLE_DELAY_INCREASE": "Ondertitels later tonen",
+            "SUBTITLE_DELAY_RESET": "Ondertitelvertraging resetten",
+            "SUBTITLE_SIZE": "Ondertitelgrootte",
+            "SUBTITLE_COLOR": "Ondertitelkleur",
+            "SUBTITLE_COLOR_DEFAULT": "Standaard",
+            "SUBTITLE_COLOR_WHITE": "Wit",
+            "SUBTITLE_COLOR_YELLOW": "Geel",
+            "SUBTITLE_COLOR_CYAN": "Cyaan"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
