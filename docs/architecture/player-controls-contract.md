@@ -695,9 +695,11 @@ Per-engine implementations:
   BOMs, strict UTF-8, then `chooseLegacySingleByteDecode`, which picks
   between Windows-1251 and Windows-1252 by the plausibility of the 1251
   candidate's decoded words — pure-Cyrillic words vote for 1251, words
-  mixing Cyrillic with ASCII letters vote against, since misread Latin text
-  like "était" decodes to the mixed-script "йtait" that real subtitles never
-  contain), because `Blob.text()`'s silent UTF-8 substitution turns common
+  mixing Cyrillic with ASCII letters vote against (misread Latin text like
+  "était" decodes to the mixed-script "йtait" that real subtitles never
+  contain), and Cyrillic must also carry a meaningful share of all letters
+  so an isolated accented CP1252 word ("À table" → "А table") cannot flip
+  the file), because `Blob.text()`'s silent UTF-8 substitution turns common
   legacy-encoded SRT files into mojibake. `WebVideoExternalSubtitles` parses
   the file (`external-subtitle-cues.util.ts`) and renders it through a native
   `TextTrack` on the video element, so it works under every source kind. The

@@ -82,14 +82,30 @@ export function decodeExternalSubtitleBytes(buffer: ArrayBuffer): string {
  */
 function chooseLegacySingleByteDecode(buffer: ArrayBuffer): string {
     const decoded1251 = new TextDecoder('windows-1251').decode(buffer);
-    let score = 0;
+    let cyrillicLetters = 0;
+    let mixedLetters = 0;
+    let asciiLetters = 0;
     for (const word of decoded1251.split(/[^\p{L}]+/u)) {
-        if (!/[\u0400-\u04ff]/.test(word)) {
+        if (!word) {
             continue;
         }
-        score += /[A-Za-z]/.test(word) ? -word.length : word.length;
+        if (!/[\u0400-\u04ff]/.test(word)) {
+            asciiLetters += word.length;
+        } else if (/[A-Za-z]/.test(word)) {
+            mixedLetters += word.length;
+        } else {
+            cyrillicLetters += word.length;
+        }
     }
-    return score > 0
+    // Two guards: mixed-script words are strong evidence of misread Latin
+    // text, and isolated accented CP1252 words ("\u00c0 table" \u2192 "\u0410 table")
+    // masquerade as tiny pure-Cyrillic words \u2014 so Cyrillic must also carry a
+    // meaningful share of all letters before 1251 wins. Genuinely Cyrillic
+    // dialogue dominates its own letter count even with embedded Latin names.
+    const plausiblyCyrillic =
+        cyrillicLetters > mixedLetters * 2 &&
+        cyrillicLetters * 4 > asciiLetters;
+    return plausiblyCyrillic
         ? decoded1251
         : new TextDecoder('windows-1252').decode(buffer);
 }
