@@ -505,6 +505,25 @@
     color: rgba(255, 255, 255, 0.85);
 }
 
+// Single scroll owner for the subtitle popover's list + delay/style sections:
+// on short players (e.g. the 220px portal player) the panel's max-height cap
+// must scroll ALL content — sections outside the list's own scroll area would
+// otherwise clip or overflow into the controls bar.
+.player-controls__subtitle-body {
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+// Inside the shared scroll owner the list must not nest a second scroll area.
+.player-controls__subtitle-body .player-controls__track-list {
+    flex: none;
+    overflow-y: visible;
+}
+
 .player-controls__subtitle-section {
     flex: 0 0 auto;
     margin-top: 8px;

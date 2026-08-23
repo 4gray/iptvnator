@@ -359,6 +359,11 @@
                                     'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
                                 }}
                             </div>
+                            <!-- Single scroll owner for the track list AND the
+                                 delay/style sections: on short players the
+                                 popover height cap must scroll everything, not
+                                 clip the sections outside the list. -->
+                            <div class="player-controls__subtitle-body">
                             <div class="player-controls__track-list">
                                 @if (
                                     capabilities().subtitles &&
@@ -619,6 +624,7 @@
                                     </div>
                                 </div>
                             }
+                            </div>
                         </div>
                     }
                 </div>
