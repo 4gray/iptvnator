@@ -173,9 +173,7 @@ interface PlayerController {
 
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
-`subtitleStyle`, `playbackSpeed`, `aspectRatio`, `recording`,
-`pictureInPicture`, `fullscreen`, and `seriesNavigation`.
-`audioTracks`, `subtitles`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
+`subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
 `recording`, `pictureInPicture`, `fullscreen`, and `seriesNavigation`.
 
 The default is all-false. An adapter enables only features that its engine and
@@ -694,8 +692,12 @@ Per-engine implementations:
   picker is a renderer-side DOM file input (`.srt`/`.vtt` only; works in the
   PWA and Electron alike, and no filesystem path ever enters the app). File
   bytes are decoded encoding-aware (`decodeExternalSubtitleBytes`: UTF-16
-  BOMs, strict UTF-8, then a Windows-1251/1252 heuristic keyed on high-byte
-  density), because `Blob.text()`'s silent UTF-8 substitution turns common
+  BOMs, strict UTF-8, then `chooseLegacySingleByteDecode`, which picks
+  between Windows-1251 and Windows-1252 by the plausibility of the 1251
+  candidate's decoded words — pure-Cyrillic words vote for 1251, words
+  mixing Cyrillic with ASCII letters vote against, since misread Latin text
+  like "était" decodes to the mixed-script "йtait" that real subtitles never
+  contain), because `Blob.text()`'s silent UTF-8 substitution turns common
   legacy-encoded SRT files into mojibake. `WebVideoExternalSubtitles` parses
   the file (`external-subtitle-cues.util.ts`) and renders it through a native
   `TextTrack` on the video element, so it works under every source kind. The
