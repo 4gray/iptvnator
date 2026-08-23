@@ -667,6 +667,16 @@ re-armed `matchMedia('(resolution: …dppx)')` query and re-syncs bounds when
 it changes; page zoom changes are covered by the same watch plus the ordinary
 resize-driven syncs.
 
+An ancestor re-layout can also translate the host **without resizing it** —
+the channel sidebar's content settling, panels loading below the player.
+`ResizeObserver` reports size changes only and no DOM event observes
+"position changed", so before #1428 the native child window silently kept its
+stale coordinates and rendered offset from the DOM stage. The session
+controller therefore polls the host bounds every 500 ms while a session is
+active, compares them against the last synced bounds with a half-pixel
+tolerance, and schedules a re-sync only on drift — idle cost is one
+`getBoundingClientRect` per tick with no IPC.
+
 ### Controls ownership by engine
 
 `EmbeddedMpvPlayerComponent` selects one control owner from

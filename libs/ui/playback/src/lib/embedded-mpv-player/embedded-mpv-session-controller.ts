@@ -28,6 +28,29 @@ export type EmbeddedMpvBoundsProvider = (
 
 type ElectronBridge = Window['electron'];
 
+/**
+ * Cadence of the host-position drift poll. 500 ms keeps a stuck native
+ * window user-invisible (it snaps back within half a second) while costing
+ * one getBoundingClientRect per tick and zero IPC while nothing moves.
+ */
+const POSITION_POLL_INTERVAL_MS = 500;
+
+/**
+ * Sub-pixel measurement noise must not re-send bounds every tick: after a
+ * sync the next poll re-measures the same layout, so anything below half a
+ * CSS pixel is the same position. Real layout shifts move by whole pixels.
+ */
+const POSITION_POLL_EPSILON_PX = 0.5;
+
+function boundsDiffer(a: EmbeddedMpvBounds, b: EmbeddedMpvBounds): boolean {
+    return (
+        Math.abs(a.x - b.x) > POSITION_POLL_EPSILON_PX ||
+        Math.abs(a.y - b.y) > POSITION_POLL_EPSILON_PX ||
+        Math.abs(a.width - b.width) > POSITION_POLL_EPSILON_PX ||
+        Math.abs(a.height - b.height) > POSITION_POLL_EPSILON_PX
+    );
+}
+
 @Injectable()
 export class EmbeddedMpvSessionController {
     readonly support = signal<EmbeddedMpvSupport | null>(null);
@@ -121,16 +144,16 @@ export class EmbeddedMpvSessionController {
     ): () => void {
         let disposed = false;
         let activeSessionId: string | null = null;
+        let lastSyncedBounds: EmbeddedMpvBounds | null = null;
 
         const syncBounds = () => {
             if (!activeSessionId) {
                 return;
             }
+            const bounds = this.boundsProvider(host);
+            lastSyncedBounds = bounds;
             void window.electron
-                ?.setEmbeddedMpvBounds(
-                    activeSessionId,
-                    this.boundsProvider(host)
-                )
+                ?.setEmbeddedMpvBounds(activeSessionId, bounds)
                 .catch(() => undefined);
         };
 
@@ -150,6 +173,23 @@ export class EmbeddedMpvSessionController {
         resizeObserver.observe(host);
         window.addEventListener('resize', scheduleBoundsSync);
         window.addEventListener('scroll', scheduleBoundsSync, true);
+
+        // ResizeObserver reports size changes only: an ancestor re-layout
+        // that translates the host without resizing it (sidebar content
+        // settling, panels loading below the player) moves the DOM while the
+        // native child window keeps its old coordinates, and no DOM event
+        // observes "position changed" (#1428). A low-frequency poll compares
+        // the measured bounds against the last synced ones and re-syncs only
+        // on drift, so the idle cost is one getBoundingClientRect per tick
+        // with no IPC.
+        const positionPoll = window.setInterval(() => {
+            if (!activeSessionId || !lastSyncedBounds) {
+                return;
+            }
+            if (boundsDiffer(this.boundsProvider(host), lastSyncedBounds)) {
+                scheduleBoundsSync();
+            }
+        }, POSITION_POLL_INTERVAL_MS);
 
         // Page zoom and monitor DPI rescale the CSS→native-pixel mapping the
         // backend applies to these bounds. Moving the window to a display
@@ -262,6 +302,7 @@ export class EmbeddedMpvSessionController {
             resizeObserver.disconnect();
             window.removeEventListener('resize', scheduleBoundsSync);
             window.removeEventListener('scroll', scheduleBoundsSync, true);
+            window.clearInterval(positionPoll);
             detachDprWatch?.();
             detachDprWatch = null;
 
