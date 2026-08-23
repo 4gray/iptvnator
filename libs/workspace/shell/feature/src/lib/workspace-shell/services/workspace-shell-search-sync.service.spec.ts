@@ -228,6 +228,47 @@ describe('WorkspaceShellSearchSyncService', () => {
         expect(service.searchQuery()).toBe('Beta Movie');
     });
 
+    it('keeps a trailing space when its own trimmed q echo lands after the debounce', () => {
+        // #1338 residual: type "Bein ", pause past the debounce. The applied
+        // term is trimmed, written to the URL as q=Bein, and the router echoes
+        // that navigation back with no debounce pending anymore. The echo must
+        // not snap the box back to "Bein" — typing on would yield "BeinSports".
+        service.onSearchInput('Bein ');
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+        expect(service.appliedSearchQuery()).toBe('Bein');
+        expect(service.searchQuery()).toBe('Bein ');
+
+        TestBed.flushEffects();
+        expect(router.navigateByUrl).toHaveBeenCalledWith(
+            `${DOWNLOADS_URL}?q=Bein`,
+            { replaceUrl: true }
+        );
+
+        navigateTo(`${DOWNLOADS_URL}?q=Bein`);
+
+        expect(service.searchQuery()).toBe('Bein ');
+
+        service.onSearchInput('Bein Sports');
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+        expect(service.appliedSearchQuery()).toBe('Bein Sports');
+        expect(service.searchQuery()).toBe('Bein Sports');
+    });
+
+    it('still adopts a history entry matching the applied term after typing settles', () => {
+        // The echo guard must stay scoped to app-initiated navigations even
+        // when no debounce is pending: back/forward re-applies exactly what
+        // the entry carries, dropping the uncommitted trailing space.
+        service.onSearchInput('Bein ');
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+        navigateTo(`${DOWNLOADS_URL}?q=Bein`, 'popstate');
+
+        expect(service.searchQuery()).toBe('Bein');
+        expect(service.appliedSearchQuery()).toBe('Bein');
+    });
+
     it('syncs the search box from the url when nothing is being typed', () => {
         navigateTo(`${DOWNLOADS_URL}?q=Gamma`);
 

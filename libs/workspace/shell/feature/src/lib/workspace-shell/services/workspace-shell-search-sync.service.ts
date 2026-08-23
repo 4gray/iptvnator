@@ -116,13 +116,17 @@ export class WorkspaceShellSearchSyncService {
     }
 
     /**
-     * Applies a term now. This supersedes a queued debounce — pressing Enter
-     * commits the trimmed term, and the keystroke that is still waiting must
-     * not reapply the untrimmed one behind it.
+     * Applies a term now, always in its trimmed form: the URL sync and the
+     * portal stores only ever act on the trimmed term, and an untrimmed
+     * applied term would make the router echo of our own `q` look like
+     * foreign search intent. The box (`searchQuery`) keeps what was actually
+     * typed, trailing whitespace included. This supersedes a queued debounce
+     * — pressing Enter commits the term, and the keystroke that is still
+     * waiting must not reapply the older one behind it.
      */
     applySearchQuery(value: string): void {
         this.cancelPendingSearchApply();
-        this.appliedSearchQuery.set(value);
+        this.appliedSearchQuery.set(value.trim());
     }
 
     private syncSearchFromUrl(url: string): void {
@@ -138,15 +142,17 @@ export class WorkspaceShellSearchSyncService {
         // either an unrelated query param the page wrote (a filter chip, a
         // refresh bump) or the router echoing back our own `q`. Syncing anyway
         // would cancel the pending debounce and reset the box to the applied
-        // term, silently eating everything typed since — including the whole
-        // word, when the first keystroke has not been applied yet.
+        // term, silently eating everything typed since — the whole word when
+        // the first keystroke has not been applied yet, or just-typed trailing
+        // whitespace once the debounce has fired ("Bein " snaps to "Bein" and
+        // typing on yields "BeinSports"). Applied terms are always trimmed, so
+        // the echoed `q` compares directly.
         //
         // The trigger check keeps that narrow: history is always authoritative,
         // so back/forward re-applies what the entry carries even mid-typing.
         // `lastSuccessfulNavigation` is set immediately before `NavigationEnd`
         // is emitted, so it describes the navigation being handled here.
         if (
-            this.searchDebounceTimeoutId !== null &&
             previousUrl !== null &&
             getRoutePath(url) === getRoutePath(previousUrl) &&
             nextTerm === this.appliedSearchQuery() &&

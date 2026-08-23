@@ -125,6 +125,7 @@ describe('WorkspaceShellFacade', () => {
         parseUrl: jest.Mock;
         createUrlTree: jest.Mock;
         isActive: jest.Mock;
+        lastSuccessfulNavigation: () => { trigger: string };
     };
     let playlistsService: {
         clearPortalRecentlyViewed: jest.Mock;
@@ -196,6 +197,7 @@ describe('WorkspaceShellFacade', () => {
             parseUrl: jest.fn((url: string) => createParseUrl(url)),
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
+            lastSuccessfulNavigation: () => ({ trigger: 'imperative' }),
         };
         playlistsService = {
             clearPortalRecentlyViewed: jest
