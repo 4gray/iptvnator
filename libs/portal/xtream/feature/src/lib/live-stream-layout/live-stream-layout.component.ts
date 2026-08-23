@@ -45,6 +45,7 @@ import {
 import {
     FavoriteItem,
     FavoritesService,
+    findCurrentEpgItem,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -187,7 +188,14 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             return null;
         }
         const playlist = this.xtreamStore.currentPlaylist();
-        const program = this.currentEpgItem();
+        // Re-select against the 30 s tick: the store's `currentEpgItem`
+        // caches its Date.now() verdict until epgItems changes, so a
+        // recording started after an EPG boundary would snapshot the
+        // previous show.
+        const program = findCurrentEpgItem(
+            this.epgItems(),
+            this.currentTimeMs()
+        );
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
             channelLogoUrl:
