@@ -76,6 +76,21 @@ describe('external-subtitle-cues.util', () => {
             expect(decoded).toContain('À table');
         });
 
+        it('keeps a minimal isolated-accent CP1252 caption Latin ("À la")', () => {
+            // One lone Cyrillic-looking letter and two ASCII letters passed
+            // the earlier share guard; single-letter words must carry no
+            // script evidence at all.
+            const cp1252 = [
+                0xc0, // À
+                ...Array.from(
+                    ' la\n1\n00:00:01,000 --> 00:00:02,000\n'
+                ).map((c) => c.charCodeAt(0)),
+            ];
+            expect(decodeExternalSubtitleBytes(toBuffer(cp1252))).toContain(
+                'À la'
+            );
+        });
+
         it('keeps an isolated accented CP1252 word Latin ("À table")', () => {
             // À=0xC0 decodes under CP1251 to the pure-Cyrillic one-letter
             // word "А"; without the letter-share guard that single vote

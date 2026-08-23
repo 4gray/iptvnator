@@ -93,15 +93,20 @@ function chooseLegacySingleByteDecode(buffer: ArrayBuffer): string {
             asciiLetters += word.length;
         } else if (/[A-Za-z]/.test(word)) {
             mixedLetters += word.length;
-        } else {
+        } else if (word.length >= 2) {
+            // A single letter carries no trustworthy script information: an
+            // isolated CP1252 accent ("\u00c0"/"\u00c9") decodes to a lone Cyrillic
+            // letter and must not count as Cyrillic evidence, while genuine
+            // Cyrillic dialogue always contains multi-letter words.
             cyrillicLetters += word.length;
         }
     }
-    // Two guards: mixed-script words are strong evidence of misread Latin
-    // text, and isolated accented CP1252 words ("\u00c0 table" \u2192 "\u0410 table")
-    // masquerade as tiny pure-Cyrillic words \u2014 so Cyrillic must also carry a
-    // meaningful share of all letters before 1251 wins. Genuinely Cyrillic
+    // Two guards on top of that: mixed-script words are strong evidence of
+    // misread Latin text ("\u00e9tait" \u2192 "\u0439tait"), and Cyrillic must carry a
+    // meaningful share of all letters before 1251 wins \u2014 genuinely Cyrillic
     // dialogue dominates its own letter count even with embedded Latin names.
+    // A file whose only high bytes are one or two isolated letters is
+    // fundamentally ambiguous; defaulting it to 1252 is the best effort.
     const plausiblyCyrillic =
         cyrillicLetters > mixedLetters * 2 &&
         cyrillicLetters * 4 > asciiLetters;
