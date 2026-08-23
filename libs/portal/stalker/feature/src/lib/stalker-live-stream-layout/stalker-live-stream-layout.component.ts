@@ -346,9 +346,18 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             fallbackPrograms
         );
     });
-    readonly currentProgram = computed(() =>
-        this.findCurrentProgram(this.activeEpgPrograms())
-    );
+    /**
+     * 30 s clock read by `currentProgram`: `findCurrentProgram` compares
+     * against Date.now(), which a computed would otherwise cache — a
+     * recording started after an EPG boundary (or the panel summary and
+     * external-player metadata reading this) would keep the previous show.
+     */
+    private readonly epgClockTick = signal(0);
+    private epgClockTimer: ReturnType<typeof setInterval> | null = null;
+    readonly currentProgram = computed(() => {
+        this.epgClockTick();
+        return this.findCurrentProgram(this.activeEpgPrograms());
+    });
     private readonly recordingsService = inject(RecordingsService);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
     readonly recordingMetadata = computed<RecordingStartMetadata | null>(() => {
@@ -496,6 +505,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
+        this.epgClockTimer = setInterval(
+            () => this.epgClockTick.update((tick) => tick + 1),
+            30_000
+        );
+
         // Load favorites for current playlist
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
         if (playlistId) {
@@ -709,6 +723,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             REMOTE_CONTROL_RESET_STATUS
         );
         this.removeScrollListener();
+        if (this.epgClockTimer !== null) {
+            clearInterval(this.epgClockTimer);
+            this.epgClockTimer = null;
+        }
         if (this.epgPreviewRefreshTimer !== null) {
             clearTimeout(this.epgPreviewRefreshTimer);
             this.epgPreviewRefreshTimer = null;

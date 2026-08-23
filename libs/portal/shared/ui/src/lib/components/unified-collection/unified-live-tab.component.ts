@@ -294,6 +294,10 @@ export class UnifiedLiveTabComponent {
         if (!item) {
             return null;
         }
+        // Track the 30 s tick: without it this computed caches its
+        // Date.now() verdict, and a recording started after an EPG boundary
+        // would snapshot the previous show.
+        this.progressTick();
         const now = Date.now();
         const program =
             this.timelinePrograms().find((candidate) => {
