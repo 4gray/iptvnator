@@ -269,6 +269,24 @@ describe('WorkspaceShellSearchSyncService', () => {
         expect(service.appliedSearchQuery()).toBe('Bein');
     });
 
+    it('adopts an externally crafted q with edge whitespace in trimmed form', () => {
+        // A deep link ?q=Bein%20 must not put an untrimmed term into the
+        // applied signal: the URL-sync effect rewrites the URL trimmed, and
+        // an untrimmed applied term would fail the echo guard's equality
+        // check — snapping the box and dispatching the portal search twice.
+        navigateTo(`${DOWNLOADS_URL}?q=Bein%20`);
+
+        expect(service.searchQuery()).toBe('Bein');
+        expect(service.appliedSearchQuery()).toBe('Bein');
+
+        // The trimmed rewrite's echo is our own navigation — skipped.
+        TestBed.flushEffects();
+        navigateTo(`${DOWNLOADS_URL}?q=Bein`);
+
+        expect(service.searchQuery()).toBe('Bein');
+        expect(service.appliedSearchQuery()).toBe('Bein');
+    });
+
     it('syncs the search box from the url when nothing is being typed', () => {
         navigateTo(`${DOWNLOADS_URL}?q=Gamma`);
 

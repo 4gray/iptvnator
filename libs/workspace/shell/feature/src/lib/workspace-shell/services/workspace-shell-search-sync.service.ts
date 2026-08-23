@@ -109,10 +109,20 @@ export class WorkspaceShellSearchSyncService {
         this.syncSearchFromUrl(this.routeState.currentUrl());
     }
 
+    /**
+     * Adopts a term from outside the input box (URL `q`, command palette) into
+     * both signals. The trim keeps the applied-terms-are-always-trimmed
+     * invariant structural for URL-sourced values too: an externally crafted
+     * `?q=Bein%20` must not put an untrimmed term into `appliedSearchQuery`,
+     * or the URL-sync effect's trimmed rewrite would fail the echo guard's
+     * equality check and snap the box — the same eaten-keystroke cycle the
+     * guard exists to prevent — while the portal stores dispatch twice.
+     */
     setSearchState(value: string): void {
         this.cancelPendingSearchApply();
-        this.searchQuery.set(value);
-        this.appliedSearchQuery.set(value);
+        const trimmed = value.trim();
+        this.searchQuery.set(trimmed);
+        this.appliedSearchQuery.set(trimmed);
     }
 
     /**
