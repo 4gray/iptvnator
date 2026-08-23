@@ -427,7 +427,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         if (!channel) {
             return null;
         }
-        const program = this.epgProgram() ?? null;
+        // Derive the airing program from the ACTIVE channel's own schedule
+        // and the 30 s clock — the NgRx `currentEpgProgram` retains its last
+        // value across a channel switch and through EPG gaps (the mirror
+        // effect below only dispatches when a program exists), so it can
+        // still describe the previous channel when recording starts. An EPG
+        // gap must snapshot no program, not a stale one — stop enrichment
+        // deliberately never overwrites a persisted start title.
+        const program =
+            findCurrentEpgProgram(this.epgPrograms(), this.epgNowMs()) ?? null;
         const playlistName = playlistDisplayLabel(
             this.activePlaylistMeta()?.title
         );
