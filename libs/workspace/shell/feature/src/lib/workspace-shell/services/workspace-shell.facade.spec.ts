@@ -117,6 +117,10 @@ describe('WorkspaceShellFacade', () => {
     let playerCommands: {
         ensureEmbeddedMpvSupportLoaded: jest.Mock;
     };
+    // Mirrors Navigation.trigger: 'imperative' is the app navigating,
+    // 'popstate' is the user moving through browser history. Mutable so a
+    // test can exercise the history-authoritative branch of the search sync.
+    let navigationTrigger: 'imperative' | 'popstate';
     let router: {
         url: string;
         events: ReturnType<typeof of>;
@@ -125,6 +129,7 @@ describe('WorkspaceShellFacade', () => {
         parseUrl: jest.Mock;
         createUrlTree: jest.Mock;
         isActive: jest.Mock;
+        lastSuccessfulNavigation: () => { trigger: string };
     };
     let playlistsService: {
         clearPortalRecentlyViewed: jest.Mock;
@@ -160,6 +165,7 @@ describe('WorkspaceShellFacade', () => {
     };
 
     beforeEach(() => {
+        navigationTrigger = 'imperative';
         showDashboardSignal = signal(true);
         runtime = {
             isElectron: true,
@@ -196,6 +202,7 @@ describe('WorkspaceShellFacade', () => {
             parseUrl: jest.fn((url: string) => createParseUrl(url)),
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
+            lastSuccessfulNavigation: () => ({ trigger: navigationTrigger }),
         };
         playlistsService = {
             clearPortalRecentlyViewed: jest
