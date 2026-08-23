@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "音轨",
             "SUBTITLES": "字幕",
             "SUBTITLES_OFF": "关闭",
+            "QUALITY": "画质",
+            "QUALITY_AUTO": "自动",
             "TRACK_DEFAULT": "默认",
             "AUDIO_TRACK_FALLBACK": "音轨 {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "字幕 {{index}}",

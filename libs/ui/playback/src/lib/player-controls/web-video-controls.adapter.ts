@@ -40,6 +40,9 @@ export interface WebVideoControlsOptions extends WebVideoMetadataOptions {
     setAudioTrack?: (id: number) => void | Promise<void>;
     getSubtitleTracks?: () => PlayerTrack[];
     setSubtitleTrack?: (id: number) => void | Promise<void>;
+    getQualityLevels?: () => PlayerTrack[];
+    setQualityLevel?: (id: number) => void | Promise<void>;
+    isAutoQualityEnabled?: () => boolean;
 }
 
 interface WebVideoControlsContext {
@@ -90,6 +93,10 @@ export class WebVideoControlsAdapter implements PlayerController {
         const hasSubtitles =
             typeof this.opts.setSubtitleTrack === 'function' &&
             (this.opts.getSubtitleTracks?.().length ?? 0) > 0;
+        // Manifest-driven: a single-rendition source advertises no selector.
+        const hasQualityLevels =
+            typeof this.opts.setQualityLevel === 'function' &&
+            (this.opts.getQualityLevels?.().length ?? 0) > 1;
         const isLive = readVideoIsLive(this.video, this.opts);
         const pictureInPicture = this.pictureInPicture.snapshot();
         return {
@@ -100,6 +107,7 @@ export class WebVideoControlsAdapter implements PlayerController {
             fullscreen: true,
             audioTracks: hasAudioTracks,
             subtitles: hasSubtitles,
+            qualityLevels: hasQualityLevels,
             aspectRatio: false,
             recording: false,
             pictureInPicture: pictureInPicture.supported,
@@ -124,6 +132,7 @@ export class WebVideoControlsAdapter implements PlayerController {
 
         const audioTracks = this.opts.getAudioTracks?.() ?? [];
         const subtitleTracks = this.opts.getSubtitleTracks?.() ?? [];
+        const qualityLevels = this.opts.getQualityLevels?.() ?? [];
         const pictureInPicture = this.pictureInPicture.snapshot();
 
         return {
@@ -138,6 +147,8 @@ export class WebVideoControlsAdapter implements PlayerController {
             audioTracks,
             subtitleTracks,
             subtitlesEnabled: subtitleTracks.some((track) => track.selected),
+            qualityLevels,
+            qualityAutoEnabled: this.opts.isAutoQualityEnabled?.() ?? true,
             playbackSpeed: video?.playbackRate ?? 1,
             speedPresets: DEFAULT_SPEED_PRESETS,
             aspectRatio: 'no',
@@ -170,6 +181,10 @@ export class WebVideoControlsAdapter implements PlayerController {
             ),
         setSubtitleTrack: (id) =>
             applyTrackSelection(this.opts.setSubtitleTrack, id, () =>
+                this.refresh()
+            ),
+        setQualityLevel: (id) =>
+            applyTrackSelection(this.opts.setQualityLevel, id, () =>
                 this.refresh()
             ),
         setPlaybackSpeed: (speed) => applyVideoSpeed(this.video, speed),

@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "音軌",
             "SUBTITLES": "字幕",
             "SUBTITLES_OFF": "關閉",
+            "QUALITY": "畫質",
+            "QUALITY_AUTO": "自動",
             "TRACK_DEFAULT": "預設",
             "AUDIO_TRACK_FALLBACK": "音軌 {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "字幕 {{index}}",

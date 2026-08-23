@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "مسارات الصوت",
             "SUBTITLES": "الترجمة",
             "SUBTITLES_OFF": "معطلة",
+            "QUALITY": "الجودة",
+            "QUALITY_AUTO": "تلقائي",
             "TRACK_DEFAULT": "افتراضي",
             "AUDIO_TRACK_FALLBACK": "صوت {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "ترجمة {{index}}",

@@ -2,6 +2,7 @@ import type { WebVideoControlsOptions } from '../player-controls/web-video-contr
 import type { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
 import { VjsAudioTracks } from './vjs-audio-tracks';
 import type { VideoJsPlayer } from './vjs-player.types';
+import { VjsQualityLevels } from './vjs-quality-levels';
 import { VjsTextTracks } from './vjs-text-tracks';
 
 export interface VjsPlayerControlsBridgeConfig {
@@ -14,6 +15,7 @@ export interface VjsPlayerControlsBridgeConfig {
 export class VjsPlayerControlsBridge {
     private readonly audioTracks: VjsAudioTracks;
     private readonly textTracks: VjsTextTracks;
+    private readonly qualityLevels: VjsQualityLevels;
     private video: HTMLVideoElement | null = null;
     private sourceActive = false;
     private destroyed = false;
@@ -25,6 +27,9 @@ export class VjsPlayerControlsBridge {
         setAudioTrack: (id) => this.audioTracks.setAudioTrack(id),
         getSubtitleTracks: () => this.textTracks.getSubtitleTracks(),
         setSubtitleTrack: (id) => this.textTracks.setSubtitleTrack(id),
+        getQualityLevels: () => this.qualityLevels.getQualityLevels(),
+        setQualityLevel: (id) => this.qualityLevels.setQualityLevel(id),
+        isAutoQualityEnabled: () => this.qualityLevels.isAutoQualityEnabled(),
     };
 
     constructor(private readonly config: VjsPlayerControlsBridgeConfig) {
@@ -36,6 +41,10 @@ export class VjsPlayerControlsBridge {
         this.textTracks = new VjsTextTracks({
             player: config.player,
             showCaptions: config.showCaptions,
+            refresh,
+        });
+        this.qualityLevels = new VjsQualityLevels({
+            player: config.player,
             refresh,
         });
     }
@@ -63,6 +72,7 @@ export class VjsPlayerControlsBridge {
 
         this.audioTracks.resetSource();
         this.textTracks.resetSource();
+        this.qualityLevels.resetSource();
         this.sourceActive = true;
         this.bindTrackLists();
         this.config.adapter.refresh();
@@ -87,6 +97,7 @@ export class VjsPlayerControlsBridge {
 
         this.audioTracks.clear();
         this.textTracks.clear();
+        this.qualityLevels.clear();
         this.sourceActive = false;
         this.config.adapter.refresh();
     }
@@ -98,6 +109,7 @@ export class VjsPlayerControlsBridge {
 
         this.audioTracks.clear();
         this.textTracks.clear();
+        this.qualityLevels.clear();
         if (this.video) {
             this.config.adapter.detach();
         }
@@ -109,6 +121,7 @@ export class VjsPlayerControlsBridge {
     private bindTrackLists(): void {
         this.audioTracks.bind();
         this.textTracks.bind();
+        this.qualityLevels.bind();
     }
 
     private readDuration(): number {

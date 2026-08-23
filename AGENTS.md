@@ -211,6 +211,15 @@ Key files:
   `subtitleDisplay` would silently override whatever the vendor menu picks. For
   DASH the seed happens in `ShakaVideoSession.start()` after the manifest loads,
   so the helper only stops re-suppressing afterwards.
+- Shared controls include a per-session quality menu (Auto + "1080p"-style
+  levels via `setQualityLevel`; `AUTO_QUALITY_LEVEL_ID` restores ABR). The
+  capability derives from the manifest — advertised only when the source
+  exposes >1 video rendition (multi-variant HLS via hls.js
+  `nextLevel`/`manualLevel`, DASH via Shaka variant tracks pinned to the
+  active variant's exact audio stream (`audioId`, language fallback) with ABR
+  toggled off for manual picks, Video.js via videojs-contrib-quality-levels) —
+  so single-bitrate VOD and raw MPEG-TS never show it, nothing persists to
+  Settings, and Embedded MPV/external players report the capability false.
 - Embedded MPV ignores the web-player preference. Frame-copy always uses shared
   DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
   native-view retains the legacy compositor-safe dock and external MPV/VLC

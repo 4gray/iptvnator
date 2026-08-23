@@ -71,6 +71,8 @@ class MockHls {
         SUBTITLE_TRACKS_CLEARED: 'subtitleTracksCleared',
         SUBTITLE_TRACK_SWITCH: 'subtitleTrackSwitch',
         MANIFEST_LOADING: 'manifestLoading',
+        LEVELS_UPDATED: 'levelsUpdated',
+        LEVEL_SWITCHED: 'levelSwitched',
     };
     static isSupported = jest.fn(() => true);
 }

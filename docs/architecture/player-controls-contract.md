@@ -172,8 +172,8 @@ interface PlayerController {
 ### Capabilities
 
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
-`audioTracks`, `subtitles`, `playbackSpeed`, `aspectRatio`, `recording`,
-`pictureInPicture`, `fullscreen`, and `seriesNavigation`.
+`audioTracks`, `subtitles`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
+`recording`, `pictureInPicture`, `fullscreen`, and `seriesNavigation`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -188,6 +188,7 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - current position, optional duration, live/VOD classification, and seekability;
 - volume;
 - pre-labelled audio/subtitle tracks and subtitle-enabled state;
+- pre-labelled quality levels and the ABR/auto flag;
 - playback speed and aspect-ratio selections/presets;
 - recording state;
 - picture-in-picture active state and runtime availability; and
@@ -208,6 +209,7 @@ owner.
 - `seekTo` / `seekBy`
 - `setVolume`
 - `setAudioTrack` / `setSubtitleTrack`
+- `setQualityLevel` (`AUTO_QUALITY_LEVEL_ID` = `-1` re-enables auto)
 - `setPlaybackSpeed`
 - `setAspectRatio`
 - `toggleRecording`
@@ -487,6 +489,64 @@ control chrome. Subtitle rendering in that surface is browser-dependent.
 AirPlay, Cast, Document Picture-in-Picture, a PiP keyboard shortcut, and an
 Embedded MPV popup or native mini-window are out of scope.
 
+### Quality (bitrate/level) selection
+
+Quality selection is part of the shared controls and therefore rides the same
+default-off `WEB_PLAYER_SHARED_CONTROLS` rollout. The contract exposes:
+
+- capability `qualityLevels`;
+- state `qualityLevels` (pre-labelled options such as "1080p") and
+  `qualityAutoEnabled`; and
+- command `setQualityLevel(id)`, where `AUTO_QUALITY_LEVEL_ID` (`-1`)
+  re-enables the engine's adaptive (ABR) selection.
+
+The capability derives from the manifest, not the content type: it is
+advertised only when the current source exposes **more than one** video
+rendition, so single-bitrate Xtream VOD files and raw MPEG-TS streams never
+show the menu, while multi-variant live HLS does. The menu renders next to the
+audio/subtitle menus with an Auto entry first; Auto is the default, a level
+reports `selected` only while a manual choice is active, and the choice is
+per-session — nothing is persisted to Settings.
+
+Labels come from one shared helper (`quality-level-labels.ts` in
+`web-video-support/`): frame height first ("1080p"), a 16:9 projection when
+only the width is known, the bitrate when no dimension is known, and a bitrate
+suffix only when two levels would otherwise collide on the same label.
+
+Engine mechanics:
+
+- **hls.js** (HTML5 and ArtPlayer via the neutral source bridge): levels are
+  `hls.levels` with list-index ids; a manual switch assigns `hls.nextLevel`
+  (switches at the next fragment instead of flushing the buffer), `-1` restores
+  auto, and the selected level is read from the public `manualLevel`. The HLS
+  refresh-event list additionally observes `MANIFEST_PARSED`,
+  `LEVELS_UPDATED`, and `LEVEL_SWITCHED`.
+- **Shaka (DASH)**: options are variant tracks pinned to the active variant's
+  exact audio stream — variants are audio+video combinations, and picking a
+  quality must not switch the audio track. The filter matches the active
+  variant's `audioId` when Shaka reports one (two same-language audio tracks
+  such as main vs. commentary share a language but never an id) and falls back
+  to the language only when no id is available — sorted by resolution then
+  bandwidth. Manual
+  selection disables ABR via `configure({abr: {enabled: false}})` before
+  `selectVariantTrack(track, true)`; the auto sentinel re-enables ABR. Manual
+  state is keyed to the exact player instance, so a session restart (which
+  creates a fresh player with ABR on) can never render a stale manual
+  selection.
+- **Video.js**: `VjsQualityLevels` projects the videojs-contrib-quality-levels
+  list (registered by the component's plugin import). VHS has no manual-level
+  setter, so a manual selection enables exactly one level and auto re-enables
+  all. Manual intent is tracked explicitly by the picked level object — VHS
+  also flips `enabled` off for renditions it temporarily excludes after
+  delivery errors, so counting enabled levels would misreport a manual
+  selection. A picked level that leaves the list, a source change, and
+  `clear()` all revert to auto. A missing or throwing plugin degrades to no
+  capability.
+- **Embedded MPV and external players**: `qualityLevels` stays false —
+  single-program transport streams have no rendition list to offer and no HLS
+  level API is surfaced there. `EmbeddedMpvControlsAdapter.setQualityLevel` is
+  a no-op.
+
 Native media events refresh the adapter automatically. An engine host must call
 the public `refresh()` hook after engine-specific getters change
 without a corresponding media event, including track lists, corrected duration,
@@ -705,8 +765,10 @@ The neutral web-video source support shared by HTML5 and ArtPlayer lives in:
 
 ```text
 libs/ui/playback/src/lib/web-video-support/
+├── quality-level-labels.ts
 ├── web-video-hls-controls.ts
 ├── web-video-native-text-tracks.ts
+├── web-video-shaka-controls.ts
 ├── web-video-source-tracks.ts
 └── web-video-source-controls.bridge.ts
 ```
@@ -745,6 +807,7 @@ libs/ui/playback/src/lib/vjs-player/
 ├── vjs-audio-tracks.ts
 ├── vjs-legacy-tracks.ts
 ├── vjs-mpegts-session.ts
+├── vjs-quality-levels.ts
 ├── vjs-player-controls.bridge.ts
 ├── vjs-player-reset-coordinator.ts
 ├── vjs-player-setup.ts

@@ -24,6 +24,7 @@ function createFakeController() {
         setVolume: jest.fn(),
         setAudioTrack: jest.fn(),
         setSubtitleTrack: jest.fn(),
+        setQualityLevel: jest.fn(),
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),

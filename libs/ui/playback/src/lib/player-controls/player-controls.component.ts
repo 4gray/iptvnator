@@ -127,6 +127,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly canTogglePlay = this.vm.canTogglePlay;
     readonly hasAudioTracks = this.vm.hasAudioTracks;
     readonly hasSubtitleTracks = this.vm.hasSubtitleTracks;
+    readonly hasQualityLevels = this.vm.hasQualityLevels;
     readonly canRecord = this.vm.canRecord;
     readonly isRecording = this.vm.isRecording;
     readonly recordingStatusText = this.vm.recordingStatusText;
@@ -300,7 +301,9 @@ export class PlayerControlsComponent implements OnDestroy {
         this.reveal();
     }
 
-    toggleMenu(menu: 'audio' | 'subtitle' | 'speed' | 'aspect'): void {
+    toggleMenu(
+        menu: 'audio' | 'subtitle' | 'quality' | 'speed' | 'aspect'
+    ): void {
         this.menus.toggle(menu);
         this.reveal();
     }

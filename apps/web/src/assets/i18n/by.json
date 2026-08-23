@@ -534,6 +534,8 @@
             "AUDIO_TRACKS": "Аўдыядарожкі",
             "SUBTITLES": "Субтытры",
             "SUBTITLES_OFF": "Выкл.",
+            "QUALITY": "Якасць",
+            "QUALITY_AUTO": "Аўта",
             "TRACK_DEFAULT": "Па змаўчанні",
             "AUDIO_TRACK_FALLBACK": "Аўдыя {{index}}",
             "SUBTITLE_TRACK_FALLBACK": "Субтытры {{index}}",
