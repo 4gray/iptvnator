@@ -103,6 +103,37 @@ describe('build-release-notes CLI arguments', () => {
         assert.match(result.stdout, /\*\*playback\*\* — An example note\./);
     });
 
+    it('renders the telegram announcement to stdout', () => {
+        const result = runCli([
+            '--format',
+            'telegram',
+            '--version',
+            '0.24.0',
+            '--dir',
+            makeNotesDir(),
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /🎉 IPTVnator v0\.24\.0 is out!/);
+        assert.match(result.stdout, /✨ An example note\./);
+        assert.match(result.stdout, /releases\/tag\/v0\.24\.0/);
+    });
+
+    it('renders the reddit announcement to stdout', () => {
+        const result = runCli([
+            '--format',
+            'reddit',
+            '--version',
+            '0.24.0',
+            '--dir',
+            makeNotesDir(),
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /^Suggested title: IPTVnator v0\.24\.0/);
+        assert.match(result.stdout, /- \*\*playback\*\* — An example note\./);
+    });
+
     it('still rejects a genuinely unknown argument', () => {
         const result = runCli(['--validate', '--nope']);
 

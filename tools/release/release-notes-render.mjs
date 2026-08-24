@@ -222,12 +222,17 @@ export function upsertChangelogSection(changelog, section, version, marker) {
 }
 
 /**
- * Blog entries carrying a `screenshot:` slug become their own subsection with
- * an image slider; the rest stay bullets.
+ * Blog entries carrying a `screenshot:` slug or a `highlight:` headline become
+ * their own subsection (with an image slider when a screenshot exists); the
+ * rest stay bullets.
  */
 function renderBlogGroup(group, { slug, links }) {
-    const bullets = group.notes.filter((note) => !note.screenshot);
-    const featured = group.notes.filter((note) => note.screenshot);
+    const bullets = group.notes.filter(
+        (note) => !note.screenshot && !note.highlight
+    );
+    const featured = group.notes.filter(
+        (note) => note.screenshot || note.highlight
+    );
     const blocks = [`## ${group.heading}`];
 
     if (bullets.length > 0) {
@@ -242,9 +247,23 @@ function renderBlogGroup(group, { slug, links }) {
     }
 
     for (const note of featured) {
-        // The heading is editorial work — a note body makes a terrible one.
-        // Leave a visible TODO instead of pretending otherwise; the whole
-        // scaffold ships as `draft: true` anyway.
+        // A `highlight:` headline is the editorial headline; without one the
+        // heading is editorial work a note body cannot stand in for — leave a
+        // visible TODO instead of pretending otherwise; the whole scaffold
+        // ships as `draft: true` anyway.
+        blocks.push(
+            note.highlight
+                ? `### ${escapeMdx(note.highlight)}`
+                : `### TODO headline (${note.area})`
+        );
+        blocks.push(
+            `${escapeMdx(oneLine(note.body))}${formatReferences(note, links)}`
+        );
+
+        if (!note.screenshot) {
+            continue;
+        }
+
         // Embedded in a single-quoted JS string inside MDX. Backslashes must
         // be escaped before apostrophes, or a body ending in `\` produces an
         // unterminated string and breaks the website build.
@@ -258,10 +277,6 @@ function renderBlogGroup(group, { slug, links }) {
             )
             .join('\n');
 
-        blocks.push(`### TODO headline (${note.area})`);
-        blocks.push(
-            `${escapeMdx(oneLine(note.body))}${formatReferences(note, links)}`
-        );
         blocks.push(`<BlogImageSlider\n    images={[\n${images}\n    ]}\n/>`);
     }
 

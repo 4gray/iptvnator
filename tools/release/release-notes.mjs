@@ -4,7 +4,7 @@
  * One file per user-visible change, written by the PR author while the
  * context is still fresh. The generator (build-release-notes.mjs) turns the
  * accumulated files into the GitHub release body, the CHANGELOG.md section,
- * and the website blog scaffold.
+ * the website blog scaffold, and the Telegram/Reddit announcement drafts.
  *
  * Deliberately dependency-free: a hand-rolled parser for this tiny, closed
  * schema is more predictable than a YAML engine, and it can reject unknown
@@ -27,12 +27,21 @@ export const TYPE_HEADINGS = {
     internal: 'Internal',
 };
 
-const KNOWN_KEYS = new Set(['type', 'area', 'issues', 'screenshot']);
+const KNOWN_KEYS = new Set([
+    'type',
+    'area',
+    'issues',
+    'screenshot',
+    'highlight',
+]);
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const DELIMITER = '---';
 
 /** Keeps entries to a sentence or three; essays belong in the blog post. */
 const MAX_BODY_LENGTH = 400;
+
+/** A highlight is a headline, not a paragraph. */
+const MAX_HIGHLIGHT_LENGTH = 80;
 
 /**
  * Splits a note into its frontmatter lines and body.
@@ -114,7 +123,7 @@ function parseIssueList(value) {
  *
  * @param {string} content
  * @param {string} sourcePath path used in error messages and PR resolution
- * @returns {{ type: string, area: string, issues: number[], screenshot: string | null, body: string, sourcePath: string }}
+ * @returns {{ type: string, area: string, issues: number[], screenshot: string | null, highlight: string | null, body: string, sourcePath: string }}
  */
 export function parseNote(content, sourcePath) {
     const { frontmatterLines, body } = splitFrontmatter(content);
@@ -141,6 +150,7 @@ export function parseNote(content, sourcePath) {
         area: fields.get('area') ?? '',
         issues: fields.has('issues') ? parseIssueList(fields.get('issues')) : [],
         screenshot: fields.get('screenshot') ?? null,
+        highlight: fields.get('highlight') ?? null,
         unknownKeys: [...fields.keys()].filter((key) => !KNOWN_KEYS.has(key)),
         body,
         sourcePath,
@@ -186,6 +196,24 @@ export function validateNote(note) {
         errors.push(
             `\`screenshot\` must be a lowercase slug from the screenshot manifest, got "${note.screenshot}"`
         );
+    }
+
+    if (note.highlight !== null) {
+        if (!note.highlight) {
+            errors.push(
+                '`highlight` is present but empty — give the feature a short headline or drop the key'
+            );
+        } else if (note.highlight.length > MAX_HIGHLIGHT_LENGTH) {
+            errors.push(
+                `\`highlight\` is ${note.highlight.length} characters, max ${MAX_HIGHLIGHT_LENGTH} — it is a headline, the body carries the detail`
+            );
+        }
+
+        if (note.type === 'internal') {
+            errors.push(
+                '`highlight` is not allowed on `type: internal` — internal notes never reach announcements'
+            );
+        }
     }
 
     for (const key of note.unknownKeys) {
