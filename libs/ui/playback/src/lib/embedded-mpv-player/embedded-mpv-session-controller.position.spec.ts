@@ -1,3 +1,4 @@
+import { NgZone } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
     EmbeddedMpvSession,
@@ -24,6 +25,8 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
         disposeEmbeddedMpvSession: jest.Mock;
         setEmbeddedMpvBounds: jest.Mock;
         onEmbeddedMpvSessionUpdate: jest.Mock;
+        attachEmbeddedMpvFrameView?: jest.Mock;
+        detachEmbeddedMpvFrameView?: jest.Mock;
     };
 
     beforeEach(() => {
@@ -126,7 +129,81 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
         await jest.advanceTimersByTimeAsync(2000);
         expect(electron.setEmbeddedMpvBounds).not.toHaveBeenCalled();
     });
+
+    it('registers the poll outside the Angular zone', async () => {
+        // With zone change detection, a zone-registered interval would run
+        // app-wide change detection every 500 ms for the whole stream.
+        const zone = TestBed.inject(NgZone);
+        const runOutsideAngular = jest.spyOn(zone, 'runOutsideAngular');
+
+        const controller = TestBed.inject(EmbeddedMpvSessionController);
+        const teardown = controller.startSession(
+            createHost(),
+            createPlayback(),
+            0.5
+        );
+        await waitFor(
+            () => controller.sessionId() === 'mpv-1',
+            'session to start'
+        );
+
+        expect(runOutsideAngular).toHaveBeenCalled();
+        teardown();
+    });
+
+    it('skips drift measurement for the frame-copy engine', async () => {
+        // Frame-copy paints into a DOM canvas that moves with the layout, so
+        // a position-only shift needs no re-sync (size changes still arrive
+        // through ResizeObserver).
+        electron.getEmbeddedMpvSupport.mockResolvedValue({
+            supported: true,
+            platform: 'linux',
+            engine: 'frame-copy',
+        });
+        electron.attachEmbeddedMpvFrameView = jest
+            .fn()
+            .mockResolvedValue(true);
+        electron.detachEmbeddedMpvFrameView = jest.fn();
+
+        const rect = { left: 10, top: 20, width: 640, height: 360 };
+        const host = {
+            getBoundingClientRect: () => ({ ...rect }),
+        } as HTMLElement;
+
+        const controller = TestBed.inject(EmbeddedMpvSessionController);
+        await waitFor(
+            () => controller.support()?.engine === 'frame-copy',
+            'support to load'
+        );
+        const teardown = controller.startSession(host, createPlayback(), 0.5);
+        await waitFor(
+            () => controller.sessionId() === 'mpv-1',
+            'session to start'
+        );
+        await waitFor(
+            () => electron.setEmbeddedMpvBounds.mock.calls.length > 0,
+            'initial bounds sync'
+        );
+        electron.setEmbeddedMpvBounds.mockClear();
+
+        rect.left = 29;
+        await jest.advanceTimersByTimeAsync(2000);
+        expect(electron.setEmbeddedMpvBounds).not.toHaveBeenCalled();
+
+        teardown();
+    });
 });
+
+function createHost(): HTMLElement {
+    return {
+        getBoundingClientRect: () => ({
+            left: 10,
+            top: 20,
+            width: 640,
+            height: 360,
+        }),
+    } as HTMLElement;
+}
 
 function createPlayback(): ResolvedPortalPlayback {
     return {

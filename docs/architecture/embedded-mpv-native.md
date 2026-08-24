@@ -675,7 +675,13 @@ stale coordinates and rendered offset from the DOM stage. The session
 controller therefore polls the host bounds every 500 ms while a session is
 active, compares them against the last synced bounds with a half-pixel
 tolerance, and schedules a re-sync only on drift — idle cost is one
-`getBoundingClientRect` per tick with no IPC.
+`getBoundingClientRect` per tick with no IPC. The interval is registered
+outside Angular's zone (a zone timer would run app-wide change detection
+every tick for the whole stream) and never re-enters it, because the drift
+path is rAF → `setEmbeddedMpvBounds` IPC and touches no Angular state.
+Frame-copy skips the measurement entirely: its canvas is laid out by the
+DOM and moves with the layout, so only the native-view child window can go
+stale on a position-only shift.
 
 ### Controls ownership by engine
 

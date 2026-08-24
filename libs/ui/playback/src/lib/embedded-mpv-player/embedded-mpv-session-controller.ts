@@ -1,6 +1,7 @@
 import {
     DestroyRef,
     Injectable,
+    NgZone,
     computed,
     effect,
     inject,
@@ -75,6 +76,7 @@ export class EmbeddedMpvSessionController {
     );
 
     private readonly destroyRef = inject(DestroyRef);
+    private readonly zone = inject(NgZone);
     private readonly unsubscribeSessionUpdate?: () => void;
 
     private boundsProvider: EmbeddedMpvBoundsProvider = (host) =>
@@ -182,14 +184,29 @@ export class EmbeddedMpvSessionController {
         // the measured bounds against the last synced ones and re-syncs only
         // on drift, so the idle cost is one getBoundingClientRect per tick
         // with no IPC.
-        const positionPoll = window.setInterval(() => {
-            if (!activeSessionId || !lastSyncedBounds) {
-                return;
-            }
-            if (boundsDiffer(this.boundsProvider(host), lastSyncedBounds)) {
-                scheduleBoundsSync();
-            }
-        }, POSITION_POLL_INTERVAL_MS);
+        //
+        // The interval runs outside Angular's zone: with zone change
+        // detection a zone-registered timer would run app-wide change
+        // detection every tick for the whole stream. It never re-enters the
+        // zone — the drift path is rAF → setEmbeddedMpvBounds IPC and
+        // touches no Angular state. Frame-copy paints into a DOM canvas
+        // that moves with the layout, so only native-view can go stale on a
+        // position-only shift; the poll skips the measurement there.
+        const positionPoll = this.zone.runOutsideAngular(() =>
+            window.setInterval(() => {
+                if (!activeSessionId || !lastSyncedBounds) {
+                    return;
+                }
+                if (untracked(() => this.isFrameCopyEngine())) {
+                    return;
+                }
+                if (
+                    boundsDiffer(this.boundsProvider(host), lastSyncedBounds)
+                ) {
+                    scheduleBoundsSync();
+                }
+            }, POSITION_POLL_INTERVAL_MS)
+        );
 
         // Page zoom and monitor DPI rescale the CSS→native-pixel mapping the
         // backend applies to these bounds. Moving the window to a display
