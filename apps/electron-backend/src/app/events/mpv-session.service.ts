@@ -282,6 +282,15 @@ export async function openMpvPlayer({
             args.push(`--input-ipc-server=${socketPath}`, '--idle=yes');
         }
 
+        // HD buffering: lavf options are init-only; HLS ignores demuxer-readahead-secs so cache-secs is the operative lever.
+        args.push(
+            '--demuxer-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1'
+        );
+        args.push(
+            '--demuxer-lavf-o=protocol_whitelist=file,crypto,http,https,tcp,tls,crypto'
+        );
+        args.push('--cache-secs=30');
+
         args.push('--ytdl=no');
 
         if (effectiveUserAgent) {
