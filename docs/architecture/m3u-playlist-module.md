@@ -581,6 +581,12 @@ panel live. The setting flows end-to-end (`Settings.epgViewMode` →
 is gated behind `supportsEpg`, which is false in PWA; there the stored value
 simply stays at the `'timeline'` default.
 
+EPG display times also support a global `Settings.epgOffsetMinutes` correction,
+clamped to -720..720 minutes and defaulting to zero. It is applied only while
+converting raw programme times for the timeline, list, date filtering, and
+collapsed summary; parsed XMLTV values and SQLite rows are never rewritten, so
+changing the value takes effect immediately without refreshing the guide.
+
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from
 `@iptvnator/ui/epg`:

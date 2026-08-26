@@ -113,6 +113,7 @@ export const DEFAULT_SETTINGS = {
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
     epgViewMode: 'timeline',
+    epgOffsetMinutes: 0,
     tmdb: { enabled: false, apiKey: '' },
 };
 

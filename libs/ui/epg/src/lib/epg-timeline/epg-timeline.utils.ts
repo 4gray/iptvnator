@@ -50,14 +50,23 @@ function minutesBetween(fromMs: number, toMs: number): number {
  */
 export function buildTimelineAxis(
     programs: readonly EpgProgram[],
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): TimelineAxis {
     let minMs = nowMs;
     let maxMs = nowMs;
 
     for (const program of programs) {
-        const startMs = getProgramTimeMs(program.start, program.startTimestamp);
-        const stopMs = getProgramTimeMs(program.stop, program.stopTimestamp);
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp,
+            offsetMinutes
+        );
+        const stopMs = getProgramTimeMs(
+            program.stop,
+            program.stopTimestamp,
+            offsetMinutes
+        );
         if (Number.isFinite(startMs)) {
             minMs = Math.min(minMs, startMs);
         }
@@ -90,13 +99,22 @@ export function classifyTimelineWhen(
 export function buildTimelineBlocks(
     programs: readonly EpgProgram[],
     axis: TimelineAxis,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): TimelineBlock[] {
     const blocks: TimelineBlock[] = [];
 
     programs.forEach((program, index) => {
-        const startMs = getProgramTimeMs(program.start, program.startTimestamp);
-        const stopMs = getProgramTimeMs(program.stop, program.stopTimestamp);
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp,
+            offsetMinutes
+        );
+        const stopMs = getProgramTimeMs(
+            program.stop,
+            program.stopTimestamp,
+            offsetMinutes
+        );
         if (
             !Number.isFinite(startMs) ||
             !Number.isFinite(stopMs) ||
@@ -146,7 +164,9 @@ export function buildTimelineTicks(
     return ticks;
 }
 
-export function buildTimelineDayDividers(axis: TimelineAxis): TimelineDayDivider[] {
+export function buildTimelineDayDividers(
+    axis: TimelineAxis
+): TimelineDayDivider[] {
     const dividers: TimelineDayDivider[] = [];
     let cursor = startOfDay(axis.startMs);
 
@@ -164,10 +184,7 @@ export function buildTimelineDayDividers(axis: TimelineAxis): TimelineDayDivider
 }
 
 /** Local-day key (yyyy-MM-dd) for the day currently centred in the viewport. */
-export function dayKeyAtOffset(
-    axis: TimelineAxis,
-    offsetMin: number
-): string {
+export function dayKeyAtOffset(axis: TimelineAxis, offsetMin: number): string {
     const ms = axis.startMs + offsetMin * TIMELINE_MINUTE_MS;
     return getProgramDateKey(new Date(ms).toISOString());
 }
@@ -183,15 +200,24 @@ export function dayKeyAtOffset(
  */
 export function hasProgramsForDateKey(
     programs: readonly EpgProgram[],
-    dateKey: string
+    dateKey: string,
+    offsetMinutes = 0
 ): boolean {
     const dayStart = parseEpgDateKey(dateKey);
     const dayStartMs = dayStart.getTime();
     const dayEndMs = addDays(dayStart, 1).getTime(); // exclusive
 
     return programs.some((program) => {
-        const startMs = getProgramTimeMs(program.start, program.startTimestamp);
-        const stopMs = getProgramTimeMs(program.stop, program.stopTimestamp);
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp,
+            offsetMinutes
+        );
+        const stopMs = getProgramTimeMs(
+            program.stop,
+            program.stopTimestamp,
+            offsetMinutes
+        );
         if (!Number.isFinite(startMs) || !Number.isFinite(stopMs)) {
             return false;
         }
@@ -202,20 +228,29 @@ export function hasProgramsForDateKey(
 /** Nearest date key (yyyy-MM-dd) that actually has programmes, or null. */
 export function nearestDateKeyWithPrograms(
     programs: readonly EpgProgram[],
-    referenceMs: number
+    referenceMs: number,
+    offsetMinutes = 0
 ): string | null {
     let bestKey: string | null = null;
     let bestDelta = Number.POSITIVE_INFINITY;
 
     for (const program of programs) {
-        const startMs = getProgramTimeMs(program.start, program.startTimestamp);
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp,
+            offsetMinutes
+        );
         if (!Number.isFinite(startMs)) {
             continue;
         }
         const delta = Math.abs(startMs - referenceMs);
         if (delta < bestDelta) {
             bestDelta = delta;
-            bestKey = getProgramDateKey(program.start, program.startTimestamp);
+            bestKey = getProgramDateKey(
+                program.start,
+                program.startTimestamp,
+                offsetMinutes
+            );
         }
     }
 

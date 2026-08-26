@@ -87,6 +87,7 @@
                     @if (epgViewMode() === 'list') {
                         <app-epg-list-view
                             [programs]="timelinePrograms()"
+                            [offsetMinutes]="epgOffsetMinutes()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
                             [archivePlaybackAvailable]="
@@ -116,6 +117,7 @@
                     } @else {
                         <app-epg-timeline
                             [programs]="timelinePrograms()"
+                            [offsetMinutes]="epgOffsetMinutes()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
                             [archivePlaybackAvailable]="

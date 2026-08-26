@@ -15,7 +15,8 @@ function clampPercent(value: number): number {
 }
 
 function toTimeMs(
-    value: string | number | Date | null | undefined
+    value: string | number | Date | null | undefined,
+    offsetMinutes = 0
 ): number | null {
     if (value === null || value === undefined || value === '') {
         return null;
@@ -26,7 +27,7 @@ function toTimeMs(
             : typeof value === 'number'
               ? value
               : Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : null;
+    return Number.isFinite(parsed) ? parsed + offsetMinutes * 60_000 : null;
 }
 
 /** Whether the summary has a non-blank title. */
@@ -47,7 +48,8 @@ export function summaryHasTimeRange(
 /** Progress 0–100 for the summary at `nowMs`, or null when it can't be computed. */
 export function summaryProgress(
     summary: EpgTimelineSummary | null | undefined,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): number | null {
     if (!summary) {
         return null;
@@ -56,8 +58,8 @@ export function summaryProgress(
     if (Number.isFinite(explicit)) {
         return clampPercent(explicit);
     }
-    const startMs = toTimeMs(summary.start);
-    const stopMs = toTimeMs(summary.stop);
+    const startMs = toTimeMs(summary.start, offsetMinutes);
+    const stopMs = toTimeMs(summary.stop, offsetMinutes);
     if (startMs === null || stopMs === null || stopMs <= startMs) {
         return null;
     }
@@ -67,9 +69,10 @@ export function summaryProgress(
 /** Whole minutes left until the summary's stop, or null. */
 export function summaryMinutesLeft(
     summary: EpgTimelineSummary | null | undefined,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): number | null {
-    const stopMs = toTimeMs(summary?.stop);
+    const stopMs = toTimeMs(summary?.stop, offsetMinutes);
     if (stopMs === null) {
         return null;
     }

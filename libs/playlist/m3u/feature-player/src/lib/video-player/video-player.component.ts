@@ -388,6 +388,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
@@ -806,9 +807,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             const currentEpgProgram = epgProgram as
-                | EpgProgram
-                | null
-                | undefined;
+                EpgProgram | null | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );

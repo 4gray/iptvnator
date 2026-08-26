@@ -53,10 +53,11 @@
                     </div>
                     <div class="epg-timeline">
                         <span class="epg-time">{{
-                            (program.startTimestamp
-                                ? program.startTimestamp * 1000
-                                : program.start
-                            ) | date: 'HH:mm'
+                            programTimeMs(
+                                program.start,
+                                program.startTimestamp
+                            ) +
+                                epgOffsetMinutes() * 60000 | date: 'HH:mm'
                         }}</span>
                         <div class="epg-progress-track">
                             <div
@@ -67,10 +68,8 @@
                             ></div>
                         </div>
                         <span class="epg-time">{{
-                            (program.stopTimestamp
-                                ? program.stopTimestamp * 1000
-                                : program.stop
-                            ) | date: 'HH:mm'
+                            programTimeMs(program.stop, program.stopTimestamp) +
+                                epgOffsetMinutes() * 60000 | date: 'HH:mm'
                         }}</span>
                     </div>
                 } @else if (!isRadio()) {

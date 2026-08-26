@@ -44,6 +44,14 @@ export type CoverSize = 'small' | 'medium' | 'large';
 /** Rendering of the live EPG panel under the player. */
 export type EpgViewMode = 'timeline' | 'list';
 
+export function normalizeEpgOffsetMinutes(value: unknown): number {
+    const offset = Number(value);
+    if (!Number.isFinite(offset)) {
+        return 0;
+    }
+    return Math.min(720, Math.max(-720, Math.trunc(offset)));
+}
+
 export interface DashboardRailsSettings {
     hero: boolean;
     continueWatching: boolean;
@@ -181,6 +189,8 @@ export interface Settings {
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */
     epgViewMode?: EpgViewMode;
+    /** Display-only correction for XMLTV feeds with an incorrect timezone. */
+    epgOffsetMinutes?: number;
     /** Per-rail dashboard visibility preferences. Missing keys default on. */
     dashboardRails?: DashboardRailsSettings;
     /**

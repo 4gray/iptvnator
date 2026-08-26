@@ -426,6 +426,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
@@ -490,8 +491,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Scroll */
     readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
-    private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null =
-        null;
+    private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;

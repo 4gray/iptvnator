@@ -39,6 +39,7 @@ export class ChannelListItemComponent {
     private readonly dialog = inject(MatDialog);
     private readonly logoFailed = signal(false);
     private readonly settingsStore = inject(SettingsStore);
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
 
     readonly isDraggable = input(false);
     readonly logo = input<string | null | undefined>('');
@@ -106,6 +107,12 @@ export class ChannelListItemComponent {
         }
 
         this.showProgramDescription(program, event);
+    }
+
+    programTimeMs(value: string, timestamp?: number | null): number {
+        return Number.isFinite(timestamp) && Number(timestamp) > 0
+            ? Number(timestamp) * 1000
+            : Date.parse(value);
     }
 
     onFavoriteClick(event: MouseEvent): void {

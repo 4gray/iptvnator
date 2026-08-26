@@ -109,6 +109,10 @@ describe('epg-summary.util', () => {
             expect(summaryMinutesLeft(summary(), NOW)).toBe(60);
         });
 
+        it('applies the display offset to the remaining time', () => {
+            expect(summaryMinutesLeft(summary(), NOW, 30)).toBe(90);
+        });
+
         it('rounds to the nearest minute', () => {
             expect(
                 summaryMinutesLeft(summary({ stop: NOW + 90_000 }), NOW)

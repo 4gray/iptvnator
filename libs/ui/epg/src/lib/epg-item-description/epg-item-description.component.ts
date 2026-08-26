@@ -7,7 +7,11 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { differenceInMinutes } from 'date-fns';
 import { startWith } from 'rxjs';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    EpgProgram,
+    normalizeEpgOffsetMinutes,
+} from '@iptvnator/shared/interfaces';
+import { getProgramTimeMs } from '../epg-program.utils';
 
 export type EpgItemDialogAction = 'live' | 'timeshift';
 
@@ -21,6 +25,8 @@ export type EpgItemDialogData = EpgProgram & {
     primaryAction?: EpgItemDialogAction | null;
     /** Show a "catch-up unavailable" note instead of an action button. */
     archiveUnavailableNote?: boolean;
+    /** Display-only correction for the programme timestamps. */
+    displayOffsetMinutes?: number;
 };
 
 @Component({
@@ -72,11 +78,19 @@ export class EpgItemDescriptionComponent {
         this.primaryAction = this.dialogData.primaryAction ?? null;
         this.archiveUnavailableNote =
             this.dialogData.archiveUnavailableNote ?? false;
-        this.startMs = toMs(
-            this.epgProgram.start,
-            this.epgProgram.startTimestamp
+        const offsetMinutes = normalizeEpgOffsetMinutes(
+            this.dialogData.displayOffsetMinutes
         );
-        this.stopMs = toMs(this.epgProgram.stop, this.epgProgram.stopTimestamp);
+        this.startMs = getProgramTimeMs(
+            this.epgProgram.start,
+            this.epgProgram.startTimestamp,
+            offsetMinutes
+        );
+        this.stopMs = getProgramTimeMs(
+            this.epgProgram.stop,
+            this.epgProgram.stopTimestamp,
+            offsetMinutes
+        );
     }
 
     private calculateDuration(): string | null {
@@ -95,11 +109,4 @@ export class EpgItemDescriptionComponent {
             return null;
         }
     }
-}
-
-function toMs(iso: string, timestamp?: number | null): number {
-    if (Number.isFinite(timestamp) && Number(timestamp) > 0) {
-        return Number(timestamp) * 1000;
-    }
-    return Date.parse(iso);
 }

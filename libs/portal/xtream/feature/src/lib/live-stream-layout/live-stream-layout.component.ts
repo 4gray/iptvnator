@@ -199,7 +199,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
             channelLogoUrl:
-                item.poster_url?.trim() || item.stream_icon?.trim() || undefined,
+                item.poster_url?.trim() ||
+                item.stream_icon?.trim() ||
+                undefined,
             playlistId: playlist?.id,
             playlistName:
                 playlistDisplayLabel(playlist?.name ?? playlist?.title) ||
@@ -281,6 +283,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(

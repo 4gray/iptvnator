@@ -275,6 +275,7 @@ export class UnifiedLiveTabComponent {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly liveEpgPanelSummary = computed(() => {
         const timeshift = this.activeTimeshift();
         if (timeshift) {
@@ -282,7 +283,10 @@ export class UnifiedLiveTabComponent {
             return toLiveEpgPanelSummary(timeshift.program);
         }
         this.progressTick();
-        return getLiveEpgPanelSummary(this.activeDetail());
+        return getLiveEpgPanelSummary(
+            this.activeDetail(),
+            this.epgOffsetMinutes()
+        );
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
         this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'

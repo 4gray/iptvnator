@@ -26,6 +26,7 @@ describe('EpgItemDescriptionComponent', () => {
                         title: 'TV Show 1',
                         desc: 'Highly interesting show about pets',
                         category: 'Fun',
+                        displayOffsetMinutes: 60,
                     } as unknown as EpgProgram,
                 },
             ],
@@ -63,5 +64,14 @@ describe('EpgItemDescriptionComponent', () => {
         expect(descElement.nativeElement.textContent.trim()).toContain(
             'Highly interesting show about pets'
         );
+    });
+
+    it('applies the display offset to dialog timestamps', () => {
+        const start = Date.parse('2026-04-05T11:30:00.000Z');
+        const stop = Date.parse('2026-04-05T12:30:00.000Z');
+        const offsetMinutes = 60;
+
+        expect(component.startMs).toBe(start + offsetMinutes * 60_000);
+        expect(component.stopMs).toBe(stop + offsetMinutes * 60_000);
     });
 });
