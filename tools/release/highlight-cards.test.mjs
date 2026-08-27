@@ -631,3 +631,49 @@ describe('generate-highlight-cards CLI', () => {
         assert.deepEqual(readdirSync(outputDir), ['card-old-feature.png']);
     });
 });
+
+describe('estimateTextWidth against real rendering', () => {
+    /** Ink width of one rendered line, via sharp's trim. */
+    async function measureRenderedWidth(text, fontSize) {
+        const svg = [
+            '<svg xmlns="http://www.w3.org/2000/svg" width="6000" height="240">',
+            `<text x="0" y="150" font-family="DM Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="800" fill="#fff">`,
+            escapeXml(text),
+            '</text></svg>',
+        ].join('');
+        const { info } = await sharp(Buffer.from(svg))
+            .trim({ threshold: 1 })
+            .toBuffer({ resolveWithObject: true });
+
+        return info.width;
+    }
+
+    it('never under-estimates a rendered line', async () => {
+        // The guard against the whole class of bug that produced this model:
+        // an under-estimate skips both the wrap and the textLength clamp, and
+        // the card is cropped with every unit test still passing.
+        const samples = [
+            ['Advanced subtitles with external files', 52],
+            ['Live TV recordings in the download manager', 52],
+            ['W'.repeat(34), 52],
+            ['M'.repeat(34), 62],
+            ['æ'.repeat(34), 52],
+            ['œ'.repeat(30), 52],
+            ['界'.repeat(28), 52],
+            ['한'.repeat(28), 30],
+            ['Дашборд с рекомендациями TMDB', 52],
+            ['#@%&'.repeat(10), 52],
+            ['Ünïcödé áccênts thrøughöut', 52],
+        ];
+
+        for (const [text, fontSize] of samples) {
+            const measured = await measureRenderedWidth(text, fontSize);
+            const estimate = estimateTextWidth(text, fontSize);
+
+            assert.ok(
+                estimate >= measured,
+                `"${text.slice(0, 30)}" at ${fontSize}px: estimate ${Math.round(estimate)}px < measured ${measured}px`
+            );
+        }
+    });
+});

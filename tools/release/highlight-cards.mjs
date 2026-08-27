@@ -71,58 +71,51 @@ export function escapeXml(text) {
  *
  * Counting characters is not a width budget: 34 `W` at font-size 52 measures
  * ~1948px where only ~1072px are available, so a character-capped line still
- * overflowed the canvas. These factors are calibrated against that measured
- * bold rendering and deliberately err high — over-estimating wraps a line
- * early, which is invisible; under-estimating crops the card.
+ * overflowed the canvas.
+ *
+ * The model is deliberately inverted — narrow characters are enumerated and
+ * **everything else is assumed wide**. Enumerating the wide ones instead is a
+ * game that cannot be won: successive passes each found another
+ * under-estimated glyph (`W`, then CJK and emoji, then the `ae` ligature),
+ * and any glyph the list misses crops the card silently. In this shape the
+ * estimate can only ever run high, and running high costs an early line
+ * break nobody sees.
  */
-const WIDE_GLYPHS = new Set('MWmw@%ЖШЩбюфЮ');
-const NARROW_GLYPHS = new Set("iljItfrJ.,;:'\"`!|()[]{}/\\-ЁІ");
+const WIDEST_FACTOR = 1.15;
 
-/**
- * @param {string} text
- * @param {number} fontSize
- * @returns {number} estimated rendered width in pixels
- */
-/**
- * Latin (through Extended-B), Greek and Cyrillic plus ASCII punctuation — the
- * scripts the factors above were calibrated on.
- */
-function isCalibratedScript(codePoint) {
-    return (
-        codePoint <= 0x024f || (codePoint >= 0x0370 && codePoint <= 0x04ff)
-    );
-}
+/** ASCII advance factors, padded above the measured bold rendering. */
+const ASCII_FACTORS = new Map([
+    [' ', 0.3],
+    ...[...".,;:'\"`!|()[]{}/\\-ilIjtfr"].map((character) => [character, 0.38]),
+    ...[...'MWmw@%&#'].map((character) => [character, WIDEST_FACTOR]),
+]);
 
 /**
  * @param {string} character a single code point
  * @returns {number} advance width as a fraction of the font size
  */
 function advanceFactor(character) {
-    if (character === ' ') {
-        return 0.3;
+    const known = ASCII_FACTORS.get(character);
+
+    if (known !== undefined) {
+        return known;
     }
 
-    if (NARROW_GLYPHS.has(character)) {
-        return 0.35;
+    if (character >= 'a' && character <= 'z') {
+        return 0.62;
     }
 
-    if (WIDE_GLYPHS.has(character)) {
-        return 1.1;
+    if (character >= 'A' && character <= 'Z') {
+        return 0.82;
     }
 
-    // Anything outside the calibrated scripts is assumed full-width. CJK,
-    // kana, hangul and emoji genuinely are around one em, and for a narrow
-    // script the cost of guessing wide is an early line break — invisible —
-    // against a cropped card for guessing narrow.
-    if (!isCalibratedScript(character.codePointAt(0))) {
-        return 1.1;
+    if (character >= '0' && character <= '9') {
+        return 0.62;
     }
 
-    const isUppercase =
-        character === character.toUpperCase() &&
-        character !== character.toLowerCase();
-
-    return isUppercase ? 0.78 : 0.6;
+    // Everything else: accented Latin, ligatures, Cyrillic, Greek, CJK, kana,
+    // hangul, emoji, and whatever else a headline turns out to carry.
+    return WIDEST_FACTOR;
 }
 
 /**

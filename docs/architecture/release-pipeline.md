@@ -52,12 +52,22 @@ keep it headline-sized — roughly what the hero card fits on one line.
 
 The cap is an authoring guideline, not a rendering guarantee: character count
 is not width. Card text wraps by *estimated rendered width*
-(`estimateTextWidth`, calibrated against a measured bold rendering and erring
-high), because 34 `W` at font-size 52 measures ~1948px where 1072px are
-available — a character-capped line still ran off the canvas. Text that cannot
-fit even after wrapping is ellipsized, and every emitted line carries an SVG
-`textLength` clamp when the estimate says it would still overflow, so a
-mis-measured glyph compresses rather than crops.
+(`estimateTextWidth`), because 34 `W` at font-size 52 measures ~1948px where
+1072px are available — a character-capped line still ran off the canvas.
+
+That estimate is deliberately **inverted**: narrow characters are enumerated
+and everything else is assumed wide. Enumerating the wide ones instead cannot
+converge — successive review passes each found another under-estimated glyph
+(`W`, then CJK and emoji, then the `ae` ligature) — and a glyph the list misses
+crops the card while every unit test still passes. With the wide default the
+estimate can only run high, and running high costs an early line break nobody
+sees. `highlight-cards.test.mjs` renders each sample through sharp and asserts
+the estimate never falls below the measured ink width, which is the guard
+against that whole class of bug.
+
+Text that cannot fit even after wrapping is ellipsized, and each emitted line
+carries an SVG `textLength` clamp when the estimate still says it would
+overflow.
 
 Highlights drive three behaviors:
 
