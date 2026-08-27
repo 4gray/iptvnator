@@ -81,12 +81,19 @@ export function escapeXml(text) {
  * estimate can only ever run high, and running high costs an early line
  * break nobody sees.
  */
-const WIDEST_FACTOR = 1.15;
+const WIDEST_FACTOR = 1.25;
 
-/** ASCII advance factors, padded above the measured bold rendering. */
+/**
+ * ASCII advance factors. The SVG names `DM Sans` but nothing guarantees it is
+ * installed, so every host resolves the fallback chain differently and the
+ * same line renders at different widths: `r` measures 0.389 em here and about
+ * 0.49 em in the environment that reported this. These factors sit above the
+ * widest of those observations with margin, because the failure that matters
+ * is one-directional — an over-estimate wraps early, an under-estimate crops.
+ */
 const ASCII_FACTORS = new Map([
-    [' ', 0.3],
-    ...[...".,;:'\"`!|()[]{}/\\-ilIjtfr"].map((character) => [character, 0.38]),
+    [' ', 0.4],
+    ...[...".,;:'\"`!|()[]{}/\\-ilIjtfr"].map((character) => [character, 0.55]),
     ...[...'MWmw@%&#'].map((character) => [character, WIDEST_FACTOR]),
 ]);
 
@@ -102,15 +109,15 @@ function advanceFactor(character) {
     }
 
     if (character >= 'a' && character <= 'z') {
-        return 0.62;
+        return 0.75;
     }
 
     if (character >= 'A' && character <= 'Z') {
-        return 0.82;
+        return 0.92;
     }
 
     if (character >= '0' && character <= '9') {
-        return 0.62;
+        return 0.75;
     }
 
     // Everything else: accented Latin, ligatures, Cyrillic, Greek, CJK, kana,

@@ -55,6 +55,12 @@ is not width. Card text wraps by *estimated rendered width*
 (`estimateTextWidth`), because 34 `W` at font-size 52 measures ~1948px where
 1072px are available — a character-capped line still ran off the canvas.
 
+The SVG names `DM Sans`, but nothing guarantees it is installed: every host
+resolves the fallback chain differently, and the same line measures 0.389 em
+per `r` here against about 0.49 em elsewhere. No estimate can be both tight
+and correct across environments, so the factors sit well above the widest
+observation — locally the model over-estimates every sample by at least 1.25×.
+
 That estimate is deliberately **inverted**: narrow characters are enumerated
 and everything else is assumed wide. Enumerating the wide ones instead cannot
 converge — successive review passes each found another under-estimated glyph

@@ -80,17 +80,17 @@ describe('wrapText', () => {
     });
 
     it('wraps on word boundaries within the width budget', () => {
-        assert.deepEqual(wrapText('one two three four', budget(60, 10, 4)), [
-            'one two',
-            'three four',
-        ]);
-        // A tighter budget breaks earlier, still only between words.
-        assert.deepEqual(wrapText('one two three four', budget(30, 10, 4)), [
-            'one',
-            'two',
-            'three',
-            'four',
-        ]);
+        // Asserted as a property, not an exact split: the break points move
+        // whenever the advance factors are tuned, and pinning them would make
+        // every future calibration look like a regression.
+        const text = 'one two three four';
+        const lines = wrapText(text, budget(60, 10, 4));
+
+        assert.ok(lines.length > 1, 'expected the text to wrap at all');
+        assert.equal(lines.join(' '), text, 'words were lost or reordered');
+        for (const line of lines) {
+            assert.ok(estimateTextWidth(line, 10) <= 60, line);
+        }
     });
 
     it('breaks a word wider than the budget instead of overflowing the card', () => {
@@ -655,6 +655,12 @@ describe('estimateTextWidth against real rendering', () => {
         const samples = [
             ['Advanced subtitles with external files', 52],
             ['Live TV recordings in the download manager', 52],
+            // A long run of a "narrow" glyph: the case that proved the
+            // narrow factors were themselves under-estimates.
+            ['r'.repeat(54), 52],
+            ['i'.repeat(54), 52],
+            ['....------', 52],
+            ['0123456789', 52],
             ['W'.repeat(34), 52],
             ['M'.repeat(34), 62],
             ['æ'.repeat(34), 52],
@@ -670,9 +676,14 @@ describe('estimateTextWidth against real rendering', () => {
             const measured = await measureRenderedWidth(text, fontSize);
             const estimate = estimateTextWidth(text, fontSize);
 
+            // Fonts resolve differently per host — the SVG names DM Sans and
+            // nothing guarantees it is installed — so this asserts the model
+            // stays conservative in whatever environment runs it. A failure
+            // here means the factors in `advanceFactor` are too low for this
+            // host's fallback and must be raised, not that the test is wrong.
             assert.ok(
                 estimate >= measured,
-                `"${text.slice(0, 30)}" at ${fontSize}px: estimate ${Math.round(estimate)}px < measured ${measured}px`
+                `"${text.slice(0, 30)}" at ${fontSize}px: estimate ${Math.round(estimate)}px < measured ${measured}px — raise the advanceFactor values`
             );
         }
     });
