@@ -104,6 +104,9 @@ text guaranteed to fit the 4096-character limit, Reddit markdown with a
 suggested post title on the first line. Render and save them **before**
 `--consume` — the changelog keeps the entries, but the `highlight:` metadata
 lives only in the note files. Publishing is manual; nothing posts anywhere.
+An internal-only release has nothing to announce: both formats then print an
+explanation on stderr, leave stdout empty, and exit 0 — the same shape
+`extract-changelog-section.mjs --public` uses for its empty public body.
 
 The release sequence is: bump the version → `release:notes:changelog` →
 `release:notes:blog` → `--consume` → commit → tag → push. The tag build then

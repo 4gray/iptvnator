@@ -112,9 +112,11 @@ export function planHighlightCards(notes, options) {
     const highlights = ordered.filter((note) => note.highlight);
 
     const feature = highlights.map((note) => {
-        const slug =
-            note.screenshot ??
-            path.basename(note.sourcePath, '.md').toLowerCase();
+        // Named after the note file, never the screenshot slug: filenames are
+        // unique within `.changes/`, while two highlights may legitimately
+        // point at the same manifest shot — naming cards after it would let
+        // one silently overwrite the other.
+        const slug = path.basename(note.sourcePath, '.md').toLowerCase();
 
         return {
             slug,

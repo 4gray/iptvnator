@@ -109,7 +109,7 @@ describe('planHighlightCards', () => {
 
         assert.deepEqual(
             plan.feature.map((job) => job.fileName),
-            ['card-settings-rework.png', 'card-up-next-rail.png']
+            ['card-settings-rework.png', 'card-playback-up-next.png']
         );
         assert.equal(
             plan.feature[1].screenshotPath,
@@ -121,6 +121,34 @@ describe('planHighlightCards', () => {
             'Up Next rail',
         ]);
         assert.equal(plan.hero.counts, '1 breaking change · 1 feature · 1 fix');
+    });
+
+    it('keeps card filenames unique when two highlights share a screenshot', () => {
+        const plan = planHighlightCards(
+            [
+                note({
+                    highlight: 'Rail on wide windows',
+                    screenshot: 'up-next-rail',
+                    sourcePath: '.changes/playback-up-next.md',
+                }),
+                note({
+                    highlight: 'Rail progress bars',
+                    screenshot: 'up-next-rail',
+                    sourcePath: '.changes/playback-rail-progress.md',
+                }),
+            ],
+            planOptions
+        );
+
+        assert.deepEqual(
+            plan.feature.map((job) => job.fileName),
+            ['card-playback-up-next.png', 'card-playback-rail-progress.png']
+        );
+        // Both still read the same shared screenshot.
+        assert.equal(
+            plan.feature[0].screenshotPath,
+            plan.feature[1].screenshotPath
+        );
     });
 
     it('never plans a card for internal notes', () => {
@@ -278,7 +306,7 @@ describe('renderCards', () => {
         assert.deepEqual(
             written.map((file) => path.basename(file)),
             [
-                'card-up-next-rail.png',
+                'card-playback-up-next.png',
                 'card-m3u-faster-imports.png',
                 'hero.png',
                 'hero.jpg',

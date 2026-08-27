@@ -4,6 +4,8 @@ import { describe, it } from 'node:test';
 import {
     parseVerifyArguments,
     requiredAssetRules,
+    RUN_POLL_ATTEMPTS,
+    RUN_POLL_INTERVAL_MS,
     runVerification,
     verifyReleaseAssets,
 } from './verify-draft-release.mjs';
@@ -51,7 +53,11 @@ function release(overrides = {}) {
     };
 }
 
+/** `progressLog` collects transient status for assertions; runVerification
+ * only reads the known io methods and ignores the extra property. */
 function io(overrides = {}) {
+    const progressLog = [];
+
     return {
         listRuns: () => [
             { databaseId: 42, status: 'completed', conclusion: 'success' },
@@ -60,6 +66,9 @@ function io(overrides = {}) {
             throw new Error('watchRun must not be called');
         },
         viewRelease: () => release(),
+        progress: (message) => progressLog.push(message),
+        progressLog,
+        sleep: () => Promise.resolve(),
         ...overrides,
     };
 }
@@ -167,6 +176,8 @@ describe('parseVerifyArguments', () => {
             ['--unknown'],
             ['--repo'],
             ['--repo', '--no-wait'],
+            ['--repo', 'no-slash'],
+            ['--repo', 'too/many/parts'],
         ]) {
             assert.equal(parseVerifyArguments(args), null, args.join(' '));
         }
@@ -176,8 +187,8 @@ describe('parseVerifyArguments', () => {
 describe('runVerification', () => {
     const options = { version: '0.24.0', wait: true, repo: '4gray/iptvnator' };
 
-    it('passes a complete draft and points at the manual next steps', () => {
-        const result = runVerification(options, io());
+    it('passes a complete draft and points at the manual next steps', async () => {
+        const result = await runVerification(options, io());
 
         assert.equal(result.exitCode, 0);
         assert.match(result.lines[0], /Draft release v0\.24\.0 found\./);
@@ -188,15 +199,61 @@ describe('runVerification', () => {
         assert.match(result.lines.at(-1), /publish the release manually/);
     });
 
-    it('fails when no tag build run exists', () => {
-        const result = runVerification(options, io({ listRuns: () => [] }));
+    it('polls before concluding the tag run does not exist', async () => {
+        let calls = 0;
+        const slept = [];
+        const harness = io({
+            listRuns: () => {
+                calls += 1;
 
-        assert.equal(result.exitCode, 1);
-        assert.match(result.lines[0], /No build-and-make\.yaml run found/);
+                return calls < 3
+                    ? []
+                    : [
+                          {
+                              databaseId: 42,
+                              status: 'completed',
+                              conclusion: 'success',
+                          },
+                      ];
+            },
+            sleep: (ms) => {
+                slept.push(ms);
+
+                return Promise.resolve();
+            },
+        });
+        const result = await runVerification(options, harness);
+
+        assert.equal(calls, 3);
+        assert.deepEqual(slept, [RUN_POLL_INTERVAL_MS, RUN_POLL_INTERVAL_MS]);
+        assert.match(harness.progressLog[0], /No build-and-make\.yaml run for v0\.24\.0 yet/);
+        assert.equal(result.exitCode, 0);
     });
 
-    it('fails on a completed run with a non-success conclusion', () => {
-        const result = runVerification(
+    it('gives up after the bounded poll window', async () => {
+        let calls = 0;
+        const result = await runVerification(
+            options,
+            io({
+                listRuns: () => {
+                    calls += 1;
+
+                    return [];
+                },
+            })
+        );
+
+        assert.equal(calls, RUN_POLL_ATTEMPTS);
+        assert.equal(result.exitCode, 1);
+        assert.match(result.lines[0], /No build-and-make\.yaml run found/);
+        assert.match(
+            result.lines[0],
+            new RegExp(`after ${RUN_POLL_ATTEMPTS} attempts`)
+        );
+    });
+
+    it('fails on a completed run with a non-success conclusion', async () => {
+        const result = await runVerification(
             options,
             io({
                 listRuns: () => [
@@ -213,9 +270,9 @@ describe('runVerification', () => {
         assert.match(result.lines[0], /conclusion "failure"/);
     });
 
-    it('watches an in-progress run before checking the release', () => {
+    it('watches an in-progress run before checking the release', async () => {
         const watched = [];
-        const result = runVerification(
+        const result = await runVerification(
             options,
             io({
                 listRuns: () => [
@@ -229,8 +286,8 @@ describe('runVerification', () => {
         assert.equal(result.exitCode, 0);
     });
 
-    it('skips the run lookup entirely with --no-wait', () => {
-        const result = runVerification(
+    it('skips the run lookup entirely with --no-wait', async () => {
+        const result = await runVerification(
             { ...options, wait: false },
             io({
                 listRuns: () => {
@@ -242,8 +299,8 @@ describe('runVerification', () => {
         assert.equal(result.exitCode, 0);
     });
 
-    it('fails with the missing-asset list', () => {
-        const result = runVerification(
+    it('fails with the missing-asset list', async () => {
+        const result = await runVerification(
             options,
             io({
                 viewRelease: () =>
@@ -260,8 +317,8 @@ describe('runVerification', () => {
         assert.match(result.lines.at(-1), /Flatpak/);
     });
 
-    it('fails when the release does not exist', () => {
-        const result = runVerification(
+    it('fails when the release does not exist', async () => {
+        const result = await runVerification(
             options,
             io({ viewRelease: () => null })
         );
@@ -270,19 +327,34 @@ describe('runVerification', () => {
         assert.match(result.lines[0], /No release found for v0\.24\.0/);
     });
 
-    it('warns on a published release and an empty body but still verifies', () => {
-        const result = runVerification(
+    it('never reports success once the release is published', async () => {
+        const result = await runVerification(
             options,
-            io({ viewRelease: () => release({ isDraft: false, body: ' ' }) })
+            io({ viewRelease: () => release({ isDraft: false }) })
+        );
+
+        // The asset report is still useful for an after-the-fact audit, but a
+        // pre-publication gate must not pass after publication.
+        assert.equal(result.exitCode, 1);
+        assert.match(result.lines[0], /already published/);
+        assert.match(result.lines.at(-1), /All 27 required assets present/);
+        assert.ok(
+            !result.lines.some((line) => /publish the release manually/.test(line))
+        );
+    });
+
+    it('warns about an empty authored body', async () => {
+        const result = await runVerification(
+            options,
+            io({ viewRelease: () => release({ body: ' ' }) })
         );
 
         assert.equal(result.exitCode, 0);
-        assert.match(result.lines[0], /WARNING: release v0\.24\.0 is already published/);
         assert.match(result.lines[1], /WARNING: authored release body is empty/);
     });
 
-    it('notes unrecognized assets without failing', () => {
-        const result = runVerification(
+    it('notes unrecognized assets without failing', async () => {
+        const result = await runVerification(
             options,
             io({
                 viewRelease: () =>

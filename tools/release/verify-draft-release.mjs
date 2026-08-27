@@ -79,13 +79,19 @@ export function requiredAssetRules(version) {
     rules.push(exact('Flatpak', `iptvnator-${version}-linux-x86_64.flatpak`));
 
     // Electron Builder has shipped both pacman artifact shapes; accept either.
-    const pacmanPattern = new RegExp(
-        `^iptvnator-${version.replace(/\./g, '\\.')}-linux-(x64\\.pacman|x86_64\\.pkg\\.tar\\.[a-z0-9]+)$`
-    );
+    // Compared as plain strings rather than through a regex built from the
+    // version: this function is exported, so escaping the interpolated value
+    // correctly would be a standing trap. Only the compression suffix, a
+    // literal pattern, is matched by regex.
+    const pacmanExact = `iptvnator-${version}-linux-x64.pacman`;
+    const pacmanPrefix = `iptvnator-${version}-linux-x86_64.pkg.tar.`;
 
     rules.push({
-        label: `Pacman (iptvnator-${version}-linux-x64.pacman or .pkg.tar.*)`,
-        matches: (candidate) => pacmanPattern.test(candidate),
+        label: `Pacman (${pacmanExact} or …-linux-x86_64.pkg.tar.*)`,
+        matches: (candidate) =>
+            candidate === pacmanExact ||
+            (candidate.startsWith(pacmanPrefix) &&
+                /^[a-z0-9]+$/.test(candidate.slice(pacmanPrefix.length))),
     });
 
     for (const name of [
@@ -141,7 +147,9 @@ export function parseVerifyArguments(args) {
         } else if (arg === '--repo') {
             const value = args[index + 1];
 
-            if (!value || value.startsWith('--')) {
+            // Shape-checked here so a typo fails with this script's usage
+            // line instead of an opaque gh error several calls later.
+            if (!value || !/^[\w.-]+\/[\w.-]+$/.test(value)) {
                 return null;
             }
 
@@ -173,36 +181,67 @@ export function parseVerifyArguments(args) {
     return options;
 }
 
+/** A just-pushed tag's run is not immediately visible to the API. */
+export const RUN_POLL_ATTEMPTS = 10;
+export const RUN_POLL_INTERVAL_MS = 6000;
+
+/**
+ * `gh run list` reports what is indexed right now — its `--limit` caps how
+ * many runs come back, it does not wait for one to appear. Run straight after
+ * `git push <remote> v<version>`, the tag build is routinely not indexed yet,
+ * so poll for a bounded window before concluding the tag was never pushed.
+ *
+ * @returns {Promise<object | null>} the newest run, or null after the window
+ */
+async function findTagRun({ repo, branch }, io) {
+    for (let attempt = 1; attempt <= RUN_POLL_ATTEMPTS; attempt += 1) {
+        const runs = io.listRuns({ repo, workflow: WORKFLOW, branch });
+
+        if (runs.length > 0) {
+            return runs[0];
+        }
+
+        if (attempt < RUN_POLL_ATTEMPTS) {
+            io.progress(
+                `No ${WORKFLOW} run for ${branch} yet (attempt ${attempt}/${RUN_POLL_ATTEMPTS}) — waiting…`
+            );
+            await io.sleep(RUN_POLL_INTERVAL_MS);
+        }
+    }
+
+    return null;
+}
+
 /**
  * Verification pipeline over an injectable gh boundary, so tests never touch
- * the network. `io.watchRun` streams `gh run watch` to the terminal and
- * throws on a failed run; the other two return parsed `--json` payloads.
+ * the network. `io.watchRun` streams `gh run watch` to the terminal and throws
+ * on a failed run, `io.listRuns`/`io.viewRelease` return parsed `--json`
+ * payloads, `io.progress` reports transient status while waiting, and
+ * `io.sleep` paces the run poll.
  *
  * @param {{ version: string, wait: boolean, repo: string }} options
- * @param {{ listRuns: Function, watchRun: Function, viewRelease: Function }} io
- * @returns {{ exitCode: number, lines: string[] }}
+ * @param {{ listRuns: Function, watchRun: Function, viewRelease: Function, progress: Function, sleep: Function }} io
+ * @returns {Promise<{ exitCode: number, lines: string[] }>}
  */
-export function runVerification(options, io) {
+export async function runVerification(options, io) {
     const { version, wait, repo } = options;
     const tag = `v${version}`;
     const lines = [];
 
     if (wait) {
-        const runs = io.listRuns({ repo, workflow: WORKFLOW, branch: tag });
+        const run = await findTagRun({ repo, branch: tag }, io);
 
-        if (runs.length === 0) {
+        if (run === null) {
             return {
                 exitCode: 1,
                 lines: [
-                    `No ${WORKFLOW} run found for ${tag} in ${repo} — was the tag pushed?`,
+                    `No ${WORKFLOW} run found for ${tag} in ${repo} after ${RUN_POLL_ATTEMPTS} attempts — was the tag pushed?`,
                 ],
             };
         }
 
-        const run = runs[0];
-
         if (run.status !== 'completed') {
-            lines.push(`Waiting for ${WORKFLOW} run ${run.databaseId} (${tag})…`);
+            io.progress(`Waiting for ${WORKFLOW} run ${run.databaseId} (${tag})…`);
             io.watchRun({ repo, runId: run.databaseId });
         } else if (run.conclusion !== 'success') {
             return {
@@ -223,10 +262,12 @@ export function runVerification(options, io) {
         };
     }
 
+    const publishedAlready = !release.isDraft;
+
     lines.push(
-        release.isDraft
-            ? `Draft release ${tag} found.`
-            : `WARNING: release ${tag} is already published, not a draft.`
+        publishedAlready
+            ? `Release ${tag} is already published — this gate runs before publication.`
+            : `Draft release ${tag} found.`
     );
 
     if (!release.body?.trim()) {
@@ -252,6 +293,14 @@ export function runVerification(options, io) {
     lines.push(
         `All ${requiredAssetRules(version).length} required assets present (${assetNames.length} attached).`
     );
+
+    // A published release still gets its asset report — auditing one after the
+    // fact is useful — but never a success exit. Succeeding here would claim a
+    // pre-publication gate passed for a boundary already crossed.
+    if (publishedAlready) {
+        return { exitCode: 1, lines };
+    }
+
     lines.push(
         'Next: verify the authored body text, smoke-test installers, then publish the release manually.'
     );
@@ -318,9 +367,14 @@ const liveIo = {
             throw error;
         }
     },
+    progress: (message) => console.error(message),
+    // Deliberately not unref'd: a pending promise does not hold the event
+    // loop open, so an unref'd timer would let Node exit mid-poll — and an
+    // empty event loop exits 0, turning a wait into a silent false success.
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
-function main() {
+async function main() {
     const options = parseVerifyArguments(process.argv.slice(2));
 
     if (options === null) {
@@ -335,7 +389,7 @@ function main() {
         console.error(`Using version ${options.version} from package.json.`);
     }
 
-    const { exitCode, lines } = runVerification(options, liveIo);
+    const { exitCode, lines } = await runVerification(options, liveIo);
 
     for (const line of lines) {
         console.log(line);
@@ -349,10 +403,8 @@ const isDirectRun =
     path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isDirectRun) {
-    try {
-        main();
-    } catch (error) {
+    main().catch((error) => {
         console.error(error.message);
         process.exit(1);
-    }
+    });
 }

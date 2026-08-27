@@ -241,6 +241,27 @@ function writeBlogScaffold(content, version, force) {
     return target;
 }
 
+/**
+ * An internal-only release has nothing to announce publicly. That is a legal
+ * release shape, so it prints an explanation on stderr and leaves stdout
+ * empty — matching `extract-changelog-section.mjs --public`, which allows an
+ * empty public body for exactly the same case — rather than failing.
+ *
+ * @param {string | null} post
+ * @param {string} label
+ */
+function writeAnnouncement(post, label) {
+    if (post === null) {
+        console.error(
+            `Internal-only release: no public ${label} announcement to render.`
+        );
+
+        return;
+    }
+
+    process.stdout.write(post.endsWith('\n') ? post : `${post}\n`);
+}
+
 function main() {
     const options = parseArgs(process.argv.slice(2));
     const notesDir = path.resolve(workspaceRoot, options.dir);
@@ -304,11 +325,11 @@ function main() {
         // rendered before `--consume`: the CHANGELOG keeps the entries, but
         // the `highlight:` metadata lives only in the note files.
         if (options.format === 'telegram') {
-            process.stdout.write(`${renderTelegramPost(notes, { version })}\n`);
+            writeAnnouncement(renderTelegramPost(notes, { version }), 'Telegram');
         }
 
         if (options.format === 'reddit') {
-            process.stdout.write(renderRedditPost(notes, { version }));
+            writeAnnouncement(renderRedditPost(notes, { version }), 'Reddit');
         }
 
         if (options.format === 'changelog') {

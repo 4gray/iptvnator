@@ -126,6 +126,15 @@ describe('renderTelegramPost', () => {
         assert.match(post, /…plus \d+ more fixes and improvements\./);
     });
 
+    it('returns null for an internal-only release instead of throwing', () => {
+        assert.equal(
+            renderTelegramPost([note({ type: 'internal' })], {
+                version: '0.24.0',
+            }),
+            null
+        );
+    });
+
     it('refuses to silently drop a hand-picked highlight', () => {
         const notes = Array.from({ length: 30 }, (_, index) =>
             note({
@@ -188,6 +197,15 @@ describe('renderRedditPost', () => {
         );
 
         assert.doesNotMatch(post, /Internal churn/);
+    });
+
+    it('returns null for an internal-only release', () => {
+        assert.equal(
+            renderRedditPost([note({ type: 'internal' })], {
+                version: '0.24.0',
+            }),
+            null
+        );
     });
 
     it('links the patch blog post to its minor release page', () => {

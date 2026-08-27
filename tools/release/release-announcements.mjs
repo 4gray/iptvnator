@@ -72,12 +72,19 @@ function moreLine(count) {
  *
  * @param {object[]} notes
  * @param {{ version: string }} options
- * @returns {string} a post guaranteed to fit TELEGRAM_MESSAGE_LIMIT
+ * @returns {string | null} a post guaranteed to fit TELEGRAM_MESSAGE_LIMIT,
+ * or null for an internal-only release with nothing public to announce
  */
 export function renderTelegramPost(notes, { version }) {
     const { highlights, rest } = splitHighlights(notes);
     const lead = highlights.length > 0 ? highlights : rest;
     const leadIsHighlights = highlights.length > 0;
+
+    // An internal-only release is a legal shape — its authored GitHub body is
+    // empty too — and there is simply nothing to announce publicly.
+    if (lead.length === 0) {
+        return null;
+    }
 
     const footer = [
         `⬇️ Download: ${releaseUrl(version)}`,
@@ -137,10 +144,14 @@ export function renderTelegramPost(notes, { version }) {
  *
  * @param {object[]} notes
  * @param {{ version: string }} options
- * @returns {string}
+ * @returns {string | null} null for an internal-only release
  */
 export function renderRedditPost(notes, { version }) {
     const { highlights, rest } = splitHighlights(notes);
+
+    if (highlights.length === 0 && rest.length === 0) {
+        return null;
+    }
 
     const title =
         highlights.length > 0
