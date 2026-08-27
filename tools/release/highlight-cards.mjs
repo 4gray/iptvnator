@@ -83,21 +83,59 @@ const NARROW_GLYPHS = new Set("iljItfrJ.,;:'\"`!|()[]{}/\\-ЁІ");
  * @param {number} fontSize
  * @returns {number} estimated rendered width in pixels
  */
+/**
+ * Latin (through Extended-B), Greek and Cyrillic plus ASCII punctuation — the
+ * scripts the factors above were calibrated on.
+ */
+function isCalibratedScript(codePoint) {
+    return (
+        codePoint <= 0x024f || (codePoint >= 0x0370 && codePoint <= 0x04ff)
+    );
+}
+
+/**
+ * @param {string} character a single code point
+ * @returns {number} advance width as a fraction of the font size
+ */
+function advanceFactor(character) {
+    if (character === ' ') {
+        return 0.3;
+    }
+
+    if (NARROW_GLYPHS.has(character)) {
+        return 0.35;
+    }
+
+    if (WIDE_GLYPHS.has(character)) {
+        return 1.1;
+    }
+
+    // Anything outside the calibrated scripts is assumed full-width. CJK,
+    // kana, hangul and emoji genuinely are around one em, and for a narrow
+    // script the cost of guessing wide is an early line break — invisible —
+    // against a cropped card for guessing narrow.
+    if (!isCalibratedScript(character.codePointAt(0))) {
+        return 1.1;
+    }
+
+    const isUppercase =
+        character === character.toUpperCase() &&
+        character !== character.toLowerCase();
+
+    return isUppercase ? 0.78 : 0.6;
+}
+
+/**
+ * @param {string} text
+ * @param {number} fontSize
+ * @returns {number} estimated rendered width in pixels
+ */
 export function estimateTextWidth(text, fontSize) {
     let units = 0;
 
+    // Iterating the string yields code points, so an emoji counts once.
     for (const character of text) {
-        if (character === ' ') {
-            units += 0.3;
-        } else if (NARROW_GLYPHS.has(character)) {
-            units += 0.35;
-        } else if (WIDE_GLYPHS.has(character)) {
-            units += 1.1;
-        } else if (character === character.toUpperCase() && character !== character.toLowerCase()) {
-            units += 0.78;
-        } else {
-            units += 0.6;
-        }
+        units += advanceFactor(character);
     }
 
     return units * fontSize;

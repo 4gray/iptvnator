@@ -125,6 +125,25 @@ describe('wrapText', () => {
         }
     });
 
+    it('treats uncalibrated scripts as full-width rather than narrow', () => {
+        // CJK, kana, hangul and emoji are ~1 em; falling through to the
+        // lowercase-Latin factor let a 60-glyph headline paint off-canvas.
+        for (const glyph of ['界', 'ひ', '한', '🎉', 'Ω'.repeat(1)]) {
+            const wide = estimateTextWidth(glyph.repeat(28), 52);
+
+            assert.ok(
+                wide > TEXT_MAX_WIDTH,
+                `28 × "${glyph}" estimates only ${Math.round(wide)}px`
+            );
+        }
+    });
+
+    it('keeps a full-width headline inside the canvas', () => {
+        for (const line of wrapText('界'.repeat(60), budget(TEXT_MAX_WIDTH, 52, 2))) {
+            assert.ok(estimateTextWidth(line, 52) <= TEXT_MAX_WIDTH, line);
+        }
+    });
+
     it('estimates a wide glyph run near its measured rendered width', () => {
         // Calibration anchor: 34 `W` at font-size 52 renders ~1948px.
         const estimate = estimateTextWidth('W'.repeat(34), 52);
