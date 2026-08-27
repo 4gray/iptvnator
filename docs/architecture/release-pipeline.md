@@ -51,7 +51,8 @@ Highlights drive three behaviors:
 - **Telegram** leads with them and folds everything else into a "…plus N more"
   counter. A `type: breaking` note is never folded, highlighted or not:
   announcing a breaking change as "fixes and improvements" is worse than a
-  longer post.
+  longer post. If the breaking changes alone cannot fit the 4096-character
+  limit, the render fails with an actionable error rather than dropping one.
 - **Reddit** gives each one an `## Highlights` subsection, with the remaining
   changes grouped below.
 - **The blog scaffold** uses the highlight as a ready `###` heading instead of
@@ -90,8 +91,16 @@ Screenshots come only from the capture script running against the mock servers.
 Never publish one taken from a real playlist or account — streams, logos and
 metadata are copyrighted, and credentials must never reach a published image.
 
-Output lands in `dist/`, outside version control. Copying a card into the
-website tree is a deliberate manual act.
+Output lands in `dist/release-highlight-cards/v<version>/`, outside version
+control — keyed by the exact version, because 0.24.0 and 0.24.1 share a blog
+post but not a card set. A run first removes the cards a previous run left in
+that directory (only files matching what this tool writes), so a renamed or
+dropped highlight cannot leave a stale image waiting to be published. Copying a
+card into the website tree is a deliberate manual act.
+
+A release with no `highlight:` notes is not an error: the hero card is still
+rendered and the run exits 0. An internal-only release has nothing public to
+put on a card and exits 0 having written nothing.
 
 ## Draft verification
 
@@ -109,9 +118,15 @@ never publishes, edits or deletes.
    fails immediately. A missing `gh` binary and an interrupted watch are
    reported as themselves, not as a build failure — `spawnSync` surfaces both
    as `status: null`.
-3. **Check the release.** Draft status, a non-empty authored body (empty is a
-   warning, since an internal-only release legitimately has one), and the
-   complete asset set below.
+3. **Check the release.** Draft status, the authored body, and the complete
+   asset set below.
+
+The authored-body check compares the release body against the **local
+`CHANGELOG.md` section**, not against emptiness. The tag workflow appends
+GitHub's generated notes to the authored text (`FULL_BODY` in
+`build-and-make.yaml`), so the body is never empty and an emptiness test could
+never fail. An internal-only release, whose public section is legitimately
+empty, is reported as such rather than warned about.
 
 An already-published release still gets its asset report — auditing one after
 the fact is useful — but **never a success exit**. Reporting a pass for a

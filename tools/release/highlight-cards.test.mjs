@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readdirSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -11,6 +18,7 @@ import {
     CARD_HEIGHT,
     CARD_WIDTH,
     escapeXml,
+    isOwnedCardFile,
     planHighlightCards,
     SHOT_TOP,
     TEXT_BOTTOM,
@@ -151,6 +159,38 @@ describe('planHighlightCards', () => {
             plan.feature[0].screenshotPath,
             plan.feature[1].screenshotPath
         );
+    });
+
+    it('reports the public note count so an internal-only release is detectable', () => {
+        assert.equal(
+            planHighlightCards(
+                [note({ type: 'internal', body: 'Churn.' })],
+                planOptions
+            ).publicNoteCount,
+            0
+        );
+        assert.equal(
+            planHighlightCards(
+                [note(), note({ type: 'internal', body: 'Churn.' })],
+                planOptions
+            ).publicNoteCount,
+            1
+        );
+    });
+
+    it('claims only the files it writes', () => {
+        for (const owned of ['card-playback-up-next.png', 'hero.png', 'hero.jpg']) {
+            assert.equal(isOwnedCardFile(owned), true, owned);
+        }
+
+        for (const foreign of [
+            'notes.txt',
+            'card-Upper.png',
+            'screenshot-dashboard-dark.png',
+            'hero.webp',
+        ]) {
+            assert.equal(isOwnedCardFile(foreign), false, foreign);
+        }
     });
 
     it('never plans a card for internal notes', () => {
@@ -358,5 +398,29 @@ describe('renderCards', () => {
             assert.equal(metadata.width, CARD_WIDTH, file);
             assert.equal(metadata.height, CARD_HEIGHT, file);
         }
+    });
+
+    it('removes its own stale cards but leaves other files alone', async () => {
+        const outputDir = path.join(makeTempDir(), 'cards');
+
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(path.join(outputDir, 'card-removed-feature.png'), 'old');
+        writeFileSync(path.join(outputDir, 'notes.txt'), 'keep me');
+
+        const plan = planHighlightCards(
+            [note({ highlight: 'Faster imports' })],
+            planOptions
+        );
+
+        await renderCards(plan, '0.24.0', outputDir);
+
+        const remaining = readdirSync(outputDir).sort();
+
+        assert.deepEqual(remaining, [
+            'card-playback-up-next.png',
+            'hero.jpg',
+            'hero.png',
+            'notes.txt',
+        ]);
     });
 });

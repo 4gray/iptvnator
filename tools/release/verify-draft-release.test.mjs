@@ -47,7 +47,9 @@ function release(overrides = {}) {
     return {
         name: 'v0.24.0',
         isDraft: true,
-        body: '### Features\n\n- entry',
+        // Shaped like the real thing: authored section, then GitHub's
+        // generated notes appended by the tag workflow.
+        body: '### Features\n\n- **playback** — Up Next rail.\n\n## What\'s Changed\n* chore by @bot in #1\n',
         assets: completeAssets('0.24.0').map((name) => ({ name })),
         ...overrides,
     };
@@ -66,6 +68,8 @@ function io(overrides = {}) {
             throw new Error('watchRun must not be called');
         },
         viewRelease: () => release(),
+        readChangelog: () =>
+            '# Changelog\n\n<!-- next-release -->\n\n# 0.24.0 (2026-08-01)\n\n### Features\n\n- **playback** — Up Next rail.\n',
         progress: (message) => progressLog.push(message),
         progressLog,
         sleep: () => Promise.resolve(),
@@ -343,14 +347,66 @@ describe('runVerification', () => {
         );
     });
 
-    it('warns about an empty authored body', async () => {
+    it('confirms the authored changelog section inside the combined body', async () => {
+        const result = await runVerification(options, io());
+
+        assert.equal(result.exitCode, 0);
+        assert.match(
+            result.lines[1],
+            /Authored changelog section present in the release body\./
+        );
+    });
+
+    it('warns when the body carries only GitHub-generated notes', async () => {
+        // The tag workflow appends generated notes to the authored text, so a
+        // non-empty body proves nothing — this is the case an emptiness check
+        // could never catch.
         const result = await runVerification(
             options,
-            io({ viewRelease: () => release({ body: ' ' }) })
+            io({
+                viewRelease: () =>
+                    release({ body: "## What's Changed\n* chore by @bot in #1" }),
+            })
         );
 
         assert.equal(result.exitCode, 0);
-        assert.match(result.lines[1], /WARNING: authored release body is empty/);
+        assert.match(
+            result.lines[1],
+            /does not contain the authored CHANGELOG section/
+        );
+    });
+
+    it('expects no authored body for an internal-only release', async () => {
+        const result = await runVerification(
+            options,
+            io({
+                readChangelog: () =>
+                    '# 0.24.0 (2026-08-01)\n\n<details>\n<summary>Internal changes</summary>\n\n- **deps** — bump.\n\n</details>\n',
+                viewRelease: () =>
+                    release({ body: "## What's Changed\n* chore by @bot in #1" }),
+            })
+        );
+
+        assert.equal(result.exitCode, 0);
+        assert.match(result.lines[1], /internal-only release/);
+    });
+
+    it('warns when the changelog has no section for the version', async () => {
+        const result = await runVerification(
+            options,
+            io({ readChangelog: () => '# Changelog\n\n<!-- next-release -->\n' })
+        );
+
+        assert.match(result.lines[1], /CHANGELOG\.md has no section for 0\.24\.0/);
+    });
+
+    it('does not claim to have verified an unreadable changelog', async () => {
+        const result = await runVerification(
+            options,
+            io({ readChangelog: () => null })
+        );
+
+        assert.match(result.lines[1], /NOTE: CHANGELOG\.md is unreadable/);
     });
 
     it('notes unrecognized assets without failing', async () => {

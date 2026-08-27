@@ -23,6 +23,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { extractPublicSection } from './extract-changelog-section.mjs';
 import { REPO_URL } from './release-notes.mjs';
 
 const workspaceRoot = path.resolve(
@@ -213,6 +214,50 @@ async function findTagRun({ repo, branch }, io) {
 }
 
 /**
+ * The tag workflow appends GitHub's generated notes to the authored text
+ * (`FULL_BODY` in build-and-make.yaml), so a non-empty `body` proves nothing
+ * about the authored half — testing it for emptiness could never fail. The
+ * authored text is the CHANGELOG section this repo committed before tagging,
+ * so compare against that instead.
+ *
+ * @param {string} body the release body as published
+ * @param {string} version
+ * @param {{ readChangelog: Function }} io
+ * @returns {string[]} report lines
+ */
+function verifyAuthoredBody(body, version, io) {
+    const changelog = io.readChangelog();
+
+    if (changelog === null) {
+        return [
+            'NOTE: CHANGELOG.md is unreadable here, so the authored body was not verified.',
+        ];
+    }
+
+    const authored = extractPublicSection(changelog, version);
+
+    if (authored === null) {
+        return [
+            `WARNING: CHANGELOG.md has no section for ${version} — the tag build authors the body from it.`,
+        ];
+    }
+
+    if (authored === '') {
+        return [
+            'NOTE: internal-only release — no authored body is expected, only generated notes.',
+        ];
+    }
+
+    const normalize = (text) => text.replace(/\r\n/g, '\n').trim();
+
+    return normalize(body).includes(normalize(authored))
+        ? ['Authored changelog section present in the release body.']
+        : [
+              'WARNING: the release body does not contain the authored CHANGELOG section — it may carry only GitHub-generated notes.',
+          ];
+}
+
+/**
  * Verification pipeline over an injectable gh boundary, so tests never touch
  * the network. `io.watchRun` streams `gh run watch` to the terminal and throws
  * on a failed run, `io.listRuns`/`io.viewRelease` return parsed `--json`
@@ -220,7 +265,7 @@ async function findTagRun({ repo, branch }, io) {
  * `io.sleep` paces the run poll.
  *
  * @param {{ version: string, wait: boolean, repo: string }} options
- * @param {{ listRuns: Function, watchRun: Function, viewRelease: Function, progress: Function, sleep: Function }} io
+ * @param {{ listRuns: Function, watchRun: Function, viewRelease: Function, readChangelog: Function, progress: Function, sleep: Function }} io
  * @returns {Promise<{ exitCode: number, lines: string[] }>}
  */
 export async function runVerification(options, io) {
@@ -270,11 +315,7 @@ export async function runVerification(options, io) {
             : `Draft release ${tag} found.`
     );
 
-    if (!release.body?.trim()) {
-        lines.push(
-            'WARNING: authored release body is empty (expected only for an internal-only release).'
-        );
-    }
+    lines.push(...verifyAuthoredBody(release.body ?? '', version, io));
 
     const assetNames = release.assets.map((asset) => asset.name);
     const { missing, extras } = verifyReleaseAssets(assetNames, version);
@@ -378,6 +419,16 @@ const liveIo = {
             }
 
             throw error;
+        }
+    },
+    readChangelog: () => {
+        try {
+            return readFileSync(
+                path.join(workspaceRoot, 'CHANGELOG.md'),
+                'utf8'
+            );
+        } catch {
+            return null;
         }
     },
     progress: (message) => console.error(message),

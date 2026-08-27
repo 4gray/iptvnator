@@ -14,7 +14,14 @@
  * committing a card into the website tree is a deliberate manual act.
  */
 
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    realpathSync,
+    rmSync,
+} from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +32,7 @@ import {
     buildHeroCardSvg,
     buildShotMaskSvg,
     CARD_HEIGHT,
+    isOwnedCardFile,
     SHOT_LEFT,
     SHOT_TOP,
     SHOT_WIDTH,
@@ -141,6 +149,16 @@ async function prepareShotOverlay(screenshotPath) {
 export async function renderCards(plan, version, outputDir) {
     mkdirSync(outputDir, { recursive: true });
 
+    // Remove the cards a previous run of THIS generator left behind, so a
+    // renamed or dropped highlight cannot leave a stale image sitting beside
+    // the current set waiting to be published. Only files matching what this
+    // tool writes are touched; anything else in the directory is left alone.
+    for (const entry of readdirSync(outputDir)) {
+        if (isOwnedCardFile(entry)) {
+            rmSync(path.join(outputDir, entry));
+        }
+    }
+
     const written = [];
 
     for (const job of plan.feature) {
@@ -206,11 +224,21 @@ async function main() {
         theme: options.theme,
     });
 
+    // Neither shape below is an error: an internal-only release is legal, and
+    // a release nobody marked a highlight on still deserves its hero card.
+    // Failing here would break the documented release sequence.
+    if (plan.publicNoteCount === 0) {
+        console.error(
+            'Internal-only release: no public change to put on a card.'
+        );
+
+        return;
+    }
+
     if (plan.feature.length === 0) {
         console.error(
-            'No `highlight:` notes found — mark the headline changes in .changes/ first.'
+            'No `highlight:` notes found — rendering the hero card only. Mark the headline changes in .changes/ to get feature cards.'
         );
-        process.exit(1);
     }
 
     const missingShots = plan.feature.filter(
@@ -228,9 +256,13 @@ async function main() {
         process.exit(1);
     }
 
+    // Keyed by the exact version, not the minor slug: 0.24.0 and 0.24.1 share
+    // a blog post but not a card set, and mixing them in one directory invites
+    // publishing the previous patch's card.
     const outputDir = path.resolve(
         workspaceRoot,
-        options.out ?? path.join('dist/release-highlight-cards', slug)
+        options.out ??
+            path.join('dist/release-highlight-cards', `v${options.version}`)
     );
 
     console.log(`${plan.feature.length} highlight card(s) + hero for v${options.version}:`);
@@ -246,6 +278,16 @@ async function main() {
         console.log(`\nWould write to ${path.relative(workspaceRoot, outputDir)}/.`);
 
         return;
+    }
+
+    if (existsSync(outputDir)) {
+        const stale = readdirSync(outputDir).filter(isOwnedCardFile);
+
+        if (stale.length > 0) {
+            console.log(
+                `Replacing ${stale.length} card(s) from a previous run in the same directory.`
+            );
+        }
     }
 
     const written = await renderCards(plan, options.version, outputDir);

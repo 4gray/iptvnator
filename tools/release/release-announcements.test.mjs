@@ -144,6 +144,23 @@ describe('renderTelegramPost', () => {
         assert.doesNotMatch(post, /Stalker resume/);
     });
 
+    it('refuses to fold a breaking change into the counter to make room', () => {
+        // No highlights, so the fitting loop is what truncates. A breaking
+        // change reported as "fixes and improvements" is not an option.
+        const notes = Array.from({ length: 14 }, (_, index) =>
+            note({
+                type: 'breaking',
+                body: `Breaking change ${index}: ${'detail '.repeat(50)}.`,
+                sourcePath: `.changes/breaking-${index}.md`,
+            })
+        );
+
+        assert.throws(
+            () => renderTelegramPost(notes, { version: '0.24.0' }),
+            /breaking change\(s\) do not fit Telegram's 4096-character limit/
+        );
+    });
+
     it('returns null for an internal-only release instead of throwing', () => {
         assert.equal(
             renderTelegramPost([note({ type: 'internal' })], {

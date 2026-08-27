@@ -110,7 +110,7 @@ export function wrapText(text, maxChars, maxLines) {
  *
  * @param {object[]} notes parsed `.changes` notes
  * @param {{ version: string, releaseSlug: string, screenshotsDir: string, theme: string }} options
- * @returns {{ feature: object[], hero: object }}
+ * @returns {{ feature: object[], publicNoteCount: number, hero: object }}
  */
 export function planHighlightCards(notes, options) {
     const { version, releaseSlug, screenshotsDir, theme } = options;
@@ -147,6 +147,9 @@ export function planHighlightCards(notes, options) {
 
     return {
         feature,
+        // Public notes, not total: an internal-only release has nothing to put
+        // on a card, which is a legal release shape rather than an error.
+        publicNoteCount: ordered.length,
         hero: {
             fileName: 'hero.png',
             version,
@@ -155,6 +158,15 @@ export function planHighlightCards(notes, options) {
             counts,
         },
     };
+}
+
+/** Files this generator owns in an output directory. */
+export function isOwnedCardFile(fileName) {
+    return (
+        /^card-[a-z0-9-]+\.png$/.test(fileName) ||
+        fileName === 'hero.png' ||
+        fileName === 'hero.jpg'
+    );
 }
 
 function backgroundDefs() {

@@ -148,9 +148,11 @@ named action in `tools/release/capture-navigation.ts`).
 names one) plus a release hero card — for Telegram/Reddit previews and the
 blog `hero.jpg`. It reads screenshots from the published blog directory, so it
 runs after `release:screenshots` and, like the announcement formats, before
-`--consume`. Output goes to `dist/release-highlight-cards/<vX-Y>/`; copying a
-card into the website tree is a deliberate manual act.
-`release:cards:dry-run` lists what would be rendered.
+`--consume`. Output goes to `dist/release-highlight-cards/v<version>/`, and a
+rerun replaces the cards it previously wrote there; copying a card into the
+website tree is a deliberate manual act. `release:cards:dry-run` lists what
+would be rendered. A release without highlights still gets its hero card, and
+an internal-only release writes nothing — neither is an error.
 
 ```bash
 pnpm nx run electron-backend:build-e2e   # once, before capturing

@@ -120,21 +120,35 @@ export function renderTelegramPost(notes, { version }) {
             .join('\n\n');
     };
 
-    // Drop trailing entries into the counter until the post fits. Highlights
-    // are hand-picked, so running out of room means the release manager chose
-    // too many — say so instead of silently cutting a chosen highlight.
+    // Drop trailing entries into the counter until the post fits. Two classes
+    // of entry are never allowed to fall in there: hand-picked highlights
+    // (the release manager chose too many) and breaking changes (a warning
+    // silently reported as "fixes and improvements" is worse than no post).
     for (let visible = lead.length; visible > 0; visible -= 1) {
         const post = buildPost(lead.slice(0, visible));
 
-        if (post.length <= TELEGRAM_MESSAGE_LIMIT) {
-            if (leadIsHighlights && visible < lead.length) {
-                throw new Error(
-                    `the ${lead.length} highlights do not fit Telegram's ${TELEGRAM_MESSAGE_LIMIT}-character limit — pick fewer or shorten their notes`
-                );
-            }
-
-            return post;
+        if (post.length > TELEGRAM_MESSAGE_LIMIT) {
+            continue;
         }
+
+        const dropped = lead.slice(visible);
+        const droppedBreaking = dropped.filter(
+            (note) => note.type === 'breaking'
+        ).length;
+
+        if (droppedBreaking > 0) {
+            throw new Error(
+                `${droppedBreaking} breaking change(s) do not fit Telegram's ${TELEGRAM_MESSAGE_LIMIT}-character limit — shorten those notes, or announce this release in several posts`
+            );
+        }
+
+        if (leadIsHighlights && dropped.length > 0) {
+            throw new Error(
+                `the ${lead.length} highlights do not fit Telegram's ${TELEGRAM_MESSAGE_LIMIT}-character limit — pick fewer or shorten their notes`
+            );
+        }
+
+        return post;
     }
 
     throw new Error(
