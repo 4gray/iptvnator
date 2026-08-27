@@ -67,7 +67,7 @@ converge — successive review passes each found another under-estimated glyph
 (`W`, then CJK and emoji, then the `ae` ligature) — and a glyph the list misses
 crops the card while every unit test still passes. With the wide default the
 estimate can only run high, and running high costs an early line break nobody
-sees. `highlight-cards.test.mjs` renders each sample through sharp and asserts
+sees. `tools/release/highlight-cards.test.mjs` renders each sample through sharp and asserts
 the estimate never falls below the measured ink width, which is the guard
 against that whole class of bug.
 
@@ -164,7 +164,7 @@ never publishes, edits or deletes.
 The authored-body check compares the release body against the **local
 `CHANGELOG.md` section**, not against emptiness. The tag workflow appends
 GitHub's generated notes to the authored text (`FULL_BODY` in
-`build-and-make.yaml`), so the body is never empty and an emptiness test could
+`.github/workflows/build-and-make.yaml`), so the body is never empty and an emptiness test could
 never fail. An internal-only release, whose public section is legitimately
 empty, is reported as such rather than warned about.
 
