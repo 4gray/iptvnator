@@ -27,6 +27,45 @@ export const TELEGRAM_MESSAGE_LIMIT = 4096;
  */
 export const REDDIT_POST_LIMIT = 40000;
 
+/**
+ * Reddit caps a post title separately from its body, and far tighter: five
+ * highlights at the validated 60-character maximum already overshoot it while
+ * the body stays nowhere near its own limit.
+ */
+export const REDDIT_TITLE_LIMIT = 300;
+
+/**
+ * Names as many highlights as the title limit allows, counting the rest.
+ *
+ * @param {string} version
+ * @param {object[]} highlights
+ * @returns {string}
+ */
+export function buildRedditTitle(version, highlights) {
+    const prefix = `IPTVnator v${version}`;
+
+    if (highlights.length === 0) {
+        return `${prefix} released`;
+    }
+
+    const names = highlights.map((note) => note.highlight);
+
+    for (let visible = names.length; visible > 0; visible -= 1) {
+        const hidden = names.length - visible;
+        const title = `${prefix} — ${names.slice(0, visible).join(', ')}${
+            hidden > 0 ? `, and ${hidden} more` : ''
+        }`;
+
+        if (title.length <= REDDIT_TITLE_LIMIT) {
+            return title;
+        }
+    }
+
+    // Unreachable while the highlight cap stays well under the title limit,
+    // but a title is never worth failing a release over.
+    return `${prefix} released`;
+}
+
 const TYPE_EMOJI = {
     breaking: '⚠️',
     feature: '✨',
@@ -179,10 +218,7 @@ export function renderRedditPost(notes, { version }) {
         return null;
     }
 
-    const title =
-        highlights.length > 0
-            ? `IPTVnator v${version} — ${highlights.map((note) => note.highlight).join(', ')}`
-            : `IPTVnator v${version} released`;
+    const title = buildRedditTitle(version, highlights);
 
     const buildPost = (visibleRest, droppedCount) => {
         const blocks = [`Suggested title: ${title}`, '---'];

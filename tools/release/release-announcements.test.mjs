@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+    buildRedditTitle,
     REDDIT_POST_LIMIT,
+    REDDIT_TITLE_LIMIT,
     renderRedditPost,
     renderTelegramPost,
     splitHighlights,
@@ -233,6 +235,36 @@ describe('renderRedditPost', () => {
         );
 
         assert.doesNotMatch(post, /Internal churn/);
+    });
+
+    it('keeps the suggested title inside the Reddit title limit', () => {
+        // Five highlights at the validated 60-character maximum overshoot the
+        // 300-character title cap while the body stays far below its own.
+        const notes = Array.from({ length: 5 }, (_, index) =>
+            note({
+                highlight: `H${index}`.padEnd(60, 'x'),
+                sourcePath: `.changes/feature-${index}.md`,
+            })
+        );
+        const post = renderRedditPost(notes, { version: '0.24.0' });
+        const title = post.split('\n')[0].replace('Suggested title: ', '');
+
+        assert.ok(
+            title.length <= REDDIT_TITLE_LIMIT,
+            `title is ${title.length} characters`
+        );
+        assert.match(title, /, and \d+ more$/);
+    });
+
+    it('names every highlight when they fit', () => {
+        assert.equal(
+            buildRedditTitle('0.24.0', [
+                { highlight: 'Up Next rail' },
+                { highlight: 'Faster imports' },
+            ]),
+            'IPTVnator v0.24.0 — Up Next rail, Faster imports'
+        );
+        assert.equal(buildRedditTitle('0.24.0', []), 'IPTVnator v0.24.0 released');
     });
 
     it('stays inside the Reddit post limit and says what it dropped', () => {

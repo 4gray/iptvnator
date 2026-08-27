@@ -83,8 +83,11 @@ Highlights drive three behaviors:
   longer post. If the breaking changes alone cannot fit the 4096-character
   limit, the render fails with an actionable error rather than dropping one.
 - **Reddit** gives each one an `## Highlights` subsection, with the remaining
-  changes grouped below. Bounded the same way at Reddit's 40,000-character
-  post limit — this repository's accumulated notes already render ~37,000 —
+  changes grouped below. Its suggested title names as many highlights as
+  Reddit's separate 300-character title cap allows and counts the rest — five
+  highlights at the validated 60-character maximum already overshoot it while
+  the body stays nowhere near its own limit. The body is bounded the same way
+  at Reddit's 40,000-character post limit — this repository's accumulated notes already render ~37,000 —
   dropping from the tail of the grouped list, which is ordered breaking →
   feature → fix → perf so the least consequential go first. A breaking change
   is never dropped there either.
