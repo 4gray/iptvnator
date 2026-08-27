@@ -78,11 +78,31 @@ describe('wrapText', () => {
         ]);
     });
 
-    it('gives an overlong single word its own line instead of cutting it', () => {
+    it('breaks a word longer than the budget instead of overflowing the card', () => {
         assert.deepEqual(wrapText('supercalifragilistic ok', 10, 3), [
-            'supercalifragilistic',
+            'supercalif',
+            'ragilistic',
             'ok',
         ]);
+    });
+
+    it('never returns a line wider than the budget', () => {
+        // A 60-character unbroken highlight is valid input; on a 34-character
+        // feature-card budget it must still fit inside the canvas.
+        for (const [text, maxChars, maxLines] of [
+            ['W'.repeat(60), 34, 2],
+            ['W'.repeat(60), 30, 2],
+            ['W'.repeat(60), 60, 1],
+            ['a'.repeat(200), 34, 2],
+            ['short words only here', 34, 2],
+        ]) {
+            for (const line of wrapText(text, maxChars, maxLines)) {
+                assert.ok(
+                    line.length <= maxChars,
+                    `"${line}" is ${line.length} > ${maxChars}`
+                );
+            }
+        }
     });
 
     it('ellipsizes the last kept line on overflow', () => {

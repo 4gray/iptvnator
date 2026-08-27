@@ -79,8 +79,8 @@ pnpm run release:notes:validate
 pnpm run release:notes:github
 pnpm run release:notes:changelog
 pnpm run release:notes:blog
-pnpm run release:notes:telegram
-pnpm run release:notes:reddit
+pnpm --silent run release:notes:telegram
+pnpm --silent run release:notes:reddit
 node tools/release/build-release-notes.mjs --consume
 ```
 
@@ -102,7 +102,10 @@ rather than duplicating it). Only `--consume` deletes anything.
 
 The announcement formats print paste-ready posts to stdout: Telegram plain
 text guaranteed to fit the 4096-character limit, Reddit markdown with a
-suggested post title on the first line. Render and save them **before**
+suggested post title on the first line. Use `pnpm --silent run` for these two —
+plain `pnpm run` prints its lifecycle banner to the same stdout, so a
+redirected post starts with two lines of build noise. Render and save them
+**before**
 `--consume` — the changelog keeps the entries, but the `highlight:` metadata
 lives only in the note files. Publishing is manual; nothing posts anywhere.
 An internal-only release has nothing to announce: both formats then print an

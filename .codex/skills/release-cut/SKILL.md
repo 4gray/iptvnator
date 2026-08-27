@@ -33,7 +33,8 @@ pnpm run i18n:check
    `pnpm nx run electron-backend:build-e2e`, then
    `pnpm run release:screenshots`.
 5. Render the announcement drafts, saving output outside the repository:
-   `pnpm run release:notes:telegram` and `pnpm run release:notes:reddit`.
+   `pnpm --silent run release:notes:telegram` and the `:reddit` counterpart
+   (`--silent`, or pnpm's lifecycle banner lands in the saved post).
 6. Render highlight cards after the screenshots:
    `pnpm run release:cards:generate`. Review them; copy `hero.jpg` into the
    blog post's asset directory if it should ship as the hero image.

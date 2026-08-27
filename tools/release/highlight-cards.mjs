@@ -61,8 +61,13 @@ export function escapeXml(text) {
 
 /**
  * Greedy word wrap by character budget. SVG has no automatic text layout and
- * font metrics vary by host, so the budget is conservative; a single word
- * longer than the budget gets its own line rather than being cut.
+ * font metrics vary by host, so the budget is conservative.
+ *
+ * Every returned line is at most `maxChars` long, including when a single
+ * word exceeds the budget: such a word is broken at the budget rather than
+ * left whole. Leaving it whole is what a naive wrap does, and a 60-character
+ * unbroken headline — well inside the validated limit — then rendered past
+ * the edge of the 1200px card and was cropped.
  *
  * @param {string} text
  * @param {number} maxChars
@@ -75,6 +80,20 @@ export function wrapText(text, maxChars, maxLines) {
     let current = '';
 
     for (const word of words) {
+        if (word.length > maxChars) {
+            if (current) {
+                lines.push(current);
+            }
+
+            for (let start = 0; start < word.length; start += maxChars) {
+                lines.push(word.slice(start, start + maxChars));
+            }
+
+            // Keep the final chunk open so a following short word can join it.
+            current = lines.pop() ?? '';
+            continue;
+        }
+
         const candidate = current ? `${current} ${word}` : word;
 
         if (candidate.length <= maxChars || !current) {

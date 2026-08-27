@@ -30,6 +30,11 @@ chosen deliberately by bumping `package.json`.
 | Highlight cards | `release:cards:generate` | `dist/release-highlight-cards/v<version>/` |
 | Screenshots | `release:screenshots` | `apps/website/public/blog/<vX-Y>/screenshots/` |
 
+Run the two stdout commands as `pnpm --silent run …` whenever the output is
+redirected to a file or a clipboard. Without it pnpm prints its lifecycle
+banner (`> iptvnator@0.23.0 release:notes:telegram …`) to the same stdout, and
+the saved post starts with two lines of build noise.
+
 ### The ordering constraint that matters
 
 `build-release-notes.mjs --consume` is the destructive boundary: it deletes the
