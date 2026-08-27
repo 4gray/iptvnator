@@ -52,8 +52,9 @@ The body is capped at 400 characters — depth belongs in the blog post.
 - ✅ "Series whose title carries a season marker no longer show the wrong season"
 
 `highlight` marks the change as one of the release's headline features and
-gives it a short, poster-worthy name. The 60-character cap is the hero card's
-single-line budget, so a valid highlight always renders in full. Highlights lead the Telegram/Reddit
+gives it a short, poster-worthy name. The 60-character cap keeps it roughly to
+one line on the hero card; card text wraps by estimated width, so a headline of
+unusually wide glyphs may still wrap or ellipsize rather than overflow. Highlights lead the Telegram/Reddit
 announcements (everything else collapses into a "+N more" counter) and become
 ready-made section headings in the blog scaffold. Set it on the two or three
 changes worth announcing — a release where everything is a highlight has none.

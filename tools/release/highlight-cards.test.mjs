@@ -20,10 +20,13 @@ import {
     CARD_HEIGHT,
     CARD_WIDTH,
     escapeXml,
+    estimateTextWidth,
+    HERO_BULLET_MAX_WIDTH,
     isOwnedCardFile,
     planHighlightCards,
     SHOT_TOP,
     TEXT_BOTTOM,
+    TEXT_MAX_WIDTH,
     wrapText,
 } from './highlight-cards.mjs';
 import {
@@ -70,46 +73,71 @@ after(() => {
 });
 
 describe('wrapText', () => {
-    it('wraps on word boundaries within the budget', () => {
-        assert.deepEqual(wrapText('one two three four', 9, 3), [
+    const budget = (maxWidth, fontSize, maxLines) => ({
+        maxWidth,
+        fontSize,
+        maxLines,
+    });
+
+    it('wraps on word boundaries within the width budget', () => {
+        assert.deepEqual(wrapText('one two three four', budget(60, 10, 4)), [
             'one two',
+            'three four',
+        ]);
+        // A tighter budget breaks earlier, still only between words.
+        assert.deepEqual(wrapText('one two three four', budget(30, 10, 4)), [
+            'one',
+            'two',
             'three',
             'four',
         ]);
     });
 
-    it('breaks a word longer than the budget instead of overflowing the card', () => {
-        assert.deepEqual(wrapText('supercalifragilistic ok', 10, 3), [
-            'supercalif',
-            'ragilistic',
-            'ok',
-        ]);
+    it('breaks a word wider than the budget instead of overflowing the card', () => {
+        const lines = wrapText('supercalifragilistic ok', budget(60, 10, 4));
+
+        assert.ok(lines.length > 1);
+        assert.equal(lines.join('').replace(/ /g, ''), 'supercalifragilisticok');
     });
 
-    it('never returns a line wider than the budget', () => {
-        // A 60-character unbroken highlight is valid input; on a 34-character
-        // feature-card budget it must still fit inside the canvas.
-        for (const [text, maxChars, maxLines] of [
-            ['W'.repeat(60), 34, 2],
-            ['W'.repeat(60), 30, 2],
-            ['W'.repeat(60), 60, 1],
-            ['a'.repeat(200), 34, 2],
-            ['short words only here', 34, 2],
+    it('keeps every line inside the budget, wide glyphs included', () => {
+        // Counting characters is not a width budget: 34 `W` at font-size 52
+        // measures ~1948px where only 1072px are available.
+        for (const [text, maxWidth, fontSize, maxLines] of [
+            ['W'.repeat(60), TEXT_MAX_WIDTH, 52, 2],
+            ['W'.repeat(60), TEXT_MAX_WIDTH, 62, 2],
+            ['W'.repeat(60), HERO_BULLET_MAX_WIDTH, 30, 1],
+            ['M'.repeat(200), TEXT_MAX_WIDTH, 23, 3],
+            ['ЖЮ'.repeat(40), TEXT_MAX_WIDTH, 52, 2],
+            ['Advanced subtitles with external files', TEXT_MAX_WIDTH, 52, 2],
         ]) {
-            for (const line of wrapText(text, maxChars, maxLines)) {
+            for (const line of wrapText(
+                text,
+                budget(maxWidth, fontSize, maxLines)
+            )) {
+                const width = estimateTextWidth(line, fontSize);
+
                 assert.ok(
-                    line.length <= maxChars,
-                    `"${line}" is ${line.length} > ${maxChars}`
+                    width <= maxWidth,
+                    `"${line}" estimates ${Math.round(width)}px > ${maxWidth}px`
                 );
             }
         }
     });
 
+    it('estimates a wide glyph run near its measured rendered width', () => {
+        // Calibration anchor: 34 `W` at font-size 52 renders ~1948px.
+        const estimate = estimateTextWidth('W'.repeat(34), 52);
+
+        assert.ok(estimate > 1800, `estimate ${estimate} is too low`);
+    });
+
     it('ellipsizes the last kept line on overflow', () => {
-        const lines = wrapText('aaa bbb ccc ddd eee', 3, 2);
+        const lines = wrapText('aaa bbb ccc ddd eee', budget(30, 10, 2));
 
         assert.equal(lines.length, 2);
         assert.match(lines[1], /…$/);
+        assert.ok(estimateTextWidth(lines[1], 10) <= 30);
     });
 });
 

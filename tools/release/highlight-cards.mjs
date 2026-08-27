@@ -21,6 +21,13 @@ export const SHOT_TOP = 330;
 export const SHOT_LEFT = (CARD_WIDTH - SHOT_WIDTH) / 2;
 export const SHOT_RADIUS = 14;
 
+/** Left margin, and the width text may occupy before the right margin. */
+const TEXT_LEFT = 64;
+export const TEXT_MAX_WIDTH = CARD_WIDTH - TEXT_LEFT * 2;
+/** Hero bullet lines start further right, after the accent dot. */
+const HERO_BULLET_LEFT = 100;
+export const HERO_BULLET_MAX_WIDTH = CARD_WIDTH - HERO_BULLET_LEFT - TEXT_LEFT;
+
 /** Feature-card text block, laid out to always clear the screenshot frame. */
 const HEADLINE_TOP = 168;
 const HEADLINE_LINE_HEIGHT = 58;
@@ -60,35 +67,89 @@ export function escapeXml(text) {
 }
 
 /**
- * Greedy word wrap by character budget. SVG has no automatic text layout and
- * font metrics vary by host, so the budget is conservative.
+ * Per-character advance width as a fraction of the font size.
  *
- * Every returned line is at most `maxChars` long, including when a single
- * word exceeds the budget: such a word is broken at the budget rather than
- * left whole. Leaving it whole is what a naive wrap does, and a 60-character
- * unbroken headline — well inside the validated limit — then rendered past
- * the edge of the 1200px card and was cropped.
+ * Counting characters is not a width budget: 34 `W` at font-size 52 measures
+ * ~1948px where only ~1072px are available, so a character-capped line still
+ * overflowed the canvas. These factors are calibrated against that measured
+ * bold rendering and deliberately err high — over-estimating wraps a line
+ * early, which is invisible; under-estimating crops the card.
+ */
+const WIDE_GLYPHS = new Set('MWmw@%ЖШЩбюфЮ');
+const NARROW_GLYPHS = new Set("iljItfrJ.,;:'\"`!|()[]{}/\\-ЁІ");
+
+/**
+ * @param {string} text
+ * @param {number} fontSize
+ * @returns {number} estimated rendered width in pixels
+ */
+export function estimateTextWidth(text, fontSize) {
+    let units = 0;
+
+    for (const character of text) {
+        if (character === ' ') {
+            units += 0.3;
+        } else if (NARROW_GLYPHS.has(character)) {
+            units += 0.35;
+        } else if (WIDE_GLYPHS.has(character)) {
+            units += 1.1;
+        } else if (character === character.toUpperCase() && character !== character.toLowerCase()) {
+            units += 0.78;
+        } else {
+            units += 0.6;
+        }
+    }
+
+    return units * fontSize;
+}
+
+/** Splits one overlong word into chunks that each fit `maxWidth`. */
+function breakWord(word, maxWidth, fontSize) {
+    const chunks = [];
+    let chunk = '';
+
+    for (const character of word) {
+        if (
+            chunk &&
+            estimateTextWidth(chunk + character, fontSize) > maxWidth
+        ) {
+            chunks.push(chunk);
+            chunk = character;
+            continue;
+        }
+
+        chunk += character;
+    }
+
+    if (chunk) {
+        chunks.push(chunk);
+    }
+
+    return chunks;
+}
+
+/**
+ * Greedy word wrap by estimated rendered width. SVG has no automatic text
+ * layout, so the wrap has to decide the breaks itself; every returned line is
+ * estimated to fit `maxWidth`, including when a single word does not — such a
+ * word is broken rather than left to run off the canvas.
  *
  * @param {string} text
- * @param {number} maxChars
- * @param {number} maxLines
- * @returns {string[]} at most maxLines lines, the last one ellipsized on overflow
+ * @param {{ maxWidth: number, fontSize: number, maxLines: number }} options
+ * @returns {string[]} at most maxLines lines, the last ellipsized on overflow
  */
-export function wrapText(text, maxChars, maxLines) {
-    const words = text.replace(/\s+/g, ' ').trim().split(' ');
+export function wrapText(text, { maxWidth, fontSize, maxLines }) {
+    const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
     const lines = [];
     let current = '';
 
     for (const word of words) {
-        if (word.length > maxChars) {
+        if (estimateTextWidth(word, fontSize) > maxWidth) {
             if (current) {
                 lines.push(current);
             }
 
-            for (let start = 0; start < word.length; start += maxChars) {
-                lines.push(word.slice(start, start + maxChars));
-            }
-
+            lines.push(...breakWord(word, maxWidth, fontSize));
             // Keep the final chunk open so a following short word can join it.
             current = lines.pop() ?? '';
             continue;
@@ -96,7 +157,7 @@ export function wrapText(text, maxChars, maxLines) {
 
         const candidate = current ? `${current} ${word}` : word;
 
-        if (candidate.length <= maxChars || !current) {
+        if (!current || estimateTextWidth(candidate, fontSize) <= maxWidth) {
             current = candidate;
             continue;
         }
@@ -111,10 +172,16 @@ export function wrapText(text, maxChars, maxLines) {
 
     if (lines.length > maxLines) {
         const kept = lines.slice(0, maxLines);
-        const last = kept[maxLines - 1];
+        let last = kept[maxLines - 1];
 
-        kept[maxLines - 1] =
-            `${last.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
+        while (
+            last.length > 1 &&
+            estimateTextWidth(`${last}…`, fontSize) > maxWidth
+        ) {
+            last = last.slice(0, -1);
+        }
+
+        kept[maxLines - 1] = `${last.trimEnd()}…`;
 
         return kept;
     }
@@ -249,12 +316,21 @@ function brandHeader(version) {
     ].join('');
 }
 
-function textLines(lines, { x, y, size, weight, fill, lineHeight }) {
+/**
+ * `maxWidth` is a hard backstop, not the wrap budget: the wrap already fits
+ * every line by estimate, and this clamps anything the estimate got wrong so
+ * a mis-measured glyph compresses instead of running off the canvas.
+ */
+function textLines(lines, { x, y, size, weight, fill, lineHeight, maxWidth }) {
     return lines
-        .map(
-            (line, index) =>
-                `<text x="${x}" y="${y + index * lineHeight}" font-family="${FONT_STACK}" font-size="${size}" font-weight="${weight}" fill="${fill}">${escapeXml(line)}</text>`
-        )
+        .map((line, index) => {
+            const clamp =
+                maxWidth && estimateTextWidth(line, size) > maxWidth
+                    ? ` textLength="${maxWidth}" lengthAdjust="spacingAndGlyphs"`
+                    : '';
+
+            return `<text x="${x}" y="${y + index * lineHeight}" font-family="${FONT_STACK}" font-size="${size}" font-weight="${weight}" fill="${fill}"${clamp}>${escapeXml(line)}</text>`;
+        })
         .join('');
 }
 
@@ -277,7 +353,11 @@ export function buildFeatureCardSvg(job, version) {
     ];
 
     if (job.screenshotPath) {
-        const headline = wrapText(job.headline, 34, 2);
+        const headline = wrapText(job.headline, {
+            maxWidth: TEXT_MAX_WIDTH,
+            fontSize: 52,
+            maxLines: 2,
+        });
         // The body's line budget is derived from the space actually left above
         // the screenshot frame, never assumed: the frame is opaque and painted
         // after the text, so a fixed line count silently sliced the last line
@@ -291,26 +371,32 @@ export function buildFeatureCardSvg(job, version) {
                 Math.floor((TEXT_BOTTOM - bodyTop) / BODY_LINE_HEIGHT) + 1
             )
         );
-        const body = wrapText(job.body, 88, bodyLines);
+        const body = wrapText(job.body, {
+            maxWidth: TEXT_MAX_WIDTH,
+            fontSize: 23,
+            maxLines: bodyLines,
+        });
 
         parts.push(
             textLines(headline, {
-                x: 64,
+                x: TEXT_LEFT,
                 y: HEADLINE_TOP,
                 size: 52,
                 weight: 800,
                 fill: BRAND.text,
                 lineHeight: HEADLINE_LINE_HEIGHT,
+                maxWidth: TEXT_MAX_WIDTH,
             })
         );
         parts.push(
             textLines(body, {
-                x: 64,
+                x: TEXT_LEFT,
                 y: bodyTop,
                 size: 23,
                 weight: 400,
                 fill: BRAND.muted,
                 lineHeight: BODY_LINE_HEIGHT,
+                maxWidth: TEXT_MAX_WIDTH,
             })
         );
         // Frame stroke sits behind the composited screenshot; the strip is
@@ -319,31 +405,41 @@ export function buildFeatureCardSvg(job, version) {
             `<rect x="${SHOT_LEFT - 2}" y="${SHOT_TOP - 2}" width="${SHOT_WIDTH + 4}" height="${CARD_HEIGHT - SHOT_TOP + 4}" rx="${SHOT_RADIUS + 2}" fill="${BRAND.frame}"/>`
         );
     } else {
-        const headline = wrapText(job.headline, 30, 2);
-        const body = wrapText(job.body, 74, 3);
+        const headline = wrapText(job.headline, {
+            maxWidth: TEXT_MAX_WIDTH,
+            fontSize: 62,
+            maxLines: 2,
+        });
+        const body = wrapText(job.body, {
+            maxWidth: TEXT_MAX_WIDTH,
+            fontSize: 26,
+            maxLines: 3,
+        });
         const headlineY = 250;
 
         parts.push(
             textLines(headline, {
-                x: 64,
+                x: TEXT_LEFT,
                 y: headlineY,
                 size: 62,
                 weight: 800,
                 fill: BRAND.text,
                 lineHeight: 74,
+                maxWidth: TEXT_MAX_WIDTH,
             })
         );
         parts.push(
-            `<rect x="64" y="${headlineY + headline.length * 74 - 44}" width="120" height="6" rx="3" fill="${BRAND.warm}"/>`
+            `<rect x="${TEXT_LEFT}" y="${headlineY + headline.length * 74 - 44}" width="120" height="6" rx="3" fill="${BRAND.warm}"/>`
         );
         parts.push(
             textLines(body, {
-                x: 64,
+                x: TEXT_LEFT,
                 y: headlineY + headline.length * 74 + 8,
                 size: 26,
                 weight: 400,
                 fill: BRAND.muted,
                 lineHeight: 38,
+                maxWidth: TEXT_MAX_WIDTH,
             })
         );
     }
@@ -380,10 +476,22 @@ export function buildHeroCardSvg(hero) {
         );
         // wrapText yields no lines for whitespace-only input; validation
         // rejects that upstream, but a card run must not die half-written.
-        const [line = ''] = wrapText(headline, 60, 1);
+        const [line = ''] = wrapText(headline, {
+            maxWidth: HERO_BULLET_MAX_WIDTH,
+            fontSize: 30,
+            maxLines: 1,
+        });
 
         parts.push(
-            `<text x="100" y="${y}" font-family="${FONT_STACK}" font-size="30" font-weight="600" fill="${BRAND.text}">${escapeXml(line)}</text>`
+            textLines([line], {
+                x: HERO_BULLET_LEFT,
+                y,
+                size: 30,
+                weight: 600,
+                fill: BRAND.text,
+                lineHeight: 0,
+                maxWidth: HERO_BULLET_MAX_WIDTH,
+            })
         );
     });
 

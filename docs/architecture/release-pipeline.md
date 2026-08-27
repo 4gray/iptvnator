@@ -47,9 +47,17 @@ published its frames, since they composite them.
 ## `highlight:` — what leads a release
 
 An optional note field naming one of the release's two or three headline
-changes. It is rejected on `type: internal`, and capped at **60 characters**
-because that is the hero card's single-line budget (`wrapText(headline, 60, 1)`)
-— a longer value would be silently ellipsized on an image nobody re-reads.
+changes. It is rejected on `type: internal`, and capped at **60 characters** to
+keep it headline-sized — roughly what the hero card fits on one line.
+
+The cap is an authoring guideline, not a rendering guarantee: character count
+is not width. Card text wraps by *estimated rendered width*
+(`estimateTextWidth`, calibrated against a measured bold rendering and erring
+high), because 34 `W` at font-size 52 measures ~1948px where 1072px are
+available — a character-capped line still ran off the canvas. Text that cannot
+fit even after wrapping is ellipsized, and every emitted line carries an SVG
+`textLength` clamp when the estimate says it would still overflow, so a
+mis-measured glyph compresses rather than crops.
 
 Highlights drive three behaviors:
 
