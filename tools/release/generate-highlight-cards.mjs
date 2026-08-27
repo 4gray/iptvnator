@@ -141,6 +141,20 @@ async function prepareShotOverlay(screenshotPath) {
 }
 
 /**
+ * Repo-relative when the path is inside the workspace, absolute otherwise:
+ * `--out /tmp/cards` printed as a stack of `../../..` segments is worse than
+ * no shortening at all.
+ *
+ * @param {string} target
+ * @returns {string}
+ */
+function displayPath(target) {
+    const relative = path.relative(workspaceRoot, target);
+
+    return relative.startsWith('..') ? target : relative;
+}
+
+/**
  * Removes the cards a previous run of THIS generator left in `outputDir`, so a
  * renamed, dropped, or newly-internal highlight cannot leave a stale image
  * sitting there waiting to be published. Only files matching what this tool
@@ -231,7 +245,7 @@ async function main() {
     if (notes.length === 0) {
         console.error(
             [
-                `No notes found in ${path.relative(workspaceRoot, notesDir)}/.`,
+                `No notes found in ${displayPath(notesDir)}/.`,
                 'Cards are built from `highlight:`, which exists only in the note',
                 'files — if `build-release-notes.mjs --consume` already ran, that',
                 'metadata is gone. Render cards before consuming.',
@@ -300,7 +314,7 @@ async function main() {
         console.error('Missing screenshot(s) for highlight card(s):\n');
         for (const job of missingShots) {
             console.error(
-                `  ${path.relative(workspaceRoot, job.screenshotPath)}`
+                `  ${displayPath(job.screenshotPath)}`
             );
         }
         console.error('\nRun `pnpm run release:screenshots` first.');
@@ -310,14 +324,14 @@ async function main() {
     console.log(`${plan.feature.length} highlight card(s) + hero for v${options.version}:`);
     for (const job of plan.feature) {
         const shot = job.screenshotPath
-            ? path.relative(workspaceRoot, job.screenshotPath)
+            ? displayPath(job.screenshotPath)
             : 'no screenshot (typographic card)';
 
         console.log(`  ${job.fileName} — "${job.headline}" (${shot})`);
     }
 
     if (options.mode === 'dry-run') {
-        console.log(`\nWould write to ${path.relative(workspaceRoot, outputDir)}/.`);
+        console.log(`\nWould write to ${displayPath(outputDir)}/.`);
 
         return;
     }
@@ -335,7 +349,7 @@ async function main() {
     const written = await renderCards(plan, options.version, outputDir);
 
     for (const file of written) {
-        console.log(`Wrote ${path.relative(workspaceRoot, file)}`);
+        console.log(`Wrote ${displayPath(file)}`);
     }
 
     console.log(
