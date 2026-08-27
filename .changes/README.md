@@ -101,9 +101,12 @@ only read and print. `--format changelog` and `--format blog` write their
 target file (rerunning `changelog` for the same version replaces that section
 rather than duplicating it). Only `--consume` deletes anything.
 
-The announcement formats print paste-ready posts to stdout: Telegram plain
-text guaranteed to fit the 4096-character limit, Reddit markdown with a
-suggested post title on the first line. Use `pnpm --silent run` for these two —
+The announcement formats print paste-ready posts to stdout, each guaranteed
+to fit its platform's limit: Telegram plain text within 4096 characters,
+Reddit markdown within 40,000, with a suggested post title on the first line.
+Whatever does not fit collapses into a counter; a breaking change is never
+collapsed, and if the highlights alone will not fit, the render fails with an
+actionable error rather than shipping a post that cannot be submitted. Use `pnpm --silent run` for these two —
 plain `pnpm run` prints its lifecycle banner to the same stdout, so a
 redirected post starts with two lines of build noise. Render and save them
 **before**

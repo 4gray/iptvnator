@@ -83,7 +83,11 @@ Highlights drive three behaviors:
   longer post. If the breaking changes alone cannot fit the 4096-character
   limit, the render fails with an actionable error rather than dropping one.
 - **Reddit** gives each one an `## Highlights` subsection, with the remaining
-  changes grouped below.
+  changes grouped below. Bounded the same way at Reddit's 40,000-character
+  post limit — this repository's accumulated notes already render ~37,000 —
+  dropping from the tail of the grouped list, which is ordered breaking →
+  feature → fix → perf so the least consequential go first. A breaking change
+  is never dropped there either.
 - **The blog scaffold** uses the highlight as a ready `###` heading instead of
   emitting `TODO headline (<area>)`.
 

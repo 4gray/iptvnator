@@ -20,6 +20,13 @@ export const WEBSITE_URL = 'https://4gray.github.io/iptvnator';
  */
 export const TELEGRAM_MESSAGE_LIMIT = 4096;
 
+/**
+ * Reddit rejects a self-post body over this length. It is roomy, but not
+ * unreachable: this repository's own accumulated notes already render a
+ * ~36,500-character draft.
+ */
+export const REDDIT_POST_LIMIT = 40000;
+
 const TYPE_EMOJI = {
     breaking: '⚠️',
     feature: '✨',
@@ -162,7 +169,8 @@ export function renderTelegramPost(notes, { version }) {
  *
  * @param {object[]} notes
  * @param {{ version: string }} options
- * @returns {string | null} null for an internal-only release
+ * @returns {string | null} a post within REDDIT_POST_LIMIT, or null for an
+ * internal-only release
  */
 export function renderRedditPost(notes, { version }) {
     const { highlights, rest } = splitHighlights(notes);
@@ -176,35 +184,71 @@ export function renderRedditPost(notes, { version }) {
             ? `IPTVnator v${version} — ${highlights.map((note) => note.highlight).join(', ')}`
             : `IPTVnator v${version} released`;
 
-    const blocks = [`Suggested title: ${title}`, '---'];
+    const buildPost = (visibleRest, droppedCount) => {
+        const blocks = [`Suggested title: ${title}`, '---'];
 
-    if (highlights.length > 0) {
-        blocks.push('## Highlights');
+        if (highlights.length > 0) {
+            blocks.push('## Highlights');
 
-        for (const note of highlights) {
-            blocks.push(`### ${note.highlight}`, oneLine(note.body));
+            for (const note of highlights) {
+                blocks.push(`### ${note.highlight}`, oneLine(note.body));
+            }
         }
-    }
 
-    if (rest.length > 0) {
+        if (visibleRest.length > 0) {
+            blocks.push(
+                highlights.length > 0
+                    ? '## Also in this release'
+                    : "## What's changed"
+            );
+
+            for (const group of groupNotes(visibleRest)) {
+                const entries = group.notes
+                    .map((note) => `- **${note.area}** — ${oneLine(note.body)}`)
+                    .join('\n');
+
+                blocks.push(`**${group.heading}**\n\n${entries}`);
+            }
+        }
+
+        if (droppedCount > 0) {
+            blocks.push(
+                `…and ${droppedCount} more ${droppedCount === 1 ? 'change' : 'changes'} — see the full release notes below.`
+            );
+        }
+
         blocks.push(
-            highlights.length > 0
-                ? '## Also in this release'
-                : "## What's changed"
+            `[Download](${releaseUrl(version)}) · [Full release notes](${blogUrl(version)}) · [Changelog](${REPO_URL}/blob/master/CHANGELOG.md)`
         );
 
-        for (const group of groupNotes(rest)) {
-            const entries = group.notes
-                .map((note) => `- **${note.area}** — ${oneLine(note.body)}`)
-                .join('\n');
+        return `${blocks.filter(Boolean).join('\n\n')}\n`;
+    };
 
-            blocks.push(`**${group.heading}**\n\n${entries}`);
+    // Reddit rejects a body over its post limit, so the draft has to be bounded
+    // the way the Telegram one is. Entries are dropped from the tail of the
+    // grouped list, which is ordered breaking → feature → fix → perf, so the
+    // least consequential go first.
+    for (let visible = rest.length; visible >= 0; visible -= 1) {
+        const post = buildPost(rest.slice(0, visible), rest.length - visible);
+
+        if (post.length > REDDIT_POST_LIMIT) {
+            continue;
         }
+
+        const droppedBreaking = rest
+            .slice(visible)
+            .filter((note) => note.type === 'breaking').length;
+
+        if (droppedBreaking > 0) {
+            throw new Error(
+                `${droppedBreaking} breaking change(s) do not fit Reddit's ${REDDIT_POST_LIMIT}-character limit — shorten those notes, or announce this release in several posts`
+            );
+        }
+
+        return post;
     }
 
-    blocks.push(
-        `[Download](${releaseUrl(version)}) · [Full release notes](${blogUrl(version)}) · [Changelog](${REPO_URL}/blob/master/CHANGELOG.md)`
+    throw new Error(
+        `the highlights alone exceed Reddit's ${REDDIT_POST_LIMIT}-character limit — pick fewer or shorten their notes`
     );
-
-    return `${blocks.filter(Boolean).join('\n\n')}\n`;
 }

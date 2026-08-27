@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+    REDDIT_POST_LIMIT,
     renderRedditPost,
     renderTelegramPost,
     splitHighlights,
@@ -232,6 +233,51 @@ describe('renderRedditPost', () => {
         );
 
         assert.doesNotMatch(post, /Internal churn/);
+    });
+
+    it('stays inside the Reddit post limit and says what it dropped', () => {
+        const notes = [
+            note({ highlight: 'Up Next rail' }),
+            ...Array.from({ length: 400 }, (_, index) =>
+                note({
+                    type: 'fix',
+                    body: `Fix ${index}: ${'x'.repeat(360)}`,
+                    sourcePath: `.changes/fix-${index}.md`,
+                })
+            ),
+        ];
+        const post = renderRedditPost(notes, { version: '0.24.0' });
+
+        assert.ok(
+            post.length <= REDDIT_POST_LIMIT,
+            `post is ${post.length} characters`
+        );
+        assert.match(post, /### Up Next rail/);
+        assert.match(post, /…and \d+ more changes — see the full release notes/);
+    });
+
+    it('refuses to drop a breaking change to fit', () => {
+        const notes = Array.from({ length: 200 }, (_, index) =>
+            note({
+                type: 'breaking',
+                body: `Breaking ${index}: ${'x'.repeat(360)}`,
+                sourcePath: `.changes/breaking-${index}.md`,
+            })
+        );
+
+        assert.throws(
+            () => renderRedditPost(notes, { version: '0.24.0' }),
+            /breaking change\(s\) do not fit Reddit's 40000-character limit/
+        );
+    });
+
+    it('leaves a normal release untouched', () => {
+        const post = renderRedditPost(
+            [note({ highlight: 'Up Next rail' }), note({ type: 'fix' })],
+            { version: '0.24.0' }
+        );
+
+        assert.doesNotMatch(post, /…and \d+ more/);
     });
 
     it('returns null for an internal-only release', () => {
