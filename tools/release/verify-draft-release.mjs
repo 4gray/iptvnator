@@ -18,7 +18,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -340,6 +340,19 @@ const liveIo = {
             { stdio: 'inherit' }
         );
 
+        // spawnSync reports a missing binary and a signalled child as
+        // `status: null` rather than throwing. Blaming the build for either
+        // would send the release manager after a build that is fine.
+        if (result.error) {
+            throw new Error(`could not run gh: ${result.error.message}`);
+        }
+
+        if (result.signal) {
+            throw new Error(
+                `gh run watch was interrupted (${result.signal}) — run ${runId} was not judged`
+            );
+        }
+
         if (result.status !== 0) {
             throw new Error(
                 `tag build run ${runId} failed — fix the build before verifying assets`
@@ -398,9 +411,24 @@ async function main() {
     process.exit(exitCode);
 }
 
-const isDirectRun =
-    process.argv[1] &&
-    path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+// realpath on both sides: Node resolves symlinks for `import.meta.url` but
+// not for argv[1], so a checkout reached through a symlinked path (macOS
+// /tmp and /var are symlinks) made this publication gate a silent exit-0
+// no-op — which reads exactly like a pass.
+const isDirectRun = (() => {
+    if (!process.argv[1]) {
+        return false;
+    }
+
+    try {
+        return (
+            realpathSync(process.argv[1]) ===
+            realpathSync(fileURLToPath(import.meta.url))
+        );
+    } catch {
+        return false;
+    }
+})();
 
 if (isDirectRun) {
     main().catch((error) => {

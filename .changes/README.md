@@ -32,7 +32,7 @@ of the current season, watch progress, and click-to-play inline.
 | `area`       | yes      | lowercase slug, same as the conventional-commit scope        |
 | `issues`     | no       | issue numbers this closes — `[1187]` or `1187`               |
 | `screenshot` | no       | slug from `tools/release/screenshots.manifest.json`          |
-| `highlight`  | no       | short headline (max 80 chars) marking a release highlight    |
+| `highlight`  | no       | short headline (max 60 chars) marking a release highlight    |
 
 There is **no version field**. The release version is chosen deliberately at
 release time, not derived from these files.
@@ -52,7 +52,8 @@ The body is capped at 400 characters — depth belongs in the blog post.
 - ✅ "Series whose title carries a season marker no longer show the wrong season"
 
 `highlight` marks the change as one of the release's headline features and
-gives it a short, poster-worthy name. Highlights lead the Telegram/Reddit
+gives it a short, poster-worthy name. The 60-character cap is the hero card's
+single-line budget, so a valid highlight always renders in full. Highlights lead the Telegram/Reddit
 announcements (everything else collapses into a "+N more" counter) and become
 ready-made section headings in the blog scaffold. Set it on the two or three
 changes worth announcing — a release where everything is a highlight has none.
@@ -109,7 +110,11 @@ explanation on stderr, leave stdout empty, and exit 0 — the same shape
 `extract-changelog-section.mjs --public` uses for its empty public body.
 
 The release sequence is: bump the version → `release:notes:changelog` →
-`release:notes:blog` → `--consume` → commit → tag → push. The tag build then
+`release:notes:blog` → `release:screenshots` → `release:notes:telegram` /
+`release:notes:reddit` → `release:cards:generate` → `--consume` → commit → tag
+→ push → `release:verify:draft`. Everything reading `highlight:` comes before
+`--consume`, because that step deletes the only copy of it. Full contract:
+`docs/architecture/release-pipeline.md`. The tag build then
 extracts the new `CHANGELOG.md` section into the GitHub release body
 (`tools/release/extract-changelog-section.mjs`) and **fails the release** if
 the section is missing — a tag cut without the changelog step cannot silently

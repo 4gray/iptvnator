@@ -40,8 +40,12 @@ const DELIMITER = '---';
 /** Keeps entries to a sentence or three; essays belong in the blog post. */
 const MAX_BODY_LENGTH = 400;
 
-/** A highlight is a headline, not a paragraph. */
-const MAX_HIGHLIGHT_LENGTH = 80;
+/**
+ * A highlight is a headline, not a paragraph — and the limit is the hero
+ * card's single-line budget (`wrapText(headline, 60, 1)`). Anything longer is
+ * silently ellipsized there, so it is rejected at the source instead.
+ */
+const MAX_HIGHLIGHT_LENGTH = 60;
 
 /**
  * Splits a note into its frontmatter lines and body.
@@ -71,35 +75,62 @@ function splitFrontmatter(content) {
 }
 
 /**
+ * Free-form fields, where `#` is ordinary punctuation rather than a comment
+ * marker. Everything else in this schema is a closed vocabulary — enum, slug,
+ * issue numbers — whose values can never contain one.
+ */
+const PROSE_KEYS = new Set(['highlight']);
+
+/**
+ * Strips a surrounding quote pair. Both ends must carry the SAME quote
+ * character: `"Up Next" rail` is prose containing quotes, and stripping its
+ * ends independently would silently eat the opening one.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function unquote(value) {
+    const quote = value[0];
+    const isQuoted =
+        value.length >= 2 &&
+        (quote === "'" || quote === '"') &&
+        value.endsWith(quote);
+
+    return (isQuoted ? value.slice(1, -1) : value).trim();
+}
+
+/**
  * Parses a single `key: value` frontmatter line.
  *
- * Trailing `# comment` text is stripped: no value in this schema (enum slug,
- * area slug, issue numbers) can legitimately contain `#`, and the documented
- * examples carry explanatory comments.
+ * Trailing `# comment` text is stripped from closed-vocabulary fields, whose
+ * documented examples carry explanatory comments. Prose fields keep it —
+ * `highlight: Sources #N chip` is a headline, not a commented-out value, and
+ * stripping there truncated the headline on every announcement surface.
  *
  * @param {string} line
- * @returns {[string, string] | null} key/value pair, or null for blank lines
+ * @returns {[string, string] | null} key/value pair, or null for blank and
+ * whole-line comment lines
  */
 function parseFrontmatterLine(line) {
-    const withoutComment = line.replace(/\s+#.*$/, '').trim();
+    const trimmed = line.trim();
 
-    if (!withoutComment) {
+    if (!trimmed || trimmed.startsWith('#')) {
         return null;
     }
 
-    const separatorIndex = withoutComment.indexOf(':');
+    const separatorIndex = trimmed.indexOf(':');
 
     if (separatorIndex === -1) {
-        throw new Error(`frontmatter line is not \`key: value\`: "${line.trim()}"`);
+        throw new Error(`frontmatter line is not \`key: value\`: "${trimmed}"`);
     }
 
-    const key = withoutComment.slice(0, separatorIndex).trim();
-    const value = withoutComment
-        .slice(separatorIndex + 1)
-        .trim()
-        .replace(/^['"]|['"]$/g, '');
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1);
+    const value = PROSE_KEYS.has(key)
+        ? rawValue
+        : rawValue.replace(/\s+#.*$/, '');
 
-    return [key, value];
+    return [key, unquote(value.trim())];
 }
 
 /**

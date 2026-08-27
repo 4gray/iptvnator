@@ -126,6 +126,24 @@ describe('renderTelegramPost', () => {
         assert.match(post, /…plus \d+ more fixes and improvements\./);
     });
 
+    it('never folds a breaking change into the counter', () => {
+        const post = renderTelegramPost(
+            [
+                note({ highlight: 'Up Next rail' }),
+                note({
+                    type: 'breaking',
+                    body: 'Legacy playlist storage is removed.',
+                }),
+                note({ type: 'fix', body: 'Stalker resume works again.' }),
+            ],
+            { version: '0.24.0' }
+        );
+
+        assert.match(post, /⚠️ Legacy playlist storage is removed\./);
+        assert.match(post, /…plus 1 more fix or improvement\./);
+        assert.doesNotMatch(post, /Stalker resume/);
+    });
+
     it('returns null for an internal-only release instead of throwing', () => {
         assert.equal(
             renderTelegramPost([note({ type: 'internal' })], {

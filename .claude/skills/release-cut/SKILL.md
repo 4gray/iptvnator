@@ -5,6 +5,8 @@ description: Use when preparing, cutting, tagging, publishing, or verifying an I
 
 # Release Cut
 
+Full contract, asset table and rationale: `docs/architecture/release-pipeline.md`.
+
 The tag workflow authors the public GitHub body with
 `node tools/release/extract-changelog-section.mjs --public "${VERSION}"`.
 Keep the full changelog, including internal notes, committed before tagging.
@@ -30,16 +32,16 @@ pnpm run i18n:check
 4. Capture required manifest screenshots only against mock servers:
    `pnpm nx run electron-backend:build-e2e`, then
    `pnpm run release:screenshots`.
-5. Render announcement drafts and save the output outside the repository:
+5. Render the announcement drafts, saving output outside the repository:
    `pnpm run release:notes:telegram` and `pnpm run release:notes:reddit`.
-   They must run before `--consume` — the `highlight:` metadata lives only in
-   the note files. Publishing them is manual and happens after the release.
 6. Render highlight cards after the screenshots:
-   `pnpm run release:cards:generate` writes branded 1200×630 cards plus a
-   hero to `dist/release-highlight-cards/<vX-Y>/`. Review them; copy `hero.jpg`
-   into the blog post's asset directory if it should ship as the hero image.
+   `pnpm run release:cards:generate`. Review them; copy `hero.jpg` into the
+   blog post's asset directory if it should ship as the hero image.
 7. Consume notes only after reviewing all generated output:
    `node tools/release/build-release-notes.mjs --consume`.
+
+Steps 5 and 6 must precede `--consume`: `highlight:` exists only in the note
+files it deletes. Publishing announcements is manual, after the release.
 
 The consume command is the destructive boundary: it deletes the direct note
 files. Stage only release-owned files, including exact website post/assets and
@@ -63,11 +65,10 @@ git push upstream v0.25.1
 
 Master and `v*` pushes can publish Docker images. The tag build creates a draft
 GitHub release. Run `pnpm run release:verify:draft` — it waits for the tag
-build via `gh run watch`, then checks draft status, the authored body, and the
-complete required asset set (macOS, Windows, DEB, RPM, Pacman, AppImage, Snap,
-Flatpak, updater metadata, blockmaps, and
-`linux-frame-copy-runtime-sources.tar.xz`). It is read-only and never
-publishes. Still review the authored text and generated commits by eye.
+build, then checks draft status, warns on an empty authored body, and verifies
+the complete 27-asset set documented in `docs/architecture/release-pipeline.md`.
+It is read-only, and fails on an already-published release. Still review the
+authored text and generated commits by eye.
 
 After verification, manually publish the GitHub release. That publication
 automatically verifies its Snap assets and uploads them to `edge`.

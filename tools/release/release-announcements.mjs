@@ -47,7 +47,7 @@ function blogUrl(version) {
  * preserved inside both halves; `internal` is dropped entirely.
  *
  * @param {object[]} notes
- * @returns {{ highlights: object[], rest: object[] }}
+ * @returns {{ ordered: object[], highlights: object[], rest: object[] }}
  */
 export function splitHighlights(notes) {
     const ordered = groupNotes(notes)
@@ -55,6 +55,7 @@ export function splitHighlights(notes) {
         .flatMap((group) => group.notes);
 
     return {
+        ordered,
         highlights: ordered.filter((note) => note.highlight),
         rest: ordered.filter((note) => !note.highlight),
     };
@@ -76,9 +77,13 @@ function moreLine(count) {
  * or null for an internal-only release with nothing public to announce
  */
 export function renderTelegramPost(notes, { version }) {
-    const { highlights, rest } = splitHighlights(notes);
-    const lead = highlights.length > 0 ? highlights : rest;
+    const { ordered, highlights, rest } = splitHighlights(notes);
     const leadIsHighlights = highlights.length > 0;
+    // A breaking change is never folded into the counter, highlighted or not:
+    // announcing one as "fixes and improvements" is worse than a longer post.
+    const lead = leadIsHighlights
+        ? ordered.filter((note) => note.highlight || note.type === 'breaking')
+        : rest;
 
     // An internal-only release is a legal shape — its authored GitHub body is
     // empty too — and there is simply nothing to announce publicly.
@@ -101,9 +106,8 @@ export function renderTelegramPost(notes, { version }) {
                 : `${emoji} ${body}`;
         });
 
-        const hiddenCount =
-            (leadIsHighlights ? rest.length : 0) +
-            (lead.length - visibleLead.length);
+        // Everything public that this post does not spell out.
+        const hiddenCount = ordered.length - visibleLead.length;
         const more = hiddenCount > 0 ? moreLine(hiddenCount) : null;
 
         return [

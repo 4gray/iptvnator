@@ -26,7 +26,7 @@ Stalker series now resume the correct episode.
 `type` is `breaking`, `feature`, `fix`, `perf`, or `internal`. Omit optional
 fields instead of inventing values. Never add a version or PR number.
 
-`highlight` (max 80 characters, never on `internal`) names a headline feature:
+`highlight` (max 60 characters, never on `internal`) names a headline feature:
 it leads the Telegram/Reddit announcement drafts and becomes the blog section
 heading. Reserve it for the two or three changes worth announcing.
 

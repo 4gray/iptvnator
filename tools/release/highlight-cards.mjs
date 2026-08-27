@@ -21,6 +21,14 @@ export const SHOT_TOP = 330;
 export const SHOT_LEFT = (CARD_WIDTH - SHOT_WIDTH) / 2;
 export const SHOT_RADIUS = 14;
 
+/** Feature-card text block, laid out to always clear the screenshot frame. */
+const HEADLINE_TOP = 168;
+const HEADLINE_LINE_HEIGHT = 58;
+const BODY_LINE_HEIGHT = 32;
+const BODY_GAP = 8;
+/** Lowest permitted body baseline: the frame starts at SHOT_TOP - 2. */
+export const TEXT_BOTTOM = SHOT_TOP - 24;
+
 const BRAND = {
     backgroundTop: '#0a0a08',
     backgroundBottom: '#141412',
@@ -210,26 +218,39 @@ export function buildFeatureCardSvg(job, version) {
 
     if (job.screenshotPath) {
         const headline = wrapText(job.headline, 34, 2);
-        const body = wrapText(job.body, 88, 2);
+        // The body's line budget is derived from the space actually left above
+        // the screenshot frame, never assumed: the frame is opaque and painted
+        // after the text, so a fixed line count silently sliced the last line
+        // in half whenever the headline wrapped to two lines.
+        const bodyTop =
+            HEADLINE_TOP + headline.length * HEADLINE_LINE_HEIGHT + BODY_GAP;
+        const bodyLines = Math.max(
+            1,
+            Math.min(
+                3,
+                Math.floor((TEXT_BOTTOM - bodyTop) / BODY_LINE_HEIGHT) + 1
+            )
+        );
+        const body = wrapText(job.body, 88, bodyLines);
 
         parts.push(
             textLines(headline, {
                 x: 64,
-                y: 180,
+                y: HEADLINE_TOP,
                 size: 52,
                 weight: 800,
                 fill: BRAND.text,
-                lineHeight: 62,
+                lineHeight: HEADLINE_LINE_HEIGHT,
             })
         );
         parts.push(
             textLines(body, {
                 x: 64,
-                y: 180 + headline.length * 62,
+                y: bodyTop,
                 size: 23,
                 weight: 400,
                 fill: BRAND.muted,
-                lineHeight: 32,
+                lineHeight: BODY_LINE_HEIGHT,
             })
         );
         // Frame stroke sits behind the composited screenshot; the strip is
@@ -297,8 +318,12 @@ export function buildHeroCardSvg(hero) {
         parts.push(
             `<circle cx="74" cy="${y - 10}" r="6" fill="${BRAND.accentBright}"/>`
         );
+        // wrapText yields no lines for whitespace-only input; validation
+        // rejects that upstream, but a card run must not die half-written.
+        const [line = ''] = wrapText(headline, 60, 1);
+
         parts.push(
-            `<text x="100" y="${y}" font-family="${FONT_STACK}" font-size="30" font-weight="600" fill="${BRAND.text}">${escapeXml(wrapText(headline, 60, 1)[0])}</text>`
+            `<text x="100" y="${y}" font-family="${FONT_STACK}" font-size="30" font-weight="600" fill="${BRAND.text}">${escapeXml(line)}</text>`
         );
     });
 

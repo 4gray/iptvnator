@@ -14,7 +14,7 @@
  * committing a card into the website tree is a deliberate manual act.
  */
 
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -259,9 +259,23 @@ async function main() {
     );
 }
 
-const isDirectRun =
-    process.argv[1] &&
-    path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+// realpath on both sides: Node resolves symlinks for `import.meta.url` but
+// not for argv[1], so reaching this script through a symlinked path would
+// otherwise exit 0 having rendered nothing.
+const isDirectRun = (() => {
+    if (!process.argv[1]) {
+        return false;
+    }
+
+    try {
+        return (
+            realpathSync(process.argv[1]) ===
+            realpathSync(fileURLToPath(import.meta.url))
+        );
+    } catch {
+        return false;
+    }
+})();
 
 if (isDirectRun) {
     main().catch((error) => {

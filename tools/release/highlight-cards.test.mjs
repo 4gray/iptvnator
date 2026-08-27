@@ -12,6 +12,8 @@ import {
     CARD_WIDTH,
     escapeXml,
     planHighlightCards,
+    SHOT_TOP,
+    TEXT_BOTTOM,
     wrapText,
 } from './highlight-cards.mjs';
 import {
@@ -206,6 +208,42 @@ describe('card SVGs', () => {
         // The frame rect is the only element using the surface frame color.
         assert.match(withShot, /fill="#2e2e28"/);
         assert.doesNotMatch(without, /fill="#2e2e28"/);
+    });
+
+    it('keeps every body line clear of the opaque screenshot frame', () => {
+        // A two-line headline plus a long body used to push the last body
+        // line under the frame, which is painted after the text.
+        const svg = buildFeatureCardSvg(
+            {
+                headline: 'Advanced subtitles with external files and styling',
+                body: 'External subtitle files load from disk, timing shifts in half-second steps, and you can set caption size and colour — the settings stick between episodes.',
+                screenshotPath: '/shots/x-dark.png',
+            },
+            '0.24.0'
+        );
+        const baselines = [...svg.matchAll(/<text[^>]*\sy="(\d+)"/g)].map(
+            (match) => Number(match[1])
+        );
+
+        assert.ok(baselines.length > 0);
+        for (const baseline of baselines) {
+            assert.ok(
+                baseline <= TEXT_BOTTOM,
+                `baseline ${baseline} overlaps the frame at ${SHOT_TOP - 2}`
+            );
+        }
+    });
+
+    it('survives a whitespace-only headline instead of dying half-written', () => {
+        assert.doesNotThrow(() =>
+            buildHeroCardSvg({
+                fileName: 'hero.png',
+                version: '0.24.0',
+                releaseSlug: 'v0-24',
+                headlines: ['   '],
+                counts: '1 feature',
+            })
+        );
     });
 
     it('lists at most four highlights on the hero and counts the rest', () => {

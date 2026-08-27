@@ -119,6 +119,68 @@ describe('parseNote', () => {
         assert.equal(note().highlight, null);
     });
 
+    it('keeps `#` inside a highlight but still strips comments elsewhere', () => {
+        const parsed = parseNote(
+            [
+                '---',
+                'type: feature # one of feature | fix | perf',
+                'area: portal',
+                'highlight: Sources #N chip for alternative copies',
+                '---',
+                'Body.',
+            ].join('\n'),
+            'x.md'
+        );
+
+        assert.equal(parsed.type, 'feature');
+        assert.equal(
+            parsed.highlight,
+            'Sources #N chip for alternative copies'
+        );
+    });
+
+    it('skips whole-line comments', () => {
+        const parsed = parseNote(
+            ['---', '# a note to the author', 'type: fix', 'area: m3u', '---', 'B.'].join(
+                '\n'
+            ),
+            'x.md'
+        );
+
+        assert.equal(parsed.type, 'fix');
+        assert.deepEqual(parsed.unknownKeys, []);
+    });
+
+    it('only strips a balanced quote pair', () => {
+        const parse = (value) =>
+            parseNote(
+                ['---', 'type: feature', 'area: p', `highlight: ${value}`, '---', 'B.'].join(
+                    '\n'
+                ),
+                'x.md'
+            ).highlight;
+
+        assert.equal(parse('"Up Next" rail'), '"Up Next" rail');
+        assert.equal(parse('"Up Next rail"'), 'Up Next rail');
+        assert.equal(parse("'Up Next rail'"), 'Up Next rail');
+        assert.equal(parse('"'), '"');
+    });
+
+    it('reduces a whitespace-only quoted value to empty', () => {
+        const parsed = parseNote(
+            ['---', 'type: feature', 'area: p', 'highlight: "  "', '---', 'B.'].join(
+                '\n'
+            ),
+            'x.md'
+        );
+
+        assert.equal(parsed.highlight, '');
+        assert.match(
+            validateNote(parsed)[0],
+            /`highlight` is present but empty/
+        );
+    });
+
     it('records unknown keys instead of dropping them silently', () => {
         const parsed = parseNote(
             ['---', 'type: fix', 'area: m3u', 'scope: m3u', '---', 'Body.'].join(
@@ -201,9 +263,12 @@ describe('validateNote', () => {
             validateNote(note({ highlight: '' }))[0],
             /`highlight` is present but empty/
         );
+        // The cap is the hero card's single-line budget, so a valid highlight
+        // always renders in full on every surface.
+        assert.deepEqual(validateNote(note({ highlight: 'x'.repeat(60) })), []);
         assert.match(
-            validateNote(note({ highlight: 'x'.repeat(81) }))[0],
-            /max 80/
+            validateNote(note({ highlight: 'x'.repeat(61) }))[0],
+            /max 60/
         );
     });
 
