@@ -71,8 +71,8 @@ already uses for its empty public body.
 
 ## Highlight cards
 
-`tools/release/highlight-cards.mjs` plans and lays out; `generate-highlight-cards.mjs`
-renders through sharp. Output is 1200×630 (Open Graph), matching the website
+`tools/release/highlight-cards.mjs` plans and lays out;
+`tools/release/generate-highlight-cards.mjs` renders through sharp. Output is 1200×630 (Open Graph), matching the website
 palette in `apps/website/tailwind.config.mjs`.
 
 - One card per highlight, plus a release hero card written as both `hero.png`
