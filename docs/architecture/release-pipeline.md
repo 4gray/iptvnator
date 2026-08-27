@@ -27,7 +27,7 @@ chosen deliberately by bumping `package.json`.
 | GitHub release body | (tag build) | via `extract-changelog-section.mjs --public` |
 | Telegram announcement | `release:notes:telegram` | stdout |
 | Reddit announcement | `release:notes:reddit` | stdout |
-| Highlight cards | `release:cards:generate` | `dist/release-highlight-cards/<vX-Y>/` |
+| Highlight cards | `release:cards:generate` | `dist/release-highlight-cards/v<version>/` |
 | Screenshots | `release:screenshots` | `apps/website/public/blog/<vX-Y>/screenshots/` |
 
 ### The ordering constraint that matters
@@ -100,7 +100,11 @@ card into the website tree is a deliberate manual act.
 
 A release with no `highlight:` notes is not an error: the hero card is still
 rendered and the run exits 0. An internal-only release has nothing public to
-put on a card and exits 0 having written nothing.
+put on a card and exits 0, first clearing any cards an earlier run of the same
+version left behind. An **empty** `.changes/` directory is a different thing
+and does fail: it almost always means this step ran after `--consume`, and
+reporting that as "internal-only" would hide the one ordering mistake the
+pipeline is built to prevent.
 
 ## Draft verification
 

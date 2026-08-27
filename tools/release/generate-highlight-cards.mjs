@@ -141,6 +141,29 @@ async function prepareShotOverlay(screenshotPath) {
 }
 
 /**
+ * Removes the cards a previous run of THIS generator left in `outputDir`, so a
+ * renamed, dropped, or newly-internal highlight cannot leave a stale image
+ * sitting there waiting to be published. Only files matching what this tool
+ * writes are touched; anything else in the directory is left alone.
+ *
+ * @param {string} outputDir
+ * @returns {string[]} removed filenames
+ */
+export function removeStaleCards(outputDir) {
+    if (!existsSync(outputDir)) {
+        return [];
+    }
+
+    const stale = readdirSync(outputDir).filter(isOwnedCardFile);
+
+    for (const entry of stale) {
+        rmSync(path.join(outputDir, entry));
+    }
+
+    return stale;
+}
+
+/**
  * @param {{ feature: object[], hero: object }} plan
  * @param {string} version
  * @param {string} outputDir
@@ -148,16 +171,7 @@ async function prepareShotOverlay(screenshotPath) {
  */
 export async function renderCards(plan, version, outputDir) {
     mkdirSync(outputDir, { recursive: true });
-
-    // Remove the cards a previous run of THIS generator left behind, so a
-    // renamed or dropped highlight cannot leave a stale image sitting beside
-    // the current set waiting to be published. Only files matching what this
-    // tool writes are touched; anything else in the directory is left alone.
-    for (const entry of readdirSync(outputDir)) {
-        if (isOwnedCardFile(entry)) {
-            rmSync(path.join(outputDir, entry));
-        }
-    }
+    removeStaleCards(outputDir);
 
     const written = [];
 
@@ -210,6 +224,22 @@ async function main() {
         process.exit(1);
     }
 
+    // An empty directory is not an internal-only release: it is almost always
+    // this step running AFTER `--consume` deleted the notes, which is the one
+    // ordering mistake the whole pipeline warns about. Reporting it as
+    // "internal-only" would hide the mistake and quietly ship no cards at all.
+    if (notes.length === 0) {
+        console.error(
+            [
+                `No notes found in ${path.relative(workspaceRoot, notesDir)}/.`,
+                'Cards are built from `highlight:`, which exists only in the note',
+                'files — if `build-release-notes.mjs --consume` already ran, that',
+                'metadata is gone. Render cards before consuming.',
+            ].join(' ')
+        );
+        process.exit(1);
+    }
+
     const slug = releaseSlug(options.version);
     const screenshotsDir = path.join(
         workspaceRoot,
@@ -223,6 +253,14 @@ async function main() {
         screenshotsDir,
         theme: options.theme,
     });
+    // Keyed by the exact version, not the minor slug: 0.24.0 and 0.24.1 share
+    // a blog post but not a card set, and mixing them in one directory invites
+    // publishing the previous patch's card.
+    const outputDir = path.resolve(
+        workspaceRoot,
+        options.out ??
+            path.join('dist/release-highlight-cards', `v${options.version}`)
+    );
 
     // Neither shape below is an error: an internal-only release is legal, and
     // a release nobody marked a highlight on still deserves its hero card.
@@ -231,6 +269,19 @@ async function main() {
         console.error(
             'Internal-only release: no public change to put on a card.'
         );
+
+        // A release that turned internal-only after cards were already made
+        // for this exact version must not leave them behind. `--dry-run`
+        // deletes nothing.
+        if (options.mode === 'generate') {
+            const removed = removeStaleCards(outputDir);
+
+            if (removed.length > 0) {
+                console.log(
+                    `Removed ${removed.length} card(s) left by an earlier run of v${options.version}.`
+                );
+            }
+        }
 
         return;
     }
@@ -256,15 +307,6 @@ async function main() {
         process.exit(1);
     }
 
-    // Keyed by the exact version, not the minor slug: 0.24.0 and 0.24.1 share
-    // a blog post but not a card set, and mixing them in one directory invites
-    // publishing the previous patch's card.
-    const outputDir = path.resolve(
-        workspaceRoot,
-        options.out ??
-            path.join('dist/release-highlight-cards', `v${options.version}`)
-    );
-
     console.log(`${plan.feature.length} highlight card(s) + hero for v${options.version}:`);
     for (const job of plan.feature) {
         const shot = job.screenshotPath
@@ -280,14 +322,14 @@ async function main() {
         return;
     }
 
-    if (existsSync(outputDir)) {
-        const stale = readdirSync(outputDir).filter(isOwnedCardFile);
+    const stale = existsSync(outputDir)
+        ? readdirSync(outputDir).filter(isOwnedCardFile)
+        : [];
 
-        if (stale.length > 0) {
-            console.log(
-                `Replacing ${stale.length} card(s) from a previous run in the same directory.`
-            );
-        }
+    if (stale.length > 0) {
+        console.log(
+            `Replacing ${stale.length} card(s) from a previous run in the same directory.`
+        );
     }
 
     const written = await renderCards(plan, options.version, outputDir);

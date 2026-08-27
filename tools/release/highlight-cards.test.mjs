@@ -9,6 +9,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { after, describe, it } from 'node:test';
 import sharp from 'sharp';
 
@@ -26,6 +28,7 @@ import {
 } from './highlight-cards.mjs';
 import {
     parseCardArguments,
+    removeStaleCards,
     renderCards,
 } from './generate-highlight-cards.mjs';
 
@@ -176,6 +179,32 @@ describe('planHighlightCards', () => {
             ).publicNoteCount,
             1
         );
+    });
+
+    it('emits only filenames the ownership predicate can reclaim', () => {
+        // Nothing enforces the lowercase-slug filename convention, and a card
+        // the cleanup pass cannot recognize is a card that lives forever.
+        const plan = planHighlightCards(
+            [
+                note({
+                    highlight: 'New UI',
+                    sourcePath: '.changes/Player_New-UI.md',
+                }),
+                note({
+                    highlight: 'Other',
+                    sourcePath: '.changes/player.new.ui.md',
+                }),
+            ],
+            planOptions
+        );
+
+        assert.deepEqual(
+            plan.feature.map((job) => job.fileName),
+            ['card-player-new-ui.png', 'card-player-new-ui-2.png']
+        );
+        for (const job of plan.feature) {
+            assert.equal(isOwnedCardFile(job.fileName), true, job.fileName);
+        }
     });
 
     it('claims only the files it writes', () => {
@@ -400,6 +429,23 @@ describe('renderCards', () => {
         }
     });
 
+    it('removeStaleCards tolerates a missing directory and reports what it took', () => {
+        const outputDir = path.join(makeTempDir(), 'never-created');
+
+        assert.deepEqual(removeStaleCards(outputDir), []);
+
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(path.join(outputDir, 'card-gone.png'), 'x');
+        writeFileSync(path.join(outputDir, 'hero.jpg'), 'x');
+        writeFileSync(path.join(outputDir, 'keep.txt'), 'x');
+
+        assert.deepEqual(removeStaleCards(outputDir).sort(), [
+            'card-gone.png',
+            'hero.jpg',
+        ]);
+        assert.deepEqual(readdirSync(outputDir), ['keep.txt']);
+    });
+
     it('removes its own stale cards but leaves other files alone', async () => {
         const outputDir = path.join(makeTempDir(), 'cards');
 
@@ -422,5 +468,99 @@ describe('renderCards', () => {
             'hero.png',
             'notes.txt',
         ]);
+    });
+});
+
+describe('generate-highlight-cards CLI', () => {
+    const CLI = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        'generate-highlight-cards.mjs'
+    );
+
+    function runCli(args) {
+        const result = spawnSync(process.execPath, [CLI, ...args], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        return {
+            status: result.status ?? 1,
+            stdout: result.stdout ?? '',
+            stderr: result.stderr ?? '',
+        };
+    }
+
+    it('fails on an empty notes directory instead of calling it internal-only', () => {
+        // The realistic cause is running this step after `--consume`, which
+        // deleted the notes; silently reporting "internal-only" would hide it.
+        const emptyDir = makeTempDir();
+        const result = runCli([
+            '--generate',
+            '--version',
+            '0.24.0',
+            '--dir',
+            emptyDir,
+            '--out',
+            path.join(makeTempDir(), 'cards'),
+        ]);
+
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /No notes found/);
+        assert.match(result.stderr, /Render cards before consuming/);
+        assert.doesNotMatch(result.stderr, /Internal-only/);
+    });
+
+    it('clears stale cards when a release becomes internal-only', () => {
+        const notesDir = makeTempDir();
+        const outputDir = path.join(makeTempDir(), 'cards');
+
+        writeFileSync(
+            path.join(notesDir, 'deps-bump.md'),
+            '---\ntype: internal\narea: deps\n---\n\nBumped a parser.\n',
+            'utf8'
+        );
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(path.join(outputDir, 'card-old-feature.png'), 'stale');
+        writeFileSync(path.join(outputDir, 'keep.txt'), 'mine');
+
+        const result = runCli([
+            '--generate',
+            '--version',
+            '0.24.0',
+            '--dir',
+            notesDir,
+            '--out',
+            outputDir,
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stderr, /Internal-only release/);
+        assert.deepEqual(readdirSync(outputDir), ['keep.txt']);
+    });
+
+    it('leaves stale cards untouched in dry-run mode', () => {
+        const notesDir = makeTempDir();
+        const outputDir = path.join(makeTempDir(), 'cards');
+
+        writeFileSync(
+            path.join(notesDir, 'deps-bump.md'),
+            '---\ntype: internal\narea: deps\n---\n\nBumped a parser.\n',
+            'utf8'
+        );
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(path.join(outputDir, 'card-old-feature.png'), 'stale');
+
+        const result = runCli([
+            '--dry-run',
+            '--version',
+            '0.24.0',
+            '--dir',
+            notesDir,
+            '--out',
+            outputDir,
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.deepEqual(readdirSync(outputDir), ['card-old-feature.png']);
     });
 });

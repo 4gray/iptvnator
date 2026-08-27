@@ -119,12 +119,23 @@ export function planHighlightCards(notes, options) {
         .flatMap((group) => group.notes);
     const highlights = ordered.filter((note) => note.highlight);
 
+    const takenSlugs = new Set();
+
     const feature = highlights.map((note) => {
         // Named after the note file, never the screenshot slug: filenames are
         // unique within `.changes/`, while two highlights may legitimately
         // point at the same manifest shot — naming cards after it would let
         // one silently overwrite the other.
-        const slug = path.basename(note.sourcePath, '.md').toLowerCase();
+        const base = cardSlug(path.basename(note.sourcePath, '.md'));
+        // Normalizing can collapse two distinct names onto one, so uniqueness
+        // is re-established here rather than assumed.
+        let slug = base;
+
+        for (let suffix = 2; takenSlugs.has(slug); suffix += 1) {
+            slug = `${base}-${suffix}`;
+        }
+
+        takenSlugs.add(slug);
 
         return {
             slug,
@@ -167,6 +178,24 @@ export function isOwnedCardFile(fileName) {
         fileName === 'hero.png' ||
         fileName === 'hero.jpg'
     );
+}
+
+/**
+ * Every emitted filename must satisfy isOwnedCardFile(), or a later run cannot
+ * reclaim the card it wrote. Note filenames are conventionally lowercase slugs
+ * but nothing enforces it, so normalize rather than trust: `player_new-ui.md`
+ * would otherwise produce a card no cleanup pass can ever remove.
+ *
+ * @param {string} noteBaseName note filename without its `.md` extension
+ * @returns {string}
+ */
+export function cardSlug(noteBaseName) {
+    const normalized = noteBaseName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    return normalized || 'note';
 }
 
 function backgroundDefs() {
