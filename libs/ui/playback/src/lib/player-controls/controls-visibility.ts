@@ -32,6 +32,15 @@ export class ControlsVisibility {
         }
     }
 
+    /** Hide immediately when the `canHide` predicate permits it. */
+    hide(): void {
+        if (!this.canHide()) {
+            return;
+        }
+        this.clear();
+        this.visible.set(false);
+    }
+
     scheduleHide(): void {
         if (!this.canHide()) {
             this.clear();

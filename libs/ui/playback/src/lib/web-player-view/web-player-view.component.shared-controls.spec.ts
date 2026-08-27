@@ -140,6 +140,15 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         ).toBe(false);
     });
 
+    it('falls back to the default-on rollout flag when the store has no boolean', () => {
+        webPlayerSharedControls.set(undefined as unknown as boolean);
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.injector.get(WEB_PLAYER_SHARED_CONTROLS)
+        ).toBe(true);
+    });
+
     it.each([
         ['an explicit VOD value', { isLive: false }, false],
         [

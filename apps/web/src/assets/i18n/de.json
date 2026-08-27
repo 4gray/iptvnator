@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "Wird gelöscht…",
         "EPG_URL_ERROR": "Der Wert ist keine gültige URL",
         "VIDEO_PLAYER_DESCRIPTION": "Wählen Sie den Standard-Videoplayer aus",
-        "WEB_PLAYER_SHARED_CONTROLS": "Einheitliche Steuerung für Web-Player (experimentell)",
+        "WEB_PLAYER_SHARED_CONTROLS": "Einheitliche Steuerung für Web-Player",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Verwendet die gemeinsamen IPTVnator-Steuerelemente in HTML5, Video.js und ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Umgebungs-Hintergrund",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Füllt den Bereich um den Player mit einem unscharfen, gedimmten Poster auf, anstelle von einfachen schwarzen Balken.",

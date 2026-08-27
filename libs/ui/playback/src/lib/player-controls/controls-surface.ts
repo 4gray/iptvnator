@@ -15,6 +15,10 @@ export interface ControlsSurfaceHandlers {
     canTogglePlay?: () => boolean;
     /** Whether a popover/menu is currently open (guards click-to-pause). */
     isMenuOpen?: () => boolean;
+    /** Whether the controls overlay is currently visible (touch semantics). */
+    controlsVisible?: () => boolean;
+    /** Hide the controls if the owner's auto-hide policy permits it. */
+    hideControls?: () => void;
 }
 
 /**
@@ -22,6 +26,13 @@ export interface ControlsSurfaceHandlers {
  * runs. Mirrors the embedded-MPV viewport click behavior.
  */
 const VIEWPORT_CLICK_PAUSE_DELAY_MS = 250;
+
+/**
+ * How long after a touch pointerdown a focus/click event is still attributed
+ * to that touch. Covers browsers whose click events are plain MouseEvents
+ * (no pointerType) and focusin handlers, which never carry a pointer type.
+ */
+const TOUCH_ATTRIBUTION_WINDOW_MS = 1000;
 
 const INTERACTIVE_SELECTOR = 'button, input, [role="slider"]';
 
@@ -36,8 +47,11 @@ export class ControlsSurface {
     private surface: HTMLElement | null = null;
     private surfaceCleanup: (() => void) | null = null;
     private clickPauseTimer: ReturnType<typeof setTimeout> | null = null;
+    private lastTouchPointerDownAt: number | null = null;
 
     private readonly onDocumentPointerDown = (event: PointerEvent) => {
+        this.lastTouchPointerDownAt =
+            event.pointerType === 'touch' ? Date.now() : null;
         const path = event.composedPath();
         if (
             !this.surface ||
@@ -71,7 +85,15 @@ export class ControlsSurface {
         if (!surface) {
             return () => undefined;
         }
-        const reveal = () => this.handlers.reveal();
+        // Touch has no hover: the pointerenter/pointermove a tap synthesizes
+        // must not reveal, or the tap's click could never see "controls were
+        // hidden" and touch reveal/hide semantics would be unreachable.
+        const reveal = (event: PointerEvent) => {
+            if (event.pointerType === 'touch') {
+                return;
+            }
+            this.handlers.reveal();
+        };
         const click = (event: MouseEvent) => this.onClick(event);
         const dblclick = (event: MouseEvent) => this.onDblClick(event);
         surface.addEventListener('pointermove', reveal, { passive: true });
@@ -99,22 +121,59 @@ export class ControlsSurface {
         }
     }
 
-    private onClick(event: MouseEvent): void {
-        // Always reveal the controls on a click on the surface.
-        this.handlers.reveal();
-        if (this.isInsideRoot(event)) {
-            return;
+    /**
+     * Whether an event belongs to a touch interaction. Click events are
+     * PointerEvents in current engines; the pointerdown timestamp covers
+     * browsers still dispatching plain MouseEvent clicks and focus events.
+     */
+    wasTouchInteraction(event?: Event): boolean {
+        const pointerType = (event as PointerEvent | undefined)?.pointerType;
+        if (typeof pointerType === 'string' && pointerType !== '') {
+            return pointerType === 'touch';
         }
-        if (!this.handlers.togglePlay) {
+        return (
+            this.lastTouchPointerDownAt !== null &&
+            Date.now() - this.lastTouchPointerDownAt <=
+                TOUCH_ATTRIBUTION_WINDOW_MS
+        );
+    }
+
+    private onClick(event: MouseEvent): void {
+        const touch = this.wasTouchInteraction(event);
+        // Capture before revealing: a touch tap's semantics depend on whether
+        // the controls were visible when the tap landed.
+        const controlsWereVisible = this.handlers.controlsVisible?.() ?? true;
+        // A mouse click on the surface always reveals; a touch tap decides
+        // between reveal and hide below.
+        if (!touch) {
+            this.handlers.reveal();
+        }
+        if (this.isInsideRoot(event) || !this.handlers.togglePlay) {
+            if (touch) {
+                this.handlers.reveal();
+            }
             return;
         }
         const target = event.target as HTMLElement | null;
         if (target?.closest(INTERACTIVE_SELECTOR)) {
+            if (touch) {
+                this.handlers.reveal();
+            }
             return;
         }
         // A click while a menu is open dismisses it instead of toggling.
         if (this.handlers.isMenuOpen?.()) {
             this.handlers.closePopovers();
+            return;
+        }
+        if (touch) {
+            // Touch viewport taps toggle the overlay instead of playback:
+            // the first tap on a hidden overlay must never pause the video.
+            if (controlsWereVisible) {
+                this.handlers.hideControls?.();
+            } else {
+                this.handlers.reveal();
+            }
             return;
         }
         if (this.handlers.canTogglePlay?.() === false) {

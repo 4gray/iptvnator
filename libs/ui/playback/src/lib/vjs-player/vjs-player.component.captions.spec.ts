@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls/web-player-controls.flag';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type {
     VideoJsPlayer,
@@ -46,6 +47,11 @@ describe('VjsPlayerComponent caption preference without shared controls', () => 
             );
         await TestBed.configureTestingModule({
             imports: [VjsPlayerComponent],
+            // "without shared controls" — pin the opt-out explicitly now that
+            // shared controls default on.
+            providers: [
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
+            ],
         }).compileComponents();
         fixture = TestBed.createComponent(VjsPlayerComponent);
     });

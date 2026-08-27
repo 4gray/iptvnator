@@ -236,7 +236,7 @@ describe('PlayerControlsComponent capability contract', () => {
             volume: true,
         });
         fixture.detectChanges();
-        component.onVolumeHoverEnter();
+        component.volumeInteractions.hoverEnter();
         expect(component.menus.volumeOpen()).toBe(true);
 
         fixture.componentRef.setInput('showControls', false);

@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "Effacement…",
         "EPG_URL_ERROR": "La valeur n'est pas une URL valide",
         "VIDEO_PLAYER_DESCRIPTION": "Sélectionnez le lecteur vidéo par défaut",
-        "WEB_PLAYER_SHARED_CONTROLS": "Commandes unifiées pour les lecteurs web (expérimental)",
+        "WEB_PLAYER_SHARED_CONTROLS": "Commandes unifiées pour les lecteurs web",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Utilise les commandes partagées d’IPTVnator dans HTML5, Video.js et ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Mode ambiant",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Remplit l'espace autour du lecteur avec une affiche floue et assombrie au lieu de barres noires simples.",

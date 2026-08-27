@@ -12,6 +12,7 @@ import {
 } from 'hls.js';
 import {
     PlayerControlsComponent,
+    WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
@@ -56,7 +57,12 @@ describe('HtmlVideoPlayerComponent', () => {
 
         TestBed.configureTestingModule({
             imports: [HtmlVideoPlayerComponent, TranslateModule.forRoot()],
-            providers: [{ provide: DataService, useValue: dataServiceMock }],
+            // This suite covers the legacy vendor-chrome path, which is an
+            // explicit opt-out now that shared controls default on.
+            providers: [
+                { provide: DataService, useValue: dataServiceMock },
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
+            ],
         }).compileComponents();
     }));
 

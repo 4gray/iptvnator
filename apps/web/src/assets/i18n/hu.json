@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "Törlés…",
         "EPG_URL_ERROR": "A megadott érték nem érvényes URL-cím",
         "VIDEO_PLAYER_DESCRIPTION": "Az alapértelmezett videólejátszó kiválasztása",
-        "WEB_PLAYER_SHARED_CONTROLS": "Egységes vezérlők a webes lejátszókhoz (kísérleti)",
+        "WEB_PLAYER_SHARED_CONTROLS": "Egységes vezérlők a webes lejátszókhoz",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Az IPTVnator közös vezérlőinek használata a HTML5-, Video.js- és ArtPlayer-lejátszóban.",
         "PLAYER_AMBIENT_MODE": "Ambient background fill",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Fill the space around the player with a blurred, dimmed poster instead of plain black bars.",

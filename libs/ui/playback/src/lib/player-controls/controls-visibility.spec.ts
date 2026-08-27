@@ -27,6 +27,24 @@ describe('ControlsVisibility', () => {
         expect(visibility.visible()).toBe(true);
     });
 
+    it('hides immediately when canHide allows it', () => {
+        const visibility = new ControlsVisibility(() => true, 1000);
+
+        visibility.reveal();
+        visibility.hide();
+
+        expect(visibility.visible()).toBe(false);
+    });
+
+    it('refuses an immediate hide while canHide returns false', () => {
+        const visibility = new ControlsVisibility(() => false, 1000);
+
+        visibility.reveal();
+        visibility.hide();
+
+        expect(visibility.visible()).toBe(true);
+    });
+
     it('does not schedule a hide when reveal is called with scheduleHide:false', () => {
         const visibility = new ControlsVisibility(() => true, 1000);
 
