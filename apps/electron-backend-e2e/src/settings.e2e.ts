@@ -243,7 +243,10 @@ test.describe('Electron Settings', () => {
                 .getByTestId('web-player-shared-controls-setting')
                 .locator('input[type="checkbox"]');
             await expect(sharedControlsCheckbox).toBeVisible();
-            await sharedControlsCheckbox.check();
+            // Shared controls default ON — persist the discriminating opt-out
+            // so the relaunch proves an explicit false survives the
+            // absent-means-true coercion.
+            await sharedControlsCheckbox.uncheck();
             await selectSettingsOption(
                 firstLaunch.mainWindow,
                 'select-stream-format',
@@ -287,7 +290,7 @@ test.describe('Electron Settings', () => {
                 secondLaunch.mainWindow
                     .getByTestId('web-player-shared-controls-setting')
                     .locator('input[type="checkbox"]')
-            ).toBeChecked();
+            ).not.toBeChecked();
             await expect(
                 secondLaunch.mainWindow.getByTestId('select-stream-format')
             ).toContainText('ts');

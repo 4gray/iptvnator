@@ -59,7 +59,7 @@ test.describe('Settings', () => {
         );
     });
 
-    test('@settings @web Enable shared web player controls', async ({
+    test('@settings @web Opt out of shared web player controls', async ({
         page,
     }) => {
         await openSettings(page);
@@ -71,14 +71,15 @@ test.describe('Settings', () => {
         const checkbox = setting.locator('input[type="checkbox"]');
 
         await expect(setting).toBeVisible();
-        await expect(checkbox).not.toBeChecked();
-        await checkbox.check();
+        // Shared controls default ON; the checkbox is the opt-out.
+        await expect(checkbox).toBeChecked();
+        await checkbox.uncheck();
         await saveSettings(page);
         await page.reload();
         await openSettings(page);
         await openSettingsSection(page, 'playback');
 
-        await expect(checkbox).toBeChecked();
+        await expect(checkbox).not.toBeChecked();
     });
 
     test('@settings @web Change app theme', async ({ page }) => {

@@ -15,8 +15,8 @@ The shared-controls foundation supports four runtime consumers and includes:
 - a generic `WebVideoControlsAdapter` plus small host helpers;
 - standard element picture-in-picture through that adapter for the guarded web
   consumers;
-- a persisted, default-off web-player preference resolved through an immutable
-  per-host rollout token;
+- a persisted, default-on web-player preference (opt-out) resolved through an
+  immutable per-host rollout token;
 - the component-scoped `EmbeddedMpvControlsAdapter`;
 - an `EmbeddedMpvPlayerComponent` host integration for the frame-copy engine;
 - a preference-guarded `HtmlVideoPlayerComponent` integration backed by
@@ -67,9 +67,15 @@ ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
 only PiP owner. The preference-off native/vendor paths remain unchanged.
 Embedded MPV advertises no PiP capability and its command is a no-op.
 
-`Settings.webPlayerSharedControls` remains default-off. `WebPlayerViewComponent`
-snapshots it into `WEB_PLAYER_SHARED_CONTROLS` when a new player host is
-created, so HTML5, Video.js, and ArtPlayer switch atomically without an
+`Settings.webPlayerSharedControls` is default-ON: an absent stored value means
+the user never chose and gets the shared controls; only an explicit boolean
+`false` (the Settings > Playback checkbox) opts back into the legacy vendor
+chrome. Every normalization site (`SettingsStore` load/update/read and the
+settings form) coerces with `!== false` for exactly this reason — a stored
+settings object from before the default flip has no key at all, and `=== true`
+would silently strand those users on the old default. `WebPlayerViewComponent`
+snapshots the preference into `WEB_PLAYER_SHARED_CONTROLS` when a new player
+host is created, so HTML5, Video.js, and ArtPlayer switch atomically without an
 application restart. The parent `/workspace` route awaits the initial
 `SettingsStore` load, including for cold-start direct links to workspace
 children, before any player host can take this snapshot. Existing sessions
@@ -390,6 +396,47 @@ seekable runtime state. When seek is unsupported, the slider is omitted while
 live and recording status remain visible. Volume shortcuts likewise require the
 `volume` capability.
 
+### Touch interaction semantics
+
+`ControlsSurface` classifies every interaction by pointer type. Click events
+carry `pointerType` in current engines; focus events and legacy MouseEvent
+clicks are attributed to a touch when a touch `pointerdown` was recorded within
+the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
+
+- **Viewport taps toggle the overlay, never playback.** A tap while the
+  controls are hidden only reveals them; a tap while they are visible hides
+  them (through the same `canHide` policy that guards auto-hide, so a paused
+  player or open menu stays visible). The mouse click-to-pause with its 250ms
+  double-click deferral is mouse-only — the first tap on a hidden overlay must
+  never pause the video. The synthetic `pointerenter`/`pointermove` a tap
+  fires is ignored for reveal, or the tap's own click could never observe the
+  hidden state.
+- **The volume popover opens on tap, not hover.** With a mouse, hovering the
+  volume button opens the slider popover and clicking toggles mute. On touch
+  the hover-open path is suppressed and the first tap on the volume button
+  opens the popover instead of muting; a tap while it is open toggles mute as
+  the button's label says. Touch-attributed `focusout` does not schedule the
+  popover close (outside taps and other menu buttons dismiss it).
+- **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
+  timeline/volume sliders grow their input hit strip to 28px and the thumb to
+  18px; the 4px visual track is unchanged.
+
+### Narrow-player layout
+
+The controls host is a size query container (`player-controls`). At container
+widths of 640px and below — phone-sized PWA viewports, but also small inline
+players inside wide desktop windows — the single-row bar reflows to two rows:
+the timeline takes a full-width first row, and the transport and actions
+clusters split the second. The actions cluster's width is content-dependent
+(volume, audio, subtitles, quality, speed, aspect, recording, PiP, and
+fullscreen are all conditional), so in the narrow layout the cluster is
+end-aligned, capped at the row width, and wraps when even a dedicated row cannot
+hold it. Its popover anchors become static at this breakpoint so capability
+panels position against the unclipped actions cluster and remain accessible
+above every wrapped row. Icon buttons compact from 48px to 40px in this layout.
+Between ~640px and the 720px viewport media query, the legacy single-row squeeze
+(timeline absorbs the shrink) still applies.
+
 When a volume-capable controller first attaches, an existing `localStorage`
 volume preference is applied before the first controller snapshot can reconcile
 the optimistic value. With no saved preference, the controller snapshot remains
@@ -445,7 +492,7 @@ layouts, and the portal detail inline player — gets it without wiring.
 
 ### Standard element picture-in-picture
 
-Picture-in-picture is part of the existing default-off shared web-controls
+Picture-in-picture is part of the default-on shared web-controls
 rollout. It is available through standard element PiP for HTML5, Video.js, and
 ArtPlayer only when their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`.
 The preference-off HTML5 native controls, Video.js skin, and ArtPlayer vendor
@@ -494,7 +541,7 @@ Embedded MPV popup or native mini-window are out of scope.
 ### Quality (bitrate/level) selection
 
 Quality selection is part of the shared controls and therefore rides the same
-default-off `WEB_PLAYER_SHARED_CONTROLS` rollout. The contract exposes:
+default-on `WEB_PLAYER_SHARED_CONTROLS` rollout. The contract exposes:
 
 - capability `qualityLevels`;
 - state `qualityLevels` (pre-labelled options such as "1080p") and
@@ -627,11 +674,11 @@ collaborators under `web-video-support/`.
 
 The rollout symbols and setting are:
 
-| Symbol / setting                     |          Default | Current effect                                                          |
-| ------------------------------------ | ---------------: | ----------------------------------------------------------------------- |
-| `Settings.webPlayerSharedControls`   |          `false` | Persisted experimental opt-in shown for HTML5, Video.js, and ArtPlayer. |
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |          `false` | Default-off fallback for direct component use and focused tests.        |
-| `WEB_PLAYER_SHARED_CONTROLS`         | session snapshot | Component-scoped immutable value consumed by the three web engines.     |
+| Symbol / setting                     |          Default | Current effect                                                           |
+| ------------------------------------ | ---------------: | ------------------------------------------------------------------------ |
+| `Settings.webPlayerSharedControls`   |           `true` | Persisted preference; the checkbox is the opt-out back to vendor chrome. |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |           `true` | Default-on fallback for direct component use and focused tests.          |
+| `WEB_PLAYER_SHARED_CONTROLS`         | session snapshot | Component-scoped immutable value consumed by the three web engines.      |
 
 With the token enabled, Video.js also disables native controls, Video.js
 single-click and double-click actions, Video.js hotkeys, and spatial navigation.
@@ -648,6 +695,27 @@ directly to `player.video` after ArtPlayer restores `artplayer_settings.volume`,
 so vendor storage cannot override the app-wide preference. With the token
 disabled, the existing ArtPlayer options, HLS audio settings, skin, source
 semantics, stored volume behavior, and series navigation remain unchanged.
+
+### Known differences vs. vendor chrome (deliberate, opt-out retains them)
+
+Flipping the default to shared controls drops a handful of vendor-chrome
+features by design. They stay available through the Settings > Playback
+opt-out and are candidates for later shared-controls work, not silent
+regressions:
+
+- **Video.js spatial navigation** (arrow-key/remote focus traversal of the
+  Video.js control bar, wired in `vjs-player-setup.ts` /
+  `vjs-player.types.ts`) is disabled in shared mode and has no shared-controls
+  equivalent. Keyboard playback shortcuts (space, arrows, F, M) are owned by
+  `ControlsShortcuts` instead; the shared bar is Tab-traversable.
+- **ArtPlayer extras** not reproduced by the shared bar: screenshot capture,
+  AirPlay, web fullscreen (`fullscreenWeb`, fill-the-page without OS
+  fullscreen), the mini progress line shown while controls are hidden, and
+  ArtPlayer's own mobile gesture/lock/auto-orientation handling (shared
+  controls bring their own touch semantics above).
+- **Vendor caption menus** behave as before in the opt-out path; shared mode
+  is authoritative for the session as documented under "Caption preference in
+  both modes".
 
 ## Advanced subtitle support
 

@@ -203,8 +203,10 @@ Key files:
   `PortalInlinePlayerComponent.seriesTitle` and `WebPlayerViewComponent.mediaTitle`;
   movie and live hosts fall back to `playback.title`, skipping raw stream-URL
   fallbacks. Outside fullscreen the overlay stays hidden.
-- Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
-  appears only when HTML5, Video.js, or ArtPlayer is selected.
+- Persisted `Settings.webPlayerSharedControls` is default-ON (absent stored
+  values coerce with `!== false`; only an explicit false opts out to the legacy
+  vendor chrome), and its checkbox appears only when HTML5, Video.js, or
+  ArtPlayer is selected.
   `WebPlayerViewComponent` snapshots the preference into
   `WEB_PLAYER_SHARED_CONTROLS` for each new player host. The parent `/workspace`
   route awaits the initial `SettingsStore` load, including cold-start direct
@@ -450,7 +452,7 @@ Key files:
   because ArtPlayer's focus-scoped hotkeys ignore `defaultPrevented` and would
   double-handle every key, and the wiring restores its Escape-exits-web-
   fullscreen behavior.
-- Shared web picture-in-picture stays inside that default-off rollout.
+- Shared web picture-in-picture stays inside that default-on rollout.
   `PlayerController` exposes capability `pictureInPicture`, state
   `pictureInPictureActive`/`canPictureInPicture`, and command
   `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard

@@ -86,16 +86,16 @@ describe('SettingsComponent form', () => {
             });
         });
 
-        it('hydrates the shared web controls setting from the settings store', () => {
+        it('hydrates a shared web controls opt-out from the settings store', () => {
             settingsStore._setSettings({
-                webPlayerSharedControls: true,
+                webPlayerSharedControls: false,
             });
 
             component.form.hydrateFromStore();
 
             expect(
                 component.settingsForm.get('webPlayerSharedControls')?.value
-            ).toBe(true);
+            ).toBe(false);
         });
     });
 
@@ -326,18 +326,18 @@ describe('SettingsComponent form', () => {
             });
         });
 
-        it('saves the shared web controls setting on submit', async () => {
+        it('saves a shared web controls opt-out on submit', async () => {
             settingsStore.updateSettings.mockResolvedValue(undefined);
             component.settingsForm
                 .get('webPlayerSharedControls')
-                ?.setValue(true);
+                ?.setValue(false);
 
             component.onSubmit();
             await fixture.whenStable();
 
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    webPlayerSharedControls: true,
+                    webPlayerSharedControls: false,
                 })
             );
         });

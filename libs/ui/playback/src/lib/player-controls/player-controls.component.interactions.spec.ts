@@ -110,7 +110,7 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('opens the popover on hover and applies slider input', () => {
-            component.onVolumeHoverEnter();
+            component.volumeInteractions.hoverEnter();
             fixture.detectChanges();
 
             const slider = query(
@@ -126,11 +126,11 @@ describe('PlayerControlsComponent interactions', () => {
 
         it('closes the popover shortly after hover leave', () => {
             jest.useFakeTimers();
-            component.onVolumeHoverEnter();
+            component.volumeInteractions.hoverEnter();
             fixture.detectChanges();
             expect(component.menus.volumeOpen()).toBe(true);
 
-            component.onVolumeHoverLeave();
+            component.volumeInteractions.hoverLeave();
             jest.advanceTimersByTime(300);
             fixture.detectChanges();
             expect(component.menus.volumeOpen()).toBe(false);
@@ -138,13 +138,13 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('adjusts volume via wheel and flashes feedback', () => {
-            component.onVolumeWheel(
+            component.volumeInteractions.wheel(
                 new WheelEvent('wheel', { deltaY: 100, cancelable: true })
             );
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
             expect(component.feedback.current()?.label).toBe('95%');
 
-            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: -100 }));
+            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: -100 }));
             expect(fake.commands.setVolume).toHaveBeenLastCalledWith(1);
         });
 
@@ -170,7 +170,7 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('keeps optimistic volume across capability and visibility changes', () => {
-            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
+            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: 100 }));
             expect(component.displayVolume()).toBe(0.95);
 
             setState({ positionSeconds: 15, volume: 1 });
@@ -187,7 +187,7 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('reapplies persisted volume when the capability returns', () => {
-            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
+            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: 100 }));
             fake.commands.setVolume.mockClear();
 
             setCapabilities({ volume: false });
@@ -202,7 +202,7 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('reconciles volume when the controller changes at the same value', () => {
-            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
+            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: 100 }));
             expect(component.displayVolume()).toBe(0.95);
             localStorage.removeItem('volume');
 
@@ -382,6 +382,71 @@ describe('PlayerControlsComponent interactions', () => {
             component.reveal();
             fixture.detectChanges();
             expect(component.controlsAreVisible()).toBe(true);
+        });
+    });
+
+    describe('volume popover on touch', () => {
+        const pointerTypedEvent = (
+            type: string,
+            pointerType: string
+        ): MouseEvent => {
+            const event = new MouseEvent(type, { bubbles: true });
+            Object.defineProperty(event, 'pointerType', {
+                value: pointerType,
+            });
+            return event;
+        };
+
+        beforeEach(() => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+        });
+
+        it('opens the popover on the first tap instead of muting', () => {
+            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'touch'));
+
+            expect(component.menus.volumeOpen()).toBe(true);
+            expect(fake.commands.setVolume).not.toHaveBeenCalled();
+        });
+
+        it('toggles mute on a tap while the popover is open', () => {
+            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'touch'));
+            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'touch'));
+
+            expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
+        });
+
+        it('mutes directly on a mouse click without opening the popover', () => {
+            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'mouse'));
+
+            expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
+            expect(component.menus.volumeOpen()).toBe(false);
+        });
+
+        it('ignores the pointerenter a tap synthesizes', () => {
+            component.volumeInteractions.hoverEnter(
+                pointerTypedEvent('pointerenter', 'touch')
+            );
+
+            expect(component.menus.volumeOpen()).toBe(false);
+        });
+
+        it('keeps a tap-opened popover open through touch focusout', () => {
+            jest.useFakeTimers();
+            try {
+                document.dispatchEvent(
+                    pointerTypedEvent('pointerdown', 'touch')
+                );
+                component.volumeInteractions.buttonClick(
+                    pointerTypedEvent('click', 'touch')
+                );
+                component.volumeInteractions.hoverLeave(new FocusEvent('focusout'));
+                jest.advanceTimersByTime(1000);
+
+                expect(component.menus.volumeOpen()).toBe(true);
+            } finally {
+                jest.useRealTimers();
+            }
         });
     });
 });

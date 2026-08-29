@@ -241,7 +241,7 @@ describe('PlayerControlsComponent', () => {
             setCapabilities({ volume: true });
             fixture.detectChanges();
 
-            fixture.componentInstance.toggleMute();
+            fixture.componentInstance.volumeInteractions.toggleMute();
 
             expect(fixture.componentInstance.feedback.current()?.label).toBe(
                 'Stumm'

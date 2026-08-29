@@ -31,7 +31,7 @@ export function createSettingsForm(
 ) {
     return formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        webPlayerSharedControls: false,
+        webPlayerSharedControls: true,
         playerAmbientMode: false,
         playerUpNextRail: true,
         vodAutoFailover: false,
@@ -122,7 +122,7 @@ export function createSettingsFromFormValue(
 
     return {
         player: value.player ?? VideoPlayer.VideoJs,
-        webPlayerSharedControls: value.webPlayerSharedControls ?? false,
+        webPlayerSharedControls: value.webPlayerSharedControls ?? true,
         playerAmbientMode: value.playerAmbientMode ?? false,
         playerUpNextRail: value.playerUpNextRail ?? true,
         vodAutoFailover: value.vodAutoFailover ?? false,

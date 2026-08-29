@@ -70,23 +70,23 @@ describe('SettingsStore dashboard rail settings', () => {
         await Promise.resolve();
 
         expect(waitersResolved).toBe(false);
-        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
 
-        pendingSettings.next({ webPlayerSharedControls: true });
+        pendingSettings.next({ webPlayerSharedControls: false });
         pendingSettings.complete();
         await allWaiters;
 
         expect(storage.get).toHaveBeenCalledTimes(1);
         expect(firstWaiter).toBe(secondWaiter);
         expect(waitersResolved).toBe(true);
-        expect(store.getSettings().webPlayerSharedControls).toBe(true);
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
     });
 
     it('retries the initial settings load after a storage error', async () => {
         const failingSettings = new Subject<Partial<Settings> | null>();
         storage.get
             .mockReturnValueOnce(failingSettings.asObservable())
-            .mockReturnValueOnce(of({ webPlayerSharedControls: true }));
+            .mockReturnValueOnce(of({ webPlayerSharedControls: false }));
         const consoleError = jest
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
@@ -100,7 +100,7 @@ describe('SettingsStore dashboard rail settings', () => {
             await store.loadSettings();
 
             expect(storage.get).toHaveBeenCalledTimes(2);
-            expect(store.getSettings().webPlayerSharedControls).toBe(true);
+            expect(store.getSettings().webPlayerSharedControls).toBe(false);
         } finally {
             consoleError.mockRestore();
         }
@@ -117,24 +117,24 @@ describe('SettingsStore dashboard rail settings', () => {
         );
     });
 
-    it('defaults shared web controls to false when the stored field is missing', async () => {
+    it('defaults shared web controls to true when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);
 
         await store.loadSettings();
 
-        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
     });
 
-    it('restores a persisted true shared web controls preference', async () => {
+    it('restores a persisted false shared web controls opt-out', async () => {
         storedSettings = {
-            webPlayerSharedControls: true,
+            webPlayerSharedControls: false,
         };
         const store = injector.get(SettingsStore);
 
         await store.loadSettings();
 
-        expect(store.getSettings().webPlayerSharedControls).toBe(true);
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
     });
 
     it('defaults strip country prefix to false when the stored field is missing', async () => {
@@ -193,38 +193,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().stripCountryPrefix).toBe(true);
     });
 
-    it('normalizes a persisted string "true" shared web controls preference to false', async () => {
+    it('normalizes a persisted non-boolean shared web controls value to the default', async () => {
         storedSettings = {
-            webPlayerSharedControls: 'true' as unknown as boolean,
+            webPlayerSharedControls: 'false' as unknown as boolean,
         };
         const store = injector.get(SettingsStore);
 
         await store.loadSettings();
 
-        expect(store.webPlayerSharedControls?.()).toBe(false);
-        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+        // Only an explicit boolean false opts out; junk falls to the default.
+        expect(store.webPlayerSharedControls?.()).toBe(true);
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
     });
 
-    it('persists an updated true shared web controls preference', async () => {
+    it('persists an updated false shared web controls opt-out', async () => {
         const store = injector.get(SettingsStore);
 
         await store.updateSettings({
-            webPlayerSharedControls: true,
-        });
-
-        expect(storage.set).toHaveBeenCalledWith(
-            STORE_KEY.Settings,
-            expect.objectContaining({
-                webPlayerSharedControls: true,
-            })
-        );
-    });
-
-    it('serializes a malformed string "true" shared web controls update as false', async () => {
-        const store = injector.get(SettingsStore);
-
-        await store.updateSettings({
-            webPlayerSharedControls: 'true' as unknown as boolean,
+            webPlayerSharedControls: false,
         });
 
         expect(store.webPlayerSharedControls?.()).toBe(false);
@@ -232,6 +218,22 @@ describe('SettingsStore dashboard rail settings', () => {
             STORE_KEY.Settings,
             expect.objectContaining({
                 webPlayerSharedControls: false,
+            })
+        );
+    });
+
+    it('serializes a malformed string shared web controls update as the default', async () => {
+        const store = injector.get(SettingsStore);
+
+        await store.updateSettings({
+            webPlayerSharedControls: 'false' as unknown as boolean,
+        });
+
+        expect(store.webPlayerSharedControls?.()).toBe(true);
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                webPlayerSharedControls: true,
             })
         );
     });
