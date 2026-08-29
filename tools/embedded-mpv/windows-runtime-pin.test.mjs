@@ -74,10 +74,9 @@ function createPinFixture() {
 
 test('checked-in Windows runtime pin is internally consistent', () => {
     assert.equal(WINDOWS_RUNTIME_PIN_PATH.endsWith('.json'), true);
-    assert.equal(
-        CURRENT_PIN.asset.sha256,
-        '317dfd9ee814be76e5f6e20b45efcc07440389a62b55dd85201829b4880510e0'
-    );
+    assert.match(CURRENT_PIN.asset.sha256, /^[a-f0-9]{64}$/);
+    assert.match(CURRENT_PIN.asset.name, /^mpv-dev-lgpl-x86_64-/);
+    assert.doesNotMatch(CURRENT_PIN.asset.name, /-v3-/);
     assert.equal(
         CURRENT_PIN.upstream.licenseClaim,
         WINDOWS_RUNTIME_LICENSE_CLAIM

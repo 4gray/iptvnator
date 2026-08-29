@@ -52,12 +52,11 @@ jobs:
                       node tools/embedded-mpv/update-windows-runtime-pin.mjs
                   fi
 
-            - name: Validate updated pin and packaging contract
+            - name: Validate updated pin
               if: steps.refresh.outputs.changed == 'true'
               run: >-
                   node --test
                   tools/embedded-mpv/windows-runtime-pin.test.mjs
-                  tools/packaging/electron-package-identity.test.mjs
 
             - name: Create or update refresh pull request
               if: steps.refresh.outputs.changed == 'true'

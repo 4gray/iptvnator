@@ -931,6 +931,14 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     );
     assert.match(
         windowsRuntimeRefreshWorkflow,
+        /node --test\s+tools\/embedded-mpv\/windows-runtime-pin\.test\.mjs/
+    );
+    assert.doesNotMatch(
+        windowsRuntimeRefreshWorkflow,
+        /electron-package-identity\.test\.mjs/
+    );
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
         /automation\/windows-embedded-mpv-runtime-pin/
     );
     assert.match(windowsRuntimeRefreshWorkflow, /secrets\.PAT/);
