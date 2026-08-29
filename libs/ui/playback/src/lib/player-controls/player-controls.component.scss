@@ -676,13 +676,22 @@
 
     .player-controls__actions {
         grid-area: actions;
+        position: relative;
         justify-self: end;
         // When even a dedicated row cannot hold the cluster (worst case:
         // series transport plus audio/subtitles/quality/speed/aspect/PiP),
-        // the cluster scrolls instead of pushing the transport off the bar.
+        // wrap the actions instead of making them a scroll container. A scroll
+        // container would clip every absolutely positioned capability panel.
+        flex-wrap: wrap;
+        justify-content: flex-end;
         max-width: 100%;
-        overflow-x: auto;
-        scrollbar-width: thin;
+        overflow: visible;
+    }
+
+    // Anchor narrow-player panels to the whole actions cluster. This keeps the
+    // right-aligned panels inside the player and above every wrapped action row.
+    .player-controls__actions .player-controls__popover-anchor {
+        position: static;
     }
 
     // Compact icon buttons: wins back roughly one button of width per four.

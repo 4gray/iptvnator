@@ -449,7 +449,7 @@ Key files:
   because ArtPlayer's focus-scoped hotkeys ignore `defaultPrevented` and would
   double-handle every key, and the wiring restores its Escape-exits-web-
   fullscreen behavior.
-- Shared web picture-in-picture stays inside that default-off rollout.
+- Shared web picture-in-picture stays inside that default-on rollout.
   `PlayerController` exposes capability `pictureInPicture`, state
   `pictureInPictureActive`/`canPictureInPicture`, and command
   `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard

@@ -430,10 +430,12 @@ the timeline takes a full-width first row, and the transport and actions
 clusters split the second. The actions cluster's width is content-dependent
 (volume, audio, subtitles, quality, speed, aspect, recording, PiP, and
 fullscreen are all conditional), so in the narrow layout the cluster is
-end-aligned but capped at the row width and scrolls horizontally when even a
-dedicated row cannot hold it. Icon buttons compact from 48px to 40px in this
-layout. Between ~640px and the 720px viewport media query, the legacy
-single-row squeeze (timeline absorbs the shrink) still applies.
+end-aligned, capped at the row width, and wraps when even a dedicated row cannot
+hold it. Its popover anchors become static at this breakpoint so capability
+panels position against the unclipped actions cluster and remain accessible
+above every wrapped row. Icon buttons compact from 48px to 40px in this layout.
+Between ~640px and the 720px viewport media query, the legacy single-row squeeze
+(timeline absorbs the shrink) still applies.
 
 When a volume-capable controller first attaches, an existing `localStorage`
 volume preference is applied before the first controller snapshot can reconcile
@@ -672,11 +674,11 @@ collaborators under `web-video-support/`.
 
 The rollout symbols and setting are:
 
-| Symbol / setting                     |          Default | Current effect                                                            |
-| ------------------------------------ | ---------------: | ------------------------------------------------------------------------- |
-| `Settings.webPlayerSharedControls`   |           `true` | Persisted preference; the checkbox is the opt-out back to vendor chrome.  |
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |           `true` | Default-on fallback for direct component use and focused tests.           |
-| `WEB_PLAYER_SHARED_CONTROLS`         | session snapshot | Component-scoped immutable value consumed by the three web engines.       |
+| Symbol / setting                     |          Default | Current effect                                                           |
+| ------------------------------------ | ---------------: | ------------------------------------------------------------------------ |
+| `Settings.webPlayerSharedControls`   |           `true` | Persisted preference; the checkbox is the opt-out back to vendor chrome. |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |           `true` | Default-on fallback for direct component use and focused tests.          |
+| `WEB_PLAYER_SHARED_CONTROLS`         | session snapshot | Component-scoped immutable value consumed by the three web engines.      |
 
 With the token enabled, Video.js also disables native controls, Video.js
 single-click and double-click actions, Video.js hotkeys, and spatial navigation.

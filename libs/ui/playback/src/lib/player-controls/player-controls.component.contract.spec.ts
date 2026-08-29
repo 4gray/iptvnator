@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { WritableSignal, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
@@ -19,6 +21,14 @@ interface FakeController {
     state: WritableSignal<PlayerControlsState>;
     commands: jest.Mocked<PlayerControlsCommands>;
 }
+
+const PLAYER_CONTROLS_STYLE_SOURCE = readFileSync(
+    resolve(
+        process.cwd(),
+        'libs/ui/playback/src/lib/player-controls/player-controls.component.scss'
+    ),
+    'utf8'
+);
 
 function createFakeController(): FakeController {
     const capabilities = signal({ ...DEFAULT_PLAYER_CAPABILITIES });
@@ -97,6 +107,23 @@ describe('PlayerControlsComponent capability contract', () => {
         document.dispatchEvent(event);
         return event.defaultPrevented;
     }
+
+    it('keeps narrow-player popovers outside clipping scroll containers', () => {
+        const narrowActionsRule =
+            PLAYER_CONTROLS_STYLE_SOURCE.match(
+                /\.player-controls__actions\s*\{([\s\S]*?)\}/g
+            )?.at(-1) ?? '';
+
+        expect(PLAYER_CONTROLS_STYLE_SOURCE).toContain(
+            '@container player-controls (max-width: 640px)'
+        );
+        expect(narrowActionsRule).toContain('flex-wrap: wrap');
+        expect(narrowActionsRule).toContain('overflow: visible');
+        expect(narrowActionsRule).not.toContain('overflow-x: auto');
+        expect(PLAYER_CONTROLS_STYLE_SOURCE).toMatch(
+            /\.player-controls__actions \.player-controls__popover-anchor\s*\{\s*position:\s*static;/
+        );
+    });
 
     it('routes shortcuts to the player the user interacted with most recently', () => {
         const first = createFakeController();
