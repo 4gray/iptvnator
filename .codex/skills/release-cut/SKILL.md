@@ -5,6 +5,8 @@ description: Use when preparing, cutting, tagging, publishing, or verifying an I
 
 # Release Cut
 
+Full contract, asset table and rationale: `docs/architecture/release-pipeline.md`.
+
 The tag workflow authors the public GitHub body with
 `node tools/release/extract-changelog-section.mjs --public "${VERSION}"`.
 Keep the full changelog, including internal notes, committed before tagging.
@@ -30,8 +32,17 @@ pnpm run i18n:check
 4. Capture required manifest screenshots only against mock servers:
    `pnpm nx run electron-backend:build-e2e`, then
    `pnpm run release:screenshots`.
-5. Consume notes only after reviewing all generated output:
+5. Render the announcement drafts, saving output outside the repository:
+   `pnpm --silent run release:notes:telegram` and the `:reddit` counterpart
+   (`--silent`, or pnpm's lifecycle banner lands in the saved post).
+6. Render highlight cards after the screenshots:
+   `pnpm run release:cards:generate`. Review them; copy `hero.jpg` into the
+   blog post's asset directory if it should ship as the hero image.
+7. Consume notes only after reviewing all generated output:
    `node tools/release/build-release-notes.mjs --consume`.
+
+Steps 5 and 6 must precede `--consume`: `highlight:` exists only in the note
+files it deletes. Publishing announcements is manual, after the release.
 
 The consume command is the destructive boundary: it deletes the direct note
 files. Stage only release-owned files, including exact website post/assets and
@@ -54,10 +65,11 @@ git push upstream v0.25.1
 ```
 
 Master and `v*` pushes can publish Docker images. The tag build creates a draft
-GitHub release. Verify authored text plus generated commits and all required
-macOS, Windows, DEB, RPM, Pacman (`.pacman`/`.pkg.tar.*`), AppImage, Snap,
-Flatpak, updater metadata, blockmaps, and
-`linux-frame-copy-runtime-sources.tar.xz`.
+GitHub release. Run `pnpm run release:verify:draft` — it waits for the tag
+build, then checks draft status, warns on an empty authored body, and verifies
+the complete 27-asset set documented in `docs/architecture/release-pipeline.md`.
+It is read-only, and fails on an already-published release. Still review the
+authored text and generated commits by eye.
 
 After verification, manually publish the GitHub release. That publication
 automatically verifies its Snap assets and uploads them to `edge`.

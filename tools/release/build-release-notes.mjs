@@ -6,6 +6,8 @@
  *   node tools/release/build-release-notes.mjs --version 0.24.0 --format github
  *   node tools/release/build-release-notes.mjs --version 0.24.0 --format changelog
  *   node tools/release/build-release-notes.mjs --version 0.24.0 --format blog
+ *   node tools/release/build-release-notes.mjs --version 0.24.0 --format telegram
+ *   node tools/release/build-release-notes.mjs --version 0.24.0 --format reddit
  *   node tools/release/build-release-notes.mjs --version 0.24.0 --consume
  *
  * Every mode except `--consume` is a safe dry run: nothing is deleted unless
@@ -18,6 +20,10 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import {
+    renderRedditPost,
+    renderTelegramPost,
+} from './release-announcements.mjs';
 import { loadNotes } from './release-notes.mjs';
 import { manifestSlugs } from './screenshot-guards.mjs';
 import {
@@ -38,7 +44,7 @@ const BLOG_DIR = path.join(workspaceRoot, 'apps/website/src/content/blog');
 /** Generated sections are inserted directly below this marker. */
 const CHANGELOG_MARKER = '<!-- next-release -->';
 
-const FORMATS = new Set(['github', 'changelog', 'blog']);
+const FORMATS = new Set(['github', 'changelog', 'blog', 'telegram', 'reddit']);
 
 function parseArgs(argv) {
     const options = {
@@ -235,6 +241,27 @@ function writeBlogScaffold(content, version, force) {
     return target;
 }
 
+/**
+ * An internal-only release has nothing to announce publicly. That is a legal
+ * release shape, so it prints an explanation on stderr and leaves stdout
+ * empty — matching `extract-changelog-section.mjs --public`, which allows an
+ * empty public body for exactly the same case — rather than failing.
+ *
+ * @param {string | null} post
+ * @param {string} label
+ */
+function writeAnnouncement(post, label) {
+    if (post === null) {
+        console.error(
+            `Internal-only release: no public ${label} announcement to render.`
+        );
+
+        return;
+    }
+
+    process.stdout.write(post.endsWith('\n') ? post : `${post}\n`);
+}
+
 function main() {
     const options = parseArgs(process.argv.slice(2));
     const notesDir = path.resolve(workspaceRoot, options.dir);
@@ -292,6 +319,17 @@ function main() {
 
         if (options.format === 'github') {
             process.stdout.write(`${renderGithubBody(notes, { links })}\n`);
+        }
+
+        // Announcements are dry runs to stdout, like `github`. They must be
+        // rendered before `--consume`: the CHANGELOG keeps the entries, but
+        // the `highlight:` metadata lives only in the note files.
+        if (options.format === 'telegram') {
+            writeAnnouncement(renderTelegramPost(notes, { version }), 'Telegram');
+        }
+
+        if (options.format === 'reddit') {
+            writeAnnouncement(renderRedditPost(notes, { version }), 'Reddit');
         }
 
         if (options.format === 'changelog') {

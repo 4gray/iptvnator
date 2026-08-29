@@ -10,6 +10,10 @@
             "inputs": [
                 "{workspaceRoot}/tools/release/release-notes.mjs",
                 "{workspaceRoot}/tools/release/release-notes-render.mjs",
+                "{workspaceRoot}/tools/release/release-announcements.mjs",
+                "{workspaceRoot}/tools/release/verify-draft-release.mjs",
+                "{workspaceRoot}/tools/release/highlight-cards.mjs",
+                "{workspaceRoot}/tools/release/generate-highlight-cards.mjs",
                 "{workspaceRoot}/tools/release/extract-changelog-section.mjs",
                 "{workspaceRoot}/tools/release/check-release-note-gate.mjs",
                 "{workspaceRoot}/tools/release/build-release-notes.mjs",
@@ -19,10 +23,13 @@
                 "{workspaceRoot}/tools/release/release-notes.test.mjs",
                 "{workspaceRoot}/tools/release/release-note-gate.test.mjs",
                 "{workspaceRoot}/tools/release/build-release-notes.test.mjs",
+                "{workspaceRoot}/tools/release/release-announcements.test.mjs",
+                "{workspaceRoot}/tools/release/verify-draft-release.test.mjs",
+                "{workspaceRoot}/tools/release/highlight-cards.test.mjs",
                 "{workspaceRoot}/tools/release/screenshot-guards.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/screenshot-guards.test.mjs",
+                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/release-announcements.test.mjs tools/release/verify-draft-release.test.mjs tools/release/highlight-cards.test.mjs tools/release/screenshot-guards.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },

@@ -45,6 +45,7 @@ function note(overrides = {}) {
         area: 'playback',
         issues: [],
         screenshot: null,
+        highlight: null,
         unknownKeys: [],
         body: 'Series now show an Up Next rail beside the player.',
         sourcePath: '.changes/playback-up-next.md',
@@ -99,6 +100,85 @@ describe('parseNote', () => {
         assert.equal(parsed.type, 'fix');
         assert.equal(parsed.area, 'm3u');
         assert.deepEqual(parsed.issues, [1204]);
+    });
+
+    it('parses an optional highlight headline', () => {
+        const parsed = parseNote(
+            [
+                '---',
+                'type: feature',
+                'area: playback',
+                'highlight: Up Next rail',
+                '---',
+                'Series now show an Up Next rail.',
+            ].join('\n'),
+            'x.md'
+        );
+
+        assert.equal(parsed.highlight, 'Up Next rail');
+        assert.equal(note().highlight, null);
+    });
+
+    it('keeps `#` inside a highlight but still strips comments elsewhere', () => {
+        const parsed = parseNote(
+            [
+                '---',
+                'type: feature # one of feature | fix | perf',
+                'area: portal',
+                'highlight: Sources #N chip for alternative copies',
+                '---',
+                'Body.',
+            ].join('\n'),
+            'x.md'
+        );
+
+        assert.equal(parsed.type, 'feature');
+        assert.equal(
+            parsed.highlight,
+            'Sources #N chip for alternative copies'
+        );
+    });
+
+    it('skips whole-line comments', () => {
+        const parsed = parseNote(
+            ['---', '# a note to the author', 'type: fix', 'area: m3u', '---', 'B.'].join(
+                '\n'
+            ),
+            'x.md'
+        );
+
+        assert.equal(parsed.type, 'fix');
+        assert.deepEqual(parsed.unknownKeys, []);
+    });
+
+    it('only strips a balanced quote pair', () => {
+        const parse = (value) =>
+            parseNote(
+                ['---', 'type: feature', 'area: p', `highlight: ${value}`, '---', 'B.'].join(
+                    '\n'
+                ),
+                'x.md'
+            ).highlight;
+
+        assert.equal(parse('"Up Next" rail'), '"Up Next" rail');
+        assert.equal(parse('"Up Next rail"'), 'Up Next rail');
+        assert.equal(parse("'Up Next rail'"), 'Up Next rail');
+        assert.equal(parse('"'), '"');
+    });
+
+    it('reduces a whitespace-only quoted value to empty', () => {
+        const parsed = parseNote(
+            ['---', 'type: feature', 'area: p', 'highlight: "  "', '---', 'B.'].join(
+                '\n'
+            ),
+            'x.md'
+        );
+
+        assert.equal(parsed.highlight, '');
+        assert.match(
+            validateNote(parsed)[0],
+            /`highlight` is present but empty/
+        );
     });
 
     it('records unknown keys instead of dropping them silently', () => {
@@ -172,6 +252,32 @@ describe('validateNote', () => {
             validateNote(note({ screenshot: 'Up Next' }))[0],
             /`screenshot` must be a lowercase slug/
         );
+    });
+
+    it('accepts a short highlight and rejects empty or oversized ones', () => {
+        assert.deepEqual(
+            validateNote(note({ highlight: 'Up Next rail' })),
+            []
+        );
+        assert.match(
+            validateNote(note({ highlight: '' }))[0],
+            /`highlight` is present but empty/
+        );
+        // The cap is the hero card's single-line budget, so a valid highlight
+        // always renders in full on every surface.
+        assert.deepEqual(validateNote(note({ highlight: 'x'.repeat(60) })), []);
+        assert.match(
+            validateNote(note({ highlight: 'x'.repeat(61) }))[0],
+            /max 60/
+        );
+    });
+
+    it('rejects a highlight on an internal note', () => {
+        const errors = validateNote(
+            note({ type: 'internal', highlight: 'Invisible work' })
+        );
+
+        assert.match(errors[0], /`highlight` is not allowed on `type: internal`/);
     });
 
     it('rejects non-numeric issues', () => {
@@ -318,6 +424,27 @@ describe('renderBlogScaffold', () => {
             content,
             /\/iptvnator\/blog\/v0-24\/screenshots\/up-next-rail-light\.png/
         );
+    });
+
+    it('uses the highlight as the section headline instead of a TODO', () => {
+        const content = renderBlogScaffold(
+            [note({ highlight: 'Up Next rail', screenshot: 'up-next-rail' })],
+            { version: '0.24.0', date: '2026-08-01' }
+        );
+
+        assert.match(content, /### Up Next rail/);
+        assert.doesNotMatch(content, /### TODO headline/);
+    });
+
+    it('gives a highlight note without a screenshot its own section, no slider', () => {
+        const content = renderBlogScaffold(
+            [note({ highlight: 'Up Next rail' })],
+            { version: '0.24.0', date: '2026-08-01' }
+        );
+
+        assert.match(content, /### Up Next rail/);
+        assert.doesNotMatch(content, /BlogImageSlider\n {4}images/);
+        assert.doesNotMatch(content, /<BlogImageSlider/);
     });
 
     it('truncates a long body for image alt text without cutting mid-word', () => {

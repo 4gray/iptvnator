@@ -77,6 +77,11 @@
         "release:notes:github": "node tools/release/build-release-notes.mjs --format github",
         "release:notes:changelog": "node tools/release/build-release-notes.mjs --format changelog",
         "release:notes:blog": "node tools/release/build-release-notes.mjs --format blog",
+        "release:notes:telegram": "node tools/release/build-release-notes.mjs --format telegram",
+        "release:notes:reddit": "node tools/release/build-release-notes.mjs --format reddit",
+        "release:verify:draft": "node tools/release/verify-draft-release.mjs",
+        "release:cards:dry-run": "node tools/release/generate-highlight-cards.mjs --dry-run",
+        "release:cards:generate": "node tools/release/generate-highlight-cards.mjs --generate",
         "release:screenshots": "tsx tools/release/capture-release-screenshots.ts",
         "lint": "nx run-many --target=lint --all",
         "build": "nx build electron-backend"
