@@ -82,6 +82,31 @@ pnpm embedded-mpv:build-runtime:linux -- /tmp/linux-prefix
 pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 ```
 
+### Windows CI pin lifecycle
+
+Windows package builds consume the one validated record in
+`windows-runtime-pin.json`; URL and checksum repository variables are not build
+inputs. Check it locally with:
+
+```bash
+pnpm embedded-mpv:windows-runtime-pin:check
+```
+
+The weekly `refresh-windows-embedded-mpv-runtime.yaml` workflow opens a bot PR
+when the upstream asset is unavailable or 14 days old, well before zhongfly's
+30-day retention boundary. A manual refresh uses the same dependency-free
+updater:
+
+```bash
+pnpm embedded-mpv:windows-runtime-pin:refresh -- --force
+```
+
+The upstream archive is checksum- and layout-verified, not independently
+certified as a complete LGPL closure. It contains no corresponding source or
+license notices, so IPTVnator does not mirror it. Any future stable mirror must
+ship complete corresponding source, exact build scripts and patches, notices,
+and a validated transitive license record beside the binary.
+
 The macOS builder verifies every downloaded archive against its pinned
 SHA-256 digest before extraction. FreeType uses its official SourceForge
 distribution as the primary source and the official Savannah distribution as
@@ -398,14 +423,14 @@ scoped to asset selection/download. Candidate/stable
 promotion is manual after installed-Snap frame-copy and missing-runtime
 fallback smoke; GitHub Actions never promotes automatically.
 
-Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
-in its import library is preserved and must be present beside
-`iptvnator_mpv_helper.exe`. Tagged releases require explicit repository
-configuration; the public fallback is for non-tag artifacts only. The upstream
-keeps only its latest 30 daily builds, so the fallback URL and checksum plus any
-matching repository variables must be refreshed as one pair before they age
-out. A permanent mirror must publish the corresponding source/build records and
-license notices with the binary.
+Windows CI stages the x64 LGPL archive selected by the checked-in validated pin
+described above. PR, master, and tag builds consume that same record; repository
+variables and fallback URLs are not build inputs. The DLL basename encoded in
+the archive's import library is preserved and must be present beside
+`iptvnator_mpv_helper.exe`. The weekly workflow rotates the reviewed pin before
+the upstream's latest-30-build retention removes it. A permanent mirror still
+requires the complete corresponding source/build records, license notices, and
+validated transitive license closure beside the binary.
 
 ## Local Development
 

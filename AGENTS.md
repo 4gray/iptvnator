@@ -496,6 +496,22 @@ Key files:
   holds its own blocker in `EmbeddedMpvNativeService`; external MPV/VLC
   inhibit the screensaver themselves.
 
+## Windows Embedded MPV Pin Maintenance
+
+- PR, master, and tag builds resolve the Windows runtime only from
+  `tools/embedded-mpv/windows-runtime-pin.json`; repository variables are not
+  build inputs.
+- Validate the checked-in schema and provenance with
+  `pnpm embedded-mpv:windows-runtime-pin:check`.
+- Prepare a manual rotation with
+  `pnpm embedded-mpv:windows-runtime-pin:refresh -- --force`. The weekly
+  `refresh-windows-embedded-mpv-runtime.yaml` workflow runs the same updater
+  and opens a reviewable PR before upstream retention expires.
+- The PAT-backed refresh job must keep every third-party action pinned to a
+  full commit. Do not mirror the upstream binary without complete
+  corresponding source, build records, license notices, and a validated
+  transitive license closure.
+
 ## Linux Embedded MPV Packaging
 
 - Official Linux frame-copy artifacts are x64-only. AppImage, DEB, RPM,

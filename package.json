@@ -61,6 +61,8 @@
         "embedded-mpv:stage-runtime": "node tools/embedded-mpv/stage-runtime.mjs",
         "embedded-mpv:stage-runtime:macos": "node tools/embedded-mpv/stage-macos-runtime.mjs",
         "embedded-mpv:stage-runtime:windows-archive": "node tools/embedded-mpv/stage-windows-runtime-archive.mjs",
+        "embedded-mpv:windows-runtime-pin:check": "node tools/embedded-mpv/windows-runtime-pin.mjs",
+        "embedded-mpv:windows-runtime-pin:refresh": "node tools/embedded-mpv/update-windows-runtime-pin.mjs",
         "serve:backend:embedded-mpv": "pnpm embedded-mpv:build-native:homebrew && IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT=1 pnpm serve:backend",
         "package:app": "nx run electron-backend:make --prepackageOnly",
         "make:app": "nx run electron-backend:make",

@@ -5,6 +5,7 @@ import os from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { readWindowsRuntimePin } from '../embedded-mpv/windows-runtime-pin.mjs';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -15,6 +16,18 @@ const buildAndMakeWorkflow = fs.readFileSync(
     join(currentDir, '..', '..', '.github', 'workflows', 'build-and-make.yaml'),
     'utf8'
 );
+const windowsRuntimeRefreshWorkflow = fs.readFileSync(
+    join(
+        currentDir,
+        '..',
+        '..',
+        '.github',
+        'workflows',
+        'refresh-windows-embedded-mpv-runtime.yaml'
+    ),
+    'utf8'
+);
+const windowsRuntimePin = readWindowsRuntimePin();
 const electronBuilderConfig = JSON.parse(
     fs.readFileSync(
         join(currentDir, '..', '..', 'electron-builder.json'),
@@ -874,16 +887,6 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     const requireEmbeddedMpvLines = buildAndMakeWorkflow
         .split(/\r?\n/)
         .filter((line) => line.includes('IPTVNATOR_REQUIRE_EMBEDDED_MPV:'));
-    const defaultRuntimeUrls = [
-        ...buildAndMakeWorkflow.matchAll(
-            /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL:\s+(\S+)/g
-        ),
-    ].map((match) => match[1]);
-    const defaultRuntimeSha256s = [
-        ...buildAndMakeWorkflow.matchAll(
-            /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256:\s+([a-f0-9]{64})/g
-        ),
-    ].map((match) => match[1]);
 
     assert.equal(
         packageMetadata.scripts?.['embedded-mpv:stage-runtime:windows-archive'],
@@ -896,27 +899,61 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     assert.match(buildAndMakeWorkflow, /runner:\s+windows-2022/);
     assert.match(
         buildAndMakeWorkflow,
-        /IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL/
+        /name:\s+Resolve pinned Windows Embedded MPV runtime/
     );
     assert.match(
         buildAndMakeWorkflow,
-        /IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256/
+        /node tools\/embedded-mpv\/windows-runtime-pin\.mjs --github-output/
     );
     assert.match(
         buildAndMakeWorkflow,
-        /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https:\/\/github\.com\/zhongfly\/mpv-winbuild\/releases\/download\//
+        /WINDOWS_RUNTIME_URL:\s+\$\{\{ steps\.windows-embedded-mpv-runtime-pin\.outputs\.url \}\}/
     );
-    assert.deepEqual(
-        [...new Set(defaultRuntimeUrls)],
-        [
-            'https://github.com/zhongfly/mpv-winbuild/releases/download/2026-07-17-94335ab87a/mpv-dev-lgpl-x86_64-20260717-git-94335ab87a.7z',
-        ]
+    assert.match(
+        buildAndMakeWorkflow,
+        /WINDOWS_RUNTIME_SHA256:\s+\$\{\{ steps\.windows-embedded-mpv-runtime-pin\.outputs\.sha256 \}\}/
     );
-    assert.deepEqual(
-        [...new Set(defaultRuntimeSha256s)],
-        ['6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0']
+    assert.doesNotMatch(
+        buildAndMakeWorkflow,
+        /(?:vars|secrets)\.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME/
     );
-    assert.match(buildAndMakeWorkflow, /refs\/tags\/v\*/);
+    assert.doesNotMatch(buildAndMakeWorkflow, /zhongfly\/mpv-winbuild/);
+    assert.equal(windowsRuntimePin.repository, 'zhongfly/mpv-winbuild');
+    assert.match(windowsRuntimePin.asset.name, /^mpv-dev-lgpl-x86_64-/);
+    assert.match(windowsRuntimePin.asset.sha256, /^[a-f0-9]{64}$/);
+    assert.match(
+        windowsRuntimePin.upstream.licenseClaim,
+        /checksum and archive layout, not the complete transitive license closure/
+    );
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /node tools\/embedded-mpv\/update-windows-runtime-pin\.mjs/
+    );
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /node --test\s+tools\/embedded-mpv\/windows-runtime-pin\.test\.mjs/
+    );
+    assert.doesNotMatch(
+        windowsRuntimeRefreshWorkflow,
+        /electron-package-identity\.test\.mjs/
+    );
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /automation\/windows-embedded-mpv-runtime-pin/
+    );
+    assert.match(windowsRuntimeRefreshWorkflow, /secrets\.PAT/);
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/
+    );
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/
+    );
+    assert.doesNotMatch(
+        windowsRuntimeRefreshWorkflow,
+        /actions\/(?:checkout|setup-node)@v\d+/
+    );
     assert.match(
         buildAndMakeWorkflow,
         /name:\s+Override Windows arch in electron-builder\.json/
@@ -927,6 +964,14 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     );
     assert.match(embeddedMpvStageRuntimeSource, /\.dll\.a/);
     assert.match(embeddedMpvBuildSource, /\.dll\.a/);
+    assert.match(
+        embeddedMpvWindowsArchiveStageSource,
+        /checksum-and-layout-only/
+    );
+    assert.match(
+        embeddedMpvWindowsArchiveStageSource,
+        /not-independently-verified/
+    );
     assert.ok(requireEmbeddedMpvLines.length > 0);
     for (const line of requireEmbeddedMpvLines) {
         assert.doesNotMatch(line, /cache-hit/);

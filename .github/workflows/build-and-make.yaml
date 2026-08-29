@@ -448,6 +448,12 @@ jobs:
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
 
+            - name: Resolve pinned Windows Embedded MPV runtime
+              if: matrix.os == 'windows'
+              id: windows-embedded-mpv-runtime-pin
+              shell: bash
+              run: node tools/embedded-mpv/windows-runtime-pin.mjs --github-output
+
             - name: Resolve embedded MPV runtime cache key
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
@@ -455,8 +461,7 @@ jobs:
               id: embedded-mpv-runtime-cache-key
               shell: bash
               env:
-                  IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || '' }}
-                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: 6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0
+                  IPTVNATOR_PINNED_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ steps.windows-embedded-mpv-runtime-pin.outputs.sha256 || '' }}
               run: |
                   set -euo pipefail
 
@@ -500,11 +505,13 @@ jobs:
                       `xcode${hash(xcodeVersion)}`
                     );
                   } else if (targetPlatform === 'win32') {
-                    sourceHashFiles.push('tools/embedded-mpv/stage-windows-runtime-archive.mjs');
+                    sourceHashFiles.push(
+                      'tools/embedded-mpv/stage-windows-runtime-archive.mjs',
+                      'tools/embedded-mpv/windows-runtime-pin.json',
+                      'tools/embedded-mpv/windows-runtime-pin.mjs'
+                    );
                     const windowsRuntimeSha256 =
-                      process.env.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 ||
-                      process.env.IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 ||
-                      'missing';
+                      process.env.IPTVNATOR_PINNED_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || 'missing';
                     cacheKeyParts.push(
                       `runtime${hash(windowsRuntimeSha256)}`
                     );
@@ -566,28 +573,13 @@ jobs:
               if: matrix.os == 'windows' && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
               shell: bash
               env:
-                  IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL || '' }}
-                  IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || '' }}
-                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https://github.com/zhongfly/mpv-winbuild/releases/download/2026-07-17-94335ab87a/mpv-dev-lgpl-x86_64-20260717-git-94335ab87a.7z
-                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: 6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0
+                  WINDOWS_RUNTIME_URL: ${{ steps.windows-embedded-mpv-runtime-pin.outputs.url }}
+                  WINDOWS_RUNTIME_SHA256: ${{ steps.windows-embedded-mpv-runtime-pin.outputs.sha256 }}
               run: |
                   set -euo pipefail
 
-                  WINDOWS_RUNTIME_URL="${IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL}"
-                  WINDOWS_RUNTIME_SHA256="${IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256}"
-                  if [ -z "${WINDOWS_RUNTIME_URL}" ] && [ -z "${WINDOWS_RUNTIME_SHA256}" ]; then
-                      case "${GITHUB_REF}" in
-                          refs/tags/v*)
-                              ;;
-                          *)
-                              WINDOWS_RUNTIME_URL="${IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL}"
-                              WINDOWS_RUNTIME_SHA256="${IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256}"
-                              ;;
-                      esac
-                  fi
-
                   if [ -z "${WINDOWS_RUNTIME_URL}" ] || [ -z "${WINDOWS_RUNTIME_SHA256}" ]; then
-                      echo "::error::Windows Embedded MPV CI requires IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL and IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 repository variables or secrets."
+                      echo "::error::The checked-in Windows Embedded MPV runtime pin did not resolve a URL and SHA-256 digest."
                       exit 1
                   fi
 
