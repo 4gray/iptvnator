@@ -1,0 +1,109 @@
+name: Refresh Windows Embedded MPV Runtime Pin
+
+on:
+    schedule:
+        - cron: '17 6 * * 1'
+    workflow_dispatch:
+        inputs:
+            force:
+                description: Refresh even when the current pin is still young
+                required: false
+                default: false
+                type: boolean
+
+permissions:
+    contents: read
+
+concurrency:
+    group: refresh-windows-embedded-mpv-runtime-pin
+    cancel-in-progress: false
+
+jobs:
+    refresh:
+        name: Refresh checked-in runtime pin
+        if: github.repository == '4gray/iptvnator'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version: '22'
+
+            - name: Refresh pin when it approaches upstream retention
+              id: refresh
+              env:
+                  FORCE_REFRESH: ${{ inputs.force && 'true' || 'false' }}
+                  GITHUB_TOKEN: ${{ github.token }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  if [ "${FORCE_REFRESH}" = "true" ]; then
+                      node tools/embedded-mpv/update-windows-runtime-pin.mjs --force
+                  else
+                      node tools/embedded-mpv/update-windows-runtime-pin.mjs
+                  fi
+
+            - name: Validate updated pin and packaging contract
+              if: steps.refresh.outputs.changed == 'true'
+              run: >-
+                  node --test
+                  tools/embedded-mpv/windows-runtime-pin.test.mjs
+                  tools/packaging/electron-package-identity.test.mjs
+
+            - name: Create or update refresh pull request
+              if: steps.refresh.outputs.changed == 'true'
+              env:
+                  GH_TOKEN: ${{ secrets.PAT }}
+                  BRANCH_NAME: automation/windows-embedded-mpv-runtime-pin
+                  RELEASE_TAG: ${{ steps.refresh.outputs.release-tag }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  if [ -z "${GH_TOKEN}" ]; then
+                      echo "::error::The PAT secret is required so the bot-created PR triggers normal CI."
+                      exit 1
+                  fi
+
+                  gh auth setup-git
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git switch -C "${BRANCH_NAME}"
+                  git add -- tools/embedded-mpv/windows-runtime-pin.json
+                  git commit -m "ci(embedded-mpv): refresh Windows runtime pin"
+                  git fetch origin "${BRANCH_NAME}:refs/remotes/origin/${BRANCH_NAME}" || true
+                  git push --force-with-lease origin "HEAD:refs/heads/${BRANCH_NAME}"
+
+                  PR_BODY="$(printf '%s\n\n%s\n%s\n%s' \
+                      'Automated refresh of the checksum-pinned Windows Embedded MPV CI input.' \
+                      "- Pins upstream release \`${RELEASE_TAG}\` in repository history." \
+                      '- Keeps the binary on its upstream host; IPTVnator does not mirror it.' \
+                      '- Preserves the explicit checksum/layout-only license-verification statement.')"
+                  PR_NUMBER="$(gh pr list \
+                      --base master \
+                      --head "${BRANCH_NAME}" \
+                      --state open \
+                      --json number \
+                      --jq '.[0].number // empty')"
+
+                  if [ -n "${PR_NUMBER}" ]; then
+                      gh pr edit "${PR_NUMBER}" \
+                          --title "ci(embedded-mpv): refresh Windows runtime pin" \
+                          --body "${PR_BODY}"
+                      gh pr view "${PR_NUMBER}" --json url --jq '.url'
+                  else
+                      gh pr create \
+                          --base master \
+                          --head "${BRANCH_NAME}" \
+                          --title "ci(embedded-mpv): refresh Windows runtime pin" \
+                          --body "${PR_BODY}"
+                  fi

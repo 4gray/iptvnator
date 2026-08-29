@@ -13,6 +13,7 @@
                 "{workspaceRoot}/electron-builder.json",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
                 "{workspaceRoot}/.github/workflows/publish-snap.yaml",
+                "{workspaceRoot}/.github/workflows/refresh-windows-embedded-mpv-runtime.yaml",
                 "{workspaceRoot}/apps/electron-backend/build-embedded-mpv.js",
                 "{workspaceRoot}/apps/electron-backend/project.json",
                 "{workspaceRoot}/apps/electron-backend/native/src/embedded_mpv_win32.cc",
@@ -52,10 +53,14 @@
                 "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts",
                 "{workspaceRoot}/tools/embedded-mpv/stage-runtime.mjs",
-                "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs"
+                "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/update-windows-runtime-pin.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/windows-runtime-pin.json",
+                "{workspaceRoot}/tools/embedded-mpv/windows-runtime-pin.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/windows-runtime-pin.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/flatpak-launcher-validation.test.mjs tools/packaging/configure-linux-frame-copy-build.test.mjs tools/packaging/linux-after-pack.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs tools/packaging/prepare-linux-runtime-source-snapshot.test.mjs tools/packaging/publish-snap-workflow.test.mjs tools/packaging/release-snap-assets.test.mjs tools/packaging/verify-linux-frame-copy-runtime.test.mjs tools/embedded-mpv/build-linux-runtime.test.mjs tools/embedded-mpv/download-pinned-source.test.mjs tools/embedded-mpv/generate-linux-runtime-notices.test.mjs tools/embedded-mpv/linux-runtime-manifest.test.mjs",
+                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/flatpak-launcher-validation.test.mjs tools/packaging/configure-linux-frame-copy-build.test.mjs tools/packaging/linux-after-pack.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs tools/packaging/prepare-linux-runtime-source-snapshot.test.mjs tools/packaging/publish-snap-workflow.test.mjs tools/packaging/release-snap-assets.test.mjs tools/packaging/verify-linux-frame-copy-runtime.test.mjs tools/embedded-mpv/build-linux-runtime.test.mjs tools/embedded-mpv/download-pinned-source.test.mjs tools/embedded-mpv/generate-linux-runtime-notices.test.mjs tools/embedded-mpv/linux-runtime-manifest.test.mjs tools/embedded-mpv/windows-runtime-pin.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
@@ -67,6 +72,7 @@
                 "{workspaceRoot}/tools/eslint/**/*",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
                 "{workspaceRoot}/.github/workflows/publish-snap.yaml",
+                "{workspaceRoot}/.github/workflows/refresh-windows-embedded-mpv-runtime.yaml",
                 "{workspaceRoot}/tools/packaging/prepare-linux-runtime-source-snapshot.cjs",
                 "{workspaceRoot}/tools/packaging/prepare-linux-runtime-source-snapshot.test.mjs",
                 "{workspaceRoot}/tools/packaging/publish-snap-workflow.test.mjs",
@@ -81,9 +87,13 @@
                 "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
                 "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
-                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/update-windows-runtime-pin.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/windows-runtime-pin.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/windows-runtime-pin.test.mjs"
             ],
-            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\" \"tools/embedded-mpv/build-macos-runtime.mjs\" \"tools/embedded-mpv/build-linux-runtime.{mjs,test.mjs}\" \"tools/embedded-mpv/download-pinned-source.{mjs,test.mjs}\" \"tools/embedded-mpv/generate-linux-runtime-notices.{cjs,test.mjs}\" \"tools/embedded-mpv/linux-source-archive-contract.cjs\" \"tools/embedded-mpv/runtime-probe-contract.cjs\""
+            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\" \"tools/embedded-mpv/build-macos-runtime.mjs\" \"tools/embedded-mpv/build-linux-runtime.{mjs,test.mjs}\" \"tools/embedded-mpv/download-pinned-source.{mjs,test.mjs}\" \"tools/embedded-mpv/generate-linux-runtime-notices.{cjs,test.mjs}\" \"tools/embedded-mpv/linux-source-archive-contract.cjs\" \"tools/embedded-mpv/runtime-probe-contract.cjs\" \"tools/embedded-mpv/stage-windows-runtime-archive.mjs\" \"tools/embedded-mpv/update-windows-runtime-pin.mjs\" \"tools/embedded-mpv/windows-runtime-pin.{mjs,test.mjs}\""
         }
     },
     "tags": ["scope:tools", "domain:packaging", "type:tool"]

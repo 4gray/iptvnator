@@ -6,6 +6,7 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
+import { readWindowsRuntimePin } from './windows-runtime-pin.mjs';
 
 const rawArgs = process.argv.slice(2);
 const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
@@ -18,7 +19,7 @@ if (!archiveSource || !rawExpectedSha256) {
         [
             'Usage: node tools/embedded-mpv/stage-windows-runtime-archive.mjs <archive-url-or-path> <sha256>',
             '',
-            'Downloads or reads a checksum-pinned LGPL-compatible Windows libmpv runtime archive,',
+            'Downloads or reads a checksum-pinned, upstream-labelled LGPL Windows libmpv runtime archive,',
             'extracts it, and stages it as vendor/embedded-mpv/win32-x64.',
             '',
             'The archive must contain a prefix with:',
@@ -189,23 +190,50 @@ function copyFile(sourcePath, destinationPath) {
 }
 
 function writeGeneratedManifest(destinationPath, archiveSha256) {
+    let checkedInPin = null;
+    try {
+        const candidate = readWindowsRuntimePin();
+        if (
+            candidate.asset.url === archiveSource &&
+            candidate.asset.sha256 === archiveSha256
+        ) {
+            checkedInPin = candidate;
+        }
+    } catch {
+        // Arbitrary local archives remain supported without repository pin metadata.
+    }
+    const upstreamEvidence = checkedInPin?.upstream;
     const manifest = {
         sourceDistribution: archiveSource,
         archive: {
             urlOrPath: archiveSource,
             sha256: archiveSha256,
         },
+        verification: {
+            level: 'checksum-and-layout-only',
+            licenseClosure: 'not-independently-verified',
+        },
+        ...(upstreamEvidence
+            ? {
+                  upstream: {
+                      releaseTag: checkedInPin.releaseTag,
+                      mpvCommit: upstreamEvidence.mpvCommit,
+                      buildRunUrl: upstreamEvidence.buildRunUrl,
+                      licenseClaim: upstreamEvidence.licenseClaim,
+                  },
+              }
+            : {}),
         ffmpeg: {
             licensePolicy:
-                'LGPL-compatible Windows runtime archive supplied to CI.',
+                'The upstream archive describes statically linked FFmpeg as LGPLv3; IPTVnator does not independently certify its complete static dependency closure.',
             configureFlags:
-                'Record exact FFmpeg configure flags in the upstream runtime manifest when available.',
+                'Not embedded in the upstream binary archive; consult the pinned upstream build run.',
         },
         mpv: {
             licensePolicy:
-                'LGPL-compatible libmpv Windows runtime archive supplied to CI.',
+                'The upstream archive describes libmpv as LGPLv2.1+ with GPL-only features disabled; IPTVnator verifies only the checksum and required files.',
             mesonFlags:
-                'Record exact mpv Meson flags in the upstream runtime manifest when available.',
+                'Not embedded in the upstream binary archive; consult the pinned upstream build run.',
         },
     };
 

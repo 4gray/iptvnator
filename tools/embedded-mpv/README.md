@@ -82,6 +82,31 @@ pnpm embedded-mpv:build-runtime:linux -- /tmp/linux-prefix
 pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 ```
 
+### Windows CI pin lifecycle
+
+Windows package builds consume the one validated record in
+`windows-runtime-pin.json`; URL and checksum repository variables are not build
+inputs. Check it locally with:
+
+```bash
+pnpm embedded-mpv:windows-runtime-pin:check
+```
+
+The weekly `refresh-windows-embedded-mpv-runtime.yaml` workflow opens a bot PR
+when the upstream asset is unavailable or 14 days old, well before zhongfly's
+30-day retention boundary. A manual refresh uses the same dependency-free
+updater:
+
+```bash
+pnpm embedded-mpv:windows-runtime-pin:refresh -- --force
+```
+
+The upstream archive is checksum- and layout-verified, not independently
+certified as a complete LGPL closure. It contains no corresponding source or
+license notices, so IPTVnator does not mirror it. Any future stable mirror must
+ship complete corresponding source, exact build scripts and patches, notices,
+and a validated transitive license record beside the binary.
+
 The macOS builder verifies every downloaded archive against its pinned
 SHA-256 digest before extraction. FreeType uses its official SourceForge
 distribution as the primary source and the official Savannah distribution as
