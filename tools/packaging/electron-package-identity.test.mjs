@@ -935,6 +935,18 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     );
     assert.match(windowsRuntimeRefreshWorkflow, /secrets\.PAT/);
     assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/
+    );
+    assert.match(
+        windowsRuntimeRefreshWorkflow,
+        /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020/
+    );
+    assert.doesNotMatch(
+        windowsRuntimeRefreshWorkflow,
+        /actions\/(?:checkout|setup-node)@v\d+/
+    );
+    assert.match(
         buildAndMakeWorkflow,
         /name:\s+Override Windows arch in electron-builder\.json/
     );
