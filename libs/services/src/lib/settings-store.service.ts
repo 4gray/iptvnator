@@ -27,7 +27,7 @@ import {
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
-    webPlayerSharedControls: false,
+    webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
     vodAutoFailover: false,
@@ -158,8 +158,13 @@ export const SettingsStore = signalStore(
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
+
+                            // Absent in settings stored before the default
+                            // flip means "never chose" — those users get the
+                            // new default; only an explicit false opts out.
                             webPlayerSharedControls:
-                                storedSettings.webPlayerSharedControls === true,
+                                storedSettings.webPlayerSharedControls !==
+                                false,
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
                             ),
@@ -191,7 +196,7 @@ export const SettingsStore = signalStore(
                     ...(settings.webPlayerSharedControls !== undefined
                         ? {
                               webPlayerSharedControls:
-                                  settings.webPlayerSharedControls === true,
+                                  settings.webPlayerSharedControls !== false,
                           }
                         : {}),
                     ...(settings.dashboardRails !== undefined
@@ -232,7 +237,7 @@ export const SettingsStore = signalStore(
                 return {
                     player: store.player(),
                     webPlayerSharedControls:
-                        store.webPlayerSharedControls?.() === true,
+                        store.webPlayerSharedControls?.() !== false,
                     playerAmbientMode:
                         store.playerAmbientMode?.() ??
                         DEFAULT_SETTINGS.playerAmbientMode,

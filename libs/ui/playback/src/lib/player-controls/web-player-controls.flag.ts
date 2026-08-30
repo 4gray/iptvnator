@@ -1,14 +1,15 @@
 import { InjectionToken } from '@angular/core';
 
 /**
- * Reserved rollout switch for shared `app-player-controls` chrome on the web
- * video engines (HTML5+hls.js, Video.js, ArtPlayer).
+ * Rollout switch for shared `app-player-controls` chrome on the web video
+ * engines (HTML5+hls.js, Video.js, ArtPlayer).
  *
- * DEFAULT OFF. The built-in HTML5, Video.js, and ArtPlayer implementations
- * consume the injectable {@link WEB_PLAYER_SHARED_CONTROLS} token and switch
- * atomically between their existing chrome and shared controls.
+ * DEFAULT ON. Users opt back out via `Settings.webPlayerSharedControls`; the
+ * built-in HTML5, Video.js, and ArtPlayer implementations consume the
+ * injectable {@link WEB_PLAYER_SHARED_CONTROLS} token and switch atomically
+ * between shared controls and their legacy vendor chrome.
  */
-export const WEB_PLAYER_SHARED_CONTROLS_ENABLED = false;
+export const WEB_PLAYER_SHARED_CONTROLS_ENABLED = true;
 
 /**
  * Injectable view of {@link WEB_PLAYER_SHARED_CONTROLS_ENABLED}. Components

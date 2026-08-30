@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import {
     createTextTrack,
     FakeTextTrackList,
@@ -41,6 +42,9 @@ describe('HtmlVideoPlayerComponent caption preference without shared controls', 
                         sendIpcEvent: jest.fn().mockResolvedValue(undefined),
                     },
                 },
+                // "without shared controls" — pin the opt-out explicitly now
+                // that shared controls default on.
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
             ],
         }).compileComponents();
     }));

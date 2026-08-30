@@ -25,6 +25,7 @@ import { ControlsTimeline } from './controls-timeline';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
+import { ControlsVolumeInteractions } from './controls-volume-interactions';
 import { ControlsSubtitleSettings } from './controls-subtitle-settings';
 import { formatTime, speedLabel } from './controls-format.utils';
 import type {
@@ -85,6 +86,8 @@ export class PlayerControlsComponent implements OnDestroy {
             togglePlay: () => this.togglePlay(),
             canTogglePlay: () => this.canTogglePlay(),
             isMenuOpen: () => this.menus.anyOpen(),
+            controlsVisible: () => this.controlsAreVisible(),
+            hideControls: () => this.visibility.hide(),
         },
         this.host
     );
@@ -97,6 +100,13 @@ export class PlayerControlsComponent implements OnDestroy {
         menus: this.menus,
         visibility: this.visibility,
         revealSticky: () => this.reveal({ scheduleHide: false }),
+    });
+    readonly volumeInteractions = new ControlsVolumeInteractions({
+        volume: this.volume,
+        menus: this.menus,
+        wasTouchInteraction: (event) => this.surface.wasTouchInteraction(event),
+        canAdjustVolume: () => this.capabilities().volume,
+        reveal: (options) => this.reveal(options),
     });
 
     readonly state = computed(() => this.controller().state());
@@ -161,8 +171,8 @@ export class PlayerControlsComponent implements OnDestroy {
             togglePaused: () => this.togglePlay(),
             toggleFullscreen: () => void this.toggleFullscreen(),
             seekBy: (delta) => this.seekBy(delta),
-            adjustVolume: (delta) => this.adjustVolume(delta),
-            toggleMute: () => this.toggleMute(),
+            adjustVolume: (delta) => this.volumeInteractions.adjust(delta),
+            toggleMute: () => this.volumeInteractions.toggleMute(),
         });
         effect((onCleanup) => {
             const playerSurface = this.playerSurface();
@@ -293,29 +303,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         this.nextEpisodeRequested.emit();
     }
-    onVolumeInput(event: Event): void {
-        this.volume.set(Number((event.target as HTMLInputElement).value));
-        this.reveal({ scheduleHide: false });
-    }
-    onVolumeWheel(event: WheelEvent): void {
-        event.preventDefault();
-        this.adjustVolume(event.deltaY > 0 ? -0.05 : 0.05);
-    }
-    onVolumeHoverEnter(): void {
-        this.volume.hoverEnter();
-    }
-    onVolumeHoverLeave(): void {
-        this.volume.hoverLeave();
-    }
-
-    toggleMute(): void {
-        if (!this.capabilities().volume) {
-            return;
-        }
-        this.volume.toggleMute();
-        this.reveal();
-    }
-
     toggleMenu(
         menu: 'audio' | 'subtitle' | 'quality' | 'speed' | 'aspect'
     ): void {
@@ -350,13 +337,6 @@ export class PlayerControlsComponent implements OnDestroy {
             return;
         }
         await this.fullscreen.toggle();
-    }
-    private adjustVolume(delta: number): void {
-        if (!this.capabilities().volume) {
-            return;
-        }
-        this.volume.adjust(delta);
-        this.reveal();
     }
     private closePopovers(): void {
         if (!this.menus.anyOpen()) {

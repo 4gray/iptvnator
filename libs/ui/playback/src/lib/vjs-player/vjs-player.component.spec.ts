@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import type { NativePlaybackErrorInput } from '@iptvnator/playback/util';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls/web-player-controls.flag';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type { VideoJsPlayer } from './vjs-player.types';
 
@@ -45,6 +46,11 @@ describe('VjsPlayerComponent', () => {
         mpegTsIsSupportedMock.mockReset().mockReturnValue(false);
         await TestBed.configureTestingModule({
             imports: [VjsPlayerComponent],
+            // This suite covers the legacy vendor-chrome path, which is an
+            // explicit opt-out now that shared controls default on.
+            providers: [
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
+            ],
         }).compileComponents();
         fixture = TestBed.createComponent(VjsPlayerComponent);
         component = fixture.componentInstance;

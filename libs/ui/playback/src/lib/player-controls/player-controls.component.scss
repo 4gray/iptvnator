@@ -610,10 +610,10 @@
 }
 
 @media (max-width: 720px) {
-    // Keep the single-row layout when space is tight: the transport and action
-    // buttons hold their natural width while the middle timeline column
-    // (the seek slider) absorbs the shrink. Collapsing to a single column here
-    // is what used to push the transport buttons into a row above the slider.
+    // Moderately tight viewports keep the single-row layout: the transport and
+    // action buttons hold their natural width while the middle timeline column
+    // (the seek slider) absorbs the shrink. Genuinely narrow players reflow to
+    // two rows via the container query below, which wins over this gap.
     .player-controls__bar {
         gap: 8px;
     }
@@ -626,5 +626,79 @@
     .player-controls__track-popover {
         right: 0;
         left: auto;
+    }
+}
+
+// Touch scrubbing needs a taller hit strip and thumb than the 18px mouse
+// slider; the 4px visual track is unchanged — only the input's touch area and
+// the thumb grow.
+@media (pointer: coarse) {
+    .player-controls__slider {
+        height: 28px;
+    }
+
+    .player-controls__slider::-webkit-slider-thumb {
+        width: 18px;
+        height: 18px;
+        margin-top: -7px;
+    }
+
+    .player-controls__slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// Narrow players — phone-sized PWA viewports and small windowed/inline
+// players — cannot hold transport + timeline + the variable-count actions
+// cluster in one row (every action button from volume to fullscreen is
+// conditional, so the cluster's width is content-dependent). Give the
+// timeline its own full-width row and split the second row between the two
+// button clusters. Container-based on purpose: a small inline player inside a
+// wide desktop window needs the same treatment as a phone viewport.
+@container player-controls (max-width: 640px) {
+    .player-controls__bar {
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas:
+            'timeline timeline'
+            'transport actions';
+        gap: 0 8px;
+        padding: 36px 10px 8px;
+    }
+
+    .player-controls__transport {
+        grid-area: transport;
+    }
+
+    .player-controls__timeline {
+        grid-area: timeline;
+    }
+
+    .player-controls__actions {
+        grid-area: actions;
+        position: relative;
+        justify-self: end;
+        // When even a dedicated row cannot hold the cluster (worst case:
+        // series transport plus audio/subtitles/quality/speed/aspect/PiP),
+        // wrap the actions instead of making them a scroll container. A scroll
+        // container would clip every absolutely positioned capability panel.
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        max-width: 100%;
+        overflow: visible;
+    }
+
+    // Anchor narrow-player panels to the whole actions cluster. This keeps the
+    // right-aligned panels inside the player and above every wrapped action row.
+    .player-controls__actions .player-controls__popover-anchor {
+        position: static;
+    }
+
+    // Compact icon buttons: wins back roughly one button of width per four.
+    .player-controls__bar :is(button[mat-icon-button]) {
+        width: 40px;
+        height: 40px;
+        padding: 8px;
+        --mdc-icon-button-state-layer-size: 40px;
     }
 }

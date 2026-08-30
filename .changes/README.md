@@ -3,8 +3,8 @@
 Every PR with a user-visible change drops one file here describing that change
 in plain language. At release time
 `tools/release/build-release-notes.mjs` turns the accumulated files into the
-GitHub release body, the `CHANGELOG.md` section, and a blog-post scaffold for
-the website — then deletes them.
+GitHub release body, the `CHANGELOG.md` section, a blog-post scaffold for
+the website, and Telegram/Reddit announcement drafts — then deletes them.
 
 The point is to write the note **while the context is still fresh**, instead of
 reconstructing three months of work from commit titles at release time.
@@ -19,6 +19,7 @@ type: feature
 area: playback
 issues: [1187]
 screenshot: up-next-rail
+highlight: Up Next rail
 ---
 
 Series now show an "Up Next" rail beside the player on wide windows: the rest
@@ -31,6 +32,7 @@ of the current season, watch progress, and click-to-play inline.
 | `area`       | yes      | lowercase slug, same as the conventional-commit scope        |
 | `issues`     | no       | issue numbers this closes — `[1187]` or `1187`               |
 | `screenshot` | no       | slug from `tools/release/screenshots.manifest.json`          |
+| `highlight`  | no       | short headline (max 60 chars) marking a release highlight    |
 
 There is **no version field**. The release version is chosen deliberately at
 release time, not derived from these files.
@@ -48,6 +50,15 @@ The body is capped at 400 characters — depth belongs in the blog post.
 
 - ❌ "Fix off-by-one in `resolveEnrichmentSeasonNumber`"
 - ✅ "Series whose title carries a season marker no longer show the wrong season"
+
+`highlight` marks the change as one of the release's headline features and
+gives it a short, poster-worthy name. The 60-character cap keeps it roughly to
+one line on the hero card; card text wraps by estimated width, so a headline of
+unusually wide glyphs may still wrap or ellipsize rather than overflow. Highlights lead the Telegram/Reddit
+announcements (everything else collapses into a "+N more" counter) and become
+ready-made section headings in the blog scaffold. Set it on the two or three
+changes worth announcing — a release where everything is a highlight has none.
+Not allowed on `type: internal`.
 
 `type: internal` records invisible maintenance. Internal notes stay collapsed in
 `CHANGELOG.md`, are omitted from the blog scaffold, and are removed from the
@@ -69,6 +80,8 @@ pnpm run release:notes:validate
 pnpm run release:notes:github
 pnpm run release:notes:changelog
 pnpm run release:notes:blog
+pnpm --silent run release:notes:telegram
+pnpm --silent run release:notes:reddit
 node tools/release/build-release-notes.mjs --consume
 ```
 
@@ -83,13 +96,32 @@ A bare `--` separator is accepted and ignored, so the npm habit of
 `pnpm run release:notes:github -- --version 0.24.0` works too: pnpm forwards
 that separator to the script rather than consuming it the way npm does.
 
-`--validate` and `--format github` only read and print. `--format changelog`
-and `--format blog` write their target file (rerunning `changelog` for the same
-version replaces that section rather than duplicating it). Only `--consume`
-deletes anything.
+`--validate`, `--format github`, `--format telegram`, and `--format reddit`
+only read and print. `--format changelog` and `--format blog` write their
+target file (rerunning `changelog` for the same version replaces that section
+rather than duplicating it). Only `--consume` deletes anything.
+
+The announcement formats print paste-ready posts to stdout, each guaranteed
+to fit its platform's limit: Telegram plain text within 4096 characters,
+Reddit markdown within 40,000, with a suggested post title on the first line.
+Whatever does not fit collapses into a counter; a breaking change is never
+collapsed, and if the highlights alone will not fit, the render fails with an
+actionable error rather than shipping a post that cannot be submitted. Use `pnpm --silent run` for these two —
+plain `pnpm run` prints its lifecycle banner to the same stdout, so a
+redirected post starts with two lines of build noise. Render and save them
+**before**
+`--consume` — the changelog keeps the entries, but the `highlight:` metadata
+lives only in the note files. Publishing is manual; nothing posts anywhere.
+An internal-only release has nothing to announce: both formats then print an
+explanation on stderr, leave stdout empty, and exit 0 — the same shape
+`extract-changelog-section.mjs --public` uses for its empty public body.
 
 The release sequence is: bump the version → `release:notes:changelog` →
-`release:notes:blog` → `--consume` → commit → tag → push. The tag build then
+`release:notes:blog` → `release:screenshots` → `release:notes:telegram` /
+`release:notes:reddit` → `release:cards:generate` → `--consume` → commit → tag
+→ push → `release:verify:draft`. Everything reading `highlight:` comes before
+`--consume`, because that step deletes the only copy of it. Full contract:
+`docs/architecture/release-pipeline.md`. The tag build then
 extracts the new `CHANGELOG.md` section into the GitHub release body
 (`tools/release/extract-changelog-section.mjs`) and **fails the release** if
 the section is missing — a tag cut without the changelog step cannot silently
@@ -115,6 +147,19 @@ guard has passed.
 Adding a shot for a new feature = one entry in
 `tools/release/screenshots.manifest.json` (plus, if navigation is new, one
 named action in `tools/release/capture-navigation.ts`).
+
+## Highlight cards
+
+`pnpm run release:cards:generate` renders one branded 1200×630 card per
+`highlight:` note (headline, body, and a framed screenshot strip when the note
+names one) plus a release hero card — for Telegram/Reddit previews and the
+blog `hero.jpg`. It reads screenshots from the published blog directory, so it
+runs after `release:screenshots` and, like the announcement formats, before
+`--consume`. Output goes to `dist/release-highlight-cards/v<version>/`, and a
+rerun replaces the cards it previously wrote there; copying a card into the
+website tree is a deliberate manual act. `release:cards:dry-run` lists what
+would be rendered. A release without highlights still gets its hero card, and
+an internal-only release writes nothing — neither is an error.
 
 ```bash
 pnpm nx run electron-backend:build-e2e   # once, before capturing

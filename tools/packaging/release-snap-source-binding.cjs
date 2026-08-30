@@ -41,6 +41,12 @@ const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SAFE_BASENAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 const FRAME_COPY_MANIFEST_NAME = 'embedded-mpv-runtime.json';
 const FRAME_COPY_UNAVAILABLE_MARKER_NAME = 'embedded-mpv-unavailable.txt';
+// The archive carries the STAGED runtime manifest (`stage-runtime.mjs`):
+// origin "vendored-lgpl", with the from-source builder's origin preserved in
+// sourceBuildOrigin. The shared source-build validator still checks every
+// other field through the projected origin below.
+const STAGED_RUNTIME_ORIGIN = 'vendored-lgpl';
+const SOURCE_BUILD_RUNTIME_ORIGIN = 'vendored-lgpl-source-build';
 const SNAP_RELEASE_BOUNDARY_SCHEMA_VERSION = 1;
 const SNAP_RELEASE_BOUNDARY_HELPER_PATH = path.join(
     __dirname,
@@ -1116,9 +1122,6 @@ function inspectSnapPayload(
         const payloads = collectSnapNativePayloads(extractionRoot);
         const canonicalNativeDirectory = path.join(
             extractionRoot,
-            'usr',
-            'lib',
-            'iptvnator',
             'resources',
             'app.asar.unpacked',
             'electron-backend',
@@ -1148,20 +1151,8 @@ function inspectSnapPayload(
             );
         }
         const payloadPath = canonicalPayloads[0];
-        const resourcesDirectory = path.join(
-            extractionRoot,
-            'usr',
-            'lib',
-            'iptvnator',
-            'resources'
-        );
-        const electronPath = path.join(
-            extractionRoot,
-            'usr',
-            'lib',
-            'iptvnator',
-            'iptvnator.bin'
-        );
+        const resourcesDirectory = path.join(extractionRoot, 'resources');
+        const electronPath = path.join(extractionRoot, 'iptvnator.bin');
         const electronStat = fs.lstatSync(electronPath);
         if (
             !electronStat.isFile() ||
@@ -1562,7 +1553,26 @@ function verifySnapReleaseSourceBinding(
         sourceIndex,
         sourceRuntime,
     } = sourceInspection;
-    const runtimeErrors = validateRuntimeManifest(sourceRuntime);
+    const stagedRuntimeErrors = [];
+    if (sourceRuntime?.origin !== STAGED_RUNTIME_ORIGIN) {
+        stagedRuntimeErrors.push(
+            `Linux runtime manifest origin must be "${STAGED_RUNTIME_ORIGIN}".`
+        );
+    }
+    if (sourceRuntime?.sourceBuildOrigin !== SOURCE_BUILD_RUNTIME_ORIGIN) {
+        stagedRuntimeErrors.push(
+            `Linux runtime manifest sourceBuildOrigin must be "${SOURCE_BUILD_RUNTIME_ORIGIN}".`
+        );
+    }
+    const validatorErrors = isObject(sourceRuntime)
+        ? validateRuntimeManifest({
+              ...sourceRuntime,
+              origin: SOURCE_BUILD_RUNTIME_ORIGIN,
+          })
+        : validateRuntimeManifest(sourceRuntime);
+    const runtimeErrors = Array.isArray(validatorErrors)
+        ? [...stagedRuntimeErrors, ...validatorErrors]
+        : validatorErrors;
     if (!Array.isArray(runtimeErrors) || runtimeErrors.length > 0) {
         throw new Error(
             `Source archive runtime manifest is invalid${
@@ -1742,7 +1752,22 @@ function verifySnapReleaseSourceBinding(
                     `x64 Snap ${payload.assetName} has an invalid frame-copy source archive binding.`
                 );
             }
-            if (!isDeepStrictEqual(manifest.sourceRuntime, sourceRuntime)) {
+            // The snap bundles the from-source builder view of the runtime
+            // manifest, while the archive carries its staged envelope
+            // (origin renamed to "vendored-lgpl", sourceBuildOrigin and
+            // stagedAt added). Project the envelope away before binding.
+            const expectedSnapSourceRuntime = {
+                ...sourceRuntime,
+                origin: SOURCE_BUILD_RUNTIME_ORIGIN,
+            };
+            delete expectedSnapSourceRuntime.sourceBuildOrigin;
+            delete expectedSnapSourceRuntime.stagedAt;
+            if (
+                !isDeepStrictEqual(
+                    manifest.sourceRuntime,
+                    expectedSnapSourceRuntime
+                )
+            ) {
                 throw new Error(
                     `Snap source runtime does not match source archive: ${payload.assetName}`
                 );

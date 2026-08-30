@@ -7,8 +7,8 @@ import {
 describe('WEB_PLAYER_SHARED_CONTROLS flag', () => {
     afterEach(() => TestBed.resetTestingModule());
 
-    it('is rolled out OFF by default', () => {
-        expect(WEB_PLAYER_SHARED_CONTROLS_ENABLED).toBe(false);
+    it('is rolled out ON by default', () => {
+        expect(WEB_PLAYER_SHARED_CONTROLS_ENABLED).toBe(true);
     });
 
     it('resolves the constant through the root injection token', () => {
@@ -21,9 +21,9 @@ describe('WEB_PLAYER_SHARED_CONTROLS flag', () => {
     it('can be overridden via a TestBed provider', () => {
         TestBed.configureTestingModule({
             providers: [
-                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: true },
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
             ],
         });
-        expect(TestBed.inject(WEB_PLAYER_SHARED_CONTROLS)).toBe(true);
+        expect(TestBed.inject(WEB_PLAYER_SHARED_CONTROLS)).toBe(false);
     });
 });

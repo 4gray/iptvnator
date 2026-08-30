@@ -4,7 +4,7 @@
  * One file per user-visible change, written by the PR author while the
  * context is still fresh. The generator (build-release-notes.mjs) turns the
  * accumulated files into the GitHub release body, the CHANGELOG.md section,
- * and the website blog scaffold.
+ * the website blog scaffold, and the Telegram/Reddit announcement drafts.
  *
  * Deliberately dependency-free: a hand-rolled parser for this tiny, closed
  * schema is more predictable than a YAML engine, and it can reject unknown
@@ -27,12 +27,25 @@ export const TYPE_HEADINGS = {
     internal: 'Internal',
 };
 
-const KNOWN_KEYS = new Set(['type', 'area', 'issues', 'screenshot']);
+const KNOWN_KEYS = new Set([
+    'type',
+    'area',
+    'issues',
+    'screenshot',
+    'highlight',
+]);
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const DELIMITER = '---';
 
 /** Keeps entries to a sentence or three; essays belong in the blog post. */
 const MAX_BODY_LENGTH = 400;
+
+/**
+ * A highlight is a headline, not a paragraph — and the limit is the hero
+ * card's single-line budget (`wrapText(headline, 60, 1)`). Anything longer is
+ * silently ellipsized there, so it is rejected at the source instead.
+ */
+const MAX_HIGHLIGHT_LENGTH = 60;
 
 /**
  * Splits a note into its frontmatter lines and body.
@@ -62,35 +75,62 @@ function splitFrontmatter(content) {
 }
 
 /**
+ * Free-form fields, where `#` is ordinary punctuation rather than a comment
+ * marker. Everything else in this schema is a closed vocabulary — enum, slug,
+ * issue numbers — whose values can never contain one.
+ */
+const PROSE_KEYS = new Set(['highlight']);
+
+/**
+ * Strips a surrounding quote pair. Both ends must carry the SAME quote
+ * character: `"Up Next" rail` is prose containing quotes, and stripping its
+ * ends independently would silently eat the opening one.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function unquote(value) {
+    const quote = value[0];
+    const isQuoted =
+        value.length >= 2 &&
+        (quote === "'" || quote === '"') &&
+        value.endsWith(quote);
+
+    return (isQuoted ? value.slice(1, -1) : value).trim();
+}
+
+/**
  * Parses a single `key: value` frontmatter line.
  *
- * Trailing `# comment` text is stripped: no value in this schema (enum slug,
- * area slug, issue numbers) can legitimately contain `#`, and the documented
- * examples carry explanatory comments.
+ * Trailing `# comment` text is stripped from closed-vocabulary fields, whose
+ * documented examples carry explanatory comments. Prose fields keep it —
+ * `highlight: Sources #N chip` is a headline, not a commented-out value, and
+ * stripping there truncated the headline on every announcement surface.
  *
  * @param {string} line
- * @returns {[string, string] | null} key/value pair, or null for blank lines
+ * @returns {[string, string] | null} key/value pair, or null for blank and
+ * whole-line comment lines
  */
 function parseFrontmatterLine(line) {
-    const withoutComment = line.replace(/\s+#.*$/, '').trim();
+    const trimmed = line.trim();
 
-    if (!withoutComment) {
+    if (!trimmed || trimmed.startsWith('#')) {
         return null;
     }
 
-    const separatorIndex = withoutComment.indexOf(':');
+    const separatorIndex = trimmed.indexOf(':');
 
     if (separatorIndex === -1) {
-        throw new Error(`frontmatter line is not \`key: value\`: "${line.trim()}"`);
+        throw new Error(`frontmatter line is not \`key: value\`: "${trimmed}"`);
     }
 
-    const key = withoutComment.slice(0, separatorIndex).trim();
-    const value = withoutComment
-        .slice(separatorIndex + 1)
-        .trim()
-        .replace(/^['"]|['"]$/g, '');
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1);
+    const value = PROSE_KEYS.has(key)
+        ? rawValue
+        : rawValue.replace(/\s+#.*$/, '');
 
-    return [key, value];
+    return [key, unquote(value.trim())];
 }
 
 /**
@@ -114,7 +154,7 @@ function parseIssueList(value) {
  *
  * @param {string} content
  * @param {string} sourcePath path used in error messages and PR resolution
- * @returns {{ type: string, area: string, issues: number[], screenshot: string | null, body: string, sourcePath: string }}
+ * @returns {{ type: string, area: string, issues: number[], screenshot: string | null, highlight: string | null, body: string, sourcePath: string }}
  */
 export function parseNote(content, sourcePath) {
     const { frontmatterLines, body } = splitFrontmatter(content);
@@ -141,6 +181,7 @@ export function parseNote(content, sourcePath) {
         area: fields.get('area') ?? '',
         issues: fields.has('issues') ? parseIssueList(fields.get('issues')) : [],
         screenshot: fields.get('screenshot') ?? null,
+        highlight: fields.get('highlight') ?? null,
         unknownKeys: [...fields.keys()].filter((key) => !KNOWN_KEYS.has(key)),
         body,
         sourcePath,
@@ -186,6 +227,24 @@ export function validateNote(note) {
         errors.push(
             `\`screenshot\` must be a lowercase slug from the screenshot manifest, got "${note.screenshot}"`
         );
+    }
+
+    if (note.highlight !== null) {
+        if (!note.highlight) {
+            errors.push(
+                '`highlight` is present but empty — give the feature a short headline or drop the key'
+            );
+        } else if (note.highlight.length > MAX_HIGHLIGHT_LENGTH) {
+            errors.push(
+                `\`highlight\` is ${note.highlight.length} characters, max ${MAX_HIGHLIGHT_LENGTH} — it is a headline, the body carries the detail`
+            );
+        }
+
+        if (note.type === 'internal') {
+            errors.push(
+                '`highlight` is not allowed on `type: internal` — internal notes never reach announcements'
+            );
+        }
     }
 
     for (const key of note.unknownKeys) {

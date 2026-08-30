@@ -6,7 +6,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -36,24 +36,24 @@ function makeNotesDir() {
 }
 
 /**
+ * spawnSync rather than execFileSync: a successful run also writes to stderr
+ * (the resolved-version notice, the internal-only announcement explanation),
+ * and execFileSync only hands back stdout.
+ *
  * @returns {{ status: number, stdout: string, stderr: string }}
  */
 function runCli(args) {
-    try {
-        const stdout = execFileSync(process.execPath, [CLI, ...args], {
-            cwd: workspaceRoot,
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'pipe'],
-        });
+    const result = spawnSync(process.execPath, [CLI, ...args], {
+        cwd: workspaceRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
-        return { status: 0, stdout, stderr: '' };
-    } catch (error) {
-        return {
-            status: error.status ?? 1,
-            stdout: error.stdout ?? '',
-            stderr: error.stderr ?? '',
-        };
-    }
+    return {
+        status: result.status ?? 1,
+        stdout: result.stdout ?? '',
+        stderr: result.stderr ?? '',
+    };
 }
 
 after(() => {
@@ -101,6 +101,63 @@ describe('build-release-notes CLI arguments', () => {
         assert.equal(result.status, 0);
         assert.match(result.stdout, /## Features/);
         assert.match(result.stdout, /\*\*playback\*\* — An example note\./);
+    });
+
+    it('renders the telegram announcement to stdout', () => {
+        const result = runCli([
+            '--format',
+            'telegram',
+            '--version',
+            '0.24.0',
+            '--dir',
+            makeNotesDir(),
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /🎉 IPTVnator v0\.24\.0 is out!/);
+        assert.match(result.stdout, /✨ An example note\./);
+        assert.match(result.stdout, /releases\/tag\/v0\.24\.0/);
+    });
+
+    it('renders the reddit announcement to stdout', () => {
+        const result = runCli([
+            '--format',
+            'reddit',
+            '--version',
+            '0.24.0',
+            '--dir',
+            makeNotesDir(),
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /^Suggested title: IPTVnator v0\.24\.0/);
+        assert.match(result.stdout, /- \*\*playback\*\* — An example note\./);
+    });
+
+    it('reports an internal-only release instead of failing on announcements', () => {
+        const directory = mkdtempSync(path.join(tmpdir(), 'release-cli-'));
+
+        tempDirs.push(directory);
+        writeFileSync(
+            path.join(directory, 'deps-bump.md'),
+            '---\ntype: internal\narea: deps\n---\n\nBumped a parser.\n',
+            'utf8'
+        );
+
+        for (const format of ['telegram', 'reddit']) {
+            const result = runCli([
+                '--format',
+                format,
+                '--version',
+                '0.24.0',
+                '--dir',
+                directory,
+            ]);
+
+            assert.equal(result.status, 0, format);
+            assert.equal(result.stdout, '', format);
+            assert.match(result.stderr, /Internal-only release/, format);
+        }
     });
 
     it('still rejects a genuinely unknown argument', () => {

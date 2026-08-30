@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "Limpando…",
         "EPG_URL_ERROR": "O valor não é uma URL válida",
         "VIDEO_PLAYER_DESCRIPTION": "Selecionar reprodutor de vídeo padrão",
-        "WEB_PLAYER_SHARED_CONTROLS": "Controlos unificados para leitores web (experimental)",
+        "WEB_PLAYER_SHARED_CONTROLS": "Controlos unificados para leitores web",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa os controlos partilhados do IPTVnator em HTML5, Video.js e ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Preenchimento de fundo ambiente",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Preenche o espaço ao redor do reprodutor com um pôster desfocado e escurecido em vez de barras pretas simples.",

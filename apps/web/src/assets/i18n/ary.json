@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "جاري المسح…",
         "EPG_URL_ERROR": "القيمة ماشي رابط صحيح",
         "VIDEO_PLAYER_DESCRIPTION": "اختار مشغل الفيديو الافتراضي",
-        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحدة لمشغلات الويب (تجريبية)",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحدة لمشغلات الويب",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استعمل عناصر التحكم المشتركة ديال IPTVnator مع HTML5 وVideo.js وArtPlayer.",
         "PLAYER_AMBIENT_MODE": "خلفية محيطة",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "ملي المساحة حول المشغل بغلاف معتم وطابت بلاصة الشرائط السوداء.",

@@ -194,17 +194,17 @@
             @if (capabilities().volume) {
                 <div
                     class="player-controls__popover-anchor"
-                    (pointerenter)="onVolumeHoverEnter()"
-                    (pointerleave)="onVolumeHoverLeave()"
-                    (focusin)="onVolumeHoverEnter()"
-                    (focusout)="onVolumeHoverLeave()"
-                    (wheel)="onVolumeWheel($event)"
+                    (pointerenter)="volumeInteractions.hoverEnter($event)"
+                    (pointerleave)="volumeInteractions.hoverLeave($event)"
+                    (focusin)="volumeInteractions.hoverEnter($event)"
+                    (focusout)="volumeInteractions.hoverLeave($event)"
+                    (wheel)="volumeInteractions.wheel($event)"
                 >
                     <button
                         mat-icon-button
                         type="button"
                         class="player-controls__button"
-                        (click)="toggleMute()"
+                        (click)="volumeInteractions.buttonClick($event)"
                         [attr.aria-label]="
                             (displayVolume() <= 0
                                 ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
@@ -249,7 +249,7 @@
                                         | translate
                                             : { percent: volumePercent() }
                                 "
-                                (input)="onVolumeInput($event)"
+                                (input)="volumeInteractions.sliderInput($event)"
                             />
                             <span class="player-controls__volume-value">
                                 {{

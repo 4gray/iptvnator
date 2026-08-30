@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "正在清除…",
         "EPG_URL_ERROR": "該值不是有效的網址",
         "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
-        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項（實驗性）",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共用控制項。",
         "PLAYER_AMBIENT_MODE": "環境背景填充",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、昏暗的海報填充播放器周圍的空間，取代純黑色邊框。",

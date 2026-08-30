@@ -187,6 +187,9 @@ function createSourceBindingFixture() {
     const repositoryRevision = 'a'.repeat(40);
     const archiveSha256 = 'b'.repeat(64);
     const sourceRuntime = {
+        origin: 'vendored-lgpl',
+        sourceBuildOrigin: 'vendored-lgpl-source-build',
+        stagedAt: '2026-07-18T01:00:00.000Z',
         generatedAt: '2026-07-18T00:00:00.000Z',
         packages: {
             ffmpeg: {
@@ -238,6 +241,14 @@ function createSourceBindingFixture() {
         archiveFiles: sourceIndex.archives,
         compliance: sourceCompliance,
     };
+    // The snap bundles the from-source builder view of the staged manifest:
+    // origin restored, staging envelope (sourceBuildOrigin, stagedAt) absent.
+    const snapSourceRuntime = {
+        ...sourceRuntime,
+        origin: 'vendored-lgpl-source-build',
+    };
+    delete snapSourceRuntime.sourceBuildOrigin;
+    delete snapSourceRuntime.stagedAt;
     const snapPayloads = {
         'IPTVnator-amd64.snap': {
             assetName: 'IPTVnator-amd64.snap',
@@ -255,7 +266,7 @@ function createSourceBindingFixture() {
                     sha256: 'd'.repeat(64),
                     repositoryRevision,
                 },
-                sourceRuntime,
+                sourceRuntime: snapSourceRuntime,
             },
         },
         'IPTVnator-arm64.snap': {
@@ -316,6 +327,37 @@ test('binds source metadata and checksums to every selected Snap before publicat
         inspectedSnaps,
         selection.snapAssets.map(({ name }) => name)
     );
+
+    for (const [field, value] of [
+        ['origin', 'vendored-lgpl-source-build'],
+        ['sourceBuildOrigin', undefined],
+    ]) {
+        const stagedMismatch = structuredClone(fixture.sourceInspection);
+        if (value === undefined) {
+            delete stagedMismatch.sourceRuntime[field];
+        } else {
+            stagedMismatch.sourceRuntime[field] = value;
+        }
+        assert.throws(
+            () =>
+                helper.verifySnapReleaseCorrespondence(
+                    selection,
+                    temporaryRoot,
+                    {
+                        expectedRepositoryRevision: fixture.repositoryRevision,
+                        expectedSourceSnapshotSha256:
+                            fixture.expectedSourceSnapshotSha256,
+                        inspectSourceArchive: () => stagedMismatch,
+                        inspectSnapPayload: (_snapPath, asset) =>
+                            fixture.snapPayloads[asset.name],
+                        validateRuntimeManifest: () => [],
+                    }
+                ),
+            field === 'origin'
+                ? /origin must be "vendored-lgpl"/
+                : /sourceBuildOrigin must be "vendored-lgpl-source-build"/
+        );
+    }
 });
 
 test('publishes only a stable verified asset snapshot with an exact receipt', async (t) => {
@@ -1180,7 +1222,7 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     fs.unlinkSync(oversizedMemberPath);
 
     const snapSourceRoot = path.join(temporaryRoot, 'snap-source');
-    const appRoot = path.join(snapSourceRoot, 'usr', 'lib', 'iptvnator');
+    const appRoot = snapSourceRoot;
     const nativeRoot = path.join(
         appRoot,
         'resources',
@@ -1193,10 +1235,16 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     electronHeader.set([0x7f, 0x45, 0x4c, 0x46, 2, 1]);
     electronHeader.writeUInt16LE(62, 18);
     fs.writeFileSync(path.join(appRoot, 'iptvnator.bin'), electronHeader);
+    const packagedSourceRuntime = {
+        ...sourceRuntime,
+        origin: 'vendored-lgpl-source-build',
+    };
+    delete packagedSourceRuntime.sourceBuildOrigin;
+    delete packagedSourceRuntime.stagedAt;
     const packagedManifest = {
         ...fixture.snapPayloads['IPTVnator-amd64.snap'].manifest,
         sourceArchive,
-        sourceRuntime,
+        sourceRuntime: packagedSourceRuntime,
     };
     fs.writeFileSync(
         path.join(nativeRoot, 'embedded-mpv-runtime.json'),
@@ -1326,7 +1374,7 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     assert.equal(staticValidationCalls.length, 1);
     assert.ok(
         staticValidationCalls[0].resourceDirectory.endsWith(
-            ['payload', 'usr', 'lib', 'iptvnator', 'resources'].join(path.sep)
+            ['payload', 'resources'].join(path.sep)
         )
     );
     assert.deepEqual(staticValidationCalls[0].options, {
@@ -1477,6 +1525,41 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
                     validatePackagedEmbeddedMpv: () => {
                         throw new Error(
                             'Static validation must not inspect a decoy root.'
+                        );
+                    },
+                }
+            ),
+        /canonical frame-copy manifest/i
+    );
+
+    const legacySourceRoot = path.join(temporaryRoot, 'legacy-snap-source');
+    const legacyAppRoot = path.join(
+        legacySourceRoot,
+        'usr',
+        'lib',
+        'iptvnator'
+    );
+    fs.cpSync(appRoot, legacyAppRoot, { recursive: true });
+    assert.throws(
+        () =>
+            sourceBindingHelper.inspectSnapPayload(
+                snapPath,
+                { id: 1, name: 'IPTVnator-amd64.snap' },
+                {
+                    runCommand: (command, args) => {
+                        assert.equal(command, 'unsquashfs');
+                        if (args[0] === '-lln') {
+                            return syntheticSquashfsListing();
+                        }
+                        const destinationIndex = args.indexOf('-dest') + 1;
+                        fs.cpSync(legacySourceRoot, args[destinationIndex], {
+                            recursive: true,
+                        });
+                        return '';
+                    },
+                    validatePackagedEmbeddedMpv: () => {
+                        throw new Error(
+                            'Static validation must not inspect a legacy usr/lib layout.'
                         );
                     },
                 }

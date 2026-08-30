@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "Wissen…",
         "EPG_URL_ERROR": "De opgegeven waarde is geen geldige URL.",
         "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
-        "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers (experimenteel)",
+        "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde IPTVnator-bediening in HTML5, Video.js en ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Ambient achtergrond",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Vult de ruimte rond de speler met een vervaagde, gedimde posterafbeelding in plaats van zwarte balken.",

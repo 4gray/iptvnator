@@ -667,6 +667,22 @@ re-armed `matchMedia('(resolution: …dppx)')` query and re-syncs bounds when
 it changes; page zoom changes are covered by the same watch plus the ordinary
 resize-driven syncs.
 
+An ancestor re-layout can also translate the host **without resizing it** —
+the channel sidebar's content settling, panels loading below the player.
+`ResizeObserver` reports size changes only and no DOM event observes
+"position changed", so before #1428 the native child window silently kept its
+stale coordinates and rendered offset from the DOM stage. The session
+controller therefore polls the host bounds every 500 ms while a session is
+active, compares them against the last synced bounds with a half-pixel
+tolerance, and schedules a re-sync only on drift — idle cost is one
+`getBoundingClientRect` per tick with no IPC. The interval is registered
+outside Angular's zone (a zone timer would run app-wide change detection
+every tick for the whole stream) and never re-enters it, because the drift
+path is rAF → `setEmbeddedMpvBounds` IPC and touches no Angular state.
+Frame-copy skips the measurement entirely: its canvas is laid out by the
+DOM and moves with the layout, so only the native-view child window can go
+stale on a position-only shift.
+
 ### Controls ownership by engine
 
 `EmbeddedMpvPlayerComponent` selects one control owner from
@@ -870,17 +886,35 @@ builder; both matrices reuse one YAML-anchored step list to prevent packaging
 logic drift. Draft release assembly still requires both matrices, so a public
 release cannot silently omit a promised platform.
 
-Windows CI uses a checksum-pinned `win32-x64` runtime archive configured
-through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and
-`IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256`. Non-tag artifact builds have
-a pinned `zhongfly/mpv-winbuild` `mpv-dev-lgpl-x86_64` fallback; tagged
-releases require explicit repository configuration. Upstream retains only its
-latest 30 daily builds, so the fallback and any repository-variable copy must
-be refreshed as one URL/checksum pair before expiry. A long-lived mirror must
-publish the matching source/build records and license notices with the binary.
-The archive helper accepts normal `lib/` + `bin/` prefixes and common flat
-archives, preserves the DLL basename encoded by the import library, and
-generates minimal build metadata only when the archive lacks it.
+Windows CI reads its single checksum-pinned `win32-x64` input from
+`tools/embedded-mpv/windows-runtime-pin.json`. The validated pin owns the exact
+upstream release, non-v3 `mpv-dev-lgpl-x86_64` asset URL, GitHub-published
+SHA-256 digest, mpv commit, build-run evidence, retention policy, and the
+limited license-verification statement. PR, master, and tag builds all consume
+that checked-in record; mutable repository variables cannot silently change a
+build or drift from the cache key.
+
+`refresh-windows-embedded-mpv-runtime.yaml` checks the pin weekly. If its asset
+is unavailable or 14 days old, the dependency-free updater selects the newest
+matching public release with a GitHub digest and upstream build evidence,
+verifies that it is downloadable, updates only the JSON pin, and opens or
+refreshes a reviewable bot PR. The `PAT` repository secret is used deliberately
+for that PR so its create/synchronize events trigger the normal CI workflows;
+it needs repository contents and pull-request access. Run
+`pnpm embedded-mpv:windows-runtime-pin:check` for a local schema check or
+`pnpm embedded-mpv:windows-runtime-pin:refresh -- --force` to prepare the same
+update manually.
+
+The zhongfly asset contains only libmpv headers, its import library, and the
+DLL. Upstream labels it LGPLv2.1+ with statically linked LGPLv3 FFmpeg, but also
+states that its transitive LGPL compatibility is not guaranteed. IPTVnator
+therefore verifies availability, checksum, and archive layout only, records
+that limitation in the pin and generated runtime manifest, and does not host a
+long-lived mirror of the binary. A future mirror or first-party Windows build
+must first publish complete corresponding source, exact build scripts and
+patches, license notices, and a validated transitive license closure beside the
+binary. The archive helper accepts normal `lib/` + `bin/` prefixes and common
+flat archives, and preserves the DLL basename encoded by the import library.
 
 The Linux builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`,
 libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, HarfBuzz `8.5.0`,
@@ -950,7 +984,16 @@ For tagged macOS builds, CI must:
 - set `IPTVNATOR_EMBEDDED_MPV_ARCH=${arch}` for backend build and packaging
 - set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for packaging and package-layout verification
 
-For Windows builds, CI must restore the `win32-x64` staged runtime cache or stage the checksum-pinned runtime archive before `pnpm run build:backend`. The Windows job must set `IPTVNATOR_EMBEDDED_MPV_PLATFORM=win32`, `IPTVNATOR_EMBEDDED_MPV_ARCH=x64`, and `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for backend build, package make, and package-layout verification. CI narrows `electron-builder.json` to x64 Windows targets while only a `win32-x64` runtime is available. The Windows job is pinned to `windows-2022` until the Electron `node-gyp` toolchain can identify Visual Studio 18 from `windows-latest`.
+For Windows builds, CI must resolve the validated checked-in pin, restore its
+exact-keyed `win32-x64` staged runtime cache or stage that checksum-pinned
+archive, and only then run `pnpm run build:backend`. The Windows job must set
+`IPTVNATOR_EMBEDDED_MPV_PLATFORM=win32`,
+`IPTVNATOR_EMBEDDED_MPV_ARCH=x64`, and
+`IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for backend build, package make, and
+package-layout verification. CI narrows `electron-builder.json` to x64 Windows
+targets while only a `win32-x64` runtime is available. The Windows job is
+pinned to `windows-2022` until the Electron `node-gyp` toolchain can identify
+Visual Studio 18 from `windows-latest`.
 
 For Linux builds, CI first builds or restores the pinned x64 source runtime and
 stages it under `vendor/embedded-mpv/linux-x64`. It then runs three isolated
@@ -1015,8 +1058,9 @@ hashes, the exact VCS-free libplacebo tree inventory/digest, and byte-identical
 tooling from the released tag. Checkout and both artifact-transfer actions use
 full pinned commits, and checkout sets `persist-credentials: false`.
 The bounded SquashFS preflight and extraction then require the canonical
-`/usr/lib/iptvnator` layout and reuse the static package validator for every
-selected Snap. The public-release verifier separately reapplies the exact
+snap-root layout (Electron app at `/`, so `/iptvnator.bin` and
+`/resources/**` — the layout Electron Builder's Snap target produces) and
+reuse the static package validator for every selected Snap. The public-release verifier separately reapplies the exact
 strict `meta/snap.yaml` graphics/shared-memory/layout contract and enumerates
 the extracted `resources/app.asar`; any archived
 `electron-backend/native/**` entry fails before Store publication. The bounded

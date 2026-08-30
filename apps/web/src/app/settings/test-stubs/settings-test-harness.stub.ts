@@ -84,7 +84,7 @@ export const DEFAULT_DASHBOARD_RAILS = {
 
 export const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
-    webPlayerSharedControls: false,
+    webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
     vodAutoFailover: false,

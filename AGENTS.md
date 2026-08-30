@@ -66,11 +66,14 @@ This file provides guidance to coding agents working in this repository.
 - Name it `<area>-<short-slug>.md`; `area` matches the conventional-commit scope. There is no version field — the release version is chosen at release time.
 - Write the body for a user, not a reviewer: "the player now remembers volume between episodes", not "hoist volume state into the session". Max 400 characters; depth belongs in the release blog post.
 - `type: internal` records invisible maintenance. Internal notes stay collapsed in `CHANGELOG.md`, are omitted from the blog scaffold, and are removed from the authored public GitHub body by `extract-changelog-section.mjs --public`; GitHub's generated commit list remains separate, so an internal-only release can have an empty authored body.
+- `highlight: <short headline>` (max 60 characters, rejected on `type: internal`) marks a note as one of the release's two or three headline changes. Highlights lead the Telegram/Reddit announcement drafts, become ready-made blog section headings, and are the input the highlight-card generator renders from. A release where everything is a highlight has none.
 - Skip the note for test-only changes, docs, CI/workflow plumbing, and pure refactors with no behavior change. When skipping on a PR that touches `apps/**` or `libs/**`, apply the `no-release-note` label.
 - CI enforces this: the "Release note gate" job in `.github/workflows/ci.yml` fails PRs that change runtime code without an added `.changes/*.md` or the label (policy in `tools/release/check-release-note-gate.mjs`; tests/e2e/website/mock-server/docs paths are auto-exempt).
-- The `release-notes` skill covers writing notes; the `release-cut` skill covers the full release sequence.
+- The `release-notes` skill covers writing notes; the `release-cut` skill covers the full release sequence. Canonical contract — surfaces, ordering constraints, the required draft asset set: `docs/architecture/release-pipeline.md`.
 - Validate before finishing: `pnpm run release:notes:validate`.
+- Announcement drafts and highlight cards are built from the same notes: `pnpm --silent run release:notes:telegram` and `pnpm --silent run release:notes:reddit` print paste-ready posts to stdout (Telegram is guaranteed to fit its 4096-character limit; `--silent` keeps pnpm's lifecycle banner out of a redirected post), and `pnpm run release:cards:generate` renders branded 1200×630 highlight cards plus a release hero into `dist/release-highlight-cards/v<version>/`. All three read `highlight:` metadata that exists only in the note files, so they must run before `build-release-notes.mjs --consume`; the cards additionally need `release:screenshots` to have run. Nothing is posted or copied into the website tree automatically.
 - Pushes to `master` and `v*` can publish Docker images. A `v*` tag build creates a draft GitHub release.
+- `pnpm run release:verify:draft` waits for that tag build (polling until the run is indexed, then `gh run watch`) and verifies the draft's status, authored body, and complete required asset set. It is read-only and deliberately fails on an already-published release, because it is the gate that runs before publication.
 - Publishing the GitHub release verifies its Snap assets and automatically uploads them to `edge`; installed-Snap smoke and candidate/stable promotion remain manual.
 - Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image.
 - Final task summaries should state whether a release note was added or why it was skipped.
@@ -200,8 +203,10 @@ Key files:
   `PortalInlinePlayerComponent.seriesTitle` and `WebPlayerViewComponent.mediaTitle`;
   movie and live hosts fall back to `playback.title`, skipping raw stream-URL
   fallbacks. Outside fullscreen the overlay stays hidden.
-- Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
-  appears only when HTML5, Video.js, or ArtPlayer is selected.
+- Persisted `Settings.webPlayerSharedControls` is default-ON (absent stored
+  values coerce with `!== false`; only an explicit false opts out to the legacy
+  vendor chrome), and its checkbox appears only when HTML5, Video.js, or
+  ArtPlayer is selected.
   `WebPlayerViewComponent` snapshots the preference into
   `WEB_PLAYER_SHARED_CONTROLS` for each new player host. The parent `/workspace`
   route awaits the initial `SettingsStore` load, including cold-start direct
@@ -447,7 +452,7 @@ Key files:
   because ArtPlayer's focus-scoped hotkeys ignore `defaultPrevented` and would
   double-handle every key, and the wiring restores its Escape-exits-web-
   fullscreen behavior.
-- Shared web picture-in-picture stays inside that default-off rollout.
+- Shared web picture-in-picture stays inside that default-on rollout.
   `PlayerController` exposes capability `pictureInPicture`, state
   `pictureInPictureActive`/`canPictureInPicture`, and command
   `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard
@@ -492,6 +497,22 @@ Key files:
 - Radio's `<audio>` deliberately never blocks display sleep. Embedded MPV
   holds its own blocker in `EmbeddedMpvNativeService`; external MPV/VLC
   inhibit the screensaver themselves.
+
+## Windows Embedded MPV Pin Maintenance
+
+- PR, master, and tag builds resolve the Windows runtime only from
+  `tools/embedded-mpv/windows-runtime-pin.json`; repository variables are not
+  build inputs.
+- Validate the checked-in schema and provenance with
+  `pnpm embedded-mpv:windows-runtime-pin:check`.
+- Prepare a manual rotation with
+  `pnpm embedded-mpv:windows-runtime-pin:refresh -- --force`. The weekly
+  `refresh-windows-embedded-mpv-runtime.yaml` workflow runs the same updater
+  and opens a reviewable PR before upstream retention expires.
+- The PAT-backed refresh job must keep every third-party action pinned to a
+  full commit. Do not mirror the upstream binary without complete
+  corresponding source, build records, license notices, and a validated
+  transitive license closure.
 
 ## Linux Embedded MPV Packaging
 

@@ -1,12 +1,22 @@
 import { ControlsSurface } from './controls-surface';
 
+/** jsdom has no PointerEvent; a MouseEvent with a pointerType matches how the
+ * surface reads events (it only inspects the property). */
+function pointerTypedEvent(type: string, pointerType: string): MouseEvent {
+    const event = new MouseEvent(type, { bubbles: true });
+    Object.defineProperty(event, 'pointerType', { value: pointerType });
+    return event;
+}
+
 describe('ControlsSurface', () => {
     let reveal: jest.Mock;
     let toggleFullscreen: jest.Mock;
     let closePopovers: jest.Mock;
     let togglePlay: jest.Mock;
+    let hideControls: jest.Mock;
     let canTogglePlay: boolean;
     let menuOpen: boolean;
+    let controlsVisible: boolean;
     let surface: ControlsSurface;
     let element: HTMLElement;
 
@@ -15,8 +25,10 @@ describe('ControlsSurface', () => {
         toggleFullscreen = jest.fn();
         closePopovers = jest.fn();
         togglePlay = jest.fn();
+        hideControls = jest.fn();
         canTogglePlay = true;
         menuOpen = false;
+        controlsVisible = true;
         element = document.createElement('div');
         document.body.appendChild(element);
         surface = new ControlsSurface({
@@ -26,6 +38,8 @@ describe('ControlsSurface', () => {
             togglePlay,
             canTogglePlay: () => canTogglePlay,
             isMenuOpen: () => menuOpen,
+            controlsVisible: () => controlsVisible,
+            hideControls,
         });
     });
 
@@ -175,5 +189,81 @@ describe('ControlsSurface', () => {
         surface.dispose();
         element.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
         expect(reveal).not.toHaveBeenCalled();
+    });
+
+    describe('touch', () => {
+        it('does not reveal on the pointer activity a tap synthesizes', () => {
+            surface.attachSurface(element);
+            element.dispatchEvent(pointerTypedEvent('pointerenter', 'touch'));
+            element.dispatchEvent(pointerTypedEvent('pointermove', 'touch'));
+            expect(reveal).not.toHaveBeenCalled();
+        });
+
+        it('reveals on a tap while hidden and never queues play', () => {
+            jest.useFakeTimers();
+            controlsVisible = false;
+            surface.attachSurface(element);
+            element.dispatchEvent(pointerTypedEvent('click', 'touch'));
+            jest.advanceTimersByTime(300);
+            expect(reveal).toHaveBeenCalledTimes(1);
+            expect(togglePlay).not.toHaveBeenCalled();
+            expect(hideControls).not.toHaveBeenCalled();
+        });
+
+        it('hides on a viewport tap while visible instead of pausing', () => {
+            jest.useFakeTimers();
+            surface.attachSurface(element);
+            element.dispatchEvent(pointerTypedEvent('click', 'touch'));
+            jest.advanceTimersByTime(300);
+            expect(hideControls).toHaveBeenCalledTimes(1);
+            expect(reveal).not.toHaveBeenCalled();
+            expect(togglePlay).not.toHaveBeenCalled();
+        });
+
+        it('dismisses an open menu on a tap instead of hiding the bar', () => {
+            menuOpen = true;
+            surface.attachSurface(element);
+            element.dispatchEvent(pointerTypedEvent('click', 'touch'));
+            expect(closePopovers).toHaveBeenCalledTimes(1);
+            expect(hideControls).not.toHaveBeenCalled();
+        });
+
+        it('re-reveals on taps landing on interactive elements', () => {
+            jest.useFakeTimers();
+            const button = document.createElement('button');
+            element.appendChild(button);
+            surface.attachSurface(element);
+            button.dispatchEvent(pointerTypedEvent('click', 'touch'));
+            jest.advanceTimersByTime(300);
+            expect(reveal).toHaveBeenCalledTimes(1);
+            expect(togglePlay).not.toHaveBeenCalled();
+        });
+
+        it('attributes pointer-typeless events to a recent touch pointerdown', () => {
+            document.dispatchEvent(pointerTypedEvent('pointerdown', 'touch'));
+            expect(
+                surface.wasTouchInteraction(new FocusEvent('focusin'))
+            ).toBe(true);
+            expect(surface.wasTouchInteraction(undefined)).toBe(true);
+
+            document.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(
+                surface.wasTouchInteraction(new FocusEvent('focusin'))
+            ).toBe(false);
+        });
+
+        it('trusts an explicit pointer type over the pointerdown history', () => {
+            document.dispatchEvent(pointerTypedEvent('pointerdown', 'touch'));
+            expect(
+                surface.wasTouchInteraction(
+                    pointerTypedEvent('pointerenter', 'mouse')
+                )
+            ).toBe(false);
+            expect(
+                surface.wasTouchInteraction(
+                    pointerTypedEvent('click', 'touch')
+                )
+            ).toBe(true);
+        });
     });
 });

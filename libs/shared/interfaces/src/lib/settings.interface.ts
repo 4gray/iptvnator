@@ -113,7 +113,8 @@ export interface Settings {
     player: VideoPlayer;
     /**
      * Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.
-     * Missing values remain off for compatibility with older saved settings.
+     * Default ON: a missing value means the user never chose, and gets the
+     * shared controls; only an explicit false keeps the legacy vendor chrome.
      */
     webPlayerSharedControls?: boolean;
     /**

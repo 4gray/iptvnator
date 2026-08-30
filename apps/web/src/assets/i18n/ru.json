@@ -346,7 +346,7 @@
         "CLEARING_EPG_DATA": "Очистка…",
         "EPG_URL_ERROR": "Введенное значение не является URL-адресом.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
-        "WEB_PLAYER_SHARED_CONTROLS": "Единые элементы управления для веб-плееров (экспериментально)",
+        "WEB_PLAYER_SHARED_CONTROLS": "Единые элементы управления для веб-плееров",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Использовать общие элементы управления IPTVnator в HTML5, Video.js и ArtPlayer.",
         "PLAYER_AMBIENT_MODE": "Заливка фона за плеером",
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Заполнять пространство вокруг плеера размытым затемнённым постером вместо чёрных полос.",
