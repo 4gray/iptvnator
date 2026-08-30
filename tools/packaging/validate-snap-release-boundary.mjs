@@ -18,14 +18,7 @@ export function validateExtractedSnapReleaseBoundary(
     { asarListPackage = listAsarPackageEntries } = {}
 ) {
     const errors = [...validateExtractedSnapMetadata(extractionRoot)];
-    const asarPath = path.join(
-        extractionRoot,
-        'usr',
-        'lib',
-        'iptvnator',
-        'resources',
-        'app.asar'
-    );
+    const asarPath = path.join(extractionRoot, 'resources', 'app.asar');
     let asarStat;
     try {
         asarStat = fs.lstatSync(asarPath);

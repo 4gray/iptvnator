@@ -395,8 +395,9 @@ inventory/digest, released tooling, and runtime manifest. Checkout and both
 artifact-transfer actions use full pinned commits, and checkout does not
 persist its repository credential. The verifier bounds
 source members, the archive, SquashFS listing, extracted size, entry count,
-command time, and job time; every Snap must use the canonical
-`/usr/lib/iptvnator` layout and pass the existing static package validator.
+command time, and job time; every Snap must use the canonical snap-root
+layout (Electron app at `/`, so `/iptvnator.bin` and `/resources/**`) and
+pass the existing static package validator.
 The public-release boundary also reapplies the exact strict
 `meta/snap.yaml` graphics/shared-memory/layout contract and enumerates the
 extracted `resources/app.asar`, rejecting any archived

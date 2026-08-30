@@ -1058,8 +1058,9 @@ hashes, the exact VCS-free libplacebo tree inventory/digest, and byte-identical
 tooling from the released tag. Checkout and both artifact-transfer actions use
 full pinned commits, and checkout sets `persist-credentials: false`.
 The bounded SquashFS preflight and extraction then require the canonical
-`/usr/lib/iptvnator` layout and reuse the static package validator for every
-selected Snap. The public-release verifier separately reapplies the exact
+snap-root layout (Electron app at `/`, so `/iptvnator.bin` and
+`/resources/**` — the layout Electron Builder's Snap target produces) and
+reuse the static package validator for every selected Snap. The public-release verifier separately reapplies the exact
 strict `meta/snap.yaml` graphics/shared-memory/layout contract and enumerates
 the extracted `resources/app.asar`; any archived
 `electron-backend/native/**` entry fails before Store publication. The bounded
