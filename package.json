@@ -149,7 +149,7 @@
         "@angular/compiler-cli": "21.2.19",
         "@angular/core": "21.2.19",
         "@angular/forms": "21.2.19",
-        "@angular/language-service": "21.2.19",
+        "@angular/language-service": "22.1.4",
         "@angular/platform-browser": "21.2.19",
         "@angular/platform-browser-dynamic": "21.2.19",
         "@angular/router": "21.2.19",
