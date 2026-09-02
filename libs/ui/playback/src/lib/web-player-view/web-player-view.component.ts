@@ -1,9 +1,11 @@
 import {
     Component,
+    ElementRef,
     OnDestroy,
     ViewEncapsulation,
     computed,
     effect,
+    forwardRef,
     inject,
     input,
     linkedSignal,
@@ -29,13 +31,17 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
+import { FullscreenChannelPanelComponent } from '../fullscreen-channel-panel/fullscreen-channel-panel.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import {
+    PLAYER_FULLSCREEN_SURFACE,
+    type PlayerFullscreenSurface,
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WEB_PLAYER_SHARED_CONTROLS_ENABLED,
 } from '../player-controls';
+import { exitOwnedFullscreen } from '../web-video-support/exit-owned-fullscreen.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import type { VideoPlayerOptions } from '../vjs-player/vjs-player.types';
@@ -74,6 +80,7 @@ function resolveWebPlayerSharedControls(): boolean {
     imports: [
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
+        FullscreenChannelPanelComponent,
         HtmlVideoPlayerComponent,
         PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
@@ -83,11 +90,24 @@ function resolveWebPlayerSharedControls(): boolean {
             provide: WEB_PLAYER_SHARED_CONTROLS,
             useFactory: resolveWebPlayerSharedControls,
         },
+        // Shared controls fullscreen this host rather than the engine root:
+        // the engine is remounted per source application, and the fullscreen
+        // element leaving the DOM would end fullscreen on every channel or
+        // episode switch. The host also carries the channel panel and the
+        // diagnostic, which stay visible in fullscreen this way.
+        {
+            provide: PLAYER_FULLSCREEN_SURFACE,
+            useExisting: forwardRef(() => WebPlayerViewComponent),
+        },
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent implements OnDestroy {
+export class WebPlayerViewComponent
+    implements OnDestroy, PlayerFullscreenSurface
+{
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    /** The fullscreen surface; also the stage the channel panel tracks. */
+    readonly hostElement = inject(ElementRef<HTMLElement>).nativeElement;
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
@@ -247,6 +267,23 @@ export class WebPlayerViewComponent implements OnDestroy {
             const session = this.externalPlayback?.activeSession() ?? null;
             untracked(() => this.externalRecovery.observe(session));
         });
+        // A visible diagnostic leaves fullscreen: its recovery actions can
+        // launch an external player, whose window must not open behind a
+        // fullscreen app. The host owns the shared-controls fullscreen now,
+        // so the engines' own exits no longer cover this case.
+        effect(() => {
+            if (this.visiblePlaybackDiagnostic() === null) {
+                return;
+            }
+            untracked(() =>
+                exitOwnedFullscreen(true, this.hostElement, (error) =>
+                    console.warn(
+                        'Failed to leave fullscreen for the playback diagnostic.',
+                        error
+                    )
+                )
+            );
+        });
         effect(() => {
             // Session sync may clear a temporary player override. Run it before
             // tracking intent so that reset is folded into this application.
@@ -291,6 +328,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     ngOnDestroy(): void {
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
+    }
+
+    element(): HTMLElement {
+        return this.hostElement;
     }
 
     handlePlaybackIssue(

@@ -200,6 +200,29 @@ describe('ChannelListContainerComponent', () => {
         );
     });
 
+    it('keeps the active channel on destroy when the host opts out (fullscreen panel copy)', () => {
+        fixture.componentRef.setInput('resetActiveChannelOnDestroy', false);
+        fixture.detectChanges();
+
+        fixture.destroy();
+
+        expect(dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.resetActiveChannel()
+        );
+    });
+
+    it('prefers a host-supplied search term over the route query parameter', () => {
+        fixture.componentRef.setInput('searchTerm', '  News ');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.workspaceSearchTerm()).toBe('news');
+
+        fixture.componentRef.setInput('searchTerm', null);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.workspaceSearchTerm()).toBe('');
+    });
+
     it('does not enable EPG rows when runtime EPG support is unavailable', () => {
         runtimeCapabilities.supportsEpg = false;
         storageGet.mockReturnValue(

@@ -53,90 +53,7 @@
             </button>
         </div>
 
-        @if (isFullListLoading()) {
-            <div class="full-list-progress" role="status">
-                <mat-spinner diameter="14" />
-                <span class="full-list-progress__label">
-                    {{ 'PORTALS.LOADING_ALL_CHANNELS' | translate }}
-                </span>
-                @if (fullListProgress(); as progress) {
-                    <span class="full-list-progress__count">
-                        {{ progress.loaded }}/{{ progress.total }}
-                    </span>
-                }
-            </div>
-        }
-
-        <div #scrollContainer class="channels-list">
-            @if (isInitialChannelsLoading()) {
-                <app-channel-list-skeleton
-                    [count]="9"
-                    [showEpg]="supportsEpg && !isRadioMode()"
-                    [actionCount]="1"
-                />
-            } @else if (searchTerm() && visibleChannels().length === 0) {
-                <div class="empty-search-state">
-                    <app-portal-empty-state
-                        icon="search_off"
-                        [message]="'CHANNELS.NO_SEARCH_RESULTS' | translate"
-                    />
-                </div>
-            } @else if (isCategoryEmpty()) {
-                <div class="empty-search-state">
-                    <app-portal-empty-state
-                        icon="tv_off"
-                        [message]="
-                            'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate
-                        "
-                    />
-                </div>
-            } @else {
-                @for (item of visibleChannels(); track item.id ?? $index) {
-                    <app-channel-list-item
-                        [name]="item.o_name || item.name || ''"
-                        [logo]="item.logo"
-                        [selected]="isSelectedChannel(item)"
-                        [epgProgram]="
-                            supportsEpg
-                                ? (epgPreviewPrograms.get(
-                                      normalizeStalkerEntityId(item.id)
-                                  ) ?? null)
-                                : null
-                        "
-                        [progressPercentage]="
-                            supportsEpg
-                                ? (currentProgramsProgress.get(
-                                      normalizeStalkerEntityId(item.id)
-                                  ) ?? 0)
-                                : 0
-                        "
-                        [showEpg]="supportsEpg && !isRadioMode()"
-                        [isRadio]="isRadioMode()"
-                        [showFavoriteButton]="true"
-                        [showProgramInfoButton]="true"
-                        [showDetailsContextMenu]="
-                            supportsEpgMapping && !isRadioMode()
-                        "
-                        [isFavorite]="
-                            favorites.get(normalizeStalkerEntityId(item.id)) ??
-                            false
-                        "
-                        (clicked)="playChannel(item)"
-                        (activated)="playChannel(item, true)"
-                        (favoriteToggled)="toggleFavorite(item)"
-                        (contextMenuRequested)="
-                            onChannelContextMenu(item, $event)
-                        "
-                    />
-                }
-            }
-
-            @if (isLoadingMore()) {
-                <div class="loading-indicator">
-                    <mat-spinner diameter="24" />
-                </div>
-            }
-        </div>
+        <ng-container *ngTemplateOutlet="stalkerChannelList" />
     </div>
 }
 
@@ -285,3 +202,107 @@
         <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
     </button>
 </mat-menu>
+
+<!-- The channel list, stamped into the sidebar and — with its own search
+     term — into the player's fullscreen channel panel. Every instance carries
+     the #scrollContainer that drives infinite scroll. -->
+<ng-template #stalkerChannelList let-panelSearchTerm="searchTerm">
+    @if (isFullListLoading()) {
+        <div class="full-list-progress" role="status">
+            <mat-spinner diameter="14" />
+            <span class="full-list-progress__label">
+                {{ 'PORTALS.LOADING_ALL_CHANNELS' | translate }}
+            </span>
+            @if (fullListProgress(); as progress) {
+                <span class="full-list-progress__count">
+                    {{ progress.loaded }}/{{ progress.total }}
+                </span>
+            }
+        </div>
+    }
+
+    <div #scrollContainer class="channels-list">
+        @if (isInitialChannelsLoading()) {
+            <app-channel-list-skeleton
+                [count]="9"
+                [showEpg]="supportsEpg && !isRadioMode()"
+                [actionCount]="1"
+            />
+        } @else if (
+            hasSearchTerm(panelSearchTerm) &&
+            channelsForList(panelSearchTerm).length === 0
+        ) {
+            <div class="empty-search-state">
+                <app-portal-empty-state
+                    icon="search_off"
+                    [message]="'CHANNELS.NO_SEARCH_RESULTS' | translate"
+                />
+            </div>
+        } @else if (isCategoryEmpty()) {
+            <div class="empty-search-state">
+                <app-portal-empty-state
+                    icon="tv_off"
+                    [message]="'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate"
+                />
+            </div>
+        } @else {
+            @for (
+                item of channelsForList(panelSearchTerm);
+                track item.id ?? $index
+            ) {
+                <app-channel-list-item
+                    [name]="item.o_name || item.name || ''"
+                    [logo]="item.logo"
+                    [selected]="isSelectedChannel(item)"
+                    [epgProgram]="
+                        supportsEpg
+                            ? (epgPreviewPrograms.get(
+                                  normalizeStalkerEntityId(item.id)
+                              ) ?? null)
+                            : null
+                    "
+                    [progressPercentage]="
+                        supportsEpg
+                            ? (currentProgramsProgress.get(
+                                  normalizeStalkerEntityId(item.id)
+                              ) ?? 0)
+                            : 0
+                    "
+                    [showEpg]="supportsEpg && !isRadioMode()"
+                    [isRadio]="isRadioMode()"
+                    [showFavoriteButton]="true"
+                    [showProgramInfoButton]="true"
+                    [showDetailsContextMenu]="
+                        supportsEpgMapping && !isRadioMode()
+                    "
+                    [isFavorite]="
+                        favorites.get(normalizeStalkerEntityId(item.id)) ??
+                        false
+                    "
+                    (clicked)="playChannel(item)"
+                    (activated)="playChannel(item, true)"
+                    (favoriteToggled)="toggleFavorite(item)"
+                    (contextMenuRequested)="onChannelContextMenu(item, $event)"
+                />
+            }
+        }
+
+        @if (isLoadingMore()) {
+            <div class="loading-indicator">
+                <mat-spinner diameter="24" />
+            </div>
+        }
+    </div>
+</ng-template>
+
+<!-- Stamped into the player's fullscreen channel panel (FULLSCREEN_CHANNEL_PANEL). -->
+<ng-template #fullscreenChannelPanel let-searchTerm="searchTerm">
+    <div class="fullscreen-channel-list">
+        <ng-container
+            *ngTemplateOutlet="
+                stalkerChannelList;
+                context: { searchTerm: searchTerm }
+            "
+        />
+    </div>
+</ng-template>

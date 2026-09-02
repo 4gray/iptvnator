@@ -5,12 +5,15 @@ import {
     DestroyRef,
     ElementRef,
     HostListener,
+    TemplateRef,
     computed,
     effect,
+    forwardRef,
     inject,
     OnDestroy,
     OnInit,
     signal,
+    viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
@@ -59,6 +62,9 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -74,7 +80,10 @@ import {
     ResolvedPortalPlayback,
     toRecordingProgramSnapshot,
 } from '@iptvnator/shared/interfaces';
-import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
+import {
+    PortalChannelsListComponent,
+    type XtreamChannelListItem,
+} from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import {
     RecordingsService,
@@ -103,7 +112,15 @@ interface XtreamLiveChannelItem {
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
-    providers: [LiveStreamAutoOpenStateService],
+    providers: [
+        LiveStreamAutoOpenStateService,
+        // The fullscreen channel panel inside the player renders this
+        // category's channel list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => LiveStreamLayoutComponent),
+        },
+    ],
     imports: [
         EpgListViewComponent,
         EpgTimelineComponent,
@@ -123,7 +140,9 @@ interface XtreamLiveChannelItem {
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
+export class LiveStreamLayoutComponent
+    implements OnInit, OnDestroy, FullscreenChannelPanelHost
+{
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly route = inject(ActivatedRoute);
@@ -148,6 +167,28 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
+
+    private readonly fullscreenChannelPanelTemplate =
+        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
+            'fullscreenChannelPanel'
+        );
+    /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(
+        () => this.selectedCategoryInfo()?.name ?? ''
+    );
+    /**
+     * The sidebar's rows, handed to the panel's list instance as an override
+     * so that instance never re-applies the route category on init.
+     */
+    readonly fullscreenPanelChannels = computed(
+        () =>
+            this.xtreamStore.selectItemsFromSelectedCategory() as XtreamChannelListItem[]
+    );
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);

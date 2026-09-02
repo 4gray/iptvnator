@@ -182,6 +182,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().playerUpNextRail).toBe(false);
     });
 
+    it('defaults the fullscreen channel panel to true when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().fullscreenChannelPanel).toBe(true);
+    });
+
+    it('restores a persisted false fullscreen channel panel preference', async () => {
+        storedSettings = { fullscreenChannelPanel: false };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().fullscreenChannelPanel).toBe(false);
+    });
+
     it('restores a persisted true strip country prefix preference', async () => {
         storedSettings = {
             stripCountryPrefix: true,

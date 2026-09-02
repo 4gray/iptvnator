@@ -34,6 +34,7 @@ export function createSettingsForm(
         webPlayerSharedControls: true,
         playerAmbientMode: false,
         playerUpNextRail: true,
+        fullscreenChannelPanel: true,
         vodAutoFailover: false,
         m3uVodDetails: true,
         ...(supportsEpg
@@ -125,6 +126,7 @@ export function createSettingsFromFormValue(
         webPlayerSharedControls: value.webPlayerSharedControls ?? true,
         playerAmbientMode: value.playerAmbientMode ?? false,
         playerUpNextRail: value.playerUpNextRail ?? true,
+        fullscreenChannelPanel: value.fullscreenChannelPanel ?? true,
         vodAutoFailover: value.vodAutoFailover ?? false,
         m3uVodDetails: value.m3uVodDetails ?? true,
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,

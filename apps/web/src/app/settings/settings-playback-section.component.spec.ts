@@ -374,6 +374,30 @@ describe('SettingsPlaybackSectionComponent', () => {
             )?.placeholder
         ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
+
+    it.each([VideoPlayer.VideoJs, VideoPlayer.EmbeddedMpv])(
+        'offers the fullscreen channel panel toggle for %s',
+        (player) => {
+            fixture.componentRef.setInput('form', createForm(player));
+            fixture.detectChanges();
+
+            expect(
+                queryByTestId('fullscreen-channel-panel-setting')
+            ).not.toBeNull();
+        }
+    );
+
+    it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
+        'hides the fullscreen channel panel toggle for external player %s',
+        (player) => {
+            fixture.componentRef.setInput('form', createForm(player));
+            fixture.detectChanges();
+
+            expect(
+                queryByTestId('fullscreen-channel-panel-setting')
+            ).toBeNull();
+        }
+    );
 });
 
 function createForm(player = VideoPlayer.VideoJs): FormGroup {
@@ -382,6 +406,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
         playerUpNextRail: new FormControl(true),
+        fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),

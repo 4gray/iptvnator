@@ -32,6 +32,7 @@ import type {
     PlayerController,
     PlayerMediaTitle,
 } from './player-controls.model';
+import { PLAYER_FULLSCREEN_SURFACE } from './player-fullscreen-surface';
 import {
     SUBTITLE_COLOR_PRESETS,
     SUBTITLE_DELAY_STEP_SECONDS,
@@ -53,6 +54,12 @@ import {
 export class PlayerControlsComponent implements OnDestroy {
     private readonly host = inject(ElementRef<HTMLElement>).nativeElement;
     private readonly translate = inject(TranslateService);
+    // The view host outlives the engine remount a source change causes, so
+    // fullscreen entered there survives a channel switch; without a provider
+    // the engine's own surface is the fullscreen target.
+    private readonly fullscreenSurface = inject(PLAYER_FULLSCREEN_SURFACE, {
+        optional: true,
+    });
     readonly controller = input.required<PlayerController>();
     readonly playerSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
@@ -68,7 +75,7 @@ export class PlayerControlsComponent implements OnDestroy {
     private readonly shortcuts = new ControlsShortcuts();
     private readonly visibility = new ControlsVisibility(() => this.canHide());
     private readonly fullscreen = new ControlsFullscreen(
-        () => this.playerSurface(),
+        () => this.fullscreenSurface?.element() ?? this.playerSurface(),
         () => this.reveal()
     );
     private readonly volume = new ControlsVolume({

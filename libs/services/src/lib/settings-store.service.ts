@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: Settings = {
     webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
@@ -228,6 +229,9 @@ export const SettingsStore = signalStore(
                     playerUpNextRail:
                         store.playerUpNextRail?.() ??
                         DEFAULT_SETTINGS.playerUpNextRail,
+                    fullscreenChannelPanel:
+                        store.fullscreenChannelPanel?.() ??
+                        DEFAULT_SETTINGS.fullscreenChannelPanel,
                     vodAutoFailover:
                         store.vodAutoFailover?.() ??
                         DEFAULT_SETTINGS.vodAutoFailover,

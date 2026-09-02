@@ -209,3 +209,14 @@
         }
     </div>
 </ng-template>
+
+<!-- Stamped into the player's fullscreen channel panel (FULLSCREEN_CHANNEL_PANEL). -->
+<ng-template #fullscreenChannelPanel let-searchTerm="searchTerm">
+    <app-portal-channels-list
+        [sortMode]="liveChannelSortMode()"
+        [channelsOverride]="fullscreenPanelChannels()"
+        [searchTermInput]="searchTerm()"
+        (playClicked)="playLive($event)"
+        (playbackRequested)="playLive($event, true)"
+    />
+</ng-template>

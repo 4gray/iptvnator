@@ -8,12 +8,15 @@ import {
     Injector,
     OnDestroy,
     OnInit,
+    TemplateRef,
     computed,
     effect,
+    forwardRef,
     inject,
     linkedSignal,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -93,6 +96,9 @@ import {
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     AudioPlayerComponent,
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     SidebarComponent,
     WebPlayerViewComponent,
@@ -129,6 +135,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
+import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
 const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
@@ -155,6 +162,29 @@ function readStoredVolume(): number {
     return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 1;
 }
 
+/**
+ * PageUp/PageDown switch channels unless the key would scroll something the
+ * user is focused in (the sidebar's virtual list, a menu): a focused row in a
+ * scrollable list keeps the browser's native paging.
+ */
+function isInsideScrollableRegion(
+    target: EventTarget | null,
+    boundary: HTMLElement
+): boolean {
+    let element = target instanceof HTMLElement ? target : null;
+    while (element && element !== boundary && element !== document.body) {
+        const { overflowY } = getComputedStyle(element);
+        if (
+            (overflowY === 'auto' || overflowY === 'scroll') &&
+            element.scrollHeight > element.clientHeight
+        ) {
+            return true;
+        }
+        element = element.parentElement;
+    }
+    return false;
+}
+
 @Component({
     selector: 'app-video-player',
     imports: [
@@ -164,6 +194,7 @@ function readStoredVolume(): number {
         CommonModule,
         EpgListViewComponent,
         EpgTimelineComponent,
+        M3uFullscreenChannelListComponent,
         M3uVodDetailComponent,
         MatButtonModule,
         MatIconModule,
@@ -174,10 +205,20 @@ function readStoredVolume(): number {
         TranslatePipe,
         WebPlayerViewComponent,
     ],
+    providers: [
+        // The fullscreen channel panel inside the player renders this page's
+        // channel list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => VideoPlayerComponent),
+        },
+    ],
     templateUrl: './video-player.component.html',
     styleUrl: './video-player.component.scss',
 })
-export class VideoPlayerComponent implements OnInit, OnDestroy {
+export class VideoPlayerComponent
+    implements OnInit, OnDestroy, FullscreenChannelPanelHost
+{
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dataService = inject(DataService);
@@ -216,6 +257,23 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     });
     readonly channels = this.store.selectSignal(selectChannels);
     readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
+    readonly activePlaylistRecentItems = computed(
+        () => this.playlistContext.activePlaylist()?.recentlyViewed ?? []
+    );
+
+    private readonly fullscreenChannelPanelTemplate =
+        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
+            'fullscreenChannelPanel'
+        );
+    /** FULLSCREEN_CHANNEL_PANEL: the playlist's channel list, unless opted out. */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(() =>
+        playlistDisplayLabel(this.activePlaylistMeta()?.title)
+    );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
@@ -1134,6 +1192,23 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return;
         }
         if (event.metaKey || event.ctrlKey || event.altKey) {
+            return;
+        }
+        // PageUp/PageDown zap through the list like a remote's channel keys —
+        // the one way to change channels from the keyboard in fullscreen.
+        if (event.key === 'PageUp' || event.key === 'PageDown') {
+            if (
+                isInsideScrollableRegion(
+                    event.target,
+                    this.hostElement.nativeElement
+                )
+            ) {
+                return;
+            }
+            event.preventDefault();
+            this.handleRemoteChannelChange(
+                event.key === 'PageUp' ? 'up' : 'down'
+            );
             return;
         }
         // Only handle digit keys (0-9)

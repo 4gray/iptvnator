@@ -325,8 +325,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     private readonly onFullscreenChange = () => {
         const playerRoot = this.playerRoot()?.nativeElement;
+        // Shared controls fullscreen the surrounding `app-web-player-view`
+        // host (see PLAYER_FULLSCREEN_SURFACE), the legacy dock this root:
+        // either way the player is inside the fullscreen element.
         this.isFullscreen.set(
-            Boolean(playerRoot && document.fullscreenElement === playerRoot)
+            Boolean(
+                playerRoot && document.fullscreenElement?.contains(playerRoot)
+            )
         );
         this.legacyInteractions.revealControls();
         this.controller.triggerBoundsSync();

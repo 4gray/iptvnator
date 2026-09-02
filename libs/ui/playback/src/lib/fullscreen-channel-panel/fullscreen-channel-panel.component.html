@@ -1,0 +1,128 @@
+@if (active()) {
+    @if (!state.open()) {
+        <div
+            class="fullscreen-channel-panel__hot-zone"
+            data-test-id="fullscreen-channel-panel-hot-zone"
+            aria-hidden="true"
+            (pointerenter)="onHotZoneEnter($event)"
+            (pointerleave)="state.hotZoneLeave()"
+        ></div>
+        <button
+            type="button"
+            class="fullscreen-channel-panel__handle"
+            [class.fullscreen-channel-panel__handle--visible]="handleVisible()"
+            data-test-id="fullscreen-channel-panel-handle"
+            [attr.aria-label]="
+                'EMBEDDED_MPV.PLAYER.SHOW_CHANNEL_LIST' | translate
+            "
+            [matTooltip]="
+                ('EMBEDDED_MPV.PLAYER.SHOW_CHANNEL_LIST' | translate) + ' (C)'
+            "
+            matTooltipPosition="right"
+            (click)="openFromHandle()"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    } @else {
+        <!-- Swallows the click that dismisses the panel so the player's
+             click-to-pause never sees it. -->
+        <div
+            class="fullscreen-channel-panel__scrim"
+            data-test-id="fullscreen-channel-panel-scrim"
+            aria-hidden="true"
+            (click)="state.hide()"
+        ></div>
+    }
+
+    <aside
+        class="fullscreen-channel-panel dark-theme"
+        [class.fullscreen-channel-panel--open]="state.open()"
+        role="dialog"
+        [attr.aria-label]="
+            panelTitle() || ('EMBEDDED_MPV.PLAYER.CHANNEL_LIST' | translate)
+        "
+        [attr.aria-hidden]="!state.open()"
+        [attr.inert]="state.open() ? null : ''"
+        data-test-id="fullscreen-channel-panel"
+        (pointerenter)="onPanelPointerEnter($event)"
+        (pointerleave)="onPanelPointerLeave($event)"
+    >
+        <header class="fullscreen-channel-panel__header">
+            <div class="fullscreen-channel-panel__heading">
+                @if (panelTitle(); as title) {
+                    <span class="fullscreen-channel-panel__eyebrow">
+                        {{ 'EMBEDDED_MPV.PLAYER.CHANNEL_LIST' | translate }}
+                    </span>
+                    <h2 class="fullscreen-channel-panel__title">
+                        {{ title }}
+                    </h2>
+                } @else {
+                    <h2 class="fullscreen-channel-panel__title">
+                        {{ 'EMBEDDED_MPV.PLAYER.CHANNEL_LIST' | translate }}
+                    </h2>
+                }
+            </div>
+            <kbd class="fullscreen-channel-panel__kbd" aria-hidden="true"
+                >C</kbd
+            >
+            <button
+                mat-icon-button
+                type="button"
+                class="fullscreen-channel-panel__close"
+                data-test-id="fullscreen-channel-panel-close"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.HIDE_CHANNEL_LIST' | translate
+                "
+                [matTooltip]="
+                    'EMBEDDED_MPV.PLAYER.HIDE_CHANNEL_LIST' | translate
+                "
+                (click)="state.hide()"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        </header>
+
+        <label class="fullscreen-channel-panel__search">
+            <mat-icon
+                class="fullscreen-channel-panel__search-icon"
+                aria-hidden="true"
+                >search</mat-icon
+            >
+            <input
+                #searchInput
+                class="fullscreen-channel-panel__search-input"
+                type="search"
+                autocomplete="off"
+                spellcheck="false"
+                data-test-id="fullscreen-channel-panel-search"
+                [value]="searchTerm()"
+                [placeholder]="
+                    'EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS' | translate
+                "
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS' | translate
+                "
+                (input)="onSearchInput($event)"
+            />
+            @if (searchTerm()) {
+                <button
+                    type="button"
+                    class="fullscreen-channel-panel__search-clear"
+                    data-test-id="fullscreen-channel-panel-search-clear"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
+                    "
+                    (click)="clearSearch()"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </label>
+
+        <div class="fullscreen-channel-panel__body">
+            @if (state.mounted() && template(); as template) {
+                <ng-container *ngTemplateOutlet="template; context: context" />
+            }
+        </div>
+    </aside>
+}

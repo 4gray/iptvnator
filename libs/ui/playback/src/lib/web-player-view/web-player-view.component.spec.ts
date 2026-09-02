@@ -34,6 +34,8 @@ import {
     getDiagnosticMeta,
     getDiagnosticTitleKey,
 } from '../playback-diagnostic-panel/playback-diagnostic-view.util';
+import { StubFullscreenChannelPanelComponent } from './web-player-view.spec-stubs';
+import { PLAYER_FULLSCREEN_SURFACE } from '../player-controls';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -154,6 +156,7 @@ describe('WebPlayerViewComponent', () => {
                     imports: [
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
                         PlaybackDiagnosticPanelComponent,
@@ -189,6 +192,20 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.classList).toContain('web-player-view');
+    });
+
+    it('offers its host as the shared-controls fullscreen surface and stages the channel panel on it', () => {
+        fixture.detectChanges();
+
+        const surface = fixture.debugElement.injector.get(
+            PLAYER_FULLSCREEN_SURFACE
+        );
+        expect(surface.element()).toBe(fixture.nativeElement);
+
+        const panel = fixture.debugElement.query(
+            By.directive(StubFullscreenChannelPanelComponent)
+        ).componentInstance as StubFullscreenChannelPanelComponent;
+        expect(panel.stage()).toBe(fixture.nativeElement);
     });
 
     describe('resolvedMediaTitle', () => {

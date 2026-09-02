@@ -4,6 +4,10 @@ import {
     withInterceptorsFromDi,
 } from '@angular/common/http';
 import {
+    FullscreenOverlayContainer,
+    OverlayContainer,
+} from '@angular/cdk/overlay';
+import {
     ApplicationConfig,
     inject,
     importProvidersFrom,
@@ -104,6 +108,12 @@ export const appConfig: ApplicationConfig = {
         provideZoneChangeDetection({ eventCoalescing: true }),
         provideRouter(routes, withComponentInputBinding()),
         provideAnimations(),
+        // CDK overlays (menus, tooltips, dialogs) live in a container under
+        // <body>, which the browser hides behind an element in DOM fullscreen.
+        // This container follows the fullscreen element instead, so the
+        // fullscreen channel panel's sort/context menus and the controls'
+        // tooltips render while the player is fullscreen.
+        { provide: OverlayContainer, useClass: FullscreenOverlayContainer },
         provideHttpClient(withInterceptorsFromDi()),
         provideStore({
             router: routerReducer,

@@ -1,0 +1,73 @@
+// Rendered only inside the fullscreen channel panel, which is always dark
+// (it carries the `dark-theme` context), so the chip colours are tuned for
+// that surface rather than for both themes.
+
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.m3u-fullscreen-channel-list__views {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 10px 14px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.m3u-fullscreen-channel-list__views::-webkit-scrollbar {
+    display: none;
+}
+
+.m3u-fullscreen-channel-list__view {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 6px 12px 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.78);
+    background: rgba(255, 255, 255, 0.05);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color 150ms ease-out,
+        border-color 150ms ease-out,
+        color 150ms ease-out;
+}
+
+.m3u-fullscreen-channel-list__view mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+
+.m3u-fullscreen-channel-list__view:hover,
+.m3u-fullscreen-channel-list__view:focus-visible {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.m3u-fullscreen-channel-list__view:focus-visible {
+    outline: 2px solid var(--app-selection-color, #78adff);
+    outline-offset: 2px;
+}
+
+.m3u-fullscreen-channel-list__view--active,
+.m3u-fullscreen-channel-list__view--active:hover {
+    color: var(--app-selection-on-color, #071225);
+    background: var(--app-selection-color, #78adff);
+    border-color: var(--app-selection-color, #78adff);
+}
+
+.m3u-fullscreen-channel-list__list {
+    flex: 1;
+    min-height: 0;
+}

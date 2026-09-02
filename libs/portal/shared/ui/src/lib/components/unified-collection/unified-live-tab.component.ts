@@ -4,10 +4,13 @@ import {
     computed,
     DestroyRef,
     effect,
+    forwardRef,
     inject,
     input,
     output,
     signal,
+    TemplateRef,
+    viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -58,6 +61,9 @@ import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-st
 import {
     AudioPlayerComponent,
     ElectronStreamHeadersService,
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -97,8 +103,16 @@ import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-ses
         TranslatePipe,
         WebPlayerViewComponent,
     ],
+    providers: [
+        // The fullscreen channel panel inside the player renders this
+        // collection's list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => UnifiedLiveTabComponent),
+        },
+    ],
 })
-export class UnifiedLiveTabComponent {
+export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly items = input.required<UnifiedCollectionItem[]>();
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
@@ -131,6 +145,23 @@ export class UnifiedLiveTabComponent {
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
+    );
+
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
+    /** FULLSCREEN_CHANNEL_PANEL: this collection's channels, unless opted out. */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(() =>
+        this.translate.instant(
+            this.mode() === 'favorites'
+                ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
+                : 'PORTALS.SIDEBAR.RECENT'
+        )
     );
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);

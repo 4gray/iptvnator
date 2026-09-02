@@ -87,6 +87,7 @@ export const DEFAULT_SETTINGS = {
     webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,

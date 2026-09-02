@@ -71,6 +71,14 @@ export class StubArtPlayerComponent {
 }
 
 @Component({
+    selector: 'app-fullscreen-channel-panel',
+    template: '<div data-test-id="stub-fullscreen-channel-panel"></div>',
+})
+export class StubFullscreenChannelPanelComponent {
+    readonly stage = input<HTMLElement | null>(null);
+}
+
+@Component({
     selector: 'app-embedded-mpv-player',
     template: '<div data-test-id="stub-embedded-mpv-player"></div>',
 })

@@ -1,0 +1,33 @@
+<div
+    class="m3u-fullscreen-channel-list__views"
+    role="tablist"
+    [attr.aria-label]="'EMBEDDED_MPV.PLAYER.CHANNEL_LIST' | translate"
+>
+    @for (option of views; track option.id) {
+        <button
+            type="button"
+            role="tab"
+            class="m3u-fullscreen-channel-list__view"
+            [class.m3u-fullscreen-channel-list__view--active]="
+                view() === option.id
+            "
+            [attr.aria-selected]="view() === option.id"
+            [attr.data-test-id]="'m3u-fullscreen-view-' + option.id"
+            (click)="selectView(option.id)"
+        >
+            <mat-icon aria-hidden="true">{{ option.icon }}</mat-icon>
+            <span>{{ option.labelKey | translate }}</span>
+        </button>
+    }
+</div>
+
+<app-channel-list-container
+    class="m3u-fullscreen-channel-list__list"
+    [channelList]="channels()"
+    [channelsLoading]="channelsLoading()"
+    [activeView]="view()"
+    [recentItems]="recentItems()"
+    [searchTerm]="searchTerm()"
+    [resetActiveChannelOnDestroy]="false"
+    (sidebarToggleRequested)="closeRequested.emit()"
+/>

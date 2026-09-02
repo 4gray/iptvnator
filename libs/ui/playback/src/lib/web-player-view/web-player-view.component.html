@@ -97,6 +97,10 @@
     }
 }
 
+<!-- Sibling of the engine, inside the fullscreen host: survives the engine
+     remount a channel switch causes and stays visible in fullscreen. -->
+<app-fullscreen-channel-panel [stage]="hostElement" />
+
 @if (visiblePlaybackDiagnostic(); as issue) {
     <app-playback-diagnostic-panel
         [diagnostic]="issue"

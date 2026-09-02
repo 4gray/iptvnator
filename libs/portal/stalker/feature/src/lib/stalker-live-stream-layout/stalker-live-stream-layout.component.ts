@@ -7,12 +7,16 @@ import {
     computed,
     effect,
     ElementRef,
+    forwardRef,
     inject,
     linkedSignal,
     OnDestroy,
+    type Signal,
     signal,
+    TemplateRef,
     untracked,
     viewChild,
+    viewChildren,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -58,6 +62,9 @@ import {
 import {
     AudioPlayerComponent,
     ElectronStreamHeadersService,
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -109,6 +116,15 @@ interface StalkerPlaybackResolutionOwner {
 /** Channels rendered per "page" when the full list is served from the cache. */
 const FULL_LIST_RENDER_CHUNK = 100;
 
+function matchesStalkerChannelTerm(
+    item: StalkerItvChannel,
+    term: string
+): boolean {
+    return `${item.o_name ?? ''} ${item.name ?? ''}`
+        .toLowerCase()
+        .includes(term);
+}
+
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
@@ -131,9 +147,19 @@ const FULL_LIST_RENDER_CHUNK = 100;
         TranslatePipe,
         WebPlayerViewComponent,
     ],
+    providers: [
+        // The fullscreen channel panel inside the player renders this
+        // category's channel list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => StalkerLiveStreamLayoutComponent),
+        },
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StalkerLiveStreamLayoutComponent implements OnDestroy {
+export class StalkerLiveStreamLayoutComponent
+    implements OnDestroy, FullscreenChannelPanelHost
+{
     readonly stalkerStore = inject(StalkerStore);
     private readonly playlistService = inject(PlaylistsService);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
@@ -179,13 +205,34 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.stalkerStore.itvSelectedCategoryFromCache()
     );
     /**
-     * Channels matching the search phrase. Without a term, the current
-     * category. With a term in full-list mode, the WHOLE portal's channel list
-     * (every category) so search behaves like "search all channels" — merged
+     * The rows a search term is matched against: the current category, or in
+     * full-list mode the WHOLE portal's channel list (every category) merged
      * with the currently loaded channels, because a censored (adult) category
      * is paged from the portal and its channels are intentionally absent from
-     * the full-list cache. Otherwise the loaded channels of the current
-     * category.
+     * the full-list cache.
+     */
+    private readonly searchableChannels = computed(() => {
+        const source = this.channels();
+        if (!this.isFullListMode()) {
+            return source;
+        }
+
+        const merged = new Map<string, StalkerItvChannel>();
+        for (const channel of source) {
+            merged.set(normalizeStalkerEntityId(channel.id), channel);
+        }
+        for (const channel of this.stalkerStore.itvFullChannelList()) {
+            const id = normalizeStalkerEntityId(channel.id);
+            if (!merged.has(id)) {
+                merged.set(id, channel);
+            }
+        }
+        return [...merged.values()];
+    });
+    /**
+     * Channels matching the search phrase. Without a term, the current
+     * category; with one, `searchableChannels` filtered, so search behaves
+     * like "search all channels" whenever the full list is cached.
      */
     readonly filteredChannels = computed(() => {
         const term = this.searchTerm();
@@ -193,27 +240,15 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             return this.channels();
         }
 
-        let source = this.channels();
-        if (this.isFullListMode()) {
-            const merged = new Map<string, StalkerItvChannel>();
-            for (const channel of source) {
-                merged.set(normalizeStalkerEntityId(channel.id), channel);
-            }
-            for (const channel of this.stalkerStore.itvFullChannelList()) {
-                const id = normalizeStalkerEntityId(channel.id);
-                if (!merged.has(id)) {
-                    merged.set(id, channel);
-                }
-            }
-            source = [...merged.values()];
-        }
-
-        return source.filter((item) =>
-            `${item.o_name ?? ''} ${item.name ?? ''}`
-                .toLowerCase()
-                .includes(term)
+        return this.searchableChannels().filter((item) =>
+            matchesStalkerChannelTerm(item, term)
         );
     });
+    private panelFilterMemo: {
+        term: string;
+        source: readonly StalkerItvChannel[];
+        result: StalkerItvChannel[];
+    } | null = null;
     readonly isFullListLoading = computed(
         () => !this.isRadioMode() && this.stalkerStore.itvFullListLoading()
     );
@@ -487,9 +522,25 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Favorites */
     readonly favorites = new Map<string | number, boolean>();
 
-    /** Scroll */
-    readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
+    /**
+     * Scroll. The channel list template is stamped twice — in the sidebar and
+     * in the player's fullscreen channel panel — so every instance gets the
+     * infinite-scroll listener.
+     */
+    readonly scrollContainers = viewChildren<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
+
+    private readonly fullscreenChannelPanelTemplate =
+        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
+            'fullscreenChannelPanel'
+        );
+    /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(() => this.selectedCategoryTitle() ?? '');
     private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null =
         null;
     private unsubscribeRemoteChannelChange?: () => void;
@@ -632,10 +683,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             untracked(() => void this.stalkerStore.ensureBulkItvEpg(168));
         });
 
-        // Setup scroll listener when container becomes available
+        // Setup scroll listeners when list containers become available
         effect(() => {
-            const container = this.scrollContainer();
-            if (container) {
+            if (this.scrollContainers().length > 0) {
                 this.setupScrollListener();
             }
         });
@@ -928,6 +978,35 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             Math.ceil((index + 1) / FULL_LIST_RENDER_CHUNK) *
             FULL_LIST_RENDER_CHUNK;
         this.renderLimit.set(Math.max(this.renderLimit(), needed));
+    }
+
+    /**
+     * Rows for one stamped list instance. The fullscreen panel's instance
+     * searches with its own term (over the same channels the sidebar search
+     * covers, unpaged — results are short); without one, every instance
+     * shows the sidebar's windowed rows.
+     */
+    channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
+        const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
+        if (!term) {
+            return this.visibleChannels();
+        }
+
+        const source = this.searchableChannels();
+        const memo = this.panelFilterMemo;
+        if (memo && memo.term === term && memo.source === source) {
+            return memo.result;
+        }
+
+        const result = source.filter((item) =>
+            matchesStalkerChannelTerm(item, term)
+        );
+        this.panelFilterMemo = { term, source, result };
+        return result;
+    }
+
+    hasSearchTerm(panelSearchTerm?: Signal<string>): boolean {
+        return Boolean(this.searchTerm() || panelSearchTerm?.().trim());
     }
 
     loadMore() {
@@ -1299,28 +1378,37 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private setupScrollListener() {
         this.removeScrollListener();
 
-        const container = this.scrollContainer()?.nativeElement;
-        if (!container) return;
+        const containers = this.scrollContainers()
+            .map((ref) => ref.nativeElement as HTMLElement | undefined)
+            .filter((element): element is HTMLElement => !!element);
+        if (containers.length === 0) return;
 
-        const onScroll = () => {
-            this.scheduleEpgPreviewRefresh();
-            if (this.isLoadingMore() || !this.hasMoreItems()) return;
+        const cleanups = containers.map((container) => {
+            const onScroll = () => {
+                this.scheduleEpgPreviewRefresh();
+                if (this.isLoadingMore() || !this.hasMoreItems()) return;
 
-            const { scrollTop, scrollHeight, clientHeight } = container;
-            const scrollThreshold = 150;
+                const { scrollTop, scrollHeight, clientHeight } = container;
+                const scrollThreshold = 150;
 
-            if (scrollHeight - scrollTop - clientHeight <= scrollThreshold) {
-                this.loadMore();
-            }
-        };
+                if (
+                    scrollHeight - scrollTop - clientHeight <=
+                    scrollThreshold
+                ) {
+                    this.loadMore();
+                }
+            };
 
-        container.addEventListener('scroll', onScroll, { passive: true });
-        this.scrollListener = () =>
-            container.removeEventListener('scroll', onScroll);
+            container.addEventListener('scroll', onScroll, {
+                passive: true,
+            });
+            return () => container.removeEventListener('scroll', onScroll);
+        });
+        this.scrollListener = () => cleanups.forEach((cleanup) => cleanup());
     }
 
     private checkIfNeedsMoreContent() {
-        const container = this.scrollContainer()?.nativeElement;
+        const container = this.scrollContainers()[0]?.nativeElement;
         if (!container) return;
         if (this.isLoadingMore() || !this.hasMoreItems()) return;
 

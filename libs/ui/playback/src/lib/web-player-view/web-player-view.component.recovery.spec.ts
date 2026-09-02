@@ -32,6 +32,7 @@ import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/p
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
 } from './web-player-view.spec-stubs';
@@ -133,6 +134,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
                         PlaybackDiagnosticPanelComponent,
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
                         TranslateModule,

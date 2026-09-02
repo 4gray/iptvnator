@@ -55,8 +55,9 @@ ArtPlayer event listeners. Shared mode uses authoritative live/VOD metadata,
 reapplies the app volume directly to the media element after ArtPlayer restores
 its own stored volume, disables vendor chrome/hotkeys, and places a transparent
 event-capture layer over ArtPlayer so shared controls exclusively own surface
-clicks and double-clicks. Playback diagnostics gate shared interaction and exit
-only the ArtPlayer shell's own fullscreen. Source replacement and teardown
+clicks and double-clicks. Playback diagnostics gate shared interaction, and
+`WebPlayerViewComponent` leaves the fullscreen it owns while a diagnostic is
+visible (see "Fullscreen surface"). Source replacement and teardown
 remove exact listeners and engines, and destroyed sessions ignore stale delayed
 `customType` callbacks. When the host token resolves to false, the existing
 ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
@@ -275,6 +276,74 @@ two-line series form from its `seriesTitle` input plus the episode metadata
 label. The Xtream and Stalker series detail views pass the series name via
 `seriesTitle`; movie and live hosts need no extra wiring because
 `playback.title` already names the content.
+
+### Fullscreen surface
+
+`ControlsFullscreen` requests DOM fullscreen on the element returned by the
+optional `PLAYER_FULLSCREEN_SURFACE` provider and falls back to the engine's
+`playerSurface` when no provider exists. `WebPlayerViewComponent` provides its
+own host. The reason is the application lifecycle: every source application
+(a channel or episode switch, a player change, a reload) mints a new
+application token and the `@for` in the view re-creates the engine component,
+so a fullscreen owned by the engine root ended the moment the previous engine
+left the DOM. The view host outlives those remounts, and it also contains the
+playback diagnostic and the fullscreen channel panel, which therefore stay
+visible in fullscreen.
+
+Two consequences follow. `EmbeddedMpvPlayerComponent.isFullscreen` reports
+true whenever its root is *inside* `document.fullscreenElement`, so the
+frame-copy engine's fullscreen styling holds under either owner (the
+native-view legacy dock still fullscreens the root itself). And because the
+engines' own `exitOwnedFullscreen` calls no longer match the fullscreen
+element, `WebPlayerViewComponent` exits the fullscreen it owns when a playback
+diagnostic becomes visible: a recovery action can launch an external player,
+whose window must not open behind a fullscreen app.
+
+CDK overlays render inside the fullscreen element because the app registers
+`FullscreenOverlayContainer` as the `OverlayContainer` (`app.config.ts`);
+without it every tooltip, sort menu and context menu opened while fullscreen
+would sit invisibly under the top layer.
+
+### Fullscreen channel panel
+
+`FullscreenChannelPanelComponent` (`libs/ui/playback/src/lib/fullscreen-channel-panel/`)
+is rendered by `WebPlayerViewComponent` as a sibling of the engine, inside the
+fullscreen host, so it survives the engine remount a channel switch causes.
+It injects `FULLSCREEN_CHANNEL_PANEL` optionally: a live host provides
+`FullscreenChannelPanelHost` (`panelTemplate`, optional `panelTitle`) from its
+component `providers`, and the panel stamps that template into its body with a
+`FullscreenChannelPanelContext` of `{ searchTerm: Signal<string>, close }`.
+Without a provider — VOD detail pages, series playback — nothing renders. The
+host resolves the user preference itself: `Settings.fullscreenChannelPanel`
+(default on, Settings → Playback, offered for the web players and Embedded
+MPV) makes the host return `null`, which removes every affordance.
+
+Providers today: `VideoPlayerComponent` (M3U; `app-m3u-fullscreen-channel-list`
+adds a local all/groups/favorites/recent switcher over a second
+`ChannelListContainerComponent` instance with `resetActiveChannelOnDestroy`
+false, because the container's destroy hook otherwise clears the active
+channel and stops playback), `LiveStreamLayoutComponent` (Xtream; the sidebar's
+rows via `channelsOverride` so the second list instance never re-applies the
+route category), `StalkerLiveStreamLayoutComponent` (its list markup is one
+`ng-template` stamped into both the sidebar and the panel with its own search
+term; every copy carries the `#scrollContainer` that drives infinite scroll),
+and `UnifiedLiveTabComponent` (global favorites/recent).
+
+Behavior: every affordance exists only while the stage is fullscreen. A 28px
+hot zone on the left edge opens the panel after a 160ms mouse dwell; a
+pointer-activity-revealed edge handle and the `C` key open it too (those two
+focus the search field, hover does not steal focus). It closes when the mouse
+leaves the panel for 420ms, on the close button, on Escape, on the host's
+`close`, or through a transparent scrim over the video that swallows the click
+so the player's click-to-pause never sees it. The list stays mounted between
+openings of one fullscreen session (scroll position and search survive) and is
+unmounted when fullscreen ends. Touch has no hover: the handle is the touch
+entry point, and the hot zone ignores touch pointers. The panel carries the
+`dark-theme` context class, so app and Material tokens inside it resolve to
+the dark palette whatever the app theme is. Keyboard: `C` is ignored while any
+editable element has focus and while the player sits inside an `inert`
+region; the search field is an ordinary input, so the controls' Space/K/F/M
+shortcuts stay out of it.
 
 ### Keyboard ownership
 
@@ -902,6 +971,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-view-model.ts
 ├── controls-visibility.ts
 ├── controls-volume.ts
+├── player-fullscreen-surface.ts
 ├── web-player-controls.flag.ts
 ├── web-video-controls.adapter.ts
 ├── web-video-controls.host.ts
@@ -912,6 +982,21 @@ libs/ui/playback/src/lib/player-controls/
 
 Focused specs live beside these files. The subtree is exported from
 `libs/ui/playback/src/index.ts`.
+
+The fullscreen channel panel rendered by `WebPlayerViewComponent` lives in:
+
+```text
+libs/ui/playback/src/lib/fullscreen-channel-panel/
+├── fullscreen-channel-panel.model.ts      # FULLSCREEN_CHANNEL_PANEL + host/context contracts
+├── fullscreen-channel-panel-state.ts      # open/mounted state, hover-intent timers
+├── fullscreen-channel-panel.component.ts
+├── fullscreen-channel-panel.component.html
+├── fullscreen-channel-panel.component.scss
+└── index.ts
+```
+
+The M3U body (`app-m3u-fullscreen-channel-list`) lives beside the M3U player
+in `libs/playlist/m3u/feature-player/src/lib/video-player/fullscreen-channel-list/`.
 
 The Embedded MPV integration lives in:
 
