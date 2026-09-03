@@ -22,8 +22,27 @@ import {
  * commits, and the main-process and EPG-worker connections give up after
  * their 5 s `busy_timeout` while a write transaction holds the lock. Around
  * 5,000 rows keeps a commit near 100 ms on a laptop SSD.
+ *
+ * `IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION` overrides the budget. It is a
+ * test-only knob, the companion of `IPTVNATOR_DB_WORKER_BATCH_DELAY_MS`: the
+ * responsiveness E2E suites slow the worker down and need enough commits in
+ * a few-thousand-row mock catalog to observe progress mid-import.
  */
-export const CONTENT_ROWS_PER_TRANSACTION = 5000;
+export const DEFAULT_CONTENT_ROWS_PER_TRANSACTION = 5000;
+
+/** The budget behind `CONTENT_ROWS_PER_TRANSACTION`, parsed from one raw env value. */
+export function resolveContentRowsPerTransaction(
+    rawValue: string | undefined
+): number {
+    const parsed = Number.parseInt(rawValue ?? '', 10);
+    return Number.isInteger(parsed) && parsed > 0
+        ? parsed
+        : DEFAULT_CONTENT_ROWS_PER_TRANSACTION;
+}
+
+export const CONTENT_ROWS_PER_TRANSACTION = resolveContentRowsPerTransaction(
+    process.env['IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION']
+);
 
 /** How many content rows reference one category. */
 export interface CategoryRowCount {

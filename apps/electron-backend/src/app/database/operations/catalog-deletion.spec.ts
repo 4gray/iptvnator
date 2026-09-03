@@ -10,6 +10,7 @@ import {
     deleteContentByCategoryGroups,
     groupCategoriesByRowBudget,
     requireScopedFilter,
+    resolveContentRowsPerTransaction,
     sumCategoryRowCounts,
 } from './catalog-deletion';
 
@@ -80,6 +81,17 @@ describe('groupCategoriesByRowBudget', () => {
             )
         ).toEqual([[2]]);
         expect(groupCategoriesByRowBudget([], 5000)).toEqual([]);
+    });
+});
+
+describe('resolveContentRowsPerTransaction', () => {
+    it('defaults to 5,000 rows unless the test knob names a positive integer', () => {
+        expect(resolveContentRowsPerTransaction(undefined)).toBe(5000);
+        expect(resolveContentRowsPerTransaction('')).toBe(5000);
+        expect(resolveContentRowsPerTransaction('0')).toBe(5000);
+        expect(resolveContentRowsPerTransaction('-100')).toBe(5000);
+        expect(resolveContentRowsPerTransaction('abc')).toBe(5000);
+        expect(resolveContentRowsPerTransaction('100')).toBe(100);
     });
 });
 

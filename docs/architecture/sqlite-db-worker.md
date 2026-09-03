@@ -929,6 +929,18 @@ value of `0`, every cancellable batch checkpoint still yields one event-loop
 turn without adding a timer delay. That yield lets the worker receive a queued
 cancel message before starting the next batch.
 
+Its companion, also test-only, shrinks the catalog write budget so a
+few-thousand-row mock catalog still produces several commits — and therefore
+several checkpoints and progress events — to observe mid-import:
+
+```bash
+IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION=100
+```
+
+Unset, or set to anything but a positive integer, it leaves the default
+`CONTENT_ROWS_PER_TRANSACTION` of 5,000 in place (see "Catalog write
+batching"). Neither knob belongs in a production launch.
+
 ### Useful verification commands
 
 ```bash

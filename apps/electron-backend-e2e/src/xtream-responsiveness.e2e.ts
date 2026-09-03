@@ -16,6 +16,11 @@ const stressPortalName = 'Stress Xtream Portal';
 const stressXtreamUsername = 'stress';
 const stressXtreamPassword = 'stress';
 const dbWorkerBatchDelayMs = '20';
+// The stress catalog is 1,920 rows per type; at the production budget of
+// 5,000 rows per commit that is one commit per type, too few checkpoints and
+// progress events to observe the import mid-flight. Shrinking the budget
+// keeps the batches this suite slows down and watches.
+const dbWorkerRowsPerTransaction = '100';
 
 function playlistRowByName(name: string) {
     return `app-playlist-item:has-text("${name}")`;
@@ -43,6 +48,8 @@ test.describe('Electron Xtream Responsiveness', () => {
         const app = await launchElectronApp(dataDir, {
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: dbWorkerBatchDelayMs,
+                IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION:
+                    dbWorkerRowsPerTransaction,
             },
         });
 
@@ -121,6 +128,8 @@ test.describe('Electron Xtream Responsiveness', () => {
         const app = await launchElectronApp(dataDir, {
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: dbWorkerBatchDelayMs,
+                IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION:
+                    dbWorkerRowsPerTransaction,
             },
         });
 
@@ -257,6 +266,8 @@ test.describe('Electron Xtream Responsiveness', () => {
         const app = await launchElectronApp(dataDir, {
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: dbWorkerBatchDelayMs,
+                IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION:
+                    dbWorkerRowsPerTransaction,
             },
         });
 
