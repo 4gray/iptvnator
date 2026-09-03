@@ -96,6 +96,7 @@ export const DEFAULT_SETTINGS = {
     showCaptions: false,
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
+    startupWindowMode: 'normal',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,

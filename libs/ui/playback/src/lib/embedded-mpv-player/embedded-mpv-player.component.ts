@@ -82,6 +82,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the root. */
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
 
     readonly timeUpdate = output<{
         currentTime: number;
@@ -123,6 +125,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playerRoot = viewChild<ElementRef<HTMLDivElement>>('playerRoot');
     readonly playerSurface = computed(
         () => this.playerRoot()?.nativeElement ?? null
+    );
+    /** Element that owns DOM fullscreen: the host's target, else the root. */
+    readonly fullscreenSurface = computed(
+        () => this.fullscreenTarget() ?? this.playerSurface()
     );
     readonly sharedShortcutsEnabled = computed(
         () => !this.overlayVisibility.overlayActive()
@@ -182,7 +188,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly canFullscreen = computed(
         () =>
             typeof document !== 'undefined' &&
-            Boolean(this.playerRoot()?.nativeElement.requestFullscreen) &&
+            Boolean(this.fullscreenSurface()?.requestFullscreen) &&
             Boolean(document.exitFullscreen)
     );
     readonly statusLabel = computed(() => {
@@ -324,18 +330,21 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private readonly legacyInteractions: EmbeddedMpvLegacyInteractions;
 
     private readonly onFullscreenChange = () => {
-        const playerRoot = this.playerRoot()?.nativeElement;
-        // Shared controls fullscreen the surrounding `app-web-player-view`
-        // host (see PLAYER_FULLSCREEN_SURFACE), the legacy dock this root:
-        // either way the player is inside the fullscreen element.
-        this.isFullscreen.set(
-            Boolean(
-                playerRoot && document.fullscreenElement?.contains(playerRoot)
-            )
-        );
+        this.syncFullscreenState();
         this.legacyInteractions.revealControls();
         this.controller.triggerBoundsSync();
     };
+
+    private syncFullscreenState(): void {
+        const surface = this.fullscreenSurface();
+        this.isFullscreen.set(
+            Boolean(
+                surface &&
+                typeof document !== 'undefined' &&
+                document.fullscreenElement === surface
+            )
+        );
+    }
 
     constructor() {
         this.legacyInteractions = new EmbeddedMpvLegacyInteractions({
@@ -438,6 +447,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 this.onFullscreenChange
             );
         }
+        // A player remounted for the next episode can start inside the
+        // host-owned fullscreen; no `fullscreenchange` fires for it, so the
+        // state is read once the fullscreen surface resolves.
+        effect(() => {
+            void this.fullscreenSurface();
+            untracked(() => this.syncFullscreenState());
+        });
 
         this.controller.setBoundsProvider((host) => {
             // The frame-copy engine paints into an ordinary DOM canvas:
@@ -597,15 +613,15 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     async toggleFullscreen(): Promise<void> {
         this.legacyInteractions.revealControls();
-        const playerRoot = this.playerRoot()?.nativeElement;
-        if (!playerRoot || !this.canFullscreen()) {
+        const surface = this.fullscreenSurface();
+        if (!surface || !this.canFullscreen()) {
             return;
         }
         try {
-            if (document.fullscreenElement === playerRoot) {
+            if (document.fullscreenElement === surface) {
                 await document.exitFullscreen();
             } else {
-                await playerRoot.requestFullscreen();
+                await surface.requestFullscreen();
             }
         } catch {
             return;

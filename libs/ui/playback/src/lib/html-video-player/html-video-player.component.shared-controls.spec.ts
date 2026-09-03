@@ -7,8 +7,14 @@ import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-p
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { HtmlVideoPlayerComponent as HtmlVideoPlayerComponentInstance } from './html-video-player.component';
 import {
+    TEST_CHANNEL,
     cleanupSharedControlsTests,
     configureSharedControlsTests,
+    hlsInstances,
+    mpegTsInstances,
+    mpegTsIsSupported,
+    observeBridgeSourceBinding,
+    readHtmlPlayerInternals,
     renderSharedControls,
     renderSharedControlsDefaults,
     type SharedControlsFixture,
@@ -178,6 +184,60 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
         }
     });
 
+    it('hands the host fullscreen target to the shared controls and exits only that owner', () => {
+        const { fixture, controls } = renderSharedControls(
+            HtmlVideoPlayerComponent,
+            fixtures
+        );
+        const target = document.createElement('div');
+        fixture.componentRef.setInput('fullscreenTarget', target);
+        fixture.detectChanges();
+        expect(controls?.fullscreenTarget()).toBe(target);
+
+        const shell = fixture.debugElement.query(
+            By.css('.html-video-player-shell')
+        ).nativeElement as HTMLElement;
+        const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'fullscreenElement'
+        );
+        const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'exitFullscreen'
+        );
+        let fullscreenElement: Element | null = shell;
+        const exitFullscreen = jest.fn().mockResolvedValue(undefined);
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => fullscreenElement,
+        });
+        Object.defineProperty(document, 'exitFullscreen', {
+            configurable: true,
+            value: exitFullscreen,
+        });
+
+        try {
+            // The shell is no longer the owner once a target is supplied.
+            fixture.componentRef.setInput('interactionEnabled', false);
+            fixture.detectChanges();
+            expect(exitFullscreen).not.toHaveBeenCalled();
+
+            fixture.componentRef.setInput('interactionEnabled', true);
+            fixture.detectChanges();
+            fullscreenElement = target;
+            fixture.componentRef.setInput('interactionEnabled', false);
+            fixture.detectChanges();
+
+            expect(exitFullscreen).toHaveBeenCalledTimes(1);
+        } finally {
+            restoreDocumentProperty(
+                'fullscreenElement',
+                fullscreenElementDescriptor
+            );
+            restoreDocumentProperty('exitFullscreen', exitFullscreenDescriptor);
+        }
+    });
+
     it('keeps series context reactive and forwards navigation outputs', () => {
         const setContext = jest.spyOn(
             WebVideoControlsAdapter.prototype,
@@ -230,6 +290,43 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
 
         expect(tracks[0].mode).toBe('showing');
     });
+
+    it.each([
+        ['mkv', null],
+        ['webm', null],
+        ['avi', null],
+        ['mov', null],
+        ['m4v', 'video/mp4'],
+    ])(
+        'plays a .%s file through the native element instead of hls.js',
+        (extension, mimeHint) => {
+            // Both MSE engines report support, so a native pick is routing,
+            // not a fallback.
+            mpegTsIsSupported.mockReturnValue(true);
+            const { component, fixture } = renderSharedControls(
+                HtmlVideoPlayerComponent,
+                fixtures,
+                { isLive: false }
+            );
+            const setSource = observeBridgeSourceBinding(component);
+            const video = fixture.debugElement.query(By.css('video'))
+                .nativeElement as HTMLVideoElement;
+            const url = `https://example.test/series/user/pass/80000.${extension}`;
+
+            component.playChannel({ ...TEST_CHANNEL, url });
+
+            const internals = readHtmlPlayerInternals(component);
+            expect(hlsInstances).toHaveLength(0);
+            expect(mpegTsInstances).toHaveLength(0);
+            expect(internals.hls).toBeNull();
+            expect(internals.mpegtsPlayer).toBeNull();
+            expect(setSource).toHaveBeenCalledWith({ kind: 'native' });
+            expect(internals.controlsSource).toEqual({ kind: 'native' });
+            const sources = Array.from(video.querySelectorAll('source'));
+            expect(sources.map((source) => source.src)).toEqual([url]);
+            expect(sources[0]?.getAttribute('type')).toBe(mimeHint);
+        }
+    );
 });
 
 function restoreDocumentProperty(

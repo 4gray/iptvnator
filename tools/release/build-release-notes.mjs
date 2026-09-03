@@ -26,9 +26,9 @@ import {
 } from './release-announcements.mjs';
 import { loadNotes } from './release-notes.mjs';
 import { manifestSlugs } from './screenshot-guards.mjs';
+import { renderBlogScaffold } from './release-notes-blog.mjs';
 import {
     releaseSlug,
-    renderBlogScaffold,
     renderChangelogSection,
     renderGithubBody,
     upsertChangelogSection,
@@ -347,6 +347,7 @@ function main() {
             const content = renderBlogScaffold(notes, {
                 version,
                 date: options.date,
+                previousVersion: options.previous ?? detectPreviousVersion(),
                 links,
             });
             const target = writeBlogScaffold(content, version, options.force);

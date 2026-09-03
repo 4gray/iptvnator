@@ -203,6 +203,18 @@ Key files:
   `PortalInlinePlayerComponent.seriesTitle` and `WebPlayerViewComponent.mediaTitle`;
   movie and live hosts fall back to `playback.title`, skipping raw stream-URL
   fallbacks. Outside fullscreen the overlay stays hidden.
+- Auto-hide pauses while the pointer is over the controls bar or keyboard
+  focus is inside it, but only keyboard-originated focus pins the bar open.
+  Chromium also focuses a clicked `<button>`, so
+  `ControlsSurface.wasPointerInteraction` attributes a `focusin` to a recent
+  `pointerdown` inside the focused element; such focus reveals without
+  blocking auto-hide (otherwise the fullscreen button left the controls on
+  screen until a click-to-pause on the viewport). The press record is
+  discarded on the first bar focus event it is asked about or on any
+  `keydown`, a `pointerdown` inside the bar releases a keyboard pin, and a
+  `keydown` bubbling out of a bar control re-pins it, since operating a
+  focused control produces no focus event. Contract:
+  `docs/architecture/player-controls-contract.md` (auto-hide paragraph).
 - Persisted `Settings.webPlayerSharedControls` is default-ON (absent stored
   values coerce with `!== false`; only an explicit false opts out to the legacy
   vendor chrome), and its checkbox appears only when HTML5, Video.js, or
@@ -413,7 +425,8 @@ Key files:
   suppression.
   `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
   metadata, while a visible playback diagnostic disables both shared surface
-  interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
+  interaction and shortcuts and exits the shared controls' resolved fullscreen
+  owner (the host-supplied `fullscreenTarget`, else the HTML5 shell) so the
   diagnostic actions remain visible. The preference-off path keeps native
   controls and legacy series navigation unchanged, while the playback keyboard
   shortcuts (Space/K, F, arrow seek/volume, M) attach through

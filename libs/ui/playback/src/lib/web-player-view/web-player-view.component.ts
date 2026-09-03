@@ -5,7 +5,6 @@ import {
     ViewEncapsulation,
     computed,
     effect,
-    forwardRef,
     inject,
     input,
     linkedSignal,
@@ -35,13 +34,10 @@ import { FullscreenChannelPanelComponent } from '../fullscreen-channel-panel/ful
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import {
-    PLAYER_FULLSCREEN_SURFACE,
-    type PlayerFullscreenSurface,
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WEB_PLAYER_SHARED_CONTROLS_ENABLED,
 } from '../player-controls';
-import { exitOwnedFullscreen } from '../web-video-support/exit-owned-fullscreen.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import type { VideoPlayerOptions } from '../vjs-player/vjs-player.types';
@@ -90,24 +86,25 @@ function resolveWebPlayerSharedControls(): boolean {
             provide: WEB_PLAYER_SHARED_CONTROLS,
             useFactory: resolveWebPlayerSharedControls,
         },
-        // Shared controls fullscreen this host rather than the engine root:
-        // the engine is remounted per source application, and the fullscreen
-        // element leaving the DOM would end fullscreen on every channel or
-        // episode switch. The host also carries the channel panel and the
-        // diagnostic, which stay visible in fullscreen this way.
-        {
-            provide: PLAYER_FULLSCREEN_SURFACE,
-            useExisting: forwardRef(() => WebPlayerViewComponent),
-        },
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent
-    implements OnDestroy, PlayerFullscreenSurface
-{
+export class WebPlayerViewComponent implements OnDestroy {
+    /**
+     * DOM fullscreen owner handed to every rendered player. Applications are
+     * remounted per token (`@for ... track application.token` below), and
+     * the Fullscreen API exits the moment its element leaves the document,
+     * so a fullscreen owned by the player shell would end with every
+     * episode, channel, or alternative-source switch. This host element
+     * spans all applications of one mount: fullscreen entered on episode 1
+     * is still in place when episode 2's engine mounts, and the fresh
+     * controls pick it up through `ControlsFullscreen.sync()`. It is also
+     * the stage the fullscreen channel panel tracks, so the panel sits inside
+     * the fullscreen element and survives the same remounts.
+     */
+    readonly fullscreenSurface: HTMLElement = inject(ElementRef<HTMLElement>)
+        .nativeElement;
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    /** The fullscreen surface; also the stage the channel panel tracks. */
-    readonly hostElement = inject(ElementRef<HTMLElement>).nativeElement;
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
@@ -162,8 +159,16 @@ export class WebPlayerViewComponent
     );
     readonly activeBinding = this.recoverySession.activeBinding;
 
-    channel: Channel | undefined;
-    vjsOptions: VideoPlayerOptions | undefined;
+    /**
+     * Source handed to the rendered engine. Signals, not plain fields: in
+     * Electron the handoff lands in the stream-header IPC promise, after the
+     * change-detection pass that mounted the application, and this view sits
+     * under OnPush hosts (`PortalInlinePlayerComponent`) — a plain field set
+     * there was only rendered when something else happened to dirty the
+     * subtree, which used to be the fullscreen exit on every episode switch.
+     */
+    readonly channel = signal<Channel | undefined>(undefined);
+    readonly vjsOptions = signal<VideoPlayerOptions | undefined>(undefined);
 
     // Resolved from the live SettingsStore signal, not a mount-time storage
     // snapshot: a saved player change (settings page, command palette) must
@@ -179,9 +184,7 @@ export class WebPlayerViewComponent
     });
     readonly selectedPlayer = computed<VideoPlayer>(() => {
         const temporary = this.recoverySession.temporaryPlayerOverride();
-        return temporary
-            ? toVideoPlayer(temporary)
-            : this.renderablePlayer();
+        return temporary ? toVideoPlayer(temporary) : this.renderablePlayer();
     });
     private readonly applicationState = createWebPlayerApplicationState({
         playback: this.playback,
@@ -267,23 +270,6 @@ export class WebPlayerViewComponent
             const session = this.externalPlayback?.activeSession() ?? null;
             untracked(() => this.externalRecovery.observe(session));
         });
-        // A visible diagnostic leaves fullscreen: its recovery actions can
-        // launch an external player, whose window must not open behind a
-        // fullscreen app. The host owns the shared-controls fullscreen now,
-        // so the engines' own exits no longer cover this case.
-        effect(() => {
-            if (this.visiblePlaybackDiagnostic() === null) {
-                return;
-            }
-            untracked(() =>
-                exitOwnedFullscreen(true, this.hostElement, (error) =>
-                    console.warn(
-                        'Failed to leave fullscreen for the playback diagnostic.',
-                        error
-                    )
-                )
-            );
-        });
         effect(() => {
             // Session sync may clear a temporary player override. Run it before
             // tracking intent so that reset is folded into this application.
@@ -299,8 +285,8 @@ export class WebPlayerViewComponent
             const selectedPlayer = untracked(this.selectedPlayer);
             const reloadToken = untracked(this.reloadToken);
             const target = toInlinePlaybackPlayer(selectedPlayer);
-            this.channel = undefined;
-            this.vjsOptions = undefined;
+            this.channel.set(undefined);
+            this.vjsOptions.set(undefined);
             this.recovery.clearDiagnostic();
             if (target === null) {
                 this.applicationHandoff.release();
@@ -318,8 +304,8 @@ export class WebPlayerViewComponent
                 token,
                 () => this.playbackApplicationToken(),
                 (handoff) => {
-                    this.channel = handoff.channel;
-                    this.vjsOptions = handoff.vjsOptions;
+                    this.channel.set(handoff.channel);
+                    this.vjsOptions.set(handoff.vjsOptions);
                 }
             );
         });
@@ -328,10 +314,6 @@ export class WebPlayerViewComponent
     ngOnDestroy(): void {
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
-    }
-
-    element(): HTMLElement {
-        return this.hostElement;
     }
 
     handlePlaybackIssue(

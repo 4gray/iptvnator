@@ -14,11 +14,24 @@ import {
     type Page,
 } from '@playwright/test';
 
-import { registerPlaylistId, requirePlaylistId } from './capture-navigation';
+import {
+    M3U_FIXTURE_TITLE,
+    XTREAM_FIXTURE_CREDENTIALS,
+    XTREAM_FIXTURE_TITLE,
+    XTREAM_MOCK_ORIGIN,
+} from './capture-fixtures';
+import {
+    clickDialogOption,
+    openAddPlaylistDialog,
+    registerPlaylistId,
+    requirePlaylistId,
+} from './capture-navigation';
 
-export const XTREAM_MOCK_ORIGIN = 'http://localhost:3211';
-export const XTREAM_FIXTURE_TITLE = 'Fictional Xtream Demo';
-export const M3U_FIXTURE_TITLE = 'release-demo';
+export {
+    M3U_FIXTURE_TITLE,
+    XTREAM_FIXTURE_TITLE,
+    XTREAM_MOCK_ORIGIN,
+} from './capture-fixtures';
 
 /** Synthetic categories that only the marketing fixture generator produces. */
 const MOCK_FIXTURE_CATEGORIES = ['Action & Mystery', 'Urban Drama'];
@@ -288,8 +301,8 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await clickDialogOption(dialog, /xtream credentials/i);
     await dialog.locator('#title').fill(XTREAM_FIXTURE_TITLE);
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_ORIGIN);
-    await dialog.locator('#username').fill('marketing');
-    await dialog.locator('#password').fill('marketing');
+    await dialog.locator('#username').fill(XTREAM_FIXTURE_CREDENTIALS.username);
+    await dialog.locator('#password').fill(XTREAM_FIXTURE_CREDENTIALS.password);
     await dialog
         .getByRole('button', { name: /^(add|add playlist)$/i })
         .last()
@@ -328,33 +341,6 @@ async function addM3uPlaylist(page: Page, m3uPath: string): Promise<void> {
         .first()
         .waitFor({ state: 'visible', timeout: 60_000 });
 }
-
-async function openAddPlaylistDialog(page: Page): Promise<void> {
-    await page.getByRole('button', { name: /add playlist/i }).first().click();
-    await page
-        .locator('mat-dialog-container')
-        .last()
-        .waitFor({ state: 'visible', timeout: 15_000 });
-}
-
-async function clickDialogOption(
-    dialog: ReturnType<Page['locator']>,
-    label: RegExp
-): Promise<void> {
-    // The add-playlist dialog has changed shape across releases: source
-    // methods were tabs, then plain buttons, now a radio group.
-    for (const role of ['radio', 'tab', 'button'] as const) {
-        const option = dialog.getByRole(role, { name: label }).first();
-
-        if ((await option.count()) > 0) {
-            await option.click();
-            return;
-        }
-    }
-
-    throw new Error(`Dialog option matching ${label} not found`);
-}
-
 
 function idFromUrl(url: string, provider: 'playlists' | 'xtreams'): string {
     // `provider` is a closed union, but build the pattern from a literal

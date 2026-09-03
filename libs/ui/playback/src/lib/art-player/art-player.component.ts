@@ -56,6 +56,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
 
     readonly timeUpdate = output<{
         currentTime: number;
@@ -121,7 +123,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         if (changes['interactionEnabled']?.currentValue === false) {
             exitOwnedArtPlayerFullscreen(
                 this.sharedControls,
-                this.playerRoot()?.nativeElement,
+                this.fullscreenTarget() ?? this.playerRoot()?.nativeElement,
                 (error) =>
                     debugArtPlayer(
                         'Failed to exit ArtPlayer fullscreen:',

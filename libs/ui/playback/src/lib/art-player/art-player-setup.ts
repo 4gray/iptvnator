@@ -1,4 +1,17 @@
-import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
+import {
+    PlaybackSourceKind,
+    getPlaybackMediaExtensionFromUrl,
+    resolvePlaybackUrlSourceKind,
+} from '@iptvnator/playback/util';
+
+/**
+ * ArtPlayer `type` under which every container that is not an HLS/DASH
+ * manifest or raw MPEG-TS (mkv, webm, mp4, avi, mov, m4v, …) reaches
+ * `ArtPlayerSourceSession`'s native path. One key keeps the session the owner
+ * of that source change (engine teardown plus controls binding) instead of
+ * ArtPlayer's bare `video.src` assignment for an unmatched type.
+ */
+export const ART_PLAYER_NATIVE_SOURCE_TYPE = 'native';
 
 /**
  * ArtPlayer option overrides for the legacy and shared-control surfaces.
@@ -67,23 +80,21 @@ export function resolveArtPlayerIsLive(
     return extension === 'm3u8' || extension === 'ts' || !extension;
 }
 
+/**
+ * Maps the shared URL routing decision onto the `customType` keys served by
+ * `ArtPlayerSourceSession`, so ArtPlayer and the HTML5 player always pick the
+ * same engine for a URL.
+ */
 export function getArtPlayerVideoType(url: string): string {
-    const extension = getPlaybackMediaExtensionFromUrl(url);
-    switch (extension) {
-        case 'mkv':
-            return 'video/matroska';
-        case 'm3u8':
-            return 'm3u8';
-        case 'mp4':
-            return 'mp4';
-        case 'mpd':
+    switch (resolvePlaybackUrlSourceKind(url)) {
+        case PlaybackSourceKind.Dash:
             return 'mpd';
-        case 'ts':
+        case PlaybackSourceKind.Hls:
+            return 'm3u8';
+        case PlaybackSourceKind.MpegTs:
             return 'ts';
         default:
-            // Extensionless IPTV proxy/script URLs are predominantly raw
-            // MPEG-TS and retain the established ArtPlayer fallback.
-            return extension ? 'auto' : 'ts';
+            return ART_PLAYER_NATIVE_SOURCE_TYPE;
     }
 }
 

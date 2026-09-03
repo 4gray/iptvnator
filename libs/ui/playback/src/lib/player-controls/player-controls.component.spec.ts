@@ -318,6 +318,249 @@ describe('PlayerControlsComponent', () => {
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
             outside.remove();
         });
+
+        it('does not pin the bar on the focus a mouse click on a control produces', () => {
+            setCapabilities({ fullscreen: true });
+            setState({ status: 'playing' });
+            const surface = document.createElement('div');
+            document.body.appendChild(surface);
+            (
+                surface as unknown as { requestFullscreen: unknown }
+            ).requestFullscreen = jest.fn(() => Promise.resolve());
+            (
+                document as unknown as { exitFullscreen: unknown }
+            ).exitFullscreen = jest.fn(() => Promise.resolve());
+            fixture.componentRef.setInput('playerSurface', surface);
+            fixture.detectChanges();
+
+            const button = query(
+                '[aria-label="Enter fullscreen"]'
+            ) as HTMLButtonElement;
+            const icon = button.querySelector('mat-icon') as HTMLElement;
+            // Chromium: pointerdown on the icon, focus moves to the button
+            // (focusin on the bar), then click — all from one mouse press.
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            icon.dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            button.focus();
+            button.click();
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(button);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            // The pointer leaves the bar and moves over the video while the
+            // button is still the active element.
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            surface.dispatchEvent(new MouseEvent('pointermove'));
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+
+            surface.remove();
+            delete (document as unknown as { exitFullscreen?: unknown })
+                .exitFullscreen;
+        });
+
+        it('still pins the bar for keyboard focus that follows a click on the video', () => {
+            const surface = document.createElement('div');
+            document.body.appendChild(surface);
+            fixture.componentRef.setInput('playerSurface', surface);
+            fixture.detectChanges();
+
+            // A click on the viewport, then Tab into the bar within a second:
+            // the press did not land on the focused control, so it is
+            // keyboard navigation and keeps the controls visible.
+            surface.dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            buttons[0].focus();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+            surface.remove();
+        });
+
+        it('releases a keyboard pin when the mouse clicks another bar control', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            // Tab into the bar: pinned.
+            buttons[0].focus();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            // Mouse click on a different control. The focus transfer stays
+            // inside the bar, which focusout ignores by design.
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].focus();
+            buttons[1].click();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
+        it('releases a keyboard pin when the mouse clicks the focused control itself', () => {
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            buttons[0].focus();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            // Clicking the already focused button produces no focus event.
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[0].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[0].click();
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[0]);
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
+        it('pins again when keyboard focus returns to the clicked control within the window', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+
+            // Mouse click on the second control...
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].focus();
+            buttons[1].click();
+            fixture.detectChanges();
+            // ...then Shift+Tab away and Tab back before the press expires.
+            buttons[0].focus();
+            buttons[1].focus();
+            fixture.detectChanges();
+
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[1]);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+        });
+
+        it('pins again after a click on the focused control, Tab away and Shift+Tab back', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            const tab = (shift: boolean) =>
+                document.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'Tab',
+                        shiftKey: shift,
+                        bubbles: true,
+                    })
+                );
+
+            // Keyboard focus on the second control, then a mouse click on
+            // it: no focus event, so the press record is not consumed.
+            buttons[1].focus();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].click();
+            fixture.detectChanges();
+            // Tab to the next control and Shift+Tab back within the window.
+            tab(false);
+            buttons[2].focus();
+            tab(true);
+            buttons[1].focus();
+            fixture.detectChanges();
+
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[1]);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+        });
+
+        it('pins the bar when the keyboard operates a mouse-focused control', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+
+            // Mouse click leaves the control focused but not pinned...
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].focus();
+            buttons[1].click();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            fixture.detectChanges();
+
+            // ...then Space on that control: no focus event, but keyboard use.
+            buttons[1].dispatchEvent(
+                new KeyboardEvent('keydown', { key: ' ', bubbles: true })
+            );
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[1]);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            // Focus leaving the bar releases the pin again.
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
+            outside.focus();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+            outside.remove();
+        });
     });
 
     describe('bar-hover state', () => {

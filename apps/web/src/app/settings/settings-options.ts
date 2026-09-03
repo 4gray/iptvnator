@@ -11,6 +11,7 @@ import {
     SettingsPlayerOption,
     SettingsSection,
     StartupBehaviorOption,
+    StartupWindowModeOption,
     ThemeOption,
 } from './settings.models';
 
@@ -71,6 +72,21 @@ export const SETTINGS_STARTUP_BEHAVIOR_OPTIONS: StartupBehaviorOption[] = [
     {
         value: StartupBehavior.RestoreLastView,
         labelKey: 'SETTINGS.STARTUP_BEHAVIOR_RESTORE_LAST_VIEW',
+    },
+];
+
+export const SETTINGS_STARTUP_WINDOW_MODE_OPTIONS: StartupWindowModeOption[] = [
+    {
+        value: 'normal',
+        labelKey: 'SETTINGS.STARTUP_WINDOW_MODE_NORMAL',
+    },
+    {
+        value: 'maximized',
+        labelKey: 'SETTINGS.STARTUP_WINDOW_MODE_MAXIMIZED',
+    },
+    {
+        value: 'fullscreen',
+        labelKey: 'SETTINGS.STARTUP_WINDOW_MODE_FULLSCREEN',
     },
 ];
 

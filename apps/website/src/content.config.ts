@@ -13,6 +13,8 @@ const blog = defineCollection({
     heroImage: z.string().optional(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
+    /** Rendered as an accordion after the post and emitted as FAQPage JSON-LD. */
+    faq: z.array(z.object({ q: z.string(), a: z.string() })).optional(),
   }),
 });
 

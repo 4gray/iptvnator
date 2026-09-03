@@ -1,6 +1,5 @@
 export * from './player-controls.model';
 export * from './player-controls-defaults';
-export * from './player-fullscreen-surface';
 export * from './subtitle-style';
 export * from './player-controls.component';
 export * from './controls-menu-state';

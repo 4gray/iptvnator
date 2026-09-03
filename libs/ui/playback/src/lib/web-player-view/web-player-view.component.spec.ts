@@ -35,7 +35,6 @@ import {
     getDiagnosticTitleKey,
 } from '../playback-diagnostic-panel/playback-diagnostic-view.util';
 import { StubFullscreenChannelPanelComponent } from './web-player-view.spec-stubs';
-import { PLAYER_FULLSCREEN_SURFACE } from '../player-controls';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -51,6 +50,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 })
 class StubVjsPlayerComponent {
     readonly options = input<unknown>();
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
@@ -70,6 +70,7 @@ class StubVjsPlayerComponent {
 })
 class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
@@ -90,6 +91,7 @@ class StubHtmlVideoPlayerComponent {
 })
 class StubArtPlayerComponent {
     readonly channel = input<unknown>();
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
@@ -110,6 +112,7 @@ class StubArtPlayerComponent {
 })
 class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
@@ -194,18 +197,16 @@ describe('WebPlayerViewComponent', () => {
         expect(fixture.nativeElement.classList).toContain('web-player-view');
     });
 
-    it('offers its host as the shared-controls fullscreen surface and stages the channel panel on it', () => {
+    it('stages the fullscreen channel panel on the same host element the engines fullscreen', () => {
         fixture.detectChanges();
 
-        const surface = fixture.debugElement.injector.get(
-            PLAYER_FULLSCREEN_SURFACE
+        expect(fixture.componentInstance.fullscreenSurface).toBe(
+            fixture.nativeElement
         );
-        expect(surface.element()).toBe(fixture.nativeElement);
-
         const panel = fixture.debugElement.query(
             By.directive(StubFullscreenChannelPanelComponent)
         ).componentInstance as StubFullscreenChannelPanelComponent;
-        expect(panel.stage()).toBe(fixture.nativeElement);
+        expect(panel.stage()).toBe(fixture.componentInstance.fullscreenSurface);
     });
 
     describe('resolvedMediaTitle', () => {
@@ -1092,12 +1093,12 @@ describe('WebPlayerViewComponent', () => {
                     cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01; stb_lang=en_US',
                 }
             );
-            expect(component.channel).toBeUndefined();
+            expect(component.channel()).toBeUndefined();
 
             await fixture.whenStable();
             fixture.detectChanges();
 
-            expect(component.channel.url).toBe(GATED_STREAM_URL);
+            expect(component.channel()?.url).toBe(GATED_STREAM_URL);
         });
 
         it('omits the credentials object when the playback carries none', async () => {
@@ -1140,11 +1141,11 @@ describe('WebPlayerViewComponent', () => {
             // The stale IPC completion must not hand the old source over.
             resolvers[0]();
             await fixture.whenStable();
-            expect(component.channel).toBeUndefined();
+            expect(component.channel()).toBeUndefined();
 
             resolvers[1]();
             await fixture.whenStable();
-            expect(component.channel.url).toBe(
+            expect(component.channel()?.url).toBe(
                 'http://portal.example:8080/live/ch2.ts'
             );
         });

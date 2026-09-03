@@ -107,17 +107,15 @@ describe('content import performance phases', () => {
             )
         ).resolves.toEqual({ success: true, count: 205 });
 
-        expect(harness.transaction).toHaveBeenCalledTimes(3);
-        expect(harness.transactionResults).toEqual([
-            undefined,
-            undefined,
-            undefined,
-        ]);
+        // 205 rows fit one row-budgeted commit made of three 100-row
+        // statements.
+        expect(harness.transaction).toHaveBeenCalledTimes(1);
+        expect(harness.transactionResults).toEqual([undefined]);
         expect(
             harness.values.mock.calls.map(([chunk]) => chunk.length)
         ).toEqual([100, 100, 5]);
         expect(onProgress.mock.calls.map(([value]) => value.current)).toEqual([
-            100, 200, 205,
+            205,
         ]);
         const writeStart = timeline.indexOf(
             'sqlite.content.write-transactions:start'
@@ -164,6 +162,38 @@ describe('content import performance phases', () => {
         ]);
     });
 
+    it('commits 5,000 rows per transaction as fifty 100-row statements', async () => {
+        const timeline: string[] = [];
+        const harness = createContentDb(5100, timeline);
+        const checkpoint = jest.fn();
+        const onProgress = jest.fn();
+
+        await expect(
+            saveContent(harness.db, 'playlist-1', harness.streams, 'live', {
+                checkpoint,
+                onProgress,
+            })
+        ).resolves.toEqual({ success: true, count: 5100 });
+
+        expect(harness.transaction).toHaveBeenCalledTimes(2);
+        expect(harness.values).toHaveBeenCalledTimes(51);
+        expect(checkpoint).toHaveBeenCalledTimes(4);
+        expect(onProgress.mock.calls.map(([value]) => value)).toEqual([
+            {
+                phase: 'saving-content',
+                current: 5000,
+                total: 5100,
+                increment: 5000,
+            },
+            {
+                phase: 'saving-content',
+                current: 5100,
+                total: 5100,
+                increment: 100,
+            },
+        ]);
+    });
+
     it('closes the aggregate write phase on cancellation without changing the error', async () => {
         const timeline: string[] = [];
         const recording = createRecordingOperationPhaseCapture();
@@ -195,9 +225,14 @@ describe('content import performance phases', () => {
         });
     });
 
-    it('captures cache deletion as one pair across content and category chunks', async () => {
+    it('captures cache deletion as one pair across content groups and categories', async () => {
         const categoryRows = Array.from({ length: 150 }, (_, id) => ({ id }));
-        const contentRows = Array.from({ length: 205 }, (_, id) => ({ id }));
+        // 205 content rows counted over three of the categories.
+        const contentRowCounts = [
+            { categoryId: 0, rowCount: 100 },
+            { categoryId: 1, rowCount: 100 },
+            { categoryId: 2, rowCount: 5 },
+        ];
         const select = jest
             .fn()
             .mockReturnValueOnce({
@@ -207,10 +242,16 @@ describe('content import performance phases', () => {
             })
             .mockReturnValueOnce({
                 from: jest.fn(() => ({
-                    where: jest.fn().mockResolvedValue(contentRows),
+                    innerJoin: jest.fn(() => ({
+                        where: jest.fn(() => ({
+                            groupBy: jest
+                                .fn()
+                                .mockResolvedValue(contentRowCounts),
+                        })),
+                    })),
                 })),
             });
-        const run = jest.fn();
+        const run = jest.fn(() => ({ changes: 1 }));
         const deleteRows = jest.fn(() => ({
             where: jest.fn(() => ({ run })),
         }));
@@ -227,7 +268,8 @@ describe('content import performance phases', () => {
             recording.capture
         );
 
-        expect(transaction).toHaveBeenCalledTimes(5);
+        // One row-budgeted content group, then the categories.
+        expect(transaction).toHaveBeenCalledTimes(2);
         expect(recording.events).toEqual([
             {
                 boundary: 'start',

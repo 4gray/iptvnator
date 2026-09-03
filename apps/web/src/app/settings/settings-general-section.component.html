@@ -144,6 +144,42 @@
         </div>
     </div>
 
+    @if (supportsStartupWindowMode()) {
+        <div class="setting-item" data-test-id="startup-window-mode-setting">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.STARTUP_WINDOW_MODE' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.STARTUP_WINDOW_MODE_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{
+                        'SETTINGS.STARTUP_WINDOW_MODE' | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="startupWindowMode"
+                        data-test-id="select-startup-window-mode"
+                    >
+                        @for (
+                            option of startupWindowModeOptions();
+                            track option.value
+                        ) {
+                            <mat-option
+                                [value]="option.value"
+                                [attr.data-test-id]="
+                                    'startup-window-mode-' + option.value
+                                "
+                            >
+                                {{ option.labelKey | translate }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+    }
+
     <div class="setting-item">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.SHOW_CAPTIONS' | translate }}</h4>

@@ -146,6 +146,36 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().stripCountryPrefix).toBe(false);
     });
 
+    it('defaults the startup window mode to normal when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().startupWindowMode).toBe('normal');
+    });
+
+    it('restores a persisted fullscreen startup window mode', async () => {
+        storedSettings = { startupWindowMode: 'fullscreen' };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().startupWindowMode).toBe('fullscreen');
+    });
+
+    it('normalizes a persisted unknown startup window mode to normal', async () => {
+        storedSettings = {
+            startupWindowMode:
+                'kiosk' as unknown as Settings['startupWindowMode'],
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().startupWindowMode).toBe('normal');
+    });
+
     it('defaults ambient player mode to false when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);

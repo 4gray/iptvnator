@@ -1,5 +1,10 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
-import { signal } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    signal,
+    type Type,
+} from '@angular/core';
 import {
     ComponentFixture,
     DeferBlockBehavior,
@@ -279,6 +284,109 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         expect(retriedVjsPlayer.interactionEnabled()).toBe(true);
     });
 
+    it('renders the engine when the Electron header handoff lands after the mounting pass under an OnPush host', async () => {
+        // Electron hands the source over inside the setUserAgent promise,
+        // i.e. after the change-detection pass that mounted the application.
+        // Real hosts (PortalInlinePlayerComponent) are OnPush, so nothing
+        // re-checks this view on its own — the handoff has to mark it. It
+        // used to ride on the fullscreen exit's stage resize on every episode
+        // switch, which the host-owned fullscreen removed.
+        // Every apply gets its own pending promise: a superseded apply (the
+        // view can restart the application while settling) must resolve too,
+        // and only the newest one hands the source over.
+        const resolvers: Array<(value: boolean) => void> = [];
+        const setUserAgent = jest.fn(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    resolvers.push(resolve);
+                })
+        );
+        (window as unknown as { electron?: unknown }).electron = {
+            setUserAgent,
+        };
+        const RootHostComponent = createOnPushHostTree(WebPlayerViewComponent, {
+            streamUrl: 'https://example.com/episode-1.mp4',
+            title: 'Episode 1',
+            contentInfo: createVodContentInfo(),
+        });
+        const hostFixture = TestBed.createComponent(RootHostComponent);
+        try {
+            // Let the @defer block settle first: its completion marks the
+            // tree for refresh on its own, which would mask the bug if the
+            // header promise resolved in the same microtask flush.
+            hostFixture.detectChanges();
+            await hostFixture.whenStable();
+            hostFixture.detectChanges();
+            expect(setUserAgent).toHaveBeenCalled();
+            expect(
+                hostFixture.debugElement.query(
+                    By.directive(StubVjsPlayerComponent)
+                )
+            ).toBeNull();
+
+            for (const resolve of resolvers.splice(0)) {
+                resolve(true);
+            }
+            await hostFixture.whenStable();
+            hostFixture.detectChanges();
+
+            expect(
+                hostFixture.debugElement.query(
+                    By.directive(StubVjsPlayerComponent)
+                )
+            ).not.toBeNull();
+        } finally {
+            hostFixture.destroy();
+            delete (window as unknown as { electron?: unknown }).electron;
+        }
+    });
+
+    it.each([
+        [
+            'HTML5',
+            () => renderHtmlPlayer({ contentInfo: createVodContentInfo() }),
+        ],
+        [
+            'Video.js',
+            () => renderVjsPlayer({ contentInfo: createVodContentInfo() }),
+        ],
+        [
+            'ArtPlayer',
+            () => renderArtPlayer({ contentInfo: createVodContentInfo() }),
+        ],
+    ])(
+        'keeps the host as the one fullscreen owner across a %s application remount',
+        async (_engine, renderPlayer) => {
+            const player = await renderPlayer();
+            const host = fixture.nativeElement as HTMLElement;
+            expect(player.fullscreenTarget()).toBe(host);
+
+            // The next episode is a new playback object, which remounts the
+            // engine component (new application token). The fullscreen owner
+            // must not be that component, or the Fullscreen API would exit
+            // the moment the old shell leaves the document.
+            setPlayback(
+                {
+                    contentInfo: {
+                        ...createVodContentInfo(),
+                        contentXtreamId: 124,
+                    },
+                },
+                'https://example.com/episode-2.mp4'
+            );
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const remounted = fixture.debugElement.query(
+                By.directive(player.constructor as never)
+            ).componentInstance as { fullscreenTarget(): HTMLElement | null };
+            expect(remounted).not.toBe(player);
+            expect(remounted.fullscreenTarget()).toBe(host);
+            expect(host.isConnected).toBe(true);
+        }
+    );
+
     it.each([
         ['inferred VOD', { contentInfo: createVodContentInfo() }, false],
         [
@@ -294,14 +402,14 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
 
             fixture.detectChanges();
 
-            expect(component.vjsOptions).toEqual(
+            expect(component.vjsOptions()).toEqual(
                 expect.objectContaining({ isLive: expected, reloadToken: 0 })
             );
 
             component.retryPlayback();
             fixture.detectChanges();
 
-            expect(component.vjsOptions).toEqual(
+            expect(component.vjsOptions()).toEqual(
                 expect.objectContaining({ isLive: expected, reloadToken: 1 })
             );
         }
@@ -391,4 +499,37 @@ function createNetworkDiagnostic(): PlaybackDiagnostic {
         audioCodecs: [],
         videoCodecs: [],
     };
+}
+
+/**
+ * Root (default CD) → OnPush middle → app-web-player-view. `detectChanges()`
+ * on the root refreshes the root itself unconditionally, so the OnPush layer
+ * has to sit in between for the "not dirty, skipped" case to exist.
+ */
+function createOnPushHostTree(
+    WebPlayerView: Type<unknown>,
+    playback: ResolvedPortalPlayback
+): Type<unknown> {
+    @Component({
+        selector: 'app-onpush-player-host',
+        imports: [WebPlayerView],
+        changeDetection: ChangeDetectionStrategy.OnPush,
+        template: `<app-web-player-view
+            playbackSessionKey="onpush-host"
+            [streamUrl]="playback.streamUrl"
+            [playback]="playback"
+        />`,
+    })
+    class OnPushPlayerHostComponent {
+        readonly playback = playback;
+    }
+
+    @Component({
+        selector: 'app-root-player-host',
+        imports: [OnPushPlayerHostComponent],
+        template: '<app-onpush-player-host />',
+    })
+    class RootPlayerHostComponent {}
+
+    return RootPlayerHostComponent;
 }

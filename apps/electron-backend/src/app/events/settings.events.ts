@@ -1,10 +1,14 @@
 import { ipcMain } from 'electron';
-import { normalizeExternalPlayerArguments } from '@iptvnator/shared/interfaces';
+import {
+    normalizeExternalPlayerArguments,
+    normalizeStartupWindowMode,
+} from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
+    STARTUP_WINDOW_MODE,
     store,
     VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE,
@@ -45,6 +49,16 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     // Applied on the next app start (window sandbox is fixed at creation).
     if (arg.embeddedMpvFrameCopy !== undefined) {
         store.set(EMBEDDED_MPV_FRAME_COPY, !!arg.embeddedMpvFrameCopy);
+    }
+
+    // Read by initMainWindow before any renderer exists, so it applies on
+    // the next launch. Normalized here so a junk value never reaches the
+    // config file.
+    if (arg.startupWindowMode !== undefined) {
+        store.set(
+            STARTUP_WINDOW_MODE,
+            normalizeStartupWindowMode(arg.startupWindowMode)
+        );
     }
 
     if (arg.vlcReuseInstance !== undefined) {

@@ -1,32 +1,72 @@
 {
     "version": 1,
-    "viewport": { "width": 1280, "height": 720 },
-    "themes": ["dark", "light"],
+    "viewport": {
+        "width": 1280,
+        "height": 720
+    },
+    "themes": [
+        "dark",
+        "light"
+    ],
     "shots": [
         {
             "slug": "dashboard",
             "title": "Dashboard",
-            "setup": ["open-dashboard"]
+            "setup": [
+                "open-dashboard"
+            ]
         },
         {
             "slug": "settings",
             "title": "Settings",
-            "setup": ["open-settings"]
+            "setup": [
+                "open-settings"
+            ]
         },
         {
             "slug": "xtream-vod-details",
             "title": "Movie details",
-            "setup": ["open-xtream-vod=Action & Mystery"]
+            "setup": [
+                "open-xtream-vod=Action & Mystery"
+            ]
         },
         {
             "slug": "xtream-series-season-open",
             "title": "Series season view",
-            "setup": ["open-xtream-series=Urban Drama"]
+            "setup": [
+                "open-xtream-series=Urban Drama"
+            ]
         },
         {
             "slug": "m3u-live-groups-two-column",
             "title": "Live TV groups",
-            "setup": ["open-m3u-groups"]
+            "setup": [
+                "open-m3u-groups"
+            ]
+        },
+        {
+            "slug": "guide-xtream-add-playlist",
+            "title": "Add playlist: Xtream credentials",
+            "group": "guides",
+            "setup": [
+                "open-add-playlist-xtream"
+            ]
+        },
+        {
+            "slug": "guide-xtream-auto-detect",
+            "title": "Add playlist: Auto-detect",
+            "group": "guides",
+            "setup": [
+                "open-add-playlist-auto"
+            ]
+        },
+        {
+            "slug": "guide-xtream-live",
+            "title": "Xtream Live TV",
+            "group": "guides",
+            "setup": [
+                "open-xtream-live"
+            ]
         }
     ]
 }

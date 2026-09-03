@@ -81,7 +81,13 @@ describe('ArtPlayerComponent', () => {
             },
         });
 
-        getCustomType('video/matroska')(
+        // The mkv channel must reach the session's native custom type: an
+        // unregistered `type` would fall to ArtPlayer's bare `video.src`.
+        expect(artPlayerInstances[0].options['type']).toBe('native');
+        expect(
+            Object.keys(artPlayerInstances[0].options['customType'] as object)
+        ).toContain('native');
+        getCustomType('native')(
             artPlayerInstances[0].video,
             'https://example.com/archive/movie.mkv'
         );

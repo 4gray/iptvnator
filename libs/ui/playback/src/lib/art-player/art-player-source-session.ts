@@ -23,6 +23,7 @@ import {
 } from '../web-video-support/web-video-source-controls.bridge';
 import { WebVideoSourceTracks } from '../web-video-support/web-video-source-tracks';
 import { addHlsAudioTrackSettings } from './art-player-audio-tracks';
+import { ART_PLAYER_NATIVE_SOURCE_TYPE } from './art-player-setup';
 
 export interface ArtPlayerSourceSessionConfig {
     sharedControls: boolean;
@@ -48,7 +49,8 @@ export class ArtPlayerSourceSession {
         m3u8: (video, url, art) => this.startHls(video, url, art),
         mpd: (video, url) => this.startDash(video, url),
         ts: (video, url) => this.startMpegTs(video, url),
-        'video/matroska': (video, url) => this.startNative(video, url),
+        [ART_PLAYER_NATIVE_SOURCE_TYPE]: (video, url) =>
+            this.startNative(video, url),
     };
 
     private player: Artplayer | null = null;
