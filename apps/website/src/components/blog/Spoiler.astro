@@ -16,7 +16,7 @@ const { title = 'Show spoiler', open = false } = Astro.props;
       {title}
     </span>
   </summary>
-  <div class="mt-3 border-t border-dashed border-surface-700/60 pt-3 text-sm leading-relaxed text-surface-300 [&_p]:my-2">
+  <div class="mt-3 border-t border-dashed border-surface-700/60 pt-3 text-sm leading-relaxed text-surface-300 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-1.5 [&_li]:marker:text-surface-600 [&_a]:text-accent-400 [&_a:hover]:underline [&_strong]:font-semibold [&_strong]:text-surface-100 [&_code]:rounded [&_code]:bg-surface-800/50 [&_code]:px-1 [&_code]:font-mono [&_code]:text-accent-300">
     <slot />
   </div>
 </details>

@@ -2,6 +2,7 @@ import {
     CoverSize,
     EpgViewMode,
     StartupBehavior,
+    StartupWindowMode,
     Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
@@ -21,6 +22,11 @@ export interface ThemeOption {
 
 export interface StartupBehaviorOption {
     value: StartupBehavior;
+    labelKey: string;
+}
+
+export interface StartupWindowModeOption {
+    value: StartupWindowMode;
     labelKey: string;
 }
 

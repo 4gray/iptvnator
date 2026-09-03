@@ -4,10 +4,14 @@
  *   pnpm release:screenshots                      # release slug from package.json
  *   pnpm release:screenshots --release v0-24      # explicit
  *   pnpm release:screenshots --only dashboard --theme dark
+ *   pnpm release:screenshots --group guides       # evergreen guide shots
  *
  * Reads tools/release/screenshots.manifest.json and writes
  * apps/website/public/blog/<release>/screenshots/<slug>-<theme>.png against
- * dist builds + the xtream mock server. Guards (screenshot-guards.mjs):
+ * dist builds + the xtream mock server. Shots carrying a `group` (for
+ * example `guides`) are skipped by a release run and land in
+ * apps/website/public/blog/<group>/screenshots/ when that group is selected.
+ * Guards (screenshot-guards.mjs):
  *
  *   G1  the real ~/.iptvnator/databases directory — including the SQLite WAL
  *       sidecars, compared after Electron exits and checkpoints — is proven
@@ -30,6 +34,7 @@ import process from 'node:process';
 import type { Page } from '@playwright/test';
 
 import {
+    DEFAULT_SHOT_GROUP,
     buildCaptureEnv,
     compareDatabaseStates,
     evaluateFrameReport,
@@ -37,8 +42,10 @@ import {
     HOST_RESOLVER_RULES,
     isAllowedRequestUrl,
     networkPolicy,
+    outputDirectoryFor,
     parseSetupStep,
     publishDirectory,
+    shotGroup,
     snapshotDatabaseState,
     stubbedResponseFor,
     validateManifest,
@@ -90,14 +97,26 @@ async function main(): Promise<void> {
         throw new Error(`--release rejected: ${releaseError}`);
     }
 
+    const group = flag('group') ?? DEFAULT_SHOT_GROUP;
+    const groupError = validateReleaseSlug(group);
+
+    if (groupError) {
+        throw new Error(`--group rejected: ${groupError}`);
+    }
+
     const only = flag('only');
     const themeFilter = flag('theme');
     const shots = manifest.shots.filter(
-        (shot: { slug: string }) => !only || shot.slug === only
+        (shot: { slug: string; group?: string }) =>
+            shotGroup(shot) === group && (!only || shot.slug === only)
     );
 
     if (shots.length === 0) {
-        throw new Error(`--only ${only} matches no manifest slug`);
+        throw new Error(
+            only
+                ? `--only ${only} matches no manifest slug in group ${group}`
+                : `--group ${group} matches no manifest shots`
+        );
     }
 
     // Without this an erased cast would accept `--theme --only`, and every
@@ -112,7 +131,7 @@ async function main(): Promise<void> {
         ? [themeFilter as Theme]
         : manifest.themes;
     const blogRoot = path.join(workspaceRoot, 'apps/website/public/blog');
-    const outputRoot = path.join(blogRoot, release, 'screenshots');
+    const outputRoot = outputDirectoryFor({ blogRoot, group, release });
 
     // Belt and braces: the slug is validated above, but assert the resolved
     // path really lands inside the blog tree before anything deletes there.

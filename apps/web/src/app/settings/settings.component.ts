@@ -37,6 +37,7 @@ import {
     SETTINGS_COVER_SIZE_OPTIONS,
     SETTINGS_EPG_VIEW_MODE_OPTIONS,
     SETTINGS_STARTUP_BEHAVIOR_OPTIONS,
+    SETTINGS_STARTUP_WINDOW_MODE_OPTIONS,
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
@@ -140,6 +141,7 @@ export class SettingsComponent
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
+    readonly supportsStartupWindowMode = this.runtime.supportsStartupWindowMode;
 
     /** Settings form object */
     readonly settingsForm = this.form.form;
@@ -158,6 +160,7 @@ export class SettingsComponent
     readonly themeOptions = SETTINGS_THEME_OPTIONS;
     readonly coverSizeOptions = SETTINGS_COVER_SIZE_OPTIONS;
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
+    readonly startupWindowModeOptions = SETTINGS_STARTUP_WINDOW_MODE_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({

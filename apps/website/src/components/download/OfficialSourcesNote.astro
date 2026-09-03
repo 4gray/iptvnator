@@ -1,0 +1,23 @@
+---
+import { LATEST_RELEASE_URL } from '../../lib/downloads';
+---
+
+<div class="rounded-xl border border-dashed border-amber-500/35 bg-amber-500/[0.07] p-5 sm:p-6">
+  <div class="flex items-start gap-3">
+    <span class="mt-0.5 text-amber-300" aria-hidden="true">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3h.008M4.5 19.5h15a2 2 0 001.73-3L13.73 4.5a2 2 0 00-3.46 0L2.77 16.5a2 2 0 001.73 3z" />
+      </svg>
+    </span>
+    <div class="min-w-0 text-sm leading-relaxed text-surface-200">
+      <p class="font-semibold text-amber-200">Official downloads only</p>
+      <p class="mt-1.5">
+        IPTVnator is a player, not a TV service. It is distributed exclusively through{' '}
+        <a href={LATEST_RELEASE_URL} class="text-accent-300 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-200">GitHub releases</a>{' '}
+        and the package managers listed on this page. Websites that sell "IPTVnator subscriptions", channel packages or
+        "activated" copies are not affiliated with the project.{' '}
+        <a href="/iptvnator/blog/beware-unofficial-iptvnator-websites/" class="text-accent-300 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-200">How to recognize unofficial sites.</a>
+      </p>
+    </div>
+  </div>
+</div>

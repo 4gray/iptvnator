@@ -837,7 +837,128 @@ test.describe('Electron Settings', () => {
         }
     });
 
+    test('@settings @persistence @electron launches fullscreen once the startup window mode is saved and toggles it with F11', async ({
+        dataDir,
+    }) => {
+        let app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('startup-window-mode-setting')
+            ).toBeVisible();
+            await selectSettingsOption(
+                app.mainWindow,
+                'select-startup-window-mode',
+                'startup-window-mode-fullscreen'
+            );
+            await saveSettings(app.mainWindow);
+
+            // The mode is read when the window is created, so saving it
+            // leaves the running window alone.
+            expect(await isMainWindowFullScreen(app)).toBe(false);
+        } finally {
+            app = await restartElectronApp(app, dataDir);
+        }
+
+        try {
+            await expect
+                .poll(() => isMainWindowFullScreen(app), { timeout: 10_000 })
+                .toBe(true);
+            await openSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('select-startup-window-mode')
+            ).toContainText(/Fullscreen/);
+
+            // F11 is the way out on Windows/Linux, where the title bar is
+            // hidden and the custom window controls hide while fullscreen.
+            await app.mainWindow.keyboard.press('F11');
+            await expect
+                .poll(() => isMainWindowFullScreen(app), { timeout: 10_000 })
+                .toBe(false);
+
+            await app.mainWindow.keyboard.press('F11');
+            await expect
+                .poll(() => isMainWindowFullScreen(app), { timeout: 10_000 })
+                .toBe(true);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@settings @electron --fullscreen forces one fullscreen launch without persisting it', async ({
+        dataDir,
+    }) => {
+        let app = await launchElectronApp(dataDir, {
+            appArgs: ['--fullscreen'],
+        });
+
+        try {
+            await expect
+                .poll(() => isMainWindowFullScreen(app), { timeout: 10_000 })
+                .toBe(true);
+        } finally {
+            app = await restartElectronApp(app, dataDir);
+        }
+
+        try {
+            // The switch is a one-shot: the next plain launch follows the
+            // stored setting, which is still the default.
+            expect(await isMainWindowFullScreen(app)).toBe(false);
+            await openSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('select-startup-window-mode')
+            ).toContainText(/Last window size/);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@settings @persistence @electron launches maximized when the startup window mode says so', async ({
+        dataDir,
+    }) => {
+        test.skip(
+            process.platform === 'linux' && !!process.env['CI'],
+            'xvfb on Linux CI has no window manager, so maximize never takes effect'
+        );
+        let app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await selectSettingsOption(
+                app.mainWindow,
+                'select-startup-window-mode',
+                'startup-window-mode-maximized'
+            );
+            await saveSettings(app.mainWindow);
+        } finally {
+            app = await restartElectronApp(app, dataDir);
+        }
+
+        try {
+            await expect
+                .poll(
+                    () =>
+                        app.electronApp.evaluate(({ BrowserWindow }) => {
+                            const mainWindow = BrowserWindow.getAllWindows()[0];
+                            return mainWindow ? mainWindow.isMaximized() : false;
+                        }),
+                    { timeout: 10_000 }
+                )
+                .toBe(true);
+            expect(await isMainWindowFullScreen(app)).toBe(false);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });
+
+function isMainWindowFullScreen(app: LaunchedElectronApp): Promise<boolean> {
+    return app.electronApp.evaluate(({ BrowserWindow }) => {
+        const mainWindow = BrowserWindow.getAllWindows()[0];
+        return mainWindow ? mainWindow.isFullScreen() : false;
+    });
+}
 
 async function selectSettingsOption(
     page: Page,

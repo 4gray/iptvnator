@@ -1,0 +1,153 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import { LATEST_RELEASE_URL, REPO_URL, formatAssetSize, formatReleaseDate, getLatestRelease, resolveDownloads } from '../../lib/downloads';
+import { DOWNLOAD_PLATFORMS, PLATFORM_ICON_PATHS, PLATFORM_LABELS, PLATFORM_PAGES } from '../../lib/platforms';
+import { absoluteUrl } from '../../lib/site';
+
+const release = await getLatestRelease();
+const releaseDate = formatReleaseDate(release.publishedAt);
+const pageUrl = absoluteUrl('/download/');
+
+const platformSummaries = {
+  windows: 'Installer for Windows 10 and 11, 64-bit.',
+  macos: 'Disk images for Apple Silicon and Intel, signed and notarized. Also on Homebrew.',
+  linux: 'AppImage, .deb, .rpm, pacman, Flatpak and Snap for x86_64 and ARM.',
+} as const;
+
+const cards = DOWNLOAD_PLATFORMS.map((platform) => {
+  const downloads = resolveDownloads(release, platform);
+  const primary = downloads.find((download) => download.recommended) ?? downloads[0];
+  return {
+    platform,
+    label: PLATFORM_LABELS[platform],
+    href: PLATFORM_PAGES[platform],
+    summary: platformSummaries[platform],
+    primaryName: primary?.fileName ?? null,
+    primarySize: primary ? formatAssetSize(primary.size) : null,
+  };
+});
+
+const title = 'Download IPTVnator – Windows, macOS and Linux';
+const description =
+  'Download IPTVnator, the free open-source IPTV player, for Windows, macOS and Linux. Direct installers, Homebrew, Snap, AUR and a self-hosted browser version.';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'IPTVnator',
+    applicationCategory: 'MultimediaApplication',
+    applicationSubCategory: 'IPTV player',
+    operatingSystem: 'Windows, macOS, Linux',
+    softwareVersion: release.version,
+    url: pageUrl,
+    downloadUrl: LATEST_RELEASE_URL,
+    isAccessibleForFree: true,
+    license: `${REPO_URL}/blob/master/LICENSE`,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    author: { '@type': 'Person', name: '4gray', url: 'https://github.com/4gray' },
+    description,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'IPTVnator', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Download', item: pageUrl },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTVnator download', 'IPTV player download', 'IPTV player Windows', 'IPTV player Mac', 'IPTV player Linux', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <section class="relative overflow-hidden pt-36 pb-16 sm:pt-40">
+    <div class="pointer-events-none absolute top-0 left-1/2 h-[520px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-accent-500/[0.06] blur-[120px]"></div>
+
+    <div class="relative mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-2xl text-center">
+        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Download</span>
+        <h1 class="mt-4 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
+          Get <em class="font-medium text-accent-400" style="font-style: italic;">IPTVnator</em>
+        </h1>
+        <p class="mt-6 text-lg leading-relaxed text-surface-400">
+          Pick your operating system for a direct download, install steps and the answers to the usual questions.
+          Every build comes from the same GitHub release.
+        </p>
+        <p class="mt-5 font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">
+          Version {release.version}
+          {releaseDate && <span> · Released {releaseDate}</span>}
+          <span> · </span>
+          <a href={release.url} class="text-surface-400 underline decoration-surface-600 underline-offset-4 transition-colors hover:text-accent-400">Release notes</a>
+        </p>
+      </div>
+
+      <div class="mt-14 grid gap-5 md:grid-cols-3">
+        {cards.map((card) => (
+          <a href={card.href} class="card-dotted group flex flex-col p-7">
+            <div class="flex items-center gap-3">
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-300 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
+                <svg class="h-5 w-5 text-accent-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d={PLATFORM_ICON_PATHS[card.platform]} />
+                </svg>
+              </span>
+              <h2 class="font-display text-xl font-bold tracking-tight text-surface-50">{card.label}</h2>
+            </div>
+            <p class="mt-4 flex-1 text-sm leading-relaxed text-surface-400">{card.summary}</p>
+            {card.primaryName && (
+              <p class="mt-5 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500" title={card.primaryName}>
+                {card.primarySize && <span class="text-surface-300">{card.primarySize} · </span>}
+                {card.primaryName}
+              </p>
+            )}
+            <span class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.1em] text-accent-500 transition-colors group-hover:text-accent-400">
+              Download for {card.label}
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="relative py-20">
+    <hr class="section-divider mb-20" />
+    <div class="mx-auto max-w-6xl px-6">
+      <div class="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div>
+          <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Package managers</span>
+          <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl">
+            One command <em class="font-medium text-accent-400" style="font-style: italic;">instead</em>
+          </h2>
+          <p class="mt-4 text-lg text-surface-400">
+            Homebrew, the Snap Store and the AUR track every release. The self-hosted browser version runs from a
+            single Docker image for devices that cannot install the desktop app.
+          </p>
+          <p class="mt-6 text-sm text-surface-500">
+            Browser version:{' '}
+            <a href={`${REPO_URL}/blob/master/docker/README.md`} class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300" rel="noopener">
+              self-host it with Docker
+            </a>
+          </p>
+        </div>
+        <div>
+          <CopyCommand title="Homebrew (macOS)" command="brew install --cask iptvnator" />
+          <CopyCommand title="Snap Store (Linux)" command="sudo snap install iptvnator" />
+          <CopyCommand title="AUR (Arch Linux)" command="yay -S iptvnator-bin" />
+        </div>
+      </div>
+
+      <div class="mt-16">
+        <OfficialSourcesNote />
+      </div>
+    </div>
+  </section>
+</BaseLayout>

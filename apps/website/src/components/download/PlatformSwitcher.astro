@@ -1,0 +1,41 @@
+---
+import { DOWNLOAD_PLATFORMS, PLATFORM_ICON_PATHS, PLATFORM_LABELS, PLATFORM_PAGES } from '../../lib/platforms';
+import type { DownloadPlatform } from '../../lib/platforms';
+
+interface Props {
+  current?: DownloadPlatform;
+}
+
+const { current } = Astro.props;
+const others = DOWNLOAD_PLATFORMS.filter((platform) => platform !== current);
+---
+
+<section class="relative py-20">
+  <hr class="section-divider mb-20" />
+
+  <div class="mx-auto max-w-6xl px-6">
+    <div class="flex flex-col items-start gap-8 md:flex-row md:items-center md:justify-between">
+      <div>
+        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Other platforms</span>
+        <h2 class="mt-3 font-display text-2xl font-bold tracking-tight text-surface-50 sm:text-3xl">
+          Also available for{' '}
+          <em class="font-medium text-accent-400" style="font-style: italic;">{others.map((platform) => PLATFORM_LABELS[platform]).join(' and ')}</em>
+        </h2>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        {others.map((platform) => (
+          <a href={PLATFORM_PAGES[platform]} class="card-dotted group flex items-center gap-3 px-5 py-3">
+            <svg class="h-5 w-5 text-surface-500 transition-colors duration-200 group-hover:text-accent-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d={PLATFORM_ICON_PATHS[platform]} />
+            </svg>
+            <span class="text-sm font-semibold text-surface-100">IPTVnator for {PLATFORM_LABELS[platform]}</span>
+          </a>
+        ))}
+        <a href="/iptvnator/download/" class="card-dotted flex items-center px-5 py-3 text-sm font-semibold text-surface-300 hover:text-accent-400">
+          All downloads
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

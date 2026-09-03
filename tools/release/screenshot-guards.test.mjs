@@ -25,6 +25,9 @@ import {
     parseSetupStep,
     snapshotDatabaseState,
     stubbedResponseFor,
+    DEFAULT_SHOT_GROUP,
+    outputDirectoryFor,
+    shotGroup,
     validateManifest,
     validateReleaseSlug,
 } from './screenshot-guards.mjs';
@@ -100,6 +103,61 @@ describe('manifest validation', () => {
         );
         assert.ok(
             validateManifest({ version: 1, themes: ['dark', 'light'] }).length > 0
+        );
+    });
+
+    it('accepts guide shots that name a group and the actions they use', () => {
+        const manifest = validManifest();
+        manifest.shots.push(
+            {
+                slug: 'guide-xtream-add-playlist',
+                title: 'Add playlist',
+                group: 'guides',
+                setup: ['open-add-playlist-xtream'],
+            },
+            {
+                slug: 'guide-xtream-auto-detect',
+                title: 'Auto-detect',
+                group: 'guides',
+                setup: ['open-add-playlist-auto'],
+            },
+            {
+                slug: 'guide-xtream-live',
+                title: 'Live TV',
+                group: 'guides',
+                setup: ['open-xtream-live=News'],
+            }
+        );
+
+        assert.deepEqual(validateManifest(manifest), []);
+    });
+
+    it('rejects a group that is not a lowercase slug', () => {
+        const manifest = validManifest();
+        manifest.shots.push({
+            slug: 'guide',
+            title: 'x',
+            group: '../v0-24',
+            setup: ['open-dashboard'],
+        });
+
+        assert.ok(
+            validateManifest(manifest).some((error) =>
+                /group must be a lowercase slug/.test(error)
+            )
+        );
+    });
+
+    it('routes release shots by release and grouped shots by group', () => {
+        assert.equal(shotGroup({ slug: 'dashboard' }), DEFAULT_SHOT_GROUP);
+        assert.equal(shotGroup({ slug: 'guide', group: 'guides' }), 'guides');
+        assert.equal(
+            outputDirectoryFor({ blogRoot: '/blog', group: DEFAULT_SHOT_GROUP, release: 'v0-24' }),
+            path.join('/blog', 'v0-24', 'screenshots')
+        );
+        assert.equal(
+            outputDirectoryFor({ blogRoot: '/blog', group: 'guides', release: 'v0-24' }),
+            path.join('/blog', 'guides', 'screenshots')
         );
     });
 

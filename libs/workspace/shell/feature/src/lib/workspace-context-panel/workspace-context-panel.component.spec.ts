@@ -534,7 +534,7 @@ describe('WorkspaceContextPanelComponent', () => {
         );
     });
 
-    it('labels Stalker radio categories and keeps category selection in the radio layout', () => {
+    it('labels Stalker radio categories and keeps the playing station on a category click', () => {
         fixture.componentRef.setInput('context', {
             provider: 'stalker',
             playlistId: 'stalker-1',
@@ -558,8 +558,70 @@ describe('WorkspaceContextPanelComponent', () => {
 
         expect(stalkerStore.setSelectedCategory).toHaveBeenCalledWith('*');
         expect(stalkerStore.setPage).toHaveBeenCalledWith(0);
-        expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
+        // The radio layout renders its audio player only while the store has
+        // a selected item — clearing it here would silence the station.
+        expect(stalkerStore.clearSelectedItem).not.toHaveBeenCalled();
         expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('preserves the playing Stalker ITV channel when switching live categories', () => {
+        // Regression: the click handler used to clearSelectedItem() for every
+        // Stalker section. The live layout gates its player on selectedItem,
+        // so a category switch in the sidebar stopped a channel the user never
+        // switched away from — unlike Xtream live (#936) and M3U groups.
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'itv');
+        stalkerStore.getCategoryResource.set([
+            { category_id: '*', category_name: 'All channels' },
+            { category_id: '7', category_name: 'Sports' },
+        ]);
+        fixture.detectChanges();
+
+        const categoryButtons = Array.from(
+            fixture.nativeElement.querySelectorAll('.category-item')
+        ) as HTMLButtonElement[];
+
+        categoryButtons[1]?.click();
+
+        expect(stalkerStore.setSelectedCategory).toHaveBeenCalledWith('7');
+        expect(stalkerStore.setPage).toHaveBeenCalledWith(0);
+        expect(stalkerStore.clearSelectedItem).not.toHaveBeenCalled();
+        expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('still closes the open Stalker detail when switching VOD categories', () => {
+        // VOD/series category clicks navigate to a list route, so the open
+        // detail must be dropped there — the live exemption is deliberate and
+        // narrow.
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        stalkerStore.getCategoryResource.set([
+            { category_id: '*', category_name: 'All movies' },
+            { category_id: '7', category_name: 'Action' },
+        ]);
+        fixture.detectChanges();
+
+        const categoryButtons = Array.from(
+            fixture.nativeElement.querySelectorAll('.category-item')
+        ) as HTMLButtonElement[];
+
+        categoryButtons[1]?.click();
+
+        expect(stalkerStore.setSelectedCategory).toHaveBeenCalledWith('7');
+        expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
+        expect(router.navigate).toHaveBeenCalledWith([
+            '/workspace',
+            'stalker',
+            'stalker-1',
+            'vod',
+            '7',
+        ]);
     });
 
     describe('Stalker category error description', () => {

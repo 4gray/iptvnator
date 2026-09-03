@@ -203,6 +203,29 @@ Key files:
   `PortalInlinePlayerComponent.seriesTitle` and `WebPlayerViewComponent.mediaTitle`;
   movie and live hosts fall back to `playback.title`, skipping raw stream-URL
   fallbacks. Outside fullscreen the overlay stays hidden.
+- Auto-hide pauses while the pointer is over the controls bar or keyboard
+  focus is inside it, but only keyboard-originated focus pins the bar open.
+  Chromium also focuses a clicked `<button>`, so
+  `ControlsSurface.wasPointerInteraction` attributes a `focusin` to a recent
+  `pointerdown` inside the focused element; such focus reveals without
+  blocking auto-hide (otherwise the fullscreen button left the controls on
+  screen until a click-to-pause on the viewport). The press record is
+  discarded on the first bar focus event it is asked about or on any
+  `keydown`, a `pointerdown` inside the bar releases a keyboard pin, and a
+  `keydown` bubbling out of a bar control re-pins it, since operating a
+  focused control produces no focus event. A completed pointer click then
+  releases the focus it left on the control (`onBarClick` →
+  `ControlsSurface.releasePointerFocus`, attributed by `wasPointerClick`:
+  non-empty click `pointerType`, else a recent press inside the clicked
+  element), because a focused control captures the keyboard: Space and
+  Enter re-activated the clicked button and `ControlsShortcuts` yields to
+  any interactive element in the key's path, so after a click on fullscreen
+  Space left fullscreen instead of pausing. Keyboard activation (empty
+  `pointerType`) keeps focus, only buttons and range sliders are released,
+  Chromium keeps its sequential-focus starting point at the blurred control
+  so Tab continues from it, and the volume popover ignores the release's
+  `focusout` (`wasPointerFocusRelease`). Contract:
+  `docs/architecture/player-controls-contract.md` (auto-hide paragraph).
 - Persisted `Settings.webPlayerSharedControls` is default-ON (absent stored
   values coerce with `!== false`; only an explicit false opts out to the legacy
   vendor chrome), and its checkbox appears only when HTML5, Video.js, or

@@ -146,6 +146,14 @@ default. The panel header exposes a sort menu next to category search with
 synthetic "all categories" entries stay pinned before sorted provider
 categories.
 
+A category click in a LIVE section (Xtream `live`, Stalker `itv` and `radio`)
+changes only the selected category: the live layouts gate their player on the
+store's selected item, so the handler must not clear it — the channel the user
+is watching keeps playing while the sidebar re-filters (Xtream: #936; Stalker:
+`onStalkerCategoryClicked` returns before `clearSelectedItem()`). VOD and
+series category clicks do drop the open detail (`setSelectedItem(null)` /
+`clearSelectedItem()`) because they navigate to a list route.
+
 ## Search And Navigation Rules
 
 Search is shell-owned and route-aware:
@@ -297,6 +305,96 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    polling left the controls hidden forever after leaving fullscreen and
    stuck the maximize/restore glyph on the wrong icon. Regression coverage:
    `app-window-state.spec.ts` and `window-controls.e2e.ts`.
+
+   The pushed `isFullScreen` is the OR of two flags tracked apart: native
+   (OS-level, fed by `enter/leave-full-screen`) and HTML-element (fed by
+   the `*-html-*` pair). Electron remembers when the window was already
+   natively fullscreen before the player entered HTML fullscreen and then
+   leaves ONLY the HTML state on exit — no `leave-full-screen` fires and the
+   window stays fullscreen — so a single flag cleared by
+   `leave-html-full-screen` would un-hide the controls over a window that
+   is still fullscreen. A fullscreen launch (below) or F11 followed by the
+   player's `F` → `Esc` makes that path routine on Windows/Linux.
+3. `WINDOW:TOGGLE_FULLSCREEN` toggles OS-level fullscreen (`setFullScreen`)
+   and, like the maximize toggle, reports the requested state and leaves
+   the `WINDOW:STATE_CHANGED` push authoritative. Because the transition is
+   asynchronous — `isFullScreen()` reports the old value until it lands,
+   and on Windows even while the matching event fires — a toggle must
+   never be decided against the getter. Every native fullscreen request
+   goes through the tracker in
+   `apps/electron-backend/src/app/services/native-fullscreen-transitions.ts`
+   (the F11 toggle AND the startup fallback below). Like the state pushes
+   above it keeps its own per-window fullscreen state, seeded from the
+   getter once at window creation (`trackNativeFullScreen` in
+   `initMainWindow`, while no transition can be in flight) and fed
+   afterwards only by the `enter`/`leave-full-screen` events, which also
+   cover transitions the app did not request. A toggle is decided against
+   the pending target while a transition is in flight, else against that
+   tracked state: two quick presses are an enter-then-exit, not two enters,
+   and F11 during the startup animation leaves fullscreen instead of asking
+   for it again. The tracker observes and never issues a request on its
+   own. The pending record is the LATEST requested target: an event landing
+   on it clears it, an event landing on the other state (an earlier request
+   of a burst landed first; ours is still queued) leaves it in place so the
+   next press still follows the user's latest intent, and a record older
+   than `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored. Events cannot
+   say which request they belong to, so any automatic "repeat the target"
+   on a mismatch is indistinguishable from reversing the user's own
+   green-button/Ctrl+Cmd+F action and is deliberately not done: should a
+   platform ever drop a queued request (Electron queues them on macOS and
+   applies them synchronously elsewhere), the record expires, the event-fed
+   state takes over and the next press corrects the window. The renderer
+   binds it to
+   **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated
+   by `isTypingInInput` — it must work from any focus, because it is the
+   only exit from a fullscreen launch on Windows/Linux, where the title bar
+   is hidden and the controls hide themselves) and skips the key while
+   `document.fullscreenElement` is set, since the player's own `F` / `Esc`
+   own HTML fullscreen and F11 must not yank OS fullscreen out from under
+   it. Without a bridge (PWA) F11 is left to the browser.
+
+Startup window mode (`Settings.startupWindowMode`, issue #1455):
+
+1. `normal` (default) / `maximized` / `fullscreen`, chosen in Settings →
+   General ("Window on startup"). Electron only — the select renders only
+   when `RuntimeCapabilitiesService.supportsStartupWindowMode` sees both
+   `updateSettings` and `toggleFullScreenWindow` on the bridge, so the mode
+   is never offered without its F11 exit.
+2. Settings live in the renderer's IndexedDB, which the main process cannot
+   read at window creation, so the `SETTINGS_UPDATE` handler mirrors the
+   value into electron-conf (`STARTUP_WINDOW_MODE`, the same pattern as the
+   frame-copy flag) and `initMainWindow` reads it synchronously. A change
+   therefore applies on the next launch. Both sides normalize through
+   `normalizeStartupWindowMode`, so junk never reaches the config file or
+   the window options.
+3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
+   the window is created hidden and enters fullscreen before its first
+   paint. macOS ignores the option while the window is hidden (an NSWindow
+   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   the request with `setFullScreen(true)` right after `show()` wherever
+   `isFullScreen()` is still false — never unconditionally, or the
+   platforms that honoured the option would animate a second toggle. The
+   saved bounds stay spread into the options — they are the normal bounds
+   the window returns to, and the close handler keeps persisting
+   `getNormalBounds()`. `maximized` calls `maximize()` inside
+   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
+   hidden window shows it, and a blank window would flash.
+4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
+   sit anywhere in argv; the playlist-path extractor already skips every
+   `-`-prefixed argument) forces `fullscreen` for that launch only and is
+   never persisted. Resolution lives in
+   `apps/electron-backend/src/app/services/startup-window-mode.ts`. The
+   switch is consumed by the first window (`launchFullscreenSwitchConsumed`
+   in `App`): on macOS the process outlives its last window and the Dock
+   re-creates it through the same `initMainWindow`, which must then follow
+   the stored setting only. A second-instance launch carrying the switch is
+   ignored — the window already exists.
+5. Deliberately not offered: kiosk mode (removes the exit path) and
+   "remember last state" (bounds persistence stores normal bounds only; an
+   explicit choice is clearer). Regression coverage: `app.spec.ts`
+   ("startup window mode"), `settings.events.spec.ts`,
+   `window.events.spec.ts`, and the startup-window-mode cases in
+   `settings.e2e.ts`.
 
 Layout integration:
 

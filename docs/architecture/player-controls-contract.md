@@ -334,7 +334,51 @@ controls instance.
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
 is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
 between controls does not restart hiding, and leaving the bar resumes the normal
-hide delay. In fullscreen playback, hiding the controls also hides the pointer
+hide delay. Only keyboard-originated focus pins the bar: Chromium also moves
+focus to a clicked `<button>`, and that focus is a side effect of the click,
+so `ControlsSurface.wasPointerInteraction` attributes a `focusin` to the press
+when a `pointerdown` was recorded within the last second whose target lies
+inside the newly focused element. A press moves focus at most once and does so
+synchronously, so the record is discarded on the first bar focus event it is
+asked about, matching or not, and on any key press; nothing a later Tab or
+Shift+Tab focuses can be attributed to a stale press, not even the control
+the press hit while it was already focused and hence produced no focus event.
+Such focus reveals like any pointer activity and the bar hides on the normal
+delay while the button stays the active element; a Tab shortly after a click
+on the video still counts as keyboard navigation because the press did not
+land inside the focused control. A key press that bubbles out of a control
+inside the bar (Space or Enter on the still-focused button, arrows on a
+slider) hands ownership back to the keyboard and pins the bar exactly as Tab
+focus does, because operating a focused control produces no focus event. A
+pointer press anywhere in the bar also releases an existing keyboard pin: the
+press may produce no focus event at all (clicking the control that already has
+focus) or only a transfer inside the bar, which `focusout` ignores by design,
+so the pin cannot be cleared from focus events alone. Without
+this distinction the fullscreen button kept the controls on screen until a
+click on the viewport took focus away — and that click also paused playback.
+
+The focus a pointer click leaves on a control is released once the click
+completes (`onBarClick` → `ControlsSurface.releasePointerFocus`). A focused
+control captures the keyboard: Space and Enter activate it again, and
+`ControlsShortcuts` yields to any interactive element in the key's path, so
+after a click on the fullscreen button Space left fullscreen instead of
+pausing and the seek, volume, and mute keys did nothing.
+`ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
+(non-empty for a pointer; empty for Enter/Space activation and
+`element.click()`), and a legacy `MouseEvent` click by a recent press inside
+the clicked element, answered once per press and discarded on any key press.
+Keyboard activation therefore keeps focus where Tab put it. Only buttons and
+range sliders are released; text entry would keep its focus, and the bar
+holds none. Chromium keeps its sequential focus navigation starting point at
+the blurred control, so a later Tab continues from it exactly as if it were
+still focused; the clicked button's tooltip hides with the focus. The release
+dispatches a `focusout` while the pointer still rests on the control, so the
+volume anchor's `focusout` handler skips its popover close for it
+(`wasPointerFocusRelease`), while focus leaving by keyboard still closes the
+popover. A press that never completes into a click (released off the
+control) is the one case that still leaves pointer-originated focus behind,
+which is why the key-press re-pin above remains.
+In fullscreen playback, hiding the controls also hides the pointer
 over both the controls host and the supplied player surface; revealing controls
 or destroying the component restores the surface's previous inline cursor.
 
@@ -441,7 +485,8 @@ the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
   the hover-open path is suppressed and the first tap on the volume button
   opens the popover instead of muting; a tap while it is open toggles mute as
   the button's label says. Touch-attributed `focusout` does not schedule the
-  popover close (outside taps and other menu buttons dismiss it).
+  popover close (outside taps and other menu buttons dismiss it), and neither
+  does the `focusout` of a pointer focus release.
 - **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
   timeline/volume sliders grow their input hit strip to 28px and the thumb to
   18px; the 4px visual track is unchanged.

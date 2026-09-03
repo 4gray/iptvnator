@@ -310,6 +310,12 @@ therefore falls back to `get_short_epg` when:
 
 The fallback is merged with the bulk list rather than replacing it, so the
 panel shows "now" from the short EPG and the days ahead from the bulk guide.
+
+The fallback is keyed to the selected channel, not to the category: a category
+switch in the sidebar leaves the channel playing and keeps its fallback (and a
+fallback load still in flight) intact. It is dropped when the selection moves
+to another channel or when the view leaves ITV for radio, where the route
+session clears the selection.
 The stored fallback is tagged with the channel it was fetched for and the
 merge only applies while that channel is still selected — a channel switch
 moves the selection synchronously, while the old fallback is replaced only

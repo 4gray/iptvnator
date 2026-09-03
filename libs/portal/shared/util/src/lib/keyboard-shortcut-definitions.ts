@@ -100,6 +100,18 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         order: 40,
     },
     {
+        // OS-level window fullscreen, distinct from the player's `F`
+        // (HTML-element fullscreen). Desktop only: the PWA leaves F11 to
+        // the browser.
+        id: 'toggle-window-fullscreen',
+        group: 'global',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.TOGGLE_WINDOW_FULLSCREEN',
+        icon: 'fullscreen',
+        keys: ['F11'],
+        order: 50,
+        electronOnly: true,
+    },
+    {
         id: 'toggle-sidebar',
         group: 'navigation',
         labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.TOGGLE_SIDEBAR',

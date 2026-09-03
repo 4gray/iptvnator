@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import {
     normalizeEmbeddedMpvExtraOptions,
     normalizeExternalPlayerArguments,
+    normalizeStartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
@@ -9,6 +10,7 @@ import {
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
+    STARTUP_WINDOW_MODE,
     store,
     VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE,
@@ -54,6 +56,16 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         store.set(
             EMBEDDED_MPV_EXTRA_OPTIONS,
             normalizeEmbeddedMpvExtraOptions(arg.embeddedMpvExtraOptions)
+        );
+    }
+
+    // Read by initMainWindow before any renderer exists, so it applies on
+    // the next launch. Normalized here so a junk value never reaches the
+    // config file.
+    if (arg.startupWindowMode !== undefined) {
+        store.set(
+            STARTUP_WINDOW_MODE,
+            normalizeStartupWindowMode(arg.startupWindowMode)
         );
     }
 

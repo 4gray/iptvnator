@@ -33,7 +33,10 @@
         [class.player-controls__bar--visible]="controlsAreVisible()"
         (pointerenter)="onBarPointerEnter()"
         (pointerleave)="onBarPointerLeave()"
-        (focusin)="onBarFocusIn()"
+        (pointerdown)="onBarPointerDown()"
+        (click)="onBarClick($event)"
+        (keydown)="onBarKeyDown()"
+        (focusin)="onBarFocusIn($event)"
         (focusout)="onBarFocusOut($event)"
     >
         <div class="player-controls__transport">

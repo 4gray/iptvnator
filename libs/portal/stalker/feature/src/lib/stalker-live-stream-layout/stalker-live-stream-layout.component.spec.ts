@@ -838,6 +838,104 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(stalkerStore.setItvChannels).toHaveBeenCalledWith([]);
     });
 
+    it('keeps the player and the playing channel EPG fallback when the category changes', async () => {
+        // A category click in the shell sidebar only re-filters the channel
+        // list — the selected channel keeps playing (Xtream live / M3U group
+        // parity). The category-change reset effect used to wipe the short-EPG
+        // fallback of that unchanged channel too, so on portals whose bulk
+        // guide lacks the current programme the panel lost "now" until the
+        // next channel switch.
+        mockFutureOnlyBulkEpg();
+
+        fixture.detectChanges();
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(component.currentProgram()?.title).toBe('Now 10001');
+
+        selectedCategoryId.set('42');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(component.streamUrl()).toBe('https://example.com/alpha.m3u8');
+        expect(
+            fixture.nativeElement.querySelector('app-web-player-view')
+        ).not.toBeNull();
+        expect(component.currentProgram()?.title).toBe('Now 10001');
+        expect(
+            component.activeEpgPrograms().map((program) => program.title)
+        ).toEqual(['Now 10001', 'Future Show']);
+        expect(component.isLoadingFallbackEpg()).toBe(false);
+    });
+
+    it('lets an in-flight EPG fallback load of the playing channel finish across a category switch', async () => {
+        // The played channel is deliberately absent from the rendered list and
+        // the listed channel has a current programme, so the row preview queue
+        // never calls fetchChannelEpg — the single call below is the panel's.
+        itvChannels.set([defaultItvChannels()[1]]);
+        mockBulkEpg({
+            '10001': [buildFutureProgram('10001', 'Future Show')],
+            '10002': [buildProgram('10002', 'Beta Now')],
+        });
+        let resolvePanelFallback: ((items: EpgItem[]) => void) | undefined;
+        fetchChannelEpg.mockImplementation(
+            () =>
+                new Promise<EpgItem[]>((resolve) => {
+                    resolvePanelFallback = resolve;
+                })
+        );
+
+        fixture.detectChanges();
+        await component.playChannel(defaultItvChannels()[0]);
+        await fixture.whenStable();
+
+        expect(fetchChannelEpg).toHaveBeenCalledTimes(1);
+        expect(fetchChannelEpg).toHaveBeenCalledWith('10001');
+        expect(component.isLoadingFallbackEpg()).toBe(true);
+
+        // Category switch while the short-EPG request is still on the wire.
+        selectedCategoryId.set('42');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        resolvePanelFallback?.([buildEpgItem('10001', 'Now 10001')]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(component.currentProgram()?.title).toBe('Now 10001');
+        expect(component.isLoadingFallbackEpg()).toBe(false);
+    });
+
+    it('drops the EPG fallback and its loading state when the view leaves ITV', async () => {
+        // The route session clears the selection on itv → radio; the layout
+        // must not carry an ITV fallback or a stuck loading flag into radio.
+        itvChannels.set([defaultItvChannels()[1]]);
+        mockBulkEpg({
+            '10001': [buildFutureProgram('10001', 'Future Show')],
+            '10002': [buildProgram('10002', 'Beta Now')],
+        });
+        // A short-EPG request that never answers — the view leaves ITV first.
+        fetchChannelEpg.mockImplementation(
+            () => new Promise<EpgItem[]>(() => undefined)
+        );
+
+        fixture.detectChanges();
+        await component.playChannel(defaultItvChannels()[0]);
+        await fixture.whenStable();
+
+        expect(component.isLoadingFallbackEpg()).toBe(true);
+
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.fallbackEpgPrograms()).toBeNull();
+        expect(component.isLoadingFallbackEpg()).toBe(false);
+    });
+
     it('shows an empty state (not a skeleton) for a loaded but empty category', () => {
         // Full list is loaded, nothing is loading, and the selected category
         // filters down to zero channels — this must read as "empty", not "stuck".

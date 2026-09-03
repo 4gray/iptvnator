@@ -40,6 +40,9 @@ jobs:
 
       - name: Build website
         run: pnpm nx build website
+        env:
+          # Read by apps/website/src/lib/downloads.ts to resolve the latest published release.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

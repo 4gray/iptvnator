@@ -10,8 +10,10 @@ import {
     WINDOW_CLOSE,
     WINDOW_GET_STATE,
     WINDOW_MINIMIZE,
+    WINDOW_TOGGLE_FULLSCREEN,
     WINDOW_TOGGLE_MAXIMIZE,
 } from '@iptvnator/shared/interfaces';
+import { toggleFullScreen } from '../services/native-fullscreen-transitions';
 
 interface WindowState {
     isMaximized: boolean;
@@ -64,6 +66,26 @@ ipcMain.handle(WINDOW_TOGGLE_MAXIMIZE, (event): WindowState => {
     return {
         isMaximized: shouldMaximize,
         isFullScreen: win.isFullScreen(),
+    };
+});
+
+// F11. This is the exit path from a fullscreen launch on Windows/Linux,
+// where the title bar is hidden and the custom controls hide themselves
+// while fullscreen. The transition tracker decides against the pending
+// target while a transition (including the startup fullscreen) is still in
+// flight, so two quick presses stay an enter-then-exit. Like the maximize
+// toggle it reports the requested state and leaves WINDOW:STATE_CHANGED
+// authoritative.
+ipcMain.handle(WINDOW_TOGGLE_FULLSCREEN, (event): WindowState => {
+    const win = getSenderWindow(event);
+
+    if (!win) {
+        return getWindowState(win);
+    }
+
+    return {
+        isMaximized: win.isMaximized(),
+        isFullScreen: toggleFullScreen(win),
     };
 });
 
