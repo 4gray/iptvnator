@@ -1,4 +1,5 @@
 import {
+    ART_PLAYER_NATIVE_SOURCE_TYPE,
     buildArtPlayerChrome,
     exitOwnedArtPlayerFullscreen,
     getArtPlayerVideoType,
@@ -79,10 +80,24 @@ describe('ArtPlayer setup', () => {
                 'https://example.test/play?extension=m3u8&token=signed'
             )
         ).toBe('m3u8');
-        expect(getArtPlayerVideoType('https://example.test/movie.mkv')).toBe(
-            'video/matroska'
+        expect(getArtPlayerVideoType('https://example.test/disc.m2ts')).toBe(
+            'ts'
+        );
+        expect(getArtPlayerVideoType('https://example.test/list.m3u')).toBe(
+            'm3u8'
         );
     });
+
+    it.each(['mkv', 'webm', 'avi', 'mov', 'm4v', 'mp4'])(
+        'hands .%s files to the session-owned native type, never hls.js',
+        (extension) => {
+            expect(
+                getArtPlayerVideoType(
+                    `https://example.test/series/user/pass/80000.${extension}`
+                )
+            ).toBe(ART_PLAYER_NATIVE_SOURCE_TYPE);
+        }
+    );
 
     it('routes DASH manifests to the mpd custom type', () => {
         expect(getArtPlayerVideoType('https://example.test/live.mpd')).toBe(

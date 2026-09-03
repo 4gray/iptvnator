@@ -20,7 +20,8 @@ import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
-    getPlaybackMediaExtensionFromUrl,
+    PlaybackSourceKind,
+    resolvePlaybackUrlSourceKind,
 } from '@iptvnator/playback/util';
 import {
     type LegacyPlayerShortcuts,
@@ -35,6 +36,7 @@ import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
 import { exitOwnedFullscreen } from '../web-video-support/exit-owned-fullscreen.util';
 import {
     clearNativeVideoSources,
+    resolveNativeSourceMimeType,
     setNativeVideoSource,
 } from '../web-video-support/web-video-native-source.util';
 import { WebVideoSourceTracks } from '../web-video-support/web-video-source-tracks';
@@ -195,7 +197,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (channel.url) {
             this.playbackIssue.emit(null);
             const url = channel.url + (channel.epgParams ?? '');
-            const extension = getPlaybackMediaExtensionFromUrl(channel.url);
+            const sourceKind = resolvePlaybackUrlSourceKind(channel.url);
 
             // The scoped Electron header override is owned by
             // WebPlayerViewComponent, which configures the full header set
@@ -203,7 +205,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             // receives the channel. Re-issuing the three-header call here
             // would overwrite that richer override.
 
-            if (extension === 'mpd') {
+            if (sourceKind === PlaybackSourceKind.Dash) {
                 debugHtmlPlayer(
                     'Using Shaka Player for DASH stream:',
                     channel.name,
@@ -225,7 +227,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     this.handlePlayOperation();
                 }
             } else if (
-                (extension === 'ts' || !extension) &&
+                sourceKind === PlaybackSourceKind.MpegTs &&
                 mpegts.isSupported()
             ) {
                 debugHtmlPlayer(
@@ -255,11 +257,14 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.mpegtsPlayer.load();
                 this.handlePlayOperation();
             } else if (
-                extension !== 'mp4' &&
-                extension !== 'mpv' &&
+                sourceKind !== PlaybackSourceKind.Native &&
                 Hls &&
                 Hls.isSupported()
             ) {
+                // HLS manifests, plus raw MPEG-TS when mpegts.js is
+                // unavailable (the historical engine order). Native
+                // containers never reach hls.js: fed an .mkv it raised a
+                // manifest error over media the browser plays by itself.
                 debugHtmlPlayer('Starting HLS playback');
                 const hls = new Hls();
                 this.hls = hls;
@@ -278,7 +283,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 setNativeVideoSource(
                     this.videoPlayer.nativeElement,
                     url,
-                    'video/mp4'
+                    resolveNativeSourceMimeType(channel.url)
                 );
                 this.bindControlsSource({ kind: 'native' });
                 this.videoPlayer.nativeElement.load();

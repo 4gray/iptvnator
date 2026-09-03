@@ -101,7 +101,7 @@ export function resetArtPlayerSpecFixtures(): void {
 }
 
 export function getCustomType(
-    type: 'm3u8' | 'ts' | 'mkv'
+    type: 'm3u8' | 'mpd' | 'ts' | 'native'
 ): (video: HTMLVideoElement, url: string) => void {
     const customType = (
         artPlayerInstances[0].options['customType'] as Record<

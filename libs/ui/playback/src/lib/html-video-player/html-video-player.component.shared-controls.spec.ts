@@ -7,8 +7,14 @@ import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-p
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { HtmlVideoPlayerComponent as HtmlVideoPlayerComponentInstance } from './html-video-player.component';
 import {
+    TEST_CHANNEL,
     cleanupSharedControlsTests,
     configureSharedControlsTests,
+    hlsInstances,
+    mpegTsInstances,
+    mpegTsIsSupported,
+    observeBridgeSourceBinding,
+    readHtmlPlayerInternals,
     renderSharedControls,
     renderSharedControlsDefaults,
     type SharedControlsFixture,
@@ -230,6 +236,43 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
 
         expect(tracks[0].mode).toBe('showing');
     });
+
+    it.each([
+        ['mkv', null],
+        ['webm', null],
+        ['avi', null],
+        ['mov', null],
+        ['m4v', 'video/mp4'],
+    ])(
+        'plays a .%s file through the native element instead of hls.js',
+        (extension, mimeHint) => {
+            // Both MSE engines report support, so a native pick is routing,
+            // not a fallback.
+            mpegTsIsSupported.mockReturnValue(true);
+            const { component, fixture } = renderSharedControls(
+                HtmlVideoPlayerComponent,
+                fixtures,
+                { isLive: false }
+            );
+            const setSource = observeBridgeSourceBinding(component);
+            const video = fixture.debugElement.query(By.css('video'))
+                .nativeElement as HTMLVideoElement;
+            const url = `https://example.test/series/user/pass/80000.${extension}`;
+
+            component.playChannel({ ...TEST_CHANNEL, url });
+
+            const internals = readHtmlPlayerInternals(component);
+            expect(hlsInstances).toHaveLength(0);
+            expect(mpegTsInstances).toHaveLength(0);
+            expect(internals.hls).toBeNull();
+            expect(internals.mpegtsPlayer).toBeNull();
+            expect(setSource).toHaveBeenCalledWith({ kind: 'native' });
+            expect(internals.controlsSource).toEqual({ kind: 'native' });
+            const sources = Array.from(video.querySelectorAll('source'));
+            expect(sources.map((source) => source.src)).toEqual([url]);
+            expect(sources[0]?.getAttribute('type')).toBe(mimeHint);
+        }
+    );
 });
 
 function restoreDocumentProperty(
