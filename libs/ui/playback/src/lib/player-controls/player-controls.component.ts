@@ -114,6 +114,7 @@ export class PlayerControlsComponent implements OnDestroy {
         volume: this.volume,
         menus: this.menus,
         wasTouchInteraction: (event) => this.surface.wasTouchInteraction(event),
+        wasPointerFocusRelease: () => this.surface.wasPointerFocusRelease(),
         canAdjustVolume: () => this.capabilities().volume,
         reveal: (options) => this.reveal(options),
     });
@@ -387,21 +388,39 @@ export class PlayerControlsComponent implements OnDestroy {
      * A key press that bubbles out of a control inside the bar means the
      * keyboard is operating that control (Space/Enter on a button, arrows on
      * a slider): the bar is pinned exactly as if the control had been focused
-     * with Tab. A mouse click leaves its button focused without a pin, and
-     * the key press produces no new focus event, so this is the only place
-     * that hands ownership back to the keyboard.
+     * with Tab. A completed pointer click no longer leaves its control
+     * focused (`onBarClick`), but a press released off the control does,
+     * without a pin, and the key press then produces no new focus event, so
+     * this is the only place that hands ownership back to the keyboard.
      */
     onBarKeyDown(): void {
         this.barFocused.set(true);
         this.reveal({ scheduleHide: false });
     }
 
+    /**
+     * A pointer click leaves the clicked control focused (`onBarFocusIn`),
+     * and a focused control captures the keyboard: Space and Enter activate
+     * it again instead of toggling playback, and the playback shortcuts
+     * yield to any interactive element in the key's path — after a click on
+     * the fullscreen button, Space left fullscreen instead of pausing. The
+     * focus was never the keyboard's, so it is released once the click
+     * completes; keyboard activation (an empty click `pointerType`) keeps
+     * focus where Tab put it.
+     */
+    onBarClick(event: MouseEvent): void {
+        const bar = event.currentTarget;
+        if (bar instanceof HTMLElement && this.surface.wasPointerClick(event)) {
+            this.surface.releasePointerFocus(bar);
+        }
+    }
+
     onBarFocusIn(event: FocusEvent): void {
         // Chromium moves focus to a clicked <button>. That focus is a side
         // effect of the click, not keyboard navigation: it must reveal like
-        // any pointer activity, but never pin the bar open until the next
-        // click on the video takes focus away (issue: fullscreen button left
-        // the controls on screen until a click-to-pause on the viewport).
+        // any pointer activity, but never pin the bar open; `onBarClick`
+        // drops it again once the click completes (issue: fullscreen button
+        // left the controls on screen until a click-to-pause on the viewport).
         if (this.surface.wasPointerInteraction(event)) {
             this.barFocused.set(false);
             this.reveal();

@@ -462,6 +462,44 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     expect(shortEpgRequests).toHaveLength(0);
 });
 
+test('@stalker ITV playback survives a category switch', async ({ page }) => {
+    // Regression: the shell context panel used to clear the selected Stalker
+    // item on every category click, tearing down the player for a channel the
+    // user never switched away from. Xtream live (#936) and M3U groups keep
+    // playing across a category/group switch; Stalker must too.
+    await addStalkerPortal(page);
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const sidebar = page.locator('app-stalker-live-stream-layout .sidebar');
+    const sidebarTitle = sidebar.locator('.category-title');
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    const firstCategoryTitle = (await sidebarTitle.textContent())?.trim() ?? '';
+    expect(firstCategoryTitle).not.toBe('');
+
+    await channels.first().click();
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    const player = page.locator('app-web-player-view');
+    await expect(player).toBeVisible({ timeout: 20_000 });
+
+    await categories.nth(2).click();
+
+    // The sidebar re-filters to the new category (proves the click landed and
+    // change detection ran)…
+    await expect(sidebarTitle).not.toHaveText(firstCategoryTitle, {
+        timeout: 20_000,
+    });
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    // …while the channel picked from the previous category keeps playing.
+    await expect(player).toBeVisible();
+});
+
 test('@stalker radio — stations use the inline audio player without EPG', async ({
     page,
 }) => {

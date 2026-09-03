@@ -1,4 +1,3 @@
-import rootPackage from '../../../../package.json';
 import type { DownloadPlatform } from './platforms';
 
 /**
@@ -9,8 +8,12 @@ import type { DownloadPlatform } from './platforms';
  * exists, and so file sizes and the publish date can be shown. When the API
  * is unreachable (offline build, rate limit, `WEBSITE_SKIP_RELEASE_FETCH=1`)
  * the pages fall back to the repository version from the root `package.json`
+ * — injected as `__IPTVNATOR_VERSION__` by `astro.config.mjs`, since a
+ * relative import of the root manifest violates the Nx module boundaries —
  * and the known asset naming pattern from `electron-builder.json`.
  */
+
+const FALLBACK_VERSION = __IPTVNATOR_VERSION__;
 
 export const GITHUB_REPO = '4gray/iptvnator';
 export const REPO_URL = `https://github.com/${GITHUB_REPO}`;
@@ -304,7 +307,7 @@ function normalizeAsset(value: unknown): ReleaseAsset[] {
 }
 
 function fallbackRelease(): ResolvedRelease {
-  const version = rootPackage.version;
+  const version = FALLBACK_VERSION;
   const tag = `v${version}`;
   const assets = Object.values(DOWNLOAD_OPTIONS)
     .flat()
@@ -323,5 +326,5 @@ function fallbackRelease(): ResolvedRelease {
 }
 
 function warnFallback(reason: string): void {
-  console.warn(`[website] Latest release lookup failed (${reason}); using package.json version ${rootPackage.version}.`);
+  console.warn(`[website] Latest release lookup failed (${reason}); using package.json version ${FALLBACK_VERSION}.`);
 }
