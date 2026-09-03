@@ -372,7 +372,41 @@ export class PlayerControlsComponent implements OnDestroy {
         this.visibility.scheduleHide();
     }
 
-    onBarFocusIn(): void {
+    /**
+     * A pointer press anywhere in the bar hands the interaction over to the
+     * pointer: a keyboard pin set by an earlier Tab is released here, because
+     * the press may not produce any focus event at all (clicking the control
+     * that is already focused) or only a focus transfer inside the bar, which
+     * `onBarFocusOut` deliberately ignores.
+     */
+    onBarPointerDown(): void {
+        this.barFocused.set(false);
+    }
+
+    /**
+     * A key press that bubbles out of a control inside the bar means the
+     * keyboard is operating that control (Space/Enter on a button, arrows on
+     * a slider): the bar is pinned exactly as if the control had been focused
+     * with Tab. A mouse click leaves its button focused without a pin, and
+     * the key press produces no new focus event, so this is the only place
+     * that hands ownership back to the keyboard.
+     */
+    onBarKeyDown(): void {
+        this.barFocused.set(true);
+        this.reveal({ scheduleHide: false });
+    }
+
+    onBarFocusIn(event: FocusEvent): void {
+        // Chromium moves focus to a clicked <button>. That focus is a side
+        // effect of the click, not keyboard navigation: it must reveal like
+        // any pointer activity, but never pin the bar open until the next
+        // click on the video takes focus away (issue: fullscreen button left
+        // the controls on screen until a click-to-pause on the viewport).
+        if (this.surface.wasPointerInteraction(event)) {
+            this.barFocused.set(false);
+            this.reveal();
+            return;
+        }
         this.barFocused.set(true);
         this.reveal({ scheduleHide: false });
     }
