@@ -19,16 +19,21 @@
  * `requestFullScreen`, and a toggle is decided against the pending target
  * if one is in flight, else against that tracked state — never the getter.
  *
- * A pending target can never govern a toggle for good: it is dropped when
- * the transition event reports it, a transition landing on the OTHER state
- * re-issues it (the queued request may have been dropped by the platform),
- * and an entry older than the transition timeout is ignored outright, since
- * no native transition takes that long — a request that produced no event
- * at all is then simply forgotten.
+ * The pending record is the LATEST target plus the number of requests
+ * whose transition events are still owed, so a burst of presses is settled
+ * against the final intent rather than whichever older request happens to
+ * report first: an event landing on the target only clears the record once
+ * every request has reported, an event landing on the other state
+ * re-issues the target (the platform may have dropped a queued request),
+ * and a record older than the transition timeout is ignored outright,
+ * since no native transition takes that long — requests that produced no
+ * event at all are then simply forgotten.
  */
 interface PendingFullScreenTransition {
     target: boolean;
     requestedAt: number;
+    /** Requests issued whose transition event has not arrived yet. */
+    outstanding: number;
 }
 
 interface TrackedFullScreenState {
@@ -44,6 +49,24 @@ const trackedWindows = new WeakMap<
     Electron.BrowserWindow,
     TrackedFullScreenState
 >();
+
+function getFreshPending(
+    state: TrackedFullScreenState,
+    now: number
+): PendingFullScreenTransition | undefined {
+    const pending = state.pending;
+
+    if (!pending) {
+        return undefined;
+    }
+
+    if (now - pending.requestedAt > FULLSCREEN_TRANSITION_TIMEOUT_MS) {
+        state.pending = undefined;
+        return undefined;
+    }
+
+    return pending;
+}
 
 /**
  * Starts following the window's native fullscreen events. Call it right
@@ -67,21 +90,25 @@ export function trackNativeFullScreen(
     const settle = (landed: boolean) => {
         state.fullScreen = landed;
 
-        // Through the getter so an expired target is dropped here too: an
-        // event arriving after the timeout belongs to a request the user
-        // has long moved past, and re-issuing it would revive the stale
-        // intent with a fresh timestamp.
-        const pendingTarget = getPendingFullScreenTarget(win);
-        state.pending = undefined;
-        if (pendingTarget === undefined || win.isDestroyed()) {
+        // Through the expiry check so an event arriving after the timeout
+        // cannot revive a request the user has long moved past.
+        const pending = getFreshPending(state, Date.now());
+        if (!pending || win.isDestroyed()) {
             return;
         }
 
-        if (landed !== pendingTarget) {
-            // An earlier transition landed, not the requested one. Ask
-            // again rather than trusting the platform to have queued it: a
-            // second identical request is a no-op at worst.
-            requestFullScreen(win, pendingTarget);
+        pending.outstanding = Math.max(0, pending.outstanding - 1);
+
+        if (landed !== pending.target) {
+            // An earlier request landed, not the latest one. Ask again
+            // rather than trusting the platform to have queued it: a second
+            // identical request is a no-op at worst.
+            requestFullScreen(win, pending.target);
+            return;
+        }
+
+        if (pending.outstanding === 0) {
+            state.pending = undefined;
         }
     };
     win.on('enter-full-screen', () => settle(true));
@@ -95,18 +122,7 @@ export function getPendingFullScreenTarget(
     now: number = Date.now()
 ): boolean | undefined {
     const state = trackedWindows.get(win);
-    const pending = state?.pending;
-
-    if (!state || !pending) {
-        return undefined;
-    }
-
-    if (now - pending.requestedAt > FULLSCREEN_TRANSITION_TIMEOUT_MS) {
-        state.pending = undefined;
-        return undefined;
-    }
-
-    return pending.target;
+    return state ? getFreshPending(state, now)?.target : undefined;
 }
 
 export function requestFullScreen(
@@ -115,7 +131,13 @@ export function requestFullScreen(
     now: number = Date.now()
 ): void {
     const state = trackNativeFullScreen(win);
-    state.pending = { target, requestedAt: now };
+    const pending = getFreshPending(state, now);
+
+    state.pending = {
+        target,
+        requestedAt: now,
+        outstanding: (pending?.outstanding ?? 0) + 1,
+    };
     win.setFullScreen(target);
 }
 

@@ -250,6 +250,33 @@ describe('WindowEvents', () => {
         expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
     });
 
+    it('settles a burst of presses against the final target, not the first matching event', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        toggle(fakeEvent);
+        toggle(fakeEvent);
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false], [true]]);
+
+        // The FIRST press's enter lands. It matches the final target, but
+        // two requests are still owed, so the intent must survive it.
+        win.emit('enter-full-screen');
+        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
+
+        // The queued exit lands; the platform dropped the last enter. Only
+        // the retained final intent can put the window back.
+        win.emit('leave-full-screen');
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
+        expect(win.setFullScreen).toHaveBeenCalledTimes(4);
+
+        win.emit('enter-full-screen');
+        // A press now is the exit — the window is fullscreen, as intended.
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+    });
+
     it('forgets a request that never reports back after the transition timeout', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
