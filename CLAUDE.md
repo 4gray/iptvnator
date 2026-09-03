@@ -815,7 +815,14 @@ app as a real argument, so it is not an option.
 
 **Video Players**:
 
-- Built-in web players: HTML5+hls.js, Video.js, and ArtPlayer
+- Built-in web players: HTML5+hls.js, Video.js, and ArtPlayer. The HTML5
+  player and ArtPlayer pick their source engine from one URL rule,
+  `resolvePlaybackUrlSourceKind()` in `libs/playback/util` (`mpd` → Shaka,
+  `m3u8`/`m3u` → hls.js, `ts`/`m2ts`/extension-less → mpegts.js, every other
+  container → native `<video>`), so hls.js never receives an `.mkv`/`.webm`
+  file. The HTML5 native `<source>` carries a `video/mp4` hint only for
+  MP4-family files (`resolveNativeSourceMimeType`); a hint `canPlayType()`
+  rejects would make the browser skip the source.
 - mpegts.js `1.8.1` errors from all three built-in players cross one
   version-locked structured evidence boundary in `libs/playback/util`. It
   retains only exact public type/detail pairs, pair-derived stage/failure,
