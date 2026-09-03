@@ -56,7 +56,8 @@ reapplies the app volume directly to the media element after ArtPlayer restores
 its own stored volume, disables vendor chrome/hotkeys, and places a transparent
 event-capture layer over ArtPlayer so shared controls exclusively own surface
 clicks and double-clicks. Playback diagnostics gate shared interaction and exit
-only the ArtPlayer shell's own fullscreen. Source replacement and teardown
+only the shared controls' resolved fullscreen owner (the host-supplied
+`fullscreenTarget`, else the ArtPlayer shell). Source replacement and teardown
 remove exact listeners and engines, and destroyed sessions ignore stale delayed
 `customType` callbacks. When the host token resolves to false, the existing
 ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
@@ -102,8 +103,9 @@ added to `PlayerController`.
 
 The only controls-layer participation is interaction gating. While the sibling
 diagnostic panel is visible, a web-player host disables shared surface and
-keyboard ownership and exits only its own DOM fullscreen so the recovery
-actions remain reachable. Clearing the diagnostic restores those paths; it
+keyboard ownership and exits only the resolved fullscreen owner's DOM
+fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
+recovery actions remain reachable. Clearing the diagnostic restores those paths; it
 does not make the controls contract an owner of the recovery lifecycle.
 
 ## Why this exists

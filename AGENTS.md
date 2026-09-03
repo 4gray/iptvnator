@@ -413,7 +413,8 @@ Key files:
   suppression.
   `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
   metadata, while a visible playback diagnostic disables both shared surface
-  interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
+  interaction and shortcuts and exits the shared controls' resolved fullscreen
+  owner (the host-supplied `fullscreenTarget`, else the HTML5 shell) so the
   diagnostic actions remain visible. The preference-off path keeps native
   controls and legacy series navigation unchanged, while the playback keyboard
   shortcuts (Space/K, F, arrow seek/volume, M) attach through
