@@ -39,6 +39,34 @@ export enum StartupBehavior {
     RestoreLastView = 'restore-last-view',
 }
 
+/**
+ * How the desktop window is presented when the app launches. Electron only.
+ *
+ * Persisted like every other setting in the renderer and mirrored into the
+ * main-process config file by the `SETTINGS_UPDATE` handler, because the
+ * window is created before the renderer exists — so a change applies on the
+ * next launch. `--fullscreen` on the command line forces `'fullscreen'` for
+ * that launch only, and F11 toggles fullscreen at any time.
+ */
+export type StartupWindowMode = 'normal' | 'maximized' | 'fullscreen';
+
+export const STARTUP_WINDOW_MODES: readonly StartupWindowMode[] = [
+    'normal',
+    'maximized',
+    'fullscreen',
+];
+
+/**
+ * Collapses anything that is not a known mode to `'normal'`. Shared by the
+ * renderer form and the main-process mirror so junk never reaches the
+ * config file or the window options.
+ */
+export function normalizeStartupWindowMode(value: unknown): StartupWindowMode {
+    return STARTUP_WINDOW_MODES.includes(value as StartupWindowMode)
+        ? (value as StartupWindowMode)
+        : 'normal';
+}
+
 export type CoverSize = 'small' | 'medium' | 'large';
 
 /** Rendering of the live EPG panel under the player. */
@@ -147,6 +175,12 @@ export interface Settings {
     showCaptions: boolean;
     showDashboard: boolean;
     startupBehavior: StartupBehavior;
+    /**
+     * Desktop window presentation at launch: normal (last size), maximized,
+     * or fullscreen. Electron only and applied on the next launch; a missing
+     * value means `'normal'`. F11 leaves or re-enters fullscreen.
+     */
+    startupWindowMode?: StartupWindowMode;
     /** Show the desktop footer bar for external playback status */
     showExternalPlaybackBar?: boolean;
     /** Strip country/group prefixes like "US | " or "UK - " from channel names */
