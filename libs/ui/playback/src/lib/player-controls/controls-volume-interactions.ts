@@ -6,6 +6,12 @@ export interface ControlsVolumeInteractionsDeps {
     menus: ControlsMenuState;
     /** Pointer-type attribution, provided by the surface. */
     wasTouchInteraction: (event?: Event) => boolean;
+    /**
+     * Whether the `focusout` being dispatched is the surface releasing the
+     * focus a pointer click left on a control. The pointer is still over the
+     * anchor, so the popover must not schedule its close on it.
+     */
+    wasPointerFocusRelease: () => boolean;
     /** Whether the controller advertises the volume capability. */
     canAdjustVolume: () => boolean;
     reveal: (options?: { scheduleHide?: boolean }) => void;
@@ -30,7 +36,10 @@ export class ControlsVolumeInteractions {
     }
 
     hoverLeave(event?: Event): void {
-        if (this.deps.wasTouchInteraction(event)) {
+        if (
+            this.deps.wasTouchInteraction(event) ||
+            this.deps.wasPointerFocusRelease()
+        ) {
             return;
         }
         this.deps.volume.hoverLeave();
