@@ -76,6 +76,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
         duration: number;
@@ -164,7 +166,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (changes['interactionEnabled']?.currentValue === false) {
             exitOwnedFullscreen(
                 this.sharedControls,
-                this.playerRoot()?.nativeElement,
+                this.fullscreenTarget() ?? this.playerRoot()?.nativeElement,
                 (error) =>
                     debugHtmlPlayer(
                         'Failed to exit HTML5 player fullscreen:',

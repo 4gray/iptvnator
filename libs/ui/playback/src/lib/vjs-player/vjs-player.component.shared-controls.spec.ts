@@ -178,6 +178,63 @@ describe('VjsPlayerComponent shared controls', () => {
             restoreDocumentProperty('exitFullscreen', exitFullscreenDescriptor);
         }
     });
+
+    it('hands the host fullscreen target to the shared controls and exits only that owner', () => {
+        fixture.componentRef.setInput('options', {
+            sources: [{ src: 'https://example.test/movie.mp4' }],
+        });
+        const target = document.createElement('div');
+        fixture.componentRef.setInput('fullscreenTarget', target);
+        fixture.detectChanges();
+        playerHarness.ready();
+        fixture.detectChanges();
+
+        const controls = fixture.debugElement.query(
+            By.directive(PlayerControlsComponent)
+        ).componentInstance as PlayerControlsComponent;
+        expect(controls.fullscreenTarget()).toBe(target);
+
+        const shell = fixture.debugElement.query(By.css('.vjs-player-shell'))
+            .nativeElement as HTMLElement;
+        const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'fullscreenElement'
+        );
+        const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'exitFullscreen'
+        );
+        let fullscreenElement: Element | null = shell;
+        const exitFullscreen = jest.fn().mockResolvedValue(undefined);
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => fullscreenElement,
+        });
+        Object.defineProperty(document, 'exitFullscreen', {
+            configurable: true,
+            value: exitFullscreen,
+        });
+
+        try {
+            fixture.componentRef.setInput('interactionEnabled', false);
+            fixture.detectChanges();
+            expect(exitFullscreen).not.toHaveBeenCalled();
+
+            fixture.componentRef.setInput('interactionEnabled', true);
+            fixture.detectChanges();
+            fullscreenElement = target;
+            fixture.componentRef.setInput('interactionEnabled', false);
+            fixture.detectChanges();
+
+            expect(exitFullscreen).toHaveBeenCalledTimes(1);
+        } finally {
+            restoreDocumentProperty(
+                'fullscreenElement',
+                fullscreenElementDescriptor
+            );
+            restoreDocumentProperty('exitFullscreen', exitFullscreenDescriptor);
+        }
+    });
 });
 
 function restoreDocumentProperty(

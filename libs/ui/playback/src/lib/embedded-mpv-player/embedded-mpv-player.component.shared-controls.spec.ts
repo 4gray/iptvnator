@@ -244,6 +244,71 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(sharedControls(fixture)?.isFullscreen()).toBe(true);
     });
 
+    it('owns fullscreen on the host-supplied target instead of its own root', async () => {
+        const { fixture, component } = render();
+        const target = document.createElement('div');
+        const requestFullscreen = jest.fn(async () => {
+            fullscreenElement = target;
+            document.dispatchEvent(new Event('fullscreenchange'));
+        });
+        (target as HTMLElement & { requestFullscreen: jest.Mock })[
+            'requestFullscreen'
+        ] = requestFullscreen;
+        const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'exitFullscreen'
+        );
+        Object.defineProperty(document, 'exitFullscreen', {
+            configurable: true,
+            value: jest.fn(async () => {
+                fullscreenElement = null;
+                document.dispatchEvent(new Event('fullscreenchange'));
+            }),
+        });
+
+        try {
+            fixture.componentRef.setInput('fullscreenTarget', target);
+            fixture.detectChanges();
+            expect(sharedControls(fixture)?.fullscreenTarget()).toBe(target);
+            expect(component.canFullscreen()).toBe(true);
+
+            await component.toggleFullscreen();
+
+            expect(requestFullscreen).toHaveBeenCalledTimes(1);
+            expect(component.isFullscreen()).toBe(true);
+            fixture.detectChanges();
+            expect(
+                root(fixture).classList.contains(
+                    'embedded-mpv-player--fullscreen'
+                )
+            ).toBe(true);
+
+            await component.toggleFullscreen();
+            expect(component.isFullscreen()).toBe(false);
+        } finally {
+            restoreProperty(
+                document,
+                'exitFullscreen',
+                exitFullscreenDescriptor
+            );
+        }
+    });
+
+    it('starts fullscreen when the resolved target is already fullscreen', () => {
+        // A player remounted for the next episode mounts inside the host's
+        // still-active fullscreen; no fullscreenchange fires for it.
+        const target = document.createElement('div');
+        fullscreenElement = target;
+        const { fixture, component } = render();
+        expect(component.isFullscreen()).toBe(false);
+
+        fixture.componentRef.setInput('fullscreenTarget', target);
+        fixture.detectChanges();
+
+        expect(component.isFullscreen()).toBe(true);
+        expect(sharedControls(fixture)?.isFullscreen()).toBe(true);
+    });
+
     it('never renders both control systems across engine transitions', () => {
         const { fixture, controller } = render();
         jest.useFakeTimers();
