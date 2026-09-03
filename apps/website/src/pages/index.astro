@@ -8,7 +8,9 @@ import DownloadCTA from '../components/DownloadCTA.astro';
 import SupportSection from '../components/SupportSection.astro';
 import FeaturedBlogPost from '../components/FeaturedBlogPost.astro';
 import BlogPostCard from '../components/BlogPostCard.astro';
+import { getLatestRelease } from '../lib/downloads';
 
+const release = await getLatestRelease();
 const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
 
 const allPosts = (await getCollection('blog'))
@@ -35,7 +37,7 @@ const homeSchema = [
     name: 'IPTVnator',
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Windows, macOS, Linux, Web',
-    softwareVersion: '0.20.0',
+    softwareVersion: release.version,
     url: 'https://4gray.github.io/iptvnator/',
     downloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
     author: {

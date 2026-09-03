@@ -18,7 +18,7 @@
             "executor": "nx:run-commands",
             "dependsOn": ["build"],
             "options": {
-                "command": "node --test tools/testing/website-giscus-comments.test.mjs"
+                "command": "node --test tools/testing/website-giscus-comments.test.mjs tools/testing/website-download-pages.test.mjs"
             }
         },
         "serve": {

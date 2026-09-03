@@ -1,0 +1,57 @@
+---
+import type { ResolvedDownload } from '../../lib/downloads';
+import { formatAssetSize } from '../../lib/downloads';
+
+interface PackageRow {
+  download: ResolvedDownload;
+  /** Install command shown next to the file, if any. */
+  command?: string;
+  note?: string;
+}
+
+interface Props {
+  title: string;
+  rows: PackageRow[];
+}
+
+const { title, rows } = Astro.props;
+---
+
+<div class="overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-surface-900/40">
+  <div class="border-b border-dashed border-surface-700/60 px-5 py-3">
+    <span class="font-mono text-[11px] uppercase tracking-[0.15em] text-accent-400">{title}</span>
+  </div>
+  <ul class="divide-y divide-dashed divide-surface-700/60">
+    {rows.map(({ download, command, note }) => {
+      const size = formatAssetSize(download.size);
+      return (
+        <li class="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_auto] sm:items-center">
+          <div>
+            <p class="text-sm font-semibold text-surface-100">{download.label}</p>
+            <p class="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">
+              {download.detail}
+              {size && <span> · {size}</span>}
+            </p>
+            {note && <p class="mt-1.5 text-xs leading-relaxed text-surface-500">{note}</p>}
+          </div>
+          <div class="min-w-0">
+            {command && (
+              <code class="block overflow-x-auto rounded-md bg-surface-950/70 px-3 py-2 font-mono text-xs text-accent-200">{command}</code>
+            )}
+          </div>
+          <a
+            href={download.url}
+            data-download={download.id}
+            rel="noopener"
+            class="inline-flex items-center justify-center gap-2 rounded-lg border border-accent-500/30 bg-accent-500/10 px-4 py-2 text-[13px] font-medium text-accent-400 transition-all duration-200 hover:border-accent-400/50 hover:bg-accent-500/20 hover:text-accent-300"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</div>

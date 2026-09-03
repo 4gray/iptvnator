@@ -1,0 +1,29 @@
+---
+import type { ResolvedDownload } from '../../lib/downloads';
+import { formatAssetSize } from '../../lib/downloads';
+
+interface Props {
+  download: ResolvedDownload;
+  primary?: boolean;
+}
+
+const { download, primary = false } = Astro.props;
+const size = formatAssetSize(download.size);
+const detail = size ? `${download.detail} · ${size}` : download.detail;
+
+const baseClass = 'group inline-flex items-center gap-4 rounded-xl px-6 py-4 transition-all duration-300';
+const variantClass = primary
+  ? 'bg-accent-500 text-surface-950 shadow-[0_0_30px_rgba(32,168,168,0.25)] hover:-translate-y-0.5 hover:bg-accent-400 hover:shadow-[0_0_44px_rgba(32,168,168,0.4)]'
+  : 'border border-dashed border-surface-600/60 bg-surface-900/50 text-surface-100 hover:border-accent-500/40 hover:bg-accent-500/[0.05]';
+const detailClass = primary ? 'text-surface-950/70' : 'text-surface-500';
+---
+
+<a href={download.url} class={`${baseClass} ${variantClass}`} data-download={download.id} rel="noopener">
+  <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+  </svg>
+  <span class="flex flex-col text-left">
+    <span class="text-base font-semibold leading-tight">{download.label}</span>
+    <span class={`mt-1 font-mono text-[10px] uppercase tracking-[0.12em] ${detailClass}`}>{detail}</span>
+  </span>
+</a>
