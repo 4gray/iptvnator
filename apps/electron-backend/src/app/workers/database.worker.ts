@@ -125,12 +125,22 @@ import {
     isDatabaseWorkerPostGcHeapRequest,
 } from './database-worker-post-gc-heap';
 import { publishDatabaseWorkerCancelReceipt } from './database-worker-cancel-receipt';
+import {
+    createProgressEventThrottle,
+    type ProgressEventThrottle,
+} from './operation-progress-throttle';
 
 const loggerLabel = '[DB Worker]';
 const batchDelayMs = Number.parseInt(
     process.env['IPTVNATOR_DB_WORKER_BATCH_DELAY_MS'] ?? '0',
     10
 );
+/**
+ * Shortest gap between two progress events of one operation. Phase starts,
+ * phase completions and terminal events are never held back; see
+ * `operation-progress-throttle.ts`.
+ */
+const progressEventMinIntervalMs = 100;
 
 type ActiveOperationState = {
     cancelled: boolean;
@@ -240,6 +250,9 @@ function createOperationController(
     }
 
     let lastEvent: Partial<DbOperationEvent> = {};
+    const progressThrottle = createProgressEventThrottle({
+        minIntervalMs: progressEventMinIntervalMs,
+    });
 
     const send = (
         status: DbOperationEvent['status'],
@@ -277,23 +290,34 @@ function createOperationController(
         }
     };
 
+    const sendProgress = (
+        updates: ReturnType<ProgressEventThrottle['push']>
+    ): void => {
+        for (const update of updates) {
+            send('progress', update);
+        }
+    };
+
     return {
         control: {
             checkpoint,
             onProgress: async (progress) => {
-                send('progress', progress);
+                sendProgress(progressThrottle.push(progress));
             },
         },
         emitStarted: (event) => {
             send('started', event);
         },
         emitCompleted: (event) => {
+            sendProgress(progressThrottle.flush());
             send('completed', event);
         },
         emitCancelled: (event) => {
+            sendProgress(progressThrottle.flush());
             send('cancelled', event);
         },
         emitError: (error, event) => {
+            sendProgress(progressThrottle.flush());
             send('error', {
                 ...event,
                 error: error instanceof Error ? error.message : String(error),
