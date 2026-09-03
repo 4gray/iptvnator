@@ -56,7 +56,8 @@ reapplies the app volume directly to the media element after ArtPlayer restores
 its own stored volume, disables vendor chrome/hotkeys, and places a transparent
 event-capture layer over ArtPlayer so shared controls exclusively own surface
 clicks and double-clicks. Playback diagnostics gate shared interaction and exit
-only the ArtPlayer shell's own fullscreen. Source replacement and teardown
+only the shared controls' resolved fullscreen owner (the host-supplied
+`fullscreenTarget`, else the ArtPlayer shell). Source replacement and teardown
 remove exact listeners and engines, and destroyed sessions ignore stale delayed
 `customType` callbacks. When the host token resolves to false, the existing
 ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
@@ -102,8 +103,9 @@ added to `PlayerController`.
 
 The only controls-layer participation is interaction gating. While the sibling
 diagnostic panel is visible, a web-player host disables shared surface and
-keyboard ownership and exits only its own DOM fullscreen so the recovery
-actions remain reachable. Clearing the diagnostic restores those paths; it
+keyboard ownership and exits only the resolved fullscreen owner's DOM
+fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
+recovery actions remain reachable. Clearing the diagnostic restores those paths; it
 does not make the controls contract an owner of the recovery lifecycle.
 
 ## Why this exists
@@ -228,13 +230,35 @@ Episode navigation is deliberately exposed as component outputs
 playlist/portal feature decides which item to play.
 
 Fullscreen is also outside the engine command contract. The landed component
-uses `ControlsFullscreen`, which operates on the supplied DOM player surface
-through `requestFullscreen()` / `document.exitFullscreen()`. There is no
-fullscreen delegate or native-fullscreen IPC path. `ControlsFullscreen.sync()`
-reconciles state when a surface attaches or changes, including when that
-surface is already fullscreen. The Embedded MPV host's existing
-`fullscreenchange` listener still triggers bounds sync so frame-copy render
-size follows the fullscreen DOM surface.
+uses `ControlsFullscreen`, which operates on one DOM element through
+`requestFullscreen()` / `document.exitFullscreen()`: the optional
+`fullscreenTarget` input when the host supplies one, else the `playerSurface`.
+There is no fullscreen delegate or native-fullscreen IPC path.
+`ControlsFullscreen.sync()` reconciles state when that element attaches or
+changes, including when it is already fullscreen. The Embedded MPV host's
+existing `fullscreenchange` listener still triggers bounds sync so frame-copy
+render size follows the fullscreen DOM surface.
+
+The owner matters because `WebPlayerViewComponent` remounts the engine
+component for every playback application (`@for ... track application.token`:
+next episode, channel zap, alternative source, retry) and the Fullscreen API
+exits the moment its element leaves the document. A shell-owned fullscreen
+therefore ended with every switch. `WebPlayerViewComponent` now passes its own
+host element (`fullscreenSurface`) as `fullscreenTarget` to HTML5, Video.js,
+ArtPlayer, and Embedded MPV; that element spans all applications of one mount,
+so a fullscreen entered on episode 1 is still active when episode 2's engine
+mounts, and the fresh controls adopt it through `sync()` on attach. The
+`playerSurface` (pointer/click/cursor ownership) stays the engine shell. The
+vendor-chrome opt-out keeps engine-owned fullscreen and still loses it on a
+switch — see "Known differences".
+
+One dependency this uncovered: `WebPlayerViewComponent.channel` and
+`vjsOptions` are signals. In Electron the source is handed to the engine inside
+the stream-header IPC promise, after the pass that mounted the application,
+and the view sits under OnPush hosts (`PortalInlinePlayerComponent`); as plain
+fields they were only rendered when something else dirtied the subtree — which
+used to be the stage resize caused by the fullscreen exit on every switch. A
+remounted engine inside a still-active fullscreen has no such trigger.
 
 ## Shared default controls
 
@@ -332,10 +356,11 @@ The HTML5, Video.js, and ArtPlayer hosts apply the same ownership rule while a
 playback diagnostic is visible: `WebPlayerViewComponent` passes
 `interactionEnabled = visiblePlaybackDiagnostic() === null`, and all three
 components bind that value to `showControls` and
-`shortcutsEnabled`. If the active player shell owns DOM fullscreen, its host
-exits fullscreen before hiding the controls so the sibling diagnostic banner
-and its recovery actions remain visible; fullscreen owned by another
-element is left untouched. Retrying playback or clearing the diagnostic
+`shortcutsEnabled`. If the shared controls' fullscreen owner (the supplied
+`fullscreenTarget`, else the player shell) is in DOM fullscreen, the host
+exits fullscreen before hiding the controls so the diagnostic banner and its
+recovery actions remain visible; fullscreen owned by another element is left
+untouched. Retrying playback or clearing the diagnostic
 restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
@@ -716,6 +741,14 @@ regressions:
 - **Vendor caption menus** behave as before in the opt-out path; shared mode
   is authoritative for the session as documented under "Caption preference in
   both modes".
+- **Fullscreen across a source switch.** Vendor chrome puts its own engine
+  element into fullscreen (`.video-js`, ArtPlayer's container, the native
+  `<video>`), and that element is remounted for the next episode, channel, or
+  alternative source, so the browser exits fullscreen on every switch. Shared
+  controls fullscreen the host-owned `fullscreenTarget` instead and keep
+  fullscreen across switches; re-requesting fullscreen for a remounted vendor
+  engine is not possible for the autoplay hand-off, which has no user
+  activation.
 
 ## Advanced subtitle support
 
@@ -840,8 +873,13 @@ The shared controls receive the whole player root as their DOM surface. Turning
 `showControls` off detaches surface interaction and playback-shortcut
 ownership; Escape remains available for generic popover dismissal.
 Backdrop-bearing overlays disable playback shortcuts. Fullscreen uses the DOM
-Fullscreen API on that root, while the Embedded MPV component continues bounds
-sync so the helper renders at the current viewport size.
+Fullscreen API on the host-supplied `fullscreenTarget` (the
+`app-web-player-view` element, which survives the per-application remount),
+falling back to the player root; the component's own `isFullscreen`,
+`canFullscreen`, and toggle follow the same owner and re-read it on mount, so
+a player remounted inside an active fullscreen starts fullscreen. The Embedded
+MPV component continues bounds sync so the helper renders at the current
+viewport size.
 
 Recording snapshots arrive independently from command promise settlement. The
 adapter therefore treats snapshots as observations rather than acknowledgments

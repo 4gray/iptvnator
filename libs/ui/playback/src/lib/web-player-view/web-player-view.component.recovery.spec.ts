@@ -352,7 +352,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
 
         expect(streamHeaders.apply).toHaveBeenCalledTimes(1);
         expect(component.selectedPlayer()).toBe(VideoPlayer.VideoJs);
-        expect(component.channel?.url).toBe('https://example.com/next.m3u8');
+        expect(component.channel()?.url).toBe('https://example.com/next.m3u8');
         expect(component.playbackDiagnostic()).toBeNull();
     });
 
@@ -897,7 +897,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
             expect(component.playbackDiagnostic()).toBeNull();
             expect(component.visiblePlaybackDiagnostic()).toBeNull();
             expect(query('playback-diagnostic-banner')).toBeNull();
-            expect(component.channel).toBeUndefined();
+            expect(component.channel()).toBeUndefined();
         }
     );
 
@@ -932,7 +932,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
             expect(component.activeBinding()).toBe(currentBinding);
             expect(component.playbackDiagnostic()).toBe(currentIssue);
             expect(component.visiblePlaybackDiagnostic()).toBe(currentIssue);
-            expect(component.channel?.url).toBe(
+            expect(component.channel()?.url).toBe(
                 'https://example.com/current.m3u8'
             );
         }
@@ -968,7 +968,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
 
             expect(component.recoveryPending()).toBe(true);
             expect(component.visiblePlaybackDiagnostic()).toBeNull();
-            expect(component.channel).toBeUndefined();
+            expect(component.channel()).toBeUndefined();
 
             headerResolvers[1](false);
             await fixture.whenStable();
@@ -988,7 +988,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         const sourceABinding = component.activeBinding();
         expect(sourceABinding).not.toBeNull();
         expect(headerResolvers).toHaveLength(1);
-        expect(component.channel).toBeUndefined();
+        expect(component.channel()).toBeUndefined();
         expect(component.visiblePlaybackDiagnostic()).toBeNull();
 
         setPlayback({ streamUrl: 'https://example.com/source-b.m3u8' });
@@ -996,8 +996,8 @@ describe('WebPlayerViewComponent recovery integration', () => {
             binding: component.activeBinding(),
             pending: component.recoveryPending(),
             diagnostic: component.playbackDiagnostic(),
-            channel: component.channel,
-            vjsOptions: component.vjsOptions,
+            channel: component.channel(),
+            vjsOptions: component.vjsOptions(),
             failures: [...failures],
         };
 
@@ -1008,8 +1008,8 @@ describe('WebPlayerViewComponent recovery integration', () => {
             binding: component.activeBinding(),
             pending: component.recoveryPending(),
             diagnostic: component.playbackDiagnostic(),
-            channel: component.channel,
-            vjsOptions: component.vjsOptions,
+            channel: component.channel(),
+            vjsOptions: component.vjsOptions(),
             failures,
         }).toEqual(pendingState);
         expect(component.visiblePlaybackDiagnostic()).toBeNull();
@@ -1021,10 +1021,10 @@ describe('WebPlayerViewComponent recovery integration', () => {
         headerResolvers[1](true);
         await fixture.whenStable();
 
-        expect(component.channel?.url).toBe(
+        expect(component.channel()?.url).toBe(
             'https://example.com/source-b.m3u8'
         );
-        expect(component.vjsOptions?.sources).toEqual([
+        expect(component.vjsOptions()?.sources).toEqual([
             expect.objectContaining({
                 src: 'https://example.com/source-b.m3u8',
             }),
@@ -1062,7 +1062,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
 
             expect(component.activeBinding()).not.toBeNull();
             expect(component.recoveryPending()).toBe(true);
-            expect(component.channel).toBeUndefined();
+            expect(component.channel()).toBeUndefined();
             fixture.destroy();
 
             expect(component.activeBinding()).toBeNull();
@@ -1071,8 +1071,8 @@ describe('WebPlayerViewComponent recovery integration', () => {
                 binding: component.activeBinding(),
                 pending: component.recoveryPending(),
                 diagnostic: component.playbackDiagnostic(),
-                channel: component.channel,
-                vjsOptions: component.vjsOptions,
+                channel: component.channel(),
+                vjsOptions: component.vjsOptions(),
                 failures: [...failures],
             };
 
@@ -1083,8 +1083,8 @@ describe('WebPlayerViewComponent recovery integration', () => {
                 binding: component.activeBinding(),
                 pending: component.recoveryPending(),
                 diagnostic: component.playbackDiagnostic(),
-                channel: component.channel,
-                vjsOptions: component.vjsOptions,
+                channel: component.channel(),
+                vjsOptions: component.vjsOptions(),
                 failures,
             }).toEqual(destroyedState);
             expect(component.playbackDiagnostic()).toBe(diagnostic);
@@ -1167,7 +1167,7 @@ describe('WebPlayerViewComponent recovery integration', () => {
         headerResolvers[2](true);
         await fixture.whenStable();
         expect(component.visiblePlaybackDiagnostic()).toBeNull();
-        expect(component.vjsOptions).toEqual(
+        expect(component.vjsOptions()).toEqual(
             expect.objectContaining({
                 sources: [
                     expect.objectContaining({

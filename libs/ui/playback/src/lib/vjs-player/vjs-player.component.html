@@ -12,6 +12,7 @@
         <app-player-controls
             [controller]="controlsAdapter"
             [playerSurface]="playerRoot"
+            [fullscreenTarget]="fullscreenTarget()"
             [mediaTitle]="mediaTitle()"
             [showControls]="interactionEnabled()"
             [shortcutsEnabled]="interactionEnabled()"

@@ -1,5 +1,6 @@
 import {
     Component,
+    ElementRef,
     OnDestroy,
     ViewEncapsulation,
     computed,
@@ -87,6 +88,18 @@ function resolveWebPlayerSharedControls(): boolean {
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent implements OnDestroy {
+    /**
+     * DOM fullscreen owner handed to every rendered player. Applications are
+     * remounted per token (`@for ... track application.token` below), and
+     * the Fullscreen API exits the moment its element leaves the document,
+     * so a fullscreen owned by the player shell would end with every
+     * episode, channel, or alternative-source switch. This host element
+     * spans all applications of one mount: fullscreen entered on episode 1
+     * is still in place when episode 2's engine mounts, and the fresh
+     * controls pick it up through `ControlsFullscreen.sync()`.
+     */
+    readonly fullscreenSurface: HTMLElement = inject(ElementRef<HTMLElement>)
+        .nativeElement;
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
@@ -142,8 +155,16 @@ export class WebPlayerViewComponent implements OnDestroy {
     );
     readonly activeBinding = this.recoverySession.activeBinding;
 
-    channel: Channel | undefined;
-    vjsOptions: VideoPlayerOptions | undefined;
+    /**
+     * Source handed to the rendered engine. Signals, not plain fields: in
+     * Electron the handoff lands in the stream-header IPC promise, after the
+     * change-detection pass that mounted the application, and this view sits
+     * under OnPush hosts (`PortalInlinePlayerComponent`) — a plain field set
+     * there was only rendered when something else happened to dirty the
+     * subtree, which used to be the fullscreen exit on every episode switch.
+     */
+    readonly channel = signal<Channel | undefined>(undefined);
+    readonly vjsOptions = signal<VideoPlayerOptions | undefined>(undefined);
 
     // Resolved from the live SettingsStore signal, not a mount-time storage
     // snapshot: a saved player change (settings page, command palette) must
@@ -262,8 +283,8 @@ export class WebPlayerViewComponent implements OnDestroy {
             const selectedPlayer = untracked(this.selectedPlayer);
             const reloadToken = untracked(this.reloadToken);
             const target = toInlinePlaybackPlayer(selectedPlayer);
-            this.channel = undefined;
-            this.vjsOptions = undefined;
+            this.channel.set(undefined);
+            this.vjsOptions.set(undefined);
             this.recovery.clearDiagnostic();
             if (target === null) {
                 this.applicationHandoff.release();
@@ -281,8 +302,8 @@ export class WebPlayerViewComponent implements OnDestroy {
                 token,
                 () => this.playbackApplicationToken(),
                 (handoff) => {
-                    this.channel = handoff.channel;
-                    this.vjsOptions = handoff.vjsOptions;
+                    this.channel.set(handoff.channel);
+                    this.vjsOptions.set(handoff.vjsOptions);
                 }
             );
         });

@@ -55,6 +55,15 @@ export class PlayerControlsComponent implements OnDestroy {
     private readonly translate = inject(TranslateService);
     readonly controller = input.required<PlayerController>();
     readonly playerSurface = input<HTMLElement | null>(null);
+    /**
+     * Element put into DOM fullscreen; defaults to `playerSurface`. Hosts
+     * that remount their player shell per source (`WebPlayerViewComponent`
+     * renders one component per playback application) pass an ancestor that
+     * outlives the remount: the Fullscreen API exits the moment its element
+     * leaves the document, so a shell-owned fullscreen would end with every
+     * episode, channel, or alternative-source switch.
+     */
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly showControls = input(true);
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
@@ -68,7 +77,7 @@ export class PlayerControlsComponent implements OnDestroy {
     private readonly shortcuts = new ControlsShortcuts();
     private readonly visibility = new ControlsVisibility(() => this.canHide());
     private readonly fullscreen = new ControlsFullscreen(
-        () => this.playerSurface(),
+        () => this.fullscreenTarget() ?? this.playerSurface(),
         () => this.reveal()
     );
     private readonly volume = new ControlsVolume({
@@ -177,6 +186,8 @@ export class PlayerControlsComponent implements OnDestroy {
         effect((onCleanup) => {
             const playerSurface = this.playerSurface();
             const surface = this.showControls() ? playerSurface : null;
+            // A replaced fullscreen owner re-syncs the state as well.
+            void this.fullscreenTarget();
             this.fullscreen.sync();
             onCleanup(this.surface.attachSurface(surface));
         });
