@@ -11,6 +11,7 @@
 - Download for Windows: https://4gray.github.io/iptvnator/download/windows/
 - Download for macOS: https://4gray.github.io/iptvnator/download/macos/
 - Download for Linux: https://4gray.github.io/iptvnator/download/linux/
+- Guide, Xtream Codes setup: https://4gray.github.io/iptvnator/blog/xtream-codes-setup-guide/
 - Release Notes (v0.18): https://4gray.github.io/iptvnator/blog/v0-18-release-notes/
 - Troubleshooting (macOS app damaged fix): https://4gray.github.io/iptvnator/blog/macos-arm-app-damaged-fix/
 - Source Code: https://github.com/4gray/iptvnator

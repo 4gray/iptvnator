@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Pushes to `master` and `v*` can publish Docker images. A `v*` tag build creates a draft GitHub release.
 - `pnpm run release:verify:draft` waits for that tag build (polling until the run is indexed, then `gh run watch`) and verifies the draft's status, authored body, and complete required asset set. It is read-only and deliberately fails on an already-published release, because it is the gate that runs before publication.
 - Publishing the GitHub release verifies its Snap assets and automatically uploads them to `edge`; installed-Snap smoke and candidate/stable promotion remain manual.
-- Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image.
+- Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image. Website guide screenshots use the same script: manifest shots with `"group": "guides"` are captured only by `pnpm release:screenshots --group guides` and land in `apps/website/public/blog/guides/screenshots/`.
 - Final task summaries should state whether a release note was added or why it was skipped.
 
 ## Regression Prevention And Test Updates

@@ -62,3 +62,22 @@ resolved version.
 `tools/testing/website-download-pages.test.mjs`, which checks titles,
 canonicals, direct asset links, JSON-LD, cross-links and sitemap entries
 without depending on a specific version.
+
+## Guides
+
+Evergreen how-to posts live in the blog collection next to release notes
+(`apps/website/src/content/blog/xtream-codes-setup-guide.mdx` is the first).
+Two conventions set them apart:
+
+- **`faq` frontmatter.** An optional list of `{ q, a }` entries. `BlogPost.astro`
+  renders it as an accordion after the body and emits a `FAQPage` JSON-LD block
+  next to the `BlogPosting` one, so the answers can surface as rich results.
+- **Screenshots from the capture script.** Guide frames are captured by
+  `pnpm release:screenshots --group guides` into
+  `apps/website/public/blog/guides/screenshots/<slug>-<theme>.png`; the shots are
+  declared in `tools/release/screenshots.manifest.json` with `"group": "guides"`
+  and never appear in a release run.
+
+`tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
+each guide for the FAQPage schema, a link to the download hub and the presence
+of every referenced screenshot in the build output.

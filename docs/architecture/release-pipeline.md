@@ -155,6 +155,16 @@ Screenshots come only from the capture script running against the mock servers.
 Never publish one taken from a real playlist or account — streams, logos and
 metadata are copyrighted, and credentials must never reach a published image.
 
+The same script also produces the evergreen screenshots of the website guides.
+Manifest shots that carry `"group": "guides"` are skipped by a release run and
+captured only with `pnpm release:screenshots --group guides`, which publishes
+into `apps/website/public/blog/guides/screenshots/` instead of a release folder
+(`outputDirectoryFor` in `screenshot-guards.mjs`). Guide shots go through every
+guard a release shot does; the add-playlist dialog shots fill the form with the
+mock's fictional `marketing` credentials and use a labeled hand-out for the
+Auto-detect method rather than a `get.php?username=…` link, because G4 rejects
+any URL carrying query credentials.
+
 Output lands in `dist/release-highlight-cards/v<version>/`, outside version
 control — keyed by the exact version, because 0.24.0 and 0.24.1 share a blog
 post but not a card set. A run first removes the cards a previous run left in
