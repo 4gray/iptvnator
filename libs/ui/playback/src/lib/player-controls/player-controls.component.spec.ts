@@ -441,6 +441,38 @@ describe('PlayerControlsComponent', () => {
             fixture.detectChanges();
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
         });
+
+        it('pins again when keyboard focus returns to the clicked control within the window', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+
+            // Mouse click on the second control...
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].focus();
+            buttons[1].click();
+            fixture.detectChanges();
+            // ...then Shift+Tab away and Tab back before the press expires.
+            buttons[0].focus();
+            buttons[1].focus();
+            fixture.detectChanges();
+
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[1]);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+        });
     });
 
     describe('bar-hover state', () => {

@@ -148,7 +148,10 @@ export class ControlsSurface {
      * `focusin` alone cannot tell a mouse click from Tab navigation; only the
      * latter should keep the controls pinned. The press must be recent and
      * must have landed inside the newly focused element — a Tab shortly after
-     * a click on the video still counts as keyboard navigation.
+     * a click on the video still counts as keyboard navigation. A press moves
+     * focus at most once, so the record is consumed by its first matching
+     * focus event: leaving the clicked control with Shift+Tab and returning
+     * with Tab inside the window is keyboard navigation again.
      */
     wasPointerInteraction(event: FocusEvent): boolean {
         const press = this.lastPointerDown;
@@ -159,11 +162,14 @@ export class ControlsSurface {
             return false;
         }
         const focused = event.target;
-        return (
+        const matches =
             focused instanceof Node &&
             press.target instanceof Node &&
-            focused.contains(press.target)
-        );
+            focused.contains(press.target);
+        if (matches) {
+            this.lastPointerDown = null;
+        }
+        return matches;
     }
 
     private onClick(event: MouseEvent): void {

@@ -338,10 +338,14 @@ hide delay. Only keyboard-originated focus pins the bar: Chromium also moves
 focus to a clicked `<button>`, and that focus is a side effect of the click,
 so `ControlsSurface.wasPointerInteraction` attributes a `focusin` to the press
 when a `pointerdown` was recorded within the last second whose target lies
-inside the newly focused element. Such focus reveals like any pointer activity
-and the bar hides on the normal delay while the button stays the active
-element; a Tab shortly after a click on the video still counts as keyboard
-navigation because the press did not land inside the focused control. A
+inside the newly focused element; the record is consumed by its first matching
+focus event, since a press moves focus at most once. Such focus reveals like
+any pointer activity and the bar hides on the normal delay while the button
+stays the active element; a Tab shortly after a click on the video still
+counts as keyboard navigation because the press did not land inside the
+focused control, and Shift+Tab away from the clicked control followed by Tab
+back onto it is keyboard navigation too, because the press was already
+consumed. A
 pointer press anywhere in the bar also releases an existing keyboard pin: the
 press may produce no focus event at all (clicking the control that already has
 focus) or only a transfer inside the bar, which `focusout` ignores by design,

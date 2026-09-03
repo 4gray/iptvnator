@@ -303,6 +303,21 @@ describe('ControlsSurface', () => {
             expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
         });
 
+        it('consumes the press on its first matching focus event', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+            // Shift+Tab away and Tab back within the window: keyboard focus.
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('keeps the press while focus events do not match it', () => {
+            const other = document.createElement('button');
+            element.appendChild(other);
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(other))).toBe(false);
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+        });
+
         it('forgets a press after the attribution window', () => {
             jest.useFakeTimers();
             jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
