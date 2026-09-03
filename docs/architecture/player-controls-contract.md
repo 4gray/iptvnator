@@ -429,7 +429,23 @@ straight to the engine:
 - **Video.js** (`vjs-legacy-shortcuts.ts`) goes through the player API so the
   vendor control bar stays in sync; F uses the player's
   `requestFullscreen`/`exitFullscreen`. The legacy configuration still never
-  enables `userActions.hotkeys`.
+  enables `userActions.hotkeys`. The chrome also releases the focus a pointer
+  click leaves on a control (`vjs-pointer-focus-release.ts`, the vendor
+  counterpart of `ControlsSurface.releasePointerFocus`, both built on
+  `pointer-focus-release.ts`): Chromium focuses a clicked control-bar
+  `<button>` or slider, and a focused Video.js component captures the
+  keyboard entirely — `Component.handleKeyDown` stops the propagation of
+  every key and `ClickableComponent` turns Space and Enter into a click — so
+  after a click on the fullscreen button Space left fullscreen instead of
+  pausing and the document-level shortcuts never saw a key. The click is
+  attributed by its `pointerType` alone (keyboard activation keeps focus; a
+  legacy MouseEvent click without one is left alone), buttons, `role="button"`
+  clickables and sliders are released, and menu buttons are exempt because
+  `MenuButton.pressButton()` focuses the popup's first item and
+  `Menu.handleBlur` closes the menu when that focus leaves. ArtPlayer needs no
+  counterpart (its controls are non-focusable divs), nor do the native HTML5
+  controls (a click focuses the `<video>`, which the shortcuts do not treat as
+  interactive).
 - **ArtPlayer** (`art-player-legacy-shortcuts.ts`) uses the vendor setters its
   own hotkeys used (`toggle`, `forward`/`backward`, `volume`, `muted`,
   `fullscreen`), so ArtPlayer's notices and UI stay in sync. The legacy chrome

@@ -457,7 +457,16 @@ Key files:
   path keeps the existing Video.js skin and legacy series navigation unchanged
   (still without `userActions.hotkeys`), while the playback keyboard shortcuts
   attach through `LegacyPlayerShortcuts` and drive the player API so the
-  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`).
+  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`). That chrome
+  also releases the focus a pointer click leaves on a control
+  (`vjs-pointer-focus-release.ts`, sharing `pointer-focus-release.ts` with
+  `ControlsSurface`): a focused Video.js component stops every key before the
+  document and turns Space/Enter into a click, so after a click on fullscreen
+  Space left fullscreen instead of pausing. Attribution is by click
+  `pointerType` alone (keyboard activation keeps focus), and menu buttons are
+  exempt because Video.js focuses the popup menu and closes it when that
+  focus leaves. ArtPlayer (non-focusable divs) and the native HTML5 controls
+  (focus lands on the `<video>`) need no counterpart.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
   HLS/DASH(Shaka)/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
