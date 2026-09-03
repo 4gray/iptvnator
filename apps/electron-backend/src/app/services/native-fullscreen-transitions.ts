@@ -57,17 +57,21 @@ export function requestFullScreen(
     if (!windowsWithTransitionListeners.has(win)) {
         windowsWithTransitionListeners.add(win);
         const settle = () => {
-            const pending = pendingFullScreenTransitions.get(win);
-            if (!pending || win.isDestroyed()) {
+            // Through the getter so an expired target is dropped here too:
+            // an event arriving after the timeout belongs to a request the
+            // user has long moved past, and re-issuing it would revive the
+            // stale intent with a fresh timestamp.
+            const pendingTarget = getPendingFullScreenTarget(win);
+            if (pendingTarget === undefined || win.isDestroyed()) {
                 return;
             }
 
             pendingFullScreenTransitions.delete(win);
-            if (win.isFullScreen() !== pending.target) {
+            if (win.isFullScreen() !== pendingTarget) {
                 // An earlier transition landed, not the requested one. Ask
                 // again rather than trusting the platform to have queued
                 // it: a second identical request is a no-op at worst.
-                requestFullScreen(win, pending.target);
+                requestFullScreen(win, pendingTarget);
             }
         };
         win.on('enter-full-screen', settle);

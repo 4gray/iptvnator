@@ -216,6 +216,34 @@ describe('WindowEvents', () => {
         }
     });
 
+    it('does not revive an expired target when its transition event arrives late', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+        const now = jest.spyOn(Date, 'now');
+
+        try {
+            now.mockReturnValue(1_000);
+            toggle(fakeEvent);
+            toggle(fakeEvent);
+            expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
+
+            // The enter lands long after the timeout, on the other state
+            // than the expired "windowed" target. Re-issuing it here would
+            // resurrect intent the user has long moved past.
+            now.mockReturnValue(1_000 + FULLSCREEN_TRANSITION_TIMEOUT_MS + 1);
+            win.state.fullScreen = true;
+            win.emit('enter-full-screen');
+            expect(win.setFullScreen).toHaveBeenCalledTimes(2);
+
+            // The next press is decided from the live state.
+            toggle(fakeEvent);
+            expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+        } finally {
+            now.mockRestore();
+        }
+    });
+
     it('decides a press during a re-issued transition against the re-issued target', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
