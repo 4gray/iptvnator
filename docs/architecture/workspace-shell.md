@@ -313,8 +313,12 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    asynchronous and `isFullScreen()` reports the old value until it lands,
    the handler keeps the pending target per window and decides the next
    toggle against it — two quick presses are an enter-then-exit, not two
-   enters — dropping the entry once a transition event reports the target
-   state. The renderer binds it to
+   enters. The entry can never govern F11 for good: it is dropped once a
+   transition event reports the target state, a transition landing on the
+   other state re-issues the target (the platform may have dropped the
+   queued request), and an entry older than
+   `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored, so a request that
+   produced no event at all is forgotten. The renderer binds it to
    **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated
    by `isTypingInInput` — it must work from any focus, because it is the
    only exit from a fullscreen launch on Windows/Linux, where the title bar

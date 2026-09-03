@@ -69,42 +69,80 @@ ipcMain.handle(WINDOW_TOGGLE_MAXIMIZE, (event): WindowState => {
 });
 
 /**
- * Target of a native fullscreen transition still in flight, per window.
+ * Native fullscreen transition still in flight, per window.
+ *
  * setFullScreen() completes asynchronously (the macOS animation, Linux
  * window managers) and isFullScreen() keeps reporting the old value
  * meanwhile, so two quick F11 presses would both read the same stale state
  * and request the same target — an enter-then-exit would land fullscreen.
- * Deciding against the pending target keeps toggle parity; Electron queues
- * the second transition behind the first. The entry is dropped once a
- * transition event reports the target state, so a request the platform
- * dropped is corrected by the next press instead of sticking forever.
+ * The next toggle is therefore decided against the pending target.
+ *
+ * The entry can never govern F11 for good: it is dropped when a transition
+ * event reports the target state, a transition that lands on the OTHER
+ * state re-issues the target (the queued request may have been dropped by
+ * the platform), and an entry older than the transition timeout is ignored
+ * outright, since no native transition takes that long — a request that
+ * produced no event at all is then simply forgotten.
  */
-const pendingFullScreenTargets = new WeakMap<Electron.BrowserWindow, boolean>();
+interface PendingFullScreenTransition {
+    target: boolean;
+    requestedAt: number;
+}
 
-function trackFullScreenTransition(
+/** Longest a native transition is trusted to still be in flight. */
+export const FULLSCREEN_TRANSITION_TIMEOUT_MS = 2000;
+
+const pendingFullScreenTransitions = new WeakMap<
+    Electron.BrowserWindow,
+    PendingFullScreenTransition
+>();
+const windowsWithTransitionListeners = new WeakSet<Electron.BrowserWindow>();
+
+function getPendingFullScreenTarget(
     win: Electron.BrowserWindow,
-    target: boolean
+    now: number
+): boolean | undefined {
+    const pending = pendingFullScreenTransitions.get(win);
+
+    if (!pending) {
+        return undefined;
+    }
+
+    if (now - pending.requestedAt > FULLSCREEN_TRANSITION_TIMEOUT_MS) {
+        pendingFullScreenTransitions.delete(win);
+        return undefined;
+    }
+
+    return pending.target;
+}
+
+function requestFullScreen(
+    win: Electron.BrowserWindow,
+    target: boolean,
+    now: number
 ): void {
-    if (!pendingFullScreenTargets.has(win)) {
+    if (!windowsWithTransitionListeners.has(win)) {
+        windowsWithTransitionListeners.add(win);
         const settle = () => {
-            const pending = pendingFullScreenTargets.get(win);
-            if (
-                pending !== undefined &&
-                !win.isDestroyed() &&
-                win.isFullScreen() !== pending
-            ) {
-                // An earlier transition landed; the queued one is next.
+            const pending = pendingFullScreenTransitions.get(win);
+            if (!pending || win.isDestroyed()) {
                 return;
             }
-            pendingFullScreenTargets.delete(win);
-            win.off('enter-full-screen', settle);
-            win.off('leave-full-screen', settle);
+
+            pendingFullScreenTransitions.delete(win);
+            if (win.isFullScreen() !== pending.target) {
+                // An earlier transition landed, not the requested one. Ask
+                // again rather than trusting the platform to have queued
+                // it: a second identical request is a no-op at worst.
+                requestFullScreen(win, pending.target, Date.now());
+            }
         };
         win.on('enter-full-screen', settle);
         win.on('leave-full-screen', settle);
     }
 
-    pendingFullScreenTargets.set(win, target);
+    pendingFullScreenTransitions.set(win, { target, requestedAt: now });
+    win.setFullScreen(target);
 }
 
 // F11. This is the exit path from a fullscreen launch on Windows/Linux,
@@ -118,11 +156,11 @@ ipcMain.handle(WINDOW_TOGGLE_FULLSCREEN, (event): WindowState => {
         return getWindowState(win);
     }
 
+    const now = Date.now();
     const shouldFullScreen = !(
-        pendingFullScreenTargets.get(win) ?? win.isFullScreen()
+        getPendingFullScreenTarget(win, now) ?? win.isFullScreen()
     );
-    trackFullScreenTransition(win, shouldFullScreen);
-    win.setFullScreen(shouldFullScreen);
+    requestFullScreen(win, shouldFullScreen, now);
 
     return {
         isMaximized: win.isMaximized(),
