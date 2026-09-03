@@ -1,9 +1,13 @@
 const mockClearStorageData = jest.fn();
 const mockIsFrameCopyRuntimeUsable = jest.fn<boolean, []>();
 const mockIsEmbeddedMpvFeatureEnabled = jest.fn<boolean, []>();
+const mockHasSwitch = jest.fn<boolean, [string]>();
 
 jest.mock('electron', () => ({
     app: {
+        commandLine: {
+            hasSwitch: mockHasSwitch,
+        },
         getPath: jest.fn(() => '/tmp'),
         isPackaged: false,
         isReady: jest.fn(() => false),
@@ -31,6 +35,7 @@ jest.mock('./services/store.service', () => ({
         get: jest.fn(),
         set: jest.fn(),
     },
+    STARTUP_WINDOW_MODE: 'startupWindowMode',
     WINDOW_BOUNDS: 'windowBounds',
 }));
 
@@ -64,8 +69,10 @@ type MockMainWindow = {
     isMaximized: jest.Mock<boolean, []>;
     loadFile: jest.Mock<Promise<void>, [string]>;
     loadURL: jest.Mock<Promise<void>, [string]>;
+    maximize: jest.Mock<void, []>;
     on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
     once: jest.Mock<void, [string, (...args: unknown[]) => void]>;
+    setFullScreen: jest.Mock<void, [boolean]>;
     setMenu: jest.Mock<void, [unknown]>;
     show: jest.Mock<void, []>;
     webContents: {
@@ -83,9 +90,11 @@ function createMockMainWindow(): MockMainWindow {
         isMaximized: jest.fn<boolean, []>().mockReturnValue(false),
         loadFile: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
         loadURL: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
+        maximize: jest.fn<void, []>(),
         on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
         once: jest.fn<void, [string, (...args: unknown[]) => void]>(),
         isDestroyed: jest.fn<boolean, []>().mockReturnValue(false),
+        setFullScreen: jest.fn<void, [boolean]>(),
         setMenu: jest.fn<void, [unknown]>(),
         show: jest.fn<void, []>(),
         webContents: {
@@ -129,6 +138,7 @@ describe('Electron app security helpers', () => {
             workAreaSize: { height: 720, width: 1280 },
         });
         (store.get as jest.Mock).mockReturnValue(undefined);
+        mockHasSwitch.mockReturnValue(false);
     });
 
     it('creates an explicitly hardened BrowserWindow webPreferences object', () => {
@@ -308,6 +318,132 @@ describe('Electron app security helpers', () => {
         expect(mainWindow.loadURL).toHaveBeenCalledWith(
             'http://localhost:4200'
         );
+    });
+
+    describe('startup window mode', () => {
+        function createWindowViaOnReady(): MockMainWindow {
+            const mainWindow = createMockMainWindow();
+            (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+            getAppInternals().onReady();
+            return mainWindow;
+        }
+
+        function fireReadyToShow(mainWindow: MockMainWindow): void {
+            const handlers = mainWindow.once.mock.calls
+                .filter(([eventName]) => eventName === 'ready-to-show')
+                .map(([, handler]) => handler);
+
+            expect(handlers).toHaveLength(1);
+            handlers[0]();
+        }
+
+        function storeStartupWindowMode(mode: string): void {
+            (store.get as jest.Mock).mockImplementation((key: string) =>
+                key === 'startupWindowMode' ? mode : undefined
+            );
+        }
+
+        it('creates a plain window when nothing is stored', () => {
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.not.objectContaining({ fullscreen: true })
+            );
+
+            fireReadyToShow(mainWindow);
+
+            expect(mainWindow.maximize).not.toHaveBeenCalled();
+            expect(mainWindow.setFullScreen).not.toHaveBeenCalled();
+            expect(mainWindow.show).toHaveBeenCalledTimes(1);
+        });
+
+        it('creates the window fullscreen when the stored mode says so', () => {
+            storeStartupWindowMode('fullscreen');
+
+            const mainWindow = createWindowViaOnReady();
+            // Windows/Linux honour the constructor option while the window
+            // is still hidden.
+            mainWindow.isFullScreen.mockReturnValue(true);
+
+            // Still created hidden: fullscreen is entered before the first
+            // paint, and ready-to-show reveals it like any other launch.
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.objectContaining({ fullscreen: true, show: false })
+            );
+            fireReadyToShow(mainWindow);
+            expect(mainWindow.maximize).not.toHaveBeenCalled();
+            expect(mainWindow.show).toHaveBeenCalledTimes(1);
+            // Already fullscreen: no second request, which would animate a
+            // toggle on top of the one that took.
+            expect(mainWindow.setFullScreen).not.toHaveBeenCalled();
+        });
+
+        it('repeats the fullscreen request after show() where the constructor option did not take', () => {
+            storeStartupWindowMode('fullscreen');
+
+            const mainWindow = createWindowViaOnReady();
+            // macOS: an NSWindow only toggles fullscreen once it is on
+            // screen, so a hidden window ignores the constructor option.
+            mainWindow.isFullScreen.mockReturnValue(false);
+
+            fireReadyToShow(mainWindow);
+
+            expect(mainWindow.setFullScreen).toHaveBeenCalledTimes(1);
+            expect(mainWindow.setFullScreen).toHaveBeenCalledWith(true);
+            expect(mainWindow.show.mock.invocationCallOrder[0]).toBeLessThan(
+                mainWindow.setFullScreen.mock.invocationCallOrder[0]
+            );
+        });
+
+        it('maximizes only once the window is ready to show, before revealing it', () => {
+            storeStartupWindowMode('maximized');
+
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.not.objectContaining({ fullscreen: true })
+            );
+            // maximize() on a hidden window shows it — a blank flash if it
+            // ran here.
+            expect(mainWindow.maximize).not.toHaveBeenCalled();
+
+            fireReadyToShow(mainWindow);
+
+            expect(mainWindow.maximize).toHaveBeenCalledTimes(1);
+            expect(mainWindow.show).toHaveBeenCalledTimes(1);
+            expect(
+                mainWindow.maximize.mock.invocationCallOrder[0]
+            ).toBeLessThan(mainWindow.show.mock.invocationCallOrder[0]);
+        });
+
+        it('lets --fullscreen override the stored mode for this launch without persisting it', () => {
+            storeStartupWindowMode('maximized');
+            mockHasSwitch.mockImplementation((name) => name === 'fullscreen');
+
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.objectContaining({ fullscreen: true })
+            );
+            fireReadyToShow(mainWindow);
+            expect(mainWindow.maximize).not.toHaveBeenCalled();
+            expect(store.set).not.toHaveBeenCalledWith(
+                'startupWindowMode',
+                expect.anything()
+            );
+        });
+
+        it('treats a hand-edited unknown stored mode as a plain window', () => {
+            storeStartupWindowMode('kiosk');
+
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.not.objectContaining({ fullscreen: true })
+            );
+            fireReadyToShow(mainWindow);
+            expect(mainWindow.maximize).not.toHaveBeenCalled();
+        });
     });
 
     it('creates the main window immediately when Electron is already ready', () => {

@@ -80,6 +80,7 @@ const DB_OPERATION_EVENT = 'DB_OPERATION_EVENT';
 const PLAYLIST_REFRESH_EVENT = 'PLAYLIST:REFRESH_EVENT';
 const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
 const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
+const WINDOW_TOGGLE_FULLSCREEN = 'WINDOW:TOGGLE_FULLSCREEN';
 const WINDOW_CLOSE = 'WINDOW:CLOSE';
 const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
@@ -414,6 +415,7 @@ const electronApi: ElectronBridgeApi = {
     },
     minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
+    toggleFullScreenWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_FULLSCREEN),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),
     getWindowState: () => ipcRenderer.invoke(WINDOW_GET_STATE),
     onWindowStateChange: (

@@ -39,6 +39,9 @@ function createFakeWindow(
         unmaximize: jest.fn(() => {
             state.maximized = false;
         }),
+        setFullScreen: jest.fn((fullScreen: boolean) => {
+            state.fullScreen = fullScreen;
+        }),
         close: jest.fn(),
     };
 }
@@ -59,6 +62,7 @@ describe('WindowEvents', () => {
             'WINDOW:CLOSE',
             'WINDOW:GET_STATE',
             'WINDOW:MINIMIZE',
+            'WINDOW:TOGGLE_FULLSCREEN',
             'WINDOW:TOGGLE_MAXIMIZE',
         ]);
     });
@@ -94,6 +98,26 @@ describe('WindowEvents', () => {
         expect(result).toEqual({ isMaximized: false, isFullScreen: false });
     });
 
+    it('enters fullscreen from a windowed state and reports the requested state', () => {
+        const win = createFakeWindow({ maximized: true, fullScreen: false });
+        mockFromWebContents.mockReturnValue(win);
+
+        const result = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!(fakeEvent);
+
+        expect(win.setFullScreen).toHaveBeenCalledWith(true);
+        expect(result).toEqual({ isMaximized: true, isFullScreen: true });
+    });
+
+    it('leaves fullscreen and reports the requested state', () => {
+        const win = createFakeWindow({ fullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+
+        const result = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!(fakeEvent);
+
+        expect(win.setFullScreen).toHaveBeenCalledWith(false);
+        expect(result).toEqual({ isMaximized: false, isFullScreen: false });
+    });
+
     it('closes the sender window', () => {
         const win = createFakeWindow();
         mockFromWebContents.mockReturnValue(win);
@@ -119,6 +143,12 @@ describe('WindowEvents', () => {
             mockHandlers.get('WINDOW:MINIMIZE')!(fakeEvent)
         ).not.toThrow();
         expect(mockHandlers.get('WINDOW:TOGGLE_MAXIMIZE')!(fakeEvent)).toEqual({
+            isMaximized: false,
+            isFullScreen: false,
+        });
+        expect(
+            mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!(fakeEvent)
+        ).toEqual({
             isMaximized: false,
             isFullScreen: false,
         });

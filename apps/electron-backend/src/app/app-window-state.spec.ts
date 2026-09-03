@@ -201,6 +201,69 @@ describe('window state change pushes', () => {
         );
     });
 
+    it('keeps isFullScreen=true when the player leaves HTML fullscreen inside a natively fullscreen window', () => {
+        const win = createMockStateWindow();
+        // A fullscreen launch (or F11 before attach) — the window is
+        // natively fullscreen when the events are wired up.
+        win.isFullScreen.mockReturnValue(true);
+        attachWindowStateEvents(win);
+
+        // Electron sees the window is already fullscreen, so entering HTML
+        // fullscreen only emits the html variant …
+        fireWindowEvent(win, 'enter-html-full-screen');
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: false, isFullScreen: true }
+        );
+
+        // … and leaving it restores ONLY the HTML state: no
+        // 'leave-full-screen' fires and the window stays fullscreen. A
+        // single flag would un-hide the window controls here.
+        fireWindowEvent(win, 'leave-html-full-screen');
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: false, isFullScreen: true }
+        );
+
+        // F11 afterwards is what actually leaves fullscreen.
+        fireWindowEvent(win, 'leave-full-screen');
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: false, isFullScreen: false }
+        );
+    });
+
+    it('keeps a native fullscreen entered by event across a player HTML fullscreen round-trip', () => {
+        const win = createMockStateWindow();
+        attachWindowStateEvents(win);
+
+        fireWindowEvent(win, 'enter-full-screen');
+        fireWindowEvent(win, 'enter-html-full-screen');
+        fireWindowEvent(win, 'leave-html-full-screen');
+
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: false, isFullScreen: true }
+        );
+    });
+
+    it('clears isFullScreen when both the native and the HTML state are left', () => {
+        const win = createMockStateWindow();
+        attachWindowStateEvents(win);
+
+        // Windows/Linux HTML fullscreen without prior native fullscreen:
+        // Electron toggles the native window too, so both pairs fire.
+        fireWindowEvent(win, 'enter-full-screen');
+        fireWindowEvent(win, 'enter-html-full-screen');
+        fireWindowEvent(win, 'leave-full-screen');
+        fireWindowEvent(win, 'leave-html-full-screen');
+
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: false, isFullScreen: false }
+        );
+    });
+
     it('keeps the fullscreen flag when a maximize event arrives mid-transition', () => {
         const win = createMockStateWindow();
         win.isFullScreen.mockReturnValue(true);

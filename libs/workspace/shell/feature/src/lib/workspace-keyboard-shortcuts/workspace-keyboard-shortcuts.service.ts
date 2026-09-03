@@ -78,6 +78,10 @@ export class WorkspaceKeyboardShortcutsService {
     }
 
     private handleKeydown(event: KeyboardEvent): void {
+        if (this.handleWindowFullscreenToggle(event)) {
+            return;
+        }
+
         if (
             isTypingInInput(event) ||
             !isKeyboardShortcutHelpTrigger(event) ||
@@ -88,6 +92,41 @@ export class WorkspaceKeyboardShortcutsService {
 
         event.preventDefault();
         this.openShortcutsDialog();
+    }
+
+    /**
+     * F11 toggles OS-level window fullscreen in the desktop app. It is the
+     * way out of a fullscreen launch on Windows/Linux, where the title bar is
+     * hidden and the window controls hide themselves while fullscreen, so it
+     * is deliberately not gated by `isTypingInInput` — F11 is expected to
+     * work from any focus. While the player owns HTML-element fullscreen
+     * (`document.fullscreenElement`) its own F / Esc are in charge and F11
+     * must not yank OS fullscreen out from under it. Without a bridge (PWA)
+     * the browser keeps its own F11.
+     */
+    private handleWindowFullscreenToggle(event: KeyboardEvent): boolean {
+        if (
+            event.key !== 'F11' ||
+            event.repeat ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            event.shiftKey
+        ) {
+            return false;
+        }
+
+        const bridge = window.electron;
+        if (
+            typeof bridge?.toggleFullScreenWindow !== 'function' ||
+            document.fullscreenElement
+        ) {
+            return false;
+        }
+
+        event.preventDefault();
+        void bridge.toggleFullScreenWindow().catch(() => undefined);
+        return true;
     }
 
     private getShortcutPlatform(): 'mac' | 'other' {

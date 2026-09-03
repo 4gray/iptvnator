@@ -10,6 +10,7 @@ import {
     WINDOW_CLOSE,
     WINDOW_GET_STATE,
     WINDOW_MINIMIZE,
+    WINDOW_TOGGLE_FULLSCREEN,
     WINDOW_TOGGLE_MAXIMIZE,
 } from '@iptvnator/shared/interfaces';
 
@@ -64,6 +65,27 @@ ipcMain.handle(WINDOW_TOGGLE_MAXIMIZE, (event): WindowState => {
     return {
         isMaximized: shouldMaximize,
         isFullScreen: win.isFullScreen(),
+    };
+});
+
+// F11. This is the exit path from a fullscreen launch on Windows/Linux,
+// where the title bar is hidden and the custom controls hide themselves
+// while fullscreen. setFullScreen() completes asynchronously too (Linux
+// window managers, the macOS animation), so like the maximize toggle it
+// reports the requested state and leaves WINDOW:STATE_CHANGED authoritative.
+ipcMain.handle(WINDOW_TOGGLE_FULLSCREEN, (event): WindowState => {
+    const win = getSenderWindow(event);
+
+    if (!win) {
+        return getWindowState(win);
+    }
+
+    const shouldFullScreen = !win.isFullScreen();
+    win.setFullScreen(shouldFullScreen);
+
+    return {
+        isMaximized: win.isMaximized(),
+        isFullScreen: shouldFullScreen,
     };
 });
 

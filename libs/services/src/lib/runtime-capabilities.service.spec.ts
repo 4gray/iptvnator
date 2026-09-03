@@ -270,6 +270,27 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
     });
 
+    it('offers the startup window mode only with both the settings mirror and the F11 toggle', () => {
+        testWindow.electron = undefined;
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.supportsStartupWindowMode).toBe(false);
+
+        // The mirror alone would let a user pick fullscreen with no way out
+        // on Windows/Linux, where the title bar is hidden.
+        testWindow.electron = { updateSettings: jest.fn() };
+        expect(service.supportsStartupWindowMode).toBe(false);
+
+        testWindow.electron = { toggleFullScreenWindow: jest.fn() };
+        expect(service.supportsStartupWindowMode).toBe(false);
+
+        testWindow.electron = {
+            updateSettings: jest.fn(),
+            toggleFullScreenWindow: jest.fn(),
+        };
+        expect(service.supportsStartupWindowMode).toBe(true);
+    });
+
     it('decouples external player launch support from path-setting support', () => {
         testWindow.electron = {
             openInMpv: jest.fn(),

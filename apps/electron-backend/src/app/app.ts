@@ -12,9 +12,17 @@ import {
     isWindowTraceEnabled,
     trace,
 } from './services/debug-trace';
-import { store, WINDOW_BOUNDS } from './services/store.service';
+import {
+    STARTUP_WINDOW_MODE,
+    store,
+    WINDOW_BOUNDS,
+} from './services/store.service';
 import { isFrameCopyRuntimeUsable } from './services/embedded-mpv-frame-copy-platform.util';
 import { isEmbeddedMpvFeatureEnabled } from './services/embedded-mpv-runtime-policy.util';
+import {
+    FULLSCREEN_LAUNCH_SWITCH,
+    resolveStartupWindowMode,
+} from './services/startup-window-mode';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -384,6 +392,16 @@ export default class App {
             isFullScreen: win.isFullScreen(),
         };
 
+        // Native (OS-level) and HTML-element fullscreen are tracked apart
+        // and OR-ed into the pushed flag. Electron remembers when the window
+        // was already natively fullscreen before the player entered HTML
+        // fullscreen and then leaves ONLY the HTML state on exit — no
+        // 'leave-full-screen' fires and the window stays fullscreen. A single
+        // flag cleared by 'leave-html-full-screen' would un-hide the window
+        // controls over a window that is still fullscreen, which a fullscreen
+        // launch or F11 followed by the player's F → Esc makes routine.
+        const fullscreen = { native: state.isFullScreen, html: false };
+
         const push = (patch: Partial<ElectronBridgeWindowState>) => {
             Object.assign(state, patch);
 
@@ -395,16 +413,30 @@ export default class App {
             // mutations of the tracked state.
             win.webContents.send(WINDOW_STATE_CHANGED, { ...state });
         };
+        const pushFullScreen = () =>
+            push({ isFullScreen: fullscreen.native || fullscreen.html });
 
         win.on('maximize', () => push({ isMaximized: true }));
         win.on('unmaximize', () => push({ isMaximized: false }));
         // The html variants cover HTML-element fullscreen; not every
         // platform/trigger emits both pairs, and duplicate pushes with the
         // same payload are harmless.
-        win.on('enter-full-screen', () => push({ isFullScreen: true }));
-        win.on('enter-html-full-screen', () => push({ isFullScreen: true }));
-        win.on('leave-full-screen', () => push({ isFullScreen: false }));
-        win.on('leave-html-full-screen', () => push({ isFullScreen: false }));
+        win.on('enter-full-screen', () => {
+            fullscreen.native = true;
+            pushFullScreen();
+        });
+        win.on('leave-full-screen', () => {
+            fullscreen.native = false;
+            pushFullScreen();
+        });
+        win.on('enter-html-full-screen', () => {
+            fullscreen.html = true;
+            pushFullScreen();
+        });
+        win.on('leave-html-full-screen', () => {
+            fullscreen.html = false;
+            pushFullScreen();
+        });
     }
 
     private static initMainWindow() {
@@ -413,6 +445,12 @@ export default class App {
         const height = Math.min(720, workAreaSize.height || 720);
 
         const savedWindowBounds = store.get(WINDOW_BOUNDS);
+        const startupWindowMode = resolveStartupWindowMode({
+            cliHasFullscreenSwitch: app.commandLine.hasSwitch(
+                FULLSCREEN_LAUNCH_SWITCH
+            ),
+            storedMode: store.get(STARTUP_WINDOW_MODE),
+        });
 
         // Create the browser window.
         App.mainWindow = new BrowserWindow({
@@ -422,6 +460,12 @@ export default class App {
             show: false,
             webPreferences: getMainWindowWebPreferences(),
             ...savedWindowBounds,
+            // Fullscreen is a constructor option: the window is created
+            // hidden and enters fullscreen before its first paint. The saved
+            // bounds stay spread in above — they are the normal bounds the
+            // window returns to, and the close handler keeps persisting
+            // getNormalBounds(), so a fullscreen session never corrupts them.
+            ...(startupWindowMode === 'fullscreen' ? { fullscreen: true } : {}),
             minHeight: 600,
             minWidth: 900,
             ...App.getPlatformTitleBarOptions(),
@@ -436,7 +480,24 @@ export default class App {
 
         // if main window is ready to show, close the splash window and show the main window
         App.mainWindow.once('ready-to-show', () => {
+            // maximize() on a hidden window shows it (Electron docs), so it
+            // has to wait for ready-to-show like show() does — any earlier
+            // and a blank window flashes before the renderer paints.
+            if (startupWindowMode === 'maximized') {
+                App.mainWindow.maximize();
+            }
             App.mainWindow.show();
+            // macOS ignores the constructor's `fullscreen` while the window
+            // is hidden — an NSWindow can only toggle fullscreen once it is
+            // on screen — so the request is repeated after show() wherever
+            // it has not taken yet. Windows/Linux honoured it at creation
+            // (before the first paint) and are left alone.
+            if (
+                startupWindowMode === 'fullscreen' &&
+                !App.mainWindow.isFullScreen()
+            ) {
+                App.mainWindow.setFullScreen(true);
+            }
         });
 
         // Route target="_blank" / window.open() to the OS default browser
