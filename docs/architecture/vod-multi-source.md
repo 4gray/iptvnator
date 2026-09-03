@@ -535,8 +535,11 @@ fanned out on page load.
 
 Every playback host renders `@if (inlinePlayback(); as playback)`, so re-`set()`ing
 that signal with a new `{streamUrl, startTime}` swaps the source **in place** —
-the player component, `WebPlayerView` and the engine all survive, and
-`WebPlayerViewComponent`'s effect rebuilds the source and clears the diagnostic.
+the inline player and `WebPlayerView` survive, while `WebPlayerViewComponent`'s
+effect starts a new playback application (the engine component is remounted
+under a fresh token with the carried `startTime`) and clears the diagnostic.
+Because the `WebPlayerView` host, not the engine shell, owns DOM fullscreen, a
+fullscreen session survives the swap as well.
 
 Three details make the position survive:
 
@@ -547,7 +550,8 @@ Three details make the position survive:
   `playback_positions` value IS the live one and is reported directly —
   seeding it would freeze the resume point where playback started.
 - It is a single `.set()`, never `null` then set — a null in between would
-  destroy the player subtree and lose the engine.
+  destroy the whole player subtree, including the `WebPlayerView` host that
+  owns fullscreen.
 - `playback_positions` is keyed `(playlistId, contentXtreamId, contentType)`, so
   a switch changes the key. The resolved playback carries the **new** source's
   `contentInfo`, and that source's row takes over.

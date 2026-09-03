@@ -256,8 +256,10 @@ module's `isFrameCopyRuntimeUsable()` / `getFrameCopyRuntimeAvailability()`):
   the new viewport size (device pixels via the display scale factor), including
   a forced current-frame render when a paused resize creates a fresh
   shared-memory generation. Shared fullscreen uses the DOM Fullscreen API on
-  the player root, and the component's fullscreen listener still requests
-  bounds sync.
+  the host-supplied `fullscreenTarget` (the `app-web-player-view` element,
+  which outlives the per-application remount; the player root is the
+  fallback), and the component's fullscreen listener still requests bounds
+  sync.
 
 Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
 checkbox (shown when support reports `frameCopyAvailable` or the option is
@@ -708,9 +710,12 @@ owner, which cancels pending operations, acknowledgement/message timers, and
 feedback. This prevents both systems from acting on the same session.
 
 Both engines keep the component's `fullscreenchange` listener because
-fullscreen changes require bounds sync. Frame-copy's shared
-`ControlsFullscreen` additionally synchronizes when its DOM surface attaches or
-changes, including when the root is already fullscreen. Native-view does not
+fullscreen changes require bounds sync; both resolve the fullscreen owner as
+`fullscreenTarget ?? playerRoot` and read its state once on mount, so a player
+remounted for the next episode inside an active fullscreen starts fullscreen
+without waiting for an event. Frame-copy's shared `ControlsFullscreen`
+additionally synchronizes when its DOM surface attaches or changes, including
+when the owner is already fullscreen. Native-view does not
 gain a transparent-window, native-fullscreen, or native-surface overlay path
 from this integration.
 
