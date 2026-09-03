@@ -67,6 +67,14 @@ export class ControlsSurface {
         this.handlers.closePopovers();
     };
 
+    /**
+     * Keyboard input ends pointer attribution: focus that moves after a key
+     * press was moved by the keyboard, whatever the last press hit.
+     */
+    private readonly onDocumentKeyDown = () => {
+        this.lastPointerDown = null;
+    };
+
     constructor(
         private readonly handlers: ControlsSurfaceHandlers,
         /** Additional root whose descendants count as inside for dismissal. */
@@ -77,6 +85,9 @@ export class ControlsSurface {
                 'pointerdown',
                 this.onDocumentPointerDown
             );
+            document.addEventListener('keydown', this.onDocumentKeyDown, {
+                capture: true,
+            });
         }
     }
 
@@ -122,6 +133,9 @@ export class ControlsSurface {
                 'pointerdown',
                 this.onDocumentPointerDown
             );
+            document.removeEventListener('keydown', this.onDocumentKeyDown, {
+                capture: true,
+            });
         }
     }
 
@@ -148,13 +162,19 @@ export class ControlsSurface {
      * `focusin` alone cannot tell a mouse click from Tab navigation; only the
      * latter should keep the controls pinned. The press must be recent and
      * must have landed inside the newly focused element — a Tab shortly after
-     * a click on the video still counts as keyboard navigation. A press moves
-     * focus at most once, so the record is consumed by its first matching
-     * focus event: leaving the clicked control with Shift+Tab and returning
-     * with Tab inside the window is keyboard navigation again.
+     * a click on the video still counts as keyboard navigation.
+     *
+     * A press moves focus at most once, and it does so synchronously, so the
+     * focus change it caused is always the first focus event after it. The
+     * record is therefore discarded on the first focus event it is asked
+     * about, matching or not, and on any key press (`onDocumentKeyDown`).
+     * Nothing a later Tab or Shift+Tab focuses can be attributed to a stale
+     * press, including the control the press hit while it was already
+     * focused and hence produced no focus event at all.
      */
     wasPointerInteraction(event: FocusEvent): boolean {
         const press = this.lastPointerDown;
+        this.lastPointerDown = null;
         if (
             press === null ||
             Date.now() - press.at > POINTER_ATTRIBUTION_WINDOW_MS
@@ -162,14 +182,11 @@ export class ControlsSurface {
             return false;
         }
         const focused = event.target;
-        const matches =
+        return (
             focused instanceof Node &&
             press.target instanceof Node &&
-            focused.contains(press.target);
-        if (matches) {
-            this.lastPointerDown = null;
-        }
-        return matches;
+            focused.contains(press.target)
+        );
     }
 
     private onClick(event: MouseEvent): void {

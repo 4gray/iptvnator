@@ -241,15 +241,15 @@ describe('ControlsSurface', () => {
 
         it('attributes pointer-typeless events to a recent touch pointerdown', () => {
             document.dispatchEvent(pointerTypedEvent('pointerdown', 'touch'));
-            expect(
-                surface.wasTouchInteraction(new FocusEvent('focusin'))
-            ).toBe(true);
+            expect(surface.wasTouchInteraction(new FocusEvent('focusin'))).toBe(
+                true
+            );
             expect(surface.wasTouchInteraction(undefined)).toBe(true);
 
             document.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
-            expect(
-                surface.wasTouchInteraction(new FocusEvent('focusin'))
-            ).toBe(false);
+            expect(surface.wasTouchInteraction(new FocusEvent('focusin'))).toBe(
+                false
+            );
         });
 
         it('trusts an explicit pointer type over the pointerdown history', () => {
@@ -260,9 +260,7 @@ describe('ControlsSurface', () => {
                 )
             ).toBe(false);
             expect(
-                surface.wasTouchInteraction(
-                    pointerTypedEvent('click', 'touch')
-                )
+                surface.wasTouchInteraction(pointerTypedEvent('click', 'touch'))
             ).toBe(true);
         });
     });
@@ -310,12 +308,34 @@ describe('ControlsSurface', () => {
             expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
         });
 
-        it('keeps the press while focus events do not match it', () => {
+        it('discards the press on the first focus event even without a match', () => {
             const other = document.createElement('button');
             element.appendChild(other);
             icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            // The press hit an already focused control (no focus event of its
+            // own); the next focus event is keyboard navigation elsewhere...
             expect(surface.wasPointerInteraction(focusOn(other))).toBe(false);
-            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+            // ...and returning to the pressed control is keyboard navigation.
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('discards the press on any key press', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })
+            );
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('removes its capture-phase keydown listener on dispose', () => {
+            const remove = jest.spyOn(document, 'removeEventListener');
+            surface.dispose();
+            expect(remove).toHaveBeenCalledWith(
+                'keydown',
+                expect.any(Function),
+                { capture: true }
+            );
+            remove.mockRestore();
         });
 
         it('forgets a press after the attribution window', () => {

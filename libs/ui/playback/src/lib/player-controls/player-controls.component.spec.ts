@@ -473,6 +473,50 @@ describe('PlayerControlsComponent', () => {
             expect(document.activeElement).toBe(buttons[1]);
             expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
         });
+
+        it('pins again after a click on the focused control, Tab away and Shift+Tab back', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            const tab = (shift: boolean) =>
+                document.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'Tab',
+                        shiftKey: shift,
+                        bubbles: true,
+                    })
+                );
+
+            // Keyboard focus on the second control, then a mouse click on
+            // it: no focus event, so the press record is not consumed.
+            buttons[1].focus();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].click();
+            fixture.detectChanges();
+            // Tab to the next control and Shift+Tab back within the window.
+            tab(false);
+            buttons[2].focus();
+            tab(true);
+            buttons[1].focus();
+            fixture.detectChanges();
+
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[1]);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+        });
     });
 
     describe('bar-hover state', () => {
