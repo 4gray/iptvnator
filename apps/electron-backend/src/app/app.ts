@@ -23,7 +23,10 @@ import {
     FULLSCREEN_LAUNCH_SWITCH,
     resolveStartupWindowMode,
 } from './services/startup-window-mode';
-import { requestFullScreen } from './services/native-fullscreen-transitions';
+import {
+    requestFullScreen,
+    trackNativeFullScreen,
+} from './services/native-fullscreen-transitions';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -486,6 +489,9 @@ export default class App {
         App.mainWindow.setMenu(null);
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);
+        // Seeds the F11 tracker's fullscreen state now, while no transition
+        // can be in flight; from here on it follows the window's events.
+        trackNativeFullScreen(App.mainWindow);
         App.notifyMainWindowCreated(App.mainWindow);
         if (!savedWindowBounds) {
             App.mainWindow.center();

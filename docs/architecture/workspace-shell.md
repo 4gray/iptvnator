@@ -310,22 +310,26 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
 3. `WINDOW:TOGGLE_FULLSCREEN` toggles OS-level fullscreen (`setFullScreen`)
    and, like the maximize toggle, reports the requested state and leaves
    the `WINDOW:STATE_CHANGED` push authoritative. Because the transition is
-   asynchronous and `isFullScreen()` reports the old value until it lands,
-   every native fullscreen request goes through the transition tracker in
+   asynchronous — `isFullScreen()` reports the old value until it lands,
+   and on Windows even while the matching event fires — a toggle must
+   never be decided against the getter. Every native fullscreen request
+   goes through the tracker in
    `apps/electron-backend/src/app/services/native-fullscreen-transitions.ts`
-   — the F11 toggle AND the startup fallback below — which keeps the
-   pending target per window and decides the next toggle against it: two
-   quick presses are an enter-then-exit, not two enters, and F11 during the
-   startup animation leaves fullscreen instead of asking for it again. The
-   entry can never govern F11 for good: it is dropped once a
-   transition event reports the target state, a transition landing on the
-   other state re-issues the target (the platform may have dropped the
-   queued request) — "landed" being the state the `enter`/`leave` event
-   itself conveys, never a re-read of `isFullScreen()`, for the same
-   Windows stale-getter reason as the state pushes above — and an entry
-   older than
-   `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored, so a request that
-   produced no event at all is forgotten. The renderer binds it to
+   (the F11 toggle AND the startup fallback below). Like the state pushes
+   above it keeps its own per-window fullscreen state, seeded from the
+   getter once at window creation (`trackNativeFullScreen` in
+   `initMainWindow`, while no transition can be in flight) and fed
+   afterwards only by the `enter`/`leave-full-screen` events, which also
+   cover transitions the app did not request. A toggle is decided against
+   the pending target while a transition is in flight, else against that
+   tracked state: two quick presses are an enter-then-exit, not two enters,
+   and F11 during the startup animation leaves fullscreen instead of asking
+   for it again. A pending target can never govern F11 for good: it is
+   dropped once the transition event reports it, a transition landing on
+   the other state re-issues it (the platform may have dropped the queued
+   request), and an entry older than `FULLSCREEN_TRANSITION_TIMEOUT_MS`
+   (2 s) is ignored, so a request that produced no event at all is
+   forgotten. The renderer binds it to
    **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated
    by `isTypingInInput` — it must work from any focus, because it is the
    only exit from a fullscreen launch on Windows/Linux, where the title bar

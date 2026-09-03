@@ -218,6 +218,38 @@ describe('WindowEvents', () => {
         ]);
     });
 
+    it('decides a press that lands between the event and the getter update from the tracked state', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        // The enter event landed and settled the pending target …
+        win.emit('enter-full-screen');
+        // … but the getter has not caught up yet (Windows).
+        expect(win.isFullScreen()).toBe(false);
+
+        toggle(fakeEvent);
+
+        // Decided against the event-fed state: this press is the exit.
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('follows fullscreen changes the app did not request', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        // Green button / Ctrl+Cmd+F: only the event tells the tracker.
+        toggle(fakeEvent);
+        win.state.fullScreen = true;
+        win.emit('enter-full-screen');
+        win.emit('leave-full-screen');
+
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
+    });
+
     it('forgets a request that never reports back after the transition timeout', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
