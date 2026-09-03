@@ -58,6 +58,7 @@ import { app as electronApp, BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { store } from './services/store.service';
+import { getPendingFullScreenTarget } from './services/native-fullscreen-transitions';
 
 type MockMainWindow = {
     center: jest.Mock<void, []>;
@@ -392,6 +393,14 @@ describe('Electron app security helpers', () => {
 
             expect(mainWindow.setFullScreen).toHaveBeenCalledTimes(1);
             expect(mainWindow.setFullScreen).toHaveBeenCalledWith(true);
+            // Registered with the transition tracker, so an F11 pressed
+            // during the animation is decided against this target and
+            // leaves fullscreen instead of requesting it again.
+            expect(
+                getPendingFullScreenTarget(
+                    mainWindow as unknown as Electron.BrowserWindow
+                )
+            ).toBe(true);
             expect(mainWindow.show.mock.invocationCallOrder[0]).toBeLessThan(
                 mainWindow.setFullScreen.mock.invocationCallOrder[0]
             );

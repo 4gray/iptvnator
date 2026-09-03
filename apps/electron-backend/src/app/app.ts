@@ -23,6 +23,7 @@ import {
     FULLSCREEN_LAUNCH_SWITCH,
     resolveStartupWindowMode,
 } from './services/startup-window-mode';
+import { requestFullScreen } from './services/native-fullscreen-transitions';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -503,12 +504,15 @@ export default class App {
             // is hidden — an NSWindow can only toggle fullscreen once it is
             // on screen — so the request is repeated after show() wherever
             // it has not taken yet. Windows/Linux honoured it at creation
-            // (before the first paint) and are left alone.
+            // (before the first paint) and are left alone. It goes through
+            // the transition tracker so an F11 pressed during the animation
+            // reads the pending target and leaves fullscreen instead of
+            // asking for it again.
             if (
                 startupWindowMode === 'fullscreen' &&
                 !App.mainWindow.isFullScreen()
             ) {
-                App.mainWindow.setFullScreen(true);
+                requestFullScreen(App.mainWindow, true);
             }
         });
 

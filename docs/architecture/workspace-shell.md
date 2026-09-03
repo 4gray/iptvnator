@@ -311,9 +311,13 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    and, like the maximize toggle, reports the requested state and leaves
    the `WINDOW:STATE_CHANGED` push authoritative. Because the transition is
    asynchronous and `isFullScreen()` reports the old value until it lands,
-   the handler keeps the pending target per window and decides the next
-   toggle against it — two quick presses are an enter-then-exit, not two
-   enters. The entry can never govern F11 for good: it is dropped once a
+   every native fullscreen request goes through the transition tracker in
+   `apps/electron-backend/src/app/services/native-fullscreen-transitions.ts`
+   — the F11 toggle AND the startup fallback below — which keeps the
+   pending target per window and decides the next toggle against it: two
+   quick presses are an enter-then-exit, not two enters, and F11 during the
+   startup animation leaves fullscreen instead of asking for it again. The
+   entry can never govern F11 for good: it is dropped once a
    transition event reports the target state, a transition landing on the
    other state re-issues the target (the platform may have dropped the
    queued request), and an entry older than

@@ -1,3 +1,5 @@
+import { FULLSCREEN_TRANSITION_TIMEOUT_MS } from '../services/native-fullscreen-transitions';
+
 const mockHandlers = new Map<
     string,
     (event: unknown, ...args: unknown[]) => unknown
@@ -76,13 +78,8 @@ function createFakeWindow(
 const fakeEvent = { sender: {} };
 
 describe('WindowEvents', () => {
-    let transitionTimeoutMs: number;
-
     beforeAll(async () => {
-        // Imported lazily so the hoisted electron mock can reference the
-        // handler map declared above.
-        ({ FULLSCREEN_TRANSITION_TIMEOUT_MS: transitionTimeoutMs } =
-            await import('./window.events'));
+        await import('./window.events');
     });
 
     beforeEach(() => {
@@ -211,7 +208,7 @@ describe('WindowEvents', () => {
 
             // No event ever arrived: the window really is still windowed,
             // so the stale target must not flip this press into an exit.
-            now.mockReturnValue(1_000 + transitionTimeoutMs + 1);
+            now.mockReturnValue(1_000 + FULLSCREEN_TRANSITION_TIMEOUT_MS + 1);
             toggle(fakeEvent);
             expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
         } finally {
