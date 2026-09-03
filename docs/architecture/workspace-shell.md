@@ -324,15 +324,19 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    the pending target while a transition is in flight, else against that
    tracked state: two quick presses are an enter-then-exit, not two enters,
    and F11 during the startup animation leaves fullscreen instead of asking
-   for it again. The pending record is the LATEST target plus the number
-   of requests whose events are still owed, so a burst of presses settles
-   against the final intent rather than whichever older request reports
-   first. It can never govern F11 for good: an event landing on the target
-   clears it once every request has reported, an event landing on the
-   other state re-issues the target (the platform may have dropped a
-   queued request), and a record older than
+   for it again. The pending record is the LATEST requested target. It can
+   never govern F11 for good: an event landing on it clears it, an event
+   landing on the other state repeats the target ONCE (an earlier request
+   landed first; the platform may have dropped the queued one) and a second
+   mismatch clears it instead, so the tracker never fights a user's own
+   green-button/Ctrl+Cmd+F action more than once, and a record older than
    `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored, so requests that
-   produced no event at all are forgotten. The renderer binds it to
+   produced no event at all are forgotten. Events cannot say which request
+   they belong to, so one burst is deliberately imperfect — see the
+   module docblock: counting requests would fix "enter/leave/enter with the
+   last enter dropped" only by breaking its mirror image, a platform
+   coalescing the burst into one event, and neither happens on a platform
+   Electron supports. The renderer binds it to
    **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated
    by `isTypingInInput` — it must work from any focus, because it is the
    only exit from a fullscreen launch on Windows/Linux, where the title bar

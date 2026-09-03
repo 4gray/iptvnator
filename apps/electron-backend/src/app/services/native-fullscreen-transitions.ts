@@ -19,21 +19,31 @@
  * `requestFullScreen`, and a toggle is decided against the pending target
  * if one is in flight, else against that tracked state — never the getter.
  *
- * The pending record is the LATEST target plus the number of requests
- * whose transition events are still owed, so a burst of presses is settled
- * against the final intent rather than whichever older request happens to
- * report first: an event landing on the target only clears the record once
- * every request has reported, an event landing on the other state
- * re-issues the target (the platform may have dropped a queued request),
- * and a record older than the transition timeout is ignored outright,
- * since no native transition takes that long — requests that produced no
- * event at all are then simply forgotten.
+ * The pending record is the LATEST requested target. An event landing on it
+ * clears the record. An event landing on the other state means an earlier
+ * request landed first; the target is then repeated ONCE, in case the
+ * platform dropped the queued request — Electron queues them on macOS and
+ * applies them synchronously elsewhere, so this is belt and braces — and a
+ * second mismatch clears the record instead of repeating again, so the
+ * tracker can never fight a user's own green-button or Ctrl+Cmd+F action
+ * more than once. A record older than the transition timeout is ignored
+ * outright, since no native transition takes that long; requests that
+ * produced no event at all are then simply forgotten.
+ *
+ * Events cannot say which request they belong to, so one burst is
+ * deliberately left imperfect: enter/leave/enter pressed within a single
+ * animation, followed by the platform reporting enter and leave but dropping
+ * the last enter, ends windowed until the next press. Counting requests
+ * would fix that case only by breaking its mirror image — a platform that
+ * coalesces the same burst into one enter would leave phantom debt behind
+ * and make the tracker reverse the next unrelated action — and neither
+ * happens on a platform Electron supports.
  */
 interface PendingFullScreenTransition {
     target: boolean;
     requestedAt: number;
-    /** Requests issued whose transition event has not arrived yet. */
-    outstanding: number;
+    /** The one corrective repeat has been spent. */
+    repeated: boolean;
 }
 
 interface TrackedFullScreenState {
@@ -92,29 +102,23 @@ export function trackNativeFullScreen(
 
         // Through the expiry check so an event arriving after the timeout
         // cannot revive a request the user has long moved past.
-        const pending = getFreshPending(state, Date.now());
+        const now = Date.now();
+        const pending = getFreshPending(state, now);
         if (!pending || win.isDestroyed()) {
             return;
         }
 
-        pending.outstanding = Math.max(0, pending.outstanding - 1);
-
-        if (landed !== pending.target) {
-            // An earlier request landed, not the latest one. Ask again
-            // rather than trusting the platform to have queued it: a second
-            // identical request is a no-op at worst. It is a corrective
-            // repeat, not a new request, so it adds no debt — otherwise the
-            // record would outlive the last real transition and mistake an
-            // unrelated native action (green button, Ctrl+Cmd+F) inside the
-            // timeout for an old mismatch and reverse it.
-            pending.requestedAt = Date.now();
-            win.setFullScreen(pending.target);
+        if (landed === pending.target || pending.repeated) {
+            state.pending = undefined;
             return;
         }
 
-        if (pending.outstanding === 0) {
-            state.pending = undefined;
-        }
+        // An earlier request landed, not the latest one. Repeat the target
+        // once rather than trusting the platform to have queued it: an
+        // identical request is a no-op at worst.
+        pending.repeated = true;
+        pending.requestedAt = now;
+        win.setFullScreen(pending.target);
     };
     win.on('enter-full-screen', () => settle(true));
     win.on('leave-full-screen', () => settle(false));
@@ -136,13 +140,7 @@ export function requestFullScreen(
     now: number = Date.now()
 ): void {
     const state = trackNativeFullScreen(win);
-    const pending = getFreshPending(state, now);
-
-    state.pending = {
-        target,
-        requestedAt: now,
-        outstanding: (pending?.outstanding ?? 0) + 1,
-    };
+    state.pending = { target, requestedAt: now, repeated: false };
     win.setFullScreen(target);
 }
 

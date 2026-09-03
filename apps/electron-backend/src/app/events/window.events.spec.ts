@@ -250,7 +250,7 @@ describe('WindowEvents', () => {
         expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
     });
 
-    it('settles a burst of presses against the final target, not the first matching event', () => {
+    it('leaves no debt behind when a platform coalesces a burst into one event', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
         const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
@@ -260,24 +260,45 @@ describe('WindowEvents', () => {
         toggle(fakeEvent);
         expect(win.setFullScreen.mock.calls).toEqual([[true], [false], [true]]);
 
-        // The FIRST press's enter lands. It matches the final target, but
-        // two requests are still owed, so the intent must survive it.
+        // A single enter is all the platform reports for the whole burst.
+        // It lands on the final target, so the record is done — events
+        // cannot say which request they belong to, and counting them would
+        // leave phantom debt that reverses the user's next action.
         win.emit('enter-full-screen');
         expect(win.setFullScreen).toHaveBeenCalledTimes(3);
 
-        // The queued exit lands; the platform dropped the last enter. Only
-        // the retained final intent can put the window back.
+        // Green button right after: an unrelated action, honoured as is.
         win.emit('leave-full-screen');
-        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
-        expect(win.setFullScreen).toHaveBeenCalledTimes(4);
+        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
 
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
+    });
+
+    it('spends the corrective repeat only once', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        toggle(fakeEvent);
         win.emit('enter-full-screen');
-        // A press now is the exit — the window is fullscreen, as intended.
+        expect(win.setFullScreen.mock.calls).toEqual([
+            [true],
+            [false],
+            [false],
+        ]);
+
+        // Still not the requested exit: whatever put the window here, the
+        // tracker must not keep fighting it.
+        win.emit('enter-full-screen');
+        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
+
         toggle(fakeEvent);
         expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
     });
 
-    it('does not count a corrective re-issue as new debt, so a later native action is not reversed', () => {
+    it('clears the record once the corrected transition lands, so a later native action is not reversed', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
         const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
