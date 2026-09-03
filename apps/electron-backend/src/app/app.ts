@@ -231,6 +231,13 @@ export default class App {
     static BrowserWindow;
     private static loadedMainWindow: Electron.BrowserWindow | null = null;
     private static mainWindowLoadPromise: Promise<void> | null = null;
+    /**
+     * Whether the `--fullscreen` launch switch has already shaped a window.
+     * See initMainWindow: the switch is consumed by the first window so a
+     * window re-created later in the same process (macOS Dock) follows the
+     * stored setting instead.
+     */
+    private static launchFullscreenSwitchConsumed = false;
     private static rendererLoadingEnabled = false;
 
     private static shouldOpenDevTools() {
@@ -446,11 +453,16 @@ export default class App {
 
         const savedWindowBounds = store.get(WINDOW_BOUNDS);
         const startupWindowMode = resolveStartupWindowMode({
-            cliHasFullscreenSwitch: app.commandLine.hasSwitch(
-                FULLSCREEN_LAUNCH_SWITCH
-            ),
+            // One-shot: the switch describes the launch, not every window
+            // this process ever opens. On macOS the process outlives its
+            // last window and the Dock re-creates it through this same
+            // path, which must then follow the stored setting only.
+            cliHasFullscreenSwitch:
+                !App.launchFullscreenSwitchConsumed &&
+                app.commandLine.hasSwitch(FULLSCREEN_LAUNCH_SWITCH),
             storedMode: store.get(STARTUP_WINDOW_MODE),
         });
+        App.launchFullscreenSwitchConsumed = true;
 
         // Create the browser window.
         App.mainWindow = new BrowserWindow({

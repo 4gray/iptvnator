@@ -106,6 +106,7 @@ function createMockMainWindow(): MockMainWindow {
 }
 
 type AppInternals = {
+    launchFullscreenSwitchConsumed: boolean;
     loadedMainWindow: MockMainWindow | null;
     mainWindow: MockMainWindow | null;
     mainWindowListeners: Array<(mainWindow: MockMainWindow) => void>;
@@ -128,6 +129,7 @@ describe('Electron app security helpers', () => {
         mockIsEmbeddedMpvFeatureEnabled.mockReturnValue(false);
         mockIsFrameCopyRuntimeUsable.mockReturnValue(false);
         const appInternals = getAppInternals();
+        appInternals.launchFullscreenSwitchConsumed = false;
         appInternals.loadedMainWindow = null;
         appInternals.mainWindow = null;
         appInternals.mainWindowLoadPromise = null;
@@ -431,6 +433,36 @@ describe('Electron app security helpers', () => {
                 'startupWindowMode',
                 expect.anything()
             );
+        });
+
+        it('consumes --fullscreen with the first window so a window re-created from the macOS Dock follows the stored setting', () => {
+            storeStartupWindowMode('maximized');
+            mockHasSwitch.mockImplementation((name) => name === 'fullscreen');
+
+            const firstWindow = createWindowViaOnReady();
+            expect(BrowserWindow).toHaveBeenLastCalledWith(
+                expect.objectContaining({ fullscreen: true })
+            );
+            fireReadyToShow(firstWindow);
+
+            // The user left fullscreen and closed the only window; the
+            // process survived and the Dock brings the window back.
+            const appInternals = getAppInternals();
+            appInternals.mainWindow = null;
+            const secondWindow = createMockMainWindow();
+            (BrowserWindow as unknown as jest.Mock).mockReturnValue(
+                secondWindow
+            );
+
+            App.ensureMainWindow();
+
+            expect(BrowserWindow).toHaveBeenCalledTimes(2);
+            expect(BrowserWindow).toHaveBeenLastCalledWith(
+                expect.not.objectContaining({ fullscreen: true })
+            );
+            fireReadyToShow(secondWindow);
+            expect(secondWindow.setFullScreen).not.toHaveBeenCalled();
+            expect(secondWindow.maximize).toHaveBeenCalledTimes(1);
         });
 
         it('treats a hand-edited unknown stored mode as a plain window', () => {

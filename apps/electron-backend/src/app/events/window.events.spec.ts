@@ -21,14 +21,25 @@ jest.mock('electron', () => ({
 }));
 
 function createFakeWindow(
-    initial: { maximized?: boolean; fullScreen?: boolean } = {}
+    initial: {
+        maximized?: boolean;
+        fullScreen?: boolean;
+        /**
+         * Windows/Linux flip isFullScreen() inside setFullScreen(); macOS
+         * animates and reports the old value until the transition lands,
+         * which the test then signals through `emit`.
+         */
+        asyncFullScreen?: boolean;
+    } = {}
 ) {
     const state = {
         maximized: initial.maximized ?? false,
         fullScreen: initial.fullScreen ?? false,
     };
+    const listeners = new Map<string, Set<() => void>>();
 
     return {
+        state,
         isDestroyed: jest.fn(() => false),
         isMaximized: jest.fn(() => state.maximized),
         isFullScreen: jest.fn(() => state.fullScreen),
@@ -40,8 +51,27 @@ function createFakeWindow(
             state.maximized = false;
         }),
         setFullScreen: jest.fn((fullScreen: boolean) => {
-            state.fullScreen = fullScreen;
+            if (!initial.asyncFullScreen) {
+                state.fullScreen = fullScreen;
+            }
         }),
+        on: jest.fn((event: string, listener: () => void) => {
+            listeners.set(
+                event,
+                (listeners.get(event) ?? new Set()).add(listener)
+            );
+        }),
+        off: jest.fn((event: string, listener: () => void) => {
+            listeners.get(event)?.delete(listener);
+        }),
+        emit(event: string): void {
+            for (const listener of [...(listeners.get(event) ?? [])]) {
+                listener();
+            }
+        },
+        listenerCount(event: string): number {
+            return listeners.get(event)?.size ?? 0;
+        },
         close: jest.fn(),
     };
 }
@@ -116,6 +146,75 @@ describe('WindowEvents', () => {
 
         expect(win.setFullScreen).toHaveBeenCalledWith(false);
         expect(result).toEqual({ isMaximized: false, isFullScreen: false });
+    });
+
+    it('keeps toggle parity when a second press arrives before the transition lands', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        // Still animating: the window reports the old state.
+        expect(win.isFullScreen()).toBe(false);
+
+        const second = toggle(fakeEvent);
+
+        // Decided against the pending target, not the stale getter.
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
+        expect(second).toEqual({ isMaximized: false, isFullScreen: false });
+
+        // The first transition lands; the queued exit is still owed, so
+        // the pending target stays until the window really reports it.
+        win.state.fullScreen = true;
+        win.emit('enter-full-screen');
+        expect(win.listenerCount('leave-full-screen')).toBe(1);
+
+        win.state.fullScreen = false;
+        win.emit('leave-full-screen');
+        expect(win.listenerCount('enter-full-screen')).toBe(0);
+        expect(win.listenerCount('leave-full-screen')).toBe(0);
+
+        // Back to deciding from the live state.
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
+    });
+
+    it('stops tracking once the transition reports the requested state', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        win.state.fullScreen = true;
+        win.emit('enter-full-screen');
+
+        expect(win.listenerCount('enter-full-screen')).toBe(0);
+
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+    });
+
+    it('lets the next press correct a request the platform dropped', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        toggle(fakeEvent);
+        // The enter landed, but the queued exit never happened.
+        win.state.fullScreen = true;
+        win.emit('enter-full-screen');
+
+        // Pending target is still "windowed": this press asks for
+        // fullscreen, a no-op the window swallows …
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
+        // … and the following press finally requests the exit.
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+        win.state.fullScreen = false;
+        win.emit('leave-full-screen');
+        expect(win.listenerCount('leave-full-screen')).toBe(0);
     });
 
     it('closes the sender window', () => {

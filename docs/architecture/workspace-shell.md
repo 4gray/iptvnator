@@ -309,7 +309,12 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    player's `F` → `Esc` makes that path routine on Windows/Linux.
 3. `WINDOW:TOGGLE_FULLSCREEN` toggles OS-level fullscreen (`setFullScreen`)
    and, like the maximize toggle, reports the requested state and leaves
-   the `WINDOW:STATE_CHANGED` push authoritative. The renderer binds it to
+   the `WINDOW:STATE_CHANGED` push authoritative. Because the transition is
+   asynchronous and `isFullScreen()` reports the old value until it lands,
+   the handler keeps the pending target per window and decides the next
+   toggle against it — two quick presses are an enter-then-exit, not two
+   enters — dropping the entry once a transition event reports the target
+   state. The renderer binds it to
    **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated
    by `isTypingInInput` — it must work from any focus, because it is the
    only exit from a fullscreen launch on Windows/Linux, where the title bar
@@ -348,9 +353,12 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is
    never persisted. Resolution lives in
-   `apps/electron-backend/src/app/services/startup-window-mode.ts`. A
-   second-instance launch carrying the switch is ignored — the window
-   already exists.
+   `apps/electron-backend/src/app/services/startup-window-mode.ts`. The
+   switch is consumed by the first window (`launchFullscreenSwitchConsumed`
+   in `App`): on macOS the process outlives its last window and the Dock
+   re-creates it through the same `initMainWindow`, which must then follow
+   the stored setting only. A second-instance launch carrying the switch is
+   ignored — the window already exists.
 5. Deliberately not offered: kiosk mode (removes the exit path) and
    "remember last state" (bounds persistence stores normal bounds only; an
    explicit choice is clearer). Regression coverage: `app.spec.ts`
