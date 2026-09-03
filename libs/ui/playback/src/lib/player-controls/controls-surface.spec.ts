@@ -266,4 +266,55 @@ describe('ControlsSurface', () => {
             ).toBe(true);
         });
     });
+
+    describe('pointer-originated focus attribution', () => {
+        let button: HTMLButtonElement;
+        let icon: HTMLElement;
+
+        beforeEach(() => {
+            button = document.createElement('button');
+            icon = document.createElement('span');
+            button.appendChild(icon);
+            element.appendChild(button);
+        });
+
+        const focusOn = (target: EventTarget) => {
+            const event = new FocusEvent('focusin');
+            Object.defineProperty(event, 'target', { value: target });
+            return event;
+        };
+
+        it('attributes focus to a recent press inside the focused element', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+        });
+
+        it('treats a press on the focused element itself as pointer focus', () => {
+            button.dispatchEvent(pointerTypedEvent('pointerdown', 'pen'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+        });
+
+        it('reports keyboard focus when no press was recorded', () => {
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('reports keyboard focus when the press landed outside the focused element', () => {
+            element.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('forgets a press after the attribution window', () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            jest.setSystemTime(new Date('2026-01-01T00:00:01.500Z'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('stops recording presses after dispose', () => {
+            surface.dispose();
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+    });
 });

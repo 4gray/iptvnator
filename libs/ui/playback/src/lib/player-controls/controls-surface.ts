@@ -28,11 +28,11 @@ export interface ControlsSurfaceHandlers {
 const VIEWPORT_CLICK_PAUSE_DELAY_MS = 250;
 
 /**
- * How long after a touch pointerdown a focus/click event is still attributed
- * to that touch. Covers browsers whose click events are plain MouseEvents
- * (no pointerType) and focusin handlers, which never carry a pointer type.
+ * How long after a pointerdown a focus/click event is still attributed to
+ * that press. Covers browsers whose click events are plain MouseEvents (no
+ * pointerType) and focus handlers, which never carry a pointer type.
  */
-const TOUCH_ATTRIBUTION_WINDOW_MS = 1000;
+const POINTER_ATTRIBUTION_WINDOW_MS = 1000;
 
 const INTERACTIVE_SELECTOR = 'button, input, [role="slider"]';
 
@@ -48,10 +48,14 @@ export class ControlsSurface {
     private surfaceCleanup: (() => void) | null = null;
     private clickPauseTimer: ReturnType<typeof setTimeout> | null = null;
     private lastTouchPointerDownAt: number | null = null;
+    private lastPointerDown: { at: number; target: EventTarget | null } | null =
+        null;
 
     private readonly onDocumentPointerDown = (event: PointerEvent) => {
+        const now = Date.now();
         this.lastTouchPointerDownAt =
-            event.pointerType === 'touch' ? Date.now() : null;
+            event.pointerType === 'touch' ? now : null;
+        this.lastPointerDown = { at: now, target: event.target };
         const path = event.composedPath();
         if (
             !this.surface ||
@@ -134,7 +138,31 @@ export class ControlsSurface {
         return (
             this.lastTouchPointerDownAt !== null &&
             Date.now() - this.lastTouchPointerDownAt <=
-                TOUCH_ATTRIBUTION_WINDOW_MS
+                POINTER_ATTRIBUTION_WINDOW_MS
+        );
+    }
+
+    /**
+     * Whether a focus event is the side effect of a pointer press on the
+     * element that received focus. Chromium focuses a clicked `<button>`, so
+     * `focusin` alone cannot tell a mouse click from Tab navigation; only the
+     * latter should keep the controls pinned. The press must be recent and
+     * must have landed inside the newly focused element — a Tab shortly after
+     * a click on the video still counts as keyboard navigation.
+     */
+    wasPointerInteraction(event: FocusEvent): boolean {
+        const press = this.lastPointerDown;
+        if (
+            press === null ||
+            Date.now() - press.at > POINTER_ATTRIBUTION_WINDOW_MS
+        ) {
+            return false;
+        }
+        const focused = event.target;
+        return (
+            focused instanceof Node &&
+            press.target instanceof Node &&
+            focused.contains(press.target)
         );
     }
 

@@ -318,6 +318,74 @@ describe('PlayerControlsComponent', () => {
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
             outside.remove();
         });
+
+        it('does not pin the bar on the focus a mouse click on a control produces', () => {
+            setCapabilities({ fullscreen: true });
+            setState({ status: 'playing' });
+            const surface = document.createElement('div');
+            document.body.appendChild(surface);
+            (
+                surface as unknown as { requestFullscreen: unknown }
+            ).requestFullscreen = jest.fn(() => Promise.resolve());
+            (
+                document as unknown as { exitFullscreen: unknown }
+            ).exitFullscreen = jest.fn(() => Promise.resolve());
+            fixture.componentRef.setInput('playerSurface', surface);
+            fixture.detectChanges();
+
+            const button = query(
+                '[aria-label="Enter fullscreen"]'
+            ) as HTMLButtonElement;
+            const icon = button.querySelector('mat-icon') as HTMLElement;
+            // Chromium: pointerdown on the icon, focus moves to the button
+            // (focusin on the bar), then click — all from one mouse press.
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            icon.dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            button.focus();
+            button.click();
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(button);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            // The pointer leaves the bar and moves over the video while the
+            // button is still the active element.
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            surface.dispatchEvent(new MouseEvent('pointermove'));
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+
+            surface.remove();
+            delete (document as unknown as { exitFullscreen?: unknown })
+                .exitFullscreen;
+        });
+
+        it('still pins the bar for keyboard focus that follows a click on the video', () => {
+            const surface = document.createElement('div');
+            document.body.appendChild(surface);
+            fixture.componentRef.setInput('playerSurface', surface);
+            fixture.detectChanges();
+
+            // A click on the viewport, then Tab into the bar within a second:
+            // the press did not land on the focused control, so it is
+            // keyboard navigation and keeps the controls visible.
+            surface.dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            buttons[0].focus();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+            surface.remove();
+        });
     });
 
     describe('bar-hover state', () => {

@@ -334,7 +334,17 @@ controls instance.
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
 is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
 between controls does not restart hiding, and leaving the bar resumes the normal
-hide delay. In fullscreen playback, hiding the controls also hides the pointer
+hide delay. Only keyboard-originated focus pins the bar: Chromium also moves
+focus to a clicked `<button>`, and that focus is a side effect of the click,
+so `ControlsSurface.wasPointerInteraction` attributes a `focusin` to the press
+when a `pointerdown` was recorded within the last second whose target lies
+inside the newly focused element. Such focus reveals like any pointer activity
+and the bar hides on the normal delay while the button stays the active
+element; a Tab shortly after a click on the video still counts as keyboard
+navigation because the press did not land inside the focused control. Without
+this distinction the fullscreen button kept the controls on screen until a
+click on the viewport took focus away — and that click also paused playback.
+In fullscreen playback, hiding the controls also hides the pointer
 over both the controls host and the supplied player surface; revealing controls
 or destroying the component restores the surface's previous inline cursor.
 

@@ -372,7 +372,16 @@ export class PlayerControlsComponent implements OnDestroy {
         this.visibility.scheduleHide();
     }
 
-    onBarFocusIn(): void {
+    onBarFocusIn(event: FocusEvent): void {
+        // Chromium moves focus to a clicked <button>. That focus is a side
+        // effect of the click, not keyboard navigation: it must reveal like
+        // any pointer activity, but never pin the bar open until the next
+        // click on the video takes focus away (issue: fullscreen button left
+        // the controls on screen until a click-to-pause on the viewport).
+        if (this.surface.wasPointerInteraction(event)) {
+            this.reveal();
+            return;
+        }
         this.barFocused.set(true);
         this.reveal({ scheduleHide: false });
     }
