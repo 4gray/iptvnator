@@ -146,6 +146,14 @@ default. The panel header exposes a sort menu next to category search with
 synthetic "all categories" entries stay pinned before sorted provider
 categories.
 
+A category click in a LIVE section (Xtream `live`, Stalker `itv` and `radio`)
+changes only the selected category: the live layouts gate their player on the
+store's selected item, so the handler must not clear it — the channel the user
+is watching keeps playing while the sidebar re-filters (Xtream: #936; Stalker:
+`onStalkerCategoryClicked` returns before `clearSelectedItem()`). VOD and
+series category clicks do drop the open detail (`setSelectedItem(null)` /
+`clearSelectedItem()`) because they navigate to a list route.
+
 ## Search And Navigation Rules
 
 Search is shell-owned and route-aware:
