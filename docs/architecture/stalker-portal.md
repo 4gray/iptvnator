@@ -1251,6 +1251,20 @@ The Stalker live route and radio route intentionally share
 - Some Stalker portals do not expose radio categories. Radio category loading
   falls back to a synthetic `PORTALS.ALL_RADIO` category with
   `category_id: '*'` so the station list can still be loaded.
+- A category click in the shell context panel only re-filters the channel
+  sidebar; the selected channel or station keeps playing (Xtream live #936 and
+  M3U group parity). `onStalkerCategoryClicked` therefore must NOT
+  `clearSelectedItem()` for `itv`/`radio` — the layout gates its player on
+  `selectedItem` — while VOD/series clicks still drop the open detail before
+  navigating to the list route. The layout's category-change reset effect
+  clears only list state (channels on the legacy paged flow, page, row EPG
+  previews); the active channel's short-EPG fallback and a fallback load still
+  in flight belong to the selection and survive the switch. Only a section
+  change (`itv` ↔ `radio`, where the route session clears the selection)
+  invalidates that request and drops the fallback. A playing channel outside
+  the newly selected category simply has no highlighted row, and remote
+  channel up/down finds no neighbour until a channel from the visible list is
+  played.
 
 ## Full ITV Channel List Cache
 

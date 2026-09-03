@@ -557,6 +557,20 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 }
                 this.stalkerStore.setPage(0);
                 this.clearEpgPreviewMaps();
+            });
+        });
+
+        // The panel's short-EPG fallback belongs to the SELECTED channel, not
+        // to the category: a category switch only re-filters the sidebar while
+        // the selected channel keeps playing (Xtream parity), so its panel
+        // programmes — and a fallback load still in flight — must survive it.
+        // Leaving the section (itv ↔ radio) is different: the route session
+        // clears the selection there, and an abandoned request must not settle
+        // its loading flag into the next view, so that transition still
+        // invalidates the request and drops the fallback.
+        effect(() => {
+            this.stalkerStore.selectedContentType();
+            untracked(() => {
                 this.epgLoadRequestId += 1;
                 this.fallbackEpgPrograms.set(null);
                 this.isLoadingFallbackEpg.set(false);
