@@ -102,8 +102,13 @@ export function trackNativeFullScreen(
         if (landed !== pending.target) {
             // An earlier request landed, not the latest one. Ask again
             // rather than trusting the platform to have queued it: a second
-            // identical request is a no-op at worst.
-            requestFullScreen(win, pending.target);
+            // identical request is a no-op at worst. It is a corrective
+            // repeat, not a new request, so it adds no debt — otherwise the
+            // record would outlive the last real transition and mistake an
+            // unrelated native action (green button, Ctrl+Cmd+F) inside the
+            // timeout for an old mismatch and reverse it.
+            pending.requestedAt = Date.now();
+            win.setFullScreen(pending.target);
             return;
         }
 

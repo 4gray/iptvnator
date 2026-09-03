@@ -277,6 +277,32 @@ describe('WindowEvents', () => {
         expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
     });
 
+    it('does not count a corrective re-issue as new debt, so a later native action is not reversed', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        toggle(fakeEvent);
+        win.emit('enter-full-screen');
+        expect(win.setFullScreen.mock.calls).toEqual([
+            [true],
+            [false],
+            [false],
+        ]);
+
+        // Every real transition has now reported: the record must be gone.
+        win.emit('leave-full-screen');
+
+        // Green button within the timeout: an unrelated action, not an old
+        // mismatch to correct.
+        win.emit('enter-full-screen');
+        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
+
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+    });
+
     it('forgets a request that never reports back after the transition timeout', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
