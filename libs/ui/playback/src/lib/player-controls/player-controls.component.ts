@@ -372,6 +372,17 @@ export class PlayerControlsComponent implements OnDestroy {
         this.visibility.scheduleHide();
     }
 
+    /**
+     * A pointer press anywhere in the bar hands the interaction over to the
+     * pointer: a keyboard pin set by an earlier Tab is released here, because
+     * the press may not produce any focus event at all (clicking the control
+     * that is already focused) or only a focus transfer inside the bar, which
+     * `onBarFocusOut` deliberately ignores.
+     */
+    onBarPointerDown(): void {
+        this.barFocused.set(false);
+    }
+
     onBarFocusIn(event: FocusEvent): void {
         // Chromium moves focus to a clicked <button>. That focus is a side
         // effect of the click, not keyboard navigation: it must reveal like
@@ -379,6 +390,7 @@ export class PlayerControlsComponent implements OnDestroy {
         // click on the video takes focus away (issue: fullscreen button left
         // the controls on screen until a click-to-pause on the viewport).
         if (this.surface.wasPointerInteraction(event)) {
+            this.barFocused.set(false);
             this.reveal();
             return;
         }

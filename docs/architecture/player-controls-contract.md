@@ -341,7 +341,11 @@ when a `pointerdown` was recorded within the last second whose target lies
 inside the newly focused element. Such focus reveals like any pointer activity
 and the bar hides on the normal delay while the button stays the active
 element; a Tab shortly after a click on the video still counts as keyboard
-navigation because the press did not land inside the focused control. Without
+navigation because the press did not land inside the focused control. A
+pointer press anywhere in the bar also releases an existing keyboard pin: the
+press may produce no focus event at all (clicking the control that already has
+focus) or only a transfer inside the bar, which `focusout` ignores by design,
+so the pin cannot be cleared from focus events alone. Without
 this distinction the fullscreen button kept the controls on screen until a
 click on the viewport took focus away — and that click also paused playback.
 In fullscreen playback, hiding the controls also hides the pointer
