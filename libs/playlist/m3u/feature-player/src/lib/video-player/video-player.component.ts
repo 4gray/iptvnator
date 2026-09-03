@@ -265,9 +265,15 @@ export class VideoPlayerComponent
         viewChild<TemplateRef<FullscreenChannelPanelContext>>(
             'fullscreenChannelPanel'
         );
-    /** FULLSCREEN_CHANNEL_PANEL: the playlist's channel list, unless opted out. */
+    /**
+     * FULLSCREEN_CHANNEL_PANEL: the playlist's channel list, unless opted
+     * out. Withheld while the M3U VOD detail hosts the player: a movie is
+     * not something to zap away from, and the nested `WebPlayerViewComponent`
+     * would otherwise inherit this component-level provider.
+     */
     readonly panelTemplate = computed(() =>
-        this.settingsStore.fullscreenChannelPanel?.() === false
+        this.settingsStore.fullscreenChannelPanel?.() === false ||
+        this.showMovieDetail()
             ? null
             : (this.fullscreenChannelPanelTemplate() ?? null)
     );

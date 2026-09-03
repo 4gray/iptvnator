@@ -1,3 +1,4 @@
+import { OverlayContainer } from '@angular/cdk/overlay';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -47,15 +48,19 @@ function targetsEditable(event: KeyboardEvent): boolean {
  * that owns DOM fullscreen, so the list stays visible while the video is
  * fullscreen and survives the engine remount a channel switch causes. The
  * content comes from the host page through {@link FULLSCREEN_CHANNEL_PANEL};
- * without a provider (VOD detail pages, series) nothing renders.
+ * without a provider (VOD detail pages, series) nothing renders. The view
+ * can also switch it off through `enabled` for an engine that paints above
+ * the DOM (native-view Embedded MPV), where no DOM panel could show.
  *
  * Nothing is drawn over the video while the panel is closed: opening is
  * resting the mouse on the left edge (a tap on that edge for touch, which has
  * no hover) or pressing `C`. Closing: moving the mouse away, clicking the
  * video (a scrim swallows that click so it never pauses playback), the close
- * button, Escape, or leaving fullscreen. The list stays mounted between
- * openings of one fullscreen session so its scroll position and search
- * survive.
+ * button, Escape, or leaving fullscreen. A CDK overlay opened from the list
+ * (sort menu, row context menu) counts as part of the panel: the pointer
+ * moving into it does not start the close, and Escape closes that overlay
+ * first. The list stays mounted between openings of one fullscreen session
+ * so its scroll position and search survive.
  */
 @Component({
     selector: 'app-fullscreen-channel-panel',
@@ -79,11 +84,19 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     private readonly panelHost = inject(FULLSCREEN_CHANNEL_PANEL, {
         optional: true,
     });
+    private readonly overlayContainer = inject(OverlayContainer);
 
     /** Element whose DOM fullscreen the panel lives in. */
     readonly stage = input<HTMLElement | null>(null);
+    /**
+     * False while the rendered engine cannot show DOM content over its video
+     * (native-view Embedded MPV paints a platform view above the page): every
+     * affordance disappears, exactly like outside fullscreen.
+     */
+    readonly enabled = input(true);
     readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
+    private readonly panelElement = viewChild<ElementRef<HTMLElement>>('panel');
 
     readonly state = new FullscreenChannelPanelState();
     readonly searchTerm = signal('');
@@ -103,7 +116,7 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     );
     /** Every affordance exists only in fullscreen and only with a host list. */
     readonly active = computed(
-        () => this.isFullscreen() && this.template() !== null
+        () => this.enabled() && this.isFullscreen() && this.template() !== null
     );
     readonly context: FullscreenChannelPanelContext = {
         searchTerm: this.searchTerm.asReadonly(),
@@ -126,6 +139,21 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
                 return;
             }
             untracked(() => this.resetSession());
+        });
+        // While open, hover intent is tracked document-wide: a CDK overlay the
+        // list opens (sort menu, context menu) renders outside the <aside>, so
+        // the aside's own pointerleave alone would close the panel under the
+        // menu, and nothing would close it once the pointer left that menu.
+        effect((onCleanup) => {
+            if (!this.state.open() || typeof document === 'undefined') {
+                return;
+            }
+            const onPointerOver = (event: PointerEvent) =>
+                this.onDocumentPointerOver(event);
+            document.addEventListener('pointerover', onPointerOver);
+            onCleanup(() =>
+                document.removeEventListener('pointerover', onPointerOver)
+            );
         });
     }
 
@@ -166,7 +194,10 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     }
 
     onPanelPointerLeave(event: PointerEvent): void {
-        if (event.pointerType === 'touch') {
+        if (
+            event.pointerType === 'touch' ||
+            this.isInsideOverlay(event.relatedTarget)
+        ) {
             return;
         }
         this.state.panelLeave();
@@ -179,6 +210,45 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     clearSearch(): void {
         this.searchTerm.set('');
         this.searchInput()?.nativeElement.focus({ preventScroll: true });
+    }
+
+    private onDocumentPointerOver(event: PointerEvent): void {
+        if (event.pointerType === 'touch') {
+            return;
+        }
+        if (
+            this.isInsidePanel(event.target) ||
+            this.isInsideOverlay(event.target)
+        ) {
+            this.state.panelEnter();
+        } else {
+            this.state.panelLeave();
+        }
+    }
+
+    private isInsidePanel(target: EventTarget | null): boolean {
+        const panel = this.panelElement()?.nativeElement;
+        return (
+            panel !== undefined &&
+            target instanceof Node &&
+            panel.contains(target)
+        );
+    }
+
+    private isInsideOverlay(target: EventTarget | null): boolean {
+        return (
+            target instanceof Node &&
+            this.overlayContainer.getContainerElement().contains(target)
+        );
+    }
+
+    /** A menu or dialog is up: Escape belongs to it, not to the panel. */
+    private hasModalOverlay(): boolean {
+        return (
+            this.overlayContainer
+                .getContainerElement()
+                .querySelector('.cdk-overlay-backdrop') !== null
+        );
     }
 
     private onFullscreenChanged(): void {
@@ -197,7 +267,7 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
             return;
         }
         if (event.key === 'Escape') {
-            if (this.state.open()) {
+            if (this.state.open() && !this.hasModalOverlay()) {
                 this.state.hide();
             }
             return;

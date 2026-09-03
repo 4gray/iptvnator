@@ -375,10 +375,16 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
 
-    it.each([VideoPlayer.VideoJs, VideoPlayer.EmbeddedMpv])(
-        'offers the fullscreen channel panel toggle for %s',
+    it.each([
+        VideoPlayer.VideoJs,
+        VideoPlayer.Html5Player,
+        VideoPlayer.ArtPlayer,
+    ])(
+        'offers the fullscreen channel panel toggle for web player %s with shared controls',
         (player) => {
-            fixture.componentRef.setInput('form', createForm(player));
+            const form = createForm(player);
+            form.get('webPlayerSharedControls')?.setValue(true);
+            fixture.componentRef.setInput('form', form);
             fixture.detectChanges();
 
             expect(
@@ -387,10 +393,35 @@ describe('SettingsPlaybackSectionComponent', () => {
         }
     );
 
+    it('offers the fullscreen channel panel toggle for Embedded MPV regardless of the web preference', () => {
+        fixture.componentRef.setInput(
+            'form',
+            createForm(VideoPlayer.EmbeddedMpv)
+        );
+        fixture.detectChanges();
+
+        expect(
+            queryByTestId('fullscreen-channel-panel-setting')
+        ).not.toBeNull();
+    });
+
+    it('hides the fullscreen channel panel toggle for a web player on the legacy vendor chrome', () => {
+        // The vendor chrome fullscreens the engine's own element, outside
+        // which the panel cannot render, so the toggle would do nothing.
+        const form = createForm(VideoPlayer.VideoJs);
+        form.get('webPlayerSharedControls')?.setValue(false);
+        fixture.componentRef.setInput('form', form);
+        fixture.detectChanges();
+
+        expect(queryByTestId('fullscreen-channel-panel-setting')).toBeNull();
+    });
+
     it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
         'hides the fullscreen channel panel toggle for external player %s',
         (player) => {
-            fixture.componentRef.setInput('form', createForm(player));
+            const form = createForm(player);
+            form.get('webPlayerSharedControls')?.setValue(true);
+            fixture.componentRef.setInput('form', form);
             fixture.detectChanges();
 
             expect(

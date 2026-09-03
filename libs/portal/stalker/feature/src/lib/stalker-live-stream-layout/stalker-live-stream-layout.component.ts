@@ -89,6 +89,7 @@ import {
     StalkerStore,
     normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
+import { PanelSearchWindow } from './panel-search-window';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
 import {
     EPG_PREVIEW_FETCH_SIZE,
@@ -244,11 +245,16 @@ export class StalkerLiveStreamLayoutComponent
             matchesStalkerChannelTerm(item, term)
         );
     });
-    private panelFilterMemo: {
-        term: string;
-        source: readonly StalkerItvChannel[];
-        result: StalkerItvChannel[];
-    } | null = null;
+    /**
+     * The fullscreen panel's own search results, memoized and windowed like
+     * the sidebar's rows: in full-list mode a broad term matches most of a
+     * multi-thousand-channel portal, and the panel renders a component per
+     * row.
+     */
+    private readonly panelSearch = new PanelSearchWindow<StalkerItvChannel>(
+        FULL_LIST_RENDER_CHUNK,
+        matchesStalkerChannelTerm
+    );
     readonly isFullListLoading = computed(
         () => !this.isRadioMode() && this.stalkerStore.itvFullListLoading()
     );
@@ -982,27 +988,23 @@ export class StalkerLiveStreamLayoutComponent
 
     /**
      * Rows for one stamped list instance. The fullscreen panel's instance
-     * searches with its own term (over the same channels the sidebar search
-     * covers, unpaged — results are short); without one, every instance
-     * shows the sidebar's windowed rows.
+     * searches with its own term over the same channels the sidebar search
+     * covers, windowed by {@link PanelSearchWindow} (its scroll container
+     * grows that window, see `setupScrollListener`); without one, every
+     * instance shows the sidebar's windowed rows.
      */
     channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
         const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
         if (!term) {
+            // Only the panel copy owns the window; the sidebar copy passes no
+            // term and must not reset it on every render.
+            if (panelSearchTerm) {
+                this.panelSearch.clear();
+            }
             return this.visibleChannels();
         }
 
-        const source = this.searchableChannels();
-        const memo = this.panelFilterMemo;
-        if (memo && memo.term === term && memo.source === source) {
-            return memo.result;
-        }
-
-        const result = source.filter((item) =>
-            matchesStalkerChannelTerm(item, term)
-        );
-        this.panelFilterMemo = { term, source, result };
-        return result;
+        return this.panelSearch.rows(term, this.searchableChannels());
     }
 
     hasSearchTerm(panelSearchTerm?: Signal<string>): boolean {
@@ -1384,17 +1386,29 @@ export class StalkerLiveStreamLayoutComponent
         if (containers.length === 0) return;
 
         const cleanups = containers.map((container) => {
-            const onScroll = () => {
-                this.scheduleEpgPreviewRefresh();
-                if (this.isLoadingMore() || !this.hasMoreItems()) return;
-
+            const isNearEnd = () => {
                 const { scrollTop, scrollHeight, clientHeight } = container;
                 const scrollThreshold = 150;
+                return (
+                    scrollHeight - scrollTop - clientHeight <= scrollThreshold
+                );
+            };
+            // The fullscreen panel's copy, while searching with its own term,
+            // scrolls through its own windowed matches, not the sidebar's rows.
+            const isPanelSearch = () =>
+                container.closest('.fullscreen-channel-list') !== null &&
+                this.panelSearch.activeTerm() !== '';
+            const onScroll = () => {
+                this.scheduleEpgPreviewRefresh();
+                if (isPanelSearch()) {
+                    if (isNearEnd()) {
+                        this.panelSearch.loadMore();
+                    }
+                    return;
+                }
+                if (this.isLoadingMore() || !this.hasMoreItems()) return;
 
-                if (
-                    scrollHeight - scrollTop - clientHeight <=
-                    scrollThreshold
-                ) {
+                if (isNearEnd()) {
                     this.loadMore();
                 }
             };

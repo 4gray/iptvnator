@@ -2,6 +2,7 @@ import {
     Component,
     ElementRef,
     OnDestroy,
+    type Signal,
     ViewEncapsulation,
     computed,
     effect,
@@ -11,6 +12,7 @@ import {
     output,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
 import {
     type PlaybackDiagnostic,
@@ -62,6 +64,11 @@ import {
     toVideoPlayer,
 } from './web-player-recovery-policy';
 
+/** What the view needs from a rendered Embedded MPV player: its engine. */
+interface EmbeddedMpvEngineReporter {
+    readonly isFrameCopyEngine: Signal<boolean>;
+}
+
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
     const fallback = WEB_PLAYER_SHARED_CONTROLS_ENABLED;
@@ -104,6 +111,19 @@ export class WebPlayerViewComponent implements OnDestroy {
      */
     readonly fullscreenSurface: HTMLElement = inject(ElementRef<HTMLElement>)
         .nativeElement;
+    private readonly embeddedMpvPlayer =
+        viewChild<EmbeddedMpvEngineReporter>('embeddedMpvPlayer');
+    /**
+     * The fullscreen channel panel is DOM content over the video. Embedded
+     * MPV's native-view engine paints a platform view above the page, where
+     * no DOM layer can show, so the panel exists only while the rendered
+     * engine is a web player or Embedded MPV's frame-copy canvas. Fails
+     * closed while the MPV component has not reported its engine yet.
+     */
+    readonly channelPanelAvailable = computed(() => {
+        const embeddedMpv = this.embeddedMpvPlayer();
+        return embeddedMpv === undefined || embeddedMpv.isFrameCopyEngine();
+    });
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {

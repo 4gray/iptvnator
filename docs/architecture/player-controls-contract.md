@@ -313,8 +313,14 @@ component `providers`, and the panel stamps that template into its body with a
 `FullscreenChannelPanelContext` of `{ searchTerm: Signal<string>, close }`.
 Without a provider — VOD detail pages, series playback — nothing renders. The
 host resolves the user preference itself: `Settings.fullscreenChannelPanel`
-(default on, Settings → Playback, offered for the web players and Embedded
-MPV) makes the host return `null`, which removes every affordance.
+(default on, Settings → Playback, offered for the web players while the
+shared controls are on and for Embedded MPV — the legacy vendor chrome
+fullscreens the engine's own element, outside which the panel cannot render,
+so the toggle is hidden there) makes the host return `null`, which removes
+every affordance. The M3U host also returns `null` while its VOD detail hosts
+the player (`showMovieDetail`): a movie is not something to zap away from,
+and the nested `WebPlayerViewComponent` would otherwise inherit the
+component-level provider.
 
 Providers today: `VideoPlayerComponent` (M3U; `app-m3u-fullscreen-channel-list`
 adds a local icon-only all/groups/favorites/recent switcher — one segmented
@@ -328,14 +334,27 @@ otherwise clears the active channel and stops playback), `LiveStreamLayoutCompon
 rows via `channelsOverride` so the second list instance never re-applies the
 route category), `StalkerLiveStreamLayoutComponent` (its list markup is one
 `ng-template` stamped into both the sidebar and the panel with its own search
-term; every copy carries the `#scrollContainer` that drives infinite scroll),
-and `UnifiedLiveTabComponent` (global favorites/recent).
+term; every copy carries the `#scrollContainer` that drives infinite scroll,
+and the panel's own search results go through `PanelSearchWindow`, memoized
+per term and cut to the same 100-row window the sidebar uses — grown by the
+panel copy's scroll — because in full-list mode a broad term matches most of
+a multi-thousand-channel portal and the list has no virtual scroll),
+and `UnifiedLiveTabComponent` (global favorites/recent; its `activateItem`
+keeps the previous detail — and with it the mounted player that owns
+fullscreen — until the next selection has resolved, because unmounting the
+fullscreen element for the resolution round-trip would end fullscreen on
+every zap from the panel).
 
-Behavior: every affordance exists only while the stage is fullscreen, and
-nothing is drawn over the video while the panel is closed — there is no
-handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
+Behavior: every affordance exists only while the stage is fullscreen and the
+view's `enabled` input holds — `WebPlayerViewComponent` withholds the panel
+while the rendered engine is native-view Embedded MPV, which paints a platform
+view above the page where no DOM layer can show (frame-copy and the web
+players qualify; the gate fails closed until the MPV component reports its
+engine). Nothing is drawn over the video while the panel is closed — there is
+no handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
 left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
-is ignored. The `C` key opens it too and focuses the search field (hover does
+is ignored. The zone stops above the controls bar (`bottom: max(25%, 140px)`)
+so the leftmost transport button never loses a click or tap to it. The `C` key opens it too and focuses the search field (hover does
 not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
 zone opens the panel at once: the handler is bound to `pointerup`, not
 `pointerdown`, so the hot zone is still the tap's click target and the click
@@ -343,7 +362,13 @@ that follows dies on it instead of reaching the video. It closes when the
 mouse leaves the panel for 420ms, on the close button (tooltip names the `C`
 shortcut), on Escape, on the host's `close`, or through a transparent scrim
 over the video that swallows the click so the player's click-to-pause never
-sees it. The header is a single row: the search field, whose placeholder
+sees it. A CDK overlay the list opens (sort menu, row context menu) renders in
+the fullscreen overlay container outside the `<aside>`, so it counts as part
+of the panel: while open, hover intent is tracked through a document-level
+`pointerover` (inside the aside or the overlay container cancels a pending
+close, anywhere else schedules one), the aside's own `pointerleave` ignores a
+move into the overlay container, and Escape is left to an overlay with a
+backdrop. The header is a single row: the search field, whose placeholder
 carries the host's `panelTitle` ("Search in <playlist or category>") so the
 title costs no row of its own, and the close button; the host list starts
 directly below. The list stays mounted between openings of one fullscreen

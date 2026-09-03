@@ -6,6 +6,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { OverlayContainer } from '@angular/cdk/overlay';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -24,7 +25,10 @@ import {
     imports: [FullscreenChannelPanelComponent],
     template: `
         <div #stage class="stage">
-            <app-fullscreen-channel-panel [stage]="stage" />
+            <app-fullscreen-channel-panel
+                [stage]="stage"
+                [enabled]="panelEnabled()"
+            />
         </div>
         <ng-template #panel let-searchTerm="searchTerm" let-close="close">
             <div data-test-id="host-list">{{ searchTerm() }}</div>
@@ -44,6 +48,7 @@ class HostComponent implements FullscreenChannelPanelHost {
     private readonly panelRef =
         viewChild<TemplateRef<FullscreenChannelPanelContext>>('panel');
     readonly enabled = signal(true);
+    readonly panelEnabled = signal(true);
     readonly panelTemplate = computed(() =>
         this.enabled() ? (this.panelRef() ?? null) : null
     );
@@ -60,9 +65,16 @@ class HostComponent implements FullscreenChannelPanelHost {
 })
 class NoHostComponent {}
 
-function pointerEvent(type: string, pointerType = 'mouse'): Event {
+function pointerEvent(
+    type: string,
+    pointerType = 'mouse',
+    init: { relatedTarget?: EventTarget | null } = {}
+): Event {
     const event = new Event(type, { bubbles: true, cancelable: true });
     Object.defineProperty(event, 'pointerType', { value: pointerType });
+    Object.defineProperty(event, 'relatedTarget', {
+        value: init.relatedTarget ?? null,
+    });
     return event;
 }
 
@@ -151,6 +163,89 @@ describe('FullscreenChannelPanelComponent', () => {
 
         expect(hotZone()).toBeNull();
         expect(panel()).toBeNull();
+    });
+
+    it('withdraws everything while the view disables it (native-view Embedded MPV)', () => {
+        setFullscreen(stage);
+        openByHover();
+        expect(isOpen()).toBe(true);
+
+        host.panelEnabled.set(false);
+        fixture.detectChanges();
+        expect(panel()).toBeNull();
+        expect(hotZone()).toBeNull();
+
+        host.panelEnabled.set(true);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
+        expect(hotZone()).not.toBeNull();
+        expect(query('host-list')).toBeNull();
+    });
+
+    describe('CDK overlays opened from the list', () => {
+        let overlay: HTMLElement;
+        let pane: HTMLElement;
+
+        beforeEach(() => {
+            overlay = TestBed.inject(OverlayContainer).getContainerElement();
+            pane = document.createElement('div');
+            pane.className = 'cdk-overlay-pane';
+            overlay.appendChild(pane);
+        });
+
+        afterEach(() => {
+            pane.remove();
+        });
+
+        it('keeps the panel open while the pointer is over the overlay and closes once it leaves it', () => {
+            setFullscreen(stage);
+            openByHover();
+
+            // Straight from the list into the menu: no close is scheduled.
+            panel()?.dispatchEvent(
+                pointerEvent('pointerleave', 'mouse', { relatedTarget: pane })
+            );
+            jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS);
+            fixture.detectChanges();
+            expect(isOpen()).toBe(true);
+
+            // A pending close is cancelled by reaching the menu.
+            panel()?.dispatchEvent(pointerEvent('pointerleave'));
+            pane.dispatchEvent(pointerEvent('pointerover'));
+            jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS);
+            fixture.detectChanges();
+            expect(isOpen()).toBe(true);
+
+            // Leaving the menu for the video closes after the grace period.
+            document.body.dispatchEvent(pointerEvent('pointerover'));
+            jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS - 1);
+            fixture.detectChanges();
+            expect(isOpen()).toBe(true);
+            jest.advanceTimersByTime(1);
+            fixture.detectChanges();
+            expect(isOpen()).toBe(false);
+        });
+
+        it('leaves Escape to an open menu and closes on the next press', () => {
+            setFullscreen(stage);
+            openByHover();
+            const backdrop = document.createElement('div');
+            backdrop.className = 'cdk-overlay-backdrop';
+            overlay.appendChild(backdrop);
+
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape' })
+            );
+            fixture.detectChanges();
+            expect(isOpen()).toBe(true);
+
+            backdrop.remove();
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape' })
+            );
+            fixture.detectChanges();
+            expect(isOpen()).toBe(false);
+        });
     });
 
     it('draws nothing over the video while closed: only the hot zone beside the inert, off-screen panel', () => {

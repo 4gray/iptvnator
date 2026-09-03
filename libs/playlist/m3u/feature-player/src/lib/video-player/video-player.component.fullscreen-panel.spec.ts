@@ -20,6 +20,7 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    TmdbEnrichmentService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -68,6 +69,12 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     const fullscreenChannelPanelSetting = signal<boolean | undefined>(
         undefined
     );
+    const tmdbEnabled = signal(false);
+    const movieChannel = {
+        id: 'movie-1',
+        url: 'http://localhost/movies/the-film.mkv',
+        name: 'The Film (2019)',
+    } as Channel;
     const channels$ = new BehaviorSubject<Channel[]>([
         sampleChannel,
         nextChannel,
@@ -121,6 +128,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
         setActive(sampleChannel);
         activePlaylistMeta.set(null);
         fullscreenChannelPanelSetting.set(undefined);
+        tmdbEnabled.set(false);
 
         await TestBed.configureTestingModule({
             imports: [VideoPlayerComponent],
@@ -188,6 +196,10 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     },
                 },
                 {
+                    provide: TmdbEnrichmentService,
+                    useValue: { isEnabled: () => tmdbEnabled() },
+                },
+                {
                     provide: SettingsStore,
                     useValue: {
                         player: signal(VideoPlayer.VideoJs),
@@ -241,6 +253,20 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
             expect(component.panelTemplate()).toBeNull();
 
             fullscreenChannelPanelSetting.set(true);
+            expect(component.panelTemplate()).not.toBeNull();
+        });
+
+        it('withholds the panel while the VOD detail hosts the player', () => {
+            tmdbEnabled.set(true);
+            setActive(movieChannel);
+            fixture.detectChanges();
+
+            expect(component.showMovieDetail()).toBe(true);
+            expect(component.panelTemplate()).toBeNull();
+
+            setActive(sampleChannel);
+            fixture.detectChanges();
+            expect(component.showMovieDetail()).toBe(false);
             expect(component.panelTemplate()).not.toBeNull();
         });
 

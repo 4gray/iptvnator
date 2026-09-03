@@ -206,6 +206,81 @@ describe('UnifiedLiveTabComponent', () => {
         expect(timeline.archivePlaybackAvailable()).toBe(false);
     });
 
+    it('keeps the current detail (and its fullscreen player) mounted while the next selection resolves', async () => {
+        const first = buildLiveItem('m3u');
+        const second: UnifiedCollectionItem = {
+            ...first,
+            uid: 'm3u::pl-1::m3u-channel-2',
+            name: 'M3U Live 2',
+            channelId: 'm3u-channel-2',
+            tvgId: 'm3u-channel-2',
+            streamUrl: 'https://example.com/m3u-2.m3u8',
+        };
+        const detailFor = (item: UnifiedCollectionItem) => ({
+            epgMode: 'm3u' as const,
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            channel: {
+                id: item.channelId,
+                name: item.name,
+                url: item.streamUrl,
+                group: { title: 'News' },
+                tvg: {
+                    id: item.tvgId,
+                    name: item.name,
+                    url: '',
+                    logo: '',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [],
+        });
+        let resolveSecond: (detail: ReturnType<typeof detailFor>) => void =
+            () => undefined;
+        streamResolver.resolveM3uPlaybackDetail
+            .mockResolvedValueOnce(detailFor(first))
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveSecond = resolve;
+                    })
+            );
+        recentData.recordLivePlayback.mockImplementation(
+            async (item: UnifiedCollectionItem) => item
+        );
+
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        const firstDetail = component.activeDetail();
+        expect(firstDetail?.playback.streamUrl).toBe(first.streamUrl);
+
+        // A zap from the fullscreen panel: the mounted player (the fullscreen
+        // element) must survive the resolution round-trip.
+        const pending = component.onChannelSelected(
+            component.channelsForList()[1]
+        );
+        fixture.detectChanges();
+        expect(component.activeUid()).toBe(second.uid);
+        expect(component.activeDetail()).toBe(firstDetail);
+        expect(
+            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
+        ).not.toBeNull();
+
+        resolveSecond(detailFor(second));
+        await pending;
+        fixture.detectChanges();
+        expect(component.activeDetail()?.playback.streamUrl).toBe(
+            second.streamUrl
+        );
+    });
+
     it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;

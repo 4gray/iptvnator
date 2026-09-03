@@ -755,7 +755,11 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         const requestId = ++this.selectionRequestId;
         this.activeUid.set(item.uid);
         this.activeItem.set(item);
-        this.activeDetail.set(null);
+        // The previous detail stays mounted while the next one resolves: the
+        // player it renders owns DOM fullscreen, and a selection from the
+        // fullscreen channel panel must not unmount that element (which
+        // would end fullscreen) for the resolution round-trip. The detail is
+        // replaced when the new one is in, and cleared only on failure.
         this.activeTimeshift.set(null);
         this.isSelecting.set(true);
         // A previously owned radio override must not survive into a

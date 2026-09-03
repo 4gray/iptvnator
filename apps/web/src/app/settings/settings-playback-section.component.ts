@@ -66,14 +66,18 @@ export class SettingsPlaybackSectionComponent {
     }
 
     /**
-     * The fullscreen channel panel lives in the shared controls, which the
-     * web players and Embedded MPV render; external MPV/VLC own their own
-     * fullscreen, so the toggle would control nothing there.
+     * The fullscreen channel panel lives inside the fullscreen element the
+     * shared controls own (the player view host). The legacy vendor chrome
+     * fullscreens the engine's own element and external MPV/VLC own their
+     * own window, so in both cases the toggle would control nothing.
+     * Embedded MPV always renders the shared controls.
      */
     supportsFullscreenChannelPanel(): boolean {
+        const value = this.form().value;
         return (
-            this.isWebPlayerSelected() ||
-            this.form().value.player === VideoPlayer.EmbeddedMpv
+            (this.isWebPlayerSelected() &&
+                value.webPlayerSharedControls !== false) ||
+            value.player === VideoPlayer.EmbeddedMpv
         );
     }
 

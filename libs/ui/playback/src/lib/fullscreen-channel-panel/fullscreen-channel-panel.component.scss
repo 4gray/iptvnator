@@ -12,10 +12,13 @@
 // ─── Closed state ────────────────────────────────────────────────────────────
 
 // Invisible by design: nothing sits over the video until the mouse rests here.
+// It stops well above the shared controls bar (up to ~130px tall in its
+// two-row layout), whose leftmost button starts 16px from the edge — the
+// strip must never intercept a click or tap meant for play/pause.
 .fullscreen-channel-panel__hot-zone {
     position: absolute;
     top: 0;
-    bottom: 0;
+    bottom: max(25%, 140px);
     left: 0;
     z-index: 6;
     width: 28px;

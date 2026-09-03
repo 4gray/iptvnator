@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import {
     ComponentFixture,
     DeferBlockBehavior,
@@ -111,6 +111,8 @@ class StubArtPlayerComponent {
     template: '<div data-test-id="stub-embedded-mpv-player"></div>',
 })
 class StubEmbeddedMpvPlayerComponent {
+    /** Read by the view's channel-panel gate (`EmbeddedMpvEngineReporter`). */
+    readonly isFrameCopyEngine = signal(false);
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);

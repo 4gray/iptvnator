@@ -118,6 +118,40 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         fixture.destroy();
     });
 
+    describe('fullscreen channel panel staging', () => {
+        const panel = () =>
+            fixture.debugElement.query(
+                By.directive(StubFullscreenChannelPanelComponent)
+            ).componentInstance as StubFullscreenChannelPanelComponent;
+
+        it('stages the panel on the host element the engines fullscreen', () => {
+            fixture.detectChanges();
+
+            expect(component.fullscreenSurface).toBe(fixture.nativeElement);
+            expect(panel().stage()).toBe(component.fullscreenSurface);
+            expect(panel().enabled()).toBe(true);
+        });
+
+        it('offers the panel to Embedded MPV only once it reports the frame-copy engine', () => {
+            fixture.componentRef.setInput(
+                'playerOverride',
+                VideoPlayer.EmbeddedMpv
+            );
+            fixture.detectChanges();
+
+            const player = fixture.debugElement.query(
+                By.directive(StubEmbeddedMpvPlayerComponent)
+            ).componentInstance as StubEmbeddedMpvPlayerComponent;
+            // Native view (or engine not reported yet): nothing DOM-based
+            // can show over the video, so the panel is withheld.
+            expect(panel().enabled()).toBe(false);
+
+            player.isFrameCopyEngine.set(true);
+            fixture.detectChanges();
+            expect(panel().enabled()).toBe(true);
+        });
+    });
+
     it('snapshots the shared controls setting for each player host', () => {
         webPlayerSharedControls.set(true);
         fixture.detectChanges();
