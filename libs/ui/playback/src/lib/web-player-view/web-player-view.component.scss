@@ -6,6 +6,12 @@
     overflow: hidden;
 }
 
+// The host owns DOM fullscreen (see `fullscreenSurface` in the component),
+// so the letterbox around a remounted player must be black, not app surface.
+.web-player-view:fullscreen {
+    background: #000;
+}
+
 app-art-player,
 app-embedded-mpv-player,
 app-vjs-player,

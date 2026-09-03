@@ -45,7 +45,34 @@ export const KNOWN_ACTIONS = [
     'open-xtream-vod',
     'open-xtream-series',
     'open-m3u-groups',
+    'open-add-playlist-xtream',
+    'open-add-playlist-auto',
+    'open-xtream-live',
 ];
+
+/**
+ * Shots without a `group` belong to the release post and land in
+ * `blog/<release>/screenshots/`. Any other group (for example `guides`) is
+ * captured only when asked for with `--group` and lands in its own
+ * `blog/<group>/screenshots/` directory, so a release run can never publish
+ * guide frames into a release folder or the other way round.
+ */
+export const DEFAULT_SHOT_GROUP = 'release';
+
+/** @param {{ group?: unknown }} shot */
+export function shotGroup(shot) {
+    return typeof shot?.group === 'string' ? shot.group : DEFAULT_SHOT_GROUP;
+}
+
+/**
+ * @param {{ blogRoot: string, group: string, release: string }} input
+ * @returns {string} the directory a run of `group` publishes into
+ */
+export function outputDirectoryFor({ blogRoot, group, release }) {
+    const folder = group === DEFAULT_SHOT_GROUP ? release : group;
+
+    return path.join(blogRoot, folder, 'screenshots');
+}
 
 /** @param {string} step e.g. `open-xtream-vod=Hero Premieres` */
 export function parseSetupStep(step) {
@@ -103,6 +130,10 @@ export function validateManifest(manifest) {
         }
 
         seen.add(shot?.slug);
+
+        if (shot?.group !== undefined && !SLUG_PATTERN.test(String(shot.group))) {
+            errors.push(`shot "${label}": group must be a lowercase slug`);
+        }
 
         if (!Array.isArray(shot?.setup) || shot.setup.length === 0) {
             errors.push(`shot "${label}": setup must be a non-empty array`);

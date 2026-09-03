@@ -1,0 +1,217 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Alert from '../../components/blog/Alert.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import DownloadHero from '../../components/download/DownloadHero.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import PlatformSwitcher from '../../components/download/PlatformSwitcher.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import { buildDownloadPageSchema } from '../../lib/download-schema';
+import type { FaqEntry } from '../../lib/download-schema';
+import { formatAssetSize, getLatestRelease, resolveDownloads } from '../../lib/downloads';
+import { absoluteUrl } from '../../lib/site';
+
+const release = await getLatestRelease();
+const downloads = resolveDownloads(release, 'macos');
+const appleSilicon = downloads.find((download) => download.id === 'mac-arm64-dmg');
+const dmgSize = appleSilicon ? formatAssetSize(appleSilicon.size) : null;
+const pageUrl = absoluteUrl('/download/macos/');
+
+const title = 'Download IPTVnator for macOS – Free Open-Source IPTV Player for Mac';
+const description =
+  'Download IPTVnator for Mac: a free, open-source IPTV player for Apple Silicon and Intel Macs. M3U/M3U8 playlists, Xtream Codes, Stalker portals and XMLTV EPG. Signed and notarized builds, also available through Homebrew.';
+
+const installSteps = [
+  'Download the .dmg for your Mac (Apple Silicon or Intel) with the buttons above, or run the Homebrew command on the right.',
+  'Open the .dmg and drag IPTVnator into the Applications folder.',
+  'Launch IPTVnator from Applications or Spotlight. Current builds are signed and notarized by Apple, so no "unidentified developer" workaround is needed.',
+  'Add your first source: an M3U/M3U8 file or URL, an Xtream Codes login, or a Stalker portal.',
+];
+
+const features = [
+  {
+    title: 'M3U, Xtream Codes and Stalker',
+    description:
+      'Import M3U/M3U8 playlists from a file or URL, or sign in to Xtream Codes and Stalker/Ministra portals. Live TV, movies and series land in one library with favorites, history and search.',
+  },
+  {
+    title: 'Program guide (EPG)',
+    description:
+      'Attach an XMLTV guide to see what is on now and next, browse the multi-channel timeline under the player, and jump into catch-up where your provider offers it.',
+  },
+  {
+    title: 'Picture-in-picture',
+    description:
+      'Keep a channel floating above other apps with the picture-in-picture button of the built-in players while you work in another window.',
+  },
+  {
+    title: 'MPV and VLC integration',
+    description:
+      'Hand streams that the built-in players cannot decode to MPV or VLC installed on your Mac. Playback positions and the remote control stay inside IPTVnator.',
+  },
+  {
+    title: 'Embedded MPV engine (experimental)',
+    description:
+      'An optional engine that renders mpv inside the IPTVnator window, with a native path for Apple Silicon. Opt in under Settings › Playback.',
+  },
+  {
+    title: 'Offline downloads',
+    description:
+      'Save movies and episodes from Xtream and Stalker sources to disk. The download manager resumes interrupted transfers and keeps a local library.',
+  },
+  {
+    title: 'Movie and series metadata',
+    description:
+      'Optional TMDB enrichment adds posters, plots, cast, ratings and trailers to movie and series details. Off by default, one switch in Settings.',
+  },
+  {
+    title: 'Remote control from your phone',
+    description:
+      'Open the built-in remote-control web app on your phone to switch channels, adjust volume and control playback from the couch.',
+  },
+  {
+    title: 'Signed, notarized, self-updating',
+    description:
+      'Releases are code-signed and notarized by Apple, and IPTVnator tells you when a new version is available. Homebrew users can upgrade with brew.',
+  },
+];
+
+const specs = [
+  { term: 'Operating system', value: 'macOS 12 Monterey or later' },
+  {
+    term: 'Chips',
+    value: 'Native builds for Apple Silicon (M1 to M4) and for Intel Macs. No Rosetta required.',
+  },
+  { term: 'Download size', value: dmgSize ? `${dmgSize} disk image` : 'About 150 MB disk image' },
+  { term: 'Package manager', value: 'Homebrew cask "iptvnator" installs the same signed build.' },
+  { term: 'Account', value: 'None. IPTVnator never asks you to register.' },
+  {
+    term: 'Content',
+    value: 'Bring your own playlist or provider login. IPTVnator ships without channels.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Apple Silicon or Intel: which download do I need?',
+    a: 'Open the Apple menu and choose "About This Mac". If it lists a chip such as Apple M1, M2, M3 or M4, take the Apple Silicon build. If it lists an Intel processor, take the Intel build. The Apple Silicon build runs natively and does not need Rosetta.',
+  },
+  {
+    q: 'Is IPTVnator on the Mac App Store?',
+    a: 'No. Download the disk image from GitHub releases or install it with Homebrew using "brew install --cask iptvnator". Both deliver the same signed and notarized build.',
+  },
+  {
+    q: 'macOS says the app is damaged and cannot be opened. What now?',
+    a: 'That message came from older, unsigned builds. Releases since v0.20 (April 2026) are code-signed and notarized by Apple and open normally. Update to the current version. If you must keep an older build, remove the quarantine flag as described in the linked blog post.',
+  },
+  {
+    q: 'Does IPTVnator come with channels or playlists?',
+    a: 'No. IPTVnator is a player. You add your own M3U/M3U8 playlist, Xtream Codes login or Stalker portal from your provider. Any website selling "IPTVnator subscriptions" or channel packages is unrelated to this project.',
+  },
+  {
+    q: 'Which macOS versions are supported?',
+    a: 'macOS 12 Monterey and later, on both Apple Silicon and Intel Macs. Older macOS versions cannot run the current runtime and receive no new builds.',
+  },
+  {
+    q: 'Can I use MPV or VLC on the Mac?',
+    a: 'Yes. Install MPV (for example with "brew install mpv") or VLC, choose it under Settings › Playback, and IPTVnator launches it for every stream while keeping track of what you watched. The experimental embedded MPV engine additionally plays inside the IPTVnator window.',
+  },
+  {
+    q: 'How do I update IPTVnator on a Mac?',
+    a: 'IPTVnator checks for new releases when it starts and shows a notification with an install button. Homebrew users can run "brew upgrade --cask iptvnator" instead.',
+  },
+];
+
+const jsonLd = buildDownloadPageSchema({
+  platform: 'macos',
+  operatingSystem: 'macOS 12 Monterey or later',
+  pageUrl,
+  description,
+  release,
+  downloads,
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={[
+    'IPTVnator macOS',
+    'IPTVnator Mac',
+    'IPTV player Mac',
+    'IPTV player macOS',
+    'IPTV player Apple Silicon',
+    'M3U player Mac',
+    'Xtream Codes player Mac',
+    'Stalker portal player Mac',
+    'open-source IPTV player',
+  ]}
+  jsonLd={jsonLd}
+>
+  <DownloadHero
+    platform="macos"
+    eyebrow="Download · macOS"
+    titleLead="IPTVnator for"
+    titleAccent="macOS"
+    lede="A free, open-source IPTV player for Apple Silicon and Intel Macs. Load M3U/M3U8 playlists, sign in to Xtream Codes providers or Stalker portals, and watch live TV, movies and series with a full program guide. Builds are signed and notarized, so they open like any other Mac app."
+    release={release}
+    downloads={downloads}
+    facts={['macOS 12 Monterey+', 'Apple Silicon & Intel', 'Signed & notarized', 'Free & open source']}
+    screenshot={{
+      src: '/iptvnator/screenshots/dashboard-with-content.webp',
+      alt: 'IPTVnator dashboard with recently watched content and favorites',
+      width: 2072,
+      height: 1602,
+    }}
+  >
+    <p slot="after-buttons" class="mt-4 max-w-xl text-sm leading-relaxed text-surface-500">
+      Not sure which build? Open the Apple menu › About This Mac. "Chip: Apple M…" means Apple Silicon, "Processor: Intel…" means Intel.
+    </p>
+  </DownloadHero>
+
+  <DownloadSection id="install" eyebrow="Installation" title="Drag, drop," accent="done" lead="A standard disk image, or one Homebrew command. Either way you get the same signed and notarized app.">
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-start">
+      <StepRail title="Install on macOS" steps={installSteps} />
+      <div>
+        <CopyCommand title="Homebrew" command="brew install --cask iptvnator" />
+        <Alert type="info" title='Older builds and the "app is damaged" message'>
+          <p>
+            Releases before v0.20 (April 2026) were not code-signed, and macOS could refuse to open them with
+            "IPTVnator is damaged and can't be opened". If you still run one of those builds, update to the current
+            release or follow the one-command fix in{' '}
+            <a href="/iptvnator/blog/macos-arm-app-damaged-fix/" class="text-accent-300 underline decoration-accent-500/30 underline-offset-4">this post</a>.
+          </p>
+        </Alert>
+      </div>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="features" eyebrow="On macOS" title="What you get" accent="on your Mac" lead="The complete desktop feature set. Everything below works in the macOS build without add-ons.">
+    <FeatureList items={features} />
+  </DownloadSection>
+
+  <DownloadSection id="requirements" eyebrow="Requirements" title="What you" accent="need">
+    <SpecList items={specs} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="IPTVnator on macOS">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['xtream-codes-setup-guide', 'macos-arm-app-damaged-fix', 'why-external-players-help']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <PlatformSwitcher current="macos" />
+</BaseLayout>

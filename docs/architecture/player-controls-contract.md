@@ -56,7 +56,8 @@ reapplies the app volume directly to the media element after ArtPlayer restores
 its own stored volume, disables vendor chrome/hotkeys, and places a transparent
 event-capture layer over ArtPlayer so shared controls exclusively own surface
 clicks and double-clicks. Playback diagnostics gate shared interaction and exit
-only the ArtPlayer shell's own fullscreen. Source replacement and teardown
+only the shared controls' resolved fullscreen owner (the host-supplied
+`fullscreenTarget`, else the ArtPlayer shell). Source replacement and teardown
 remove exact listeners and engines, and destroyed sessions ignore stale delayed
 `customType` callbacks. When the host token resolves to false, the existing
 ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
@@ -102,8 +103,9 @@ added to `PlayerController`.
 
 The only controls-layer participation is interaction gating. While the sibling
 diagnostic panel is visible, a web-player host disables shared surface and
-keyboard ownership and exits only its own DOM fullscreen so the recovery
-actions remain reachable. Clearing the diagnostic restores those paths; it
+keyboard ownership and exits only the resolved fullscreen owner's DOM
+fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
+recovery actions remain reachable. Clearing the diagnostic restores those paths; it
 does not make the controls contract an owner of the recovery lifecycle.
 
 ## Why this exists
@@ -228,13 +230,35 @@ Episode navigation is deliberately exposed as component outputs
 playlist/portal feature decides which item to play.
 
 Fullscreen is also outside the engine command contract. The landed component
-uses `ControlsFullscreen`, which operates on the supplied DOM player surface
-through `requestFullscreen()` / `document.exitFullscreen()`. There is no
-fullscreen delegate or native-fullscreen IPC path. `ControlsFullscreen.sync()`
-reconciles state when a surface attaches or changes, including when that
-surface is already fullscreen. The Embedded MPV host's existing
-`fullscreenchange` listener still triggers bounds sync so frame-copy render
-size follows the fullscreen DOM surface.
+uses `ControlsFullscreen`, which operates on one DOM element through
+`requestFullscreen()` / `document.exitFullscreen()`: the optional
+`fullscreenTarget` input when the host supplies one, else the `playerSurface`.
+There is no fullscreen delegate or native-fullscreen IPC path.
+`ControlsFullscreen.sync()` reconciles state when that element attaches or
+changes, including when it is already fullscreen. The Embedded MPV host's
+existing `fullscreenchange` listener still triggers bounds sync so frame-copy
+render size follows the fullscreen DOM surface.
+
+The owner matters because `WebPlayerViewComponent` remounts the engine
+component for every playback application (`@for ... track application.token`:
+next episode, channel zap, alternative source, retry) and the Fullscreen API
+exits the moment its element leaves the document. A shell-owned fullscreen
+therefore ended with every switch. `WebPlayerViewComponent` now passes its own
+host element (`fullscreenSurface`) as `fullscreenTarget` to HTML5, Video.js,
+ArtPlayer, and Embedded MPV; that element spans all applications of one mount,
+so a fullscreen entered on episode 1 is still active when episode 2's engine
+mounts, and the fresh controls adopt it through `sync()` on attach. The
+`playerSurface` (pointer/click/cursor ownership) stays the engine shell. The
+vendor-chrome opt-out keeps engine-owned fullscreen and still loses it on a
+switch — see "Known differences".
+
+One dependency this uncovered: `WebPlayerViewComponent.channel` and
+`vjsOptions` are signals. In Electron the source is handed to the engine inside
+the stream-header IPC promise, after the pass that mounted the application,
+and the view sits under OnPush hosts (`PortalInlinePlayerComponent`); as plain
+fields they were only rendered when something else dirtied the subtree — which
+used to be the stage resize caused by the fullscreen exit on every switch. A
+remounted engine inside a still-active fullscreen has no such trigger.
 
 ## Shared default controls
 
@@ -310,7 +334,51 @@ controls instance.
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
 is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
 between controls does not restart hiding, and leaving the bar resumes the normal
-hide delay. In fullscreen playback, hiding the controls also hides the pointer
+hide delay. Only keyboard-originated focus pins the bar: Chromium also moves
+focus to a clicked `<button>`, and that focus is a side effect of the click,
+so `ControlsSurface.wasPointerInteraction` attributes a `focusin` to the press
+when a `pointerdown` was recorded within the last second whose target lies
+inside the newly focused element. A press moves focus at most once and does so
+synchronously, so the record is discarded on the first bar focus event it is
+asked about, matching or not, and on any key press; nothing a later Tab or
+Shift+Tab focuses can be attributed to a stale press, not even the control
+the press hit while it was already focused and hence produced no focus event.
+Such focus reveals like any pointer activity and the bar hides on the normal
+delay while the button stays the active element; a Tab shortly after a click
+on the video still counts as keyboard navigation because the press did not
+land inside the focused control. A key press that bubbles out of a control
+inside the bar (Space or Enter on the still-focused button, arrows on a
+slider) hands ownership back to the keyboard and pins the bar exactly as Tab
+focus does, because operating a focused control produces no focus event. A
+pointer press anywhere in the bar also releases an existing keyboard pin: the
+press may produce no focus event at all (clicking the control that already has
+focus) or only a transfer inside the bar, which `focusout` ignores by design,
+so the pin cannot be cleared from focus events alone. Without
+this distinction the fullscreen button kept the controls on screen until a
+click on the viewport took focus away — and that click also paused playback.
+
+The focus a pointer click leaves on a control is released once the click
+completes (`onBarClick` → `ControlsSurface.releasePointerFocus`). A focused
+control captures the keyboard: Space and Enter activate it again, and
+`ControlsShortcuts` yields to any interactive element in the key's path, so
+after a click on the fullscreen button Space left fullscreen instead of
+pausing and the seek, volume, and mute keys did nothing.
+`ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
+(non-empty for a pointer; empty for Enter/Space activation and
+`element.click()`), and a legacy `MouseEvent` click by a recent press inside
+the clicked element, answered once per press and discarded on any key press.
+Keyboard activation therefore keeps focus where Tab put it. Only buttons and
+range sliders are released; text entry would keep its focus, and the bar
+holds none. Chromium keeps its sequential focus navigation starting point at
+the blurred control, so a later Tab continues from it exactly as if it were
+still focused; the clicked button's tooltip hides with the focus. The release
+dispatches a `focusout` while the pointer still rests on the control, so the
+volume anchor's `focusout` handler skips its popover close for it
+(`wasPointerFocusRelease`), while focus leaving by keyboard still closes the
+popover. A press that never completes into a click (released off the
+control) is the one case that still leaves pointer-originated focus behind,
+which is why the key-press re-pin above remains.
+In fullscreen playback, hiding the controls also hides the pointer
 over both the controls host and the supplied player surface; revealing controls
 or destroying the component restores the surface's previous inline cursor.
 
@@ -332,10 +400,11 @@ The HTML5, Video.js, and ArtPlayer hosts apply the same ownership rule while a
 playback diagnostic is visible: `WebPlayerViewComponent` passes
 `interactionEnabled = visiblePlaybackDiagnostic() === null`, and all three
 components bind that value to `showControls` and
-`shortcutsEnabled`. If the active player shell owns DOM fullscreen, its host
-exits fullscreen before hiding the controls so the sibling diagnostic banner
-and its recovery actions remain visible; fullscreen owned by another
-element is left untouched. Retrying playback or clearing the diagnostic
+`shortcutsEnabled`. If the shared controls' fullscreen owner (the supplied
+`fullscreenTarget`, else the player shell) is in DOM fullscreen, the host
+exits fullscreen before hiding the controls so the diagnostic banner and its
+recovery actions remain visible; fullscreen owned by another element is left
+untouched. Retrying playback or clearing the diagnostic
 restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
@@ -416,7 +485,8 @@ the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
   the hover-open path is suppressed and the first tap on the volume button
   opens the popover instead of muting; a tap while it is open toggles mute as
   the button's label says. Touch-attributed `focusout` does not schedule the
-  popover close (outside taps and other menu buttons dismiss it).
+  popover close (outside taps and other menu buttons dismiss it), and neither
+  does the `focusout` of a pointer focus release.
 - **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
   timeline/volume sliders grow their input hit strip to 28px and the thumb to
   18px; the 4px visual track is unchanged.
@@ -716,6 +786,14 @@ regressions:
 - **Vendor caption menus** behave as before in the opt-out path; shared mode
   is authoritative for the session as documented under "Caption preference in
   both modes".
+- **Fullscreen across a source switch.** Vendor chrome puts its own engine
+  element into fullscreen (`.video-js`, ArtPlayer's container, the native
+  `<video>`), and that element is remounted for the next episode, channel, or
+  alternative source, so the browser exits fullscreen on every switch. Shared
+  controls fullscreen the host-owned `fullscreenTarget` instead and keep
+  fullscreen across switches; re-requesting fullscreen for a remounted vendor
+  engine is not possible for the autoplay hand-off, which has no user
+  activation.
 
 ## Advanced subtitle support
 
@@ -840,8 +918,13 @@ The shared controls receive the whole player root as their DOM surface. Turning
 `showControls` off detaches surface interaction and playback-shortcut
 ownership; Escape remains available for generic popover dismissal.
 Backdrop-bearing overlays disable playback shortcuts. Fullscreen uses the DOM
-Fullscreen API on that root, while the Embedded MPV component continues bounds
-sync so the helper renders at the current viewport size.
+Fullscreen API on the host-supplied `fullscreenTarget` (the
+`app-web-player-view` element, which survives the per-application remount),
+falling back to the player root; the component's own `isFullscreen`,
+`canFullscreen`, and toggle follow the same owner and re-read it on mount, so
+a player remounted inside an active fullscreen starts fullscreen. The Embedded
+MPV component continues bounds sync so the helper renders at the current
+viewport size.
 
 Recording snapshots arrive independently from command promise settlement. The
 adapter therefore treats snapshots as observations rather than acknowledgments

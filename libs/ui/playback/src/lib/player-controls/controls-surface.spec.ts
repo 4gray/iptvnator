@@ -241,15 +241,15 @@ describe('ControlsSurface', () => {
 
         it('attributes pointer-typeless events to a recent touch pointerdown', () => {
             document.dispatchEvent(pointerTypedEvent('pointerdown', 'touch'));
-            expect(
-                surface.wasTouchInteraction(new FocusEvent('focusin'))
-            ).toBe(true);
+            expect(surface.wasTouchInteraction(new FocusEvent('focusin'))).toBe(
+                true
+            );
             expect(surface.wasTouchInteraction(undefined)).toBe(true);
 
             document.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
-            expect(
-                surface.wasTouchInteraction(new FocusEvent('focusin'))
-            ).toBe(false);
+            expect(surface.wasTouchInteraction(new FocusEvent('focusin'))).toBe(
+                false
+            );
         });
 
         it('trusts an explicit pointer type over the pointerdown history', () => {
@@ -260,10 +260,236 @@ describe('ControlsSurface', () => {
                 )
             ).toBe(false);
             expect(
-                surface.wasTouchInteraction(
-                    pointerTypedEvent('click', 'touch')
-                )
+                surface.wasTouchInteraction(pointerTypedEvent('click', 'touch'))
             ).toBe(true);
+        });
+    });
+
+    describe('pointer-originated focus attribution', () => {
+        let button: HTMLButtonElement;
+        let icon: HTMLElement;
+
+        beforeEach(() => {
+            button = document.createElement('button');
+            icon = document.createElement('span');
+            button.appendChild(icon);
+            element.appendChild(button);
+        });
+
+        const focusOn = (target: EventTarget) => {
+            const event = new FocusEvent('focusin');
+            Object.defineProperty(event, 'target', { value: target });
+            return event;
+        };
+
+        it('attributes focus to a recent press inside the focused element', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+        });
+
+        it('treats a press on the focused element itself as pointer focus', () => {
+            button.dispatchEvent(pointerTypedEvent('pointerdown', 'pen'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+        });
+
+        it('reports keyboard focus when no press was recorded', () => {
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('reports keyboard focus when the press landed outside the focused element', () => {
+            element.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('consumes the press on its first matching focus event', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(true);
+            // Shift+Tab away and Tab back within the window: keyboard focus.
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('discards the press on the first focus event even without a match', () => {
+            const other = document.createElement('button');
+            element.appendChild(other);
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            // The press hit an already focused control (no focus event of its
+            // own); the next focus event is keyboard navigation elsewhere...
+            expect(surface.wasPointerInteraction(focusOn(other))).toBe(false);
+            // ...and returning to the pressed control is keyboard navigation.
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('discards the press on any key press', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })
+            );
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('removes its capture-phase keydown listener on dispose', () => {
+            const remove = jest.spyOn(document, 'removeEventListener');
+            surface.dispose();
+            expect(remove).toHaveBeenCalledWith(
+                'keydown',
+                expect.any(Function),
+                { capture: true }
+            );
+            remove.mockRestore();
+        });
+
+        it('forgets a press after the attribution window', () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            jest.setSystemTime(new Date('2026-01-01T00:00:01.500Z'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+
+        it('stops recording presses after dispose', () => {
+            surface.dispose();
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerInteraction(focusOn(button))).toBe(false);
+        });
+    });
+
+    describe('pointer-originated click attribution', () => {
+        let button: HTMLButtonElement;
+        let icon: HTMLElement;
+
+        beforeEach(() => {
+            button = document.createElement('button');
+            icon = document.createElement('span');
+            button.appendChild(icon);
+            element.appendChild(button);
+        });
+
+        /** A click as an engine dispatches it; `pointerType` only when given. */
+        const clickOn = (target: EventTarget, pointerType?: string) => {
+            const event = new MouseEvent('click', { bubbles: true });
+            if (pointerType !== undefined) {
+                Object.defineProperty(event, 'pointerType', {
+                    value: pointerType,
+                });
+            }
+            Object.defineProperty(event, 'target', { value: target });
+            return event;
+        };
+
+        it('trusts a non-empty pointer type on the click', () => {
+            expect(surface.wasPointerClick(clickOn(button, 'mouse'))).toBe(
+                true
+            );
+            expect(surface.wasPointerClick(clickOn(button, 'touch'))).toBe(
+                true
+            );
+            expect(surface.wasPointerClick(clickOn(button, 'pen'))).toBe(true);
+        });
+
+        it('reads an empty pointer type as keyboard or script activation, even after a press', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerClick(clickOn(button, ''))).toBe(false);
+        });
+
+        it('attributes a legacy click to a recent press inside the clicked element', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerClick(clickOn(button))).toBe(true);
+        });
+
+        it('reports keyboard activation for a legacy click without a press', () => {
+            expect(surface.wasPointerClick(clickOn(button))).toBe(false);
+        });
+
+        it('reports keyboard activation when the press landed outside the clicked element', () => {
+            element.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerClick(clickOn(button))).toBe(false);
+        });
+
+        it('consumes the press on the first legacy click it is asked about', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            expect(surface.wasPointerClick(clickOn(button))).toBe(true);
+            expect(surface.wasPointerClick(clickOn(button))).toBe(false);
+        });
+
+        it('answers the focus and the click of one press independently', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            const focus = new FocusEvent('focusin');
+            Object.defineProperty(focus, 'target', { value: button });
+            expect(surface.wasPointerInteraction(focus)).toBe(true);
+            expect(surface.wasPointerClick(clickOn(button))).toBe(true);
+        });
+
+        it('discards the press on any key press', () => {
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+            );
+            expect(surface.wasPointerClick(clickOn(button))).toBe(false);
+        });
+
+        it('forgets a press after the attribution window', () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+            icon.dispatchEvent(pointerTypedEvent('pointerdown', 'mouse'));
+            jest.setSystemTime(new Date('2026-01-01T00:00:01.500Z'));
+            expect(surface.wasPointerClick(clickOn(button))).toBe(false);
+        });
+    });
+
+    describe('pointer focus release', () => {
+        let button: HTMLButtonElement;
+
+        beforeEach(() => {
+            button = document.createElement('button');
+            element.appendChild(button);
+        });
+
+        it('blurs the focused control inside the root and flags its focusout', () => {
+            button.focus();
+            let flagged: boolean | null = null;
+            element.addEventListener('focusout', () => {
+                flagged = surface.wasPointerFocusRelease();
+            });
+
+            expect(surface.releasePointerFocus(element)).toBe(true);
+
+            expect(document.activeElement).not.toBe(button);
+            expect(flagged).toBe(true);
+            expect(surface.wasPointerFocusRelease()).toBe(false);
+        });
+
+        it('releases a focused range slider', () => {
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            element.appendChild(slider);
+            slider.focus();
+
+            expect(surface.releasePointerFocus(element)).toBe(true);
+            expect(document.activeElement).not.toBe(slider);
+        });
+
+        it('leaves focus outside the root alone', () => {
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
+            outside.focus();
+
+            expect(surface.releasePointerFocus(element)).toBe(false);
+            expect(document.activeElement).toBe(outside);
+            outside.remove();
+        });
+
+        it('does nothing when nothing is focused', () => {
+            expect(surface.releasePointerFocus(element)).toBe(false);
+        });
+
+        it('keeps focus in text entry', () => {
+            const field = document.createElement('input');
+            field.type = 'text';
+            element.appendChild(field);
+            field.focus();
+
+            expect(surface.releasePointerFocus(element)).toBe(false);
+            expect(document.activeElement).toBe(field);
         });
     });
 });

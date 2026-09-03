@@ -232,35 +232,79 @@ operations:
 
 Read and query phases cover the exact awaited Drizzle query. Normalization
 phases cover the existing synchronous transforms. The content-write phase is
-one aggregate pair around every existing 100-row transaction, cancellation
+one aggregate pair around every row-budgeted transaction, cancellation
 checkpoint, and progress callback; it is not an exact measurement of SQLite
-commit time. Cache clear similarly uses one aggregate pair around all existing
-content and category chunk loops and transactions, including their JavaScript
-and autocommit overhead. A zero-category cache clear still emits one pair with
+commit time. Cache clear similarly uses one aggregate pair around the content
+group transactions and the single category statement, including their
+JavaScript overhead. A zero-category cache clear still emits one pair with
 `itemCount: 0` and performs no extra SQL.
 
-The Xtream-delete collection span includes its existing ordered category,
-favorite, recently-viewed, and content-ID work. Its `itemCount` deliberately
-counts only content and category deletion candidates; favorite,
-recently-viewed, and hidden-category user data is timed but is not added to
-that count. The matching write count uses the same deletion-candidate
-definition. Playlist-delete collection counts every collected favorite,
-recently-viewed, playback-position, content, and category ID. Download rows are
-intentionally excluded: they own local offline files independently of the
-source playlist and survive source deletion, with provider handoff disabled
-while that source is absent. The write count adds the final playlist row. Both
-write spans include every existing cooperative checkpoint, 100-row
-transaction, progress callback, and, for playlist deletion, the final
-playlist-row autocommit; they are not exact SQLite commit-time measurements.
+The Xtream-delete collection span includes its ordered category, favorite,
+recently-viewed, and per-category content-count work. Its `itemCount`
+deliberately counts only content and category deletion candidates (the summed
+per-category counts plus the category rows); favorite, recently-viewed, and
+hidden-category user data is timed but is not added to that count. The
+matching write count uses the same deletion-candidate definition.
+Playlist-delete collection counts the favorite, recently-viewed, and
+playback-position rows, the summed content counts, and the category rows.
+Download rows are intentionally excluded: they own local offline files
+independently of the source playlist and survive source deletion, with
+provider handoff disabled while that source is absent. The write count adds
+the final playlist row. Both write spans include every cooperative checkpoint,
+committed transaction, progress callback, and, for playlist deletion, the
+final playlist-row autocommit; they are not exact SQLite commit-time
+measurements.
 
 Successful end markers carry only row/item counts. Error or cancellation still
 closes the active phase without metadata and preserves the original error.
 Disabled profiling passes no adapter into the operations, so it performs no
-phase-event or metadata-callback allocation. Worker concurrency, SQL, chunk
-sizes, transaction boundaries, progress ordering, and cancellation checkpoints
-are unchanged. `DB_GLOBAL_SEARCH` is deliberately not instrumented: it
-interleaves queries and ranking across sources, so these single-query phases
-would be misleading.
+phase-event or metadata-callback allocation. Worker concurrency, SQL,
+transaction boundaries, progress ordering, and cancellation checkpoints are the
+same with and without profiling. `DB_GLOBAL_SEARCH` is deliberately not
+instrumented: it interleaves queries and ranking across sources, so these
+single-query phases would be misleading.
+
+### Catalog write batching
+
+Catalog deletes and inserts commit in row-budgeted transactions rather than
+per 100 rows (#1292, `catalog-deletion.ts`). Every commit flushes the FTS5
+trigram pending buffer into a new segment, re-appends the dirty pages of each
+`content` index to the WAL, and about every 4 MB of WAL runs an fsync-ing
+auto-checkpoint, so a 300k-row playlist committed in 100-row batches cost
+3,000 commits and roughly 2 GB of WAL traffic where one transaction writes
+140 MB. One giant transaction is not the alternative: the worker serves other
+requests only between awaits, cancellation is cooperative between commits, and
+the main-process and EPG-worker connections give up after their 5 s
+`busy_timeout` while a write transaction holds the lock.
+
+- `CONTENT_ROWS_PER_TRANSACTION` (5,000) is the budget for both directions.
+- Deletes never materialize row ids in JavaScript. The worker reads content
+  row counts per category from the two covering indexes
+  (`countContentRowsByCategory`), packs consecutive categories into groups
+  within the budget (`groupCategoriesByRowBudget`; a category larger than the
+  budget forms its own group and is deleted whole — the largest real ones,
+  around 45k rows, still commit in well under a second), and issues one
+  `DELETE FROM content WHERE category_id IN (...)` per group. Categories are
+  then removed with one statement over the ids captured by the collection
+  step — never a playlist-wide predicate: the worker serves other requests
+  between commits, so a newer import of the same playlist may have created
+  categories an older refresh must not erase. Playlist removal is the one
+  place that scopes by playlist id, for favorites, recently-viewed,
+  playback-position and category rows alike, since its final playlist-row
+  delete cascades the same set. `deleteCategoriesWhere` runs its filter
+  through `requireScopedFilter`, which refuses the `undefined` an empty
+  `and()` yields, since `.where(undefined)` would be a full-table delete.
+- Inserts keep 100-row `INSERT` statements (Drizzle binds the eleven columns
+  an `XtreamContentValue` supplies, 1,100 parameters per statement; a whole
+  5,000-row commit in one statement would pass SQLite's 32,766 limit) and
+  wrap fifty of them in one transaction.
+- For deletes, progress `current` is the sum of the `changes` SQLite reports
+  and `total` is the summed pre-count. For inserts, `current` counts the rows
+  handed to `INSERT ... ON CONFLICT DO NOTHING` and `total` is the number of
+  normalized values, so a conflict-skipped duplicate still counts as
+  progress — it is a progress figure, not a row count. Either way a
+  checkpoint runs before every commit, so a cancel lands between commits
+  exactly as before.
 
 Formal initial-import comparison also requires both request-scoped captures in
 every measured run to have coherent event-loop delay, event-loop utilization,
@@ -356,6 +400,16 @@ cancel request does not interrupt it.
 
 The event is forwarded to the renderer as `DB_OPERATION_EVENT`.
 
+Progress events are throttled in the worker
+(`operation-progress-throttle.ts`): at most one `progress` event per
+operation every 100 ms, with the rest coalesced into the next emitted one —
+latest `phase`/`current`/`total`, summed `increment`, so a consumer adding
+increments still reaches the same count. The first report of a phase, a
+report that reaches its `total`, and the pending report of a phase that is
+being left are never held back, and a pending report is flushed before the
+terminal `completed`, `cancelled`, or `error` event. Consumers must therefore
+not assume one event per committed transaction.
+
 ### Cancellation contract
 
 Long-running Xtream and playlist operations now support best-effort
@@ -373,8 +427,10 @@ If a worker operation is canceled:
 2. the request rejects with an `AbortError`
 3. the UI clears its busy state without treating the operation as success
 
-Cancellation is cooperative and chunk-based. Already committed SQLite batches
-stay committed. For an operation's busy lifecycle, only the terminal
+Cancellation is cooperative and lands between commits: a checkpoint runs
+before every row-budgeted transaction (see "Catalog write batching"), and
+already committed SQLite batches stay committed. For an operation's busy
+lifecycle, only the terminal
 `completed`, `error`, or `cancelled` event settles UI state. The UI may set a
 separate cancel-requested flag immediately so the cancel action cannot be
 clicked twice while it waits for the authoritative terminal event.
@@ -876,6 +932,18 @@ This artificial delay is test-only and disabled by default. At the default
 value of `0`, every cancellable batch checkpoint still yields one event-loop
 turn without adding a timer delay. That yield lets the worker receive a queued
 cancel message before starting the next batch.
+
+Its companion, also test-only, shrinks the catalog write budget so a
+few-thousand-row mock catalog still produces several commits — and therefore
+several checkpoints and progress events — to observe mid-import:
+
+```bash
+IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION=100
+```
+
+Unset, or set to anything but a positive integer, it leaves the default
+`CONTENT_ROWS_PER_TRANSACTION` of 5,000 in place (see "Catalog write
+batching"). Neither knob belongs in a production launch.
 
 ### Useful verification commands
 

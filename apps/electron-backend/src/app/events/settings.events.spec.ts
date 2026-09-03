@@ -6,11 +6,13 @@ type SettingsUpdatePayload = Omit<
     | 'embeddedMpvFrameCopy'
     | 'language'
     | 'mpvPlayerArguments'
+    | 'startupWindowMode'
     | 'vlcPlayerArguments'
 > & {
     embeddedMpvFrameCopy?: boolean | number;
     language?: string;
     mpvPlayerArguments?: ExternalPlayerArgumentsSetting;
+    startupWindowMode?: string;
     vlcPlayerArguments?: ExternalPlayerArgumentsSetting;
 };
 type SettingsUpdateHandler = (
@@ -23,6 +25,7 @@ const STORE_KEYS = {
     EMBEDDED_MPV_FRAME_COPY: 'EMBEDDED_MPV_FRAME_COPY',
     MPV_PLAYER_ARGUMENTS: 'MPV_PLAYER_ARGUMENTS',
     MPV_REUSE_INSTANCE: 'MPV_REUSE_INSTANCE',
+    STARTUP_WINDOW_MODE: 'STARTUP_WINDOW_MODE',
     VLC_PLAYER_ARGUMENTS: 'VLC_PLAYER_ARGUMENTS',
     VLC_REUSE_INSTANCE: 'VLC_REUSE_INSTANCE',
 } as const;
@@ -47,6 +50,7 @@ jest.mock('../services/store.service', () => ({
     EMBEDDED_MPV_FRAME_COPY: STORE_KEYS.EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS: STORE_KEYS.MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE: STORE_KEYS.MPV_REUSE_INSTANCE,
+    STARTUP_WINDOW_MODE: STORE_KEYS.STARTUP_WINDOW_MODE,
     VLC_PLAYER_ARGUMENTS: STORE_KEYS.VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE: STORE_KEYS.VLC_REUSE_INSTANCE,
     store: {
@@ -134,6 +138,23 @@ describe('SETTINGS_UPDATE', () => {
             true
         );
         expect(mockUpdateSettings).not.toHaveBeenCalled();
+    });
+
+    it('mirrors the startup window mode into the main-process store', () => {
+        settingsUpdateHandler({}, { startupWindowMode: 'fullscreen' });
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.STARTUP_WINDOW_MODE, 'fullscreen'],
+        ]);
+        expect(mockUpdateSettings).not.toHaveBeenCalled();
+    });
+
+    it('normalizes an unknown startup window mode to normal instead of storing junk', () => {
+        settingsUpdateHandler({}, { startupWindowMode: 'kiosk' });
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.STARTUP_WINDOW_MODE, 'normal'],
+        ]);
     });
 
     it('reconciles an enabled remote-control update with the stored port', () => {

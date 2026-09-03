@@ -23,6 +23,8 @@ describe('keyboard shortcuts registry', () => {
         expect(ids).not.toContain('open-global-search');
         expect(ids).not.toContain('open-recently-viewed');
         expect(ids).not.toContain('close-player-popovers');
+        // The browser owns F11 in the PWA.
+        expect(ids).not.toContain('toggle-window-fullscreen');
         expect(ids).toContain('open-command-palette');
         // Playback shortcuts run in every runtime: the built-in web players
         // attach them through the legacy shortcut wiring in the PWA too.
@@ -31,6 +33,21 @@ describe('keyboard shortcuts registry', () => {
         expect(ids).toContain('seek');
         expect(ids).toContain('adjust-volume');
         expect(ids).toContain('mute-audio');
+    });
+
+    it('lists the F11 window fullscreen toggle in the global group for Electron', () => {
+        const groups = getKeyboardShortcutGroups({
+            isMac: false,
+            isElectron: true,
+        });
+        const globalGroup = groups.find((group) => group.id === 'global');
+
+        expect(globalGroup?.items.map((item) => item.id)).toContain(
+            'toggle-window-fullscreen'
+        );
+        expect(findChordLabels(groups, 'toggle-window-fullscreen')).toEqual([
+            ['F11'],
+        ]);
     });
 
     it('uses platform-specific modifier labels', () => {

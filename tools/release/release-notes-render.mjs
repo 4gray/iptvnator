@@ -1,7 +1,7 @@
 /**
- * Renderers turning grouped `.changes/*.md` notes into the three release
- * surfaces: the GitHub release body, the CHANGELOG.md section, and the
- * website blog scaffold.
+ * Renderers turning grouped `.changes/*.md` notes into the GitHub release
+ * body and the CHANGELOG.md section, plus the text helpers shared with the
+ * website blog scaffold in `release-notes-blog.mjs`.
  */
 
 import { extractSection } from './extract-changelog-section.mjs';
@@ -48,12 +48,12 @@ export function releaseSlug(version) {
 }
 
 /** Collapses a note body to a single line for list entries. */
-function oneLine(body) {
+export function oneLine(body) {
     return body.replace(/\s+/g, ' ').trim();
 }
 
 /** Trims to a word boundary; used for image alt text, never for prose. */
-function truncate(text, max) {
+export function truncate(text, max) {
     if (text.length <= max) {
         return text;
     }
@@ -70,7 +70,7 @@ function truncate(text, max) {
  * break the website build. The closing counterparts are escaped too, so a
  * body like `<live>` renders as written instead of half-escaped.
  */
-function escapeMdx(text) {
+export function escapeMdx(text) {
     return text
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -83,7 +83,7 @@ function escapeMdx(text) {
  * @param {Map<string, { pr?: number, commit?: string }>} links
  * @returns {string} trailing `([#123](url), closes [#45](url))` or ''
  */
-function formatReferences(note, links) {
+export function formatReferences(note, links) {
     const parts = [];
     const link = links.get(note.sourcePath);
 
@@ -221,119 +221,3 @@ export function upsertChangelogSection(changelog, section, version, marker) {
     };
 }
 
-/**
- * Blog entries carrying a `screenshot:` slug or a `highlight:` headline become
- * their own subsection (with an image slider when a screenshot exists); the
- * rest stay bullets.
- */
-function renderBlogGroup(group, { slug, links }) {
-    const bullets = group.notes.filter(
-        (note) => !note.screenshot && !note.highlight
-    );
-    const featured = group.notes.filter(
-        (note) => note.screenshot || note.highlight
-    );
-    const blocks = [`## ${group.heading}`];
-
-    if (bullets.length > 0) {
-        blocks.push(
-            bullets
-                .map(
-                    (note) =>
-                        `- **${note.area}** — ${escapeMdx(oneLine(note.body))}${formatReferences(note, links)}`
-                )
-                .join('\n')
-        );
-    }
-
-    for (const note of featured) {
-        // A `highlight:` headline is the editorial headline; without one the
-        // heading is editorial work a note body cannot stand in for — leave a
-        // visible TODO instead of pretending otherwise; the whole scaffold
-        // ships as `draft: true` anyway.
-        blocks.push(
-            note.highlight
-                ? `### ${escapeMdx(note.highlight)}`
-                : `### TODO headline (${note.area})`
-        );
-        blocks.push(
-            `${escapeMdx(oneLine(note.body))}${formatReferences(note, links)}`
-        );
-
-        if (!note.screenshot) {
-            continue;
-        }
-
-        // Embedded in a single-quoted JS string inside MDX. Backslashes must
-        // be escaped before apostrophes, or a body ending in `\` produces an
-        // unterminated string and breaks the website build.
-        const alt = truncate(oneLine(note.body), 120)
-            .replace(/\\/g, '\\\\')
-            .replace(/'/g, "\\'");
-        const images = ['dark', 'light']
-            .map(
-                (theme) =>
-                    `        {\n            src: '/iptvnator/blog/${slug}/screenshots/${note.screenshot}-${theme}.png',\n            alt: '${alt}',\n        },`
-            )
-            .join('\n');
-
-        blocks.push(`<BlogImageSlider\n    images={[\n${images}\n    ]}\n/>`);
-    }
-
-    return blocks.join('\n\n');
-}
-
-/**
- * Scaffold for `apps/website/src/content/blog/v0-24-release-notes.mdx`.
- * Deliberately incomplete: `draft: true`, TODO markers for the narrative and
- * description. The prose is editorial work, only the inventory is mechanical.
- *
- * @param {object[]} notes
- * @param {{ version: string, date: string, links?: Map<string, object> }} options
- * @returns {string}
- */
-export function renderBlogScaffold(notes, { version, date, links = new Map() }) {
-    const slug = releaseSlug(version);
-    const shortVersion = slug.replace('-', '.');
-    const sections = groupNotes(notes)
-        .filter((group) => group.type !== 'internal')
-        .map((group) => renderBlogGroup(group, { slug, links }));
-
-    const frontmatter = [
-        '---',
-        `title: ${shortVersion} - Release Notes`,
-        'description: TODO — one sentence naming the two or three headline changes.',
-        'featured: true',
-        `pubDate: ${date}`,
-        'author: 4gray',
-        `heroImage: /iptvnator/blog/${slug}/hero.jpg`,
-        'tags:',
-        '    - release',
-        '    - release-notes',
-        `    - ${shortVersion}`,
-        'draft: true',
-        '---',
-    ].join('\n');
-
-    const imports = [
-        "import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';",
-        "import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';",
-    ].join('\n');
-
-    const meta = [
-        '<ReleaseMeta',
-        `    version="v${version}"`,
-        `    releaseDate="${formatLongDate(date)}"`,
-        "    channels={['Desktop', 'PWA']}",
-        '/>',
-    ].join('\n');
-
-    return [
-        frontmatter,
-        imports,
-        '{/* TODO: narrative intro — what this release is about, not what it contains. */}',
-        meta,
-        ...sections,
-        '',
-    ].join('\n\n');
-}

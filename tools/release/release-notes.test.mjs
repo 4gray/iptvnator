@@ -11,9 +11,13 @@ import {
     validateNote,
 } from './release-notes.mjs';
 import {
+    BLOG_FALLBACK_THEME,
+    groupNotesByTheme,
+    renderBlogScaffold,
+} from './release-notes-blog.mjs';
+import {
     formatLongDate,
     releaseSlug,
-    renderBlogScaffold,
     renderChangelogSection,
     renderGithubBody,
     upsertChangelogSection,
@@ -396,12 +400,34 @@ describe('renderChangelogSection', () => {
     });
 });
 
+describe('groupNotesByTheme', () => {
+    it('folds areas into reader-facing themes in post order, unknown areas last', () => {
+        const groups = groupNotesByTheme([
+            note({ area: 'quantum', body: 'Odd.' }),
+            note({ area: 'stalker', body: 'Stalker.' }),
+            note({ area: 'xtream', body: 'Xtream.' }),
+            note({ area: 'window-controls', body: 'Windows.' }),
+        ]);
+
+        assert.deepEqual(
+            groups.map((group) => group.heading),
+            [
+                'Xtream',
+                'Stalker portals',
+                'Settings, import and the desktop app',
+                BLOG_FALLBACK_THEME,
+            ]
+        );
+        assert.equal(groups.at(-1).notes[0].body, 'Odd.');
+    });
+});
+
 describe('renderBlogScaffold', () => {
+    const options = { version: '0.24.0', date: '2026-08-01' };
+    const spoilerOf = (content) => content.match(/<Spoiler[\s\S]*<\/Spoiler>/)?.[0] ?? '';
+
     it('emits a draft with TODO markers and a release meta block', () => {
-        const content = renderBlogScaffold([note()], {
-            version: '0.24.0',
-            date: '2026-08-01',
-        });
+        const content = renderBlogScaffold([note()], options);
 
         assert.match(content, /^---\ntitle: v0\.24 - Release Notes/);
         assert.match(content, /draft: true/);
@@ -409,13 +435,66 @@ describe('renderBlogScaffold', () => {
         assert.match(content, /releaseDate="August 1, 2026"/);
     });
 
-    it('gives screenshot notes their own section with a dark/light slider', () => {
+    it('opens with a What changed table holding one row per highlight', () => {
         const content = renderBlogScaffold(
-            [note({ screenshot: 'up-next-rail' })],
-            { version: '0.24.0', date: '2026-08-01' }
+            [
+                note({ highlight: 'Up Next rail' }),
+                note({
+                    area: 'stalker',
+                    highlight: 'Portal login',
+                    body: "Portals that ask for a login work; the app's do_auth step completes.",
+                    sourcePath: '.changes/stalker-login.md',
+                }),
+                note({ type: 'fix', body: 'A plain fix.', sourcePath: '.changes/playback-fix.md' }),
+            ],
+            options
         );
 
-        assert.match(content, /### TODO headline \(playback\)/);
+        assert.match(content, /## What changed\n\n<ChangeTable\n {4}rows=\{\[/);
+        assert.match(
+            content,
+            /area: 'Playback',\n\s+change: 'Series now show an Up Next rail beside the player\.',\n\s+impact: 'TODO/
+        );
+        // The theme is the default area label; apostrophes are JS-escaped.
+        assert.match(
+            content,
+            /area: 'Stalker portals',\n\s+change: 'Portals that ask for a login work; the app\\'s do_auth step completes\.'/
+        );
+        assert.equal((content.match(/^\s+change: /gm) ?? []).length, 2);
+        assert.match(content, /import ChangeTable from/);
+    });
+
+    it('omits the table and its import when nothing is highlighted', () => {
+        const content = renderBlogScaffold([note()], options);
+
+        assert.doesNotMatch(content, /## What changed/);
+        assert.doesNotMatch(content, /import ChangeTable/);
+    });
+
+    it('puts highlight sections first, as h2 with a status pill, ahead of the themed sections', () => {
+        const content = renderBlogScaffold(
+            [
+                note({ body: 'Plain feature.' }),
+                note({ highlight: 'Up Next rail', sourcePath: '.changes/playback-rail.md' }),
+            ],
+            options
+        );
+
+        assert.match(
+            content,
+            /## Up Next rail\n\n<StatusPill type="new" \/>\n\nSeries now show an Up Next rail/
+        );
+        assert.ok(content.indexOf('## Up Next rail') < content.indexOf('## Playback'));
+        assert.doesNotMatch(content, /^### /m);
+    });
+
+    it('gives screenshot notes their own section with a dark/light slider and the screenshot alert', () => {
+        const content = renderBlogScaffold(
+            [note({ screenshot: 'up-next-rail' })],
+            options
+        );
+
+        assert.match(content, /## TODO headline \(playback\)/);
         assert.match(
             content,
             /\/iptvnator\/blog\/v0-24\/screenshots\/up-next-rail-dark\.png/
@@ -424,34 +503,149 @@ describe('renderBlogScaffold', () => {
             content,
             /\/iptvnator\/blog\/v0-24\/screenshots\/up-next-rail-light\.png/
         );
-    });
-
-    it('uses the highlight as the section headline instead of a TODO', () => {
-        const content = renderBlogScaffold(
-            [note({ highlight: 'Up Next rail', screenshot: 'up-next-rail' })],
-            { version: '0.24.0', date: '2026-08-01' }
-        );
-
-        assert.match(content, /### Up Next rail/);
-        assert.doesNotMatch(content, /### TODO headline/);
+        assert.match(content, /<Alert type="info" title="About the screenshots">/);
+        assert.match(content, /import BlogImageSlider from/);
     });
 
     it('gives a highlight note without a screenshot its own section, no slider', () => {
         const content = renderBlogScaffold(
             [note({ highlight: 'Up Next rail' })],
-            { version: '0.24.0', date: '2026-08-01' }
+            options
         );
 
-        assert.match(content, /### Up Next rail/);
-        assert.doesNotMatch(content, /BlogImageSlider\n {4}images/);
+        assert.match(content, /## Up Next rail/);
         assert.doesNotMatch(content, /<BlogImageSlider/);
+        assert.doesNotMatch(content, /import BlogImageSlider/);
+        assert.doesNotMatch(content, /About the screenshots/);
+    });
+
+    it('folds the remaining features into themed sections without the area prefix', () => {
+        const content = renderBlogScaffold(
+            [
+                note({ area: 'stalker', body: 'Stalker thing.', sourcePath: '.changes/stalker-a.md' }),
+                note({ area: 'xtream', body: 'Xtream thing.', sourcePath: '.changes/xtream-a.md' }),
+                note({ area: 'quantum', body: 'Odd thing.', sourcePath: '.changes/quantum-a.md' }),
+            ],
+            options
+        );
+
+        assert.match(content, /## Xtream\n\n<StatusPill type="improved" \/>\n\n- Xtream thing\./);
+        assert.match(content, /## Stalker portals\n\n<StatusPill type="improved" \/>\n\n- Stalker thing\./);
+        assert.match(content, /## Other changes\n\n<StatusPill type="improved" \/>\n\n- Odd thing\./);
+        assert.doesNotMatch(content, /\*\*stalker\*\* —/);
+        assert.ok(content.indexOf('## Xtream') < content.indexOf('## Stalker portals'));
+        assert.ok(content.indexOf('## Stalker portals') < content.indexOf('## Other changes'));
+    });
+
+    it('collapses fixes without a headline under a spoiler grouped by theme', () => {
+        const content = renderBlogScaffold(
+            [
+                note({ type: 'fix', area: 'search', body: 'Search fix.', sourcePath: '.changes/search-a.md' }),
+                note({ type: 'fix', area: 'stalker', body: 'Stalker fix.', sourcePath: '.changes/stalker-b.md' }),
+                note({ type: 'fix', body: 'Player fix.', highlight: 'Big fix', sourcePath: '.changes/playback-b.md' }),
+            ],
+            options
+        );
+        const spoiler = spoilerOf(content);
+
+        assert.match(content, /## Everything else\n\nThat is the part worth reading in one sitting\. The remaining 2 fixes are below/);
+        assert.match(spoiler, /^<Spoiler title="Show the remaining fixes">\n\n\*\*Stalker portals\*\*\n\n- Stalker fix\./);
+        assert.match(spoiler, /\*\*Search\*\*\n\n- Search fix\./);
+        assert.match(spoiler, /\n\n<\/Spoiler>$/);
+        assert.match(content, /import Spoiler from/);
+        // A highlighted fix is a section of its own, never a spoiler line.
+        assert.match(content, /## Big fix\n\n<StatusPill type="fixed" \/>\n\nPlayer fix\./);
+        assert.doesNotMatch(spoiler, /Player fix/);
+    });
+
+    it('phrases a single remaining fix in the singular and skips the spoiler without fixes', () => {
+        const single = renderBlogScaffold([note({ type: 'fix' })], options);
+        const none = renderBlogScaffold([note()], options);
+
+        assert.match(single, /The remaining 1 fix is below/);
+        assert.doesNotMatch(none, /## Everything else/);
+        assert.doesNotMatch(none, /import Spoiler/);
+    });
+
+    it('keeps breaking changes out of the spoiler and ahead of the themed sections', () => {
+        const content = renderBlogScaffold(
+            [
+                note({ body: 'Feature.' }),
+                note({ type: 'breaking', area: 'settings', body: 'Breaking.', sourcePath: '.changes/settings-b.md' }),
+                note({ type: 'fix', area: 'settings', body: 'Fix.', sourcePath: '.changes/settings-f.md' }),
+            ],
+            options
+        );
+
+        assert.match(content, /## Breaking changes\n\n<StatusPill type="breaking" \/>\n\n- Breaking\./);
+        assert.ok(content.indexOf('## Breaking changes') < content.indexOf('## Playback'));
+        assert.doesNotMatch(spoilerOf(content), /Breaking\./);
+    });
+
+    it('renders performance notes in their own section after the themes', () => {
+        const content = renderBlogScaffold(
+            [note({ body: 'Feature.' }), note({ type: 'perf', body: 'Perf.', sourcePath: '.changes/playback-p.md' })],
+            options
+        );
+
+        assert.match(content, /## Performance\n\n<StatusPill type="improved" \/>\n\n- Perf\./);
+        assert.ok(content.indexOf('## Playback') < content.indexOf('## Performance'));
+    });
+
+    it('orders the post: table, highlights, breaking, themes, performance, spoiler, closing', () => {
+        const content = renderBlogScaffold(
+            [
+                note({ highlight: 'Headline', sourcePath: '.changes/a.md' }),
+                note({ type: 'breaking', body: 'Breaking.', sourcePath: '.changes/b.md' }),
+                note({ body: 'Feature.', sourcePath: '.changes/c.md' }),
+                note({ type: 'perf', body: 'Perf.', sourcePath: '.changes/d.md' }),
+                note({ type: 'fix', body: 'Fix.', sourcePath: '.changes/e.md' }),
+            ],
+            options
+        );
+        const order = [
+            '## What changed',
+            '## Headline',
+            '## Breaking changes',
+            '## Playback',
+            '## Performance',
+            '## Everything else',
+            'title="Before updating"',
+            '## Thanks',
+            '## Download',
+        ].map((marker) => content.indexOf(marker));
+
+        assert.ok(order.every((index) => index >= 0), `missing marker in ${order}`);
+        assert.deepEqual(order, [...order].sort((a, b) => a - b));
+    });
+
+    it('closes with the before-updating alert, thanks and download cards', () => {
+        const content = renderBlogScaffold([note()], options);
+
+        assert.match(content, /<Alert type="warning" title="Before updating">\nPlease back up/);
+        assert.match(content, /## Thanks\n\n\{\/\* TODO/);
+        assert.match(content, /## Download\n\n<LinkCards/);
+        assert.match(content, /label: 'Download v0\.24\.0',\n\s+href: 'https:\/\/github\.com\/4gray\/iptvnator\/releases\/tag\/v0\.24\.0'/);
+        assert.match(content, /label: 'All Releases'/);
+        assert.doesNotMatch(content, /Full Changelog/);
+    });
+
+    it('adds the compare card only when the previous version is known', () => {
+        const content = renderBlogScaffold([note()], {
+            ...options,
+            previousVersion: '0.23.0',
+        });
+
+        assert.match(content, /label: 'Full Changelog'/);
+        assert.match(content, /compare\/v0\.23\.0\.\.\.v0\.24\.0/);
+        assert.match(content, /hint: 'Every commit between v0\.23\.0 and v0\.24\.0\.'/);
     });
 
     it('truncates a long body for image alt text without cutting mid-word', () => {
         const body = `${'Series show the rest of the season beside the player '.repeat(4)}now.`;
         const content = renderBlogScaffold(
             [note({ body, screenshot: 'up-next-rail' })],
-            { version: '0.24.0', date: '2026-08-01' }
+            options
         );
         const alt = content.match(/alt: '([^']*)'/)[1];
 
@@ -468,7 +662,7 @@ describe('renderBlogScaffold', () => {
                     screenshot: 'windows-import',
                 }),
             ],
-            { version: '0.24.0', date: '2026-08-01' }
+            options
         );
         const alt = content.match(/alt: '(.*)',/)[1];
 
@@ -478,10 +672,24 @@ describe('renderBlogScaffold', () => {
         assert.doesNotMatch(alt, /(^|[^\\])(\\\\)*\\$/);
     });
 
+    it('escapes backslashes and apostrophes inside table cells', () => {
+        const content = renderBlogScaffold(
+            [
+                note({
+                    highlight: 'Windows import',
+                    body: "Windows paths like C:\\Users no longer break the app's import.",
+                }),
+            ],
+            options
+        );
+
+        assert.match(content, /change: 'Windows paths like C:\\\\Users no longer break the app\\'s import\.'/);
+    });
+
     it('escapes characters MDX would parse as markup', () => {
         const content = renderBlogScaffold(
             [note({ body: 'Channels named <live> and {vod} now sort correctly.' })],
-            { version: '0.24.0', date: '2026-08-01' }
+            options
         );
 
         assert.doesNotMatch(content, /<live>/);
@@ -490,14 +698,25 @@ describe('renderBlogScaffold', () => {
         assert.match(content, /&#123;vod&#125;/);
     });
 
-    it('imports only the components it emits', () => {
-        const content = renderBlogScaffold([note()], {
-            version: '0.24.0',
-            date: '2026-08-01',
-        });
+    it('imports only the components it emits, alphabetically', () => {
+        const content = renderBlogScaffold([note()], options);
+        const imports = content.match(/^import \w+ from/gm);
 
-        assert.match(content, /import ReleaseMeta from/);
-        assert.match(content, /import BlogImageSlider from/);
+        assert.deepEqual(imports, [
+            'import Alert from',
+            'import LinkCards from',
+            'import ReleaseMeta from',
+            'import StatusPill from',
+        ]);
+    });
+
+    it('omits internal notes entirely', () => {
+        const content = renderBlogScaffold(
+            [note(), note({ type: 'internal', body: 'Internal plumbing.', sourcePath: '.changes/deps-x.md' })],
+            options
+        );
+
+        assert.doesNotMatch(content, /Internal plumbing/);
     });
 });
 

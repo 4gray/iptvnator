@@ -16,6 +16,10 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    countContentRowsByCategory,
+    sumCategoryRowCounts,
+} from './catalog-deletion';
+import {
     buildCompoundFtsMatchQuery,
     buildCompoundLikePatterns,
     buildContentTitleFtsMatchQuery,
@@ -997,18 +1001,25 @@ export async function clearXtreamImportCache(
             : { success: true };
     }
 
-    const contentRows = await db
-        .select({ id: schema.content.id })
-        .from(schema.content)
-        .where(inArray(schema.content.categoryId, categoryIds));
+    // Count and delete stay scoped to the captured ids, not to the
+    // playlist/type predicate, so a category a concurrent import creates
+    // between the read and the delete survives.
+    const contentRowCounts = await countContentRowsByCategory(
+        db,
+        inArray(schema.categories.id, categoryIds)
+    );
 
     return capturePhase
         ? capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
-              () => deleteXtreamCacheRows(db, contentRows, categoryIds),
-              () => ({ itemCount: contentRows.length + categoryIds.length })
+              () => deleteXtreamCacheRows(db, contentRowCounts, categoryIds),
+              () => ({
+                  itemCount:
+                      sumCategoryRowCounts(contentRowCounts) +
+                      categoryIds.length,
+              })
           )
-        : deleteXtreamCacheRows(db, contentRows, categoryIds);
+        : deleteXtreamCacheRows(db, contentRowCounts, categoryIds);
 }
 
 export async function getContentByXtreamId(

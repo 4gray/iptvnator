@@ -1,0 +1,27 @@
+---
+interface FeatureItem {
+  title: string;
+  description: string;
+}
+
+interface Props {
+  items: FeatureItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  {items.map((item, index) => (
+    <div class="group relative overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-6 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]">
+      <div class="mb-4 flex items-center gap-3">
+        <span class="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-accent-500/70 transition-colors duration-300 group-hover:text-accent-400">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <span class="h-px flex-1 bg-gradient-to-r from-accent-500/20 to-transparent"></span>
+      </div>
+      <h3 class="font-display text-lg font-semibold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50">{item.title}</h3>
+      <p class="mt-2 text-sm leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">{item.description}</p>
+    </div>
+  ))}
+</div>

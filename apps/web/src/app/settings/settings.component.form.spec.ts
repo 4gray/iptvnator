@@ -186,6 +186,9 @@ describe('SettingsComponent form', () => {
             expect(component.settingsForm.value.startupBehavior).toBe(
                 StartupBehavior.FirstView
             );
+            expect(component.settingsForm.value.startupWindowMode).toBe(
+                'normal'
+            );
         });
 
         it('disables dashboard surface controls when the dashboard is off', async () => {

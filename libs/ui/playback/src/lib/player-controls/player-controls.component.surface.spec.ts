@@ -272,6 +272,42 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             expect(component.isFullscreen()).toBe(false);
         });
 
+        it('puts a host-supplied fullscreen target into fullscreen instead of the surface', async () => {
+            const target = document.createElement('div');
+            const requestTargetFullscreen = jest.fn(async () => {
+                fullscreenElement = target;
+                document.dispatchEvent(new Event('fullscreenchange'));
+            });
+            (target as HTMLElement & { requestFullscreen: jest.Mock })[
+                'requestFullscreen'
+            ] = requestTargetFullscreen;
+            fixture.componentRef.setInput('fullscreenTarget', target);
+            fixture.detectChanges();
+
+            await component.toggleFullscreen();
+            expect(requestTargetFullscreen).toHaveBeenCalledTimes(1);
+            expect(requestFullscreen).not.toHaveBeenCalled();
+            expect(component.isFullscreen()).toBe(true);
+
+            await component.toggleFullscreen();
+            expect(exitFullscreen).toHaveBeenCalledTimes(1);
+            expect(component.isFullscreen()).toBe(false);
+        });
+
+        it('adopts a fullscreen target that is already fullscreen when it attaches', () => {
+            // Controls remounted for the next episode attach inside the
+            // host's still-active fullscreen; no fullscreenchange fires for
+            // that, so the state has to come from the sync on attach.
+            const target = document.createElement('div');
+            fullscreenElement = target;
+            expect(component.isFullscreen()).toBe(false);
+
+            fixture.componentRef.setInput('fullscreenTarget', target);
+            fixture.detectChanges();
+
+            expect(component.isFullscreen()).toBe(true);
+        });
+
         it('does nothing when the engine does not support fullscreen', async () => {
             setCapabilities({ fullscreen: false });
             fixture.detectChanges();

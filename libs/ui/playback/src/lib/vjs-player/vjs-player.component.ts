@@ -80,6 +80,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
 
     readonly timeUpdate = output<{
         currentTime: number;
@@ -178,7 +180,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (changes['interactionEnabled']?.currentValue === false) {
             exitOwnedVjsFullscreen(
                 this.sharedControls,
-                this.playerRoot()?.nativeElement,
+                this.fullscreenTarget() ?? this.playerRoot()?.nativeElement,
                 (error) =>
                     debugVjsPlayer(
                         'Failed to exit Video.js player fullscreen:',

@@ -10,6 +10,7 @@
             "inputs": [
                 "{workspaceRoot}/tools/release/release-notes.mjs",
                 "{workspaceRoot}/tools/release/release-notes-render.mjs",
+                "{workspaceRoot}/tools/release/release-notes-blog.mjs",
                 "{workspaceRoot}/tools/release/release-announcements.mjs",
                 "{workspaceRoot}/tools/release/verify-draft-release.mjs",
                 "{workspaceRoot}/tools/release/highlight-cards.mjs",

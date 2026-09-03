@@ -23,6 +23,7 @@ import {
     VideoPlayer,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
+    normalizeStartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: Settings = {
     showCaptions: false,
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
+    startupWindowMode: 'normal',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -256,6 +258,9 @@ export const SettingsStore = signalStore(
                     showCaptions: store.showCaptions(),
                     showDashboard: store.showDashboard(),
                     startupBehavior: store.startupBehavior(),
+                    startupWindowMode: normalizeStartupWindowMode(
+                        store.startupWindowMode?.()
+                    ),
                     showExternalPlaybackBar:
                         store.showExternalPlaybackBar?.() ??
                         DEFAULT_SETTINGS.showExternalPlaybackBar,

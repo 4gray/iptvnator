@@ -2,9 +2,10 @@
     @if (application.binding; as binding) {
         @if (binding.target === 'videojs') {
             @defer (on immediate) {
-                @if (vjsOptions) {
+                @if (vjsOptions(); as options) {
                     <app-vjs-player
-                        [options]="vjsOptions"
+                        [options]="options"
+                        [fullscreenTarget]="fullscreenSurface"
                         [mediaTitle]="resolvedMediaTitle()"
                         [volume]="volume()"
                         [showCaptions]="showCaptions()"
@@ -28,9 +29,10 @@
             }
         } @else if (binding.target === 'html5') {
             @defer (on immediate) {
-                @if (channel) {
+                @if (channel(); as channel) {
                     <app-html-video-player
                         [channel]="$any(channel)"
+                        [fullscreenTarget]="fullscreenSurface"
                         [mediaTitle]="resolvedMediaTitle()"
                         [volume]="volume()"
                         [showCaptions]="showCaptions()"
@@ -55,9 +57,10 @@
             }
         } @else if (binding.target === 'artplayer') {
             @defer (on immediate) {
-                @if (channel) {
+                @if (channel(); as channel) {
                     <app-art-player
                         [channel]="$any(channel)"
+                        [fullscreenTarget]="fullscreenSurface"
                         [mediaTitle]="resolvedMediaTitle()"
                         [volume]="volume()"
                         [showCaptions]="showCaptions()"
@@ -84,6 +87,7 @@
     } @else if (application.embeddedMpv) {
         <app-embedded-mpv-player
             [playback]="resolvedPlayback()"
+            [fullscreenTarget]="fullscreenSurface"
             [mediaTitle]="resolvedMediaTitle()"
             [recordingFolder]="recordingFolder()"
             [recordingMetadata]="recordingMetadata()"

@@ -1043,8 +1043,9 @@ player in settings.
   because those players never receive its keys.
   Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
   with a fixed safe detail string and without starting an engine.
-- HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:
-  `customType.mpd` in `ArtPlayerSourceSession`. Shared-controls bridge:
+- HTML5 player: the `dash` branch of `playChannel()` (source kind from the
+  shared `resolvePlaybackUrlSourceKind()`). ArtPlayer: `customType.mpd` in
+  `ArtPlayerSourceSession`. Shared-controls bridge:
   `WebVideoControlsSource` kind `'shaka'` + `WebVideoShakaControls`
   (audio/text tracks via the Shaka 5 API — selecting a text track shows it,
   `selectTextTrack(null)` hides).
