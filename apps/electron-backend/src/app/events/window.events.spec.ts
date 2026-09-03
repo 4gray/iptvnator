@@ -162,20 +162,17 @@ describe('WindowEvents', () => {
         expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
         expect(second).toEqual({ isMaximized: false, isFullScreen: false });
 
-        // The first transition lands on the other state: the exit is
-        // re-issued rather than trusted to a platform queue.
+        // The first transition lands on the other state: the exit is still
+        // queued on the platform, so the record stays and nothing is
+        // re-issued — the tracker never requests on its own.
         win.state.fullScreen = true;
         win.emit('enter-full-screen');
-        expect(win.setFullScreen.mock.calls).toEqual([
-            [true],
-            [false],
-            [false],
-        ]);
+        expect(win.setFullScreen).toHaveBeenCalledTimes(2);
 
         win.state.fullScreen = false;
         win.emit('leave-full-screen');
 
-        // Back to deciding from the live state.
+        // Back to deciding from the tracked state.
         toggle(fakeEvent);
         expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
     });
@@ -201,21 +198,15 @@ describe('WindowEvents', () => {
         const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
 
         toggle(fakeEvent);
-        toggle(fakeEvent);
-        expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
-
         // Windows: the enter event fires while isFullScreen() still reports
         // the pre-transition false. Read the getter here and the landed
-        // enter would pass for the requested exit — and the exit would be
-        // dropped for good if the platform lost the queued request.
+        // enter would not match the requested enter, leaving the record in
+        // place to misdirect the next press.
         expect(win.isFullScreen()).toBe(false);
         win.emit('enter-full-screen');
 
-        expect(win.setFullScreen.mock.calls).toEqual([
-            [true],
-            [false],
-            [false],
-        ]);
+        toggle(fakeEvent);
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
     });
 
     it('decides a press that lands between the event and the getter update from the tracked state', () => {
@@ -275,50 +266,50 @@ describe('WindowEvents', () => {
         expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
     });
 
-    it('spends the corrective repeat only once', () => {
+    it('self-heals through the timeout if a platform ever drops a queued request', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
         const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+        const now = jest.spyOn(Date, 'now');
 
-        toggle(fakeEvent);
-        toggle(fakeEvent);
-        win.emit('enter-full-screen');
-        expect(win.setFullScreen.mock.calls).toEqual([
-            [true],
-            [false],
-            [false],
-        ]);
+        try {
+            now.mockReturnValue(1_000);
+            toggle(fakeEvent);
+            toggle(fakeEvent);
+            win.emit('enter-full-screen');
+            // The queued exit never happens and nothing is re-issued …
+            expect(win.setFullScreen).toHaveBeenCalledTimes(2);
 
-        // Still not the requested exit: whatever put the window here, the
-        // tracker must not keep fighting it.
-        win.emit('enter-full-screen');
-        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
-
-        toggle(fakeEvent);
-        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+            // … so once the record expires, the event-fed state governs and
+            // the next press is the exit the user still wants.
+            now.mockReturnValue(1_000 + FULLSCREEN_TRANSITION_TIMEOUT_MS + 1);
+            toggle(fakeEvent);
+            expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+        } finally {
+            now.mockRestore();
+        }
     });
 
-    it('clears the record once the corrected transition lands, so a later native action is not reversed', () => {
+    it('honours a native action opposite to a pending target instead of reversing it', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
         const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
 
         toggle(fakeEvent);
         toggle(fakeEvent);
-        win.emit('enter-full-screen');
-        expect(win.setFullScreen.mock.calls).toEqual([
-            [true],
-            [false],
-            [false],
-        ]);
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
 
-        // Every real transition has now reported: the record must be gone.
+        // Whatever produced this enter — the first press's transition or
+        // the user's own green button — the tracker must not answer it
+        // with a request of its own.
+        win.emit('enter-full-screen');
+        expect(win.setFullScreen).toHaveBeenCalledTimes(2);
+
+        // The exit lands: the record is done, later native actions are
+        // simply followed.
         win.emit('leave-full-screen');
-
-        // Green button within the timeout: an unrelated action, not an old
-        // mismatch to correct.
         win.emit('enter-full-screen');
-        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
+        expect(win.setFullScreen).toHaveBeenCalledTimes(2);
 
         toggle(fakeEvent);
         expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
@@ -373,30 +364,32 @@ describe('WindowEvents', () => {
         }
     });
 
-    it('decides a press during a re-issued transition against the re-issued target', () => {
+    it('keeps deciding against the latest intent through a burst whose events lag behind', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);
         const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
 
         toggle(fakeEvent);
         toggle(fakeEvent);
-        // The enter landed; the exit is re-issued and now in flight.
+        // The first enter lands while the exit is still queued.
         win.state.fullScreen = true;
         win.emit('enter-full-screen');
-        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
 
-        // A press before that exit lands is decided against the re-issued
-        // target, so the window is asked back into fullscreen.
+        // A press now is decided against the still-pending exit, so the
+        // window is asked back into fullscreen — the user's third intent.
         toggle(fakeEvent);
-        expect(win.setFullScreen).toHaveBeenLastCalledWith(true);
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false], [true]]);
 
+        // The queued exit lands: not the latest target, record kept.
         win.state.fullScreen = false;
         win.emit('leave-full-screen');
-        // Landed on the other state again: the enter is re-issued.
-        expect(win.setFullScreen.mock.calls.slice(-2)).toEqual([
-            [true],
-            [true],
-        ]);
+        expect(win.setFullScreen).toHaveBeenCalledTimes(3);
+
+        // The third request lands: record cleared, the next press exits.
+        win.state.fullScreen = true;
+        win.emit('enter-full-screen');
+        toggle(fakeEvent);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
     });
 
     it('closes the sender window', () => {

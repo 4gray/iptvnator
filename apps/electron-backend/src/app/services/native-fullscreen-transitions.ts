@@ -19,31 +19,24 @@
  * `requestFullScreen`, and a toggle is decided against the pending target
  * if one is in flight, else against that tracked state — never the getter.
  *
- * The pending record is the LATEST requested target. An event landing on it
- * clears the record. An event landing on the other state means an earlier
- * request landed first; the target is then repeated ONCE, in case the
- * platform dropped the queued request — Electron queues them on macOS and
- * applies them synchronously elsewhere, so this is belt and braces — and a
- * second mismatch clears the record instead of repeating again, so the
- * tracker can never fight a user's own green-button or Ctrl+Cmd+F action
- * more than once. A record older than the transition timeout is ignored
- * outright, since no native transition takes that long; requests that
- * produced no event at all are then simply forgotten.
- *
- * Events cannot say which request they belong to, so one burst is
- * deliberately left imperfect: enter/leave/enter pressed within a single
- * animation, followed by the platform reporting enter and leave but dropping
- * the last enter, ends windowed until the next press. Counting requests
- * would fix that case only by breaking its mirror image — a platform that
- * coalesces the same burst into one enter would leave phantom debt behind
- * and make the tracker reverse the next unrelated action — and neither
- * happens on a platform Electron supports.
+ * The tracker observes; it never issues a request on its own. The pending
+ * record is the LATEST requested target: an event landing on it clears it,
+ * an event landing on the other state (an earlier request of a burst
+ * landed first; ours is still queued) leaves it in place so the next press
+ * is still decided against the user's latest intent, and a record older
+ * than the transition timeout is ignored outright, since no native
+ * transition takes that long. Events cannot say which request they belong
+ * to, so any automatic "repeat the target" on a mismatch is
+ * indistinguishable from reversing the user's own green-button or
+ * Ctrl+Cmd+F action, and is deliberately not done: should a platform ever
+ * drop a queued request, the record expires within the timeout, the
+ * event-fed state takes over and the next press corrects the window.
+ * Electron queues such requests on macOS and applies them synchronously
+ * elsewhere, so that case is theoretical.
  */
 interface PendingFullScreenTransition {
     target: boolean;
     requestedAt: number;
-    /** The one corrective repeat has been spent. */
-    repeated: boolean;
 }
 
 interface TrackedFullScreenState {
@@ -100,25 +93,12 @@ export function trackNativeFullScreen(
     const settle = (landed: boolean) => {
         state.fullScreen = landed;
 
-        // Through the expiry check so an event arriving after the timeout
-        // cannot revive a request the user has long moved past.
-        const now = Date.now();
-        const pending = getFreshPending(state, now);
-        if (!pending || win.isDestroyed()) {
-            return;
-        }
-
-        if (landed === pending.target || pending.repeated) {
+        // Through the expiry check so a late event cannot be matched
+        // against a request the user has long moved past.
+        const pending = getFreshPending(state, Date.now());
+        if (pending && landed === pending.target) {
             state.pending = undefined;
-            return;
         }
-
-        // An earlier request landed, not the latest one. Repeat the target
-        // once rather than trusting the platform to have queued it: an
-        // identical request is a no-op at worst.
-        pending.repeated = true;
-        pending.requestedAt = now;
-        win.setFullScreen(pending.target);
     };
     win.on('enter-full-screen', () => settle(true));
     win.on('leave-full-screen', () => settle(false));
@@ -140,7 +120,7 @@ export function requestFullScreen(
     now: number = Date.now()
 ): void {
     const state = trackNativeFullScreen(win);
-    state.pending = { target, requestedAt: now, repeated: false };
+    state.pending = { target, requestedAt: now };
     win.setFullScreen(target);
 }
 

@@ -324,19 +324,19 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    the pending target while a transition is in flight, else against that
    tracked state: two quick presses are an enter-then-exit, not two enters,
    and F11 during the startup animation leaves fullscreen instead of asking
-   for it again. The pending record is the LATEST requested target. It can
-   never govern F11 for good: an event landing on it clears it, an event
-   landing on the other state repeats the target ONCE (an earlier request
-   landed first; the platform may have dropped the queued one) and a second
-   mismatch clears it instead, so the tracker never fights a user's own
-   green-button/Ctrl+Cmd+F action more than once, and a record older than
-   `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored, so requests that
-   produced no event at all are forgotten. Events cannot say which request
-   they belong to, so one burst is deliberately imperfect — see the
-   module docblock: counting requests would fix "enter/leave/enter with the
-   last enter dropped" only by breaking its mirror image, a platform
-   coalescing the burst into one event, and neither happens on a platform
-   Electron supports. The renderer binds it to
+   for it again. The tracker observes and never issues a request on its
+   own. The pending record is the LATEST requested target: an event landing
+   on it clears it, an event landing on the other state (an earlier request
+   of a burst landed first; ours is still queued) leaves it in place so the
+   next press still follows the user's latest intent, and a record older
+   than `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored. Events cannot
+   say which request they belong to, so any automatic "repeat the target"
+   on a mismatch is indistinguishable from reversing the user's own
+   green-button/Ctrl+Cmd+F action and is deliberately not done: should a
+   platform ever drop a queued request (Electron queues them on macOS and
+   applies them synchronously elsewhere), the record expires, the event-fed
+   state takes over and the next press corrects the window. The renderer
+   binds it to
    **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated
    by `isTypingInInput` — it must work from any focus, because it is the
    only exit from a fullscreen launch on Windows/Linux, where the title bar
