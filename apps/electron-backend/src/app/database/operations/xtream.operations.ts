@@ -126,7 +126,7 @@ async function collectXtreamDeletionRows(
 
         contentRowCounts = await countContentRowsByCategory(
             db,
-            eq(schema.categories.playlistId, playlistId)
+            inArray(schema.categories.id, categoryIds)
         );
     }
 
@@ -141,12 +141,14 @@ async function collectXtreamDeletionRows(
 
 /**
  * Drops the collected catalog: content in row-budgeted category groups, then
- * every category of the playlist in one statement. Returns the number of
+ * the captured categories in one statement. Both stay scoped to the ids the
+ * collection step read, never to the whole playlist: the worker serves other
+ * requests between commits, so a newer import of the same playlist may have
+ * created categories this refresh must not erase. Returns the number of
  * deletion candidates (content rows plus categories) for phase metadata.
  */
 async function deleteCollectedXtreamRows(
     db: AppDatabase,
-    playlistId: string,
     collection: XtreamDeletionCollection,
     control?: OperationControl
 ): Promise<number> {
@@ -160,7 +162,7 @@ async function deleteCollectedXtreamRows(
         await checkpointOperation(control);
         const deletedCategories = await deleteCategoriesWhere(
             db,
-            eq(schema.categories.playlistId, playlistId)
+            inArray(schema.categories.id, collection.categoryIds)
         );
         await reportOperationProgress(control, {
             phase: 'deleting-categories',
@@ -199,12 +201,11 @@ export async function deleteXtreamContent(
     if (capturePhase) {
         await capturePhase.captureAsync(
             XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS,
-            () =>
-                deleteCollectedXtreamRows(db, playlistId, collection, control),
+            () => deleteCollectedXtreamRows(db, collection, control),
             (itemCount) => ({ itemCount })
         );
     } else {
-        await deleteCollectedXtreamRows(db, playlistId, collection, control);
+        await deleteCollectedXtreamRows(db, collection, control);
     }
 
     return {

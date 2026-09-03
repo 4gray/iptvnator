@@ -1,8 +1,16 @@
+import type { SQL } from 'drizzle-orm';
+import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
 import * as schema from '@iptvnator/shared/database/schema';
 import { XTREAM_DATABASE_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import { createRecordingOperationPhaseCapture } from './performance-phase-capture.test-helpers';
 import { deleteXtreamContent } from './xtream.operations';
+
+/** Renders a drizzle filter the way the driver would, for asserting its scope. */
+function renderFilter(filter: SQL): { sql: string; params: unknown[] } {
+    const query = new SQLiteSyncDialect().sqlToQuery(filter);
+    return { sql: query.sql, params: query.params };
+}
 
 function createSelectStep(
     rows: readonly unknown[],
@@ -22,13 +30,17 @@ function createSelectStep(
 function createCountStep(
     rows: readonly unknown[],
     label: string,
-    timeline: string[]
+    timeline: string[],
+    filters: SQL[]
 ) {
     const groupBy = jest.fn(() => {
         timeline.push(label);
         return Promise.resolve(rows);
     });
-    const where = jest.fn(() => ({ groupBy }));
+    const where = jest.fn((filter: SQL) => {
+        filters.push(filter);
+        return { groupBy };
+    });
     const innerJoin = jest.fn(() => ({ where }));
     const from = jest.fn(() => ({ innerJoin }));
     return { from };
@@ -60,6 +72,8 @@ function createDeleteHarness() {
         { categoryId: 11, rowCount: 120 },
         { categoryId: 12, rowCount: 85 },
     ];
+    const countFilters: SQL[] = [];
+    const deleteFilters: Array<{ table: unknown; filter: SQL }> = [];
     const select = jest
         .fn()
         .mockReturnValueOnce(
@@ -72,14 +86,22 @@ function createDeleteHarness() {
             createSelectStep(recentlyViewed, 'select:recently-viewed', timeline)
         )
         .mockReturnValueOnce(
-            createCountStep(contentRowCounts, 'select:content', timeline)
+            createCountStep(
+                contentRowCounts,
+                'select:content',
+                timeline,
+                countFilters
+            )
         );
     const deleteRows = jest.fn((table: unknown) => ({
-        where: jest.fn(() => ({
-            run: jest.fn(() => ({
-                changes: table === schema.content ? 205 : 2,
-            })),
-        })),
+        where: jest.fn((filter: SQL) => {
+            deleteFilters.push({ table, filter });
+            return {
+                run: jest.fn(() => ({
+                    changes: table === schema.content ? 205 : 2,
+                })),
+            };
+        }),
     }));
     const transaction = jest.fn((execute: (tx: unknown) => unknown) => {
         timeline.push('transaction');
@@ -87,7 +109,9 @@ function createDeleteHarness() {
     });
 
     return {
+        countFilters,
         db: { select, transaction } as unknown as AppDatabase,
+        deleteFilters,
         timeline,
         transaction,
     };
@@ -165,6 +189,29 @@ describe('Xtream delete performance phases', () => {
             'select:favorites',
             'select:recently-viewed',
             'select:content',
+        ]);
+        // The count and both deletes stay scoped to the category ids the
+        // collection read, never to the playlist: a newer import of the same
+        // playlist may create categories between the read and the delete.
+        expect(harness.countFilters.map(renderFilter)).toEqual([
+            { sql: '"categories"."id" in (?, ?)', params: [11, 12] },
+        ]);
+        expect(
+            harness.deleteFilters.map(({ table, filter }) => ({
+                table: table === schema.content ? 'content' : 'categories',
+                ...renderFilter(filter),
+            }))
+        ).toEqual([
+            {
+                table: 'content',
+                sql: '"content"."category_id" in (?, ?)',
+                params: [11, 12],
+            },
+            {
+                table: 'categories',
+                sql: '"categories"."id" in (?, ?)',
+                params: [11, 12],
+            },
         ]);
         const writeStart = harness.timeline.indexOf(
             'sqlite.xtream-delete.write-transactions:start'

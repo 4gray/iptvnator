@@ -17,7 +17,6 @@ import {
 import type { AppDatabase } from '../database.types';
 import {
     countContentRowsByCategory,
-    requireScopedFilter,
     sumCategoryRowCounts,
 } from './catalog-deletion';
 import {
@@ -981,19 +980,18 @@ export async function clearXtreamImportCache(
     const dbType =
         type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
 
-    const categoryFilter = requireScopedFilter(
-        and(
-            eq(schema.categories.playlistId, playlistId),
-            eq(schema.categories.type, dbType)
-        )
-    );
     const categoryRows = await db
         .select({ id: schema.categories.id })
         .from(schema.categories)
-        .where(categoryFilter);
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.categories.type, dbType)
+            )
+        );
 
-    const categoryCount = categoryRows.length;
-    if (categoryCount === 0) {
+    const categoryIds = categoryRows.map((category) => category.id);
+    if (categoryIds.length === 0) {
         return capturePhase
             ? capturePhase.captureAsync(
                   XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
@@ -1003,21 +1001,25 @@ export async function clearXtreamImportCache(
             : { success: true };
     }
 
+    // Count and delete stay scoped to the captured ids, not to the
+    // playlist/type predicate, so a category a concurrent import creates
+    // between the read and the delete survives.
     const contentRowCounts = await countContentRowsByCategory(
         db,
-        categoryFilter
+        inArray(schema.categories.id, categoryIds)
     );
 
     return capturePhase
         ? capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
-              () => deleteXtreamCacheRows(db, contentRowCounts, categoryFilter),
+              () => deleteXtreamCacheRows(db, contentRowCounts, categoryIds),
               () => ({
                   itemCount:
-                      sumCategoryRowCounts(contentRowCounts) + categoryCount,
+                      sumCategoryRowCounts(contentRowCounts) +
+                      categoryIds.length,
               })
           )
-        : deleteXtreamCacheRows(db, contentRowCounts, categoryFilter);
+        : deleteXtreamCacheRows(db, contentRowCounts, categoryIds);
 }
 
 export async function getContentByXtreamId(

@@ -1,4 +1,4 @@
-import type { SQL } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import {
@@ -108,18 +108,22 @@ export async function writeXtreamContentValues(
 
 /**
  * Drops one content type's cached catalog: content in row-budgeted category
- * groups, then the categories themselves. `categoryFilter` scopes both to the
- * playlist and type being re-imported.
+ * groups, then exactly the captured categories in one statement.
  */
 export async function deleteXtreamCacheRows(
     db: AppDatabase,
     contentRowCounts: readonly CategoryRowCount[],
-    categoryFilter: SQL
+    categoryIds: readonly number[]
 ): Promise<{ success: boolean }> {
     await deleteContentByCategoryGroups(db, contentRowCounts, {
         phase: 'deleting-content',
     });
-    await deleteCategoriesWhere(db, categoryFilter);
+    if (categoryIds.length > 0) {
+        await deleteCategoriesWhere(
+            db,
+            inArray(schema.categories.id, [...categoryIds])
+        );
+    }
 
     return { success: true };
 }

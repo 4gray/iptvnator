@@ -176,14 +176,18 @@ export async function deleteContentByCategoryGroups(
 /**
  * Deletes every category matching `categoryFilter` in one transaction and
  * returns the number of rows removed. Content still referencing one of them
- * goes with it through `ON DELETE CASCADE`.
+ * goes with it through `ON DELETE CASCADE`. Callers scope the filter to the
+ * category ids they captured earlier (or, for playlist removal, to the
+ * playlist whose row is about to cascade anyway): the worker serves other
+ * requests between commits, so a playlist-wide predicate in a refresh could
+ * erase categories a newer import of the same playlist just created.
  */
 export async function deleteCategoriesWhere(
     db: AppDatabase,
-    categoryFilter: SQL
+    categoryFilter: SQL | undefined
 ): Promise<number> {
+    const filter = requireScopedFilter(categoryFilter);
     return db.transaction(
-        (tx) =>
-            tx.delete(schema.categories).where(categoryFilter).run().changes
+        (tx) => tx.delete(schema.categories).where(filter).run().changes
     );
 }

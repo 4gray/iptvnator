@@ -285,11 +285,15 @@ the main-process and EPG-worker connections give up after their 5 s
   budget forms its own group and is deleted whole — the largest real ones,
   around 45k rows, still commit in well under a second), and issues one
   `DELETE FROM content WHERE category_id IN (...)` per group. Categories are
-  then removed with a single playlist- or type-scoped statement, and playlist
-  removal drops favorites, recently-viewed and playback-position rows with one
-  playlist-scoped statement each. `requireScopedFilter` refuses the
-  `undefined` an empty `and()` yields, since `.where(undefined)` would be a
-  full-table delete.
+  then removed with one statement over the ids captured by the collection
+  step — never a playlist-wide predicate: the worker serves other requests
+  between commits, so a newer import of the same playlist may have created
+  categories an older refresh must not erase. Playlist removal is the one
+  place that scopes by playlist id, for favorites, recently-viewed,
+  playback-position and category rows alike, since its final playlist-row
+  delete cascades the same set. `deleteCategoriesWhere` runs its filter
+  through `requireScopedFilter`, which refuses the `undefined` an empty
+  `and()` yields, since `.where(undefined)` would be a full-table delete.
 - Inserts keep 100-row `INSERT` statements (Drizzle binds the eleven columns
   an `XtreamContentValue` supplies, 1,100 parameters per statement; a whole
   5,000-row commit in one statement would pass SQLite's 32,766 limit) and
