@@ -9,8 +9,9 @@
     display: contents;
 }
 
-// ─── Edge affordances (closed state) ─────────────────────────────────────────
+// ─── Closed state ────────────────────────────────────────────────────────────
 
+// Invisible by design: nothing sits over the video until the mouse rests here.
 .fullscreen-channel-panel__hot-zone {
     position: absolute;
     top: 0;
@@ -18,57 +19,6 @@
     left: 0;
     z-index: 6;
     width: 28px;
-}
-
-.fullscreen-channel-panel__handle {
-    position: absolute;
-    top: 50%;
-    left: 0;
-    z-index: 7;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 92px;
-    padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-left: 0;
-    border-radius: 0 16px 16px 0;
-    color: #ffffff;
-    background: rgba(18, 18, 20, 0.72);
-    box-shadow: 6px 0 22px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(14px);
-    cursor: pointer;
-    opacity: 0;
-    transform: translate(-100%, -50%);
-    transition:
-        opacity 180ms ease-out,
-        transform 220ms ease-out,
-        background-color 150ms ease-out,
-        width 150ms ease-out;
-}
-
-.fullscreen-channel-panel__handle--visible {
-    opacity: 1;
-    transform: translate(0, -50%);
-}
-
-.fullscreen-channel-panel__handle:hover,
-.fullscreen-channel-panel__handle:focus-visible {
-    width: 38px;
-    background: rgba(40, 40, 46, 0.92);
-}
-
-.fullscreen-channel-panel__handle:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 2px;
-}
-
-.fullscreen-channel-panel__handle mat-icon {
-    width: 26px;
-    height: 26px;
-    font-size: 26px;
-    color: #ffffff;
 }
 
 // ─── Open state ──────────────────────────────────────────────────────────────
@@ -89,12 +39,6 @@
     flex-direction: column;
     width: min(400px, calc(100% - 56px));
     color: var(--app-heading-color, #d8dce8);
-    // Translucent graphite over the video, matching the controls' popovers.
-    background: linear-gradient(
-        to right,
-        rgba(13, 15, 18, 0.94),
-        rgba(13, 15, 18, 0.86)
-    );
     border-right: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 18px 0 48px rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(24px) saturate(140%);
@@ -105,6 +49,20 @@
         visibility 0s linear 240ms;
 }
 
+// Translucent graphite over the video, matching the controls' popovers. The
+// panel carries `dark-theme` for its tokens, and the app's global
+// `.dark-theme { background: var(--mat-sys-surface) !important }`
+// (apps/web/src/styles.scss) would replace this gradient with the flat
+// surface — or with no background at all where that token is not defined —
+// so the compound selector and `!important` are required to out-rank it.
+.fullscreen-channel-panel.dark-theme {
+    background: linear-gradient(
+        to right,
+        rgba(13, 15, 18, 0.94),
+        rgba(13, 15, 18, 0.88)
+    ) !important;
+}
+
 .fullscreen-channel-panel--open {
     transform: translateX(0);
     visibility: visible;
@@ -113,80 +71,26 @@
         visibility 0s;
 }
 
-// ─── Header ──────────────────────────────────────────────────────────────────
+// ─── Header: one row, search + close ─────────────────────────────────────────
 
 .fullscreen-channel-panel__header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     flex-shrink: 0;
-    padding: 14px 8px 8px 18px;
+    padding: 10px 6px 10px 12px;
 }
-
-.fullscreen-channel-panel__heading {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.fullscreen-channel-panel__eyebrow {
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.fullscreen-channel-panel__title {
-    overflow: hidden;
-    margin: 0;
-    color: #ffffff;
-    font-size: 1.02rem;
-    font-weight: 650;
-    letter-spacing: -0.01em;
-    line-height: 1.3;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.fullscreen-channel-panel__kbd {
-    flex-shrink: 0;
-    min-width: 22px;
-    padding: 2px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-bottom-width: 2px;
-    border-radius: 6px;
-    color: rgba(255, 255, 255, 0.72);
-    background: rgba(255, 255, 255, 0.06);
-    font-family: inherit;
-    font-size: 0.7rem;
-    font-weight: 700;
-    line-height: 1.2;
-    text-align: center;
-}
-
-.fullscreen-channel-panel__close {
-    flex-shrink: 0;
-    color: #ffffff;
-    --mdc-icon-button-icon-color: #ffffff;
-    --mat-icon-button-icon-color: #ffffff;
-}
-
-// ─── Search ──────────────────────────────────────────────────────────────────
 
 .fullscreen-channel-panel__search {
     display: flex;
+    flex: 1;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
-    height: 38px;
-    margin: 4px 14px 12px;
-    padding: 0 6px 0 12px;
+    min-width: 0;
+    height: 36px;
+    padding: 0 6px 0 10px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.07);
     cursor: text;
     transition:
@@ -216,6 +120,7 @@
     background: transparent;
     font: inherit;
     font-size: 0.9rem;
+    text-overflow: ellipsis;
 }
 
 .fullscreen-channel-panel__search-input::placeholder {
@@ -253,6 +158,17 @@
     font-size: 18px;
 }
 
+.fullscreen-channel-panel__close {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.8);
+    --mdc-icon-button-icon-color: currentColor;
+    --mat-icon-button-icon-color: currentColor;
+}
+
+.fullscreen-channel-panel__close:hover {
+    color: #ffffff;
+}
+
 // ─── Body ────────────────────────────────────────────────────────────────────
 
 .fullscreen-channel-panel__body {
@@ -277,13 +193,9 @@
 // ─── Adaptations ─────────────────────────────────────────────────────────────
 
 @media (pointer: coarse) {
-    .fullscreen-channel-panel__handle {
+    // A finger needs a wider target than a resting mouse.
+    .fullscreen-channel-panel__hot-zone {
         width: 40px;
-        height: 104px;
-    }
-
-    .fullscreen-channel-panel__kbd {
-        display: none;
     }
 }
 
@@ -294,8 +206,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .fullscreen-channel-panel,
-    .fullscreen-channel-panel__handle {
+    .fullscreen-channel-panel {
         transition: none;
     }
 }

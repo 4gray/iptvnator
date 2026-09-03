@@ -12,11 +12,13 @@
                 view() === option.id
             "
             [attr.aria-selected]="view() === option.id"
+            [attr.aria-label]="option.labelKey | translate"
+            [matTooltip]="option.labelKey | translate"
+            matTooltipPosition="below"
             [attr.data-test-id]="'m3u-fullscreen-view-' + option.id"
             (click)="selectView(option.id)"
         >
             <mat-icon aria-hidden="true">{{ option.icon }}</mat-icon>
-            <span>{{ option.labelKey | translate }}</span>
         </button>
     }
 </div>
@@ -28,6 +30,7 @@
     [activeView]="view()"
     [recentItems]="recentItems()"
     [searchTerm]="searchTerm()"
+    [compact]="true"
     [resetActiveChannelOnDestroy]="false"
     (sidebarToggleRequested)="closeRequested.emit()"
 />

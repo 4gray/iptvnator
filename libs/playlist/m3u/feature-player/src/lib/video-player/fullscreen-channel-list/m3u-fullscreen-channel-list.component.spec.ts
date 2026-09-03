@@ -1,7 +1,9 @@
 import { Component, Input, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     Channel,
@@ -19,6 +21,7 @@ class StubChannelListContainerComponent {
     readonly activeView = input<string>('all');
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
     readonly searchTerm = input<string | null>(null);
+    readonly compact = input(false);
     readonly resetActiveChannelOnDestroy = input(true);
     readonly sidebarToggleRequested = output<void>();
 }
@@ -40,6 +43,7 @@ describe('M3uFullscreenChannelListComponent', () => {
         await TestBed.configureTestingModule({
             imports: [
                 M3uFullscreenChannelListComponent,
+                NoopAnimationsModule,
                 TranslateModule.forRoot(),
             ],
         })
@@ -48,6 +52,7 @@ describe('M3uFullscreenChannelListComponent', () => {
                     imports: [
                         StubChannelListContainerComponent,
                         MatIconModule,
+                        MatTooltipModule,
                         TranslateModule,
                     ],
                 },
@@ -74,7 +79,21 @@ describe('M3uFullscreenChannelListComponent', () => {
         expect(container().activeView()).toBe('favorites');
         expect(container().channelList).toBe(channels);
         expect(container().searchTerm()).toBe('ne');
+        expect(container().compact()).toBe(true);
         expect(container().resetActiveChannelOnDestroy()).toBe(false);
+    });
+
+    it('labels the icon-only view segments for assistive tech and tooltips', () => {
+        fixture.detectChanges();
+
+        for (const view of ['all', 'groups', 'favorites', 'recent']) {
+            const segment = chip(view);
+            expect(segment?.getAttribute('role')).toBe('tab');
+            expect(segment?.getAttribute('aria-label')).toBeTruthy();
+            expect(segment?.textContent?.replace(/\s+/g, '')).toBe(
+                segment?.querySelector('mat-icon')?.textContent?.trim()
+            );
+        }
     });
 
     it('falls back to all channels for a view the panel does not offer', () => {

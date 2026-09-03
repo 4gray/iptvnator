@@ -6,6 +6,7 @@ import {
     output,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     Channel,
@@ -39,17 +40,24 @@ export function toM3uFullscreenChannelView(
 }
 
 /**
- * Body of the fullscreen channel panel for M3U playlists: a view switcher
- * (all / groups / favorites / recent) over the same channel list container
- * the sidebar renders. The view is local state on purpose — the sidebar's
- * tabs are routes, and switching a tab while fullscreen must not navigate
- * the page underneath the player.
+ * Body of the fullscreen channel panel for M3U playlists: an icon-only view
+ * switcher (all / groups / favorites / recent) over the same channel list
+ * container the sidebar renders, in its `compact` mode so the container's
+ * per-view headers (title, sort, collapse) never stack under the panel's
+ * search row. The view is local state on purpose — the sidebar's tabs are
+ * routes, and switching a tab while fullscreen must not navigate the page
+ * underneath the player.
  */
 @Component({
     selector: 'app-m3u-fullscreen-channel-list',
     templateUrl: './m3u-fullscreen-channel-list.component.html',
     styleUrl: './m3u-fullscreen-channel-list.component.scss',
-    imports: [ChannelListContainerComponent, MatIconModule, TranslatePipe],
+    imports: [
+        ChannelListContainerComponent,
+        MatIconModule,
+        MatTooltipModule,
+        TranslatePipe,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class M3uFullscreenChannelListComponent {

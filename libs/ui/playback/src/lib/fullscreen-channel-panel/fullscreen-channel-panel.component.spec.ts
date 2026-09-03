@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     CHANNEL_PANEL_CLOSE_GRACE_MS,
     CHANNEL_PANEL_OPEN_DWELL_MS,
@@ -75,6 +75,7 @@ describe('FullscreenChannelPanelComponent', () => {
     const query = <T extends HTMLElement>(testId: string): T | null =>
         fixture.nativeElement.querySelector(`[data-test-id="${testId}"]`);
     const panel = () => query('fullscreen-channel-panel');
+    const hotZone = () => query('fullscreen-channel-panel-hot-zone');
     const isOpen = () =>
         panel()?.classList.contains('fullscreen-channel-panel--open') === true;
 
@@ -85,9 +86,7 @@ describe('FullscreenChannelPanelComponent', () => {
     };
 
     const openByHover = () => {
-        query('fullscreen-channel-panel-hot-zone')?.dispatchEvent(
-            pointerEvent('pointerenter')
-        );
+        hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         fixture.detectChanges();
     };
@@ -121,7 +120,7 @@ describe('FullscreenChannelPanelComponent', () => {
     });
 
     it('renders nothing outside fullscreen', () => {
-        expect(query('fullscreen-channel-panel-handle')).toBeNull();
+        expect(hotZone()).toBeNull();
         expect(panel()).toBeNull();
     });
 
@@ -135,7 +134,12 @@ describe('FullscreenChannelPanelComponent', () => {
 
         expect(
             noHost.nativeElement.querySelector(
-                '[data-test-id="fullscreen-channel-panel-handle"]'
+                '[data-test-id="fullscreen-channel-panel-hot-zone"]'
+            )
+        ).toBeNull();
+        expect(
+            noHost.nativeElement.querySelector(
+                '[data-test-id="fullscreen-channel-panel"]'
             )
         ).toBeNull();
         noHost.destroy();
@@ -145,16 +149,29 @@ describe('FullscreenChannelPanelComponent', () => {
         host.enabled.set(false);
         setFullscreen(stage);
 
-        expect(query('fullscreen-channel-panel-handle')).toBeNull();
+        expect(hotZone()).toBeNull();
         expect(panel()).toBeNull();
     });
 
-    it('offers the edge handle in fullscreen with the list still unmounted', () => {
+    it('draws nothing over the video while closed: only the hot zone beside the inert, off-screen panel', () => {
         setFullscreen(stage);
 
-        expect(query('fullscreen-channel-panel-handle')).not.toBeNull();
-        expect(query('fullscreen-channel-panel-hot-zone')).not.toBeNull();
+        const children = Array.from(
+            (
+                fixture.nativeElement.querySelector(
+                    '.fullscreen-channel-panel-host'
+                ) as HTMLElement
+            ).children
+        );
+        expect(children.map((child) => child.tagName.toLowerCase())).toEqual([
+            'div',
+            'aside',
+        ]);
+        expect(children[0]).toBe(hotZone());
+        expect(hotZone()?.textContent?.trim()).toBe('');
         expect(isOpen()).toBe(false);
+        expect(panel()?.getAttribute('aria-hidden')).toBe('true');
+        expect(panel()?.hasAttribute('inert')).toBe(true);
         expect(query('host-list')).toBeNull();
     });
 
@@ -164,20 +181,61 @@ describe('FullscreenChannelPanelComponent', () => {
 
         expect(isOpen()).toBe(true);
         expect(query('host-list')).not.toBeNull();
-        expect(panel()?.textContent).toContain('Playlist One');
         expect(query('fullscreen-channel-panel-scrim')).not.toBeNull();
-        expect(query('fullscreen-channel-panel-hot-zone')).toBeNull();
+        expect(hotZone()).toBeNull();
     });
 
-    it('ignores a touch landing on the hot zone', () => {
+    it('does not open for a mouse that merely sweeps across the edge', () => {
         setFullscreen(stage);
-        query('fullscreen-channel-panel-hot-zone')?.dispatchEvent(
-            pointerEvent('pointerenter', 'touch')
-        );
+        hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS - 1);
+        hotZone()?.dispatchEvent(pointerEvent('pointerleave'));
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         fixture.detectChanges();
 
         expect(isOpen()).toBe(false);
+    });
+
+    it('opens on a touch tap on the edge without any dwell', () => {
+        setFullscreen(stage);
+        hotZone()?.dispatchEvent(pointerEvent('pointerenter', 'touch'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
+
+        hotZone()?.dispatchEvent(pointerEvent('pointerup', 'touch'));
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+    });
+
+    it('puts the host title into the search placeholder and the dialog label instead of a title row', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation(
+            'en',
+            {
+                EMBEDDED_MPV: {
+                    PLAYER: {
+                        SEARCH_IN: 'Search in {{title}}',
+                        SEARCH_CHANNELS: 'Search channels',
+                    },
+                },
+            },
+            true
+        );
+        translate.use('en');
+        setFullscreen(stage);
+        openByHover();
+
+        const input = query<HTMLInputElement>(
+            'fullscreen-channel-panel-search'
+        );
+        expect(input?.placeholder).toBe('Search in Playlist One');
+        expect(panel()?.getAttribute('aria-label')).toBe('Playlist One');
+        expect(panel()?.querySelector('h1, h2, h3')).toBeNull();
+
+        host.panelTitle.set('');
+        fixture.detectChanges();
+        expect(input?.placeholder).toBe('Search channels');
     });
 
     it('feeds the search field into the host template context', () => {
@@ -206,10 +264,19 @@ describe('FullscreenChannelPanelComponent', () => {
 
         expect(isOpen()).toBe(false);
         expect(query('host-list')).not.toBeNull();
+        expect(hotZone()).not.toBeNull();
 
-        query('fullscreen-channel-panel-handle')?.click();
-        fixture.detectChanges();
+        openByHover();
         expect(isOpen()).toBe(true);
+    });
+
+    it('closes from the close button', () => {
+        setFullscreen(stage);
+        openByHover();
+        query('fullscreen-channel-panel-close')?.click();
+        fixture.detectChanges();
+
+        expect(isOpen()).toBe(false);
     });
 
     it('closes after the mouse leaves the panel unless it comes back', () => {
@@ -301,33 +368,12 @@ describe('FullscreenChannelPanelComponent', () => {
         setFullscreen(null);
 
         expect(panel()).toBeNull();
-        expect(query('fullscreen-channel-panel-handle')).toBeNull();
+        expect(hotZone()).toBeNull();
 
         setFullscreen(stage);
         expect(isOpen()).toBe(false);
         expect(query('host-list')).toBeNull();
         openByHover();
         expect(query('host-list')?.textContent?.trim()).toBe('');
-    });
-
-    it('reveals the edge handle on pointer activity and hides it again', () => {
-        setFullscreen(stage);
-        const handle = () => query('fullscreen-channel-panel-handle');
-        const visible = () =>
-            handle()?.classList.contains(
-                'fullscreen-channel-panel__handle--visible'
-            ) === true;
-
-        stage.dispatchEvent(pointerEvent('pointermove'));
-        fixture.detectChanges();
-        expect(visible()).toBe(true);
-
-        jest.advanceTimersByTime(10_000);
-        fixture.detectChanges();
-        expect(visible()).toBe(false);
-
-        stage.dispatchEvent(pointerEvent('pointerdown', 'touch'));
-        fixture.detectChanges();
-        expect(visible()).toBe(true);
     });
 });

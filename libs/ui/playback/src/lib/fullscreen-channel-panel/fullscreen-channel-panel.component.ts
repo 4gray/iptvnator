@@ -18,7 +18,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ControlsFullscreen } from '../player-controls/controls-fullscreen';
-import { ControlsVisibility } from '../player-controls/controls-visibility';
 import { FullscreenChannelPanelState } from './fullscreen-channel-panel-state';
 import {
     FULLSCREEN_CHANNEL_PANEL,
@@ -50,11 +49,13 @@ function targetsEditable(event: KeyboardEvent): boolean {
  * content comes from the host page through {@link FULLSCREEN_CHANNEL_PANEL};
  * without a provider (VOD detail pages, series) nothing renders.
  *
- * Opening: resting the mouse on the left edge, clicking the edge handle, or
- * pressing `C`. Closing: moving the mouse away, clicking the video (a scrim
- * swallows that click so it never pauses playback), the close button,
- * Escape, or leaving fullscreen. The list stays mounted between openings of
- * one fullscreen session so its scroll position and search survive.
+ * Nothing is drawn over the video while the panel is closed: opening is
+ * resting the mouse on the left edge (a tap on that edge for touch, which has
+ * no hover) or pressing `C`. Closing: moving the mouse away, clicking the
+ * video (a scrim swallows that click so it never pauses playback), the close
+ * button, Escape, or leaving fullscreen. The list stays mounted between
+ * openings of one fullscreen session so its scroll position and search
+ * survive.
  */
 @Component({
     selector: 'app-fullscreen-channel-panel',
@@ -90,16 +91,13 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         () => this.stage(),
         () => this.onFullscreenChanged()
     );
-    // The edge handle follows the same reveal/auto-hide rhythm as the controls
-    // bar, driven by pointer activity on the stage. It is never hidden while
-    // the panel is open (it is not rendered then either).
-    private readonly handleVisibility = new ControlsVisibility(
-        () => !this.state.open()
-    );
 
     readonly isFullscreen = this.fullscreen.isFullscreen;
-    readonly handleVisible = this.handleVisibility.visible;
     readonly template = computed(() => this.panelHost?.panelTemplate() ?? null);
+    /**
+     * The host's context label (playlist or category name). It carries no row
+     * of its own: the search field's placeholder reads "Search in <title>".
+     */
     readonly panelTitle = computed(
         () => this.panelHost?.panelTitle?.()?.trim() ?? ''
     );
@@ -119,29 +117,15 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         if (typeof document !== 'undefined') {
             document.addEventListener('keydown', this.onDocumentKeydown);
         }
-        effect((onCleanup) => {
-            const stage = this.stage();
+        effect(() => {
+            this.stage();
             this.fullscreen.sync();
-            if (!stage) {
-                return;
-            }
-            onCleanup(this.attachStage(stage));
         });
         effect(() => {
             if (this.active()) {
                 return;
             }
             untracked(() => this.resetSession());
-        });
-        effect(() => {
-            const open = this.state.open();
-            untracked(() => {
-                if (open) {
-                    this.handleVisibility.clear();
-                } else {
-                    this.handleVisibility.reveal();
-                }
-            });
         });
     }
 
@@ -150,17 +134,28 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
             document.removeEventListener('keydown', this.onDocumentKeydown);
         }
         this.fullscreen.dispose();
-        this.handleVisibility.dispose();
         this.state.dispose();
     }
 
     onHotZoneEnter(event: PointerEvent): void {
-        // Hover intent is a mouse concept: a finger landing on the edge is a
-        // tap on the video, not a request for the list.
+        // Hover intent is a mouse concept; touch opens on the tap instead.
         if (event.pointerType === 'touch') {
             return;
         }
         this.state.hotZoneEnter();
+    }
+
+    /**
+     * Touch has no hover and no `C` key, so a tap on the edge is its way in.
+     * Bound to pointerup, not pointerdown: the hot zone must still be the
+     * click target when the tap completes, so the click that follows dies on
+     * it instead of reaching the video.
+     */
+    onHotZonePointerUp(event: PointerEvent): void {
+        if (event.pointerType !== 'touch') {
+            return;
+        }
+        this.state.show();
     }
 
     onPanelPointerEnter(event: PointerEvent): void {
@@ -177,11 +172,6 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         this.state.panelLeave();
     }
 
-    openFromHandle(): void {
-        this.state.show();
-        this.focusSearch();
-    }
-
     onSearchInput(event: Event): void {
         this.searchTerm.set((event.target as HTMLInputElement).value);
     }
@@ -189,23 +179,6 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     clearSearch(): void {
         this.searchTerm.set('');
         this.searchInput()?.nativeElement.focus({ preventScroll: true });
-    }
-
-    private attachStage(stage: HTMLElement): () => void {
-        const reveal = (event: PointerEvent) => {
-            // Touch has no hover: only a tap reveals the handle, a synthesized
-            // pointermove must not keep it alive.
-            if (event.pointerType === 'touch' && event.type !== 'pointerdown') {
-                return;
-            }
-            this.handleVisibility.reveal();
-        };
-        stage.addEventListener('pointermove', reveal, { passive: true });
-        stage.addEventListener('pointerdown', reveal, { passive: true });
-        return () => {
-            stage.removeEventListener('pointermove', reveal);
-            stage.removeEventListener('pointerdown', reveal);
-        };
     }
 
     private onFullscreenChanged(): void {
@@ -252,7 +225,7 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         this.focusSearch();
     }
 
-    /** Keyboard and handle openings land in the search field; hover does not steal focus. */
+    /** A keyboard opening lands in the search field; hover does not steal focus. */
     private focusSearch(): void {
         window.setTimeout(() => {
             if (this.state.open()) {

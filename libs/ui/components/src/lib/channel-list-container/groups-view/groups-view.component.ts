@@ -86,6 +86,12 @@ export class GroupsViewComponent {
     /** Grouped channels object */
     readonly groupedChannels = input.required<{ [key: string]: Channel[] }>();
     readonly searchTerm = input('');
+    /**
+     * The selected group's title / sort / collapse header over the channel
+     * pane. Off inside the fullscreen channel panel; the groups rail keeps
+     * its own header since it carries the group search.
+     */
+    readonly showHeader = input(true);
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();

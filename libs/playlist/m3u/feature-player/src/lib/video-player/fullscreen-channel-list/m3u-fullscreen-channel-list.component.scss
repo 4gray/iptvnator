@@ -1,6 +1,6 @@
 // Rendered only inside the fullscreen channel panel, which is always dark
-// (it carries the `dark-theme` context), so the chip colours are tuned for
-// that surface rather than for both themes.
+// (it carries the `dark-theme` context), so the colours are tuned for that
+// surface rather than for both themes.
 
 :host {
     display: flex;
@@ -9,62 +9,59 @@
     min-height: 0;
 }
 
+// One compact segmented control: four equal icon segments, labels in the
+// tooltip and aria-label. It replaces the per-view headers the container
+// draws in the sidebar (`compact` mode), so the row is the only chrome
+// between the search field and the first channel.
 .m3u-fullscreen-channel-list__views {
-    display: flex;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
     flex-shrink: 0;
-    padding: 10px 14px 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-
-.m3u-fullscreen-channel-list__views::-webkit-scrollbar {
-    display: none;
+    margin: 8px 12px;
+    padding: 3px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .m3u-fullscreen-channel-list__view {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    padding: 6px 12px 6px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 999px;
-    color: rgba(255, 255, 255, 0.78);
-    background: rgba(255, 255, 255, 0.05);
-    font: inherit;
-    font-size: 0.8rem;
-    font-weight: 600;
-    white-space: nowrap;
+    justify-content: center;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    background: transparent;
     cursor: pointer;
     transition:
         background-color 150ms ease-out,
-        border-color 150ms ease-out,
         color 150ms ease-out;
 }
 
 .m3u-fullscreen-channel-list__view mat-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
 }
 
 .m3u-fullscreen-channel-list__view:hover,
 .m3u-fullscreen-channel-list__view:focus-visible {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .m3u-fullscreen-channel-list__view:focus-visible {
     outline: 2px solid var(--app-selection-color, #78adff);
-    outline-offset: 2px;
+    outline-offset: 1px;
 }
 
 .m3u-fullscreen-channel-list__view--active,
 .m3u-fullscreen-channel-list__view--active:hover {
-    color: var(--app-selection-on-color, #071225);
-    background: var(--app-selection-color, #78adff);
-    border-color: var(--app-selection-color, #78adff);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .m3u-fullscreen-channel-list__list {

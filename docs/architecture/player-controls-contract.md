@@ -319,31 +319,47 @@ host resolves the user preference itself: `Settings.fullscreenChannelPanel`
 MPV) makes the host return `null`, which removes every affordance.
 
 Providers today: `VideoPlayerComponent` (M3U; `app-m3u-fullscreen-channel-list`
-adds a local all/groups/favorites/recent switcher over a second
-`ChannelListContainerComponent` instance with `resetActiveChannelOnDestroy`
-false, because the container's destroy hook otherwise clears the active
-channel and stops playback), `LiveStreamLayoutComponent` (Xtream; the sidebar's
+adds a local icon-only all/groups/favorites/recent switcher — one segmented
+row, labels in tooltip and `aria-label` — over a second
+`ChannelListContainerComponent` instance in `compact` mode, which drops the
+container's per-view title/sort/collapse headers (`showHeader` on the
+all-channels and groups views; the persisted sort still applies) so nothing
+stacks between the search row and the first channel, and with
+`resetActiveChannelOnDestroy` false, because the container's destroy hook
+otherwise clears the active channel and stops playback), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
 route category), `StalkerLiveStreamLayoutComponent` (its list markup is one
 `ng-template` stamped into both the sidebar and the panel with its own search
 term; every copy carries the `#scrollContainer` that drives infinite scroll),
 and `UnifiedLiveTabComponent` (global favorites/recent).
 
-Behavior: every affordance exists only while the stage is fullscreen. A 28px
-hot zone on the left edge opens the panel after a 160ms mouse dwell; a
-pointer-activity-revealed edge handle and the `C` key open it too (those two
-focus the search field, hover does not steal focus). It closes when the mouse
-leaves the panel for 420ms, on the close button, on Escape, on the host's
-`close`, or through a transparent scrim over the video that swallows the click
-so the player's click-to-pause never sees it. The list stays mounted between
-openings of one fullscreen session (scroll position and search survive) and is
-unmounted when fullscreen ends. Touch has no hover: the handle is the touch
-entry point, and the hot zone ignores touch pointers. The panel carries the
-`dark-theme` context class, so app and Material tokens inside it resolve to
-the dark palette whatever the app theme is. Keyboard: `C` is ignored while any
-editable element has focus and while the player sits inside an `inert`
-region; the search field is an ordinary input, so the controls' Space/K/F/M
-shortcuts stay out of it.
+Behavior: every affordance exists only while the stage is fullscreen, and
+nothing is drawn over the video while the panel is closed — there is no
+handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
+left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
+is ignored. The `C` key opens it too and focuses the search field (hover does
+not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
+zone opens the panel at once: the handler is bound to `pointerup`, not
+`pointerdown`, so the hot zone is still the tap's click target and the click
+that follows dies on it instead of reaching the video. It closes when the
+mouse leaves the panel for 420ms, on the close button (tooltip names the `C`
+shortcut), on Escape, on the host's `close`, or through a transparent scrim
+over the video that swallows the click so the player's click-to-pause never
+sees it. The header is a single row: the search field, whose placeholder
+carries the host's `panelTitle` ("Search in <playlist or category>") so the
+title costs no row of its own, and the close button; the host list starts
+directly below. The list stays mounted between openings of one fullscreen
+session (scroll position and search survive) and is unmounted when fullscreen
+ends. The panel carries the `dark-theme` context class, so app and Material
+tokens inside it resolve to the dark palette whatever the app theme is — and
+because the app's global `.dark-theme { background: … !important }` rule
+(`apps/web/src/styles.scss`) claims the background of every element wearing
+that class, the panel's translucent gradient is declared on the compound
+`.fullscreen-channel-panel.dark-theme` selector with `!important`; without
+that the panel painted no background at all.
+Keyboard: `C` is ignored while any editable element has focus and while the
+player sits inside an `inert` region; the search field is an ordinary input,
+so the controls' Space/K/F/M shortcuts stay out of it.
 
 ### Keyboard ownership
 

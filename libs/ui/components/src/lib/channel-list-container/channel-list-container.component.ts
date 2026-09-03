@@ -193,6 +193,14 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      */
     readonly searchTerm = input<string | null>(null);
     /**
+     * Drops the per-view chrome (the favorites/recent context header and the
+     * all-channels/groups title, sort and collapse headers). The fullscreen
+     * channel panel picks the view with its own switcher and owns the search
+     * row, so those headers would only stack under it. Sorting still follows
+     * the sidebar's persisted choice.
+     */
+    readonly compact = input(false);
+    /**
      * A second list instance beside the sidebar (the fullscreen channel
      * panel) must not stop playback when it unmounts; only the page's own
      * list owns the active channel.

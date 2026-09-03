@@ -481,6 +481,22 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
+    it('drops the selected-group header in compact mode but keeps the groups rail header', () => {
+        fixture.componentRef.setInput('showHeader', false);
+        fixture.detectChanges();
+
+        expect(component.selectedGroupKey()).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.groups-content-header')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.groups-nav-header')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.groups-channels-viewport')
+        ).not.toBeNull();
+    });
+
     it('toggles the inline group search from the header action and filters the visible groups', () => {
         const searchButton = fixture.nativeElement.querySelector(
             '.groups-nav-action--search'
