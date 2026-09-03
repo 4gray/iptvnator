@@ -320,7 +320,10 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    entry can never govern F11 for good: it is dropped once a
    transition event reports the target state, a transition landing on the
    other state re-issues the target (the platform may have dropped the
-   queued request), and an entry older than
+   queued request) — "landed" being the state the `enter`/`leave` event
+   itself conveys, never a re-read of `isFullScreen()`, for the same
+   Windows stale-getter reason as the state pushes above — and an entry
+   older than
    `FULLSCREEN_TRANSITION_TIMEOUT_MS` (2 s) is ignored, so a request that
    produced no event at all is forgotten. The renderer binds it to
    **F11** in `WorkspaceKeyboardShortcutsService` (deliberately not gated

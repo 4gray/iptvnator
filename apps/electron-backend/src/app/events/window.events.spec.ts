@@ -195,6 +195,29 @@ describe('WindowEvents', () => {
         expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
     });
 
+    it('settles against the state the event conveys, not a stale getter', () => {
+        const win = createFakeWindow({ asyncFullScreen: true });
+        mockFromWebContents.mockReturnValue(win);
+        const toggle = mockHandlers.get('WINDOW:TOGGLE_FULLSCREEN')!;
+
+        toggle(fakeEvent);
+        toggle(fakeEvent);
+        expect(win.setFullScreen.mock.calls).toEqual([[true], [false]]);
+
+        // Windows: the enter event fires while isFullScreen() still reports
+        // the pre-transition false. Read the getter here and the landed
+        // enter would pass for the requested exit — and the exit would be
+        // dropped for good if the platform lost the queued request.
+        expect(win.isFullScreen()).toBe(false);
+        win.emit('enter-full-screen');
+
+        expect(win.setFullScreen.mock.calls).toEqual([
+            [true],
+            [false],
+            [false],
+        ]);
+    });
+
     it('forgets a request that never reports back after the transition timeout', () => {
         const win = createFakeWindow({ asyncFullScreen: true });
         mockFromWebContents.mockReturnValue(win);

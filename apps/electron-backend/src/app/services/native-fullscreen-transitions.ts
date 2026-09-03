@@ -56,7 +56,12 @@ export function requestFullScreen(
 ): void {
     if (!windowsWithTransitionListeners.has(win)) {
         windowsWithTransitionListeners.add(win);
-        const settle = () => {
+        // `landed` is the state the event itself conveys, never a re-read of
+        // isFullScreen(): on Windows the getter can still report the
+        // pre-transition value while the matching event fires (see
+        // attachWindowStateEvents), which would mistake a landed enter for
+        // the requested exit and drop the exit for good.
+        const settle = (landed: boolean) => {
             // Through the getter so an expired target is dropped here too:
             // an event arriving after the timeout belongs to a request the
             // user has long moved past, and re-issuing it would revive the
@@ -67,15 +72,15 @@ export function requestFullScreen(
             }
 
             pendingFullScreenTransitions.delete(win);
-            if (win.isFullScreen() !== pendingTarget) {
+            if (landed !== pendingTarget) {
                 // An earlier transition landed, not the requested one. Ask
                 // again rather than trusting the platform to have queued
                 // it: a second identical request is a no-op at worst.
                 requestFullScreen(win, pendingTarget);
             }
         };
-        win.on('enter-full-screen', settle);
-        win.on('leave-full-screen', settle);
+        win.on('enter-full-screen', () => settle(true));
+        win.on('leave-full-screen', () => settle(false));
     }
 
     pendingFullScreenTransitions.set(win, { target, requestedAt: now });
