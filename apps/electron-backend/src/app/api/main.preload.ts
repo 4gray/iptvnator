@@ -569,6 +569,11 @@ const electronApi: ElectronBridgeApi = {
         seconds: number
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SEEK', sessionId, seconds),
+    seekEmbeddedMpvBy: (
+        sessionId: string,
+        deltaSeconds: number
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SEEK_BY', sessionId, deltaSeconds),
     setEmbeddedMpvVolume: (
         sessionId: string,
         volume: number

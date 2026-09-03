@@ -75,6 +75,12 @@ export interface NativeEmbeddedMpvAddon {
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void;
     setPaused(sessionId: string, paused: boolean): void;
     seek(sessionId: string, seconds: number): void;
+    /**
+     * Relative seek executed by mpv (`seek <delta> relative+exact`). Optional
+     * so an addon binary built before it existed keeps working through the
+     * absolute fallback in `EmbeddedMpvNativeService.seekBy`.
+     */
+    seekBy?(sessionId: string, deltaSeconds: number): void;
     setVolume(sessionId: string, volume: number): void;
     setAudioTrack(sessionId: string, trackId: number): void;
     setSubtitleTrack?(sessionId: string, trackId: number): void;
@@ -541,6 +547,31 @@ export class EmbeddedMpvNativeService {
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
         this.getAddon().seek(sessionId, seconds);
+        return this.refreshSession(sessionId);
+    }
+
+    /**
+     * Seeks relative to mpv's own playback position. The renderer must not
+     * derive an absolute target from its `positionSeconds`: that value is a
+     * whole-second snapshot refreshed at most every 500 ms and a seek reply
+     * does not carry the new position yet, so rapid arrow presses computed
+     * from it all land on the same target. mpv merges queued relative seeks,
+     * so presses accumulate the way they do in mpv itself. An addon without
+     * `seekBy` falls back to an absolute seek from its own, fresher snapshot.
+     */
+    seekBy(sessionId: string, deltaSeconds: number): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (!Number.isFinite(deltaSeconds)) {
+            return this.refreshSession(sessionId);
+        }
+        if (typeof addon.seekBy === 'function') {
+            addon.seekBy(sessionId, deltaSeconds);
+        } else {
+            const position =
+                addon.getSessionSnapshot(sessionId)?.positionSeconds ?? 0;
+            addon.seek(sessionId, Math.max(0, position + deltaSeconds));
+        }
         return this.refreshSession(sessionId);
     }
 

@@ -110,6 +110,19 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(line).toContain('opt.http-header-fields=X-Token: abc');
     });
 
+    it('sends absolute and relative seeks as distinct protocol commands', () => {
+        const sessionId = createSession();
+
+        adapter.seek(sessionId, 42.5);
+        expect(child.stdin.written.at(-1)).toBe('seek\tseconds=42.5\n');
+
+        // Arrow/button steps are relative so mpv resolves and merges them
+        // itself; an absolute target from the stale snapshot would collapse
+        // rapid presses onto one position.
+        adapter.seekBy(sessionId, -5);
+        expect(child.stdin.written.at(-1)).toBe('seek-by\tseconds=-5\n');
+    });
+
     it('sends the subtitle protocol commands over stdin', () => {
         const sessionId = createSession();
 

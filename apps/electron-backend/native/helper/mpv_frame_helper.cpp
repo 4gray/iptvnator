@@ -561,6 +561,17 @@ void handleCommand(const Command& command) {
         const std::string value = std::to_string(seconds);
         const char* args[] = {"seek", value.c_str(), "absolute", nullptr};
         mpv_command(g_state.mpv, args);
+    } else if (command.name == "seek-by") {
+        /* Relative step (arrow keys, ±10 s buttons). mpv resolves the delta
+         * against its own playback position and merges relative seeks that
+         * are still queued, so a burst of presses accumulates instead of
+         * collapsing onto one target computed from the renderer's stale
+         * snapshot. */
+        const double delta = command.getDouble("seconds", 0);
+        const std::string value = std::to_string(delta);
+        const char* args[] = {"seek", value.c_str(), "relative+exact",
+                              nullptr};
+        mpv_command(g_state.mpv, args);
     } else if (command.name == "volume") {
         double percent =
             std::clamp(command.getDouble("value", 1) * 100.0, 0.0, 100.0);

@@ -2000,6 +2000,55 @@ Napi::Value Seek(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+Napi::Value SeekBy(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsNumber()) {
+        throw Napi::TypeError::New(env, "Expected session id and seek delta.");
+    }
+    const auto session =
+        getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
+    const double delta = info[1].As<Napi::Number>().DoubleValue();
+    const std::string seconds = formatInvariantDouble(delta);
+    // Relative step (arrow keys, ±10 s buttons): mpv resolves the delta
+    // against its own playback position and merges relative seeks that are
+    // still queued, so a burst of presses accumulates instead of collapsing
+    // onto one target computed from the renderer's stale snapshot.
+#ifdef __linux__
+    std::string socketPath;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+        session->snapshot.positionSeconds =
+            std::max(0.0, session->snapshot.positionSeconds + delta);
+    }
+    if (!socketPath.empty()) {
+        sendLinuxMpvCommand(
+            socketPath,
+            "{\"command\":[\"seek\"," + seconds + ",\"relative+exact\"]}\n"
+        );
+    }
+    return env.Undefined();
+#endif
+    const char* command[] = {
+        "seek", seconds.c_str(), "relative+exact", nullptr
+    };
+    const int result = mpv_command_async(
+        session->handle,
+        nextAsyncRequestId(),
+        command
+    );
+    if (result < 0) {
+        throw Napi::Error::New(env, mpv_error_string(result));
+    }
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.positionSeconds =
+            std::max(0.0, session->snapshot.positionSeconds + delta);
+    }
+    return env.Undefined();
+}
+
 Napi::Value SetVolume(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2360,6 +2409,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
     exports.Set("seek", Napi::Function::New(env, Seek));
+    exports.Set("seekBy", Napi::Function::New(env, SeekBy));
     exports.Set("setVolume", Napi::Function::New(env, SetVolume));
     exports.Set("setAudioTrack", Napi::Function::New(env, SetAudioTrack));
 #ifndef __linux__

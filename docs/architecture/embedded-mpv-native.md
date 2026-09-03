@@ -166,7 +166,7 @@ The renderer never gets direct native-module access. It can only call the preloa
 - load playback
 - set bounds
 - play/pause
-- seek
+- seek (absolute target) and seek by (relative step)
 - set volume
 - set audio track
 - start/stop live stream recording
@@ -475,6 +475,8 @@ Trade-offs and constraints:
 VOD and episode payloads carry `contentInfo` and are treated as non-live unless `isLive` is explicitly set. The embedded MPV UI must not infer "live" from a missing duration alone: on Linux the first snapshot can arrive before the out-of-process MPV IPC socket has reported `duration`, so the UI shows an unknown duration placeholder until MPV reports a finite duration. Live playback is classified from `ResolvedPortalPlayback.isLive` when present, otherwise from the absence of `contentInfo`.
 
 Live catchup is different: the catchup URL already encodes the archive window, so live catchup playback must not pass an absolute Unix timestamp as `startTime`.
+
+Seeking has two IPC shapes. The timeline scrub commits one absolute target (`seekEmbeddedMpv` → mpv `seek <t> absolute`). Arrow-key and ±10 s button steps go through `seekEmbeddedMpvBy`, which every backend forwards as a relative mpv seek (`seek <delta> relative+exact`): the macOS and Windows addons via their `seekBy` export, the frame-copy helper via the `seek-by\tseconds=<delta>` stdin command, and Linux over the MPV JSON IPC socket. The renderer must never derive an absolute target for a step from `session.positionSeconds`: that value is floored to whole seconds and refreshed at most every 500 ms (the helper emits snapshots at most every 250 ms), and a seek reply does not carry the new position yet, so every press inside that window landed on the same target and a burst of presses advanced by roughly one second each. mpv resolves relative seeks against its own position and merges the ones still queued, so presses accumulate exactly as they do in mpv itself. `EmbeddedMpvNativeService.seekBy` keeps an absolute fallback computed from the addon's own snapshot only for an addon binary built before `seekBy` existed, and `EmbeddedMpvCommandRunner.seekBy` keeps the same fallback for a preload without `seekEmbeddedMpvBy`.
 
 Audio tracks are discovered from MPV's `track-list` property. The selected track is controlled through MPV's `aid` property. Switching tracks must not reload the stream.
 
