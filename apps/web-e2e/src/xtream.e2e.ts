@@ -1093,6 +1093,19 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect.poll(fullscreenOwner).not.toBeNull();
         await expect(overlayTitle).toContainText('S01E01');
 
+        // Chromium leaves the clicked button focused; the shared controls
+        // release that focus so Space reaches the playback shortcut instead
+        // of activating the button again (which left fullscreen while the
+        // video kept playing).
+        const paused = () =>
+            video.evaluate((el) => (el as HTMLVideoElement).paused);
+        await expect.poll(paused).toBe(false);
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(true);
+        expect(await fullscreenOwner()).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(false);
+
         // Manual switch from the shared controls' own next-episode button.
         await playerView.hover();
         await playerView

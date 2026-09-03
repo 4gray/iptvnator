@@ -213,7 +213,18 @@ Key files:
   discarded on the first bar focus event it is asked about or on any
   `keydown`, a `pointerdown` inside the bar releases a keyboard pin, and a
   `keydown` bubbling out of a bar control re-pins it, since operating a
-  focused control produces no focus event. Contract:
+  focused control produces no focus event. A completed pointer click then
+  releases the focus it left on the control (`onBarClick` →
+  `ControlsSurface.releasePointerFocus`, attributed by `wasPointerClick`:
+  non-empty click `pointerType`, else a recent press inside the clicked
+  element), because a focused control captures the keyboard: Space and
+  Enter re-activated the clicked button and `ControlsShortcuts` yields to
+  any interactive element in the key's path, so after a click on fullscreen
+  Space left fullscreen instead of pausing. Keyboard activation (empty
+  `pointerType`) keeps focus, only buttons and range sliders are released,
+  Chromium keeps its sequential-focus starting point at the blurred control
+  so Tab continues from it, and the volume popover ignores the release's
+  `focusout` (`wasPointerFocusRelease`). Contract:
   `docs/architecture/player-controls-contract.md` (auto-hide paragraph).
 - Persisted `Settings.webPlayerSharedControls` is default-ON (absent stored
   values coerce with `!== false`; only an explicit false opts out to the legacy

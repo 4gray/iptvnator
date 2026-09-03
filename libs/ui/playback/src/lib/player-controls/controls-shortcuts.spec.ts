@@ -180,6 +180,37 @@ describe('ControlsShortcuts', () => {
         menuItem.remove();
     });
 
+    it('yields to a focused button only while it holds focus', () => {
+        const button = document.createElement('button');
+        document.body.append(button);
+        button.focus();
+
+        // The key reaches the focused button first: its activation owns
+        // Space, whatever the playback state.
+        button.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(handlers.togglePaused).not.toHaveBeenCalled();
+
+        // Releasing the focus a pointer click left behind hands Space back
+        // to playback (the controls bar does this on a completed click).
+        button.blur();
+        const event = new KeyboardEvent('keydown', {
+            key: ' ',
+            bubbles: true,
+            cancelable: true,
+        });
+        document.body.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(handlers.togglePaused).toHaveBeenCalledTimes(1);
+        button.remove();
+    });
+
     it('ignores modified playback shortcuts without preventing their defaults', () => {
         expect(dispatchKey('k', { metaKey: true })).toBe(false);
         expect(dispatchKey('f', { ctrlKey: true })).toBe(false);
