@@ -383,6 +383,19 @@ export class PlayerControlsComponent implements OnDestroy {
         this.barFocused.set(false);
     }
 
+    /**
+     * A key press that bubbles out of a control inside the bar means the
+     * keyboard is operating that control (Space/Enter on a button, arrows on
+     * a slider): the bar is pinned exactly as if the control had been focused
+     * with Tab. A mouse click leaves its button focused without a pin, and
+     * the key press produces no new focus event, so this is the only place
+     * that hands ownership back to the keyboard.
+     */
+    onBarKeyDown(): void {
+        this.barFocused.set(true);
+        this.reveal({ scheduleHide: false });
+    }
+
     onBarFocusIn(event: FocusEvent): void {
         // Chromium moves focus to a clicked <button>. That focus is a side
         // effect of the click, not keyboard navigation: it must reveal like

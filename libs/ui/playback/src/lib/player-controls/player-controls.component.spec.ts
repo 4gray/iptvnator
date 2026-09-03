@@ -517,6 +517,50 @@ describe('PlayerControlsComponent', () => {
             expect(document.activeElement).toBe(buttons[1]);
             expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
         });
+
+        it('pins the bar when the keyboard operates a mouse-focused control', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+
+            // Mouse click leaves the control focused but not pinned...
+            bar()?.dispatchEvent(new MouseEvent('pointerenter'));
+            buttons[1].dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            buttons[1].focus();
+            buttons[1].click();
+            fixture.detectChanges();
+            bar()?.dispatchEvent(new MouseEvent('pointerleave'));
+            fixture.detectChanges();
+
+            // ...then Space on that control: no focus event, but keyboard use.
+            buttons[1].dispatchEvent(
+                new KeyboardEvent('keydown', { key: ' ', bubbles: true })
+            );
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(document.activeElement).toBe(buttons[1]);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            // Focus leaving the bar releases the pin again.
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
+            outside.focus();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+            outside.remove();
+        });
     });
 
     describe('bar-hover state', () => {

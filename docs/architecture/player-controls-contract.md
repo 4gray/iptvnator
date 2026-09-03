@@ -346,7 +346,10 @@ the press hit while it was already focused and hence produced no focus event.
 Such focus reveals like any pointer activity and the bar hides on the normal
 delay while the button stays the active element; a Tab shortly after a click
 on the video still counts as keyboard navigation because the press did not
-land inside the focused control. A
+land inside the focused control. A key press that bubbles out of a control
+inside the bar (Space or Enter on the still-focused button, arrows on a
+slider) hands ownership back to the keyboard and pins the bar exactly as Tab
+focus does, because operating a focused control produces no focus event. A
 pointer press anywhere in the bar also releases an existing keyboard pin: the
 press may produce no focus event at all (clicking the control that already has
 focus) or only a transfer inside the bar, which `focusout` ignores by design,
