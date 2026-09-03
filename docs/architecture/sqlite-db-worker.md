@@ -282,19 +282,25 @@ the main-process and EPG-worker connections give up after their 5 s
   row counts per category from the two covering indexes
   (`countContentRowsByCategory`), packs consecutive categories into groups
   within the budget (`groupCategoriesByRowBudget`; a category larger than the
-  budget forms its own group), and issues one
+  budget forms its own group and is deleted whole — the largest real ones,
+  around 45k rows, still commit in well under a second), and issues one
   `DELETE FROM content WHERE category_id IN (...)` per group. Categories are
   then removed with a single playlist- or type-scoped statement, and playlist
   removal drops favorites, recently-viewed and playback-position rows with one
   playlist-scoped statement each. `requireScopedFilter` refuses the
   `undefined` an empty `and()` yields, since `.where(undefined)` would be a
   full-table delete.
-- Inserts keep 100-row `INSERT` statements (sixteen columns bind 1,600
-  parameters; a whole commit in one statement would pass SQLite's 32,766
-  limit) and wrap fifty of them in one transaction.
-- Progress `current` is the sum of the `changes` SQLite reports, `total` is
-  the summed pre-count, and a checkpoint runs before every commit, so a cancel
-  lands between commits exactly as before.
+- Inserts keep 100-row `INSERT` statements (Drizzle binds the eleven columns
+  an `XtreamContentValue` supplies, 1,100 parameters per statement; a whole
+  5,000-row commit in one statement would pass SQLite's 32,766 limit) and
+  wrap fifty of them in one transaction.
+- For deletes, progress `current` is the sum of the `changes` SQLite reports
+  and `total` is the summed pre-count. For inserts, `current` counts the rows
+  handed to `INSERT ... ON CONFLICT DO NOTHING` and `total` is the number of
+  normalized values, so a conflict-skipped duplicate still counts as
+  progress — it is a progress figure, not a row count. Either way a
+  checkpoint runs before every commit, so a cancel lands between commits
+  exactly as before.
 
 Formal initial-import comparison also requires both request-scoped captures in
 every measured run to have coherent event-loop delay, event-loop utilization,

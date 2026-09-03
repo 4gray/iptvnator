@@ -224,6 +224,32 @@ describe('deleteContentByCategoryGroups', () => {
         expect(db.groups).toEqual([[1]]);
     });
 
+    it('defaults to a 5,000-row budget per transaction', async () => {
+        const budgetCounts = [
+            { categoryId: 1, rowCount: 3000 },
+            { categoryId: 2, rowCount: 2000 },
+            { categoryId: 3, rowCount: 1 },
+        ];
+        const db = createDeleteDb((group) =>
+            group.reduce(
+                (sum, id) =>
+                    sum +
+                    (budgetCounts.find((c) => c.categoryId === id)?.rowCount ??
+                        0),
+                0
+            )
+        );
+
+        await expect(
+            deleteContentByCategoryGroups(db.db, budgetCounts, {
+                phase: 'deleting-content',
+            })
+        ).resolves.toBe(5001);
+
+        // 3000 + 2000 fill the budget exactly; the next row starts a group.
+        expect(db.groups).toEqual([[1, 2], [3]]);
+    });
+
     it('does nothing for categories without content', async () => {
         const db = createDeleteDb(rowsIn);
         const onProgress = jest.fn();

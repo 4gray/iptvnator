@@ -162,6 +162,38 @@ describe('content import performance phases', () => {
         ]);
     });
 
+    it('commits 5,000 rows per transaction as fifty 100-row statements', async () => {
+        const timeline: string[] = [];
+        const harness = createContentDb(5100, timeline);
+        const checkpoint = jest.fn();
+        const onProgress = jest.fn();
+
+        await expect(
+            saveContent(harness.db, 'playlist-1', harness.streams, 'live', {
+                checkpoint,
+                onProgress,
+            })
+        ).resolves.toEqual({ success: true, count: 5100 });
+
+        expect(harness.transaction).toHaveBeenCalledTimes(2);
+        expect(harness.values).toHaveBeenCalledTimes(51);
+        expect(checkpoint).toHaveBeenCalledTimes(4);
+        expect(onProgress.mock.calls.map(([value]) => value)).toEqual([
+            {
+                phase: 'saving-content',
+                current: 5000,
+                total: 5100,
+                increment: 5000,
+            },
+            {
+                phase: 'saving-content',
+                current: 5100,
+                total: 5100,
+                increment: 100,
+            },
+        ]);
+    });
+
     it('closes the aggregate write phase on cancellation without changing the error', async () => {
         const timeline: string[] = [];
         const recording = createRecordingOperationPhaseCapture();

@@ -76,8 +76,9 @@ export function sumCategoryRowCounts(
 /**
  * Packs categories into groups whose combined row count stays within
  * `rowBudget`, preserving input order. A category larger than the budget
- * forms a group of its own: it can only be deleted whole, and splitting it by
- * row id would bring back the per-row bookkeeping this replaces. Categories
+ * forms a group of its own and is deleted in one statement: bounding it
+ * further would need id-ranged sub-deletes, and the largest real categories
+ * seen so far (~45k rows) still commit in well under a second. Categories
  * without content are skipped — there is nothing to delete under them.
  */
 export function groupCategoriesByRowBudget(

@@ -16,9 +16,10 @@ import {
 } from './operation-control';
 
 /**
- * Rows per multi-row INSERT. Sixteen columns bind 1,600 parameters, well
- * under SQLite's 32,766 limit; a single statement for a whole commit would
- * exceed it.
+ * Rows per multi-row INSERT. Drizzle binds one parameter per column an
+ * `XtreamContentValue` supplies (eleven; the rest are emitted as `default`),
+ * so a statement carries 1,100 parameters, well under SQLite's 32,766 limit.
+ * A single statement for a whole 5,000-row commit would exceed it.
  */
 const INSERT_ROWS_PER_STATEMENT = 100;
 const INSERT_STATEMENTS_PER_TRANSACTION = Math.max(
