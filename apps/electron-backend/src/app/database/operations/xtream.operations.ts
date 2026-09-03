@@ -8,6 +8,13 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    type CategoryRowCount,
+    countContentRowsByCategory,
+    deleteCategoriesWhere,
+    deleteContentByCategoryGroups,
+    sumCategoryRowCounts,
+} from './catalog-deletion';
+import {
     checkpointOperation,
     chunkValues,
     type OperationControl,
@@ -15,6 +22,7 @@ import {
 } from './operation-control';
 import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 
+/** Favorites and recently-viewed rows restored per transaction. */
 const DEFAULT_BATCH_SIZE = 100;
 
 type ContentIdentity = {
@@ -32,7 +40,8 @@ function toContentIdentityKey(
 
 interface XtreamDeletionCollection {
     readonly categoryIds: number[];
-    readonly contentRows: Array<{ id: number }>;
+    /** Content rows per category, the unit the delete is batched by. */
+    readonly contentRowCounts: CategoryRowCount[];
     readonly favorites: XtreamBackupFavoriteItem[];
     readonly hiddenCategories: XtreamBackupHiddenCategory[];
     readonly recentlyViewed: XtreamBackupRecentlyViewedItem[];
@@ -62,7 +71,7 @@ async function collectXtreamDeletionRows(
 
     let favorites: XtreamBackupFavoriteItem[] = [];
     let recentlyViewed: XtreamBackupRecentlyViewedItem[] = [];
-    let contentRows: Array<{ id: number }> = [];
+    let contentRowCounts: CategoryRowCount[] = [];
 
     if (categoryIds.length > 0) {
         const favoritedContent = await db
@@ -115,71 +124,53 @@ async function collectXtreamDeletionRows(
             viewedAt: item.viewedAt || new Date().toISOString(),
         }));
 
-        contentRows = await db
-            .select({ id: schema.content.id })
-            .from(schema.content)
-            .where(inArray(schema.content.categoryId, categoryIds));
+        contentRowCounts = await countContentRowsByCategory(
+            db,
+            eq(schema.categories.playlistId, playlistId)
+        );
     }
 
     return {
         categoryIds,
-        contentRows,
+        contentRowCounts,
         favorites,
         hiddenCategories,
         recentlyViewed,
     };
 }
 
+/**
+ * Drops the collected catalog: content in row-budgeted category groups, then
+ * every category of the playlist in one statement. Returns the number of
+ * deletion candidates (content rows plus categories) for phase metadata.
+ */
 async function deleteCollectedXtreamRows(
     db: AppDatabase,
+    playlistId: string,
     collection: XtreamDeletionCollection,
     control?: OperationControl
 ): Promise<number> {
-    let deletedContent = 0;
-    const totalContent = collection.contentRows.length;
+    await deleteContentByCategoryGroups(db, collection.contentRowCounts, {
+        control,
+        phase: 'deleting-content',
+    });
 
-    for (const chunk of chunkValues(
-        collection.contentRows.map((content) => content.id),
-        DEFAULT_BATCH_SIZE
-    )) {
-        await checkpointOperation(control);
-        await db.transaction((tx) => {
-            tx.delete(schema.content)
-                .where(inArray(schema.content.id, chunk))
-                .run();
-        });
-        deletedContent += chunk.length;
-        await reportOperationProgress(control, {
-            phase: 'deleting-content',
-            current: deletedContent,
-            total: totalContent,
-            increment: chunk.length,
-        });
-    }
-
-    let deletedCategories = 0;
     const totalCategories = collection.categoryIds.length;
-
-    for (const chunk of chunkValues(
-        collection.categoryIds,
-        DEFAULT_BATCH_SIZE
-    )) {
+    if (totalCategories > 0) {
         await checkpointOperation(control);
-        await db.transaction((tx) => {
-            tx.delete(schema.categories)
-                .where(inArray(schema.categories.id, chunk))
-                .run();
-        });
-        deletedCategories += chunk.length;
+        const deletedCategories = await deleteCategoriesWhere(
+            db,
+            eq(schema.categories.playlistId, playlistId)
+        );
         await reportOperationProgress(control, {
             phase: 'deleting-categories',
             current: deletedCategories,
             total: totalCategories,
-            increment: chunk.length,
+            increment: deletedCategories,
         });
     }
 
-    return totalContent + totalCategories;
+    return sumCategoryRowCounts(collection.contentRowCounts) + totalCategories;
 }
 
 export async function deleteXtreamContent(
@@ -199,7 +190,8 @@ export async function deleteXtreamContent(
               () => collectXtreamDeletionRows(db, playlistId),
               (result) => ({
                   itemCount:
-                      result.contentRows.length + result.categoryIds.length,
+                      sumCategoryRowCounts(result.contentRowCounts) +
+                      result.categoryIds.length,
               })
           )
         : await collectXtreamDeletionRows(db, playlistId);
@@ -207,11 +199,12 @@ export async function deleteXtreamContent(
     if (capturePhase) {
         await capturePhase.captureAsync(
             XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS,
-            () => deleteCollectedXtreamRows(db, collection, control),
+            () =>
+                deleteCollectedXtreamRows(db, playlistId, collection, control),
             (itemCount) => ({ itemCount })
         );
     } else {
-        await deleteCollectedXtreamRows(db, collection, control);
+        await deleteCollectedXtreamRows(db, playlistId, collection, control);
     }
 
     return {

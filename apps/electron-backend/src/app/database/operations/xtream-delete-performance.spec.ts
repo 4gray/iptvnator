@@ -1,3 +1,4 @@
+import * as schema from '@iptvnator/shared/database/schema';
 import { XTREAM_DATABASE_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import { createRecordingOperationPhaseCapture } from './performance-phase-capture.test-helpers';
@@ -14,6 +15,22 @@ function createSelectStep(
     });
     const innerJoin = jest.fn(() => ({ where }));
     const from = jest.fn(() => ({ innerJoin, where }));
+    return { from };
+}
+
+/** The grouped per-category content count query. */
+function createCountStep(
+    rows: readonly unknown[],
+    label: string,
+    timeline: string[]
+) {
+    const groupBy = jest.fn(() => {
+        timeline.push(label);
+        return Promise.resolve(rows);
+    });
+    const where = jest.fn(() => ({ groupBy }));
+    const innerJoin = jest.fn(() => ({ where }));
+    const from = jest.fn(() => ({ innerJoin }));
     return { from };
 }
 
@@ -38,7 +55,11 @@ function createDeleteHarness() {
             xtreamId: 202,
         },
     ];
-    const content = Array.from({ length: 205 }, (_, id) => ({ id: id + 1 }));
+    // 205 content rows spread over the two categories.
+    const contentRowCounts = [
+        { categoryId: 11, rowCount: 120 },
+        { categoryId: 12, rowCount: 85 },
+    ];
     const select = jest
         .fn()
         .mockReturnValueOnce(
@@ -51,11 +72,14 @@ function createDeleteHarness() {
             createSelectStep(recentlyViewed, 'select:recently-viewed', timeline)
         )
         .mockReturnValueOnce(
-            createSelectStep(content, 'select:content', timeline)
+            createCountStep(contentRowCounts, 'select:content', timeline)
         );
-    const run = jest.fn();
-    const deleteRows = jest.fn(() => ({
-        where: jest.fn(() => ({ run })),
+    const deleteRows = jest.fn((table: unknown) => ({
+        where: jest.fn(() => ({
+            run: jest.fn(() => ({
+                changes: table === schema.content ? 205 : 2,
+            })),
+        })),
     }));
     const transaction = jest.fn((execute: (tx: unknown) => unknown) => {
         timeline.push('transaction');
@@ -63,7 +87,6 @@ function createDeleteHarness() {
     });
 
     return {
-        content,
         db: { select, transaction } as unknown as AppDatabase,
         timeline,
         transaction,
@@ -79,9 +102,16 @@ describe('Xtream delete performance phases', () => {
         const checkpoint = jest.fn(() => {
             harness.timeline.push('checkpoint');
         });
-        const onProgress = jest.fn((progress: { current?: number }) => {
-            harness.timeline.push(`progress:${progress.current}`);
-        });
+        const onProgress = jest.fn(
+            (progress: {
+                phase: string;
+                current?: number;
+                total?: number;
+                increment?: number;
+            }) => {
+                harness.timeline.push(`progress:${progress.current}`);
+            }
+        );
 
         await expect(
             deleteXtreamContent(
@@ -110,12 +140,25 @@ describe('Xtream delete performance phases', () => {
             success: true,
         });
 
-        expect(harness.transaction).toHaveBeenCalledTimes(4);
-        // Existing progress reporting performs a second cooperative
-        // checkpoint after each committed batch.
-        expect(checkpoint).toHaveBeenCalledTimes(8);
-        expect(onProgress.mock.calls.map(([value]) => value.current)).toEqual([
-            100, 200, 205, 2,
+        // 205 rows fit one row-budgeted category group, then the categories
+        // go in a single statement.
+        expect(harness.transaction).toHaveBeenCalledTimes(2);
+        // Progress reporting performs a second cooperative checkpoint after
+        // each committed batch.
+        expect(checkpoint).toHaveBeenCalledTimes(4);
+        expect(onProgress.mock.calls.map(([value]) => value)).toEqual([
+            {
+                phase: 'deleting-content',
+                current: 205,
+                total: 205,
+                increment: 205,
+            },
+            {
+                phase: 'deleting-categories',
+                current: 2,
+                total: 2,
+                increment: 2,
+            },
         ]);
         expect(harness.timeline.slice(1, 5)).toEqual([
             'select:categories',

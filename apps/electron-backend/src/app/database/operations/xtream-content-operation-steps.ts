@@ -1,6 +1,12 @@
-import { inArray } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
+import {
+    type CategoryRowCount,
+    CONTENT_ROWS_PER_TRANSACTION,
+    deleteCategoriesWhere,
+    deleteContentByCategoryGroups,
+} from './catalog-deletion';
 import { scoreSearchTextMatch } from './content-search.util';
 import {
     checkpointOperation,
@@ -8,6 +14,17 @@ import {
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
+
+/**
+ * Rows per multi-row INSERT. Sixteen columns bind 1,600 parameters, well
+ * under SQLite's 32,766 limit; a single statement for a whole commit would
+ * exceed it.
+ */
+const INSERT_ROWS_PER_STATEMENT = 100;
+const INSERT_STATEMENTS_PER_TRANSACTION = Math.max(
+    1,
+    Math.floor(CONTENT_ROWS_PER_TRANSACTION / INSERT_ROWS_PER_STATEMENT)
+);
 
 export type XtreamContentValue = {
     categoryId: number;
@@ -48,59 +65,60 @@ export async function writeXtreamContentValues(
     control?: OperationControl
 ): Promise<{ success: boolean; count: number }> {
     const total = values.length;
-    const chunkSize = 100;
     let totalInserted = 0;
 
-    for (let index = 0; index < values.length; index += chunkSize) {
+    // One commit per CONTENT_ROWS_PER_TRANSACTION rows, made of
+    // statement-sized chunks: see catalog-deletion.ts for why a commit every
+    // 100 rows is the expensive part of a large import.
+    for (const statements of chunkValues(
+        chunkValues(values, INSERT_ROWS_PER_STATEMENT),
+        INSERT_STATEMENTS_PER_TRANSACTION
+    )) {
         await checkpointOperation(control);
-        const chunk = values.slice(index, index + chunkSize);
         await db.transaction((tx) => {
-            tx.insert(schema.content)
-                .values(chunk)
-                .onConflictDoNothing({
-                    target: [
-                        schema.content.categoryId,
-                        schema.content.type,
-                        schema.content.xtreamId,
-                    ],
-                })
-                .run();
+            for (const chunk of statements) {
+                tx.insert(schema.content)
+                    .values(chunk)
+                    .onConflictDoNothing({
+                        target: [
+                            schema.content.categoryId,
+                            schema.content.type,
+                            schema.content.xtreamId,
+                        ],
+                    })
+                    .run();
+            }
         });
-        totalInserted += chunk.length;
+        const inserted = statements.reduce(
+            (count, chunk) => count + chunk.length,
+            0
+        );
+        totalInserted += inserted;
         await reportOperationProgress(control, {
             phase: 'saving-content',
             current: totalInserted,
             total,
-            increment: chunk.length,
+            increment: inserted,
         });
     }
 
     return { success: true, count: totalInserted };
 }
 
+/**
+ * Drops one content type's cached catalog: content in row-budgeted category
+ * groups, then the categories themselves. `categoryFilter` scopes both to the
+ * playlist and type being re-imported.
+ */
 export async function deleteXtreamCacheRows(
     db: AppDatabase,
-    contentRows: Array<{ id: number }>,
-    categoryIds: number[]
+    contentRowCounts: readonly CategoryRowCount[],
+    categoryFilter: SQL
 ): Promise<{ success: boolean }> {
-    for (const chunk of chunkValues(
-        contentRows.map((row) => row.id),
-        100
-    )) {
-        await db.transaction((tx) => {
-            tx.delete(schema.content)
-                .where(inArray(schema.content.id, chunk))
-                .run();
-        });
-    }
-
-    for (const chunk of chunkValues(categoryIds, 100)) {
-        await db.transaction((tx) => {
-            tx.delete(schema.categories)
-                .where(inArray(schema.categories.id, chunk))
-                .run();
-        });
-    }
+    await deleteContentByCategoryGroups(db, contentRowCounts, {
+        phase: 'deleting-content',
+    });
+    await deleteCategoriesWhere(db, categoryFilter);
 
     return { success: true };
 }

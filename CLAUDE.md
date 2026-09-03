@@ -746,7 +746,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 **Workers** (`apps/electron-backend/src/app/workers/`):
 
 - EPG parsing: `epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
-- Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`)
+- Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`). Catalog deletes and inserts commit in row-budgeted transactions of ~5,000 rows (`database/operations/catalog-deletion.ts`: per-category row counts → category groups → set-based `DELETE`s; never 100-row autocommit batches, which flush FTS5 segments and re-append index pages to the WAL on every commit, and never one giant transaction, which would starve the main-process and EPG-worker connections past their 5 s `busy_timeout`). Progress events are throttled to one per 100 ms per operation with summed `increment`s (`operation-progress-throttle.ts`); phase starts, totals reached and terminal events are never held back
 - Playlist refresh: `playlist-refresh.worker.ts`; explicit cancellation is main-process-owned and terminates the one-shot worker before acknowledging `PLAYLIST_CANCEL_REFRESH` (see `docs/architecture/m3u-playlist-module.md`)
 
 ### Key Features

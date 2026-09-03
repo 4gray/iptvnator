@@ -16,6 +16,11 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    countContentRowsByCategory,
+    requireScopedFilter,
+    sumCategoryRowCounts,
+} from './catalog-deletion';
+import {
     buildCompoundFtsMatchQuery,
     buildCompoundLikePatterns,
     buildContentTitleFtsMatchQuery,
@@ -976,18 +981,19 @@ export async function clearXtreamImportCache(
     const dbType =
         type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
 
+    const categoryFilter = requireScopedFilter(
+        and(
+            eq(schema.categories.playlistId, playlistId),
+            eq(schema.categories.type, dbType)
+        )
+    );
     const categoryRows = await db
         .select({ id: schema.categories.id })
         .from(schema.categories)
-        .where(
-            and(
-                eq(schema.categories.playlistId, playlistId),
-                eq(schema.categories.type, dbType)
-            )
-        );
+        .where(categoryFilter);
 
-    const categoryIds = categoryRows.map((category) => category.id);
-    if (categoryIds.length === 0) {
+    const categoryCount = categoryRows.length;
+    if (categoryCount === 0) {
         return capturePhase
             ? capturePhase.captureAsync(
                   XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
@@ -997,18 +1003,21 @@ export async function clearXtreamImportCache(
             : { success: true };
     }
 
-    const contentRows = await db
-        .select({ id: schema.content.id })
-        .from(schema.content)
-        .where(inArray(schema.content.categoryId, categoryIds));
+    const contentRowCounts = await countContentRowsByCategory(
+        db,
+        categoryFilter
+    );
 
     return capturePhase
         ? capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
-              () => deleteXtreamCacheRows(db, contentRows, categoryIds),
-              () => ({ itemCount: contentRows.length + categoryIds.length })
+              () => deleteXtreamCacheRows(db, contentRowCounts, categoryFilter),
+              () => ({
+                  itemCount:
+                      sumCategoryRowCounts(contentRowCounts) + categoryCount,
+              })
           )
-        : deleteXtreamCacheRows(db, contentRows, categoryIds);
+        : deleteXtreamCacheRows(db, contentRowCounts, categoryFilter);
 }
 
 export async function getContentByXtreamId(

@@ -1,3 +1,4 @@
+import * as schema from '@iptvnator/shared/database/schema';
 import { XTREAM_DATABASE_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import { createRecordingOperationPhaseCapture } from './performance-phase-capture.test-helpers';
@@ -16,25 +17,72 @@ function createSelectStep(
     return { from };
 }
 
+/** The grouped per-category content count query. */
+function createCountStep(
+    rows: readonly unknown[],
+    label: string,
+    timeline: string[]
+) {
+    const groupBy = jest.fn(() => {
+        timeline.push(label);
+        return Promise.resolve(rows);
+    });
+    const where = jest.fn(() => ({ groupBy }));
+    const innerJoin = jest.fn(() => ({ where }));
+    const from = jest.fn(() => ({ innerJoin }));
+    return { from };
+}
+
+const ROWS_PER_TABLE = new Map<unknown, number>([
+    [schema.favorites, 2],
+    [schema.recentlyViewed, 1],
+    [schema.playbackPositions, 0],
+    [schema.content, 205],
+    [schema.categories, 2],
+]);
+
 function createDeleteHarness() {
     const timeline: string[] = [];
-    const selections = [
-        ['select:favorites', [{ id: 1 }, { id: 2 }]],
-        ['select:recently-viewed', [{ id: 3 }]],
-        ['select:playback-positions', []],
-        ['select:categories', [{ id: 10 }, { id: 11 }]],
-        [
-            'select:content',
-            Array.from({ length: 205 }, (_, id) => ({ id: id + 100 })),
-        ],
-    ] as const;
-    const select = jest.fn();
-    for (const [label, rows] of selections) {
-        select.mockReturnValueOnce(createSelectStep(rows, label, timeline));
-    }
-    const transactionRun = jest.fn();
-    const transactionDelete = jest.fn(() => ({
-        where: jest.fn(() => ({ run: transactionRun })),
+    const select = jest
+        .fn()
+        .mockReturnValueOnce(
+            createSelectStep([{ count: 2 }], 'select:favorites', timeline)
+        )
+        .mockReturnValueOnce(
+            createSelectStep(
+                [{ count: 1 }],
+                'select:recently-viewed',
+                timeline
+            )
+        )
+        .mockReturnValueOnce(
+            createSelectStep(
+                [{ count: 0 }],
+                'select:playback-positions',
+                timeline
+            )
+        )
+        .mockReturnValueOnce(
+            createSelectStep(
+                [{ id: 10 }, { id: 11 }],
+                'select:categories',
+                timeline
+            )
+        )
+        .mockReturnValueOnce(
+            createCountStep(
+                [
+                    { categoryId: 10, rowCount: 120 },
+                    { categoryId: 11, rowCount: 85 },
+                ],
+                'select:content',
+                timeline
+            )
+        );
+    const transactionDelete = jest.fn((table: unknown) => ({
+        where: jest.fn(() => ({
+            run: jest.fn(() => ({ changes: ROWS_PER_TABLE.get(table) ?? 0 })),
+        })),
     }));
     const transaction = jest.fn((execute: (tx: unknown) => unknown) => {
         timeline.push('transaction');
@@ -79,10 +127,20 @@ describe('playlist delete performance phases', () => {
             )
         ).resolves.toEqual({ success: true });
 
-        expect(harness.transaction).toHaveBeenCalledTimes(6);
-        // Six committed chunks plus the final playlist row each keep both
+        // Favorites, recently viewed, one row-budgeted content group and the
+        // categories commit once each; the empty playback-position stage is
+        // skipped.
+        expect(harness.transaction).toHaveBeenCalledTimes(4);
+        // Four committed stages plus the final playlist row each keep both
         // the pre-write and post-progress cooperative checkpoints.
-        expect(checkpoint).toHaveBeenCalledTimes(14);
+        expect(checkpoint).toHaveBeenCalledTimes(10);
+        expect(onProgress.mock.calls.map(([value]) => value.phase)).toEqual([
+            'deleting-favorites',
+            'deleting-recently-viewed',
+            'deleting-content',
+            'deleting-categories',
+            'deleting-playlist',
+        ]);
         expect(harness.timeline.slice(1, 6)).toEqual([
             'select:favorites',
             'select:recently-viewed',

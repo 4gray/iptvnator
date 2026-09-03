@@ -107,17 +107,15 @@ describe('content import performance phases', () => {
             )
         ).resolves.toEqual({ success: true, count: 205 });
 
-        expect(harness.transaction).toHaveBeenCalledTimes(3);
-        expect(harness.transactionResults).toEqual([
-            undefined,
-            undefined,
-            undefined,
-        ]);
+        // 205 rows fit one row-budgeted commit made of three 100-row
+        // statements.
+        expect(harness.transaction).toHaveBeenCalledTimes(1);
+        expect(harness.transactionResults).toEqual([undefined]);
         expect(
             harness.values.mock.calls.map(([chunk]) => chunk.length)
         ).toEqual([100, 100, 5]);
         expect(onProgress.mock.calls.map(([value]) => value.current)).toEqual([
-            100, 200, 205,
+            205,
         ]);
         const writeStart = timeline.indexOf(
             'sqlite.content.write-transactions:start'
@@ -195,9 +193,14 @@ describe('content import performance phases', () => {
         });
     });
 
-    it('captures cache deletion as one pair across content and category chunks', async () => {
+    it('captures cache deletion as one pair across content groups and categories', async () => {
         const categoryRows = Array.from({ length: 150 }, (_, id) => ({ id }));
-        const contentRows = Array.from({ length: 205 }, (_, id) => ({ id }));
+        // 205 content rows counted over three of the categories.
+        const contentRowCounts = [
+            { categoryId: 0, rowCount: 100 },
+            { categoryId: 1, rowCount: 100 },
+            { categoryId: 2, rowCount: 5 },
+        ];
         const select = jest
             .fn()
             .mockReturnValueOnce({
@@ -207,10 +210,16 @@ describe('content import performance phases', () => {
             })
             .mockReturnValueOnce({
                 from: jest.fn(() => ({
-                    where: jest.fn().mockResolvedValue(contentRows),
+                    innerJoin: jest.fn(() => ({
+                        where: jest.fn(() => ({
+                            groupBy: jest
+                                .fn()
+                                .mockResolvedValue(contentRowCounts),
+                        })),
+                    })),
                 })),
             });
-        const run = jest.fn();
+        const run = jest.fn(() => ({ changes: 1 }));
         const deleteRows = jest.fn(() => ({
             where: jest.fn(() => ({ run })),
         }));
@@ -227,7 +236,8 @@ describe('content import performance phases', () => {
             recording.capture
         );
 
-        expect(transaction).toHaveBeenCalledTimes(5);
+        // One row-budgeted content group, then the categories.
+        expect(transaction).toHaveBeenCalledTimes(2);
         expect(recording.events).toEqual([
             {
                 boundary: 'start',
