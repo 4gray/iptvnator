@@ -24,7 +24,8 @@ import {
 describe('StreamResolverService', () => {
     let service: StreamResolverService;
     let playlistsService: { getPlaylistById: jest.Mock };
-    let xtreamApi: { getShortEpg: jest.Mock };
+    let xtreamApi: { getShortEpg: jest.Mock; getFullEpg: jest.Mock };
+    let epgOffsetMinutes = 0;
     let xtreamUrl: { constructLiveUrl: jest.Mock };
     let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: {
@@ -38,8 +39,10 @@ describe('StreamResolverService', () => {
         playlistsService = {
             getPlaylistById: jest.fn(),
         };
+        epgOffsetMinutes = 0;
         xtreamApi = {
             getShortEpg: jest.fn(),
+            getFullEpg: jest.fn(),
         };
         xtreamUrl = {
             constructLiveUrl: jest.fn(),
@@ -68,7 +71,9 @@ describe('StreamResolverService', () => {
                 { provide: DataService, useValue: dataService },
                 {
                     provide: SettingsStore,
-                    useValue: { resolvedEpgOffsetMinutes: () => 0 },
+                    useValue: {
+                        resolvedEpgOffsetMinutes: () => epgOffsetMinutes,
+                    },
                 },
                 {
                     provide: EpgRuntimeBridgeService,

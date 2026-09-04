@@ -46,6 +46,7 @@ import {
     RecordingStartMetadata,
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
+    shortEpgWindowSize,
     StalkerPortalItem,
     toRecordingProgramSnapshot,
 } from '@iptvnator/shared/interfaces';
@@ -86,7 +87,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
 import {
-    previewFetchSize,
+    EPG_PREVIEW_FETCH_SIZE,
     StalkerEpgPreviewQueue,
     mergeEpgProgramLists,
 } from './stalker-live-epg-preview';
@@ -478,12 +479,15 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Short-EPG fallback for rows the bulk guide cannot answer. */
     private readonly epgPreviewQueue = new StalkerEpgPreviewQueue({
         // The window is widened under a negative display offset so it still
-        // reaches the programme on air; see previewFetchSize.
+        // reaches the programme on air; see shortEpgWindowSize.
         fetchPrograms: async (channelId) =>
             (
                 await this.stalkerStore.fetchChannelEpg(
                     channelId,
-                    previewFetchSize(this.epgOffsetMinutes())
+                    shortEpgWindowSize(
+                        this.epgOffsetMinutes(),
+                        EPG_PREVIEW_FETCH_SIZE
+                    )
                 )
             ).map((item) => this.toProgram(item, channelId)),
         onPrograms: (channelId, programs) =>
@@ -1164,7 +1168,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.isLoadingFallbackEpg.set(true);
             const fallbackItems = await this.stalkerStore.fetchChannelEpg(
                 item.id,
-                previewFetchSize(
+                shortEpgWindowSize(
                     this.epgOffsetMinutes(),
                     ACTIVE_EPG_FALLBACK_SIZE
                 )

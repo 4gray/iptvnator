@@ -1,7 +1,5 @@
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
-    EPG_PREVIEW_FETCH_SIZE,
-    previewFetchSize,
     StalkerEpgPreviewQueue,
     mergeEpgProgramLists,
 } from './stalker-live-epg-preview';
@@ -67,23 +65,6 @@ describe('mergeEpgProgramLists', () => {
 
         expect(merged).toHaveLength(1);
         expect(merged[0].title).toBe('Bulk title');
-    });
-});
-
-describe('previewFetchSize', () => {
-    it('keeps the base window without an offset or with a positive one', () => {
-        // The portal's past is unreachable through get_short_epg, so a
-        // positive offset cannot be served by a bigger window.
-        expect(previewFetchSize(0)).toBe(EPG_PREVIEW_FETCH_SIZE);
-        expect(previewFetchSize(120)).toBe(EPG_PREVIEW_FETCH_SIZE);
-        expect(previewFetchSize(0, 10)).toBe(10);
-    });
-
-    it('widens the window under a negative offset, assuming 15-minute slots, and caps it', () => {
-        expect(previewFetchSize(-30)).toBe(EPG_PREVIEW_FETCH_SIZE + 2);
-        expect(previewFetchSize(-100)).toBe(EPG_PREVIEW_FETCH_SIZE + 7);
-        expect(previewFetchSize(-60, 10)).toBe(14);
-        expect(previewFetchSize(-720)).toBe(50);
     });
 });
 

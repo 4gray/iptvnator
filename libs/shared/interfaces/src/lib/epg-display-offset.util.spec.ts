@@ -1,3 +1,4 @@
+import type { EpgItem } from './epg-item.interface';
 import {
     EPG_OFFSET_MAX_MINUTES,
     EPG_OFFSET_MIN_MINUTES,
@@ -5,6 +6,8 @@ import {
     epgOffsetMs,
     epgProviderClockMs,
     normalizeEpgOffsetMinutes,
+    shortEpgWindowSize,
+    windowEpgItemsAtProviderClock,
 } from './epg-display-offset.util';
 
 const NOW = Date.parse('2026-06-28T12:00:00.000Z');
@@ -65,5 +68,84 @@ describe('epg-display-offset.util', () => {
     it('lets NaN pass through so callers keep their own validity checks', () => {
         expect(epgDisplayTimeMs(Number.NaN, 60)).toBeNaN();
         expect(epgProviderClockMs(Number.NaN, 60)).toBeNaN();
+    });
+
+    describe('shortEpgWindowSize', () => {
+        it('keeps the base window without an offset or with a positive one', () => {
+            // The provider's past is unreachable through a short EPG, so a
+            // positive offset cannot be served by a bigger window.
+            expect(shortEpgWindowSize(0, 3)).toBe(3);
+            expect(shortEpgWindowSize(120, 3)).toBe(3);
+            expect(shortEpgWindowSize(0, 10)).toBe(10);
+        });
+
+        it('widens the window under a negative offset in 15-minute slots and caps it', () => {
+            expect(shortEpgWindowSize(-30, 3)).toBe(5);
+            expect(shortEpgWindowSize(-100, 3)).toBe(10);
+            expect(shortEpgWindowSize(-60, 10)).toBe(14);
+            expect(shortEpgWindowSize(-720, 3)).toBe(50);
+        });
+    });
+
+    describe('windowEpgItemsAtProviderClock', () => {
+        const nowSeconds = Math.floor(NOW / 1000);
+        const item = (
+            title: string,
+            startOffsetMin: number,
+            durationMin: number,
+            withTimestamps = true
+        ): EpgItem => {
+            const start = nowSeconds + startOffsetMin * 60;
+            const stop = start + durationMin * 60;
+            return {
+                id: title,
+                epg_id: title,
+                title,
+                lang: 'en',
+                description: '',
+                channel_id: 'ch',
+                start: new Date(start * 1000).toISOString(),
+                end: new Date(stop * 1000).toISOString(),
+                stop: new Date(stop * 1000).toISOString(),
+                start_timestamp: withTimestamps ? String(start) : '',
+                stop_timestamp: withTimestamps ? String(stop) : '',
+            };
+        };
+        const guide = [
+            item('Next', 15, 30),
+            item('Provider now', -15, 30),
+            item('Really on air', -75, 60),
+            item('Long gone', -180, 60),
+            item('Later', 45, 30),
+        ];
+
+        it('mirrors a short-EPG window at the provider clock', () => {
+            // +60: the guide runs an hour ahead, so the window starts at the
+            // programme the provider filed as finished 15 minutes ago.
+            expect(
+                windowEpgItemsAtProviderClock(guide, 60, 3, NOW).map(
+                    (entry) => entry.title
+                )
+            ).toEqual(['Really on air', 'Provider now', 'Next']);
+            // Without an offset it is the provider's own window.
+            expect(
+                windowEpgItemsAtProviderClock(guide, 0, 2, NOW).map(
+                    (entry) => entry.title
+                )
+            ).toEqual(['Provider now', 'Next']);
+        });
+
+        it('falls back to the ISO fields when unix timestamps are absent', () => {
+            const isoOnly = guide.map((entry) => ({
+                ...entry,
+                start_timestamp: '',
+                stop_timestamp: '',
+            }));
+            expect(
+                windowEpgItemsAtProviderClock(isoOnly, -30, 2, NOW).map(
+                    (entry) => entry.title
+                )
+            ).toEqual(['Next', 'Later']);
+        });
     });
 });

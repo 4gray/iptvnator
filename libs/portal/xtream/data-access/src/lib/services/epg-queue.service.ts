@@ -3,7 +3,7 @@ import { Subject } from 'rxjs';
 import {
     buildXtreamEpgMappingKey,
     EpgItem,
-    epgProviderClockMs,
+    windowEpgItemsAtProviderClock,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
@@ -15,19 +15,6 @@ interface CacheEntry {
     timestamp: number;
     /** Display offset the window was cut for; a changed setting makes it stale. */
     offsetMinutes: number;
-}
-
-function epgItemSeconds(item: EpgItem, side: 'start' | 'stop'): number {
-    const raw = Number(
-        side === 'start' ? item.start_timestamp : item.stop_timestamp
-    );
-    if (Number.isFinite(raw) && raw > 0) {
-        return raw;
-    }
-    const parsed = Date.parse(
-        (side === 'start' ? item.start : (item.stop ?? item.end)) ?? ''
-    );
-    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Number.NaN;
 }
 
 /**
@@ -103,31 +90,6 @@ export class EpgQueueService implements OnDestroy {
 
     private epgOffsetMinutes(): number {
         return this.settingsStore.resolvedEpgOffsetMinutes();
-    }
-
-    /**
-     * The short EPG always starts at the provider's own "now", so under a
-     * display offset it cannot contain the programme actually on air: for a
-     * positive offset that programme lies in the provider's past, for a
-     * negative one it can sit further ahead than `previewLimit` items. Cut
-     * the same window out of the full guide at the provider clock instead
-     * (`epg-display-offset.util.ts`, clock form).
-     */
-    private windowAtProviderClock(
-        items: EpgItem[],
-        offsetMinutes: number
-    ): EpgItem[] {
-        const nowSeconds = Math.floor(
-            epgProviderClockMs(Date.now(), offsetMinutes) / 1000
-        );
-        return [...items]
-            .sort(
-                (left, right) =>
-                    epgItemSeconds(left, 'start') -
-                    epgItemSeconds(right, 'start')
-            )
-            .filter((item) => epgItemSeconds(item, 'stop') > nowSeconds)
-            .slice(0, this.previewLimit);
     }
 
     /**
@@ -441,8 +403,10 @@ export class EpgQueueService implements OnDestroy {
      * The provider round-trip for one stream, settled into a value so the
      * caller decides once — for success and failure alike — whether the
      * result is still wanted. Without an offset the cheap short EPG is
-     * enough; with one, the window is cut from the full guide at the
-     * provider clock (see `windowAtProviderClock`).
+     * enough; with one, the short EPG cannot reach the programme on air
+     * (it starts at the provider's own "now"), so the same window is cut
+     * from the full guide at the provider clock
+     * (`windowEpgItemsAtProviderClock`).
      */
     private async requestPreviewWindow(
         credentials: XtreamCredentials,
@@ -461,11 +425,12 @@ export class EpgQueueService implements OnDestroy {
                 };
             }
             return {
-                items: this.windowAtProviderClock(
+                items: windowEpgItemsAtProviderClock(
                     await this.apiService.getFullEpg(credentials, streamId, {
                         suppressErrorLog: true,
                     }),
-                    offsetMinutes
+                    offsetMinutes,
+                    this.previewLimit
                 ),
             };
         } catch (error) {

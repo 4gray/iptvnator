@@ -14,32 +14,6 @@ import type { EpgProgram } from '@iptvnator/shared/interfaces';
 
 /** Programmes requested per channel: current + a small safety margin. */
 export const EPG_PREVIEW_FETCH_SIZE = 3;
-/** Upper bound for the widened window under a negative display offset. */
-const EPG_PREVIEW_FETCH_SIZE_MAX = 50;
-/** Assumed minimum programme length when sizing that window. */
-const EPG_PREVIEW_SLOT_MINUTES = 15;
-
-/**
- * `get_short_epg` starts at the portal's own "now". Under a negative display
- * offset the programme actually on air lies `|offset|` further ahead, so the
- * window is widened to reach it (assuming programmes of at least
- * `EPG_PREVIEW_SLOT_MINUTES`). A positive offset needs the portal's past,
- * which no short-EPG size can return — those rows stay without a preview
- * rather than showing a wrong one.
- */
-export function previewFetchSize(
-    offsetMinutes: number,
-    baseSize = EPG_PREVIEW_FETCH_SIZE
-): number {
-    if (!(offsetMinutes < 0)) {
-        return baseSize;
-    }
-    return Math.min(
-        EPG_PREVIEW_FETCH_SIZE_MAX,
-        baseSize + Math.ceil(-offsetMinutes / EPG_PREVIEW_SLOT_MINUTES)
-    );
-}
-
 const PREVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
 const PREVIEW_MAX_CONCURRENCY = 2;
 const PREVIEW_DELAY_MS = 200;

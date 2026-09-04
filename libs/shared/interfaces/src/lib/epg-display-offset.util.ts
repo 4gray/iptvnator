@@ -20,6 +20,8 @@
  *   store selectors, progress bars, recording windows).
  */
 
+import type { EpgItem } from './epg-item.interface';
+
 export const EPG_OFFSET_MIN_MINUTES = -720;
 export const EPG_OFFSET_MAX_MINUTES = 720;
 
@@ -69,4 +71,70 @@ export function epgProviderClockMs(
     offsetMinutes: number
 ): number {
     return nowMs - epgOffsetMs(offsetMinutes);
+}
+
+/** Assumed minimum programme length when widening a short-EPG window. */
+export const SHORT_EPG_SLOT_MINUTES = 15;
+/** Upper bound for a widened short-EPG window. */
+export const SHORT_EPG_WINDOW_MAX = 50;
+
+/**
+ * Number of short-EPG entries to request so the window still reaches the
+ * programme on air under a display offset. Portal short-EPG endpoints
+ * (Xtream `get_short_epg`, Stalker `get_short_epg`) always start at the
+ * provider's own "now": under a negative offset the programme actually on
+ * air lies `|offset|` further ahead, so the window is widened assuming
+ * programmes of at least `SHORT_EPG_SLOT_MINUTES`. A positive offset needs
+ * the provider's past, which no window size can return — callers that have
+ * a full guide cut it with `windowEpgItemsAtProviderClock` instead.
+ */
+export function shortEpgWindowSize(
+    offsetMinutes: number,
+    baseSize: number
+): number {
+    if (!(offsetMinutes < 0)) {
+        return baseSize;
+    }
+    return Math.min(
+        SHORT_EPG_WINDOW_MAX,
+        baseSize + Math.ceil(-offsetMinutes / SHORT_EPG_SLOT_MINUTES)
+    );
+}
+
+function epgItemSeconds(item: EpgItem, side: 'start' | 'stop'): number {
+    const raw = Number(
+        side === 'start' ? item.start_timestamp : item.stop_timestamp
+    );
+    if (Number.isFinite(raw) && raw > 0) {
+        return raw;
+    }
+    const parsed = Date.parse(
+        (side === 'start' ? item.start : (item.stop ?? item.end)) ?? ''
+    );
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Number.NaN;
+}
+
+/**
+ * Cuts the same window a short-EPG request would return — the first `limit`
+ * programmes still airing or upcoming — out of a full guide, but at the
+ * provider clock (`epgProviderClockMs`) rather than at the provider's own
+ * "now". This is how preview surfaces stay correct under a display offset:
+ * the full guide reaches into the provider's past, the short EPG does not.
+ */
+export function windowEpgItemsAtProviderClock(
+    items: readonly EpgItem[],
+    offsetMinutes: number,
+    limit: number,
+    nowMs = Date.now()
+): EpgItem[] {
+    const nowSeconds = Math.floor(
+        epgProviderClockMs(nowMs, offsetMinutes) / 1000
+    );
+    return [...items]
+        .sort(
+            (left, right) =>
+                epgItemSeconds(left, 'start') - epgItemSeconds(right, 'start')
+        )
+        .filter((item) => epgItemSeconds(item, 'stop') > nowSeconds)
+        .slice(0, limit);
 }

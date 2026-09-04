@@ -610,10 +610,13 @@ comparison; applying both doubles the shift.
   (`EpgService` passes its provider clock and tags its 60 s cache with the
   offset; `ChannelListContainerComponent` refetches when the setting changes),
   the channel-list progress bars, `XtreamStore.currentEpgItem`, the Xtream and
-  Stalker sidebar previews (re-picked on a change; the Xtream preview queue
-  cuts its window out of the full guide at the provider clock whenever the
-  offset is non-zero, because `get_short_epg` always starts at the provider's
-  own "now" and cannot reach the programme actually on air), the M3U player's
+  Stalker sidebar previews (re-picked on a change; whenever the offset is
+  non-zero the Xtream preview queue and the collection resolver cut their
+  window out of the full guide at the provider clock with
+  `windowEpgItemsAtProviderClock`, because `get_short_epg` always starts at
+  the provider's own "now" and cannot reach the programme actually on air; a
+  request that completes after the setting changed is retired and re-queued
+  whatever its outcome), the M3U player's
   `setCurrentEpgProgram` mirror and recording-start snapshot, the unified
   collection resolver (`StreamResolverService.loadEpgForItems`), the dashboard
   live cards' progress, and the recording stop-time overlap
@@ -626,9 +629,10 @@ shifted), and the remote-control payload. Known limit: Stalker's bulk
 uses no past-reaching Stalker endpoint, so with a positive offset a Stalker
 sidebar row whose true programme lies in the portal's past shows no preview
 rather than a wrong one; under a negative offset the short-EPG window is widened
-instead (`previewFetchSize`, 15-minute slots, capped at 50) so it still reaches
-the programme on air, and preview cache entries are tagged with the offset they
-were fetched for. Like the view mode, the control is Electron-only in practice —
+instead (`shortEpgWindowSize`, 15-minute slots, capped at 50 — the sidebar queue,
+the active channel's panel fallback and the collection resolver all use it) so
+it still reaches the programme on air, and preview cache entries are tagged with
+the offset they were fetched for. Like the view mode, the control is Electron-only in practice —
 it sits behind `supportsEpg`.
 
 Both components stay presentation-focused; the reusable, view-agnostic pieces
