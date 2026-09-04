@@ -589,9 +589,11 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
 - Any other refused reload (the addon throws) continues the backoff itself,
   because no status transition will ever arrive for it.
 - A non-live reload carries the last position observed while playing as
-  `startTime`, so a movie or episode resumes where the connection dropped
-  instead of at the offset the user originally resumed from; live reloads go
-  back to the live edge.
+  `startTime` (seeded from the playback's own `startTime`), so a movie or
+  episode resumes where the connection dropped instead of at the offset the
+  user originally resumed from; a reported zero counts only after a positive
+  position was seen, because engine snapshots start at zero before the first
+  `time-pos`. Live reloads go back to the live edge.
 - Every reload is followed by `setPaused(false)`: sessions run with
   `keep-open=yes`, so EOF leaves mpv paused at the end of the old file and a
   plain `loadfile` inherits that pause — the reloaded live stream would

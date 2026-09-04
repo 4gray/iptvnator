@@ -60,11 +60,17 @@ export interface EmbeddedMpvReconnectState {
     /** A reload was issued and neither `playing` nor a loss has answered it yet. */
     attemptInFlight: boolean;
     /**
-     * Last position reported while the stream played. Non-live reloads carry
-     * it as `startTime`, otherwise mpv would restart at the playback's
-     * original resume offset.
+     * Last position reported while the stream played, seeded from the
+     * playback's own `startTime`. Non-live reloads carry it as `startTime`,
+     * otherwise mpv would restart at the playback's original resume offset.
      */
     lastPositionSeconds: number | null;
+    /**
+     * Whether a positive position has been reported for this load. Engine
+     * snapshots start at zero before the first `time-pos` update, so a zero
+     * is trusted as a real seek-to-start only once that has happened.
+     */
+    positionReported: boolean;
     timer: NodeJS.Timeout | null;
     /** What the renderer is shown while an attempt is scheduled or in flight. */
     pending: EmbeddedMpvReconnectInfo | null;
@@ -90,6 +96,7 @@ export function createEmbeddedMpvReconnectState(
         playingSince: null,
         attemptInFlight: false,
         lastPositionSeconds: null,
+        positionReported: false,
         timer: null,
         pending: null,
     };
@@ -141,7 +148,13 @@ export class EmbeddedMpvReconnectCoordinator {
         state.attempts = 0;
         state.playingSince = null;
         state.attemptInFlight = false;
-        state.lastPositionSeconds = null;
+        state.lastPositionSeconds =
+            typeof playback.startTime === 'number' &&
+            Number.isFinite(playback.startTime) &&
+            playback.startTime >= 0
+                ? playback.startTime
+                : null;
+        state.positionReported = false;
         state.pending = null;
     }
 
@@ -178,13 +191,17 @@ export class EmbeddedMpvReconnectCoordinator {
         if (
             (status === 'playing' || status === 'paused') &&
             typeof positionSeconds === 'number' &&
-            Number.isFinite(positionSeconds) &&
-            positionSeconds >= 0
+            Number.isFinite(positionSeconds)
         ) {
-            // Zero is a valid resume point too (the user seeked back to the
-            // start); while playing/paused the media is loaded, so the
-            // reported position is real rather than a pre-load placeholder.
-            state.lastPositionSeconds = positionSeconds;
+            if (positionSeconds > 0) {
+                state.lastPositionSeconds = positionSeconds;
+                state.positionReported = true;
+            } else if (positionSeconds === 0 && state.positionReported) {
+                // A real seek back to the start. Before any positive
+                // position the zero is only the snapshot's placeholder and
+                // the seeded `startTime` stays the better resume point.
+                state.lastPositionSeconds = 0;
+            }
         }
 
         if (status === 'playing') {

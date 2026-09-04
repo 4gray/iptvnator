@@ -221,6 +221,19 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
             startTime: 0,
         });
 
+        // The snapshot's placeholder zero before the first time-pos must not
+        // beat the playback's own resume offset.
+        reload.mockClear();
+        state = createEmbeddedMpvReconnectState(true);
+        startPlaying({ ...VOD, startTime: 30 });
+        coordinator.observe(SESSION, state, 'playing', 'playing', 0);
+        coordinator.observe(SESSION, state, 'error', 'playing');
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, {
+            ...VOD,
+            startTime: 30,
+        });
+
         reload.mockClear();
         state = createEmbeddedMpvReconnectState(true);
         startPlaying(LIVE);
