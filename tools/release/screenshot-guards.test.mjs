@@ -195,6 +195,18 @@ describe('manifest validation', () => {
                 title: 'Stalker live',
                 group: 'guides',
                 setup: ['open-stalker-live'],
+            },
+            {
+                slug: 'guide-m3u-add-playlist',
+                title: 'M3U URL form',
+                group: 'guides',
+                setup: ['open-add-playlist-m3u-url'],
+            },
+            {
+                slug: 'guide-epg-settings',
+                title: 'EPG settings',
+                group: 'guides',
+                setup: ['open-settings-epg'],
             }
         );
 

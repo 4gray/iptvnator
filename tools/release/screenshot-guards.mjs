@@ -50,6 +50,8 @@ export const KNOWN_ACTIONS = [
     'open-xtream-live',
     'open-add-playlist-stalker',
     'open-stalker-live',
+    'open-add-playlist-m3u-url',
+    'open-settings-epg',
 ];
 
 /**

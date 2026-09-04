@@ -8,6 +8,9 @@ import type { Page } from '@playwright/test';
 
 import {
     AUTO_DETECT_FIXTURE_MESSAGE,
+    EPG_FIXTURE_URL,
+    M3U_FIXTURE_PLAYLIST_TITLE,
+    M3U_FIXTURE_PLAYLIST_URL,
     STALKER_FIXTURE_MAC,
     STALKER_FIXTURE_PORTAL_URL,
     STALKER_FIXTURE_TITLE,
@@ -82,10 +85,12 @@ export async function runAction(
     action: string,
     param: string | null
 ): Promise<void> {
-    // Manifest steps are order-independent, and two of them end with a modal
-    // dialog open. Close whatever the previous step left behind before this
-    // one starts navigating, or the dialog backdrop swallows every click.
+    // Manifest steps are order-independent, and some of them end with a modal
+    // dialog open or a dirty settings form. Clear whatever the previous step
+    // left behind before this one starts navigating: a dialog backdrop
+    // swallows every click, and unsaved settings raise a leave prompt.
     await dismissDialogs(page);
+    await discardUnsavedSettings(page);
 
     switch (action) {
         case 'open-settings': {
@@ -299,6 +304,51 @@ export async function runAction(
             await page.waitForTimeout(700);
             return;
         }
+        case 'open-add-playlist-m3u-url': {
+            await goHome(page);
+            await openAddPlaylistDialog(page);
+            const dialog = page.locator('mat-dialog-container').last();
+
+            await clickDialogOption(dialog, /m3u url/i);
+            // Typed only: the dialog fetches nothing until Add is clicked,
+            // and the address points at the local mock anyway.
+            await dialog
+                .locator('input[formcontrolname="playlistUrl"]')
+                .fill(M3U_FIXTURE_PLAYLIST_URL);
+            await dialog
+                .locator('input[formcontrolname="playlistName"]')
+                .fill(M3U_FIXTURE_PLAYLIST_TITLE);
+            await page.waitForTimeout(500);
+            return;
+        }
+        case 'open-settings-epg': {
+            await runAction(page, 'open-settings', null);
+            const sectionLink = page
+                .locator('[data-test-id="settings-section-epg"]')
+                .first();
+
+            await sectionLink.waitFor({ state: 'visible', timeout: 15_000 });
+            await sectionLink.click({ timeout: 10_000 });
+            await page.waitForURL(/\/workspace\/settings\/epg/, {
+                timeout: 15_000,
+            });
+
+            const section = page.locator('#epg');
+            await section.waitFor({ state: 'visible', timeout: 15_000 });
+            // Show a filled source row instead of the empty state. The value
+            // is staged in the form only; nothing is saved or fetched. The
+            // dirty form is discarded by `discardUnsavedSettings` before the
+            // next action or the app teardown — the settings close guard
+            // would otherwise hold `app.close()` open forever.
+            await section
+                .getByRole('button', { name: /add epg source/i })
+                .click({ timeout: 10_000 });
+            const field = section.locator('input[type="url"]').last();
+            await field.waitFor({ state: 'visible', timeout: 10_000 });
+            await field.fill(EPG_FIXTURE_URL, { timeout: 10_000 });
+            await page.waitForTimeout(500);
+            return;
+        }
         default:
             throw new Error(`Unknown setup action: ${action}`);
     }
@@ -332,6 +382,24 @@ export async function clickDialogOption(
     }
 
     throw new Error(`Dialog option matching ${label} not found`);
+}
+
+/**
+ * Settings edits staged by a shot (the EPG source row) must never persist:
+ * saving would start a fetch, and a dirty form arms the app's close guard,
+ * which blocks `app.close()` until someone answers the save/discard prompt.
+ */
+export async function discardUnsavedSettings(page: Page): Promise<void> {
+    const discard = page.locator('[data-test-id="discard-settings"]').first();
+
+    if ((await discard.count()) === 0 || !(await discard.isVisible())) {
+        return;
+    }
+
+    await discard.click({ timeout: 10_000 });
+    await discard
+        .waitFor({ state: 'hidden', timeout: 10_000 })
+        .catch(() => undefined);
 }
 
 async function dismissDialogs(page: Page): Promise<void> {

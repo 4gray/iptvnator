@@ -27,6 +27,14 @@ const GUIDES = [
       'blog/guides/screenshots/guide-stalker-live-dark.png',
     ],
   },
+  {
+    slug: 'm3u-playlist-epg-setup-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-m3u-add-playlist-dark.png',
+      'blog/guides/screenshots/guide-m3u-live-groups-dark.png',
+      'blog/guides/screenshots/guide-epg-settings-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');

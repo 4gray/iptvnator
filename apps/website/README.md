@@ -66,8 +66,8 @@ without depending on a specific version.
 ## Guides
 
 Evergreen how-to posts live in the blog collection next to release notes
-(`xtream-codes-setup-guide.mdx` and `stalker-portal-setup-guide.mdx` in
-`apps/website/src/content/blog/`).
+(`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx` and
+`m3u-playlist-epg-setup-guide.mdx` in `apps/website/src/content/blog/`).
 Two conventions set them apart:
 
 - **`faq` frontmatter.** An optional list of `{ q, a }` entries. `BlogPost.astro`

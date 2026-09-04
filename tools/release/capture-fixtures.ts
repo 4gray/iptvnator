@@ -29,6 +29,11 @@ export const XTREAM_FIXTURE_CREDENTIALS = {
     password: 'marketing',
 } as const;
 
+/** Fictional playlist and guide addresses typed into forms for the M3U guide shots; never fetched. */
+export const M3U_FIXTURE_PLAYLIST_URL = `${XTREAM_MOCK_ORIGIN}/demo/channels.m3u8`;
+export const M3U_FIXTURE_PLAYLIST_TITLE = 'Fictional TV playlist';
+export const EPG_FIXTURE_URL = `${XTREAM_MOCK_ORIGIN}/demo/guide.xml.gz`;
+
 /** A fictional "your subscription is ready" message for the Auto-detect shot. */
 export const AUTO_DETECT_FIXTURE_MESSAGE = [
     'Welcome to Fictional TV! Your account is ready.',

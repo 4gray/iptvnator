@@ -52,7 +52,12 @@ import {
     validateReleaseSlug,
 } from './screenshot-guards.mjs';
 import * as driver from './capture-app-driver';
-import { applyTheme, runAction, settleUi } from './capture-navigation';
+import {
+    applyTheme,
+    discardUnsavedSettings,
+    runAction,
+    settleUi,
+} from './capture-navigation';
 import { assertTmdbDisabled } from './capture-tmdb-check';
 import {
     drainRecordedRequests,
@@ -162,6 +167,7 @@ async function main(): Promise<void> {
         : undefined;
     const dataDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-release-shots-'));
     let app: Awaited<ReturnType<typeof driver.launchApp>> | undefined;
+    let page: Page | undefined;
     let recordedRequests: string[] = [];
     let captured = 0;
     let primaryError: unknown;
@@ -184,7 +190,7 @@ async function main(): Promise<void> {
         // main process itself fetches.
         await installRequestRecorder(app, networkPolicy());
 
-        const page = await driver.findMainWindow(app);
+        page = await driver.findMainWindow(app);
 
         // G3, second layer: page-level deny-by-default, which also blocks.
         await page.route('**/*', async (route) => {
@@ -268,6 +274,11 @@ async function main(): Promise<void> {
         // isolation override is most likely, so G1 must still be evaluated.
         primaryError = error;
     } finally {
+        // A shot may leave the settings form dirty, which arms the app's
+        // close guard and would block the close below indefinitely.
+        if (page) {
+            await discardUnsavedSettings(page).catch(() => undefined);
+        }
         // Close before the G1 comparison: SQLite runs in WAL mode, so writes
         // may sit in -wal until the worker shuts down and checkpoints.
         await app?.close().catch(() => undefined);
