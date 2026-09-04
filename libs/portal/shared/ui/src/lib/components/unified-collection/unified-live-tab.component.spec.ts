@@ -45,6 +45,7 @@ describe('UnifiedLiveTabComponent', () => {
     let component: UnifiedLiveTabComponent;
     let player: ReturnType<typeof signal<VideoPlayer>>;
     let epgViewMode: ReturnType<typeof signal<'timeline' | 'list'>>;
+    let epgOffsetMinutes: ReturnType<typeof signal<number>>;
     let stripCountryPrefix: ReturnType<typeof signal<boolean>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
@@ -83,6 +84,7 @@ describe('UnifiedLiveTabComponent', () => {
         };
         player = signal(VideoPlayer.VideoJs);
         epgViewMode = signal<'timeline' | 'list'>('timeline');
+        epgOffsetMinutes = signal(0);
         stripCountryPrefix = signal(false);
         portalPlayer = {
             isEmbeddedPlayer: jest.fn().mockReturnValue(false),
@@ -111,7 +113,7 @@ describe('UnifiedLiveTabComponent', () => {
                         player,
                         stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
-                        resolvedEpgOffsetMinutes: signal(0),
+                        resolvedEpgOffsetMinutes: epgOffsetMinutes,
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
@@ -317,6 +319,69 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(removedItems).toEqual([item]);
         subscription.unsubscribe();
+    });
+
+    it('snapshots the recording-start programme in the provider clock under a display offset', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        const item = buildLiveItem('m3u');
+        const providerNow = buildCurrentProgram('Provider Now');
+        const earlier: EpgProgram = {
+            ...buildCurrentProgram('Really On Air'),
+            start: new Date(Date.now() - 130 * 60 * 1000).toISOString(),
+            stop: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        };
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: {
+                streamUrl: 'https://example.com/m3u.m3u8',
+                title: 'M3U Live',
+            },
+            channel: {
+                id: 'm3u-channel',
+                name: 'M3U Live',
+                url: 'https://example.com/m3u.m3u8',
+                group: { title: 'News' },
+                tvg: {
+                    id: 'm3u-channel',
+                    name: 'M3U Live',
+                    url: '',
+                    logo: 'm3u.png',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [earlier, providerNow],
+        });
+        streamResolver.loadM3uProgramsForItem.mockResolvedValue([
+            earlier,
+            providerNow,
+        ]);
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.recordingMetadata()?.currentProgram?.title).toBe(
+            'Provider Now'
+        );
+
+        // The guide runs an hour ahead: the recording must be filed under the
+        // programme really on air, which the provider lists as an hour ago.
+        epgOffsetMinutes.set(60);
+        fixture.detectChanges();
+
+        expect(component.recordingMetadata()?.currentProgram?.title).toBe(
+            'Really On Air'
+        );
     });
 
     it('renders inline M3U EPG in the timeline with shared date navigation', async () => {

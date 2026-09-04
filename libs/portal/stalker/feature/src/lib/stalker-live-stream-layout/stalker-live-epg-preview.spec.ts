@@ -1,5 +1,7 @@
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
+    EPG_PREVIEW_FETCH_SIZE,
+    previewFetchSize,
     StalkerEpgPreviewQueue,
     mergeEpgProgramLists,
 } from './stalker-live-epg-preview';
@@ -68,7 +70,49 @@ describe('mergeEpgProgramLists', () => {
     });
 });
 
+describe('previewFetchSize', () => {
+    it('keeps the base window without an offset or with a positive one', () => {
+        // The portal's past is unreachable through get_short_epg, so a
+        // positive offset cannot be served by a bigger window.
+        expect(previewFetchSize(0)).toBe(EPG_PREVIEW_FETCH_SIZE);
+        expect(previewFetchSize(120)).toBe(EPG_PREVIEW_FETCH_SIZE);
+        expect(previewFetchSize(0, 10)).toBe(10);
+    });
+
+    it('widens the window under a negative offset, assuming 15-minute slots, and caps it', () => {
+        expect(previewFetchSize(-30)).toBe(EPG_PREVIEW_FETCH_SIZE + 2);
+        expect(previewFetchSize(-100)).toBe(EPG_PREVIEW_FETCH_SIZE + 7);
+        expect(previewFetchSize(-60, 10)).toBe(14);
+        expect(previewFetchSize(-720)).toBe(50);
+    });
+});
+
 describe('StalkerEpgPreviewQueue', () => {
+    it('drops cached windows when the display offset changes', async () => {
+        let offset = 0;
+        const fetchPrograms = jest.fn(async (channelId: string) => [
+            buildProgram(channelId, `Now ${channelId}`, -10),
+        ]);
+        const queue = new StalkerEpgPreviewQueue({
+            fetchPrograms,
+            onPrograms: jest.fn(),
+            epgOffsetMinutes: () => offset,
+        });
+
+        queue.sync(['1']);
+        await flushQueue();
+        expect(fetchPrograms).toHaveBeenCalledTimes(1);
+        expect(queue.getCachedPrograms('1')).toHaveLength(1);
+
+        // A different offset means a different window and a different "now".
+        offset = -60;
+        expect(queue.getCachedPrograms('1')).toBeNull();
+        queue.sync(['1']);
+        await flushQueue();
+        expect(fetchPrograms).toHaveBeenCalledTimes(2);
+        queue.destroy();
+    });
+
     it('fetches each synced channel once and reuses the cache afterwards', async () => {
         const fetchPrograms = jest.fn(async (channelId: string) => [
             buildProgram(channelId, `Now ${channelId}`, -10),

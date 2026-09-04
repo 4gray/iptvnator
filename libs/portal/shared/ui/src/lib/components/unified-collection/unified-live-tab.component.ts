@@ -71,6 +71,7 @@ import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -302,7 +303,10 @@ export class UnifiedLiveTabComponent {
         // Date.now() verdict, and a recording started after an EPG boundary
         // would snapshot the previous show.
         this.progressTick();
-        const now = Date.now();
+        // Raw programme times vs. now in the provider's EPG clock, like the
+        // panel summary — the start snapshot is authoritative for the
+        // recording's title, so it must name the same programme.
+        const now = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
         const program =
             this.timelinePrograms().find((candidate) => {
                 const start = Date.parse(candidate.start);

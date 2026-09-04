@@ -576,16 +576,23 @@ export class EpgService {
         );
     }
 
+    /**
+     * Cache and in-flight identity of a lookup. The display offset is part of
+     * it: a request evaluated at another provider clock answers a different
+     * question, so a lookup issued after the setting changed must neither
+     * read the previous entry nor join a batch still in flight for it.
+     */
     private createProgramCacheKey(
         channelId: string,
         sourceUrls: string[] = []
     ): string {
         const normalizedSourceUrls = normalizeEpgUrls(sourceUrls);
-        if (normalizedSourceUrls.length === 0) {
-            return channelId;
-        }
-
-        return `source:${channelId}:${JSON.stringify(normalizedSourceUrls)}`;
+        const key =
+            normalizedSourceUrls.length === 0
+                ? channelId
+                : `source:${channelId}:${JSON.stringify(normalizedSourceUrls)}`;
+        const offsetMinutes = this.epgOffsetMinutes();
+        return offsetMinutes === 0 ? key : `${key}|offset:${offsetMinutes}`;
     }
 
     private createProgramBatchCacheKey(
@@ -597,6 +604,7 @@ export class EpgService {
             channelIds: [...channelIds].sort(),
             sourceUrls: normalizeEpgUrls(sourceUrls),
             fallbackSourceUrls: normalizeEpgUrls(fallbackSourceUrls),
+            offsetMinutes: this.epgOffsetMinutes(),
         });
     }
 

@@ -14,6 +14,31 @@ import type { EpgProgram } from '@iptvnator/shared/interfaces';
 
 /** Programmes requested per channel: current + a small safety margin. */
 export const EPG_PREVIEW_FETCH_SIZE = 3;
+/** Upper bound for the widened window under a negative display offset. */
+const EPG_PREVIEW_FETCH_SIZE_MAX = 50;
+/** Assumed minimum programme length when sizing that window. */
+const EPG_PREVIEW_SLOT_MINUTES = 15;
+
+/**
+ * `get_short_epg` starts at the portal's own "now". Under a negative display
+ * offset the programme actually on air lies `|offset|` further ahead, so the
+ * window is widened to reach it (assuming programmes of at least
+ * `EPG_PREVIEW_SLOT_MINUTES`). A positive offset needs the portal's past,
+ * which no short-EPG size can return — those rows stay without a preview
+ * rather than showing a wrong one.
+ */
+export function previewFetchSize(
+    offsetMinutes: number,
+    baseSize = EPG_PREVIEW_FETCH_SIZE
+): number {
+    if (!(offsetMinutes < 0)) {
+        return baseSize;
+    }
+    return Math.min(
+        EPG_PREVIEW_FETCH_SIZE_MAX,
+        baseSize + Math.ceil(-offsetMinutes / EPG_PREVIEW_SLOT_MINUTES)
+    );
+}
 
 const PREVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
 const PREVIEW_MAX_CONCURRENCY = 2;
@@ -32,6 +57,12 @@ interface StalkerEpgPreviewQueueHost {
     fetchPrograms: (channelId: string) => Promise<EpgProgram[]>;
     /** Called for each non-empty result so the host can update its previews. */
     onPrograms: (channelId: string, programs: EpgProgram[]) => void;
+    /**
+     * Current EPG display offset. Cached windows are tagged with the offset
+     * they were fetched for and become stale when it changes, since the
+     * window size and the "now" they answer both depend on it.
+     */
+    epgOffsetMinutes?: () => number;
 }
 
 interface StalkerEpgPreviewQueueOptions {
@@ -43,6 +74,7 @@ interface StalkerEpgPreviewQueueOptions {
 interface PreviewCacheEntry {
     programs: EpgProgram[];
     timestamp: number;
+    offsetMinutes: number;
 }
 
 export class StalkerEpgPreviewQueue {
@@ -70,11 +102,18 @@ export class StalkerEpgPreviewQueue {
         if (!entry) {
             return null;
         }
-        if (Date.now() - entry.timestamp > PREVIEW_CACHE_TTL_MS) {
+        if (
+            Date.now() - entry.timestamp > PREVIEW_CACHE_TTL_MS ||
+            entry.offsetMinutes !== this.currentOffsetMinutes()
+        ) {
             this.cache.delete(channelId);
             return null;
         }
         return entry.programs;
+    }
+
+    private currentOffsetMinutes(): number {
+        return this.host.epgOffsetMinutes?.() ?? 0;
     }
 
     /**
@@ -146,6 +185,7 @@ export class StalkerEpgPreviewQueue {
 
     private async fetchOne(channelId: string): Promise<void> {
         const generation = this.generation;
+        const offsetMinutes = this.currentOffsetMinutes();
         try {
             const programs = await this.host.fetchPrograms(channelId);
             if (this.destroyed || generation !== this.generation) {
@@ -154,7 +194,11 @@ export class StalkerEpgPreviewQueue {
             // Empty results are cached too: they mean the portal has no
             // short EPG for the channel, and refetching on every render
             // would hammer it for nothing.
-            this.cache.set(channelId, { programs, timestamp: Date.now() });
+            this.cache.set(channelId, {
+                programs,
+                timestamp: Date.now(),
+                offsetMinutes,
+            });
             if (programs.length > 0) {
                 this.host.onPrograms(channelId, programs);
             }

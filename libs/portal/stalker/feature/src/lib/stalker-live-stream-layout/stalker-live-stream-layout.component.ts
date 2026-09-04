@@ -78,6 +78,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
+    ACTIVE_EPG_FALLBACK_SIZE,
     StalkerFavoriteItem,
     StalkerItvChannel,
     StalkerStore,
@@ -85,7 +86,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
 import {
-    EPG_PREVIEW_FETCH_SIZE,
+    previewFetchSize,
     StalkerEpgPreviewQueue,
     mergeEpgProgramLists,
 } from './stalker-live-epg-preview';
@@ -476,15 +477,18 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly cdr = inject(ChangeDetectorRef);
     /** Short-EPG fallback for rows the bulk guide cannot answer. */
     private readonly epgPreviewQueue = new StalkerEpgPreviewQueue({
+        // The window is widened under a negative display offset so it still
+        // reaches the programme on air; see previewFetchSize.
         fetchPrograms: async (channelId) =>
             (
                 await this.stalkerStore.fetchChannelEpg(
                     channelId,
-                    EPG_PREVIEW_FETCH_SIZE
+                    previewFetchSize(this.epgOffsetMinutes())
                 )
             ).map((item) => this.toProgram(item, channelId)),
         onPrograms: (channelId, programs) =>
             this.applyFallbackPreviewPrograms(channelId, programs),
+        epgOffsetMinutes: () => this.epgOffsetMinutes(),
     });
 
     /** Favorites */
@@ -1159,7 +1163,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             this.isLoadingFallbackEpg.set(true);
             const fallbackItems = await this.stalkerStore.fetchChannelEpg(
-                item.id
+                item.id,
+                previewFetchSize(
+                    this.epgOffsetMinutes(),
+                    ACTIVE_EPG_FALLBACK_SIZE
+                )
             );
             if (!this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
                 return;

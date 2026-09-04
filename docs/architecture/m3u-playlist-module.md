@@ -622,10 +622,14 @@ comparison; applying both doubles the shift.
 Deliberately unshifted: catch-up URLs (built from the raw `programActivated`
 programme), recording snapshots (provider data; only their display is
 shifted), and the remote-control payload. Known limit: Stalker's bulk
-`get_epg_info` and `get_short_epg` also start at the portal's "now", so with a
-positive offset a Stalker sidebar row whose true programme lies in the portal's
-past shows no preview rather than a wrong one. Like the view mode, the control
-is Electron-only in practice — it sits behind `supportsEpg`.
+`get_epg_info` and `get_short_epg` also start at the portal's "now" and the app
+uses no past-reaching Stalker endpoint, so with a positive offset a Stalker
+sidebar row whose true programme lies in the portal's past shows no preview
+rather than a wrong one; under a negative offset the short-EPG window is widened
+instead (`previewFetchSize`, 15-minute slots, capped at 50) so it still reaches
+the programme on air, and preview cache entries are tagged with the offset they
+were fetched for. Like the view mode, the control is Electron-only in practice —
+it sits behind `supportsEpg`.
 
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from

@@ -224,6 +224,47 @@ describe('EpgService', () => {
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
     });
 
+    it('does not join an in-flight batch that was evaluated for another display offset', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        let resolveFirst: (value: Record<string, null>) => void = () =>
+            undefined;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<Record<string, null>>((resolve) => {
+                        resolveFirst = resolve;
+                    })
+            )
+            .mockResolvedValueOnce({ 'guide-news': null });
+        const options = {
+            sourceUrls: ['https://playlist.example.com/guide.xml'],
+        };
+
+        const first = firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], options)
+        );
+        // The setting changes while the first batch is still on the wire:
+        // the refresh it triggers must evaluate at the new provider clock,
+        // not reuse the pending request computed for the old one.
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(30);
+        const second = firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], options)
+        );
+        resolveFirst({ 'guide-news': null });
+        await Promise.all([first, second]);
+
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+        const [, secondOptions] = (
+            epgBridge.getCurrentProgramsBatch as jest.Mock
+        ).mock.calls[1];
+        const [, firstOptions] = (
+            epgBridge.getCurrentProgramsBatch as jest.Mock
+        ).mock.calls[0];
+        expect(secondOptions.nowMs).toBeLessThan(firstOptions.nowMs);
+    });
+
     it('caches current program lookups separately by EPG source URL scope', async () => {
         settingsStore.getSettings.mockReturnValue({
             epgUrl: ['https://global.example.com/guide.xml'],
@@ -490,7 +531,9 @@ describe('EpgService', () => {
         );
         expect(beforeImport.get('guide-news')).toBeNull();
 
-        const availability = firstValueFrom(service.epgAvailable$.pipe(skip(1)));
+        const availability = firstValueFrom(
+            service.epgAvailable$.pipe(skip(1))
+        );
         service.fetchEpg(['https://playlist.example.com/guide.xml']);
         await expect(availability).resolves.toBe(true);
 
@@ -563,8 +606,7 @@ describe('EpgService', () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
         let resolveBatch:
-            | ((programs: Record<string, unknown>) => void)
-            | undefined;
+            ((programs: Record<string, unknown>) => void) | undefined;
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
                 new Promise((resolve) => {

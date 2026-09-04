@@ -9,7 +9,10 @@ import {
     PORTAL_PLAYER,
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    ACTIVE_EPG_FALLBACK_SIZE,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -893,7 +896,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         await fixture.whenStable();
 
         expect(fetchChannelEpg).toHaveBeenCalledTimes(1);
-        expect(fetchChannelEpg).toHaveBeenCalledWith('10001');
+        expect(fetchChannelEpg).toHaveBeenCalledWith(
+            '10001',
+            ACTIVE_EPG_FALLBACK_SIZE
+        );
         expect(component.isLoadingFallbackEpg()).toBe(true);
 
         // Category switch while the short-EPG request is still on the wire.
@@ -1162,7 +1168,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(fetchChannelEpg).toHaveBeenCalledWith('10001');
+        expect(fetchChannelEpg).toHaveBeenCalledWith(
+            '10001',
+            ACTIVE_EPG_FALLBACK_SIZE
+        );
         expect(component.currentProgram()?.title).toBe('Now 10001');
         expect(
             component.activeEpgPrograms().map((program) => program.title)
