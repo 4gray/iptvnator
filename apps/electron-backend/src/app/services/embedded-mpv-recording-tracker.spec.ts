@@ -533,6 +533,26 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
     });
 
+    it('keeps the interruption when the engine still shows the old recording active for a tick', async () => {
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+
+        jest.useFakeTimers();
+        try {
+            tracker.onRecordingInterrupted('session-1');
+            // A clean live EOF can carry the old recording as active once more.
+            tracker.observeSnapshot(activeSnapshot());
+            tracker.observeSnapshot(inactiveSnapshot());
+            await jest.advanceTimersByTimeAsync(2_600);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
+    });
+
     it('finalizes an interrupted recording on its own when no reload follows', async () => {
         started(tracker);
         tracker.observeSnapshot(activeSnapshot());

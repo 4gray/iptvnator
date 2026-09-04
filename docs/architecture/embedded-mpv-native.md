@@ -530,12 +530,12 @@ network defaults followed by the user's allowed lines, and every engine
 applies it after its own built-in options and before `mpv_initialize`, so a
 user line overrides both:
 
-| Engine                     | Transport                                                  |
-| -------------------------- | ---------------------------------------------------------- |
-| Windows native-view        | `createSession(..., string[])` → `mpv_set_option_string`  |
-| macOS native-view          | same, in `embedded_mpv.mm`                                 |
-| Linux native-view          | written to a user-only (0600) config file under `userData/embedded-mpv/options-<pid>/` and referenced as `--include=<path>` on the `mpv --wid` command line (before the per-playback options, so a playlist's user-agent/headers still win); the file is removed on dispose, the instance directory on shutdown, and another instance's leftovers only once its process is gone (two instances may share one `userData`) |
-| Frame-copy helper          | the first stdin line (`mpv-options`, helper started with `--mpv-options-stdin`), applied after the helper's built-in block |
+| Engine              | Transport                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Windows native-view | `createSession(..., string[])` → `mpv_set_option_string`                                                                                                                                                                                                                                                                                                                                                                 |
+| macOS native-view   | same, in `embedded_mpv.mm`                                                                                                                                                                                                                                                                                                                                                                                               |
+| Linux native-view   | written to a user-only (0600) config file under `userData/embedded-mpv/options-<pid>/` and referenced as `--include=<path>` on the `mpv --wid` command line (before the per-playback options, so a playlist's user-agent/headers still win); the file is removed on dispose, the instance directory on shutdown, and another instance's leftovers only once its process is gone (two instances may share one `userData`) |
+| Frame-copy helper   | the first stdin line (`mpv-options`, helper started with `--mpv-options-stdin`), applied after the helper's built-in block                                                                                                                                                                                                                                                                                               |
 
 The list never appears on a command line: an option such as
 `http-header-fields=Authorization: …` would otherwise be readable by every
@@ -627,10 +627,13 @@ progress (the budget is spent, or the setting is off) is shown as "The live
 stream ended." with Retry — for shared controls as an `error` status — since
 the plain `ended` state otherwise looks like a paused player. A recording that
 was running when the stream dropped is finalized by the recording tracker as
-an interrupted partial (the reload replaces the stream, which stops
-`stream-record`), and once the automatic reload plays the service starts it
-again into a fresh file with the same folder, title and metadata, so the
-manager lists both parts; an explicit stop or a user-driven load never
+an interrupted partial at the moment the reload replaces the stream (which
+stops `stream-record`; the tracker's `onRecordingInterrupted` keeps that
+verdict even if the engine shows the old recording as active for one more
+tick), and once the reload plays the service starts it again into a fresh
+file with the same folder, title and metadata, so the manager lists both
+parts. A stream that recovers by itself before the reload fires keeps its
+recording running untouched; an explicit stop or a user-driven load never
 restarts anything.
 
 ## Live Stream Recording

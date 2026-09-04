@@ -324,10 +324,13 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(lastUpdate()?.reconnect?.attempt).toBe(1);
         expect(
             recordingTrackerMock.onRecordingInterrupted
-        ).toHaveBeenCalledWith('session-1');
+        ).not.toHaveBeenCalled();
 
         status = 'loading';
         jest.advanceTimersByTime(2_000);
+        expect(
+            recordingTrackerMock.onRecordingInterrupted
+        ).toHaveBeenCalledWith('session-1');
         poll('playing');
         // The restart is deferred with a 0 ms timer scheduled from inside
         // the poll tick, which the fake clock parks one millisecond out.
@@ -340,6 +343,26 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(recordingTrackerMock.onRecordingStarted).toHaveBeenCalledTimes(
             2
         );
+    });
+
+    it('leaves a recording alone when the stream recovers before the reload fires', () => {
+        startPlayingLive();
+        service.startRecording('session-1', { title: 'Live channel' });
+        recordingActive = true;
+        poll('playing');
+
+        poll('error');
+        expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+        // ffmpeg's own reconnect brings the stream back within the backoff;
+        // mpv never stopped recording.
+        poll('playing');
+        jest.advanceTimersByTime(60_000);
+
+        expect(addon.loadPlayback).toHaveBeenCalledTimes(1);
+        expect(addon.startRecording).toHaveBeenCalledTimes(1);
+        expect(
+            recordingTrackerMock.onRecordingInterrupted
+        ).not.toHaveBeenCalled();
     });
 
     it('does not restart a recording the user had stopped or replaced', () => {

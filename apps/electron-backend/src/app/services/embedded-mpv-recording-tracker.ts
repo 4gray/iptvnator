@@ -253,7 +253,10 @@ export class EmbeddedMpvRecordingTracker {
             entry.sawActive = true;
             // A rejected stop puts the recording back: abandon the pending
             // finalization instead of ending a row that is still recording.
-            if (entry.settleTimer !== undefined) {
+            // Not after an interruption, though: the engine may still show
+            // the old recording as active for a tick after a clean live EOF,
+            // and the reload replacing it is already on its way.
+            if (entry.settleTimer !== undefined && !entry.interrupted) {
                 clearTimeout(entry.settleTimer);
                 entry.settleTimer = undefined;
             }
@@ -269,7 +272,10 @@ export class EmbeddedMpvRecordingTracker {
             // Finalize only once it survived the settle window.
             if (entry.settleTimer === undefined) {
                 entry.settleTimer = setTimeout(() => {
-                    this.finalize(entry, 'completed');
+                    this.finalize(
+                        entry,
+                        entry.interrupted ? 'interrupted' : 'completed'
+                    );
                 }, STOP_SETTLE_WINDOW_MS);
             }
         } else if (recording.error) {

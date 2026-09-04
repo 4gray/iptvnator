@@ -129,7 +129,9 @@ interface EmbeddedMpvRuntimeSession {
     lastRecordingStart: EmbeddedMpvRecordingStartOptions | null;
     /** Whether the previous refresh reported an active recording. */
     lastRecordingActive: boolean;
-    /** A recording was running when the stream dropped; restart it once the reconnect plays. */
+    /** A recording was running when the outage began. */
+    recordingRunningAtLoss: boolean;
+    /** The reload replaced the recorded stream; restart the recording once it plays. */
     restartRecordingAfterReconnect: boolean;
 }
 
@@ -159,6 +161,16 @@ export class EmbeddedMpvNativeService {
     private readonly reconnect = new EmbeddedMpvReconnectCoordinator({
         reload: (sessionId, playback) => {
             const addon = this.getAddon();
+            const session = this.sessions.get(sessionId);
+            if (session?.recordingRunningAtLoss && session.lastRecordingStart) {
+                // This reload replaces the recorded stream: the file mpv was
+                // writing is over (file it as interrupted, not completed),
+                // and the recording is started again once the reload plays.
+                // A stream that recovers by itself before this fires keeps
+                // its recording running and never reaches this branch.
+                embeddedMpvRecordingTracker.onRecordingInterrupted(sessionId);
+                session.restartRecordingAfterReconnect = true;
+            }
             addon.loadPlayback(sessionId, playback);
             // Sessions run with keep-open=yes, so EOF on a live stream leaves
             // mpv paused at the end of the old file and a plain loadfile
@@ -570,6 +582,7 @@ export class EmbeddedMpvNativeService {
             optionsFile,
             lastRecordingStart: null,
             lastRecordingActive: false,
+            recordingRunningAtLoss: false,
             restartRecordingAfterReconnect: false,
         });
 
@@ -608,6 +621,7 @@ export class EmbeddedMpvNativeService {
         // A user-driven replacement stops an active recording by design
         // (see "Live Stream Recording"); only an automatic reload restarts it.
         session.lastRecordingStart = null;
+        session.recordingRunningAtLoss = false;
         session.restartRecordingAfterReconnect = false;
         addon.loadPlayback(sessionId, playback);
         this.refreshSession(sessionId);
@@ -828,6 +842,7 @@ export class EmbeddedMpvNativeService {
         const session = this.sessions.get(sessionId);
         if (session) {
             session.lastRecordingStart = null;
+            session.recordingRunningAtLoss = false;
             session.restartRecordingAfterReconnect = false;
         }
         return this.refreshSession(sessionId);
@@ -912,6 +927,7 @@ export class EmbeddedMpvNativeService {
         }
         this.reconnect.cancel(session.reconnect);
         session.lastRecordingStart = null;
+        session.recordingRunningAtLoss = false;
         session.restartRecordingAfterReconnect = false;
         removeSessionOptionsFile(session.optionsFile);
         session.optionsFile = null;
@@ -1143,19 +1159,27 @@ export class EmbeddedMpvNativeService {
             session.lastRecordingStart &&
             (previousStatus === 'playing' || previousStatus === 'paused')
         ) {
-            // The outage began while a recording was running: the file mpv
-            // was writing is over, and the reload that follows must not let
-            // the tracker file it as a clean completion.
-            session.restartRecordingAfterReconnect = true;
-            embeddedMpvRecordingTracker.onRecordingInterrupted(sessionId);
+            // The outage began while a recording was running. Whether that
+            // recording is over is decided by the reload hook: only an
+            // actual reload replaces the stream and stops it.
+            session.recordingRunningAtLoss = true;
         } else if (
-            session.restartRecordingAfterReconnect &&
             reconnect === null &&
             payload.status === 'playing' &&
             previousStatus !== 'playing'
         ) {
+            // Back to playing: either our reload succeeded (restart the
+            // recording it stopped) or the stream recovered on its own
+            // (the recording never stopped; nothing to do).
+            const restart = session.restartRecordingAfterReconnect;
+            session.recordingRunningAtLoss = false;
             session.restartRecordingAfterReconnect = false;
-            setTimeout(() => this.restartRecordingAfterReconnect(sessionId), 0);
+            if (restart) {
+                setTimeout(
+                    () => this.restartRecordingAfterReconnect(sessionId),
+                    0
+                );
+            }
         }
         session.lastRecordingActive = payload.recording?.active === true;
         // The refresh timestamp must not participate in the diff key,
