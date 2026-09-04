@@ -136,6 +136,50 @@ describe('EpgQueueService', () => {
         expect(service.getCached(42)).toBeNull();
     });
 
+    it('discards a preview window fetched for a previous offset and fetches again', async () => {
+        let resolveShort!: (items: EpgItem[]) => void;
+        xtreamApi.getShortEpg.mockImplementationOnce(
+            () =>
+                new Promise<EpgItem[]>((resolve) => {
+                    resolveShort = resolve;
+                })
+        );
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Provider now', -15, 30),
+            listing('Really on air', -75, 60),
+        ]);
+        const emitted: string[][] = [];
+        const sub = service.epgResult$.subscribe(({ items }) =>
+            emitted.push(items.map((item) => item.title))
+        );
+        const settle = async () => {
+            for (let i = 0; i < 10; i++) await Promise.resolve();
+        };
+
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
+
+        // The setting changes while the short-EPG request is on the wire;
+        // the reload it triggers finds the stream in flight and skips it.
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        resolveShort([listing('Provider now', -15, 30)]);
+        await settle();
+        jest.advanceTimersByTime(201);
+        await settle();
+
+        // The stale window is neither committed nor emitted; the stream is
+        // fetched again from the full guide at the new provider clock.
+        expect(emitted).toEqual([['Really on air', 'Provider now']]);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
+        expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+            'Provider now',
+        ]);
+        sub.unsubscribe();
+    });
+
     it('caches empty EPG responses and does not immediately refetch them', async () => {
         xtreamApi.getShortEpg.mockResolvedValue([]);
 

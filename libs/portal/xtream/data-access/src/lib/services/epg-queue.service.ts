@@ -407,6 +407,20 @@ export class EpgQueueService implements OnDestroy {
                 return;
             }
 
+            // The setting changed while the request was on the wire, so this
+            // window was cut for the previous provider clock. The reload the
+            // change triggered skipped the stream because it was in flight,
+            // so drop the result and fetch again if the row is still visible
+            // instead of committing a window nobody asked for.
+            if (offsetMinutes !== this.epgOffsetMinutes()) {
+                this.supersedeForOffsetChange(
+                    credentials,
+                    streamId,
+                    startEpoch
+                );
+                return;
+            }
+
             if (apiItems.length > 0) {
                 this.recordSuccess(streamId, apiItems, offsetMinutes);
                 return;
@@ -432,6 +446,28 @@ export class EpgQueueService implements OnDestroy {
             if (!isStale()) {
                 this.inFlight.delete(streamId);
             }
+        }
+    }
+
+    /**
+     * Retire the in-flight request of `streamId` whose window predates an
+     * offset change and queue a fresh fetch. Bumping the epoch first makes the
+     * old request's `finally` leave the marker alone, so the replacement it
+     * starts here cannot lose its own in-flight marker.
+     */
+    private supersedeForOffsetChange(
+        credentials: XtreamCredentials,
+        streamId: number,
+        epoch: number
+    ): void {
+        this.invalidationEpoch.set(streamId, epoch + 1);
+        this.inFlight.delete(streamId);
+        if (!this.visibleSet.has(streamId) || this.queue.includes(streamId)) {
+            return;
+        }
+        this.queue.push(streamId);
+        if (!this.processing) {
+            this.processQueue(credentials);
         }
     }
 
