@@ -152,6 +152,17 @@ export class EmbeddedMpvReconnectCoordinator {
     }
 
     /**
+     * The user asked to pause. Observing `paused` cannot cover a pause sent
+     * while the session already sits in a loss state (the engines keep
+     * `error`/`ended` rather than flipping to `paused`), so the command
+     * itself cancels and disarms: a reload would resume playback unasked.
+     */
+    onUserPause(state: EmbeddedMpvReconnectState): void {
+        this.cancel(state);
+        state.hadPlayed = false;
+    }
+
+    /**
      * Feed one observed status (and the position that came with it). Returns
      * what the renderer should be shown (`null` when nothing is pending).
      */
@@ -168,8 +179,11 @@ export class EmbeddedMpvReconnectCoordinator {
             (status === 'playing' || status === 'paused') &&
             typeof positionSeconds === 'number' &&
             Number.isFinite(positionSeconds) &&
-            positionSeconds > 0
+            positionSeconds >= 0
         ) {
+            // Zero is a valid resume point too (the user seeked back to the
+            // start); while playing/paused the media is loaded, so the
+            // reported position is real rather than a pre-load placeholder.
             state.lastPositionSeconds = positionSeconds;
         }
 

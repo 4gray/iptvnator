@@ -528,6 +528,7 @@
             "STALLED": "Ce flux met plus de temps que prévu à démarrer.",
             "PLAYBACK_FAILED": "Échec de la lecture avec MPV intégré.",
             "RECONNECTING": "Connexion perdue. Reconnexion… tentative {{attempt}} sur {{maxAttempts}}",
+            "STREAM_ENDED": "La diffusion en direct est terminée.",
             "CHECKING_SUPPORT": "Vérification de la prise en charge de MPV intégré...",
             "NOT_AVAILABLE": "MPV intégré n'est pas disponible dans cet environnement.",
             "LOADING_STREAM": "Chargement du flux…",

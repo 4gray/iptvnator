@@ -608,7 +608,10 @@ loss → loss. While an attempt is scheduled or in flight the session carries
 the renderer shows "Reconnecting… attempt N of M" in the error overlay and,
 for shared controls, as a `loading` status message, keeps Retry available
 (it disposes the session, which cancels the timer), and never schedules
-anything itself. A recording that was active when the stream dropped is
+anything itself. A live stream that sits at `ended` with no reconnect in
+progress (the budget is spent, or the setting is off) is shown as "The live
+stream ended." with Retry — for shared controls as an `error` status — since
+the plain `ended` state otherwise looks like a paused player. A recording that was active when the stream dropped is
 finalized by the recording tracker as before and is not resumed.
 
 ## Live Stream Recording

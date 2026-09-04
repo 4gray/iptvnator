@@ -310,6 +310,19 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(addon.loadPlayback).toHaveBeenLastCalledWith('session-1', next);
     });
 
+    it('drops the pending reload when the user pauses from the error state', () => {
+        startPlayingLive();
+        poll('error');
+        expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+
+        service.setPaused('session-1', true);
+        expect(addon.setPaused).toHaveBeenCalledWith('session-1', true);
+        expect(lastUpdate()?.reconnect).toBeUndefined();
+        jest.advanceTimersByTime(60_000);
+
+        expect(addon.loadPlayback).toHaveBeenCalledTimes(1);
+    });
+
     it('drops the pending reload when the session is disposed', () => {
         startPlayingLive();
         poll('error');

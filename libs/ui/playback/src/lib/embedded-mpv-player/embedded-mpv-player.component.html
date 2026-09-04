@@ -31,7 +31,7 @@
                 data-embedded-mpv-frame
             ></canvas>
         }
-        @if (isErrored() || isReconnecting()) {
+        @if (isErrored() || isReconnecting() || isLiveEnded()) {
             <div
                 class="embedded-mpv-player__stalled"
                 role="alert"

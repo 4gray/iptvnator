@@ -528,6 +528,7 @@
             "STALLED": "Deze stream doet er langer over dan verwacht om te starten.",
             "PLAYBACK_FAILED": "Afspelen via Embedded MPV is mislukt.",
             "RECONNECTING": "Verbinding verbroken. Opnieuw verbinden… poging {{attempt}} van {{maxAttempts}}",
+            "STREAM_ENDED": "De live stream is beëindigd.",
             "CHECKING_SUPPORT": "Ondersteuning voor Embedded MPV controleren...",
             "NOT_AVAILABLE": "Embedded MPV is niet beschikbaar in deze omgeving.",
             "LOADING_STREAM": "Stream laden…",

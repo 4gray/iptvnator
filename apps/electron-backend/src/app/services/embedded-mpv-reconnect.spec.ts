@@ -208,6 +208,19 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
             startTime: 120,
         });
 
+        // A seek back to the very start is a valid resume point as well.
+        reload.mockClear();
+        state = createEmbeddedMpvReconnectState(true);
+        startPlaying(VOD);
+        coordinator.observe(SESSION, state, 'playing', 'playing', 120);
+        coordinator.observe(SESSION, state, 'playing', 'playing', 0);
+        coordinator.observe(SESSION, state, 'error', 'playing');
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, {
+            ...VOD,
+            startTime: 0,
+        });
+
         reload.mockClear();
         state = createEmbeddedMpvReconnectState(true);
         startPlaying(LIVE);
@@ -231,6 +244,23 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         expect(info?.attempt).toBe(2);
         jest.advanceTimersByTime(4_000);
         expect(reload).toHaveBeenCalledTimes(2);
+    });
+
+    it('cancels and disarms on an explicit pause command sent from a loss state', () => {
+        startPlaying();
+        expect(
+            coordinator.observe(SESSION, state, 'error', 'playing')?.attempt
+        ).toBe(1);
+
+        coordinator.onUserPause(state);
+
+        expect(state.pending).toBeNull();
+        expect(state.timer).toBeNull();
+        expect(
+            coordinator.observe(SESSION, state, 'error', 'error')
+        ).toBeNull();
+        jest.advanceTimersByTime(60_000);
+        expect(reload).not.toHaveBeenCalled();
     });
 
     it('does not resume a stream the user paused when it drops', () => {

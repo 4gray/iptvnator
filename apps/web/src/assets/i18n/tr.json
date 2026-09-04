@@ -528,6 +528,7 @@
             "STALLED": "Bu yayının başlaması beklenenden uzun sürüyor.",
             "PLAYBACK_FAILED": "Gömülü MPV oynatması başarısız oldu.",
             "RECONNECTING": "Bağlantı kesildi. Yeniden bağlanılıyor… deneme {{attempt}}/{{maxAttempts}}",
+            "STREAM_ENDED": "Canlı yayın sona erdi.",
             "CHECKING_SUPPORT": "Gömülü MPV desteği denetleniyor...",
             "NOT_AVAILABLE": "Gömülü MPV bu ortamda kullanılamıyor.",
             "LOADING_STREAM": "Yayın yükleniyor…",

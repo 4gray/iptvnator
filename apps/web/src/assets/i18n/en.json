@@ -528,6 +528,7 @@
             "STALLED": "This stream is taking longer than expected to start.",
             "PLAYBACK_FAILED": "Embedded MPV playback failed.",
             "RECONNECTING": "Connection lost. Reconnecting… attempt {{attempt}} of {{maxAttempts}}",
+            "STREAM_ENDED": "The live stream ended.",
             "CHECKING_SUPPORT": "Checking embedded MPV support...",
             "NOT_AVAILABLE": "Embedded MPV is not available in this environment.",
             "LOADING_STREAM": "Loading stream…",

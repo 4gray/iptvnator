@@ -528,6 +528,7 @@
             "STALLED": "此串流的啟動時間比預期長。",
             "PLAYBACK_FAILED": "內嵌 MPV 播放失敗。",
             "RECONNECTING": "連線中斷。正在重新連線… 第 {{attempt}} 次嘗試，共 {{maxAttempts}} 次",
+            "STREAM_ENDED": "現場直播已結束。",
             "CHECKING_SUPPORT": "正在檢查內嵌 MPV 支援…",
             "NOT_AVAILABLE": "內嵌 MPV 在此環境中無法使用。",
             "LOADING_STREAM": "正在載入串流…",

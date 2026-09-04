@@ -330,6 +330,12 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             };
         }
 
+        const statusPlayback = this.configuredContext()?.playback();
+        const liveEnded =
+            session.status === 'ended' &&
+            statusPlayback !== undefined &&
+            this.isLivePlayback(statusPlayback);
+
         switch (session.status) {
             case 'playing':
             case 'paused':
@@ -337,6 +343,16 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 return { status: session.status, statusMessage: '' };
             case 'ended':
             case 'closed':
+                if (liveEnded) {
+                    // A broadcast never ends on its own: surface it like an
+                    // error so the shared controls offer a way back.
+                    return {
+                        status: 'error',
+                        statusMessage: this.translate.instant(
+                            'EMBEDDED_MPV.PLAYER.STREAM_ENDED'
+                        ),
+                    };
+                }
                 return { status: 'ended', statusMessage: '' };
             case 'error':
                 return {

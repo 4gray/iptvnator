@@ -528,6 +528,7 @@
             "STALLED": "يستغرق بدء هذا البث وقتًا أطول من المتوقع.",
             "PLAYBACK_FAILED": "فشل التشغيل عبر MPV المضمّن.",
             "RECONNECTING": "انقطع الاتصال. جارٍ إعادة الاتصال… المحاولة {{attempt}} من {{maxAttempts}}",
+            "STREAM_ENDED": "انتهى البث المباشر.",
             "CHECKING_SUPPORT": "جارٍ التحقق من دعم MPV المضمّن...",
             "NOT_AVAILABLE": "MPV المضمّن غير متاح في هذه البيئة.",
             "LOADING_STREAM": "جارٍ تحميل البث…",

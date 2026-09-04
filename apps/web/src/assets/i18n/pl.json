@@ -528,6 +528,7 @@
             "STALLED": "Uruchamianie tego strumienia trwa dłużej niż zwykle.",
             "PLAYBACK_FAILED": "Odtwarzanie we wbudowanym MPV nie powiodło się.",
             "RECONNECTING": "Utracono połączenie. Ponowne łączenie… próba {{attempt}} z {{maxAttempts}}",
+            "STREAM_ENDED": "Transmisja na żywo zakończyła się.",
             "CHECKING_SUPPORT": "Sprawdzanie obsługi wbudowanego MPV...",
             "NOT_AVAILABLE": "Wbudowane MPV nie jest dostępne w tym środowisku.",
             "LOADING_STREAM": "Ładowanie strumienia…",

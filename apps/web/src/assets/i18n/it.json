@@ -528,6 +528,7 @@
             "STALLED": "L'avvio di questo stream sta richiedendo più tempo del previsto.",
             "PLAYBACK_FAILED": "Riproduzione con MPV integrato non riuscita.",
             "RECONNECTING": "Connessione persa. Riconnessione in corso… tentativo {{attempt}} di {{maxAttempts}}",
+            "STREAM_ENDED": "Lo stream in diretta è terminato.",
             "CHECKING_SUPPORT": "Verifica del supporto per MPV integrato...",
             "NOT_AVAILABLE": "MPV integrato non è disponibile in questo ambiente.",
             "LOADING_STREAM": "Caricamento stream…",

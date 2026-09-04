@@ -188,6 +188,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         return !playback.contentInfo;
     });
+    /**
+     * A live stream that ended and is not being reconnected: a broadcast
+     * never ends on its own, so this is a loss the viewer must be able to
+     * act on — the `ended` state otherwise looks like a paused player.
+     */
+    readonly isLiveEnded = computed(
+        () => this.isLivePlayback() && this.session()?.status === 'ended'
+    );
     readonly canSeek = computed(
         () =>
             !this.isLivePlayback() && (this.session()?.durationSeconds ?? 0) > 0
@@ -212,6 +220,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 session.error ??
                 this.translate.instant('EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED')
             );
+        }
+        if (session?.status === 'ended' && this.isLivePlayback()) {
+            return this.translate.instant('EMBEDDED_MPV.PLAYER.STREAM_ENDED');
         }
         if (!this.support()) {
             return this.translate.instant(

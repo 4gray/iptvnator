@@ -528,6 +528,7 @@
             "STALLED": "Der Start dieses Streams dauert länger als erwartet.",
             "PLAYBACK_FAILED": "Die Wiedergabe mit eingebettetem MPV ist fehlgeschlagen.",
             "RECONNECTING": "Verbindung unterbrochen. Verbindung wird wiederhergestellt… Versuch {{attempt}} von {{maxAttempts}}",
+            "STREAM_ENDED": "Der Live-Stream ist beendet.",
             "CHECKING_SUPPORT": "Unterstützung für eingebettetes MPV wird geprüft...",
             "NOT_AVAILABLE": "Eingebettetes MPV ist in dieser Umgebung nicht verfügbar.",
             "LOADING_STREAM": "Stream wird geladen…",

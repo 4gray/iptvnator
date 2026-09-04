@@ -528,6 +528,7 @@
             "STALLED": "이 스트림의 시작이 예상보다 오래 걸리고 있습니다.",
             "PLAYBACK_FAILED": "내장 MPV 재생에 실패했습니다.",
             "RECONNECTING": "연결이 끊어졌습니다. 다시 연결하는 중… 시도 {{attempt}}/{{maxAttempts}}",
+            "STREAM_ENDED": "라이브 스트림이 종료되었습니다.",
             "CHECKING_SUPPORT": "내장 MPV 지원을 확인하는 중...",
             "NOT_AVAILABLE": "이 환경에서는 내장 MPV를 사용할 수 없습니다.",
             "LOADING_STREAM": "스트림을 불러오는 중…",

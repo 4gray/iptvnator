@@ -528,6 +528,7 @@
             "STALLED": "このストリームの開始に予想より時間がかかっています。",
             "PLAYBACK_FAILED": "組み込みMPVでの再生に失敗しました。",
             "RECONNECTING": "接続が失われました。再接続中… 試行 {{attempt}} / {{maxAttempts}}",
+            "STREAM_ENDED": "ライブストリームが終了しました。",
             "CHECKING_SUPPORT": "組み込みMPVのサポートを確認中...",
             "NOT_AVAILABLE": "この環境では組み込みMPVは利用できません。",
             "LOADING_STREAM": "ストリームを読み込み中…",

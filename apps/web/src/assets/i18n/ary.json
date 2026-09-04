@@ -528,6 +528,7 @@
             "STALLED": "هاد البث كياخد وقت كثر من المتوقع باش يبدا.",
             "PLAYBACK_FAILED": "فشل التشغيل بـ MPV المدمج.",
             "RECONNECTING": "تقطع الاتصال. كنعاودو الاتصال… المحاولة {{attempt}} من {{maxAttempts}}",
+            "STREAM_ENDED": "البث المباشر سالا.",
             "CHECKING_SUPPORT": "جاري التحقق من دعم MPV المدمج...",
             "NOT_AVAILABLE": "MPV المدمج ما متوفرش فهاد البيئة.",
             "LOADING_STREAM": "جاري تشريج البث…",

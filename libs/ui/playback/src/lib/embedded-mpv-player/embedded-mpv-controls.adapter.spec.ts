@@ -128,6 +128,7 @@ function translations(prefix = ''): object {
             PLAYER: {
                 PLAYBACK_FAILED: `${prefix}Playback failed`,
                 RECONNECTING: `${prefix}Reconnecting {{attempt}}/{{maxAttempts}}`,
+                STREAM_ENDED: `${prefix}Live stream ended`,
                 CHECKING_SUPPORT: `${prefix}Checking support`,
                 NOT_AVAILABLE: `${prefix}Not available`,
                 LOADING_STREAM: `${prefix}Loading stream`,
@@ -385,6 +386,14 @@ describe('EmbeddedMpvControlsAdapter', () => {
 
         controller.session.set(session({ status: 'error', error: undefined }));
         expect(adapter.state().statusMessage).toBe('Playback failed');
+
+        playback.set({ ...LIVE_PLAYBACK, isLive: true });
+        controller.session.set(session({ status: 'ended' }));
+        expect(adapter.state()).toMatchObject({
+            status: 'error',
+            statusMessage: 'Live stream ended',
+        });
+        playback.set({ ...VOD_PLAYBACK, isLive: false });
 
         controller.session.set(
             session({

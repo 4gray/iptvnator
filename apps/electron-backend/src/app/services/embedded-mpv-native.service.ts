@@ -583,6 +583,15 @@ export class EmbeddedMpvNativeService {
 
     setPaused(sessionId: string, paused: boolean): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
+        if (paused) {
+            // A pause sent while the session sits in a loss state never
+            // surfaces as a `paused` status, so the command itself has to
+            // call off a scheduled reload (see embedded-mpv-reconnect.ts).
+            const session = this.sessions.get(sessionId);
+            if (session) {
+                this.reconnect.onUserPause(session.reconnect);
+            }
+        }
         this.getAddon().setPaused(sessionId, paused);
         return this.refreshSession(sessionId);
     }

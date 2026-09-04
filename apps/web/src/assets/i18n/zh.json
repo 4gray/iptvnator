@@ -528,6 +528,7 @@
             "STALLED": "该流的启动时间超出预期。",
             "PLAYBACK_FAILED": "嵌入式 MPV 播放失败。",
             "RECONNECTING": "连接已丢失。正在重新连接… 第 {{attempt}} 次尝试，共 {{maxAttempts}} 次",
+            "STREAM_ENDED": "直播已结束。",
             "CHECKING_SUPPORT": "正在检查嵌入式 MPV 支持…",
             "NOT_AVAILABLE": "嵌入式 MPV 在当前环境中不可用。",
             "LOADING_STREAM": "正在加载流…",

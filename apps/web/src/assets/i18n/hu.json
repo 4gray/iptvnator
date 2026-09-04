@@ -528,6 +528,7 @@
             "STALLED": "Az adatfolyam indítása a vártnál hosszabb ideig tart.",
             "PLAYBACK_FAILED": "Nem sikerült lejátszani a tartalmat a beágyazott MPV-vel.",
             "RECONNECTING": "A kapcsolat megszakadt. Újracsatlakozás… próbálkozás: {{attempt}}/{{maxAttempts}}",
+            "STREAM_ENDED": "Az élő adás véget ért.",
             "CHECKING_SUPPORT": "A beágyazott MPV támogatásának ellenőrzése…",
             "NOT_AVAILABLE": "A beágyazott MPV ebben a környezetben nem érhető el.",
             "LOADING_STREAM": "Adatfolyam betöltése…",
