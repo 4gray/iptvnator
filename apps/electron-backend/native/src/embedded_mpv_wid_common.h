@@ -1030,8 +1030,16 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
             std::max(0.0, std::min(100.0, *volume));
     }
     if (paused) {
-        session->snapshot.status =
-            *paused ? SessionStatus::Paused : SessionStatus::Playing;
+        if (*paused) {
+            session->snapshot.status = SessionStatus::Paused;
+        } else if (
+            position ||
+            session->snapshot.status != SessionStatus::Loading
+        ) {
+            // `time-pos` only answers once the media is decoding; until then
+            // an unpaused freshly spawned process is still loading.
+            session->snapshot.status = SessionStatus::Playing;
+        }
         session->snapshot.error.clear();
     }
     if (eofReached && *eofReached) {
@@ -1167,7 +1175,10 @@ void loadLinuxProcessPlayback(
         session->snapshot.durationSeconds = -1.0;
         session->snapshot.streamUrl = streamUrl;
         session->snapshot.error.clear();
-        session->snapshot.status = SessionStatus::Playing;
+        // A spawned process has not opened the URL yet: stay `loading` until
+        // the poller sees a decoded position, so a URL that never plays is
+        // never mistaken for one that did (the reconnect policy keys on it).
+        session->snapshot.status = SessionStatus::Loading;
         session->snapshot.audioTracks.clear();
         session->snapshot.selectedAudioTrackId = -1;
         session->snapshot.subtitleTracks.clear();
@@ -1972,8 +1983,16 @@ Napi::Value SetPaused(const Napi::CallbackInfo& info)
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         socketPath = session->mpvIpcSocketPath;
-        session->snapshot.status =
-            paused ? SessionStatus::Paused : SessionStatus::Playing;
+        // Optimistic only while playing/paused: a load in flight or a
+        // finished/failed stream keeps its status until the poller says
+        // otherwise, like the in-process engines' pause handling.
+        if (
+            session->snapshot.status == SessionStatus::Playing ||
+            session->snapshot.status == SessionStatus::Paused
+        ) {
+            session->snapshot.status =
+                paused ? SessionStatus::Paused : SessionStatus::Playing;
+        }
     }
     if (!socketPath.empty()) {
         sendLinuxMpvCommand(

@@ -562,9 +562,10 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
 - Only a load that already reached `playing` is retried. A URL that never
   worked (404, refused credentials, unsupported container) keeps the manual
   Retry instead of hammering the panel six times with the same request. The
-  Linux `mpv --wid` path reports `playing` as soon as the process spawns, so
-  on that engine the distinction is coarser; its poller reads `eof-reached`
-  over the IPC socket so a stream that ended reports `ended` rather than the
+  Linux `mpv --wid` path keeps a freshly spawned process at `loading` until
+  its poller sees a decoded `time-pos`, so a URL that never opens is never
+  counted as played there either; the poller also reads `eof-reached` over
+  the IPC socket so a stream that ended reports `ended` rather than the
   `paused` that keep-open would otherwise look like, and an mpv process that
   exits abnormally reports `error`.
 - Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
