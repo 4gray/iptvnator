@@ -364,6 +364,7 @@
         "EPG_OFFSET_TITLE": "EPG 时间偏移",
         "EPG_OFFSET_HINT": "无需刷新节目指南即可调整显示的节目时间。请输入 -720 到 720 之间的分钟数。",
         "EPG_OFFSET_LABEL": "偏移（分钟）",
+        "EPG_OFFSET_ERROR": "请输入 -720 到 720 之间的整数分钟数。",
         "EPG_VIEW_MODE_DESCRIPTION": "选择播放器下方的节目指南如何显示：横向时间轴条，或纵向的单日列表。",
         "EPG_VIEW_MODE_TIMELINE": "时间轴",
         "EPG_VIEW_MODE_LIST": "列表",

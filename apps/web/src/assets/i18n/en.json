@@ -364,6 +364,7 @@
         "EPG_OFFSET_TITLE": "EPG time offset",
         "EPG_OFFSET_HINT": "Shift displayed programme times without refreshing the guide. Use minutes, from -720 to 720.",
         "EPG_OFFSET_LABEL": "Offset (minutes)",
+        "EPG_OFFSET_ERROR": "Enter a whole number of minutes between -720 and 720.",
         "EPG_VIEW_MODE_DESCRIPTION": "Choose how the programme guide under the player is shown: a horizontal timeline ribbon or a vertical, single-day list.",
         "EPG_VIEW_MODE_TIMELINE": "Timeline",
         "EPG_VIEW_MODE_LIST": "List",

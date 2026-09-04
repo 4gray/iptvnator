@@ -364,6 +364,7 @@
         "EPG_OFFSET_TITLE": "Deslocamento de horário do EPG",
         "EPG_OFFSET_HINT": "Desloque os horários dos programas exibidos sem atualizar o guia. Use minutos de -720 a 720.",
         "EPG_OFFSET_LABEL": "Deslocamento (minutos)",
+        "EPG_OFFSET_ERROR": "Insira um número inteiro de minutos entre -720 e 720.",
         "EPG_VIEW_MODE_DESCRIPTION": "Escolha como o guia de programação abaixo do reprodutor é exibido: uma faixa horizontal em linha do tempo ou uma lista vertical de um único dia.",
         "EPG_VIEW_MODE_TIMELINE": "Linha do tempo",
         "EPG_VIEW_MODE_LIST": "Lista",

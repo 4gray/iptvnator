@@ -364,6 +364,7 @@
         "EPG_OFFSET_TITLE": "EPG 시간 오프셋",
         "EPG_OFFSET_HINT": "가이드를 새로 고치지 않고 표시되는 프로그램 시간을 조정합니다. -720에서 720 사이의 분 단위로 입력하세요.",
         "EPG_OFFSET_LABEL": "오프셋(분)",
+        "EPG_OFFSET_ERROR": "-720에서 720 사이의 정수(분)를 입력하세요.",
         "EPG_VIEW_MODE_DESCRIPTION": "플레이어 아래 프로그램 가이드를 표시하는 방식을 선택합니다: 가로 타임라인 리본 또는 하루 단위의 세로 목록입니다.",
         "EPG_VIEW_MODE_TIMELINE": "타임라인",
         "EPG_VIEW_MODE_LIST": "목록",
