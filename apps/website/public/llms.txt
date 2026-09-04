@@ -14,6 +14,12 @@
 - Guide, Xtream Codes setup: https://4gray.github.io/iptvnator/blog/xtream-codes-setup-guide/
 - Guide, Stalker/Ministra portal setup: https://4gray.github.io/iptvnator/blog/stalker-portal-setup-guide/
 - Guide, M3U playlist and EPG setup: https://4gray.github.io/iptvnator/blog/m3u-playlist-epg-setup-guide/
+- Features overview: https://4gray.github.io/iptvnator/features/
+- Feature, M3U playlist player: https://4gray.github.io/iptvnator/features/m3u-player/
+- Feature, Xtream Codes player: https://4gray.github.io/iptvnator/features/xtream-codes-player/
+- Feature, Stalker portal player: https://4gray.github.io/iptvnator/features/stalker-portal-player/
+- Feature, TV guide (EPG): https://4gray.github.io/iptvnator/features/epg/
+- Feature, phone remote control: https://4gray.github.io/iptvnator/features/remote-control/
 - Release Notes (v0.18): https://4gray.github.io/iptvnator/blog/v0-18-release-notes/
 - Troubleshooting (macOS app damaged fix): https://4gray.github.io/iptvnator/blog/macos-arm-app-damaged-fix/
 - Source Code: https://github.com/4gray/iptvnator

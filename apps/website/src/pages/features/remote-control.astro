@@ -1,0 +1,151 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import FeatureHero from '../../components/feature/FeatureHero.astro';
+import FeatureSwitcher from '../../components/feature/FeatureSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildFeaturePageSchema } from '../../lib/feature-schema';
+import { featureBySlug } from '../../lib/features';
+import { absoluteUrl } from '../../lib/site';
+
+const feature = featureBySlug('remote-control');
+const pageUrl = absoluteUrl('/features/remote-control/');
+const title = 'Phone Remote Control for IPTVnator – Change Channels from the Couch';
+const description =
+  'The IPTVnator desktop app serves a web remote to any phone or tablet on your network: channel up and down, direct channel numbers, volume for the built-in player and a now-playing panel with the current program. No app to install, no account, free and open source.';
+
+const setup = [
+  'Open Settings › Remote control on the desktop app and enable the remote. The default port is 8765; change it if something else uses it.',
+  'Scan the QR code shown in the settings with your phone, or type the displayed address into its browser. Phone and computer must be on the same network.',
+  'Keep the page open. It shows what is playing and offers channel up and down, a number pad and, for the built-in player, volume.',
+];
+
+const remote = [
+  {
+    title: 'Channel up and down',
+    description: 'Step through the list you are looking at: the whole playlist in the M3U player, the current category in a portal, the filtered collection in favorites and recent.',
+  },
+  {
+    title: 'Direct channel numbers',
+    description: 'Type a number on the pad to jump to that position in the list, the way a set-top box remote does.',
+  },
+  {
+    title: 'Now playing',
+    description: 'The remote shows the source, the channel name and number and the current program, refreshed every two seconds.',
+  },
+  {
+    title: 'Volume',
+    description: 'Volume up, down and mute for the built-in players in the M3U player; external MPV or VLC keep their own volume.',
+  },
+  {
+    title: 'Works with every source',
+    description: 'M3U playlists, Xtream live TV, Stalker live TV and radio, and the favorites, recent and global collections all publish their status to the remote.',
+  },
+  {
+    title: 'Nothing to install',
+    description: 'The remote is a small web page served by the desktop app itself. Any phone or tablet browser works, and there is no account.',
+  },
+];
+
+const details = [
+  { term: 'Where it runs', value: 'Desktop app only. The app hosts the remote page and the small API it uses.' },
+  { term: 'Address', value: 'Your computer\'s local IP address and the configured port, shown as text and as a QR code in the settings.' },
+  { term: 'Default port', value: '8765, configurable in Settings › Remote control.' },
+  { term: 'Network', value: 'Local network only. The remote has no authentication or encryption, so keep it off networks you do not trust.' },
+  { term: 'Numbers', value: 'A number selects the channel at that position in the active list, not a channel number from the guide.' },
+  { term: 'Updates', value: 'The remote polls the app every two seconds; a channel change on the desktop appears on the phone right after.' },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Do I need to install an app on my phone?',
+    a: 'No. The remote is a web page served by the IPTVnator desktop app. Open the address or scan the QR code from the settings in any phone or tablet browser.',
+  },
+  {
+    q: 'Does the remote work over the internet?',
+    a: 'No. It is meant for the local network, where your phone and computer share a Wi-Fi, and it has no authentication or encryption. Do not expose the port to the internet.',
+  },
+  {
+    q: 'Which players support volume from the remote?',
+    a: 'The built-in web players in the M3U player. MPV, VLC and the embedded MPV engine keep their own volume, and portal views currently pass only channel commands.',
+  },
+  {
+    q: 'What does a channel number mean on the remote?',
+    a: 'The position in the list you are currently looking at, counted from one, like the numbering in the sidebar. It is not the channel number a provider may print in its guide.',
+  },
+  {
+    q: 'Does the remote work with the browser version of IPTVnator?',
+    a: 'No. Serving the remote page requires the desktop app, which hosts the small web server behind it.',
+  },
+];
+
+const jsonLd = buildFeaturePageSchema({
+  feature,
+  pageUrl,
+  description,
+  featureList: [
+    'Web remote served by the desktop app to phones on the local network',
+    'Channel up, channel down and direct channel numbers',
+    'Now-playing status with source, channel and current program',
+    'Volume control for the built-in players',
+    'QR code and address shown in the settings',
+  ],
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTV player remote control', 'IPTVnator remote control', 'control IPTV player from phone', 'IPTV player with remote app', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <FeatureHero
+    feature={feature}
+    titleLead="Your phone as the"
+    titleAccent="remote"
+    lede="The desktop app can serve a small web remote to any phone or tablet on your network: channel up and down, direct channel numbers, volume for the built-in player, and a now-playing panel with the current program. No app to install, no account."
+    facts={['Desktop app feature', 'Any phone browser', 'Same Wi-Fi network', 'QR code setup']}
+    screenshot={{
+      src: '/iptvnator/blog/v0-19-remote-control.png',
+      alt: 'The web remote with a now-playing panel, channel navigation and a number pad',
+      width: 2284,
+      height: 1772,
+    }}
+  />
+
+  <DownloadSection id="setup" eyebrow="Setup" title="Ready in" accent="three steps" lead="Enable it once in the settings; the address and QR code stay there for every device you want to use.">
+    <div class="max-w-3xl">
+      <StepRail title="On the desktop app" steps={setup} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="remote" eyebrow="What you get" title="A remote that" accent="knows what is on">
+    <FeatureList items={remote} />
+  </DownloadSection>
+
+  <DownloadSection id="details" eyebrow="Under the hood" title="The" accent="details">
+    <SpecList items={details} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="the remote">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Set up a" accent="source first">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <FeatureSwitcher current="remote-control" />
+</BaseLayout>

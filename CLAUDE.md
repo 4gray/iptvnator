@@ -330,7 +330,7 @@ This is an Nx monorepo with the following structure:
 - **apps/electron-backend-e2e** - Playwright E2E tests against the Electron app
 - **apps/stalker-mock-server** - Mock Stalker/Ministra portal for dev and E2E
 - **apps/xtream-mock-server** - Mock Xtream Codes API for dev and E2E
-- **apps/website** - Astro + Tailwind landing page, blog, and per-OS download landing pages (`/download/`, `/download/{windows,macos,linux}/`); direct asset links are resolved at build time from the GitHub Releases API with a `package.json` fallback (`src/lib/downloads.ts`, see `apps/website/README.md`)
+- **apps/website** - Astro + Tailwind landing page, blog (guides carry `faq:` frontmatter → FAQPage JSON-LD), per-OS download landing pages (`/download/`, `/download/{windows,macos,linux}/`) and feature landing pages (`/features/`, registry in `src/lib/features.ts`); direct asset links are resolved at build time from the GitHub Releases API with a `package.json` fallback (`src/lib/downloads.ts`, see `apps/website/README.md`)
 - **libs/** - Shared libraries:
     - **epg/data-access** - EPG services, runtime bridge, program normalization
     - **m3u-state** - NgRx state management for M3U playlists
