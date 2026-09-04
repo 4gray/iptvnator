@@ -180,6 +180,39 @@ describe('EpgQueueService', () => {
         sub.unsubscribe();
     });
 
+    it('retires a request that fails after the offset changed and fetches again', async () => {
+        let rejectShort!: (error: Error) => void;
+        xtreamApi.getShortEpg.mockImplementationOnce(
+            () =>
+                new Promise<EpgItem[]>((_, reject) => {
+                    rejectShort = reject;
+                })
+        );
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Provider now', -15, 30),
+            listing('Really on air', -75, 60),
+        ]);
+        const settle = async () => {
+            for (let i = 0; i < 10; i++) await Promise.resolve();
+        };
+
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        rejectShort(new Error('provider down'));
+        await settle();
+        jest.advanceTimersByTime(201);
+        await settle();
+
+        // The failure belonged to the retired request: no cooldown, and the
+        // stream was fetched again at the new provider clock.
+        expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+            'Provider now',
+        ]);
+    });
+
     it('caches empty EPG responses and does not immediately refetch them', async () => {
         xtreamApi.getShortEpg.mockResolvedValue([]);
 

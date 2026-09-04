@@ -384,34 +384,22 @@ export class EpgQueueService implements OnDestroy {
         // Captured before the request so the entry is tagged with the offset
         // its window was cut for, not the one current when it lands.
         const offsetMinutes = this.epgOffsetMinutes();
+        const outcome = await this.requestPreviewWindow(
+            credentials,
+            streamId,
+            offsetMinutes
+        );
         try {
-            const apiItems =
-                offsetMinutes === 0
-                    ? await this.apiService.getShortEpg(
-                          credentials,
-                          streamId,
-                          this.previewLimit,
-                          { suppressErrorLog: true }
-                      )
-                    : this.windowAtProviderClock(
-                          await this.apiService.getFullEpg(
-                              credentials,
-                              streamId,
-                              { suppressErrorLog: true }
-                          ),
-                          offsetMinutes
-                      );
-
             // A mapping change during the request invalidated this result.
             if (isStale()) {
                 return;
             }
 
             // The setting changed while the request was on the wire, so this
-            // window was cut for the previous provider clock. The reload the
-            // change triggered skipped the stream because it was in flight,
-            // so drop the result and fetch again if the row is still visible
-            // instead of committing a window nobody asked for.
+            // window — or its failure — belongs to the previous provider
+            // clock. The reload the change triggered skipped the stream
+            // because it was in flight, so retire the request whatever its
+            // outcome and fetch again if the row is still visible.
             if (offsetMinutes !== this.epgOffsetMinutes()) {
                 this.supersedeForOffsetChange(
                     credentials,
@@ -421,22 +409,22 @@ export class EpgQueueService implements OnDestroy {
                 return;
             }
 
-            if (apiItems.length > 0) {
-                this.recordSuccess(streamId, apiItems, offsetMinutes);
+            if ('error' in outcome) {
+                this.failureTimestamps.set(streamId, Date.now());
+                this.logger.error(
+                    `Failed to load EPG for stream ${streamId}`,
+                    outcome.error
+                );
+                return;
+            }
+
+            if (outcome.items.length > 0) {
+                this.recordSuccess(streamId, outcome.items, offsetMinutes);
                 return;
             }
 
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
             this.recordSuccess(streamId, xmltv ? [xmltv] : [], offsetMinutes);
-        } catch (error) {
-            if (isStale()) {
-                return;
-            }
-            this.failureTimestamps.set(streamId, Date.now());
-            this.logger.error(
-                `Failed to load EPG for stream ${streamId}`,
-                error
-            );
         } finally {
             // Only release the in-flight marker if this request still owns it.
             // When invalidate() cleared it mid-flight, a later re-enqueue may
@@ -446,6 +434,42 @@ export class EpgQueueService implements OnDestroy {
             if (!isStale()) {
                 this.inFlight.delete(streamId);
             }
+        }
+    }
+
+    /**
+     * The provider round-trip for one stream, settled into a value so the
+     * caller decides once — for success and failure alike — whether the
+     * result is still wanted. Without an offset the cheap short EPG is
+     * enough; with one, the window is cut from the full guide at the
+     * provider clock (see `windowAtProviderClock`).
+     */
+    private async requestPreviewWindow(
+        credentials: XtreamCredentials,
+        streamId: number,
+        offsetMinutes: number
+    ): Promise<{ items: EpgItem[] } | { error: unknown }> {
+        try {
+            if (offsetMinutes === 0) {
+                return {
+                    items: await this.apiService.getShortEpg(
+                        credentials,
+                        streamId,
+                        this.previewLimit,
+                        { suppressErrorLog: true }
+                    ),
+                };
+            }
+            return {
+                items: this.windowAtProviderClock(
+                    await this.apiService.getFullEpg(credentials, streamId, {
+                        suppressErrorLog: true,
+                    }),
+                    offsetMinutes
+                ),
+            };
+        } catch (error) {
+            return { error };
         }
     }
 
