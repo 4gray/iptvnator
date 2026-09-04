@@ -9,20 +9,13 @@ import { blurFocusedControl } from '../player-controls';
 const POINTER_ATTRIBUTION_WINDOW_MS = 1000;
 
 /**
- * Video.js focusables that capture the keyboard: control-bar `<button>`s,
- * `ClickableComponent` divs (`role="button"`, e.g. the poster) and sliders
- * (`role="slider"`). Menu items are `role="menuitem*"` and are deliberately
- * absent — while a menu is open its item owns arrow-key navigation.
+ * Video.js focusables that capture the keyboard: control-bar `<button>`s
+ * (including menu buttons), `ClickableComponent` divs (`role="button"`, e.g.
+ * the poster) and sliders (`role="slider"`). Menu items are `role="menuitem*"`
+ * and are deliberately absent — while a menu is open its item, not its button,
+ * owns arrow-key navigation, so releasing the button never disturbs it.
  */
 const VJS_RELEASE_SELECTOR = 'button, [role="button"], [role="slider"]';
-
-/**
- * An expanded menu button keeps its focus: while its popup is open the button
- * carries the menu's keyboard interaction, and releasing it would break arrow
- * navigation. Once an item is chosen the button is unpressed
- * (`aria-expanded="false"`) and becomes eligible again.
- */
-const VJS_RELEASE_EXEMPT = '.vjs-menu-button[aria-expanded="true"]';
 
 /**
  * Vendor-chrome counterpart of the shared controls' pointer focus release
@@ -42,11 +35,15 @@ const VJS_RELEASE_EXEMPT = '.vjs-menu-button[aria-expanded="true"]';
  * recent pointer press inside the shell — a `pointerdown` within the window,
  * not yet ended by a keydown anywhere — so keyboard `Tab` focus is preserved
  * (the keydown listener is on the document because the key that follows a
- * release is pressed while focus sits on `body`, outside the shell). Opening
- * a menu focuses a menu item (not eligible) or, briefly, the not-yet-expanded
- * button, which the release drops harmlessly because Video.js then focuses
- * the item; an already-expanded menu button is exempt so its open popup keeps
- * working. Returns the detach function.
+ * release is pressed while focus sits on `body`, outside the shell).
+ *
+ * Menu buttons are not exempt: a Video.js popup is navigated through its
+ * focused item, not its button, so releasing the button never breaks it.
+ * Opening a menu focuses the item (not eligible), and the button focus that
+ * a pointer press moves through — the transient press on open, and the press
+ * that toggles an open menu shut — is released, which is what lets Space work
+ * again after a menu is dismissed by clicking its button a second time.
+ * Returns the detach function.
  */
 export function attachVjsPointerFocusRelease(root: HTMLElement): () => void {
     const doc = root.ownerDocument;
@@ -71,10 +68,7 @@ export function attachVjsPointerFocusRelease(root: HTMLElement): () => void {
         ) {
             return;
         }
-        blurFocusedControl(root, {
-            selector: VJS_RELEASE_SELECTOR,
-            exempt: VJS_RELEASE_EXEMPT,
-        });
+        blurFocusedControl(root, { selector: VJS_RELEASE_SELECTOR });
     };
 
     root.addEventListener('pointerdown', onPointerDown, { capture: true });

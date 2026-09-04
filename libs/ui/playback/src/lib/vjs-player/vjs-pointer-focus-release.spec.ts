@@ -106,12 +106,16 @@ describe('attachVjsPointerFocusRelease', () => {
         expect(document.activeElement).not.toBe(menuButton);
     });
 
-    it('keeps an expanded menu button focused so its open popup keeps working', () => {
+    it('releases an expanded menu button so Space works after a click closes it', () => {
+        // Toggling an open menu shut with a pointer moves focus item -> button
+        // while the button is still expanded; the button then swallows keys
+        // until released. It is not exempt: the popup is navigated through its
+        // item, so dropping the button focus never disturbs an open menu.
         menuButton.setAttribute('aria-expanded', 'true');
         pointerDown();
         menuButton.focus();
 
-        expect(document.activeElement).toBe(menuButton);
+        expect(document.activeElement).not.toBe(menuButton);
     });
 
     it('keeps a focused menu item so arrow navigation survives', () => {

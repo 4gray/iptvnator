@@ -102,17 +102,4 @@ describe('blurFocusedControl', () => {
         );
         expect(document.activeElement).not.toBe(clickable);
     });
-
-    it('keeps focus inside an exempt subtree', () => {
-        const menu = document.createElement('div');
-        menu.className = 'menu';
-        const item = document.createElement('button');
-        menu.appendChild(item);
-        root.appendChild(menu);
-        item.focus();
-
-        expect(blurFocusedControl(root, { exempt: '.menu' })).toBe(false);
-        expect(document.activeElement).toBe(item);
-        expect(blurFocusedControl(root)).toBe(true);
-    });
 });

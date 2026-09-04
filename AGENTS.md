@@ -467,9 +467,11 @@ Key files:
   to the menu button a tick later and that click never bubbles to the shell:
   an eligible control (button/`role=button`/slider, never a menu item) is
   released when its focus is attributable to a recent shell `pointerdown` not
-  yet ended by a document `keydown`, so `Tab` focus is kept. An
-  `aria-expanded="true"` menu button is exempt so its open popup keeps arrow
-  navigation; a collapsed one (after a selection) is released. ArtPlayer
+  yet ended by a document `keydown`, so `Tab` focus is kept. Menu buttons are
+  not exempt: a popup is navigated through its focused item, so releasing the
+  button never disturbs an open menu, and the button focus a pointer moves
+  through (open, item selection, toggling an open menu shut) is released so
+  Space works again after the menu closes. ArtPlayer
   (non-focusable divs) and the native HTML5 controls (focus lands on the
   `<video>`) need no counterpart.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a

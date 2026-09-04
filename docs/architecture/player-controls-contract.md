@@ -445,11 +445,13 @@ straight to the engine:
   on an eligible control (a `<button>`, `role="button"` clickable, or slider;
   never a `role="menuitem*"`) is released when it is attributable to a recent
   `pointerdown` inside the shell not yet ended by a document `keydown`, so
-  keyboard `Tab` focus is preserved. An `aria-expanded="true"` menu button is
-  exempt so its open popup keeps arrow navigation; once an item is chosen the
-  button is collapsed and released. Opening a menu focuses a menu item (not
-  eligible) or, briefly, the not-yet-expanded button, which is dropped
-  harmlessly because Video.js then focuses the item. ArtPlayer needs no
+  keyboard `Tab` focus is preserved. Menu buttons are not exempt: a Video.js
+  popup is navigated through its focused item, not its button, so releasing
+  the button never disturbs an open menu — opening focuses the item, and the
+  button focus a pointer moves through (the transient press on open, and the
+  press that toggles an open menu shut) is released, which is what lets Space
+  work again after a menu is dismissed by clicking its button a second time.
+  ArtPlayer needs no
   counterpart (its controls are non-focusable divs), nor do the native HTML5
   controls (a click focuses the `<video>`, which the shortcuts do not treat as
   interactive).

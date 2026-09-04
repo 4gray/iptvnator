@@ -10,11 +10,6 @@ export const POINTER_FOCUS_RELEASE_SELECTOR =
 export interface BlurFocusedControlOptions {
     /** Controls eligible for release; defaults to the shared selector. */
     selector?: string;
-    /**
-     * Subtrees whose focus is left alone even when the control matches, for
-     * chrome that manages focus itself (a popup menu that closes on blur).
-     */
-    exempt?: string;
 }
 
 /**
@@ -48,9 +43,7 @@ export function blurFocusedControl(
     if (
         !(active instanceof HTMLElement) ||
         !root.contains(active) ||
-        !active.matches(options.selector ?? POINTER_FOCUS_RELEASE_SELECTOR) ||
-        (options.exempt !== undefined &&
-            active.closest(options.exempt) !== null)
+        !active.matches(options.selector ?? POINTER_FOCUS_RELEASE_SELECTOR)
     ) {
         return false;
     }
