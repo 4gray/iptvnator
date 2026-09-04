@@ -101,6 +101,9 @@ struct SessionSnapshot {
     // True when `error` is the engine's own failure (render context, fatal
     // libmpv log) rather than the stream's: the app must not reload for it.
     bool engineError = false;
+    // Keys of session options libmpv refused at creation (names only, never
+    // values: a value may carry credentials). Reported once by the service.
+    std::vector<std::string> rejectedOptionKeys;
     std::vector<AudioTrack> audioTracks;
     int64_t selectedAudioTrackId = -1;
     std::vector<AudioTrack> subtitleTracks;
@@ -1691,6 +1694,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
                 "rejected session option " + option.first + ": " +
                     mpv_error_string(optionResult)
             );
+            session->snapshot.rejectedOptionKeys.push_back(option.first);
         }
     }
 
@@ -2548,6 +2552,17 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
         if (snapshot.engineError) {
             result.Set("errorOrigin", Napi::String::New(env, "engine"));
         }
+    }
+    if (!snapshot.rejectedOptionKeys.empty()) {
+        Napi::Array keys =
+            Napi::Array::New(env, snapshot.rejectedOptionKeys.size());
+        for (size_t i = 0; i < snapshot.rejectedOptionKeys.size(); ++i) {
+            keys.Set(
+                static_cast<uint32_t>(i),
+                Napi::String::New(env, snapshot.rejectedOptionKeys[i])
+            );
+        }
+        result.Set("rejectedOptionKeys", keys);
     }
 
     return result;

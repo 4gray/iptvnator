@@ -100,6 +100,7 @@ interface MockSnapshot {
     recording?: { active: boolean; targetPath?: string };
     error?: string;
     errorOrigin?: 'playback' | 'engine';
+    rejectedOptionKeys?: string[];
 }
 
 const BOUNDS: EmbeddedMpvBounds = { x: 0, y: 0, width: 100, height: 100 };
@@ -141,6 +142,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
     let positionSeconds: number;
     let recordingActive: boolean;
     let errorOrigin: 'playback' | 'engine' | undefined;
+    let rejectedOptionKeys: string[] | undefined;
     let originalPlatform: NodeJS.Platform;
     let originalArch: string;
     let originalExperiment: string | undefined;
@@ -177,6 +179,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         positionSeconds = 0;
         recordingActive = false;
         errorOrigin = undefined;
+        rejectedOptionKeys = undefined;
         recordingTrackerMock.onRecordingStarted.mockReset();
         recordingTrackerMock.onRecordingStopped.mockReset();
         recordingTrackerMock.onRecordingInterrupted.mockReset();
@@ -193,6 +196,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
                 streamUrl: LIVE.streamUrl,
                 recording: { active: recordingActive },
                 ...(errorOrigin ? { errorOrigin } : {}),
+                ...(rejectedOptionKeys ? { rejectedOptionKeys } : {}),
             })),
             disposeSession: jest.fn(),
             setBounds: jest.fn(),
@@ -367,6 +371,53 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         jest.advanceTimersByTime(1);
 
         expect(addon.startRecording).toHaveBeenCalledTimes(2);
+    });
+
+    it('captures a recording acknowledged one poll after the drop', () => {
+        startPlayingLive();
+        service.startRecording('session-1', { title: 'Live channel' });
+
+        // First loss poll: the drop arrives before the recording is
+        // acknowledged; the next poll still reports the error, now with
+        // the recording active.
+        poll('error');
+        expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+        recordingActive = true;
+        poll('error');
+
+        status = 'loading';
+        recordingActive = false;
+        jest.advanceTimersByTime(2_000);
+        expect(
+            recordingTrackerMock.onRecordingInterrupted
+        ).toHaveBeenCalledWith('session-1');
+        poll('playing');
+        jest.advanceTimersByTime(1);
+
+        expect(addon.startRecording).toHaveBeenCalledTimes(2);
+    });
+
+    it('warns once, by key only, when libmpv rejected a session option', () => {
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        try {
+            rejectedOptionKeys = ['http-header-fields', 'no-such-option'];
+            startPlayingLive();
+            poll('playing');
+            poll('playing');
+
+            const rejectedWarnings = warn.mock.calls.filter((call) =>
+                String(call[0]).includes('rejected extra option')
+            );
+            expect(rejectedWarnings).toHaveLength(1);
+            expect(rejectedWarnings[0][0]).toContain(
+                'http-header-fields, no-such-option'
+            );
+            expect(rejectedWarnings[0][0]).toContain('session-1');
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('files the interruption once even when the first reload attempt fails', () => {

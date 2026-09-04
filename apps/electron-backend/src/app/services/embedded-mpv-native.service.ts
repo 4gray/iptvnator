@@ -82,6 +82,11 @@ export interface NativeEmbeddedMpvSessionSnapshot {
      * stream failed and a reload can help.
      */
     errorOrigin?: 'playback' | 'engine';
+    /**
+     * Session option keys libmpv refused at creation (macOS/Windows
+     * native-view). Names only; the service warns once per session.
+     */
+    rejectedOptionKeys?: string[];
 }
 
 export interface NativeEmbeddedMpvAddon {
@@ -133,6 +138,8 @@ interface EmbeddedMpvRuntimeSession {
     recordingRunningAtLoss: boolean;
     /** The reload replaced the recorded stream; restart the recording once it plays. */
     restartRecordingAfterReconnect: boolean;
+    /** The rejected-options warning was logged for this session. */
+    rejectedOptionsReported: boolean;
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -587,6 +594,7 @@ export class EmbeddedMpvNativeService {
             lastRecordingActive: false,
             recordingRunningAtLoss: false,
             restartRecordingAfterReconnect: false,
+            rejectedOptionsReported: false,
         });
 
         this.ensurePolling();
@@ -1070,6 +1078,29 @@ export class EmbeddedMpvNativeService {
         this.pollingTimer = null;
     }
 
+    /**
+     * A syntactically valid option libmpv still refused (unknown name, bad
+     * value) is otherwise invisible outside a trace run; log the key once so
+     * the user learns the line did not apply. Keys only — a value may carry
+     * credentials (`http-header-fields`, proxies).
+     */
+    private reportRejectedOptions(
+        session: EmbeddedMpvRuntimeSession,
+        snapshot: NativeEmbeddedMpvSessionSnapshot
+    ): void {
+        if (
+            session.rejectedOptionsReported ||
+            !Array.isArray(snapshot.rejectedOptionKeys) ||
+            snapshot.rejectedOptionKeys.length === 0
+        ) {
+            return;
+        }
+        session.rejectedOptionsReported = true;
+        console.warn(
+            `[Embedded MPV] session ${session.id}: libmpv rejected extra option(s) ${snapshot.rejectedOptionKeys.join(', ')} (Settings > Playback > Embedded MPV)`
+        );
+    }
+
     private refreshSession(sessionId: string): EmbeddedMpvSession | null {
         const addon = this.getAddon();
         const session = this.sessions.get(sessionId);
@@ -1081,6 +1112,7 @@ export class EmbeddedMpvNativeService {
         if (!snapshot) {
             return null;
         }
+        this.reportRejectedOptions(session, snapshot);
 
         const payload: EmbeddedMpvSession = {
             id: session.id,
@@ -1159,16 +1191,19 @@ export class EmbeddedMpvNativeService {
         if (
             reconnect &&
             session.lastRecordingStart &&
-            (session.lastRecordingActive ||
-                payload.recording?.active === true) &&
-            (previousStatus === 'playing' || previousStatus === 'paused')
+            !session.restartRecordingAfterReconnect &&
+            (payload.recording?.active === true ||
+                (session.lastRecordingActive &&
+                    (previousStatus === 'playing' ||
+                        previousStatus === 'paused')))
         ) {
             // The outage began while a recording was running. Whether that
             // recording is over is decided by the reload hook: only an
             // actual reload replaces the stream and stops it. Recording
             // starts asynchronously on Windows native-view and frame-copy,
-            // so a recording started within the last poll tick shows up as
-            // active only in this very snapshot, next to the error.
+            // so a recording started shortly before the drop is acknowledged
+            // as active only in a later poll of the pending outage — accept
+            // it whenever the engine reports it, not just on the transition.
             session.recordingRunningAtLoss = true;
         } else if (
             reconnect === null &&

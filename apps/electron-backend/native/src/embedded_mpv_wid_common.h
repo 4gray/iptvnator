@@ -119,6 +119,8 @@ struct SessionSnapshot {
     double volumePercent = 100.0;
     std::string streamUrl;
     std::string error;
+    /** Keys of session options libmpv refused at creation (names only). */
+    std::vector<std::string> rejectedOptionKeys;
     std::vector<AudioTrack> audioTracks;
     int64_t selectedAudioTrackId = -1;
     std::vector<AudioTrack> subtitleTracks;
@@ -1750,6 +1752,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
                 "rejected session option " + option.first + ": " +
                 mpv_error_string(optionResult)
             );
+            session->snapshot.rejectedOptionKeys.push_back(option.first);
         }
     }
     mpv_request_log_messages(session->handle, "warn");
@@ -2380,6 +2383,17 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
     }
     if (!snapshot.error.empty()) {
         result.Set("error", Napi::String::New(env, snapshot.error));
+    }
+    if (!snapshot.rejectedOptionKeys.empty()) {
+        Napi::Array keys =
+            Napi::Array::New(env, snapshot.rejectedOptionKeys.size());
+        for (size_t i = 0; i < snapshot.rejectedOptionKeys.size(); ++i) {
+            keys.Set(
+                static_cast<uint32_t>(i),
+                Napi::String::New(env, snapshot.rejectedOptionKeys[i])
+            );
+        }
+        result.Set("rejectedOptionKeys", keys);
     }
     return result;
 }
