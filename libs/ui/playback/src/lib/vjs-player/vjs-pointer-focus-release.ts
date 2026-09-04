@@ -8,12 +8,15 @@ import { blurFocusedControl } from '../player-controls';
  */
 const POINTER_ATTRIBUTION_WINDOW_MS = 1000;
 
+/** The persistent chrome the release is scoped to (see the doc comment). */
+const VJS_CONTROL_BAR_SELECTOR = '.vjs-control-bar';
+
 /**
- * Video.js focusables that capture the keyboard: control-bar `<button>`s
- * (including menu buttons), `ClickableComponent` divs (`role="button"`, e.g.
- * the poster) and sliders (`role="slider"`). Menu items are `role="menuitem*"`
- * and are deliberately absent — while a menu is open its item, not its button,
- * owns arrow-key navigation, so releasing the button never disturbs it.
+ * Control-bar focusables that capture the keyboard: `<button>`s (including
+ * menu buttons), `ClickableComponent` divs (`role="button"`) and sliders
+ * (`role="slider"`). Menu items are `role="menuitem*"` and are deliberately
+ * absent — while a menu is open its item, not its button, owns arrow-key
+ * navigation, so releasing the button never disturbs it.
  */
 const VJS_RELEASE_SELECTOR = 'button, [role="button"], [role="slider"]';
 
@@ -37,13 +40,19 @@ const VJS_RELEASE_SELECTOR = 'button, [role="button"], [role="slider"]';
  * (the keydown listener is on the document because the key that follows a
  * release is pressed while focus sits on `body`, outside the shell).
  *
- * Menu buttons are not exempt: a Video.js popup is navigated through its
- * focused item, not its button, so releasing the button never breaks it.
- * Opening a menu focuses the item (not eligible), and the button focus that
- * a pointer press moves through — the transient press on open, and the press
- * that toggles an open menu shut — is released, which is what lets Space work
- * again after a menu is dismissed by clicking its button a second time.
- * Returns the detach function.
+ * The release is scoped to the `.vjs-control-bar`: that persistent chrome is
+ * what hands keys back to the document, while the player's other focusable
+ * surfaces manage their own focus and must keep it. In particular the
+ * caption-settings dialog (`.vjs-text-track-settings`, a modal sibling of the
+ * control bar) traps focus for its Escape/Tab handling — blurring its Reset
+ * button would let keys leak to the document behind the open dialog. Menu
+ * buttons live in the control bar and are not exempt: a Video.js popup is
+ * navigated through its focused item, not its button, so releasing the button
+ * never breaks it. Opening a menu focuses the item (not eligible), and the
+ * button focus a pointer press moves through — the transient press on open,
+ * item selection, and toggling an open menu shut — is released, which is what
+ * lets Space work again after a menu is dismissed by clicking its button a
+ * second time. Returns the detach function.
  */
 export function attachVjsPointerFocusRelease(root: HTMLElement): () => void {
     const doc = root.ownerDocument;
@@ -68,7 +77,12 @@ export function attachVjsPointerFocusRelease(root: HTMLElement): () => void {
         ) {
             return;
         }
-        blurFocusedControl(root, { selector: VJS_RELEASE_SELECTOR });
+        // Passing the control bar (not the shell) as the root scopes the
+        // release to it, so focus inside a modal dialog is left alone.
+        const controlBar = root.querySelector(VJS_CONTROL_BAR_SELECTOR);
+        if (controlBar instanceof HTMLElement) {
+            blurFocusedControl(controlBar, { selector: VJS_RELEASE_SELECTOR });
+        }
     };
 
     root.addEventListener('pointerdown', onPointerDown, { capture: true });

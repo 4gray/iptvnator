@@ -57,10 +57,16 @@ describe('VjsPlayerComponent pointer focus release wiring', () => {
         ) as HTMLElement;
     };
 
-    /** A control the mocked player never renders, so the test owns it. */
+    /**
+     * A control bar with a button — the mocked player renders neither, and
+     * the release is scoped to `.vjs-control-bar`, so the test owns both.
+     */
     const addControl = (shell: HTMLElement) => {
+        const bar = document.createElement('div');
+        bar.className = 'vjs-control-bar';
         const button = document.createElement('button');
-        shell.appendChild(button);
+        bar.appendChild(button);
+        shell.appendChild(bar);
         return button;
     };
 

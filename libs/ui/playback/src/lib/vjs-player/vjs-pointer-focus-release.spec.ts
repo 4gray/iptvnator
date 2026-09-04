@@ -4,43 +4,50 @@ describe('attachVjsPointerFocusRelease', () => {
     let root: HTMLElement;
     let fullscreen: HTMLButtonElement;
     let seekBar: HTMLElement;
-    let poster: HTMLElement;
     let menuButton: HTMLButtonElement;
     let menuItem: HTMLElement;
+    let modalResetButton: HTMLButtonElement;
     let detach: () => void;
 
     beforeEach(() => {
         root = document.createElement('div');
         root.className = 'vjs-player-shell';
-        // The focusable subset of the Video.js 8 skin: buttons, the poster
-        // (`ClickableComponent`, role=button), sliders, and a menu button
-        // whose popup items are focused by `MenuButton.pressButton()`.
+        // The Video.js 8 layout that matters here: the control bar holds the
+        // focusable chrome (buttons, sliders, a menu button whose popup items
+        // are focused by `MenuButton.pressButton()`); the caption-settings
+        // dialog is a modal *sibling* of the control bar, under `.video-js`.
         root.innerHTML = `
             <div class="video-js">
-                <div class="vjs-poster" role="button" tabindex="0"></div>
-                <div class="vjs-progress-control vjs-control">
-                    <div class="vjs-progress-holder vjs-slider" role="slider" tabindex="0"></div>
-                </div>
-                <div class="vjs-playback-rate vjs-menu-button-popup vjs-control">
-                    <button class="vjs-playback-rate vjs-menu-button" type="button" aria-expanded="false"></button>
-                    <div class="vjs-menu">
-                        <ul class="vjs-menu-content" role="menu">
-                            <li class="vjs-menu-item" role="menuitemradio" tabindex="-1"></li>
-                        </ul>
+                <div class="vjs-control-bar">
+                    <div class="vjs-progress-control vjs-control">
+                        <div class="vjs-progress-holder vjs-slider" role="slider" tabindex="0"></div>
                     </div>
+                    <div class="vjs-playback-rate vjs-menu-button-popup vjs-control">
+                        <button class="vjs-playback-rate vjs-menu-button" type="button" aria-expanded="false"></button>
+                        <div class="vjs-menu">
+                            <ul class="vjs-menu-content" role="menu">
+                                <li class="vjs-menu-item" role="menuitemradio" tabindex="-1"></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <button class="vjs-fullscreen-control vjs-control vjs-button" type="button"></button>
                 </div>
-                <button class="vjs-fullscreen-control vjs-control vjs-button" type="button"></button>
+                <div class="vjs-text-track-settings vjs-modal-dialog" role="dialog">
+                    <button class="vjs-default-button" type="button"></button>
+                </div>
             </div>`;
         document.body.appendChild(root);
         fullscreen = root.querySelector(
             '.vjs-fullscreen-control'
         ) as HTMLButtonElement;
         seekBar = root.querySelector('.vjs-progress-holder') as HTMLElement;
-        poster = root.querySelector('.vjs-poster') as HTMLElement;
         menuButton = root.querySelector(
             'button.vjs-menu-button'
         ) as HTMLButtonElement;
         menuItem = root.querySelector('.vjs-menu-item') as HTMLElement;
+        modalResetButton = root.querySelector(
+            '.vjs-text-track-settings .vjs-default-button'
+        ) as HTMLButtonElement;
         detach = attachVjsPointerFocusRelease(root);
     });
 
@@ -68,14 +75,20 @@ describe('attachVjsPointerFocusRelease', () => {
         expect(document.activeElement).not.toBe(fullscreen);
     });
 
-    it('releases the poster and a slider', () => {
-        pointerDown();
-        poster.focus();
-        expect(document.activeElement).not.toBe(poster);
-
+    it('releases a control-bar slider', () => {
         pointerDown();
         seekBar.focus();
+
         expect(document.activeElement).not.toBe(seekBar);
+    });
+
+    it('leaves a modal dialog button focused so its focus trap survives', () => {
+        // The caption-settings dialog keeps its own Escape/Tab handling; its
+        // Reset button sits outside the control bar and must not be released.
+        pointerDown(modalResetButton);
+        modalResetButton.focus();
+
+        expect(document.activeElement).toBe(modalResetButton);
     });
 
     it('keeps focus that no pointer press preceded (keyboard navigation)', () => {
