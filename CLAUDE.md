@@ -85,6 +85,17 @@ pnpm nx show projects
   `patches/vite@7.3.6.patch`. Keep the patch until supported Angular tooling
   resolves a Vite version containing the fix, and run `pnpm run deps:vite:test`
   after related dependency updates.
+- `app-builder-lib` `26.15.7` (electron-builder's macOS signing) is patched in
+  `patches/app-builder-lib@26.15.7.patch` with the upstream backport
+  electron-userland/electron-builder#10172: `security set-key-partition-list -k`
+  must receive the temporary keychain's own password, not the `.p12` import
+  password. macOS runner images since `macos-26-arm64` 20260831 verify that
+  password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
+  name or passphrase you entered is not correct`. Keep the patch until
+  electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
+  and run `pnpm run deps:electron-builder:test` after related dependency
+  updates — the test fails when the patched version no longer matches the
+  installed one.
 - A directory holding files consumed by other projects must be an Nx project.
   Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
   across project roots creates no edge and the imported file lands in no task

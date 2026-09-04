@@ -40,6 +40,7 @@
         "deps:nx:check": "node tools/dependencies/check-nx-version-sync.mjs",
         "deps:nx:validate": "pnpm run deps:nx:test && pnpm run deps:nx:check",
         "deps:vite:test": "node --test tools/dependencies/vite-transform-filter.test.mjs",
+        "deps:electron-builder:test": "node --test tools/dependencies/app-builder-lib-keychain-password.test.mjs",
         "styles:inputs:test": "node --test tools/nx/check-stylesheet-inputs.test.mjs",
         "styles:inputs:check": "node tools/nx/check-stylesheet-inputs.mjs",
         "styles:inputs:validate": "pnpm run styles:inputs:test && pnpm run styles:inputs:check",
@@ -277,7 +278,8 @@
         },
         "patchedDependencies": {
             "nx-electron@22.0.0": "patches/nx-electron@22.0.0.patch",
-            "vite@7.3.6": "patches/vite@7.3.6.patch"
+            "vite@7.3.6": "patches/vite@7.3.6.patch",
+            "app-builder-lib@26.15.7": "patches/app-builder-lib@26.15.7.patch"
         }
     }
 }
