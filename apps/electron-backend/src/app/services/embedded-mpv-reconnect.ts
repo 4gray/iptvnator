@@ -3,6 +3,7 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { isEmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
 
 /**
  * Automatic reconnect for embedded MPV sessions.
@@ -24,6 +25,9 @@ import type {
  * - A user-driven load, a pause, or teardown cancels everything.
  * - A VOD reload resumes at the last position observed while playing; a live
  *   reload goes back to the live edge.
+ * - A reload the engine cannot take at all (a crashed frame-copy helper,
+ *   reported as `EmbeddedMpvSessionGoneError`) ends the reconnect: only a
+ *   new session can recover, and the renderer's Retry creates one.
  *
  * Status transitions arrive from `EmbeddedMpvNativeService.refreshSession()`
  * (polled every 500 ms); every engine flips to `loading` synchronously on a
@@ -235,13 +239,24 @@ export class EmbeddedMpvReconnectCoordinator {
             try {
                 this.hooks.reload(sessionId, playback);
             } catch (error) {
-                this.log.warn(
-                    `[Embedded MPV][reconnect] session ${sessionId}: attempt ${attempt} could not start`,
-                    error
-                );
-                // The addon refused the load outright, so no loading→loss
-                // transition will ever arrive: continue the backoff here.
-                this.schedule(sessionId, state, this.now());
+                if (isEmbeddedMpvSessionGoneError(error)) {
+                    // Nothing behind the session can take a load any more;
+                    // stop so the renderer shows the actionable error
+                    // instead of a reconnect spinner that never resolves.
+                    this.log.warn(
+                        `[Embedded MPV][reconnect] session ${sessionId}: engine gone, giving up`,
+                        error
+                    );
+                    state.pending = null;
+                } else {
+                    this.log.warn(
+                        `[Embedded MPV][reconnect] session ${sessionId}: attempt ${attempt} could not start`,
+                        error
+                    );
+                    // The addon refused the load outright, so no loading→loss
+                    // transition will ever arrive: continue the backoff here.
+                    this.schedule(sessionId, state, this.now());
+                }
             }
             this.hooks.publish(sessionId);
         }, delay);

@@ -1,4 +1,5 @@
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { EmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
 import {
     createEmbeddedMpvReconnectState,
     EMBEDDED_MPV_RECONNECT_MAX_ATTEMPTS,
@@ -262,6 +263,31 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         jest.advanceTimersByTime(60_000);
 
         expect(reload).not.toHaveBeenCalled();
+    });
+
+    it('gives up at once when the engine behind the session is gone', () => {
+        startPlaying();
+        reload.mockImplementationOnce(() => {
+            throw new EmbeddedMpvSessionGoneError(SESSION, 'helper exited');
+        });
+        coordinator.observe(SESSION, state, 'error', 'playing');
+
+        jest.advanceTimersByTime(2_000);
+
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(publish).toHaveBeenCalledTimes(1);
+        expect(state.pending).toBeNull();
+        expect(state.timer).toBeNull();
+        expect(
+            coordinator.observe(SESSION, state, 'error', 'error')
+        ).toBeNull();
+        expect(log.warn).toHaveBeenCalledWith(
+            expect.stringContaining('engine gone'),
+            expect.any(Error)
+        );
+
+        jest.advanceTimersByTime(120_000);
+        expect(reload).toHaveBeenCalledTimes(1);
     });
 
     it('continues the backoff when the addon refuses the reload outright', () => {

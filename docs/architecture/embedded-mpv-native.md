@@ -563,7 +563,10 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
   worked (404, refused credentials, unsupported container) keeps the manual
   Retry instead of hammering the panel six times with the same request. The
   Linux `mpv --wid` path reports `playing` as soon as the process spawns, so
-  on that engine the distinction is coarser.
+  on that engine the distinction is coarser; its poller reads `eof-reached`
+  over the IPC socket so a stream that ended reports `ended` rather than the
+  `paused` that keep-open would otherwise look like, and an mpv process that
+  exits abnormally reports `error`.
 - Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
   outage. The budget resets only after 30 s of uninterrupted `playing`, so a
   stream that flaps every few seconds runs out of attempts instead of being
@@ -571,8 +574,13 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
 - A user-driven `loadPlayback`, `paused`/`idle`, dispose, and shutdown cancel
   a pending attempt; a stream that recovers on its own (ffmpeg-level
   reconnect) while a retry is pending drops the retry.
-- A refused reload (the addon throws) continues the backoff itself, because
-  no status transition will ever arrive for it.
+- A reload the engine cannot take at all — a frame-copy helper that has
+  exited, reported by the adapter as `EmbeddedMpvSessionGoneError` — ends the
+  reconnect immediately: only a new session can recover, and the renderer's
+  Retry creates one, so the actionable error is shown instead of a reconnect
+  spinner that nothing could ever advance.
+- Any other refused reload (the addon throws) continues the backoff itself,
+  because no status transition will ever arrive for it.
 - A non-live reload carries the last position observed while playing as
   `startTime`, so a movie or episode resumes where the connection dropped
   instead of at the offset the user originally resumed from; live reloads go

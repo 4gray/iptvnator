@@ -14,6 +14,7 @@ import {
     encodeProtocolValue,
 } from './embedded-mpv-frame-copy-protocol';
 import { resolveFrameCopyHelperSpawn } from './embedded-mpv-frame-copy-spawn';
+import { EmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
 import type {
     EmbeddedMpvFrameCopyRuntimeMode,
     LinuxFrameCopyHelperLaunchFileSystem,
@@ -161,6 +162,15 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void {
         const session = this.sessions.get(sessionId);
         if (session && !session.disposed) {
+            if (session.child.exitCode !== null) {
+                // A dead helper cannot take a load: `send()` would drop the
+                // command silently and a reconnect would wait forever on a
+                // `loading` that nothing can ever advance.
+                throw new EmbeddedMpvSessionGoneError(
+                    sessionId,
+                    'the frame-copy helper process has exited'
+                );
+            }
             // The native addons flip to `loading` synchronously; mirror that
             // so the reconnect coordinator always observes loading → loss
             // for a failed attempt, even when the helper folds START_FILE

@@ -994,6 +994,7 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     const auto duration = queryLinuxMpvNumber(socketPath, "duration");
     const auto volume = queryLinuxMpvNumber(socketPath, "volume");
     const auto paused = queryLinuxMpvBoolean(socketPath, "pause");
+    const auto eofReached = queryLinuxMpvBoolean(socketPath, "eof-reached");
     const auto path = queryLinuxMpvString(socketPath, "path");
     const auto trackCount =
         queryLinuxMpvInteger(socketPath, "track-list/count");
@@ -1032,6 +1033,12 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
         session->snapshot.status =
             *paused ? SessionStatus::Paused : SessionStatus::Playing;
         session->snapshot.error.clear();
+    }
+    if (eofReached && *eofReached) {
+        // keep-open=yes parks mpv paused at the end of the stream. Report
+        // that as `ended` like the in-process engines do, so the reconnect
+        // policy can tell a finished live stream from a user pause.
+        session->snapshot.status = SessionStatus::Ended;
     }
     if (path && !path->empty()) {
         session->snapshot.streamUrl = *path;

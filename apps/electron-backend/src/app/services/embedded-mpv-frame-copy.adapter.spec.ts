@@ -6,6 +6,7 @@ jest.mock('child_process', () => ({
 }));
 
 import type { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
+import { EmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
 import {
     createFrameCopyAdapter,
     createFrameCopySession,
@@ -139,6 +140,24 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(snapshot?.status).toBe('loading');
         expect(snapshot?.error).toBeUndefined();
         expect(snapshot?.streamUrl).toBe('http://stream');
+    });
+
+    it('refuses a load once the helper process has exited', () => {
+        const sessionId = createSession();
+        child.exitCode = 1;
+        child.emit('exit', 1, null);
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+
+        expect(() =>
+            adapter.loadPlayback(sessionId, {
+                streamUrl: 'http://stream',
+                title: 'Live',
+            })
+        ).toThrow(EmbeddedMpvSessionGoneError);
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+        expect(
+            child.stdin.written.some((line) => line.startsWith('load\t'))
+        ).toBe(false);
     });
 
     it('encodes loadfile options with percent-escaping', () => {
