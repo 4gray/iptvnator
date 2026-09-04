@@ -228,6 +228,8 @@ describe('EmbeddedMpvNativeService reconnect', () => {
 
         expect(addon.loadPlayback).toHaveBeenCalledTimes(2);
         expect(addon.loadPlayback).toHaveBeenLastCalledWith('session-1', LIVE);
+        // keep-open leaves mpv paused after EOF; the reload must clear it.
+        expect(addon.setPaused).toHaveBeenCalledWith('session-1', false);
         expect(lastUpdate()?.status).toBe('loading');
         expect(lastUpdate()?.reconnect?.attempt).toBe(1);
 
@@ -282,6 +284,29 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         jest.advanceTimersByTime(60_000);
 
         expect(addon.loadPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('still counts the attempt when only the unpause fails', () => {
+        startPlayingLive();
+        poll('error');
+        addon.setPaused.mockImplementationOnce(() => {
+            throw new Error('socket not ready');
+        });
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+
+        try {
+            status = 'loading';
+            jest.advanceTimersByTime(2_000);
+
+            expect(addon.loadPlayback).toHaveBeenCalledTimes(2);
+            expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+            poll('playing');
+            expect(lastUpdate()?.reconnect).toBeUndefined();
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('keeps the main process alive when a reload attempt throws', () => {

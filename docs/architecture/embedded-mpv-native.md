@@ -573,6 +573,10 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
   reconnect) while a retry is pending drops the retry.
 - A refused reload (the addon throws) continues the backoff itself, because
   no status transition will ever arrive for it.
+- Every reload is followed by `setPaused(false)`: sessions run with
+  `keep-open=yes`, so EOF leaves mpv paused at the end of the old file and a
+  plain `loadfile` inherits that pause — the reloaded live stream would
+  buffer, report `paused` and never play.
 
 Every engine flips to `loading` synchronously on a load (the frame-copy
 adapter does so optimistically before the helper confirms), which is what

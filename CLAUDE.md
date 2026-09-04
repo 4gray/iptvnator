@@ -187,7 +187,7 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and DB progress events
 - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in both main and worker connections
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
-- `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
+- `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity, bounded Embedded MPV runtime-probe stderr, and embedded MPV session status transitions (the input of the reconnect policy; never the stream URL)
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
 - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted M3U and Xtream preload IPC request/completion markers plus count-only M3U acquire/parse/normalize, Xtream main network/JSON-transform/success-response-ready/cancel-dispatch, and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
 - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization plus Xtream category/content/cache-clear/delete/in-source-search phase events, profiling-only worker cancel-receipt acknowledgements, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset

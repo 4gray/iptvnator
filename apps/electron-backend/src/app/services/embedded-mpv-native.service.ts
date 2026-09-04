@@ -30,6 +30,7 @@ import {
     clampSubtitleDelay,
     normalizeSubtitleStyle,
 } from '@iptvnator/shared/interfaces';
+import { isExternalPlayerTraceEnabled, trace } from './debug-trace';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { embeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';
 import {
@@ -133,8 +134,22 @@ export class EmbeddedMpvNativeService {
      * addon failures itself instead of surfacing an uncaughtException.
      */
     private readonly reconnect = new EmbeddedMpvReconnectCoordinator({
-        reload: (sessionId, playback) =>
-            this.getAddon().loadPlayback(sessionId, playback),
+        reload: (sessionId, playback) => {
+            const addon = this.getAddon();
+            addon.loadPlayback(sessionId, playback);
+            // Sessions run with keep-open=yes, so EOF on a live stream leaves
+            // mpv paused at the end of the old file and a plain loadfile
+            // inherits that pause: the reload then buffers, reports
+            // `paused` and never plays. Unpausing is part of the reload.
+            try {
+                addon.setPaused(sessionId, false);
+            } catch (error) {
+                console.warn(
+                    `[Embedded MPV][reconnect] session ${sessionId}: could not clear the keep-open pause after the reload:`,
+                    error
+                );
+            }
+        },
         publish: (sessionId) => {
             try {
                 this.refreshSession(sessionId);
@@ -980,6 +995,19 @@ export class EmbeddedMpvNativeService {
         session.streamUrl = payload.streamUrl;
         session.updatedAt = payload.updatedAt;
         session.lastStatus = payload.status;
+        if (
+            previousStatus !== payload.status &&
+            isExternalPlayerTraceEnabled()
+        ) {
+            // Status transitions are the whole input of the reconnect policy;
+            // tracing them (never the URL) is what makes a "why did it not
+            // reconnect" report answerable.
+            trace(
+                'embedded-mpv',
+                `session ${sessionId} status ${previousStatus ?? 'none'} -> ${payload.status}`,
+                payload.error ? { error: payload.error } : undefined
+            );
+        }
         const reconnect = this.reconnect.observe(
             sessionId,
             session.reconnect,

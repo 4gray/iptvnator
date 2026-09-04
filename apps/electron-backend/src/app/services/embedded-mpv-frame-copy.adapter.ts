@@ -165,8 +165,12 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             // so the reconnect coordinator always observes loading → loss
             // for a failed attempt, even when the helper folds START_FILE
             // and the END_FILE error into one snapshot.
-            const { error: _staleError, ...snapshot } = session.snapshot;
-            session.snapshot = { ...snapshot, status: 'loading' };
+            const snapshot = {
+                ...session.snapshot,
+                status: 'loading' as const,
+            };
+            delete snapshot.error;
+            session.snapshot = snapshot;
         }
         this.send(sessionId, buildLoadPlaybackCommand(playback));
     }
