@@ -49,6 +49,7 @@ describe('EpgQueueService invalidation', () => {
                     provide: SettingsStore,
                     useValue: {
                         preferUploadedEpgOverXtream: jest.fn(() => false),
+                        resolvedEpgOffsetMinutes: jest.fn(() => 0),
                     },
                 },
             ],

@@ -153,6 +153,9 @@ jobs:
             - name: Validate Vite dev-server transform filter patch
               run: pnpm run deps:vite:test
 
+            - name: Validate electron-builder keychain password patch
+              run: pnpm run deps:electron-builder:test
+
             - name: Validate stylesheet Nx inputs
               run: pnpm run styles:inputs:validate
 

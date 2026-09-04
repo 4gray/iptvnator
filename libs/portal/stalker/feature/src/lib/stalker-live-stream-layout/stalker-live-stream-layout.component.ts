@@ -44,11 +44,13 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
+    shortEpgWindowSize,
     StalkerPortalItem,
     toRecordingProgramSnapshot,
 } from '@iptvnator/shared/interfaces';
@@ -84,6 +86,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
+    ACTIVE_EPG_FALLBACK_SIZE,
     StalkerFavoriteItem,
     StalkerItvChannel,
     StalkerStore,
@@ -451,7 +454,8 @@ export class StalkerLiveStreamLayoutComponent
         const programs = filterRecordingProgramsOverlap(
             this.activeEpgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -467,6 +471,7 @@ export class StalkerLiveStreamLayoutComponent
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
@@ -514,15 +519,21 @@ export class StalkerLiveStreamLayoutComponent
     private readonly cdr = inject(ChangeDetectorRef);
     /** Short-EPG fallback for rows the bulk guide cannot answer. */
     private readonly epgPreviewQueue = new StalkerEpgPreviewQueue({
+        // The window is widened under a negative display offset so it still
+        // reaches the programme on air; see shortEpgWindowSize.
         fetchPrograms: async (channelId) =>
             (
                 await this.stalkerStore.fetchChannelEpg(
                     channelId,
-                    EPG_PREVIEW_FETCH_SIZE
+                    shortEpgWindowSize(
+                        this.epgOffsetMinutes(),
+                        EPG_PREVIEW_FETCH_SIZE
+                    )
                 )
             ).map((item) => this.toProgram(item, channelId)),
         onPrograms: (channelId, programs) =>
             this.applyFallbackPreviewPrograms(channelId, programs),
+        epgOffsetMinutes: () => this.epgOffsetMinutes(),
     });
 
     /** Favorites */
@@ -547,8 +558,7 @@ export class StalkerLiveStreamLayoutComponent
             : (this.fullscreenChannelPanelTemplate() ?? null)
     );
     readonly panelTitle = computed(() => this.selectedCategoryTitle() ?? '');
-    private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null =
-        null;
+    private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;
@@ -1238,7 +1248,11 @@ export class StalkerLiveStreamLayoutComponent
 
             this.isLoadingFallbackEpg.set(true);
             const fallbackItems = await this.stalkerStore.fetchChannelEpg(
-                item.id
+                item.id,
+                shortEpgWindowSize(
+                    this.epgOffsetMinutes(),
+                    ACTIVE_EPG_FALLBACK_SIZE
+                )
             );
             if (!this.isCurrentEpgRequest(requestId, normalizedChannelId)) {
                 return;
@@ -1365,7 +1379,7 @@ export class StalkerLiveStreamLayoutComponent
             program.stop,
             program.stopTimestamp
         );
-        const nowMs = Date.now();
+        const nowMs = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
 
         if (
             startMs !== null &&
@@ -1518,7 +1532,10 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
-        const now = Date.now();
+        // Raw programme times vs. now in the provider's EPG clock
+        // (`epg-display-offset.util.ts`, clock form); reading the setting
+        // here also re-runs every computed/effect that picks previews.
+        const now = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
         return (
             programs.find((program) => {
                 const start = this.getProgramTimestampMs(

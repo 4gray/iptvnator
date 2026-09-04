@@ -1,0 +1,177 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import FeatureHero from '../../components/feature/FeatureHero.astro';
+import FeatureSwitcher from '../../components/feature/FeatureSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildFeaturePageSchema } from '../../lib/feature-schema';
+import { featureBySlug } from '../../lib/features';
+import { absoluteUrl } from '../../lib/site';
+
+const feature = featureBySlug('m3u-player');
+const pageUrl = absoluteUrl('/features/m3u-player/');
+const title = 'M3U Playlist Player for Windows, macOS and Linux – IPTVnator';
+const description =
+  'Play M3U and M3U8 IPTV playlists on your desktop with IPTVnator: import from a URL, a file or text, browse channel groups and favorites, search tens of thousands of channels, attach an XMLTV guide with catch-up, and hand hard streams to MPV or VLC. Free and open source.';
+
+const library = [
+  {
+    title: 'Lists that stay fast',
+    description:
+      'The channel list is virtualized, so a playlist with tens of thousands of entries scrolls and searches without lag. Search filters as you type.',
+  },
+  {
+    title: 'Groups from the playlist',
+    description:
+      'Every group-title becomes an expandable section. Hide the groups you never watch; the hidden set survives refreshes.',
+  },
+  {
+    title: 'Favorites and history',
+    description:
+      'Star channels into a favorites list you can reorder by drag and drop, and jump back to what you watched last from Recent.',
+  },
+  {
+    title: 'Refresh and auto-update',
+    description:
+      'Re-download a playlist on request, or let the desktop app refresh it on every start. Favorites, hidden groups and settings are kept.',
+  },
+  {
+    title: 'Import any way you like',
+    description:
+      'Paste a link, pick a file, drop it onto the window, open it from the file manager, pass it on the command line, or paste the raw text.',
+  },
+  {
+    title: 'Global favorites and search',
+    description:
+      'With several playlists, the dashboard combines favorites, recent items and search across all of them.',
+  },
+];
+
+const declared = [
+  { term: 'Logos and names', value: 'tvg-logo, tvg-name and the display name are used for the list; XMLTV icons fill in missing logos.' },
+  { term: 'Program guide', value: 'tvg-id links a channel to the guide. url-tvg or x-tvg-url in the header imports the EPG source automatically.' },
+  { term: 'Catch-up', value: 'catchup, catchup-source and catchup-days, or the older tvg-rec and timeshift, make archived programs playable from the timeline.' },
+  { term: 'Radio', value: 'Entries with radio="true" open in a dedicated audio layout with artwork, transport controls and volume.' },
+  { term: 'DASH with ClearKey', value: '#KODIPROP lines with inputstream.adaptive keys play in the built-in player through Shaka.' },
+  { term: 'Movie files', value: 'Entries that look like a movie file open in a movie detail view with TMDB metadata when enrichment is enabled.' },
+];
+
+const playback = [
+  {
+    title: 'Three built-in engines',
+    description:
+      'HTML5 with hls.js, Video.js and ArtPlayer cover HLS, MPEG-TS and DASH streams with one shared set of controls, subtitles, quality selection and picture-in-picture.',
+  },
+  {
+    title: 'MPV and VLC handoff',
+    description:
+      'Streams the browser engines cannot decode go to MPV or VLC on your machine while IPTVnator keeps the list, the guide and the remote control.',
+  },
+  {
+    title: 'Embedded MPV',
+    description:
+      'An experimental engine renders mpv inside the app window on Windows, macOS and Linux, including live-TV recording where supported.',
+  },
+  {
+    title: 'Custom User-Agent',
+    description:
+      'Providers that only answer known player signatures get the User-Agent you set in the playlist details, for both playlist download and playback.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Does IPTVnator play both M3U and M3U8 playlists?',
+    a: 'Yes. Both extensions are the same text format; M3U8 only marks the file as UTF-8. Playlists can come from a link, a local file or pasted text, and the same attributes are read from all of them.',
+  },
+  {
+    q: 'How many channels can a playlist have?',
+    a: 'The list is built for very large playlists and stays responsive with tens of thousands of channels. Groups, favorites and search all work on the full list, not on a page of it.',
+  },
+  {
+    q: 'Does the playlist update when my provider changes it?',
+    a: 'Refresh it on request from the playlist details, or enable Auto-update to re-download it every time the desktop app starts. Your favorites, hidden groups and settings are kept across refreshes.',
+  },
+  {
+    q: 'Can I get a program guide for an M3U playlist?',
+    a: 'Yes, on the desktop app. Add an XMLTV source in Settings › EPG, or let the playlist declare it through url-tvg in its header. Channels are matched by tvg-id, and you can map the rest by hand.',
+  },
+  {
+    q: 'What if a channel does not play?',
+    a: 'Open it in MPV or VLC via Settings › Playback, or enable the experimental embedded MPV engine. Providers that require a specific User-Agent get it from the playlist details.',
+  },
+  {
+    q: 'Does IPTVnator provide playlists?',
+    a: 'No. IPTVnator is a player. You bring the playlist you already have from your provider, and nothing in it is sent anywhere except to the stream hosts it points at.',
+  },
+];
+
+const jsonLd = buildFeaturePageSchema({
+  feature,
+  pageUrl,
+  description,
+  featureList: [
+    'M3U and M3U8 playlist import from URL, file or text',
+    'Virtualized channel list for tens of thousands of channels',
+    'Channel groups, favorites and recent history',
+    'XMLTV program guide with catch-up',
+    'Radio entries in a dedicated audio layout',
+    'DASH playback with ClearKey keys',
+    'MPV and VLC external player handoff',
+  ],
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['M3U player', 'M3U8 player', 'M3U player Windows', 'M3U player Mac', 'M3U player Linux', 'IPTV playlist player', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <FeatureHero
+    feature={feature}
+    titleLead="An M3U player that"
+    titleAccent="keeps up"
+    lede="Load an M3U or M3U8 playlist from a link, a file or pasted text and get a desktop TV app: grouped channels, favorites, instant search, a program guide with catch-up, and playback engines that handle what browsers cannot."
+    facts={['M3U & M3U8', 'URL, file or text', 'Tens of thousands of channels', 'XMLTV EPG']}
+    screenshot={{
+      src: '/iptvnator/blog/guides/screenshots/guide-m3u-live-groups-dark.png',
+      alt: 'Groups view of an M3U playlist with a group and its channel list',
+      width: 2560,
+      height: 1440,
+    }}
+  />
+
+  <DownloadSection id="library" eyebrow="The library" title="Built for" accent="big playlists" lead="Provider playlists are long. The list, the groups and the search are designed around that.">
+    <FeatureList items={library} />
+  </DownloadSection>
+
+  <DownloadSection id="attributes" eyebrow="Playlist attributes" title="Everything the playlist" accent="declares" lead="IPTVnator reads the extended M3U attributes providers use, so logos, guide ids, catch-up windows and radio flags all mean something.">
+    <SpecList items={declared} />
+  </DownloadSection>
+
+  <DownloadSection id="playback" eyebrow="Playback" title="Engines for" accent="every stream" lead="Most streams play in the built-in players. The rest go to MPV or VLC without leaving the app.">
+    <FeatureList items={playback} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="M3U playlists">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'epg-guide', 'why-external-players-help']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <FeatureSwitcher current="m3u-player" />
+</BaseLayout>

@@ -53,9 +53,9 @@
                     </div>
                     <div class="epg-timeline">
                         <span class="epg-time">{{
-                            (program.startTimestamp
-                                ? program.startTimestamp * 1000
-                                : program.start
+                            programDisplayMs(
+                                program.start,
+                                program.startTimestamp
                             ) | date: 'HH:mm'
                         }}</span>
                         <div class="epg-progress-track">
@@ -67,9 +67,9 @@
                             ></div>
                         </div>
                         <span class="epg-time">{{
-                            (program.stopTimestamp
-                                ? program.stopTimestamp * 1000
-                                : program.stop
+                            programDisplayMs(
+                                program.stop,
+                                program.stopTimestamp
                             ) | date: 'HH:mm'
                         }}</span>
                     </div>

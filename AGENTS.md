@@ -24,6 +24,17 @@ This file provides guidance to coding agents working in this repository.
   `patches/vite@7.3.6.patch`. Keep the patch until supported Angular tooling
   resolves a Vite version containing the fix, and run `pnpm run deps:vite:test`
   after related dependency updates.
+- `app-builder-lib` `26.15.7` (electron-builder's macOS signing) is patched in
+  `patches/app-builder-lib@26.15.7.patch` with the upstream backport
+  electron-userland/electron-builder#10172: `security set-key-partition-list -k`
+  must receive the temporary keychain's own password, not the `.p12` import
+  password. macOS runner images since `macos-26-arm64` 20260831 verify that
+  password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
+  name or passphrase you entered is not correct`. Keep the patch until
+  electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
+  and run `pnpm run deps:electron-builder:test` after related dependency
+  updates — the test fails when the patched version no longer matches the
+  installed one.
 - A directory holding files consumed by other projects must be an Nx project.
   Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
   across project roots creates no edge and the imported file lands in no task
@@ -278,6 +289,16 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
+- Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
+  go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
+  delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper
+  stdin command `seek-by`, Linux JSON IPC) and never advances the snapshot
+  position itself. Do not derive an absolute target from the renderer's
+  `positionSeconds`: it is floored to whole seconds, polled every 500 ms, and
+  a seek reply does not carry the new position, so rapid presses computed from
+  it collapse onto one target. Only the timeline scrub commits an absolute
+  `seek`. Contract: `docs/architecture/embedded-mpv-native.md` ("Resume And
+  Track Handling").
 - DASH (`.mpd`) sources play through a lazily imported Shaka Player source
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived

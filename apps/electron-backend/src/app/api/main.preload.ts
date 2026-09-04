@@ -36,6 +36,7 @@ import type {
     ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
@@ -571,6 +572,11 @@ const electronApi: ElectronBridgeApi = {
         seconds: number
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SEEK', sessionId, seconds),
+    seekEmbeddedMpvBy: (
+        sessionId: string,
+        deltaSeconds: number
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SEEK_BY', sessionId, deltaSeconds),
     setEmbeddedMpvVolume: (
         sessionId: string,
         volume: number
@@ -657,7 +663,7 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId, options }),
     getCurrentProgramsBatch: (
         channelIds: string[],
-        options?: ElectronBridgeEpgLookupOptions
+        options?: ElectronBridgeCurrentProgramsOptions
     ) =>
         ipcRenderer.invoke('GET_CURRENT_PROGRAMS_BATCH', {
             channelIds,

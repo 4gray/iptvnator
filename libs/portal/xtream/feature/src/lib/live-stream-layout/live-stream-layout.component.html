@@ -169,6 +169,7 @@
         @if (epgViewMode() === 'list') {
             <app-epg-list-view
                 [programs]="controlledEpgPrograms()"
+                [offsetMinutes]="epgOffsetMinutes()"
                 [channelName]="activePlayback()?.title ?? ''"
                 [channelLogo]="activePlayback()?.thumbnail ?? ''"
                 [sourceLabel]="'Xtream'"
@@ -189,6 +190,7 @@
         } @else {
             <app-epg-timeline
                 [programs]="controlledEpgPrograms()"
+                [offsetMinutes]="epgOffsetMinutes()"
                 [channelName]="activePlayback()?.title ?? ''"
                 [channelLogo]="activePlayback()?.thumbnail ?? ''"
                 [sourceLabel]="'Xtream'"

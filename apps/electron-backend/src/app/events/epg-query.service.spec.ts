@@ -42,6 +42,11 @@ function flattenSql(value: unknown, seen = new Set<unknown>()): string {
         return sqlLike.value.join(' ');
     }
 
+    // Bound parameters (`sql\`${now}\``) carry a scalar value.
+    if (typeof sqlLike.value === 'string') {
+        return sqlLike.value;
+    }
+
     if (typeof sqlLike.name === 'string') {
         return sqlLike.name;
     }
@@ -287,6 +292,80 @@ describe('EpgQueryService', () => {
         expect(flattened.some((condition) => condition.includes('datetime'))).toBe(
             true
         );
+    });
+
+    it('evaluates "currently airing" at the caller-supplied instant', async () => {
+        const whereCalls: unknown[] = [];
+        const select = jest
+            .fn()
+            .mockReturnValue(createLimitedSelectChain([], whereCalls));
+        getDatabase.mockResolvedValue({ select });
+        // The renderer hands over its wall clock shifted into the provider's
+        // EPG clock (display offset); the SQL must compare against exactly that.
+        const nowMs = Date.parse('2026-06-29T20:30:00.000Z');
+
+        await service.getCurrentProgramsBatch(['ch'], {
+            sourceUrls: ['https://example.com/guide.xml'],
+            nowMs,
+        });
+
+        const flattened = whereCalls.map((condition) => flattenSql(condition));
+        expect(
+            flattened.some((condition) =>
+                condition.includes('2026-06-29T20:30:00.000Z')
+            )
+        ).toBe(true);
+    });
+
+    it('falls back to the main-process clock for a missing or corrupt instant', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-06-29T21:00:00.000Z'));
+        try {
+            for (const nowMs of [undefined, Number.NaN, 1e20, -1e20]) {
+                const whereCalls: unknown[] = [];
+                const select = jest.fn().mockReturnValue(
+                    createLimitedSelectChain(
+                        [
+                            {
+                                id: 1,
+                                channelId: 'ch',
+                                start: '2026-06-29T20:00:00Z',
+                                stop: '2026-06-29T22:00:00Z',
+                                title: 'Now',
+                                description: null,
+                                category: null,
+                                iconUrl: null,
+                                rating: null,
+                                episodeNum: null,
+                                sourceUrl: 'https://example.com/guide.xml',
+                            },
+                        ],
+                        whereCalls
+                    )
+                );
+                getDatabase.mockResolvedValue({ select });
+
+                await expect(
+                    service.getCurrentProgramsBatch(['ch'], {
+                        sourceUrls: ['https://example.com/guide.xml'],
+                        nowMs,
+                    })
+                ).resolves.toEqual({
+                    ch: expect.objectContaining({ title: 'Now' }),
+                });
+
+                const flattened = whereCalls.map((condition) =>
+                    flattenSql(condition)
+                );
+                expect(
+                    flattened.some((condition) =>
+                        condition.includes('2026-06-29T21:00:00.000Z')
+                    )
+                ).toBe(true);
+            }
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('falls back to an unscoped current-programme lookup when programmes are tagged with an out-of-scope source', async () => {

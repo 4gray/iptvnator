@@ -165,7 +165,7 @@ export class EpgQueryService {
 
     async getCurrentProgramsBatch(
         channelIds: string[],
-        options: { sourceUrls?: string[] } = {}
+        options: { sourceUrls?: string[]; nowMs?: number } = {}
     ): Promise<Record<string, EpgProgram | null>> {
         const result: Record<string, EpgProgram | null> = {};
         if (!Array.isArray(channelIds) || channelIds.length === 0) {
@@ -185,7 +185,7 @@ export class EpgQueryService {
 
         try {
             const db = await getDatabase();
-            const now = new Date().toISOString();
+            const now = this.toAiringInstantIso(options.nowMs);
             const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
 
             this.assignCurrentProgramRows(
@@ -616,6 +616,22 @@ export class EpgQueryService {
             // don't consume the per-channel cap and starve other channels.
             .groupBy(schema.epgPrograms.channelId)
             .limit(channelIds.length);
+    }
+
+    /**
+     * The instant "currently airing" is evaluated at, as the UTC ISO string
+     * `isAiringAt` expects. The renderer passes its wall clock shifted into
+     * the provider's EPG clock (the display offset setting) so the row it
+     * receives is the one it will also render as "now"; without a usable
+     * value the main process clock applies. Bounded to the range `Date` can
+     * serialize so a corrupt payload cannot throw inside the query.
+     */
+    private toAiringInstantIso(nowMs?: number): string {
+        const usable =
+            typeof nowMs === 'number' &&
+            Number.isFinite(nowMs) &&
+            Math.abs(nowMs) <= 8.64e15;
+        return new Date(usable ? nowMs : Date.now()).toISOString();
     }
 
     /**

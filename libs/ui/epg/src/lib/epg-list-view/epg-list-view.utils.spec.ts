@@ -40,6 +40,34 @@ const DEFAULT_OPTS = {
 };
 
 describe('buildEpgListRows', () => {
+    it('filters the day and positions rows in display time when an offset is set', () => {
+        // 23:30 → 00:30 overlaps today until midnight ...
+        const edge = programAt(690, 60, 'Edge');
+        expect(
+            buildEpgListRows([edge], TODAY, NOW, DEFAULT_OPTS).map(
+                (row) => row.program.title
+            )
+        ).toEqual(['Edge']);
+        // ... but shifted by +60 it airs 00:30 → 01:30 tomorrow and leaves today.
+        expect(
+            buildEpgListRows([edge], TODAY, NOW, {
+                ...DEFAULT_OPTS,
+                offsetMinutes: 60,
+            })
+        ).toEqual([]);
+
+        // A negative offset keeps it on today, with shifted row times and
+        // the untouched raw programme handed on for catch-up.
+        const rows = buildEpgListRows([edge], TODAY, NOW, {
+            ...DEFAULT_OPTS,
+            offsetMinutes: -60,
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].startMs).toBe(NOW + 690 * 60_000 - 60 * 60_000);
+        expect(rows[0].stopMs).toBe(NOW + 750 * 60_000 - 60 * 60_000);
+        expect(rows[0].program).toBe(edge);
+    });
+
     it('keeps only programmes overlapping the selected day, sorted by start', () => {
         const rows = buildEpgListRows(
             [

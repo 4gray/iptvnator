@@ -362,6 +362,19 @@ export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
 }
 
+/**
+ * Options for the batched "currently airing" lookup. `nowMs` is the instant
+ * the lookup is evaluated at: the renderer passes its wall clock shifted into
+ * the provider's EPG clock (`epgProviderClockMs`, see
+ * `epg-display-offset.util.ts`) so the row the backend picks is the one the
+ * renderer will also present as "now". Absent, the main process uses its own
+ * clock.
+ */
+export interface ElectronBridgeCurrentProgramsOptions
+    extends ElectronBridgeEpgLookupOptions {
+    nowMs?: number;
+}
+
 export interface ElectronBridgeEpgProgressStats {
     totalChannels: number;
     totalPrograms: number;
@@ -778,7 +791,7 @@ export interface ElectronBridgeApi {
     ) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch: (
         channelIds: string[],
-        options?: ElectronBridgeEpgLookupOptions
+        options?: ElectronBridgeCurrentProgramsOptions
     ) => Promise<Record<string, EpgProgram | null>>;
     getEpgChannelMetadata: (
         channelIds: string[],
@@ -1158,6 +1171,19 @@ export interface ElectronBridgeApi {
     seekEmbeddedMpv: (
         sessionId: string,
         seconds: number
+    ) => Promise<EmbeddedMpvSession | null>;
+    /**
+     * Relative seek by `deltaSeconds` (negative = backwards), resolved by mpv
+     * against its own playback position. Keyboard and button steps must use
+     * this instead of `seekEmbeddedMpv(position + delta)`: the renderer's
+     * `positionSeconds` is a whole-second snapshot refreshed at most every
+     * 500 ms and a seek reply does not carry the new position yet, so rapid
+     * presses computed from it collapse onto one target. mpv merges queued
+     * relative seeks instead, so presses accumulate.
+     */
+    seekEmbeddedMpvBy?: (
+        sessionId: string,
+        deltaSeconds: number
     ) => Promise<EmbeddedMpvSession | null>;
     setEmbeddedMpvVolume: (
         sessionId: string,

@@ -82,3 +82,17 @@ Two conventions set them apart:
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence
 of every referenced screenshot in the build output.
+
+## Feature Pages
+
+`/features/` plus one page per feature (`m3u-player`, `xtream-codes-player`,
+`stalker-portal-player`, `epg`, `remote-control`) live in
+`apps/website/src/pages/features/`. They target "<feature> player" style
+searches, reuse the download-page sections, and each carries
+`SoftwareApplication` (with `featureList`) / `FAQPage` / `BreadcrumbList`
+structured data. The registry in `src/lib/features.ts` drives the hub, the
+per-page switcher, the homepage feature cards and
+`tools/testing/website-feature-pages.test.mjs`; adding a page means adding one
+registry entry and one `.astro` file. Screenshots come only from the
+mock-backed guide and release captures, never from the older homepage
+screenshots that show real channel names.

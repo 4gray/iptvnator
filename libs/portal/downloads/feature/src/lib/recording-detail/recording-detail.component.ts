@@ -12,7 +12,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { RecordingsService } from '@iptvnator/services';
+import { RecordingsService, SettingsStore } from '@iptvnator/services';
+import { epgDisplayTimeMs } from '@iptvnator/shared/interfaces';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
@@ -61,6 +62,7 @@ export class RecordingDetailComponent {
     private readonly location = inject(Location);
     private readonly recordings = inject(RecordingsService);
     private readonly actions = inject(RecordingManagerActionsService);
+    private readonly settingsStore = inject(SettingsStore);
 
     private readonly returnUrl: string | null =
         (this.router.getCurrentNavigation()?.extras.state?.[
@@ -108,6 +110,17 @@ export class RecordingDetailComponent {
         const programs = this.item()?.programs ?? [];
         return programs.length >= 2 ? programs : [];
     });
+
+    /**
+     * Snapshots keep the provider's raw times; the list shows them in display
+     * time like every other guide surface (`epg-display-offset.util.ts`).
+     */
+    programDisplayMs(iso: string): number {
+        return epgDisplayTimeMs(
+            Date.parse(iso),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
+    }
 
     constructor() {
         void this.recordings.loadRecordings();

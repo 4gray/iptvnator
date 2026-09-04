@@ -2,7 +2,6 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getTodayEpgDateKey, parseEpgDateKey } from '../epg-date';
 import {
     dayKeyAtOffset,
-    hasProgramsForDateKey,
     TIMELINE_MINUTE_MS,
     TimelineAxis,
     TimelineBlock,
@@ -138,7 +137,9 @@ export class TimelineScrollController {
         // Only auto-focus when today actually has a programme to centre on.
         // Otherwise (today empty, data on other days) leave the user's day
         // navigation alone instead of forcing the view back to an empty today.
-        if (!hasProgramsForDateKey(programs, todayKey)) {
+        // The host's predicate applies the EPG display offset, so a guide
+        // whose raw dates sit on the adjacent day still counts.
+        if (!this.ctx.hasProgramsForDay(todayKey)) {
             return;
         }
         this.lastFocusKey = key;

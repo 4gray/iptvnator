@@ -220,6 +220,10 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         this.send(sessionId, `seek\tseconds=${seconds}`);
     }
 
+    seekBy(sessionId: string, deltaSeconds: number): void {
+        this.send(sessionId, `seek-by\tseconds=${deltaSeconds}`);
+    }
+
     setVolume(sessionId: string, volume: number): void {
         this.send(sessionId, `volume\tvalue=${volume}`);
     }

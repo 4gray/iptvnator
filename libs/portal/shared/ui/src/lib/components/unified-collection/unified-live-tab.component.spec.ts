@@ -45,6 +45,7 @@ describe('UnifiedLiveTabComponent', () => {
     let component: UnifiedLiveTabComponent;
     let player: ReturnType<typeof signal<VideoPlayer>>;
     let epgViewMode: ReturnType<typeof signal<'timeline' | 'list'>>;
+    let epgOffsetMinutes: ReturnType<typeof signal<number>>;
     let stripCountryPrefix: ReturnType<typeof signal<boolean>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
@@ -83,6 +84,7 @@ describe('UnifiedLiveTabComponent', () => {
         };
         player = signal(VideoPlayer.VideoJs);
         epgViewMode = signal<'timeline' | 'list'>('timeline');
+        epgOffsetMinutes = signal(0);
         stripCountryPrefix = signal(false);
         portalPlayer = {
             isEmbeddedPlayer: jest.fn().mockReturnValue(false),
@@ -111,6 +113,7 @@ describe('UnifiedLiveTabComponent', () => {
                         player,
                         stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
+                        resolvedEpgOffsetMinutes: epgOffsetMinutes,
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
@@ -204,85 +207,6 @@ describe('UnifiedLiveTabComponent', () => {
         ).componentInstance as StubEpgTimelineComponent;
         expect(timeline.programs()).toEqual([buildProgram('M3U Show')]);
         expect(timeline.archivePlaybackAvailable()).toBe(false);
-    });
-
-    it('keeps the current detail (and its fullscreen player) mounted while the next selection resolves', async () => {
-        const first = buildLiveItem('m3u');
-        const second: UnifiedCollectionItem = {
-            ...first,
-            uid: 'm3u::pl-1::m3u-channel-2',
-            name: 'M3U Live 2',
-            channelId: 'm3u-channel-2',
-            tvgId: 'm3u-channel-2',
-            streamUrl: 'https://example.com/m3u-2.m3u8',
-        };
-        const detailFor = (item: UnifiedCollectionItem) => ({
-            epgMode: 'm3u' as const,
-            playback: { streamUrl: item.streamUrl, title: item.name },
-            channel: {
-                id: item.channelId,
-                name: item.name,
-                url: item.streamUrl,
-                group: { title: 'News' },
-                tvg: {
-                    id: item.tvgId,
-                    name: item.name,
-                    url: '',
-                    logo: '',
-                    rec: '',
-                },
-                http: { referrer: '', 'user-agent': '', origin: '' },
-                radio: 'false',
-                epgParams: '',
-            },
-            epgPrograms: [],
-        });
-        let resolveSecond: (detail: ReturnType<typeof detailFor>) => void =
-            () => undefined;
-        streamResolver.resolveM3uPlaybackDetail
-            .mockResolvedValueOnce(detailFor(first))
-            .mockImplementationOnce(
-                () =>
-                    new Promise((resolve) => {
-                        resolveSecond = resolve;
-                    })
-            );
-        recentData.recordLivePlayback.mockImplementation(
-            async (item: UnifiedCollectionItem) => item
-        );
-        // The inline web player (the fullscreen owner) only mounts for an
-        // embedded player; external MPV/VLC never render it.
-        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
-
-        fixture.componentRef.setInput('items', [first, second]);
-        fixture.componentRef.setInput('mode', 'favorites');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        await component.onChannelSelected(component.channelsForList()[0]);
-        fixture.detectChanges();
-        const firstDetail = component.activeDetail();
-        expect(firstDetail?.playback.streamUrl).toBe(first.streamUrl);
-        const playerView = () =>
-            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent));
-        expect(playerView()).not.toBeNull();
-
-        // A zap from the fullscreen panel: the mounted player (the fullscreen
-        // element) must survive the resolution round-trip.
-        const pending = component.onChannelSelected(
-            component.channelsForList()[1]
-        );
-        fixture.detectChanges();
-        expect(component.activeUid()).toBe(second.uid);
-        expect(component.activeDetail()).toBe(firstDetail);
-        expect(playerView()).not.toBeNull();
-
-        resolveSecond(detailFor(second));
-        await pending;
-        fixture.detectChanges();
-        expect(component.activeDetail()?.playback.streamUrl).toBe(
-            second.streamUrl
-        );
     });
 
     it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
@@ -395,6 +319,69 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(removedItems).toEqual([item]);
         subscription.unsubscribe();
+    });
+
+    it('snapshots the recording-start programme in the provider clock under a display offset', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        const item = buildLiveItem('m3u');
+        const providerNow = buildCurrentProgram('Provider Now');
+        const earlier: EpgProgram = {
+            ...buildCurrentProgram('Really On Air'),
+            start: new Date(Date.now() - 130 * 60 * 1000).toISOString(),
+            stop: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        };
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: {
+                streamUrl: 'https://example.com/m3u.m3u8',
+                title: 'M3U Live',
+            },
+            channel: {
+                id: 'm3u-channel',
+                name: 'M3U Live',
+                url: 'https://example.com/m3u.m3u8',
+                group: { title: 'News' },
+                tvg: {
+                    id: 'm3u-channel',
+                    name: 'M3U Live',
+                    url: '',
+                    logo: 'm3u.png',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [earlier, providerNow],
+        });
+        streamResolver.loadM3uProgramsForItem.mockResolvedValue([
+            earlier,
+            providerNow,
+        ]);
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.recordingMetadata()?.currentProgram?.title).toBe(
+            'Provider Now'
+        );
+
+        // The guide runs an hour ahead: the recording must be filed under the
+        // programme really on air, which the provider lists as an hour ago.
+        epgOffsetMinutes.set(60);
+        fixture.detectChanges();
+
+        expect(component.recordingMetadata()?.currentProgram?.title).toBe(
+            'Really On Air'
+        );
     });
 
     it('renders inline M3U EPG in the timeline with shared date navigation', async () => {

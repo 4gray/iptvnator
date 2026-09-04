@@ -36,6 +36,7 @@ export interface BuildEpgListRowsOptions {
     readonly archivePlaybackAvailable: boolean;
     readonly archiveDays: number;
     readonly activeProgram: EpgProgram | null;
+    readonly offsetMinutes?: number;
 }
 
 function clampPercent(value: number): number {
@@ -70,10 +71,19 @@ export function buildEpgListRows(
     const dayStart = parseEpgDateKey(selectedDateKey);
     const dayStartMs = dayStart.getTime();
     const dayEndMs = addDays(dayStart, 1).getTime(); // exclusive
+    const offsetMinutes = options.offsetMinutes ?? 0;
 
     const forDay = programs.filter((program) => {
-        const startMs = getProgramTimeMs(program.start, program.startTimestamp);
-        const stopMs = getProgramTimeMs(program.stop, program.stopTimestamp);
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp,
+            offsetMinutes
+        );
+        const stopMs = getProgramTimeMs(
+            program.stop,
+            program.stopTimestamp,
+            offsetMinutes
+        );
         if (!Number.isFinite(startMs) || !Number.isFinite(stopMs)) {
             return false;
         }
@@ -89,16 +99,33 @@ export function buildEpgListRows(
     const deduped = deduplicateProgramsByTimeSlot(
         [...forDay].sort(
             (left, right) =>
-                getProgramTimeMs(left.start, left.startTimestamp) -
-                getProgramTimeMs(right.start, right.startTimestamp)
-        )
+                getProgramTimeMs(
+                    left.start,
+                    left.startTimestamp,
+                    offsetMinutes
+                ) -
+                getProgramTimeMs(
+                    right.start,
+                    right.startTimestamp,
+                    offsetMinutes
+                )
+        ),
+        offsetMinutes
     );
 
     const activeProgram = options.activeProgram;
 
     return deduped.map((program, index) => {
-        const startMs = getProgramTimeMs(program.start, program.startTimestamp);
-        const stopMs = getProgramTimeMs(program.stop, program.stopTimestamp);
+        const startMs = getProgramTimeMs(
+            program.start,
+            program.startTimestamp,
+            offsetMinutes
+        );
+        const stopMs = getProgramTimeMs(
+            program.stop,
+            program.stopTimestamp,
+            offsetMinutes
+        );
         const when = classifyTimelineWhen(startMs, stopMs, nowMs);
 
         return {
@@ -109,7 +136,7 @@ export function buildEpgListRows(
             when,
             progress: liveProgress(when, startMs, stopMs, nowMs),
             isActive: activeProgram
-                ? areProgramsSame(program, activeProgram)
+                ? areProgramsSame(program, activeProgram, offsetMinutes)
                 : false,
             canCatchUp: canCatchUpProgramme(
                 when,

@@ -1,23 +1,39 @@
 import { format } from 'date-fns';
-import type { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    epgDisplayTimeMs,
+    type EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { EPG_DATE_KEY_FORMAT } from './epg-date';
 
+/**
+ * A programme boundary as epoch ms in DISPLAY time: the unix timestamp when
+ * present (the ISO string may carry a provider-local offset the parser could
+ * not resolve), else the parsed ISO value, shifted by the EPG display offset
+ * (`epg-display-offset.util.ts`, display form). Every ui/epg geometry, date
+ * and equality helper below goes through this one conversion.
+ */
 export function getProgramTimeMs(
     isoValue: string,
-    timestampValue?: number | null
+    timestampValue?: number | null,
+    offsetMinutes = 0
 ): number {
-    if (Number.isFinite(timestampValue) && Number(timestampValue) > 0) {
-        return Number(timestampValue) * 1000;
-    }
-
-    return Date.parse(isoValue);
+    const baseMs =
+        Number.isFinite(timestampValue) && Number(timestampValue) > 0
+            ? Number(timestampValue) * 1000
+            : Date.parse(isoValue);
+    return epgDisplayTimeMs(baseMs, offsetMinutes);
 }
 
 export function getProgramDateKey(
     isoValue: string,
-    timestampValue?: number | null
+    timestampValue?: number | null,
+    offsetMinutes = 0
 ): string {
-    const programTimeMs = getProgramTimeMs(isoValue, timestampValue);
+    const programTimeMs = getProgramTimeMs(
+        isoValue,
+        timestampValue,
+        offsetMinutes
+    );
 
     if (!Number.isFinite(programTimeMs)) {
         return '';
@@ -27,12 +43,13 @@ export function getProgramDateKey(
 }
 
 export function deduplicateProgramsByTimeSlot(
-    programs: EpgProgram[]
+    programs: EpgProgram[],
+    offsetMinutes = 0
 ): EpgProgram[] {
     const programsByTimeSlot = new Map<string, EpgProgram>();
 
     for (const program of programs) {
-        const timeSlotKey = buildProgramTimeSlotKey(program);
+        const timeSlotKey = buildProgramTimeSlotKey(program, offsetMinutes);
         const existingProgram = programsByTimeSlot.get(timeSlotKey);
 
         programsByTimeSlot.set(
@@ -48,21 +65,29 @@ export function deduplicateProgramsByTimeSlot(
 
 export function areProgramsSame(
     left: EpgProgram,
-    right: EpgProgram
+    right: EpgProgram,
+    offsetMinutes = 0
 ): boolean {
     return (
         (left.channel ?? '') === (right.channel ?? '') &&
-        getProgramTimeMs(left.start, left.startTimestamp) ===
-            getProgramTimeMs(right.start, right.startTimestamp) &&
-        getProgramTimeMs(left.stop, left.stopTimestamp) ===
-            getProgramTimeMs(right.stop, right.stopTimestamp)
+        getProgramTimeMs(left.start, left.startTimestamp, offsetMinutes) ===
+            getProgramTimeMs(
+                right.start,
+                right.startTimestamp,
+                offsetMinutes
+            ) &&
+        getProgramTimeMs(left.stop, left.stopTimestamp, offsetMinutes) ===
+            getProgramTimeMs(right.stop, right.stopTimestamp, offsetMinutes)
     );
 }
 
-function buildProgramTimeSlotKey(program: EpgProgram): string {
+function buildProgramTimeSlotKey(
+    program: EpgProgram,
+    offsetMinutes: number
+): string {
     return [
-        getProgramTimeMs(program.start, program.startTimestamp),
-        getProgramTimeMs(program.stop, program.stopTimestamp),
+        getProgramTimeMs(program.start, program.startTimestamp, offsetMinutes),
+        getProgramTimeMs(program.stop, program.stopTimestamp, offsetMinutes),
     ].join('|');
 }
 

@@ -1,9 +1,15 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OverlayRef } from '@angular/cdk/overlay';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import { SettingsStore } from '@iptvnator/services';
+import {
+    ElectronBridgeEpgChannelWithPrograms,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import {
     MultiEpgContainerComponent,
     isSelectedEpgDayToday,
@@ -20,12 +26,25 @@ describe('isSelectedEpgDayToday', () => {
     });
 });
 
+function programAt(start: Date, minutes: number, title: string): EpgProgram {
+    return {
+        start: start.toISOString(),
+        stop: new Date(start.getTime() + minutes * 60_000).toISOString(),
+        channel: 'c1',
+        title,
+        desc: null,
+        category: null,
+    };
+}
+
 describe('MultiEpgContainerComponent runtime gates', () => {
     let fixture: ComponentFixture<MultiEpgContainerComponent>;
     let component: MultiEpgContainerComponent;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
+    const epgOffsetMinutes = signal(0);
 
     beforeEach(async () => {
+        epgOffsetMinutes.set(0);
         epgBridge = {
             getChannelsByRange: jest.fn().mockResolvedValue([]),
             searchPrograms: jest.fn().mockResolvedValue([]),
@@ -50,6 +69,10 @@ describe('MultiEpgContainerComponent runtime gates', () => {
                     useValue: epgBridge,
                 },
                 {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: epgOffsetMinutes },
+                },
+                {
                     provide: TranslateService,
                     useValue: {
                         currentLang: 'en',
@@ -72,6 +95,32 @@ describe('MultiEpgContainerComponent runtime gates', () => {
         fixture.destroy();
         jest.restoreAllMocks();
         jest.useRealTimers();
+    });
+
+    it('lays programmes out in display time when an EPG offset is set', () => {
+        const morning = new Date();
+        morning.setHours(10, 0, 0, 0);
+        const late = new Date();
+        late.setHours(23, 30, 0, 0);
+        component.originalEpgData.set([
+            {
+                id: 'c1',
+                displayName: 'Channel 1',
+                programs: [
+                    programAt(morning, 60, 'Morning'),
+                    programAt(late, 60, 'Late'),
+                ],
+            } as unknown as ElectronBridgeEpgChannelWithPrograms,
+        ]);
+
+        epgOffsetMinutes.set(90);
+
+        // 23:30 + 90 min lands on the next day and leaves today's column;
+        // 10:00 + 90 min is drawn under 11:30.
+        const programs = component.channels()[0].programs;
+        expect(programs.map((program) => program.title)).toEqual(['Morning']);
+        expect(programs[0].startPosition).toBe(11.5 * component.hourWidth());
+        expect(programs[0].width).toBe(component.hourWidth());
     });
 
     it('does not request EPG channel ranges when the EPG bridge cannot browse channels', async () => {

@@ -206,6 +206,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                         showCaptions: signal(false),
                         stripCountryPrefix: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
+                        resolvedEpgOffsetMinutes: signal(0),
                         epgUrl: signal<string[]>([]),
                         fullscreenChannelPanel: fullscreenChannelPanelSetting,
                     },

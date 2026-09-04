@@ -1,0 +1,193 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import FeatureHero from '../../components/feature/FeatureHero.astro';
+import FeatureSwitcher from '../../components/feature/FeatureSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildFeaturePageSchema } from '../../lib/feature-schema';
+import { featureBySlug } from '../../lib/features';
+import { absoluteUrl } from '../../lib/site';
+
+const feature = featureBySlug('xtream-codes-player');
+const pageUrl = absoluteUrl('/features/xtream-codes-player/');
+const title = 'Xtream Codes Player for Desktop – Live TV, Movies and Series | IPTVnator';
+const description =
+  'IPTVnator is a free, open-source Xtream Codes player for Windows, macOS and Linux: live channels with the portal program guide and catch-up, movies and series with posters and details, offline downloads, a local catalog that opens instantly, and an account page with your expiry date.';
+
+const unlocked = [
+  {
+    title: 'Live TV with a guide',
+    description:
+      'Categories, channels with the current program and a timeline under the player, fed by the portal schedule. Archived channels carry a catch-up badge and play from the timeline.',
+  },
+  {
+    title: 'Movies and series',
+    description:
+      'Poster grids per category and a detail page with description, cast, trailer and similar titles. Seasons are tabs, episodes remember where you stopped, and whole seasons can be marked watched.',
+  },
+  {
+    title: 'A local catalog',
+    description:
+      'The desktop app stores the categories and content in a local library, so a source opens instantly and only changed data is downloaded on the next sync.',
+  },
+  {
+    title: 'Offline downloads',
+    description:
+      'Save movies and episodes to disk from the detail page. The download manager resumes interrupted transfers and keeps a library of finished files.',
+  },
+  {
+    title: 'Search, favorites, recent',
+    description:
+      'Per-source search, favorites and history, plus a Recently added section for new content and global collections across all your sources.',
+  },
+  {
+    title: 'Metadata and discovery',
+    description:
+      'Optional TMDB enrichment adds artwork, ratings and trailers, links actors to their filmography, and opens a Discover page by year, genre and country.',
+  },
+  {
+    title: 'Account info',
+    description:
+      'Status, expiry date, active and maximum connections, trial flag and allowed formats in one dialog; the dashboard shows an expiry chip during the last week.',
+  },
+  {
+    title: 'Refresh without losing data',
+    description:
+      'Refresh a source from the provider while favorites, watch history, hidden categories and playback positions stay in place.',
+  },
+  {
+    title: 'The same movie, several sources',
+    description:
+      'With more than one Xtream source, a movie found in several of them shows a Sources chip, and playback can switch to another copy or fail over automatically.',
+  },
+];
+
+const connection = [
+  { term: 'What you enter', value: 'Server URL, username and password. A pasted get.php or player_api.php link fills the fields for you.' },
+  { term: 'Connection test', value: 'Before adding, IPTVnator asks the portal for the account status and reports active, expired, inactive or unreachable.' },
+  { term: 'Stream formats', value: 'Live streams use HLS when the portal allows it and fall back to MPEG-TS; a manual format setting exists under Settings › Playback.' },
+  { term: 'Program guide', value: 'The portal schedule is used first. On the desktop app, your own XMLTV sources fill missing channels or take precedence, as you prefer.' },
+  { term: 'User-Agent', value: 'A provider-compatible IPTV player signature by default; a custom one per playlist on the desktop app.' },
+  { term: 'Browser version', value: 'Works in the self-hosted web version through its backend proxy; the local catalog and downloads are desktop features.' },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'What is an Xtream Codes player?',
+    a: 'A player that talks to the Xtream Codes API most IPTV panels expose: it signs in with a server URL, username and password and receives categories, channels, movies, series, the program guide and catch-up from the provider. IPTVnator is one, free and open source.',
+  },
+  {
+    q: 'Does IPTVnator work with any Xtream Codes provider?',
+    a: 'It works with panels that implement the Xtream Codes API, including the common variants in account-info actions, catch-up URL shapes and stream formats. The connection test in the Add playlist dialog tells you immediately whether the portal answers.',
+  },
+  {
+    q: 'Can I watch movies and series, not only live TV?',
+    a: 'Yes. Movies and series are first-class: poster grids, detail pages with descriptions and cast, seasons and episodes with resume positions, and on the desktop app a download button for offline viewing.',
+  },
+  {
+    q: 'Does the program guide and catch-up work?',
+    a: 'Yes. The portal schedule is shown in the channel list and in a timeline under the player, and channels the provider archives can be played from the timeline. The timeline shows how many days of archive a channel has.',
+  },
+  {
+    q: 'Can I add more than one Xtream account?',
+    a: 'Yes. Every account is its own source with separate favorites, history and cached catalog. The dashboard, global favorites, recent items and search combine them.',
+  },
+  {
+    q: 'Does IPTVnator sell Xtream Codes subscriptions?',
+    a: 'No. IPTVnator is a player. The server URL, username and password come from the provider you already have a contract with, and they are only sent to that server.',
+  },
+];
+
+const jsonLd = buildFeaturePageSchema({
+  feature,
+  pageUrl,
+  description,
+  featureList: [
+    'Xtream Codes API login with connection test',
+    'Live TV with portal program guide and catch-up',
+    'Movies and series with posters, details and resume',
+    'Local catalog cache for instant source switching',
+    'Offline downloads of movies and episodes',
+    'Account status and expiry information',
+    'Optional TMDB metadata and Discover pages',
+  ],
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['Xtream Codes player', 'Xtream Codes player Windows', 'Xtream Codes player Mac', 'Xtream Codes player Linux', 'Xtream Codes API player', 'IPTV player desktop', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <FeatureHero
+    feature={feature}
+    titleLead="The Xtream Codes player"
+    titleAccent="for your desktop"
+    lede="Sign in with server URL, username and password and get the whole provider library: live channels with a program guide and catch-up, movies and series with posters and details, downloads for offline viewing, and a local catalog that opens instantly."
+    facts={['Live, movies & series', 'Portal EPG & catch-up', 'Offline downloads', 'Local catalog']}
+    screenshot={{
+      src: '/iptvnator/blog/v0-23/screenshots/xtream-vod-details-dark.png',
+      alt: 'Movie details from an Xtream source with poster, description and playback actions',
+      width: 2560,
+      height: 1440,
+    }}
+  />
+
+  <DownloadSection id="unlocked" eyebrow="What you get" title="One login," accent="the whole library" lead="Everything the provider exposes through the API, organized the way a desktop app should organize it.">
+    <FeatureList items={unlocked} />
+  </DownloadSection>
+
+  <DownloadSection id="series" eyebrow="Series" title="Seasons, episodes," accent="progress">
+    <div class="grid gap-8 lg:grid-cols-2 lg:items-center">
+      <div class="space-y-4 text-base leading-relaxed text-surface-400">
+        <p>
+          A series opens with its seasons as tabs and the episodes of the selected season below, with stills and
+          descriptions from the provider or from TMDB when enrichment is on. IPTVnator remembers the position in every
+          episode, offers Resume and Play next episode, and shows an Up Next rail beside the player while an episode is
+          playing.
+        </p>
+        <p>
+          Seasons and whole series can be marked watched in one action, and on the desktop app a season can be downloaded
+          episode by episode for offline viewing.
+        </p>
+      </div>
+      <figure class="overflow-hidden rounded-xl border border-dashed border-surface-600/60 bg-surface-900/60 p-2">
+        <img
+          src="/iptvnator/blog/v0-23/screenshots/xtream-series-season-open-dark.png"
+          alt="Series details with season tabs and the episode list of a season"
+          width={2560}
+          height={1440}
+          class="h-auto w-full rounded-lg"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="connection" eyebrow="Under the hood" title="Connection" accent="details">
+    <SpecList items={connection} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="Xtream Codes">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['xtream-codes-setup-guide', 'stalker-portal-setup-guide', 'why-external-players-help']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <FeatureSwitcher current="xtream-codes-player" />
+</BaseLayout>

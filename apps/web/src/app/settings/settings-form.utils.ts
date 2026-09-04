@@ -15,6 +15,7 @@ import {
     normalizeDashboardRailsSettings,
     normalizeEmbeddedMpvExtraOptions,
     normalizeExternalPlayerArguments,
+    normalizeEpgOffsetMinutes,
     normalizeStartupWindowMode,
     Settings,
     StartupBehavior,
@@ -112,6 +113,12 @@ export function createSettingsForm(
             ? {
                   preferUploadedEpgOverXtream: false,
                   epgViewMode: 'timeline' as EpgViewMode,
+                  epgOffsetMinutes: new FormControl<number>(0, [
+                      Validators.required,
+                      Validators.min(-720),
+                      Validators.max(720),
+                      Validators.pattern(/^-?\d+$/),
+                  ]),
               }
             : {}),
         tmdb: formBuilder.group({
@@ -198,6 +205,9 @@ export function createSettingsFromFormValue(
             false,
         epgViewMode:
             value.epgViewMode ?? currentSettings.epgViewMode ?? 'timeline',
+        epgOffsetMinutes: normalizeEpgOffsetMinutes(
+            value.epgOffsetMinutes ?? currentSettings.epgOffsetMinutes
+        ),
         trustedPrivateNetworkEpgUrls:
             currentSettings.trustedPrivateNetworkEpgUrls ?? [],
         trustedInsecureTlsHosts: currentSettings.trustedInsecureTlsHosts ?? [],

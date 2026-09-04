@@ -21,7 +21,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import {
+    Channel,
+    EpgProgram,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
@@ -75,6 +80,7 @@ interface FilteredGroupView {
 export class GroupsViewComponent {
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
@@ -357,7 +363,15 @@ export class GroupsViewComponent {
     readonly epgMetadataMap = computed(() => {
         // Read progressTick to create a dependency for the ~30s progress refresh.
         this.progressTick();
-        return buildChannelEpgMetadataMap(this.channelEpgMap());
+        // Progress is measured in the provider's EPG clock: the map keeps the
+        // raw programme rows and the item shifts their times for display.
+        return buildChannelEpgMetadataMap(
+            this.channelEpgMap(),
+            epgProviderClockMs(
+                Date.now(),
+                this.settingsStore.resolvedEpgOffsetMinutes()
+            )
+        );
     });
 
     /** Resolves the EPG lookup key the side-car map is keyed by. */
@@ -517,7 +531,6 @@ export class GroupsViewComponent {
             channelName: channel.name ?? channelKey,
         });
     }
-
 
     openChannelDetails(): void {
         const channel = this.contextMenuChannel();

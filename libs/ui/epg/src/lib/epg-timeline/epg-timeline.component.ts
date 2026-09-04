@@ -36,11 +36,9 @@ import {
     summaryHasTitle,
     summaryMinutesLeft,
     summaryProgress,
+    summaryTimeMs,
 } from './epg-summary.util';
-import {
-    canCatchUpProgramme,
-    epgDialogActionFor,
-} from './epg-archive.util';
+import { canCatchUpProgramme, epgDialogActionFor } from './epg-archive.util';
 import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
@@ -100,6 +98,7 @@ export class EpgTimelineComponent {
     readonly collapsed = input(false);
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
+    readonly offsetMinutes = input(0);
 
     readonly programActivated = output<EpgProgramActivationEvent>();
     readonly returnToLive = output<void>();
@@ -138,7 +137,11 @@ export class EpgTimelineComponent {
         viewDayKey: () => this.viewDayKey(),
         commitDay: (dayKey) => this.commitDay(dayKey),
         hasProgramsForDay: (dayKey) =>
-            hasProgramsForDateKey(this.programs(), dayKey),
+            hasProgramsForDateKey(
+                this.programs(),
+                dayKey,
+                this.offsetMinutes()
+            ),
     });
 
     private readonly languageTick = toSignal(
@@ -153,10 +156,15 @@ export class EpgTimelineComponent {
     });
 
     readonly axis = computed(() =>
-        buildTimelineAxis(this.programs(), this.nowMs())
+        buildTimelineAxis(this.programs(), this.nowMs(), this.offsetMinutes())
     );
     readonly blocks = computed(() =>
-        buildTimelineBlocks(this.programs(), this.axis(), this.nowMs())
+        buildTimelineBlocks(
+            this.programs(),
+            this.axis(),
+            this.nowMs(),
+            this.offsetMinutes()
+        )
     );
     private readonly archiveWindowStartMs = computed(() => {
         const days = this.archiveDays();
@@ -178,11 +186,15 @@ export class EpgTimelineComponent {
     readonly dividers = computed(() => buildTimelineDayDividers(this.axis()));
     readonly trackWidthPx = computed(() => {
         const axis = this.axis();
-        return ((axis.endMs - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale();
+        return (
+            ((axis.endMs - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale()
+        );
     });
     readonly playheadLeftPx = computed(() => {
         const axis = this.axis();
-        return ((this.nowMs() - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale();
+        return (
+            ((this.nowMs() - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale()
+        );
     });
     readonly zoomLabelKey = computed(() => {
         const scale = this.scale();
@@ -208,7 +220,13 @@ export class EpgTimelineComponent {
         if (this.programs().length === 0) {
             return 'channel-unmapped';
         }
-        if (!hasProgramsForDateKey(this.programs(), this.viewDayKey())) {
+        if (
+            !hasProgramsForDateKey(
+                this.programs(),
+                this.viewDayKey(),
+                this.offsetMinutes()
+            )
+        ) {
             return 'empty-day';
         }
         return 'ribbon';
@@ -225,7 +243,9 @@ export class EpgTimelineComponent {
      * could become usable, but with no programmes for the day there is nothing
      * to jump to or zoom.
      */
-    readonly showRibbonControls = computed(() => this.renderState() === 'ribbon');
+    readonly showRibbonControls = computed(
+        () => this.renderState() === 'ribbon'
+    );
 
     /**
      * The date stepper navigates between days, which is only meaningful when the
@@ -241,14 +261,19 @@ export class EpgTimelineComponent {
 
     // ── collapsed-summary state ──
     readonly hasSummary = computed(() => summaryHasTitle(this.summary()));
-    readonly hasTimeRange = computed(() =>
-        summaryHasTimeRange(this.summary())
-    );
+    readonly hasTimeRange = computed(() => summaryHasTimeRange(this.summary()));
     readonly progress = computed(() =>
-        summaryProgress(this.summary(), this.nowMs())
+        summaryProgress(this.summary(), this.nowMs(), this.offsetMinutes())
     );
     readonly minutesLeft = computed(() =>
-        summaryMinutesLeft(this.summary(), this.nowMs())
+        summaryMinutesLeft(this.summary(), this.nowMs(), this.offsetMinutes())
+    );
+    /** Collapsed-header time range in display time (raw summary times shifted). */
+    readonly summaryStartMs = computed(() =>
+        summaryTimeMs(this.summary()?.start, this.offsetMinutes())
+    );
+    readonly summaryStopMs = computed(() =>
+        summaryTimeMs(this.summary()?.stop, this.offsetMinutes())
     );
 
     constructor() {
@@ -374,7 +399,8 @@ export class EpgTimelineComponent {
     jumpToNearestDay(): void {
         const nearest = nearestDateKeyWithPrograms(
             this.programs(),
-            this.nowMs()
+            this.nowMs(),
+            this.offsetMinutes()
         );
         if (nearest) {
             this.commitDay(nearest);

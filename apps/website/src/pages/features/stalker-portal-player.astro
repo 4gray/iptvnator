@@ -1,0 +1,192 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import FeatureHero from '../../components/feature/FeatureHero.astro';
+import FeatureSwitcher from '../../components/feature/FeatureSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildFeaturePageSchema } from '../../lib/feature-schema';
+import { featureBySlug } from '../../lib/features';
+import { absoluteUrl } from '../../lib/site';
+
+const feature = featureBySlug('stalker-portal-player');
+const pageUrl = absoluteUrl('/features/stalker-portal-player/');
+const title = 'Stalker Portal Player for Windows, macOS and Linux – IPTVnator';
+const description =
+  'IPTVnator is a free, open-source Stalker and Ministra portal player for the desktop: MAC address identity like a MAG box, automatic endpoint and portal-type detection, live TV with a program guide, radio, movies and series in every portal shape, and an account page with your expiry date.';
+
+const capabilities = [
+  {
+    title: 'Behaves like a MAG box',
+    description:
+      'Handshake, profile and token refresh with the MAC address as identity, the same headers a set-top box sends, and a watchdog that keeps full Ministra portals happy.',
+  },
+  {
+    title: 'Finds the right endpoint',
+    description:
+      'Enter a bare host, /c, portal.php or server/load.php. IPTVnator probes the usual endpoints, classifies the portal by how it behaves, and repairs the stored connection if the provider migrates.',
+  },
+  {
+    title: 'Live TV and radio',
+    description:
+      'Categories, channels with the current program and a progress bar, the complete channel list cached for search, and a dedicated audio layout for radio stations.',
+  },
+  {
+    title: 'Program guide and catch-up',
+    description:
+      'The portal schedule is loaded for a week and shown in the list and in the timeline under the player. Archived channels play past programs from the timeline.',
+  },
+  {
+    title: 'Movies and series, all three shapes',
+    description:
+      'Regular series, movies with embedded episodes and Ministra lazily loaded seasons all render as seasons and episodes with resume positions and watched markers.',
+  },
+  {
+    title: 'Account info',
+    description:
+      'Status, login, tariff plan, expiry with a days-left counter and portal details, shown instantly from the import snapshot and refreshed from the portal.',
+  },
+  {
+    title: 'Device identity, on your terms',
+    description:
+      'Optional serial number, device IDs and signatures are sent only when you enter them. Device IDs can be derived the StbEmu way at import, and stored IDs are protected from accidental changes.',
+  },
+  {
+    title: 'Fresh links, never stored',
+    description:
+      'Temporary stream links are requested from the portal for every playback and never persisted, so favorites and history keep working when links expire.',
+  },
+  {
+    title: 'Favorites, recent, search, downloads',
+    description:
+      'Per-portal collections plus global favorites, recent items and search across all sources. The desktop app downloads movies and episodes for offline viewing.',
+  },
+];
+
+const details = [
+  { term: 'Portal URL', value: 'Any http or https address: bare host, /c, portal.php or server/load.php. The proven endpoint is stored with the source.' },
+  { term: 'MAC address', value: 'Normalized to 00:1A:79:XX:XX:XX; dashes, dots and lowercase are accepted. Addresses outside the Infomir range get a hint, not a refusal.' },
+  { term: 'Login and password', value: 'Only when the portal demands them; IPTVnator says so and retries once you fill them in.' },
+  { term: 'Portal messages', value: 'Refusals are shown with the portal\'s own words: login required, login rejected, device conflict, blocked.' },
+  { term: 'Program guide', value: 'Portal schedule first; XMLTV sources from the desktop settings as a fallback, plus manual channel mapping.' },
+  { term: 'Browser version', value: 'Works in the self-hosted web version through its backend proxy; downloads are a desktop feature.' },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'What is a Stalker portal player?',
+    a: 'A player that speaks the Stalker or Ministra middleware protocol used by MAG set-top boxes. It authenticates with a MAC address instead of a username, fetches channel lists and movie catalogs on demand, and resolves a temporary link for every stream. IPTVnator does all of that on the desktop.',
+  },
+  {
+    q: 'Which portal URL do I need?',
+    a: 'Whatever your provider gave you, as long as it starts with http or https. IPTVnator tries the usual endpoints behind that address and keeps the one that answers, so a bare host, /c, portal.php or server/load.php all work.',
+  },
+  {
+    q: 'Do I need a real MAG box or a serial number?',
+    a: 'No. The MAC address the provider registered is enough for most portals. Serial number, device IDs and signatures are optional and only needed when the provider registered a specific box and told you the values.',
+  },
+  {
+    q: 'Does IPTVnator support Ministra portals with a login?',
+    a: 'Yes. When a portal asks for a login and password on top of the MAC address, IPTVnator reports it, and the optional username and password fields in the Add playlist dialog complete the authentication.',
+  },
+  {
+    q: 'Does the program guide and catch-up work with portals?',
+    a: 'Yes. The portal schedule is loaded for a week and shown in the channel list and the timeline under the player. Channels the portal marks as archived can be played from the timeline.',
+  },
+  {
+    q: 'Does IPTVnator provide portal accounts?',
+    a: 'No. IPTVnator is a player. The portal URL and MAC address come from the provider you already have a contract with, and they are only sent to that portal.',
+  },
+];
+
+const jsonLd = buildFeaturePageSchema({
+  feature,
+  pageUrl,
+  description,
+  featureList: [
+    'Stalker and Ministra portal login by MAC address',
+    'Automatic endpoint discovery and portal-type detection',
+    'Live TV with portal program guide and catch-up',
+    'Radio stations in a dedicated audio layout',
+    'Movies and series in regular, embedded and lazy-season shapes',
+    'Account status, tariff plan and expiry information',
+    'Optional device identity fields with derivation from the MAC',
+  ],
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['Stalker portal player', 'Stalker portal player Windows', 'Stalker portal player Mac', 'Stalker portal player Linux', 'Ministra portal player', 'MAC address IPTV player', 'MAG portal player PC', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <FeatureHero
+    feature={feature}
+    titleLead="A Stalker portal player"
+    titleAccent="without the set-top box"
+    lede="IPTVnator talks to Stalker and Ministra middleware the way a MAG box does: MAC address identity, handshake and profile, live TV with a program guide, radio, movies and series in all three portal shapes, and an account page with your expiry date."
+    facts={['MAC address identity', 'Ministra & reseller panels', 'ITV, radio, movies, series', 'Endpoint discovery']}
+    screenshot={{
+      src: '/iptvnator/blog/guides/screenshots/guide-stalker-live-dark.png',
+      alt: 'Live TV of a Stalker portal with categories, channels and the current program',
+      width: 2560,
+      height: 1440,
+    }}
+  />
+
+  <DownloadSection id="capabilities" eyebrow="What you get" title="Everything the portal" accent="serves" lead="The full portal experience of a set-top box, with the search, collections and downloads of a desktop app on top.">
+    <FeatureList items={capabilities} />
+  </DownloadSection>
+
+  <DownloadSection id="import" eyebrow="Setup" title="Two fields," accent="and it works">
+    <div class="grid gap-8 lg:grid-cols-2 lg:items-center">
+      <div class="space-y-4 text-base leading-relaxed text-surface-400">
+        <p>
+          The Add playlist dialog asks for a title, the portal URL and the MAC address. Everything else is optional and
+          stays empty unless your provider gave you values. When you click Add, IPTVnator probes the portal, authenticates
+          with your MAC address, saves the endpoint and mode that worked, and opens the source.
+        </p>
+        <p>
+          Providers that migrate their portal do not break the source: on the first failure IPTVnator re-probes once and
+          repairs the stored connection.
+        </p>
+      </div>
+      <figure class="overflow-hidden rounded-xl border border-dashed border-surface-600/60 bg-surface-900/60 p-2">
+        <img
+          src="/iptvnator/blog/guides/screenshots/guide-stalker-add-playlist-dark.png"
+          alt="Add playlist dialog with the Stalker portal method, a portal URL and a MAC address"
+          width={2560}
+          height={1440}
+          class="h-auto w-full rounded-lg"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="details" eyebrow="Under the hood" title="Connection" accent="details">
+    <SpecList items={details} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="Stalker portals">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['stalker-portal-setup-guide', 'xtream-codes-setup-guide', 'why-external-players-help']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <FeatureSwitcher current="stalker-portal-player" />
+</BaseLayout>
