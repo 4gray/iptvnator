@@ -2020,9 +2020,13 @@ Napi::Value SetPaused(const Napi::CallbackInfo& info)
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         session->paused = paused != 0;
+        // Optimistic only while playing/paused: a load in flight keeps
+        // `loading` until MPV_EVENT_FILE_LOADED, otherwise a reconnect's
+        // unpause right after loadfile would report the replacement stream
+        // as playing before it opened (and clear the attempt indicator).
         if (session->loadedPath &&
-            session->snapshot.status != SessionStatus::Ended &&
-            session->snapshot.status != SessionStatus::Error) {
+            (session->snapshot.status == SessionStatus::Playing ||
+             session->snapshot.status == SessionStatus::Paused)) {
             session->snapshot.status = session->paused
                 ? SessionStatus::Paused
                 : SessionStatus::Playing;

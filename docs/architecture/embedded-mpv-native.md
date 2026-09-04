@@ -595,7 +595,10 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
 - Every reload is followed by `setPaused(false)`: sessions run with
   `keep-open=yes`, so EOF leaves mpv paused at the end of the old file and a
   plain `loadfile` inherits that pause — the reloaded live stream would
-  buffer, report `paused` and never play.
+  buffer, report `paused` and never play. The engines apply that pause
+  toggle optimistically only while already `playing`/`paused`, so the
+  reload stays `loading` until the media actually opens and the attempt
+  indicator is not cleared early.
 
 Every engine flips to `loading` synchronously on a load (the frame-copy
 adapter does so optimistically before the helper confirms), which is what
