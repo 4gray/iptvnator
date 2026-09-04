@@ -615,8 +615,9 @@ comparison; applying both doubles the shift.
   window out of the full guide at the provider clock with
   `windowEpgItemsAtProviderClock`, because `get_short_epg` always starts at
   the provider's own "now" and cannot reach the programme actually on air; a
-  request that completes after the setting changed is retired and re-queued
-  whatever its outcome), the M3U player's
+  changed setting drops the queue's cut windows, cached empty results and
+  failure cooldowns as one, and a request that completes after the change is
+  retired and re-queued whatever its outcome), the M3U player's
   `setCurrentEpgProgram` mirror and recording-start snapshot, the unified
   collection resolver (`StreamResolverService.loadEpgForItems`), the dashboard
   live cards' progress, and the recording stop-time overlap

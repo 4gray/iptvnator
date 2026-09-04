@@ -13,8 +13,6 @@ import { createLogger } from '@iptvnator/portal/shared/util';
 interface CacheEntry {
     data: EpgItem[];
     timestamp: number;
-    /** Display offset the window was cut for; a changed setting makes it stale. */
-    offsetMinutes: number;
 }
 
 /**
@@ -66,6 +64,8 @@ export class EpgQueueService implements OnDestroy {
     private processing = false;
     private enqueueGeneration = 0;
     private readonly failureTimestamps = new Map<number, number>();
+    /** Display offset every per-stream memory below was recorded under. */
+    private stateOffsetMinutes = this.epgOffsetMinutes();
 
     private readonly maxConcurrency = 2;
     private readonly delayMs = 200;
@@ -76,12 +76,10 @@ export class EpgQueueService implements OnDestroy {
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
 
     getCached(streamId: number): EpgItem[] | null {
+        this.retireStateOfPreviousOffset();
         const entry = this.cache.get(streamId);
         if (!entry) return null;
-        if (
-            Date.now() - entry.timestamp > this.cacheTtlMs ||
-            entry.offsetMinutes !== this.epgOffsetMinutes()
-        ) {
+        if (Date.now() - entry.timestamp > this.cacheTtlMs) {
             this.cache.delete(streamId);
             return null;
         }
@@ -90,6 +88,24 @@ export class EpgQueueService implements OnDestroy {
 
     private epgOffsetMinutes(): number {
         return this.settingsStore.resolvedEpgOffsetMinutes();
+    }
+
+    /**
+     * Every per-stream memory here — cut windows, cached empty results and
+     * failure cooldowns — answers "what is on at the provider clock", so a
+     * changed display offset retires all of it at once instead of letting
+     * one map or another keep steering the reload. Run on every entry point
+     * (`enqueue`, `getCached`, `fetchEpg`); in-flight requests are retired by
+     * `fetchEpg` itself when they land.
+     */
+    private retireStateOfPreviousOffset(): void {
+        const current = this.epgOffsetMinutes();
+        if (current === this.stateOffsetMinutes) {
+            return;
+        }
+        this.stateOffsetMinutes = current;
+        this.cache.clear();
+        this.failureTimestamps.clear();
     }
 
     /**
@@ -148,6 +164,7 @@ export class EpgQueueService implements OnDestroy {
         visibleIds: Set<number>,
         credentials: XtreamCredentials
     ): Promise<void> {
+        this.retireStateOfPreviousOffset();
         const generation = ++this.enqueueGeneration;
 
         const normalized: EpgQueueEntry[] = streams.map((entry) =>
@@ -343,8 +360,9 @@ export class EpgQueueService implements OnDestroy {
         const startEpoch = this.invalidationEpoch.get(streamId) ?? 0;
         const isStale = (): boolean =>
             (this.invalidationEpoch.get(streamId) ?? 0) !== startEpoch;
-        // Captured before the request so the entry is tagged with the offset
-        // its window was cut for, not the one current when it lands.
+        // Captured before the request so the result can be told apart from
+        // the offset current when it lands.
+        this.retireStateOfPreviousOffset();
         const offsetMinutes = this.epgOffsetMinutes();
         const outcome = await this.requestPreviewWindow(
             credentials,
@@ -381,12 +399,12 @@ export class EpgQueueService implements OnDestroy {
             }
 
             if (outcome.items.length > 0) {
-                this.recordSuccess(streamId, outcome.items, offsetMinutes);
+                this.recordSuccess(streamId, outcome.items);
                 return;
             }
 
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
-            this.recordSuccess(streamId, xmltv ? [xmltv] : [], offsetMinutes);
+            this.recordSuccess(streamId, xmltv ? [xmltv] : []);
         } finally {
             // Only release the in-flight marker if this request still owns it.
             // When invalidate() cleared it mid-flight, a later re-enqueue may
@@ -460,17 +478,9 @@ export class EpgQueueService implements OnDestroy {
         }
     }
 
-    private recordSuccess(
-        streamId: number,
-        items: EpgItem[],
-        offsetMinutes = this.epgOffsetMinutes()
-    ): void {
+    private recordSuccess(streamId: number, items: EpgItem[]): void {
         const previous = this.cache.get(streamId)?.data;
-        this.cache.set(streamId, {
-            data: items,
-            timestamp: Date.now(),
-            offsetMinutes,
-        });
+        this.cache.set(streamId, { data: items, timestamp: Date.now() });
         this.failureTimestamps.delete(streamId);
 
         if (previous && previous.length === 0 && items.length === 0) {

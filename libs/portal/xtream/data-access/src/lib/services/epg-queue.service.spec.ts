@@ -213,6 +213,27 @@ describe('EpgQueueService', () => {
         ]);
     });
 
+    it('drops a failure cooldown together with the cache when the offset changes', async () => {
+        xtreamApi.getShortEpg.mockRejectedValueOnce(new Error('provider down'));
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Really on air', -75, 60),
+        ]);
+
+        await priv().fetchEpg(credentials, 42);
+        expect(priv().shouldFetch(42)).toBe(false);
+
+        // The cooldown answered "no short EPG at the provider's now"; a new
+        // offset asks a different question and must fetch again at once.
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        expect(priv().shouldFetch(42)).toBe(true);
+
+        await priv().fetchEpg(credentials, 42);
+        expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+        ]);
+    });
+
     it('caches empty EPG responses and does not immediately refetch them', async () => {
         xtreamApi.getShortEpg.mockResolvedValue([]);
 
