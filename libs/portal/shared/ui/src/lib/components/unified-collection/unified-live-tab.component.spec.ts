@@ -250,6 +250,9 @@ describe('UnifiedLiveTabComponent', () => {
         recentData.recordLivePlayback.mockImplementation(
             async (item: UnifiedCollectionItem) => item
         );
+        // The inline web player (the fullscreen owner) only mounts for an
+        // embedded player; external MPV/VLC never render it.
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
 
         fixture.componentRef.setInput('items', [first, second]);
         fixture.componentRef.setInput('mode', 'favorites');
@@ -260,6 +263,9 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         const firstDetail = component.activeDetail();
         expect(firstDetail?.playback.streamUrl).toBe(first.streamUrl);
+        const playerView = () =>
+            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent));
+        expect(playerView()).not.toBeNull();
 
         // A zap from the fullscreen panel: the mounted player (the fullscreen
         // element) must survive the resolution round-trip.
@@ -269,9 +275,7 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         expect(component.activeUid()).toBe(second.uid);
         expect(component.activeDetail()).toBe(firstDetail);
-        expect(
-            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
-        ).not.toBeNull();
+        expect(playerView()).not.toBeNull();
 
         resolveSecond(detailFor(second));
         await pending;
