@@ -150,6 +150,16 @@ async function main(): Promise<void> {
     // release assets an earlier run already committed.
     const stagingDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-shots-'));
     const mockServer = await driver.ensureXtreamMockServer(workspaceRoot);
+    // The Stalker portal is seeded only for shots that walk into it: it adds
+    // a third source card to the dashboard, which release shots must not show.
+    const needsStalker = shots.some((shot: { setup: string[] }) =>
+        shot.setup.some(
+            (step) => parseSetupStep(String(step)).action === 'open-stalker-live'
+        )
+    );
+    const stalkerMockServer = needsStalker
+        ? await driver.ensureStalkerMockServer(workspaceRoot)
+        : undefined;
     const dataDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-release-shots-'));
     let app: Awaited<ReturnType<typeof driver.launchApp>> | undefined;
     let recordedRequests: string[] = [];
@@ -204,7 +214,9 @@ async function main(): Promise<void> {
         await driver.sizeWindow(app, manifest.viewport);
         await driver.waitForAppReady(page);
         await assertTmdbDisabled(page); // G5
-        await driver.seedDemoData(page, driver.writeM3uFixture(dataDir));
+        await driver.seedDemoData(page, driver.writeM3uFixture(dataDir), {
+            stalker: needsStalker,
+        });
 
         for (const theme of themes) {
             await applyTheme(page, theme);
@@ -260,6 +272,7 @@ async function main(): Promise<void> {
         // may sit in -wal until the worker shuts down and checkpoints.
         await app?.close().catch(() => undefined);
         mockServer?.kill('SIGTERM');
+        stalkerMockServer?.kill('SIGTERM');
         rmSync(dataDir, { recursive: true, force: true });
     }
 

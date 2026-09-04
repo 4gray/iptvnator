@@ -367,4 +367,67 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         ).toBeNull();
         expect(fixture.nativeElement.textContent).toContain('--:--');
     });
+
+    it('offers Retry when a live stream ends without a reconnect in progress', () => {
+        fixture.componentInstance.playback = {
+            ...fixture.componentInstance.playback,
+            contentInfo: undefined,
+            isLive: true,
+        };
+        fixture.detectChanges();
+        controller.session.update((session) =>
+            session ? { ...session, status: 'ended' } : session
+        );
+        fixture.detectChanges();
+
+        const overlay = fixture.debugElement.query(
+            By.css('.embedded-mpv-player__stalled')
+        );
+        expect(overlay).not.toBeNull();
+        expect(overlay.nativeElement.textContent).toContain(
+            'EMBEDDED_MPV.PLAYER.STREAM_ENDED'
+        );
+        expect(overlay.query(By.css('button'))).not.toBeNull();
+    });
+
+    it('shows the reconnect attempt instead of the mpv error while the main process retries', () => {
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      status: 'error',
+                      error: 'Connection reset by peer',
+                      reconnect: {
+                          attempt: 2,
+                          maxAttempts: 6,
+                          nextAttemptAt: '2026-06-06T12:00:04Z',
+                      },
+                  }
+                : session
+        );
+        fixture.detectChanges();
+
+        const overlay = fixture.debugElement.query(
+            By.css('.embedded-mpv-player__stalled[data-reconnecting]')
+        );
+        expect(overlay).not.toBeNull();
+        expect(overlay.nativeElement.textContent).toContain(
+            'EMBEDDED_MPV.PLAYER.RECONNECTING'
+        );
+        expect(overlay.nativeElement.textContent).not.toContain(
+            'Connection reset by peer'
+        );
+        expect(overlay.query(By.css('button'))).not.toBeNull();
+
+        controller.session.update((session) =>
+            session
+                ? { ...session, status: 'playing', reconnect: undefined }
+                : session
+        );
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.embedded-mpv-player__stalled'))
+        ).toBeNull();
+    });
 });

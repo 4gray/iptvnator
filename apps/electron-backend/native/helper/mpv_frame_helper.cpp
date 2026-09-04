@@ -16,6 +16,7 @@
  * Usage:
  *   iptvnator_mpv_helper --shm-base /impv-<id> --width 1280 --height 720
  *                        [--volume 0..1] [--hwdec auto]
+ *                        [--mpv-options-stdin]
  */
 #include <mpv/client.h>
 
@@ -72,6 +73,9 @@ struct SnapshotState {
     std::string recordingStartedAt;
     std::string recordingError;
     std::string error;
+    /* True when `error` is the engine's own failure (a fatal libmpv log)
+     * rather than the stream's: the app must not reload media for it. */
+    bool engineError = false;
 };
 
 struct HelperState {
@@ -173,7 +177,10 @@ std::string composeSnapshotLocked() {
         recording.str("startedAt", s.recordingStartedAt);
     if (!s.recordingError.empty()) recording.str("error", s.recordingError);
     writer.raw("recording", recording.finish());
-    if (!s.error.empty()) writer.str("error", s.error);
+    if (!s.error.empty()) {
+        writer.str("error", s.error);
+        if (s.engineError) writer.str("errorOrigin", "engine");
+    }
     return writer.finish();
 }
 
@@ -382,6 +389,7 @@ void runMpvEventLoop() {
                 case MPV_EVENT_START_FILE:
                     s.status = "loading";
                     s.error.clear();
+                    s.engineError = false;
                     s.audioTracks.clear();
                     s.selectedAudioTrackId = -1;
                     s.subtitleTracks.clear();
@@ -413,6 +421,7 @@ void runMpvEventLoop() {
                                g_state.running.load()) {
                         s.status = "loading";
                         s.error.clear();
+                        s.engineError = false;
                         g_state.loadedPath = false;
                     } else if (g_state.running.load()) {
                         s.status = "idle";
@@ -440,6 +449,7 @@ void runMpvEventLoop() {
                     }
                     if (level == "fatal") {
                         s.status = "error";
+                        s.engineError = true;
                     }
                     emitLine(JsonWriter()
                                  .str("event", "log")
@@ -486,6 +496,7 @@ void handleLoadCommand(const Command& command) {
         }
         g_state.snapshot.streamUrl = url;
         g_state.snapshot.error.clear();
+        g_state.snapshot.engineError = false;
         g_state.snapshot.status = "loading";
         g_state.dirty = true;
     }
@@ -629,6 +640,12 @@ struct HelperArgs {
     std::string shmBase = "/impv";
     std::string hwdec = "auto";
     std::string audioDelay; /* seconds, mpv audio-delay passthrough */
+    /* Read the session's "key=value" libmpv options (network defaults plus
+     * the user's Settings > Playback lines) from the first stdin line and
+     * apply them after the built-in block so they override it. They never
+     * travel on argv: a credential-bearing option must not be readable
+     * through `ps` or /proc/<pid>/cmdline. */
+    bool mpvOptionsOnStdin = false;
     int width = 1280;
     int height = 720;
     double volume = 1;
@@ -648,6 +665,7 @@ HelperArgs parseArgs(int argc, char** argv) {
         else if (arg == "--volume") args.volume = std::atof(next().c_str());
         else if (arg == "--hwdec") args.hwdec = next();
         else if (arg == "--audio-delay") args.audioDelay = next();
+        else if (arg == "--mpv-options-stdin") args.mpvOptionsOnStdin = true;
         else if (arg == "--runtime-probe") args.runtimeProbe = true;
     }
     args.width = std::max(16, args.width);
@@ -810,6 +828,53 @@ int main(int argc, char** argv) {
          * lip-sync; calibrated per platform, see the architecture doc. */
         mpv_set_option_string(g_state.mpv, "audio-delay",
                               args.audioDelay.c_str());
+    }
+    if (args.mpvOptionsOnStdin) {
+        /* `mpv-options\to000=<key=value>\to001=...` in the regular command
+         * encoding; zero-padded keys keep the application order (network
+         * defaults first, then the user's lines) through the field map. */
+        std::string preamble;
+        if (!std::getline(std::cin, preamble)) {
+            emitLine(JsonWriter()
+                         .str("event", "fatal")
+                         .str("error", "mpv-options preamble missing on stdin")
+                         .finish());
+            return 1;
+        }
+        const frame_helper::Command preambleCommand =
+            frame_helper::parseCommandLine(preamble);
+        if (preambleCommand.name != "mpv-options") {
+            emitLine(JsonWriter()
+                         .str("event", "fatal")
+                         .str("error", "expected the mpv-options preamble on stdin")
+                         .finish());
+            return 1;
+        }
+        std::vector<std::pair<std::string, std::string>> entries(
+            preambleCommand.args.begin(), preambleCommand.args.end());
+        std::sort(entries.begin(), entries.end());
+        for (const auto& entry : entries) {
+            const std::string& option = entry.second;
+            const size_t separator = option.find('=');
+            if (separator == std::string::npos || separator == 0 ||
+                separator + 1 >= option.size()) {
+                continue;
+            }
+            const std::string key = option.substr(0, separator);
+            const std::string value = option.substr(separator + 1);
+            const int optionResult = mpv_set_option_string(
+                g_state.mpv, key.c_str(), value.c_str());
+            if (optionResult < 0) {
+                emitLine(JsonWriter()
+                             .str("event", "log")
+                             .str("level", "warn")
+                             .str("prefix", "iptvnator")
+                             .str("text", "rejected session option " + key +
+                                              ": " +
+                                              mpv_error_string(optionResult))
+                             .finish());
+            }
+        }
     }
     if (mpv_initialize(g_state.mpv) < 0) {
         emitLine(JsonWriter()

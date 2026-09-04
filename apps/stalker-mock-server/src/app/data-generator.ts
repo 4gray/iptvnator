@@ -3,6 +3,13 @@ import {
     MarketingMovieCategoryKey,
     POSTER_SHOWCASE_MOVIES,
 } from '@iptvnator/shared/marketing-fixtures';
+import {
+    generateMarketingChannels,
+    generateMarketingEpg,
+    generateMarketingItvCategories,
+    marketingEpgTitlesFor,
+    marketingLogoPath,
+} from './marketing-live.generator.js';
 import { ScenarioConfig } from './scenarios.js';
 
 // ---------------------------------------------------------------------------
@@ -235,30 +242,53 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
     };
 
     // ------ ITV categories + channels ------
-    data.itvCategories = generateCategories('itv', config.categoryCount.itv);
-    // Real Ministra portals mark adult genres as censored and EXCLUDE their
-    // channels from get_all_channels / the "*" listing; the channels are only
-    // served by paging the specific genre. Mirror that with one extra
-    // censored category so clients can exercise the fallback path.
-    data.itvCategories.push({
-        id: '1099',
-        title: 'For adults',
-        alias: 'for_adults',
-        censored: '1',
-    });
-    let channelIndex = 0;
-    for (const cat of data.itvCategories) {
-        const channels = generateChannels(
-            cat.id,
-            config.itemsPerCategory,
-            channelIndex,
-            config.staticChannelCmd === true
-        );
-        data.channels.set(cat.id, channels);
-        for (const ch of channels) {
-            data.epg.set(ch.id, generateEpg(ch.name));
+    if (config.marketingFixture) {
+        // Screenshot-safe: shared fictional channels, logos served by this
+        // process, no censored category to keep out of a published frame.
+        data.itvCategories = generateMarketingItvCategories();
+        const marketingChannels = generateMarketingChannels();
+        for (const cat of data.itvCategories) {
+            const channels = marketingChannels.filter(
+                (channel) => channel.category_id === cat.id
+            );
+            data.channels.set(cat.id, channels);
+            for (const ch of channels) {
+                data.epg.set(
+                    ch.id,
+                    generateMarketingEpg(ch.name, marketingEpgTitlesFor(ch.name))
+                );
+            }
         }
-        channelIndex += config.itemsPerCategory;
+    } else {
+        data.itvCategories = generateCategories(
+            'itv',
+            config.categoryCount.itv
+        );
+        // Real Ministra portals mark adult genres as censored and EXCLUDE
+        // their channels from get_all_channels / the "*" listing; the
+        // channels are only served by paging the specific genre. Mirror that
+        // with one extra censored category so clients can exercise the
+        // fallback path.
+        data.itvCategories.push({
+            id: '1099',
+            title: 'For adults',
+            alias: 'for_adults',
+            censored: '1',
+        });
+        let channelIndex = 0;
+        for (const cat of data.itvCategories) {
+            const channels = generateChannels(
+                cat.id,
+                config.itemsPerCategory,
+                channelIndex,
+                config.staticChannelCmd === true
+            );
+            data.channels.set(cat.id, channels);
+            for (const ch of channels) {
+                data.epg.set(ch.id, generateEpg(ch.name));
+            }
+            channelIndex += config.itemsPerCategory;
+        }
     }
 
     // ------ Radio categories + stations ------
@@ -271,7 +301,8 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
         const stations = generateRadioStations(
             cat.id,
             config.itemsPerCategory,
-            radioIndex
+            radioIndex,
+            config.marketingFixture === true
         );
         data.radio.set(cat.id, stations);
         radioIndex += config.itemsPerCategory;
@@ -426,7 +457,8 @@ function generateChannels(
 function generateRadioStations(
     categoryId: string,
     count: number,
-    startIndex: number
+    startIndex: number,
+    localLogos = false
 ): RawRadioStation[] {
     return Array.from({ length: count }, (_, i) => {
         const globalIndex = startIndex + i;
@@ -437,7 +469,7 @@ function generateRadioStations(
             name,
             o_name: name,
             cmd: `ffrt4://radio/${id}/index.mp3`,
-            logo: logoUrl(`radio-${id}`),
+            logo: localLogos ? marketingLogoPath(name) : logoUrl(`radio-${id}`),
             category_id: categoryId,
             tv_genre_id: categoryId,
             number: String(globalIndex + 1),

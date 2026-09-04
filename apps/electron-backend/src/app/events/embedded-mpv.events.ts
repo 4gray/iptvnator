@@ -31,6 +31,7 @@ import {
     EmbeddedMpvNativeService,
     embeddedMpvNativeService,
 } from '../services/embedded-mpv-native.service';
+import { readEmbeddedMpvSessionOptions } from '../services/embedded-mpv-session-options';
 
 export default class EmbeddedMpvEvents {
     static bootstrapEmbeddedMpvEvents(): Electron.IpcMain {
@@ -56,10 +57,7 @@ function handleEmbeddedMpv<Args extends unknown[]>(
         try {
             return await handler(...(args as Args));
         } catch (error) {
-            console.error(
-                `[Embedded MPV] ${channel} handler failed:`,
-                error
-            );
+            console.error(`[Embedded MPV] ${channel} handler failed:`, error);
             throw error;
         }
     });
@@ -72,7 +70,14 @@ handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () => getService().prepareAddon());
 handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,
     (bounds: EmbeddedMpvBounds, title?: string, initialVolume?: number) =>
-        getService().createSession(bounds, title, initialVolume)
+        // Settings are read here, per session, so the service itself never
+        // touches the config store (constructed at module load).
+        getService().createSession(
+            bounds,
+            title,
+            initialVolume,
+            readEmbeddedMpvSessionOptions()
+        )
 );
 
 handleEmbeddedMpv(
@@ -137,9 +142,8 @@ handleEmbeddedMpv(EMBEDDED_MPV_SELECT_SUBTITLE_FILE, () =>
     getService().selectSubtitleFile()
 );
 
-handleEmbeddedMpv(
-    EMBEDDED_MPV_SET_SPEED,
-    (sessionId: string, speed: number) => getService().setSpeed(sessionId, speed)
+handleEmbeddedMpv(EMBEDDED_MPV_SET_SPEED, (sessionId: string, speed: number) =>
+    getService().setSpeed(sessionId, speed)
 );
 
 handleEmbeddedMpv(

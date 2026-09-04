@@ -137,6 +137,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().webPlayerSharedControls).toBe(false);
     });
 
+    it('defaults embedded MPV auto-reconnect to true when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().embeddedMpvAutoReconnect).toBe(true);
+    });
+
+    it('restores a persisted false embedded MPV auto-reconnect opt-out', async () => {
+        storedSettings = { embeddedMpvAutoReconnect: false };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().embeddedMpvAutoReconnect).toBe(false);
+    });
+
     it('defaults strip country prefix to false when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);

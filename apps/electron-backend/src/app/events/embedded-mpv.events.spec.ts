@@ -5,17 +5,26 @@ jest.mock('electron', () => ({
 }));
 
 const mockEmbeddedMpvService = {
+    createSession: jest.fn(),
     getSupport: jest.fn(),
     setPaused: jest.fn(),
+};
+const mockSessionOptions = {
+    extraOptions: ['network-timeout=10', 'hwdec=no'],
+    autoReconnect: false,
 };
 
 jest.mock('../services/embedded-mpv-native.service', () => ({
     EmbeddedMpvNativeService: class {},
     embeddedMpvNativeService: mockEmbeddedMpvService,
 }));
+jest.mock('../services/embedded-mpv-session-options', () => ({
+    readEmbeddedMpvSessionOptions: () => mockSessionOptions,
+}));
 
 import { ipcMain } from 'electron';
 import {
+    EMBEDDED_MPV_CREATE_SESSION,
     EMBEDDED_MPV_SET_PAUSED,
     EMBEDDED_MPV_SUPPORT,
 } from '@iptvnator/shared/interfaces';
@@ -41,8 +50,27 @@ function getIpcMainHandler(
 
 describe('EmbeddedMpvEvents IPC handlers', () => {
     beforeEach(() => {
+        mockEmbeddedMpvService.createSession.mockReset();
         mockEmbeddedMpvService.getSupport.mockReset();
         mockEmbeddedMpvService.setPaused.mockReset();
+    });
+
+    it('creates a session with the options read from the settings mirror', async () => {
+        const session = { id: 'session-1', status: 'idle' };
+        mockEmbeddedMpvService.createSession.mockReturnValue(session);
+        const bounds = { x: 0, y: 0, width: 640, height: 360 };
+
+        const handler = getIpcMainHandler(EMBEDDED_MPV_CREATE_SESSION);
+
+        await expect(handler({}, bounds, 'Title', 0.5)).resolves.toEqual(
+            session
+        );
+        expect(mockEmbeddedMpvService.createSession).toHaveBeenCalledWith(
+            bounds,
+            'Title',
+            0.5,
+            mockSessionOptions
+        );
     });
 
     it('forwards arguments to the native service and returns its result', async () => {

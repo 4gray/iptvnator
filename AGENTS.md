@@ -457,7 +457,27 @@ Key files:
   path keeps the existing Video.js skin and legacy series navigation unchanged
   (still without `userActions.hotkeys`), while the playback keyboard shortcuts
   attach through `LegacyPlayerShortcuts` and drive the player API so the
-  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`).
+  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`). That chrome
+  also releases the focus a pointer interaction leaves on a control
+  (`vjs-pointer-focus-release.ts`, sharing `pointer-focus-release.ts`'s
+  `blurFocusedControl` with `ControlsSurface`): a focused Video.js component
+  stops every key before the document and turns Space/Enter into a click, so
+  after a click on fullscreen Space left fullscreen instead of pausing. It is
+  driven mainly by `focusin`, not the click, because choosing a menu item
+  moves focus to the menu button a tick later and that click never bubbles to
+  the shell: an eligible control (button/`role=button`/slider, never a menu
+  item) is released when its focus is attributable to a recent shell
+  `pointerdown` not yet ended by a document `keydown`, so `Tab` focus is kept.
+  A `click` runs the same release for a control clicked while already focused
+  (Tab, then a mouse click), which fires no `focusin`. The release is scoped
+  to `.vjs-control-bar`, so the caption-settings dialog (a modal sibling of
+  the bar) keeps its focus trap. Menu buttons live in the bar and are not
+  exempt: a popup is navigated through its focused item, so releasing the
+  button never disturbs an open menu, and the button focus a pointer moves
+  through (open, item selection, toggling an open menu shut) is released so
+  Space works again after the menu closes. ArtPlayer
+  (non-focusable divs) and the native HTML5 controls (focus lands on the
+  `<video>`) need no counterpart.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
   HLS/DASH(Shaka)/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and

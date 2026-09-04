@@ -1,7 +1,18 @@
 import {
+    MARKETING_LIVE_CATEGORIES,
+    MARKETING_LIVE_CHANNELS,
+    MarketingLiveCategoryKey,
+    MarketingLiveChannelFixture,
     MarketingMovieCategoryKey,
     MarketingMovieFixture,
     POSTER_SHOWCASE_MOVIES as SHARED_POSTER_SHOWCASE_MOVIES,
+    escapeMarketingSvg,
+    marketingHash,
+    marketingPalette,
+    marketingSlug,
+    marketingSvgDocument,
+    marketingTitleFromSlug,
+    renderMarketingLogoSvg,
 } from '@iptvnator/shared/marketing-fixtures';
 import { RawCategory } from './categories.generator.js';
 import {
@@ -38,12 +49,6 @@ type MarketingSeries = {
     year: number;
 };
 
-type MarketingLiveChannel = {
-    categoryId: string;
-    epgTitles: string[];
-    name: string;
-};
-
 export type MarketingArtworkFixture = {
     contentType: 'movie' | 'series';
     description: string;
@@ -70,12 +75,20 @@ const MARKETING_SERIES_ID_BASE = 72_000;
 const MARKETING_EPISODE_ID_BASE = 82_000;
 const ADDED_BASE = 1_777_000_000;
 
-const LIVE_CATEGORIES: RawCategory[] = [
-    { category_id: '5101', category_name: 'Newsroom', parent_id: 0 },
-    { category_id: '5102', category_name: 'Sports & Motion', parent_id: 0 },
-    { category_id: '5103', category_name: 'Family Channels', parent_id: 0 },
-    { category_id: '5104', category_name: 'Culture & Docs', parent_id: 0 },
-];
+const XTREAM_LIVE_CATEGORY_IDS: Record<MarketingLiveCategoryKey, string> = {
+    newsroom: '5101',
+    sports: '5102',
+    family: '5103',
+    culture: '5104',
+};
+
+const LIVE_CATEGORIES: RawCategory[] = MARKETING_LIVE_CATEGORIES.map(
+    (category) => ({
+        category_id: XTREAM_LIVE_CATEGORY_IDS[category.key],
+        category_name: category.name,
+        parent_id: 0,
+    })
+);
 
 const VOD_CATEGORIES: RawCategory[] = [
     { category_id: '5201', category_name: 'Action & Mystery', parent_id: 0 },
@@ -116,48 +129,8 @@ const SERIES_CATEGORIES: RawCategory[] = [
     { category_id: '5304', category_name: 'Creative Docs', parent_id: 0 },
 ];
 
-const LIVE_CHANNELS: MarketingLiveChannel[] = [
-    {
-        categoryId: '5101',
-        name: 'Aurora News',
-        epgTitles: ['Morning Briefing', 'City Desk', 'Global Window'],
-    },
-    {
-        categoryId: '5101',
-        name: 'Civic One',
-        epgTitles: ['Town Hall Live', 'Policy Today', 'Open Forum'],
-    },
-    {
-        categoryId: '5102',
-        name: 'Fieldside Sports',
-        epgTitles: ['Training Ground', 'Matchday Studio', 'Final Whistle'],
-    },
-    {
-        categoryId: '5102',
-        name: 'Motion Arena',
-        epgTitles: ['Court Vision', 'Trackside', 'Night Highlights'],
-    },
-    {
-        categoryId: '5103',
-        name: 'Horizon Kids',
-        epgTitles: ['Rocket Workshop', 'Tiny Explorers', 'Story Lantern'],
-    },
-    {
-        categoryId: '5103',
-        name: 'Kitchen Lab',
-        epgTitles: ['Breakfast Builders', 'Family Table', 'Sweet Science'],
-    },
-    {
-        categoryId: '5104',
-        name: 'Atlas Docs',
-        epgTitles: ['Ocean Notes', 'Museum Hour', 'Wide Angle'],
-    },
-    {
-        categoryId: '5104',
-        name: 'Night Music',
-        epgTitles: ['Studio Session', 'Late Set', 'Ambient City'],
-    },
-];
+const LIVE_CHANNELS: readonly MarketingLiveChannelFixture[] =
+    MARKETING_LIVE_CHANNELS;
 
 const GENERATED_ARTWORK_MOVIES: MarketingMovie[] = [
     {
@@ -570,7 +543,7 @@ export function listMarketingArtworkFixtures(): MarketingArtworkFixture[] {
             description: movie.description,
             genre: movie.genre,
             name: movie.name,
-            slug: slugify(movie.name),
+            slug: marketingSlug(movie.name),
             tagline: movie.tagline,
             year: movie.year,
         })),
@@ -579,7 +552,7 @@ export function listMarketingArtworkFixtures(): MarketingArtworkFixture[] {
             description: series.description,
             genre: series.genre,
             name: series.name,
-            slug: slugify(series.name),
+            slug: marketingSlug(series.name),
             tagline: series.tagline,
             year: series.year,
         })),
@@ -741,7 +714,7 @@ export function marketingAssetUrl(
     title: string,
     size: string
 ): string {
-    return `${marketingAssetOrigin()}/assets/marketing/${kind}/${slugify(
+    return `${marketingAssetOrigin()}/assets/marketing/${kind}/${marketingSlug(
         title
     )}.svg?size=${encodeURIComponent(size)}`;
 }
@@ -752,41 +725,19 @@ export function renderMarketingAssetSvg(
     size: string | undefined
 ): string {
     const { width, height } = parseSize(size, kind);
-    const title = titleFromSlug(slug);
-    const palette = paletteFor(`${kind}:${slug}`);
-    const initials = title
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('');
-
+    const title = marketingTitleFromSlug(slug);
+    const palette = marketingPalette(`${kind}:${slug}`);
     if (kind === 'logo') {
-        return svgDocument(
-            width,
-            height,
-            `
-            <defs>
-                <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-                    <stop offset="0%" stop-color="${palette[0]}" />
-                    <stop offset="100%" stop-color="${palette[1]}" />
-                </linearGradient>
-            </defs>
-            <rect width="100%" height="100%" rx="${width * 0.22}" fill="url(#bg)" />
-            <circle cx="${width * 0.72}" cy="${height * 0.25}" r="${width * 0.2}" fill="${palette[2]}" opacity="0.35" />
-            <path d="M ${width * 0.16} ${height * 0.72} C ${width * 0.35} ${height * 0.48}, ${width * 0.58} ${height * 0.92}, ${width * 0.84} ${height * 0.58}" fill="none" stroke="#fff" stroke-width="${Math.max(8, width * 0.05)}" stroke-linecap="round" opacity="0.42" />
-            <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${width * 0.3}" font-weight="800" fill="#fff">${escapeSvg(initials)}</text>
-            `
-        );
+        return renderMarketingLogoSvg(slug, size);
     }
 
     if (kind === 'backdrop' || kind === 'episode') {
         const skylineY = height * 0.7;
-        const heroX = width * (0.34 + (hash(slug) % 20) / 100);
+        const heroX = width * (0.34 + (marketingHash(slug) % 20) / 100);
         const heroY = height * 0.38;
-        const accentX = width * (0.68 + (hash(`${slug}:light`) % 16) / 100);
+        const accentX = width * (0.68 + (marketingHash(`${slug}:light`) % 16) / 100);
 
-        return svgDocument(
+        return marketingSvgDocument(
             width,
             height,
             `
@@ -846,7 +797,7 @@ export function renderMarketingAssetSvg(
         }, [])
         .slice(0, 3);
 
-    return svgDocument(
+    return marketingSvgDocument(
         width,
         height,
         `
@@ -876,17 +827,17 @@ export function renderMarketingAssetSvg(
         ${titleLines
             .map(
                 (line, index) =>
-                    `<text x="${width * 0.08}" y="${height * 0.58 + index * titleFontSize * 1.05}" font-family="Arial, Helvetica, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#ffffff">${escapeSvg(line.toUpperCase())}</text>`
+                    `<text x="${width * 0.08}" y="${height * 0.58 + index * titleFontSize * 1.05}" font-family="Arial, Helvetica, sans-serif" font-size="${titleFontSize}" font-weight="900" fill="#ffffff">${escapeMarketingSvg(line.toUpperCase())}</text>`
             )
             .join('')}
-        <text x="${width * 0.08}" y="${height * 0.84}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.max(11, height * 0.024)}" font-weight="800" fill="#ffffff" opacity="0.76">${escapeSvg(creditLine)}</text>
+        <text x="${width * 0.08}" y="${height * 0.84}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.max(11, height * 0.024)}" font-weight="800" fill="#ffffff" opacity="0.76">${escapeMarketingSvg(creditLine)}</text>
         <text x="${width * 0.08}" y="${height * 0.9}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.max(12, height * 0.028)}" font-weight="700" fill="#ffffff" opacity="0.72">IPTVnator fictional demo artwork</text>
         `
     );
 }
 
 function buildMarketingLiveStream(
-    channel: MarketingLiveChannel,
+    channel: MarketingLiveChannelFixture,
     index: number
 ): RawLiveStream {
     const streamId = MARKETING_LIVE_STREAM_ID_BASE + index;
@@ -898,7 +849,7 @@ function buildMarketingLiveStream(
         stream_icon: marketingAssetUrl('logo', channel.name, '256x256'),
         epg_channel_id: `marketing-channel-${streamId}`,
         added: String(ADDED_BASE - index * 4_000),
-        category_id: channel.categoryId,
+        category_id: XTREAM_LIVE_CATEGORY_IDS[channel.categoryKey],
         custom_sid: '',
         direct_source: '',
         tv_archive: 1,
@@ -957,7 +908,7 @@ function buildMarketingSeriesItem(
 
 function buildMarketingEpgListings(
     stream: RawLiveStream,
-    titles: string[]
+    titles: readonly string[]
 ): RawEpgListing[] {
     const now = Math.floor(Date.now() / 1000);
     const slotSeconds = 30 * 60;
@@ -984,22 +935,6 @@ function marketingAssetOrigin(): string {
     return `http://localhost:${port}`;
 }
 
-function slugify(value: string): string {
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-}
-
-function titleFromSlug(slug: string): string {
-    return slug
-        .replace(/\.svg$/i, '')
-        .split('-')
-        .filter(Boolean)
-        .map((part) => `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
-        .join(' ');
-}
-
 function parseSize(
     size: string | undefined,
     kind: MarketingAssetKind
@@ -1022,19 +957,6 @@ function parseSize(
     };
 }
 
-function paletteFor(seed: string): [string, string, string] {
-    const palettes: Array<[string, string, string]> = [
-        ['#0b1026', '#1b6b77', '#f2a65a'],
-        ['#15111f', '#6b3fa0', '#20c7b5'],
-        ['#071b2c', '#2457a6', '#f05d5e'],
-        ['#1b1b24', '#8d4f2a', '#e9c46a'],
-        ['#10251d', '#2a9d8f', '#e76f51'],
-        ['#18151f', '#b23a48', '#f4a261'],
-    ];
-    const index = hash(seed) % palettes.length;
-    return palettes[index];
-}
-
 function creditLineFor(seed: string): string {
     const credits = [
         'STARRING MARA SOL / THEO QUILL / IRIS VALE',
@@ -1044,23 +966,6 @@ function creditLineFor(seed: string): string {
         'STARRING NICO REED / TESSA MOON / BRAM COLE',
         'STARRING ELLE FENN / RAFI NORTH / MIRA STONE',
     ];
-    return credits[hash(seed) % credits.length];
+    return credits[marketingHash(seed) % credits.length];
 }
 
-function hash(value: string): number {
-    return value.split('').reduce((acc, char) => {
-        return (acc * 31 + char.charCodeAt(0)) >>> 0;
-    }, 0);
-}
-
-function svgDocument(width: number, height: number, body: string): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${body}</svg>`;
-}
-
-function escapeSvg(value: string): string {
-    return value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}

@@ -3,7 +3,8 @@ type RequestOriginSource = {
     get(name: string): string | undefined;
 };
 
-const MARKETING_POSTER_PATH_PREFIX = '/assets/marketing/poster/';
+/** Posters and channel logos alike: every asset this process serves itself. */
+const MARKETING_POSTER_PATH_PREFIX = '/assets/marketing/';
 
 export function buildRequestOrigin(request: RequestOriginSource): string {
     const protocol =

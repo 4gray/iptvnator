@@ -10,9 +10,18 @@
  * instead of a `get.php?username=…` link.
  */
 
+import { FICTIONAL_STALKER_MAC } from './screenshot-guards.mjs';
+
 export const XTREAM_MOCK_ORIGIN = 'http://localhost:3211';
 export const XTREAM_FIXTURE_TITLE = 'Fictional Xtream Demo';
 export const M3U_FIXTURE_TITLE = 'release-demo';
+
+export const STALKER_MOCK_ORIGIN = 'http://localhost:3210';
+export const STALKER_FIXTURE_TITLE = 'Fictional Stalker Demo';
+/** Reseller-panel shape most hand-outs use; discovery classifies the mock's answer itself. */
+export const STALKER_FIXTURE_PORTAL_URL = `${STALKER_MOCK_ORIGIN}/portal.php`;
+/** The mock's `marketing-demo` scenario; the only MAC the frame guard lets through. */
+export const STALKER_FIXTURE_MAC = FICTIONAL_STALKER_MAC;
 
 /** Credential pair of the mock server's curated `marketing` scenario. */
 export const XTREAM_FIXTURE_CREDENTIALS = {

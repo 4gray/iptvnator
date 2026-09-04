@@ -20,6 +20,13 @@ const GUIDES = [
       'blog/guides/screenshots/guide-xtream-live-dark.png',
     ],
   },
+  {
+    slug: 'stalker-portal-setup-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-stalker-add-playlist-dark.png',
+      'blog/guides/screenshots/guide-stalker-live-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');

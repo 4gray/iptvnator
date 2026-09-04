@@ -442,7 +442,8 @@ describe('EmbeddedMpvNativeService power blocker', () => {
                 Buffer.alloc(0),
                 BOUNDS,
                 '',
-                1
+                1,
+                []
             );
 
             // Dispose while the frame-copy env is still set so teardown
@@ -476,7 +477,8 @@ describe('EmbeddedMpvNativeService power blocker', () => {
                 expect.any(Buffer),
                 physicalBounds,
                 '',
-                1
+                1,
+                []
             );
             expect(addon.setBounds).toHaveBeenCalledWith(
                 's-scaled',
@@ -493,13 +495,18 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             addon.createSession.mockReturnValueOnce('s-zoom');
             addon.getSessionSnapshot.mockReturnValue(snapshot('loading'));
 
-            service.createSession({ x: 0, y: 0, width: 100, height: 100 }, '', 1);
+            service.createSession(
+                { x: 0, y: 0, width: 100, height: 100 },
+                '',
+                1
+            );
 
             expect(addon.createSession).toHaveBeenCalledWith(
                 expect.any(Buffer),
                 { x: 0, y: 0, width: 125, height: 125 },
                 '',
-                1
+                1,
+                []
             );
         });
 
@@ -530,7 +537,8 @@ describe('EmbeddedMpvNativeService power blocker', () => {
                 Buffer.alloc(0),
                 BOUNDS,
                 '',
-                1
+                1,
+                []
             );
             expect(frameCopyAddon.setBounds).toHaveBeenCalledWith(
                 's-fc-bounds',
