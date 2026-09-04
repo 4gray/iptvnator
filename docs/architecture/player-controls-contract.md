@@ -332,7 +332,13 @@ container's per-view title/sort/collapse headers (`showHeader` on the
 all-channels and groups views; the persisted sort still applies) so nothing
 stacks between the search row and the first channel, and with
 `resetActiveChannelOnDestroy` false, because the container's destroy hook
-otherwise clears the active channel and stops playback), `LiveStreamLayoutComponent` (Xtream; the sidebar's
+otherwise clears the active channel and stops playback; radio stations are
+filtered out of the list it is handed, since they render through
+`app-audio-player` — selecting one destroys the `app-web-player-view` that
+owns fullscreen and drops the user out of it, and every panel view resolves
+against that one list, favorites and recent included. PageUp/PageDown keep
+stepping onto radio: those keys zap on the windowed player too, where
+switching to a station is right), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
 route category), `StalkerLiveStreamLayoutComponent` (its list markup is one
 `ng-template` stamped into both the sidebar and the panel with its own search

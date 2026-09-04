@@ -281,6 +281,19 @@ export class VideoPlayerComponent
     readonly panelTitle = computed(() =>
         playlistDisplayLabel(this.activePlaylistMeta()?.title)
     );
+    /**
+     * Radio stations are withheld from the panel: they render through
+     * `app-audio-player` instead of `app-web-player-view`, so selecting one
+     * destroys the element that owns fullscreen and drops the user out of it —
+     * the opposite of what this panel exists for. Every panel view resolves
+     * against this list (favorites and recent look their rows up in it), so
+     * one filter covers all four. PageUp/PageDown deliberately keep stepping
+     * onto radio: those keys also zap on the windowed player, where switching
+     * to a station is exactly right.
+     */
+    readonly fullscreenPanelChannels = computed(() =>
+        this.channels().filter((channel) => channel.radio !== 'true')
+    );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );

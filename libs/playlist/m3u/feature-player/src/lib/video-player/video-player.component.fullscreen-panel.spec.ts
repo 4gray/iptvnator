@@ -126,6 +126,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     beforeEach(async () => {
         storeMock.dispatch.mockClear();
         setActive(sampleChannel);
+        channels.set([sampleChannel, nextChannel]);
         activePlaylistMeta.set(null);
         fullscreenChannelPanelSetting.set(undefined);
         tmdbEnabled.set(false);
@@ -276,6 +277,27 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
 
             activePlaylistMeta.set({ title: 'Living Room' } as PlaylistMeta);
             expect(component.panelTitle()).toBe('Living Room');
+        });
+
+        it('withholds radio stations from the panel list', () => {
+            // A radio row plays through app-audio-player, which replaces the
+            // app-web-player-view that owns fullscreen — picking one would
+            // drop the user out of the mode the panel exists to keep.
+            const radioChannel = {
+                ...sampleChannel,
+                id: 'radio-1',
+                url: 'http://localhost/radio.mp3',
+                name: 'Sample FM',
+                radio: 'true',
+            } as Channel;
+            channels.set([sampleChannel, radioChannel, nextChannel]);
+
+            expect(component.fullscreenPanelChannels()).toEqual([
+                sampleChannel,
+                nextChannel,
+            ]);
+            // The page's own sidebar still lists every channel.
+            expect(component.channels()).toHaveLength(3);
         });
     });
 
