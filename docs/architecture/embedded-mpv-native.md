@@ -534,7 +534,7 @@ user line overrides both:
 | -------------------------- | ---------------------------------------------------------- |
 | Windows native-view        | `createSession(..., string[])` → `mpv_set_option_string`  |
 | macOS native-view          | same, in `embedded_mpv.mm`                                 |
-| Linux native-view          | written to a user-only (0600) config file under `userData/embedded-mpv/` and referenced as `--include=<path>` on the `mpv --wid` command line (before the per-playback options, so a playlist's user-agent/headers still win); the file is removed on dispose and stale ones are swept at the next start |
+| Linux native-view          | written to a user-only (0600) config file under `userData/embedded-mpv/options-<pid>/` and referenced as `--include=<path>` on the `mpv --wid` command line (before the per-playback options, so a playlist's user-agent/headers still win); the file is removed on dispose, the instance directory on shutdown, and another instance's leftovers only once its process is gone (two instances may share one `userData`) |
 | Frame-copy helper          | the first stdin line (`mpv-options`, helper started with `--mpv-options-stdin`), applied after the helper's built-in block |
 
 The list never appears on a command line: an option such as
@@ -619,8 +619,13 @@ for shared controls, as a `loading` status message, keeps Retry available
 anything itself. A live stream that sits at `ended` with no reconnect in
 progress (the budget is spent, or the setting is off) is shown as "The live
 stream ended." with Retry — for shared controls as an `error` status — since
-the plain `ended` state otherwise looks like a paused player. A recording that was active when the stream dropped is
-finalized by the recording tracker as before and is not resumed.
+the plain `ended` state otherwise looks like a paused player. A recording that
+was running when the stream dropped is finalized by the recording tracker as
+an interrupted partial (the reload replaces the stream, which stops
+`stream-record`), and once the automatic reload plays the service starts it
+again into a fresh file with the same folder, title and metadata, so the
+manager lists both parts; an explicit stop or a user-driven load never
+restarts anything.
 
 ## Live Stream Recording
 

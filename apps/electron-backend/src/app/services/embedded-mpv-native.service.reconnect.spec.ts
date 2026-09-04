@@ -9,7 +9,15 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'fs';
+import {
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    statSync,
+    writeFileSync,
+} from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
@@ -20,6 +28,15 @@ const mockGetFrameCopyRuntimeAvailability = jest.fn();
 
 jest.mock('child_process', () => ({
     spawnSync: mockSpawnSync,
+}));
+
+const recordingTrackerMock = {
+    onRecordingStarted: jest.fn(),
+    onRecordingStopped: jest.fn(),
+    observeSnapshot: jest.fn(),
+};
+jest.mock('./embedded-mpv-recording-tracker', () => ({
+    embeddedMpvRecordingTracker: recordingTrackerMock,
 }));
 
 jest.mock('./embedded-mpv-frame-copy-platform.util', () => {
@@ -79,6 +96,7 @@ interface MockSnapshot {
     durationSeconds: number | null;
     volume: number;
     streamUrl: string;
+    recording?: { active: boolean; targetPath?: string };
     error?: string;
 }
 
@@ -119,6 +137,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
     };
     let status: EmbeddedMpvSessionStatus;
     let positionSeconds: number;
+    let recordingActive: boolean;
     let originalPlatform: NodeJS.Platform;
     let originalArch: string;
     let originalExperiment: string | undefined;
@@ -153,6 +172,10 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         service = new EmbeddedMpvNativeService();
         status = 'idle';
         positionSeconds = 0;
+        recordingActive = false;
+        recordingTrackerMock.onRecordingStarted.mockReset();
+        recordingTrackerMock.onRecordingStopped.mockReset();
+        recordingTrackerMock.observeSnapshot.mockReset();
         addon = {
             isSupported: jest.fn<boolean, []>(() => true),
             createSession: jest.fn<string, unknown[]>(() => 'session-1'),
@@ -163,6 +186,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
                 durationSeconds: null,
                 volume: 1,
                 streamUrl: LIVE.streamUrl,
+                recording: { active: recordingActive },
             })),
             disposeSession: jest.fn(),
             setBounds: jest.fn(),
@@ -242,7 +266,9 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(addonOptions).toHaveLength(1);
         expect(addonOptions[0]).toMatch(/^include=.*session-options-.*\.conf$/);
         const file = addonOptions[0].slice('include='.length);
-        expect(path.dirname(file)).toBe(path.join(userDataDir, 'embedded-mpv'));
+        expect(path.dirname(file)).toBe(
+            path.join(userDataDir, 'embedded-mpv', `options-${process.pid}`)
+        );
         expect(readFileSync(file, 'utf8')).toBe(
             'network-timeout=10\nhttp-header-fields=X-Key: secret\n'
         );
@@ -250,6 +276,81 @@ describe('EmbeddedMpvNativeService reconnect', () => {
 
         service.disposeSession('session-1');
         expect(existsSync(file)).toBe(false);
+    });
+
+    it('sweeps only option directories whose owning process is gone', () => {
+        Object.defineProperty(process, 'platform', { value: 'linux' });
+        Object.defineProperty(process, 'arch', { value: 'x64' });
+        const root = path.join(userDataDir, 'embedded-mpv');
+        const staleDir = path.join(root, 'options-2147483646');
+        const liveDir = path.join(root, `options-${process.ppid}`);
+        mkdirSync(staleDir, { recursive: true });
+        mkdirSync(liveDir, { recursive: true });
+        writeFileSync(path.join(staleDir, 'session-options-old.conf'), 'x=1\n');
+        writeFileSync(path.join(liveDir, 'session-options-live.conf'), 'y=1\n');
+
+        service.createSession(BOUNDS, 'Title', 0.5, {
+            extraOptions: ['network-timeout=10'],
+            autoReconnect: true,
+        });
+
+        expect(existsSync(staleDir)).toBe(false);
+        expect(
+            existsSync(path.join(liveDir, 'session-options-live.conf'))
+        ).toBe(true);
+        const ownDir = path.join(root, `options-${process.pid}`);
+        expect(existsSync(ownDir)).toBe(true);
+
+        service.shutdown();
+        expect(existsSync(ownDir)).toBe(false);
+    });
+
+    it('restarts a recording that was running when the stream dropped', () => {
+        startPlayingLive();
+        service.startRecording('session-1', { title: 'Live channel' });
+        expect(addon.startRecording).toHaveBeenCalledTimes(1);
+        const firstTarget = addon.startRecording.mock.calls[0][1] as string;
+        recordingActive = true;
+        poll('playing');
+
+        recordingActive = false;
+        poll('error');
+        expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+        poll('playing');
+        // The restart is deferred with a 0 ms timer scheduled from inside
+        // the poll tick, which the fake clock parks one millisecond out.
+        jest.advanceTimersByTime(1);
+
+        expect(addon.startRecording).toHaveBeenCalledTimes(2);
+        const secondTarget = addon.startRecording.mock.calls[1][1] as string;
+        expect(secondTarget).not.toBe(firstTarget);
+        expect(path.dirname(secondTarget)).toBe(path.dirname(firstTarget));
+        expect(recordingTrackerMock.onRecordingStarted).toHaveBeenCalledTimes(
+            2
+        );
+    });
+
+    it('does not restart a recording the user had stopped or replaced', () => {
+        startPlayingLive();
+        service.startRecording('session-1', { title: 'Live channel' });
+        recordingActive = true;
+        poll('playing');
+        service.stopRecording('session-1');
+        recordingActive = false;
+        poll('playing');
+
+        poll('error');
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+        poll('playing');
+        // The restart is deferred with a 0 ms timer scheduled from inside
+        // the poll tick, which the fake clock parks one millisecond out.
+        jest.advanceTimersByTime(1);
+
+        expect(addon.startRecording).toHaveBeenCalledTimes(1);
     });
 
     it('sends an empty option list when no options were captured', () => {

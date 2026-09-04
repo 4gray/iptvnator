@@ -40,8 +40,10 @@ import {
 } from './embedded-mpv-reconnect';
 import type { EmbeddedMpvSessionOptions } from './embedded-mpv-session-options';
 import {
+    removeSessionOptionsDirectory,
     removeSessionOptionsFile,
     resolveSessionOptionsDirectory,
+    resolveSessionOptionsRoot,
     sweepSessionOptionsFiles,
     writeSessionOptionsFile,
 } from './embedded-mpv-session-options-file';
@@ -117,6 +119,12 @@ interface EmbeddedMpvRuntimeSession {
     reconnect: EmbeddedMpvReconnectState;
     /** Linux native-view only: the `--include` file carrying the options. */
     optionsFile: string | null;
+    /** What `startRecording` was last asked for, until an explicit stop. */
+    lastRecordingStart: EmbeddedMpvRecordingStartOptions | null;
+    /** Whether the previous refresh reported an active recording. */
+    lastRecordingActive: boolean;
+    /** A recording was running when the stream dropped; restart it once the reconnect plays. */
+    restartRecordingAfterReconnect: boolean;
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -136,7 +144,7 @@ export class EmbeddedMpvNativeService {
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
     private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
-    private sessionOptionsFilesSwept = false;
+    private sessionOptionsDirectory: string | null = null;
     /**
      * Reloads a dropped stream (see embedded-mpv-reconnect.ts). `publish`
      * runs from a timer, outside the polling try/catch, so it must swallow
@@ -554,6 +562,9 @@ export class EmbeddedMpvNativeService {
                 options?.autoReconnect ?? true
             ),
             optionsFile,
+            lastRecordingStart: null,
+            lastRecordingActive: false,
+            restartRecordingAfterReconnect: false,
         });
 
         this.ensurePolling();
@@ -588,6 +599,10 @@ export class EmbeddedMpvNativeService {
         session.streamUrl = playback.streamUrl ?? session.streamUrl;
         session.updatedAt = new Date().toISOString();
         this.reconnect.onUserLoad(session.reconnect, playback);
+        // A user-driven replacement stops an active recording by design
+        // (see "Live Stream Recording"); only an automatic reload restarts it.
+        session.lastRecordingStart = null;
+        session.restartRecordingAfterReconnect = false;
         addon.loadPlayback(sessionId, playback);
         this.refreshSession(sessionId);
     }
@@ -790,6 +805,7 @@ export class EmbeddedMpvNativeService {
             fallbackChannelName,
             metadata: options.metadata,
         });
+        session.lastRecordingStart = { ...options };
         return this.refreshSession(sessionId);
     }
 
@@ -803,7 +819,36 @@ export class EmbeddedMpvNativeService {
         }
         addon.stopRecording(sessionId);
         embeddedMpvRecordingTracker.onRecordingStopped(sessionId);
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            session.lastRecordingStart = null;
+            session.restartRecordingAfterReconnect = false;
+        }
         return this.refreshSession(sessionId);
+    }
+
+    /**
+     * An automatic reload replaces the stream, which stops mpv's
+     * `stream-record` and lets the tracker finalize that file as an
+     * interrupted partial. Once the reload plays, the recording the user had
+     * running is started again into a fresh file with the same folder,
+     * title and metadata, so a transient outage costs seconds, not the rest
+     * of the programme. Deferred out of `refreshSession`, which must not
+     * re-enter itself.
+     */
+    private restartRecordingAfterReconnect(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (!session?.lastRecordingStart) {
+            return;
+        }
+        try {
+            this.startRecording(sessionId, session.lastRecordingStart);
+        } catch (error) {
+            console.warn(
+                `[Embedded MPV][reconnect] session ${sessionId}: could not restart the recording after the reload:`,
+                error
+            );
+        }
     }
 
     getDefaultRecordingFolder(): string {
@@ -842,14 +887,15 @@ export class EmbeddedMpvNativeService {
         ) {
             return { addonOptions: extraOptions, optionsFile: null };
         }
-        const directory = resolveSessionOptionsDirectory(
-            app.getPath('userData')
-        );
-        if (!this.sessionOptionsFilesSwept) {
-            sweepSessionOptionsFiles(directory);
-            this.sessionOptionsFilesSwept = true;
+        if (this.sessionOptionsDirectory === null) {
+            const root = resolveSessionOptionsRoot(app.getPath('userData'));
+            sweepSessionOptionsFiles(root);
+            this.sessionOptionsDirectory = resolveSessionOptionsDirectory(root);
         }
-        const optionsFile = writeSessionOptionsFile(directory, extraOptions);
+        const optionsFile = writeSessionOptionsFile(
+            this.sessionOptionsDirectory,
+            extraOptions
+        );
         return { addonOptions: [`include=${optionsFile}`], optionsFile };
     }
 
@@ -859,6 +905,8 @@ export class EmbeddedMpvNativeService {
             return null;
         }
         this.reconnect.cancel(session.reconnect);
+        session.lastRecordingStart = null;
+        session.restartRecordingAfterReconnect = false;
         removeSessionOptionsFile(session.optionsFile);
         session.optionsFile = null;
 
@@ -905,6 +953,8 @@ export class EmbeddedMpvNativeService {
     shutdown(): void {
         const sessionIds = [...this.sessions.keys()];
         sessionIds.forEach((sessionId) => this.disposeSession(sessionId));
+        removeSessionOptionsDirectory(this.sessionOptionsDirectory);
+        this.sessionOptionsDirectory = null;
         if (this.pollingTimer) {
             clearInterval(this.pollingTimer);
             this.pollingTimer = null;
@@ -1080,6 +1130,24 @@ export class EmbeddedMpvNativeService {
         if (reconnect) {
             payload.reconnect = reconnect;
         }
+        if (
+            reconnect &&
+            session.lastRecordingActive &&
+            session.lastRecordingStart &&
+            (previousStatus === 'playing' || previousStatus === 'paused')
+        ) {
+            // The outage began while a recording was running.
+            session.restartRecordingAfterReconnect = true;
+        } else if (
+            session.restartRecordingAfterReconnect &&
+            reconnect === null &&
+            payload.status === 'playing' &&
+            previousStatus !== 'playing'
+        ) {
+            session.restartRecordingAfterReconnect = false;
+            setTimeout(() => this.restartRecordingAfterReconnect(sessionId), 0);
+        }
+        session.lastRecordingActive = payload.recording?.active === true;
         // The refresh timestamp must not participate in the diff key,
         // otherwise every poll tick looks like a change and the renderer
         // receives an IPC update every 500 ms even while paused.

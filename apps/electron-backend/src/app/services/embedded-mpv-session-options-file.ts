@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto';
-import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+import { mkdirSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 
-const OPTIONS_DIRECTORY = 'embedded-mpv';
+const OPTIONS_ROOT = 'embedded-mpv';
+const INSTANCE_DIRECTORY_PREFIX = 'options-';
 const OPTIONS_FILE_PREFIX = 'session-options-';
 
 /**
@@ -10,24 +11,54 @@ const OPTIONS_FILE_PREFIX = 'session-options-';
  * readable by every local user through /proc/<pid>/cmdline, so the session
  * options (which may carry request headers with credentials) are handed
  * over as an mpv config file readable by the owner only and referenced with
- * `--include=<path>`. One file per session: removed when the session is
- * disposed, and stale ones from a crashed run are swept on the next start.
+ * `--include=<path>`. Files live under a per-instance directory named by the
+ * owning process id: a session removes its file on dispose, the instance
+ * removes its directory on shutdown, and a crashed instance's leftovers are
+ * swept by the next one — but only once its process is gone, because two
+ * instances may share one `userData` (IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1).
  */
-export function resolveSessionOptionsDirectory(userDataPath: string): string {
-    return path.join(userDataPath, OPTIONS_DIRECTORY);
+export function resolveSessionOptionsRoot(userDataPath: string): string {
+    return path.join(userDataPath, OPTIONS_ROOT);
 }
 
-export function sweepSessionOptionsFiles(directory: string): void {
+export function resolveSessionOptionsDirectory(
+    root: string,
+    pid: number = process.pid
+): string {
+    return path.join(root, `${INSTANCE_DIRECTORY_PREFIX}${pid}`);
+}
+
+export function isProcessAlive(pid: number): boolean {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        // EPERM: the process exists but belongs to someone else.
+        return (error as NodeJS.ErrnoException).code === 'EPERM';
+    }
+}
+
+export function sweepSessionOptionsFiles(
+    root: string,
+    options: { ownPid?: number; isAlive?: (pid: number) => boolean } = {}
+): void {
+    const ownPid = options.ownPid ?? process.pid;
+    const isAlive = options.isAlive ?? isProcessAlive;
     let names: string[];
     try {
-        names = readdirSync(directory);
+        names = readdirSync(root);
     } catch {
         return;
     }
     for (const name of names) {
-        if (name.startsWith(OPTIONS_FILE_PREFIX)) {
-            removeSessionOptionsFile(path.join(directory, name));
+        if (!name.startsWith(INSTANCE_DIRECTORY_PREFIX)) {
+            continue;
         }
+        const pid = Number(name.slice(INSTANCE_DIRECTORY_PREFIX.length));
+        if (!Number.isInteger(pid) || pid === ownPid || isAlive(pid)) {
+            continue;
+        }
+        rmSync(path.join(root, name), { recursive: true, force: true });
     }
 }
 
@@ -55,4 +86,11 @@ export function removeSessionOptionsFile(file: string | null): void {
     } catch {
         // Already gone (a swept or never-written file); nothing to keep.
     }
+}
+
+export function removeSessionOptionsDirectory(directory: string | null): void {
+    if (!directory) {
+        return;
+    }
+    rmSync(directory, { recursive: true, force: true });
 }
