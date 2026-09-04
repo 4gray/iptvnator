@@ -22,7 +22,12 @@ import { isEmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
  *   {@link EMBEDDED_MPV_RECONNECT_STABLE_PLAYBACK_MS} of uninterrupted playing,
  *   not on the first `playing`, so a stream that flaps every few seconds runs
  *   out of attempts instead of being retried forever.
- * - A user-driven load, a pause, or teardown cancels everything.
+ * - A user-driven load, a pause, or teardown cancels everything. A pause
+ *   also disarms the policy until the stream plays again: a drop while the
+ *   user has the stream paused must not resume playback behind their back.
+ * - An attempt is tracked explicitly from the moment its reload is issued,
+ *   so a reload that fails before the poll ever sees it `loading` is still
+ *   counted as a failed attempt rather than mistaken for the original loss.
  * - A VOD reload resumes at the last position observed while playing; a live
  *   reload goes back to the live edge.
  * - A reload the engine cannot take at all (a crashed frame-copy helper,
@@ -52,6 +57,8 @@ export interface EmbeddedMpvReconnectState {
     attempts: number;
     /** Start of the current uninterrupted `playing` stretch. */
     playingSince: number | null;
+    /** A reload was issued and neither `playing` nor a loss has answered it yet. */
+    attemptInFlight: boolean;
     /**
      * Last position reported while the stream played. Non-live reloads carry
      * it as `startTime`, otherwise mpv would restart at the playback's
@@ -81,6 +88,7 @@ export function createEmbeddedMpvReconnectState(
         hadPlayed: false,
         attempts: 0,
         playingSince: null,
+        attemptInFlight: false,
         lastPositionSeconds: null,
         timer: null,
         pending: null,
@@ -132,12 +140,14 @@ export class EmbeddedMpvReconnectCoordinator {
         state.hadPlayed = false;
         state.attempts = 0;
         state.playingSince = null;
+        state.attemptInFlight = false;
         state.lastPositionSeconds = null;
         state.pending = null;
     }
 
     cancel(state: EmbeddedMpvReconnectState): void {
         this.clearTimer(state);
+        state.attemptInFlight = false;
         state.pending = null;
     }
 
@@ -193,15 +203,25 @@ export class EmbeddedMpvReconnectCoordinator {
         if (!isEmbeddedMpvStreamLoss(status, isLive)) {
             // paused/idle are user actions, closed is teardown, ended on
             // VOD is the movie finishing — none of them is an outage.
+            if (status === 'paused') {
+                // Disarmed until the stream plays again: reloading a stream
+                // the user paused would resume it without them asking.
+                state.hadPlayed = false;
+            }
             this.cancel(state);
             return null;
         }
 
-        if (status === previousStatus || state.timer !== null) {
+        const answersAttempt = state.attemptInFlight;
+        if (
+            (status === previousStatus && !answersAttempt) ||
+            state.timer !== null
+        ) {
             // Same loss observed again by the poll, or already scheduled.
             return state.pending;
         }
 
+        state.attemptInFlight = false;
         return this.schedule(sessionId, state, now);
     }
 
@@ -236,9 +256,11 @@ export class EmbeddedMpvReconnectCoordinator {
         state.timer = setTimeout(() => {
             state.timer = null;
             state.attempts = attempt;
+            state.attemptInFlight = true;
             try {
                 this.hooks.reload(sessionId, playback);
             } catch (error) {
+                state.attemptInFlight = false;
                 if (isEmbeddedMpvSessionGoneError(error)) {
                     // Nothing behind the session can take a load any more;
                     // stop so the renderer shows the actionable error

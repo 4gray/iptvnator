@@ -160,6 +160,21 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         ).toBe(false);
     });
 
+    it('refuses a load once the helper died from a signal', () => {
+        const sessionId = createSession();
+        child.signalCode = 'SIGKILL';
+        child.emit('exit', null, 'SIGKILL');
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+
+        expect(() =>
+            adapter.loadPlayback(sessionId, {
+                streamUrl: 'http://stream',
+                title: 'Live',
+            })
+        ).toThrow(EmbeddedMpvSessionGoneError);
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+    });
+
     it('encodes loadfile options with percent-escaping', () => {
         const sessionId = createSession();
         adapter.loadPlayback(sessionId, {

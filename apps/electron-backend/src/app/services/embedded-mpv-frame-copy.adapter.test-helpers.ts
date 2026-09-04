@@ -65,6 +65,7 @@ export function fakeStat(
 
 export class FakeHelperProcess extends EventEmitter {
     exitCode: number | null = null;
+    signalCode: string | null = null;
     readonly stdout = new EventEmitter();
     readonly stderr = new EventEmitter();
     readonly stdin = {

@@ -218,6 +218,41 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         expect(reload.mock.calls[0][1]).not.toHaveProperty('startTime');
     });
 
+    it('counts a reload that fails before the poll ever sees it loading', () => {
+        startPlaying();
+        coordinator.observe(SESSION, state, 'error', 'playing');
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenCalledTimes(1);
+
+        // The engine failed the reload so fast that the poll still reads
+        // `error` on both sides of the transition.
+        const info = coordinator.observe(SESSION, state, 'error', 'error');
+
+        expect(info?.attempt).toBe(2);
+        jest.advanceTimersByTime(4_000);
+        expect(reload).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not resume a stream the user paused when it drops', () => {
+        startPlaying();
+        expect(
+            coordinator.observe(SESSION, state, 'paused', 'playing')
+        ).toBeNull();
+
+        expect(
+            coordinator.observe(SESSION, state, 'error', 'paused')
+        ).toBeNull();
+        jest.advanceTimersByTime(60_000);
+        expect(reload).not.toHaveBeenCalled();
+
+        // Playing again re-arms the policy.
+        coordinator.observe(SESSION, state, 'loading', 'error');
+        coordinator.observe(SESSION, state, 'playing', 'loading');
+        expect(
+            coordinator.observe(SESSION, state, 'error', 'playing')?.attempt
+        ).toBe(1);
+    });
+
     it('drops a pending attempt when the stream recovers on its own', () => {
         startPlaying();
         coordinator.observe(SESSION, state, 'error', 'playing');

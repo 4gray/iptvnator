@@ -162,9 +162,14 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void {
         const session = this.sessions.get(sessionId);
         if (session && !session.disposed) {
-            if (session.child.exitCode !== null) {
-                // A dead helper cannot take a load: `send()` would drop the
-                // command silently and a reconnect would wait forever on a
+            if (
+                session.child.exitCode !== null ||
+                session.child.signalCode !== null ||
+                !session.child.stdin.writable
+            ) {
+                // A dead helper (exit code, signal death, or a closed stdin)
+                // cannot take a load: `send()` would drop the command
+                // silently and a reconnect would wait forever on a
                 // `loading` that nothing can ever advance.
                 throw new EmbeddedMpvSessionGoneError(
                     sessionId,
@@ -299,7 +304,11 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
                 `Embedded MPV frame-copy session "${sessionId}" was not found.`
             );
         }
-        if (session.child.exitCode !== null || !session.child.stdin.writable) {
+        if (
+            session.child.exitCode !== null ||
+            session.child.signalCode !== null ||
+            !session.child.stdin.writable
+        ) {
             return;
         }
         session.child.stdin.write(`${line}\n`);

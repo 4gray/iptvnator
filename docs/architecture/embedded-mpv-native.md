@@ -574,9 +574,15 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
   retried forever.
 - A user-driven `loadPlayback`, `paused`/`idle`, dispose, and shutdown cancel
   a pending attempt; a stream that recovers on its own (ffmpeg-level
-  reconnect) while a retry is pending drops the retry.
+  reconnect) while a retry is pending drops the retry. A pause also disarms
+  the policy until the stream plays again, so a drop while the user has the
+  stream paused shows the error instead of resuming playback unasked.
+- Each attempt is tracked from the moment its reload is issued, so a reload
+  that fails before the 500 ms poll ever observes it `loading` still counts
+  as a failed attempt and schedules the next one.
 - A reload the engine cannot take at all — a frame-copy helper that has
-  exited, reported by the adapter as `EmbeddedMpvSessionGoneError` — ends the
+  exited (exit code, signal death, or a closed stdin), reported by the
+  adapter as `EmbeddedMpvSessionGoneError` — ends the
   reconnect immediately: only a new session can recover, and the renderer's
   Retry creates one, so the actionable error is shown instead of a reconnect
   spinner that nothing could ever advance.
