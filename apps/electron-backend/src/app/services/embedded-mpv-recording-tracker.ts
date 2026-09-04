@@ -31,6 +31,8 @@ interface OpenRecordingEntry {
     stopFallbackTimer?: ReturnType<typeof setTimeout>;
     /** Armed by an inactive snapshot; finalizes once the stop looks settled. */
     settleTimer?: ReturnType<typeof setTimeout>;
+    /** The stream dropped under this recording; it must not end as `completed`. */
+    interrupted: boolean;
     /**
      * Set by the first finalize. Timers hold the entry itself, so an entry
      * replaced in the map (stop → immediate restart on the same session) can
@@ -86,9 +88,7 @@ const TEARDOWN_FLUSH_WINDOW_MS = 2_500;
 const FINALIZE_STAT_TIMEOUT_MS = 3_000;
 
 type FinalizeFileProbe =
-    | { kind: 'size'; size: number }
-    | { kind: 'missing' }
-    | { kind: 'unknown' };
+    { kind: 'size'; size: number } | { kind: 'missing' } | { kind: 'unknown' };
 
 /**
  * Persists the lifecycle of embedded-MPV live recordings into the
@@ -129,7 +129,10 @@ export class EmbeddedMpvRecordingTracker {
                 clearTimeout(replaced.settleTimer);
             }
             replaced.settleTimer = setTimeout(() => {
-                this.finalize(replaced, 'completed');
+                this.finalize(
+                    replaced,
+                    replaced.interrupted ? 'interrupted' : 'completed'
+                );
             }, STOP_SETTLE_WINDOW_MS);
         }
 
@@ -165,6 +168,7 @@ export class EmbeddedMpvRecordingTracker {
             targetPath: event.targetPath,
             startedAt,
             sawActive: false,
+            interrupted: false,
             stopRequested: false,
             finalized: false,
             rowId,
@@ -182,6 +186,27 @@ export class EmbeddedMpvRecordingTracker {
      * statting (or unlinking) the file before mpv flushed it would report a
      * short recording as failed and could delete bytes still being written.
      */
+    /**
+     * The stream carrying this recording dropped and an automatic reload is
+     * about to replace it (see embedded-mpv-reconnect.ts). The file mpv was
+     * writing is over: finalize it as `interrupted`. Without this, a clean
+     * EOF never reaches the error path above and the reload's own
+     * `onRecordingStarted` would file the partial as `completed`.
+     */
+    onRecordingInterrupted(sessionId: string): void {
+        const entry = this.open.get(sessionId);
+        if (!entry || entry.finalized) {
+            return;
+        }
+        entry.interrupted = true;
+        if (entry.settleTimer !== undefined) {
+            clearTimeout(entry.settleTimer);
+        }
+        entry.settleTimer = setTimeout(() => {
+            this.finalize(entry, 'interrupted');
+        }, TEARDOWN_FLUSH_WINDOW_MS);
+    }
+
     onRecordingStopped(sessionId: string): void {
         const entry = this.open.get(sessionId);
         if (!entry || entry.stopRequested) {
@@ -228,7 +253,10 @@ export class EmbeddedMpvRecordingTracker {
             entry.sawActive = true;
             // A rejected stop puts the recording back: abandon the pending
             // finalization instead of ending a row that is still recording.
-            if (entry.settleTimer !== undefined) {
+            // Not after an interruption, though: the engine may still show
+            // the old recording as active for a tick after a clean live EOF,
+            // and the reload replacing it is already on its way.
+            if (entry.settleTimer !== undefined && !entry.interrupted) {
                 clearTimeout(entry.settleTimer);
                 entry.settleTimer = undefined;
             }
@@ -244,7 +272,10 @@ export class EmbeddedMpvRecordingTracker {
             // Finalize only once it survived the settle window.
             if (entry.settleTimer === undefined) {
                 entry.settleTimer = setTimeout(() => {
-                    this.finalize(entry, 'completed');
+                    this.finalize(
+                        entry,
+                        entry.interrupted ? 'interrupted' : 'completed'
+                    );
                 }, STOP_SETTLE_WINDOW_MS);
             }
         } else if (recording.error) {

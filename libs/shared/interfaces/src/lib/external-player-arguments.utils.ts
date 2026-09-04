@@ -1,8 +1,5 @@
 export type ExternalPlayerArgumentsInput =
-    | string
-    | readonly unknown[]
-    | null
-    | undefined;
+    string | readonly unknown[] | null | undefined;
 
 export function parseExternalPlayerArguments(
     value: ExternalPlayerArgumentsInput

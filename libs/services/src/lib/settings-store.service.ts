@@ -54,6 +54,8 @@ const DEFAULT_SETTINGS: Settings = {
     downloadFolder: '',
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    embeddedMpvExtraOptions: '',
+    embeddedMpvAutoReconnect: true,
     coverSize: 'medium',
     epgViewMode: 'timeline',
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
@@ -158,6 +160,9 @@ export const SettingsStore = signalStore(
                             webPlayerSharedControls:
                                 storedSettings.webPlayerSharedControls !==
                                 false,
+                            embeddedMpvAutoReconnect:
+                                storedSettings.embeddedMpvAutoReconnect !==
+                                false,
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
                             ),
@@ -190,6 +195,12 @@ export const SettingsStore = signalStore(
                         ? {
                               webPlayerSharedControls:
                                   settings.webPlayerSharedControls !== false,
+                          }
+                        : {}),
+                    ...(settings.embeddedMpvAutoReconnect !== undefined
+                        ? {
+                              embeddedMpvAutoReconnect:
+                                  settings.embeddedMpvAutoReconnect !== false,
                           }
                         : {}),
                     ...(settings.dashboardRails !== undefined
@@ -269,6 +280,10 @@ export const SettingsStore = signalStore(
                         DEFAULT_SETTINGS.recordingFolder,
                     embeddedMpvFrameCopy:
                         store.embeddedMpvFrameCopy?.() ?? false,
+                    embeddedMpvExtraOptions:
+                        store.embeddedMpvExtraOptions?.() ?? '',
+                    embeddedMpvAutoReconnect:
+                        store.embeddedMpvAutoReconnect?.() !== false,
                     coverSize:
                         store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                     epgViewMode:

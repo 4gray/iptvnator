@@ -25,6 +25,23 @@ export function encodeProtocolValue(value: string): string {
         .replace(/\r/g, '%0D');
 }
 
+/**
+ * The first line the adapter writes to a helper started with
+ * `--mpv-options-stdin`: the session's libmpv options in application order.
+ * They travel over stdin rather than argv so a credential-bearing option is
+ * never visible to `ps`; zero-padded keys keep the order through the
+ * helper's unordered field map.
+ */
+export function buildMpvOptionsPreamble(options: readonly string[]): string {
+    return [
+        'mpv-options',
+        ...options.map(
+            (option, index) =>
+                `o${String(index).padStart(3, '0')}=${encodeProtocolValue(option)}`
+        ),
+    ].join('\t');
+}
+
 export function createInitialSnapshot(): NativeEmbeddedMpvSessionSnapshot {
     return {
         status: 'loading',
@@ -53,7 +70,9 @@ export function buildLoadPlaybackCommand(
         );
     }
     if (playback.userAgent) {
-        fields.push(`opt.user-agent=${encodeProtocolValue(playback.userAgent)}`);
+        fields.push(
+            `opt.user-agent=${encodeProtocolValue(playback.userAgent)}`
+        );
     }
     if (playback.referer) {
         fields.push(`opt.referrer=${encodeProtocolValue(playback.referer)}`);
@@ -128,6 +147,7 @@ export function applyHelperEvent(
             session.snapshot.error = String(
                 event.error ?? 'Embedded MPV helper failed.'
             );
+            session.snapshot.errorOrigin = 'engine';
             break;
         case 'log':
             if (event.level === 'error' || event.level === 'fatal') {
@@ -135,6 +155,16 @@ export function applyHelperEvent(
                     `[embedded-mpv-fc][${session.id}][mpv/${String(
                         event.prefix ?? ''
                     )}] ${String(event.text ?? '').trim()}`
+                );
+            } else if (event.level === 'warn' && event.prefix === 'iptvnator') {
+                // The helper's own warnings (a session option libmpv
+                // rejected) must reach the main-process log like the
+                // native-view trace does; mpv's warn-level chatter stays
+                // filtered.
+                console.warn(
+                    `[embedded-mpv-fc][${session.id}] ${String(
+                        event.text ?? ''
+                    ).trim()}`
                 );
             }
             break;

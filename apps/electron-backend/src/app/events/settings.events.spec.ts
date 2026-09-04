@@ -22,6 +22,8 @@ type SettingsUpdateHandler = (
 
 const SETTINGS_UPDATE = 'SETTINGS_UPDATE';
 const STORE_KEYS = {
+    EMBEDDED_MPV_AUTO_RECONNECT: 'EMBEDDED_MPV_AUTO_RECONNECT',
+    EMBEDDED_MPV_EXTRA_OPTIONS: 'EMBEDDED_MPV_EXTRA_OPTIONS',
     EMBEDDED_MPV_FRAME_COPY: 'EMBEDDED_MPV_FRAME_COPY',
     MPV_PLAYER_ARGUMENTS: 'MPV_PLAYER_ARGUMENTS',
     MPV_REUSE_INSTANCE: 'MPV_REUSE_INSTANCE',
@@ -47,6 +49,8 @@ jest.mock('electron', () => ({
 }));
 
 jest.mock('../services/store.service', () => ({
+    EMBEDDED_MPV_AUTO_RECONNECT: STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT,
+    EMBEDDED_MPV_EXTRA_OPTIONS: STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY: STORE_KEYS.EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS: STORE_KEYS.MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE: STORE_KEYS.MPV_REUSE_INSTANCE,
@@ -140,6 +144,31 @@ describe('SETTINGS_UPDATE', () => {
         expect(mockUpdateSettings).not.toHaveBeenCalled();
     });
 
+    it('mirrors the embedded MPV extra options in canonical form', () => {
+        settingsUpdateHandler(
+            {},
+            { embeddedMpvExtraOptions: ' --hwdec = auto \r\n\nvo=null\n' }
+        );
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS, 'hwdec=auto\nvo=null'],
+        ]);
+        expect(mockUpdateSettings).not.toHaveBeenCalled();
+    });
+
+    it('mirrors the embedded MPV auto-reconnect toggle as a boolean', () => {
+        settingsUpdateHandler({}, { embeddedMpvAutoReconnect: false });
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT, false],
+        ]);
+
+        mockStoreSet.mockClear();
+        settingsUpdateHandler({}, { embeddedMpvAutoReconnect: true });
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT, true],
+        ]);
+    });
+
     it('mirrors the startup window mode into the main-process store', () => {
         settingsUpdateHandler({}, { startupWindowMode: 'fullscreen' });
 
@@ -216,6 +245,26 @@ describe('SETTINGS_UPDATE', () => {
         expect(output).toContain('language');
         expect(output).toContain('de');
         expect(output).toContain('enabled');
+    });
+
+    it('does not print credentials embedded in embedded MPV extra options', () => {
+        const headerSecret = 'embedded-mpv-header-secret';
+
+        settingsUpdateHandler(
+            {},
+            {
+                language: 'de',
+                embeddedMpvExtraOptions: `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${headerSecret}`,
+            }
+        );
+
+        const output = JSON.stringify(consoleLogSpy.mock.calls);
+        expect(output).not.toContain(headerSecret);
+        expect(output).toContain('language');
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS,
+            `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${headerSecret}`
+        );
     });
 
     it('does not print credentials embedded in external player arguments', () => {
