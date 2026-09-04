@@ -430,19 +430,26 @@ straight to the engine:
   vendor control bar stays in sync; F uses the player's
   `requestFullscreen`/`exitFullscreen`. The legacy configuration still never
   enables `userActions.hotkeys`. The chrome also releases the focus a pointer
-  click leaves on a control (`vjs-pointer-focus-release.ts`, the vendor
-  counterpart of `ControlsSurface.releasePointerFocus`, both built on
-  `pointer-focus-release.ts`): Chromium focuses a clicked control-bar
-  `<button>` or slider, and a focused Video.js component captures the
-  keyboard entirely — `Component.handleKeyDown` stops the propagation of
-  every key and `ClickableComponent` turns Space and Enter into a click — so
-  after a click on the fullscreen button Space left fullscreen instead of
-  pausing and the document-level shortcuts never saw a key. The click is
-  attributed by its `pointerType` alone (keyboard activation keeps focus; a
-  legacy MouseEvent click without one is left alone), buttons, `role="button"`
-  clickables and sliders are released, and menu buttons are exempt because
-  `MenuButton.pressButton()` focuses the popup's first item and
-  `Menu.handleBlur` closes the menu when that focus leaves. ArtPlayer needs no
+  interaction leaves on a control (`vjs-pointer-focus-release.ts`, the vendor
+  counterpart of `ControlsSurface.releasePointerFocus`, sharing
+  `pointer-focus-release.ts`'s `blurFocusedControl`): Chromium focuses a
+  clicked control-bar `<button>` or slider, and a focused Video.js component
+  captures the keyboard entirely — `Component.handleKeyDown` stops the
+  propagation of every key and `ClickableComponent` turns Space and Enter into
+  a click — so after a click on the fullscreen button Space left fullscreen
+  instead of pausing and the document-level shortcuts never saw a key. The
+  release is driven by the focus landing, not the click: choosing a menu item
+  moves focus to the menu button a tick after the click
+  (`MenuItem.handleTapClick`) and that selection click never bubbles to the
+  shell, so a click handler would be both too early and unreached. A `focusin`
+  on an eligible control (a `<button>`, `role="button"` clickable, or slider;
+  never a `role="menuitem*"`) is released when it is attributable to a recent
+  `pointerdown` inside the shell not yet ended by a document `keydown`, so
+  keyboard `Tab` focus is preserved. An `aria-expanded="true"` menu button is
+  exempt so its open popup keeps arrow navigation; once an item is chosen the
+  button is collapsed and released. Opening a menu focuses a menu item (not
+  eligible) or, briefly, the not-yet-expanded button, which is dropped
+  harmlessly because Video.js then focuses the item. ArtPlayer needs no
   counterpart (its controls are non-focusable divs), nor do the native HTML5
   controls (a click focuses the `<video>`, which the shortcuts do not treat as
   interactive).

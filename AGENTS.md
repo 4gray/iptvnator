@@ -458,15 +458,20 @@ Key files:
   (still without `userActions.hotkeys`), while the playback keyboard shortcuts
   attach through `LegacyPlayerShortcuts` and drive the player API so the
   vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`). That chrome
-  also releases the focus a pointer click leaves on a control
-  (`vjs-pointer-focus-release.ts`, sharing `pointer-focus-release.ts` with
-  `ControlsSurface`): a focused Video.js component stops every key before the
-  document and turns Space/Enter into a click, so after a click on fullscreen
-  Space left fullscreen instead of pausing. Attribution is by click
-  `pointerType` alone (keyboard activation keeps focus), and menu buttons are
-  exempt because Video.js focuses the popup menu and closes it when that
-  focus leaves. ArtPlayer (non-focusable divs) and the native HTML5 controls
-  (focus lands on the `<video>`) need no counterpart.
+  also releases the focus a pointer interaction leaves on a control
+  (`vjs-pointer-focus-release.ts`, sharing `pointer-focus-release.ts`'s
+  `blurFocusedControl` with `ControlsSurface`): a focused Video.js component
+  stops every key before the document and turns Space/Enter into a click, so
+  after a click on fullscreen Space left fullscreen instead of pausing. It is
+  driven by `focusin`, not the click, because choosing a menu item moves focus
+  to the menu button a tick later and that click never bubbles to the shell:
+  an eligible control (button/`role=button`/slider, never a menu item) is
+  released when its focus is attributable to a recent shell `pointerdown` not
+  yet ended by a document `keydown`, so `Tab` focus is kept. An
+  `aria-expanded="true"` menu button is exempt so its open popup keeps arrow
+  navigation; a collapsed one (after a selection) is released. ArtPlayer
+  (non-focusable divs) and the native HTML5 controls (focus lands on the
+  `<video>`) need no counterpart.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
   HLS/DASH(Shaka)/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and

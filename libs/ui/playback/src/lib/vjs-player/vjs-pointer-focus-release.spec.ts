@@ -1,18 +1,8 @@
 import { attachVjsPointerFocusRelease } from './vjs-pointer-focus-release';
 
-/** A click as Chromium dispatches it; `pointerType` only when given. */
-function click(target: Element, pointerType?: string): void {
-    const event = new MouseEvent('click', { bubbles: true });
-    if (pointerType !== undefined) {
-        Object.defineProperty(event, 'pointerType', { value: pointerType });
-    }
-    target.dispatchEvent(event);
-}
-
 describe('attachVjsPointerFocusRelease', () => {
     let root: HTMLElement;
     let fullscreen: HTMLButtonElement;
-    let icon: HTMLElement;
     let seekBar: HTMLElement;
     let poster: HTMLElement;
     let menuButton: HTMLButtonElement;
@@ -22,34 +12,29 @@ describe('attachVjsPointerFocusRelease', () => {
     beforeEach(() => {
         root = document.createElement('div');
         root.className = 'vjs-player-shell';
-        // The subset of the Video.js 8 skin that takes focus: buttons, the
-        // poster (`ClickableComponent`), sliders, and a menu button whose
-        // popup items are focused by `MenuButton.pressButton()`.
+        // The focusable subset of the Video.js 8 skin: buttons, the poster
+        // (`ClickableComponent`, role=button), sliders, and a menu button
+        // whose popup items are focused by `MenuButton.pressButton()`.
         root.innerHTML = `
             <div class="video-js">
                 <div class="vjs-poster" role="button" tabindex="0"></div>
-                <div class="vjs-control-bar">
-                    <div class="vjs-progress-control vjs-control">
-                        <div class="vjs-progress-holder vjs-slider" role="slider" tabindex="0"></div>
-                    </div>
-                    <div class="vjs-playback-rate vjs-menu-button vjs-menu-button-popup vjs-control vjs-button">
-                        <button class="vjs-playback-rate vjs-menu-button vjs-menu-button-popup vjs-button" type="button" aria-haspopup="true"></button>
-                        <div class="vjs-menu">
-                            <ul class="vjs-menu-content" role="menu">
-                                <li class="vjs-menu-item" role="menuitemradio" tabindex="-1"></li>
-                            </ul>
-                        </div>
-                    </div>
-                    <button class="vjs-fullscreen-control vjs-control vjs-button" type="button">
-                        <span class="vjs-icon-placeholder"></span>
-                    </button>
+                <div class="vjs-progress-control vjs-control">
+                    <div class="vjs-progress-holder vjs-slider" role="slider" tabindex="0"></div>
                 </div>
+                <div class="vjs-playback-rate vjs-menu-button-popup vjs-control">
+                    <button class="vjs-playback-rate vjs-menu-button" type="button" aria-expanded="false"></button>
+                    <div class="vjs-menu">
+                        <ul class="vjs-menu-content" role="menu">
+                            <li class="vjs-menu-item" role="menuitemradio" tabindex="-1"></li>
+                        </ul>
+                    </div>
+                </div>
+                <button class="vjs-fullscreen-control vjs-control vjs-button" type="button"></button>
             </div>`;
         document.body.appendChild(root);
         fullscreen = root.querySelector(
             '.vjs-fullscreen-control'
         ) as HTMLButtonElement;
-        icon = fullscreen.querySelector('.vjs-icon-placeholder') as HTMLElement;
         seekBar = root.querySelector('.vjs-progress-holder') as HTMLElement;
         poster = root.querySelector('.vjs-poster') as HTMLElement;
         menuButton = root.querySelector(
@@ -62,67 +47,94 @@ describe('attachVjsPointerFocusRelease', () => {
     afterEach(() => {
         detach();
         root.remove();
+        jest.useRealTimers();
     });
 
-    it('releases the focus a mouse click leaves on a control-bar button', () => {
-        fullscreen.focus();
-        expect(document.activeElement).toBe(fullscreen);
+    /** A pointer press as the pane sees it (jsdom lacks PointerEvent). */
+    const pointerDown = (target: EventTarget = root) => {
+        target.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    };
 
-        click(icon, 'mouse');
+    const keyDown = (target: EventTarget = document.body) => {
+        target.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })
+        );
+    };
+
+    it('releases the focus that lands on a control-bar button after a pointer press', () => {
+        pointerDown();
+        fullscreen.focus();
 
         expect(document.activeElement).not.toBe(fullscreen);
     });
 
-    it('releases a mouse-scrubbed slider and a clicked poster', () => {
-        seekBar.focus();
-        click(seekBar, 'mouse');
-        expect(document.activeElement).not.toBe(seekBar);
-
+    it('releases the poster and a slider', () => {
+        pointerDown();
         poster.focus();
-        click(poster, 'touch');
         expect(document.activeElement).not.toBe(poster);
+
+        pointerDown();
+        seekBar.focus();
+        expect(document.activeElement).not.toBe(seekBar);
     });
 
-    it('keeps focus on a button the keyboard activates', () => {
+    it('keeps focus that no pointer press preceded (keyboard navigation)', () => {
         fullscreen.focus();
-
-        // Enter/Space: a synthetic click with an empty pointer type.
-        click(fullscreen, '');
 
         expect(document.activeElement).toBe(fullscreen);
     });
 
-    it('leaves a legacy click without a pointer type alone', () => {
+    it('keeps focus once a key press has ended the pointer attribution', () => {
+        // The key that follows a release is pressed while focus rests on
+        // body, outside the shell, so the clear must not depend on the shell.
+        pointerDown();
+        keyDown(document);
         fullscreen.focus();
-
-        click(fullscreen);
 
         expect(document.activeElement).toBe(fullscreen);
     });
 
-    it('keeps the focus a pressed menu button moved into its menu', () => {
-        // `MenuButton.pressButton()` focuses the first item; `Menu.handleBlur`
-        // would close the menu if that focus were released.
+    it('releases the menu button Video.js focuses after an item is chosen', () => {
+        // Choosing an item: the press lands on the item, which is not
+        // eligible, then Video.js moves focus to the now-collapsed button.
+        pointerDown(menuItem);
         menuItem.focus();
-
-        click(menuButton, 'mouse');
-
         expect(document.activeElement).toBe(menuItem);
+
+        menuButton.setAttribute('aria-expanded', 'false');
+        menuButton.focus();
+        expect(document.activeElement).not.toBe(menuButton);
     });
 
-    it('keeps focus on the menu button itself', () => {
+    it('keeps an expanded menu button focused so its open popup keeps working', () => {
+        menuButton.setAttribute('aria-expanded', 'true');
+        pointerDown();
         menuButton.focus();
-
-        click(menuButton, 'mouse');
 
         expect(document.activeElement).toBe(menuButton);
     });
 
-    it('stops releasing after detach', () => {
-        detach();
+    it('keeps a focused menu item so arrow navigation survives', () => {
+        pointerDown();
+        menuItem.focus();
+
+        expect(document.activeElement).toBe(menuItem);
+    });
+
+    it('forgets a pointer press after the attribution window', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+        pointerDown();
+        jest.setSystemTime(new Date('2026-01-01T00:00:01.500Z'));
         fullscreen.focus();
 
-        click(fullscreen, 'mouse');
+        expect(document.activeElement).toBe(fullscreen);
+    });
+
+    it('stops releasing after detach', () => {
+        detach();
+        pointerDown();
+        fullscreen.focus();
 
         expect(document.activeElement).toBe(fullscreen);
     });
