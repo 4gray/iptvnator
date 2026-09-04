@@ -345,6 +345,25 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         );
     });
 
+    it('files the interruption once even when the first reload attempt fails', () => {
+        startPlayingLive();
+        service.startRecording('session-1', { title: 'Live channel' });
+        recordingActive = true;
+        poll('playing');
+
+        recordingActive = false;
+        poll('error');
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+        poll('error');
+        jest.advanceTimersByTime(4_000);
+
+        expect(addon.loadPlayback).toHaveBeenCalledTimes(3);
+        expect(
+            recordingTrackerMock.onRecordingInterrupted
+        ).toHaveBeenCalledTimes(1);
+    });
+
     it('leaves a recording alone when the stream recovers before the reload fires', () => {
         startPlayingLive();
         service.startRecording('session-1', { title: 'Live channel' });

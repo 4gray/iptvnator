@@ -170,6 +170,9 @@ export class EmbeddedMpvNativeService {
                 // its recording running and never reaches this branch.
                 embeddedMpvRecordingTracker.onRecordingInterrupted(sessionId);
                 session.restartRecordingAfterReconnect = true;
+                // Consumed: a failed attempt's next reload must not re-arm
+                // the tracker's flush window and postpone the verdict.
+                session.recordingRunningAtLoss = false;
             }
             addon.loadPlayback(sessionId, playback);
             // Sessions run with keep-open=yes, so EOF on a live stream leaves
