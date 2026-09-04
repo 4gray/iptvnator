@@ -30,15 +30,19 @@ const VJS_RELEASE_SELECTOR = 'button, [role="button"], [role="slider"]';
  * click on the fullscreen button Space left fullscreen instead of pausing and
  * `LegacyPlayerShortcuts` on the document never saw a key.
  *
- * The release is driven by the focus landing, not the click: choosing a menu
- * item moves focus to the menu button a tick after the click (Video.js
+ * The release is driven mainly by the focus landing, not the click: choosing
+ * a menu item moves focus to the menu button a tick after the click (Video.js
  * `MenuItem.handleTapClick`), and the selection click never bubbles to this
- * root, so a click handler would be both too early and unreached. Instead a
- * `focusin` on an eligible control is released when it is attributable to a
+ * root, so a click handler alone would be both too early and unreached.
+ * A `focusin` on an eligible control is released when it is attributable to a
  * recent pointer press inside the shell — a `pointerdown` within the window,
  * not yet ended by a keydown anywhere — so keyboard `Tab` focus is preserved
  * (the keydown listener is on the document because the key that follows a
- * release is pressed while focus sits on `body`, outside the shell).
+ * release is pressed while focus sits on `body`, outside the shell). A
+ * `click` runs the same release, because clicking a control that was already
+ * focused (Tab, then a mouse click on it) moves no focus and fires no
+ * `focusin`; a keyboard-activation click carries no `pointerdown`, so
+ * attribution keeps that focus.
  *
  * The release is scoped to the `.vjs-control-bar`: that persistent chrome is
  * what hands keys back to the document, while the player's other focusable
@@ -70,29 +74,47 @@ export function attachVjsPointerFocusRelease(root: HTMLElement): () => void {
     const onKeyDown = () => {
         lastPointerDownAt = null;
     };
-    const onFocusIn = () => {
-        if (
-            lastPointerDownAt === null ||
-            Date.now() - lastPointerDownAt > POINTER_ATTRIBUTION_WINDOW_MS
-        ) {
-            return;
-        }
-        // Passing the control bar (not the shell) as the root scopes the
-        // release to it, so focus inside a modal dialog is left alone.
+
+    const attributed = () =>
+        lastPointerDownAt !== null &&
+        Date.now() - lastPointerDownAt <= POINTER_ATTRIBUTION_WINDOW_MS;
+
+    // Passing the control bar (not the shell) as the root scopes the release
+    // to it, so focus inside a modal dialog is left alone.
+    const releaseControlBarFocus = () => {
         const controlBar = root.querySelector(VJS_CONTROL_BAR_SELECTOR);
         if (controlBar instanceof HTMLElement) {
             blurFocusedControl(controlBar, { selector: VJS_RELEASE_SELECTOR });
         }
     };
 
+    // Focus that moves onto a control (a pointer focusing it, or a menu
+    // handing focus to its button) is the common path.
+    const onFocusIn = () => {
+        if (attributed()) {
+            releaseControlBarFocus();
+        }
+    };
+    // Clicking a control that was already focused (Tab, then a mouse click on
+    // the same control) moves no focus and fires no `focusin`, so the click
+    // is the only signal; a keyboard-activation click carries no preceding
+    // `pointerdown`, so `attributed()` keeps that focus.
+    const onClick = () => {
+        if (attributed()) {
+            releaseControlBarFocus();
+        }
+    };
+
     root.addEventListener('pointerdown', onPointerDown, { capture: true });
     doc.addEventListener('keydown', onKeyDown, { capture: true });
     root.addEventListener('focusin', onFocusIn);
+    root.addEventListener('click', onClick);
     return () => {
         root.removeEventListener('pointerdown', onPointerDown, {
             capture: true,
         });
         doc.removeEventListener('keydown', onKeyDown, { capture: true });
         root.removeEventListener('focusin', onFocusIn);
+        root.removeEventListener('click', onClick);
     };
 }

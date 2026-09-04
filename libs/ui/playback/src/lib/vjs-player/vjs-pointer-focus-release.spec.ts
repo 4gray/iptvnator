@@ -68,11 +68,49 @@ describe('attachVjsPointerFocusRelease', () => {
         );
     };
 
+    const click = (target: EventTarget) => {
+        target.dispatchEvent(
+            new MouseEvent('click', { bubbles: true, cancelable: true })
+        );
+    };
+
     it('releases the focus that lands on a control-bar button after a pointer press', () => {
         pointerDown();
         fullscreen.focus();
 
         expect(document.activeElement).not.toBe(fullscreen);
+    });
+
+    it('releases a control-bar control clicked while it was already focused', () => {
+        // Tab focuses it (kept — no pointer press yet), then a mouse click on
+        // the same control moves no focus and fires no focusin, so the click
+        // is the only signal.
+        fullscreen.focus();
+        expect(document.activeElement).toBe(fullscreen);
+
+        pointerDown();
+        click(fullscreen);
+
+        expect(document.activeElement).not.toBe(fullscreen);
+    });
+
+    it('keeps an already-focused control the keyboard activates', () => {
+        // Space/Enter on a focused button fires a click with no preceding
+        // pointerdown, so the focus is kept.
+        fullscreen.focus();
+
+        click(fullscreen);
+
+        expect(document.activeElement).toBe(fullscreen);
+    });
+
+    it('leaves a modal dialog button focused when it is clicked', () => {
+        pointerDown(modalResetButton);
+        modalResetButton.focus();
+        // Even the click path is scoped to the control bar.
+        click(modalResetButton);
+
+        expect(document.activeElement).toBe(modalResetButton);
     });
 
     it('releases a control-bar slider', () => {
