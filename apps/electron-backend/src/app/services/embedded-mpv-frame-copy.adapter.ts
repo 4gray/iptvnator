@@ -144,6 +144,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         child.on('error', (error) => {
             session.snapshot.status = 'error';
             session.snapshot.error = `Helper process failed: ${error.message}`;
+            session.snapshot.errorOrigin = 'engine';
         });
         child.on('exit', (code, signal) => {
             console.log(
@@ -161,6 +162,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             session.snapshot.error = `The embedded MPV helper exited unexpectedly (${
                 signal ?? code ?? 'unknown'
             }).`;
+            session.snapshot.errorOrigin = 'engine';
         });
 
         return sessionId;
@@ -192,6 +194,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
                 status: 'loading' as const,
             };
             delete snapshot.error;
+            delete snapshot.errorOrigin;
             session.snapshot = snapshot;
         }
         this.send(sessionId, buildLoadPlaybackCommand(playback));

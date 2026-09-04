@@ -76,6 +76,12 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     videoHeight?: number;
     recording?: EmbeddedMpvRecordingState;
     error?: string;
+    /**
+     * `engine` when the error is the engine's own failure (a render context
+     * or a fatal libmpv log) rather than the stream's; absent means the
+     * stream failed and a reload can help.
+     */
+    errorOrigin?: 'playback' | 'engine';
 }
 
 export interface NativeEmbeddedMpvAddon {
@@ -1125,7 +1131,8 @@ export class EmbeddedMpvNativeService {
             session.reconnect,
             payload.status,
             previousStatus,
-            payload.positionSeconds
+            payload.positionSeconds,
+            snapshot.errorOrigin
         );
         if (reconnect) {
             payload.reconnect = reconnect;
@@ -1136,8 +1143,11 @@ export class EmbeddedMpvNativeService {
             session.lastRecordingStart &&
             (previousStatus === 'playing' || previousStatus === 'paused')
         ) {
-            // The outage began while a recording was running.
+            // The outage began while a recording was running: the file mpv
+            // was writing is over, and the reload that follows must not let
+            // the tracker file it as a clean completion.
             session.restartRecordingAfterReconnect = true;
+            embeddedMpvRecordingTracker.onRecordingInterrupted(sessionId);
         } else if (
             session.restartRecordingAfterReconnect &&
             reconnect === null &&

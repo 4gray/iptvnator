@@ -98,6 +98,9 @@ struct SessionSnapshot {
     double volumePercent = 100.0;
     std::string streamUrl;
     std::string error;
+    // True when `error` is the engine's own failure (render context, fatal
+    // libmpv log) rather than the stream's: the app must not reload for it.
+    bool engineError = false;
     std::vector<AudioTrack> audioTracks;
     int64_t selectedAudioTrackId = -1;
     std::vector<AudioTrack> subtitleTracks;
@@ -205,7 +208,11 @@ std::shared_ptr<Session> getSessionOrThrow(
 
 void scheduleRender(const std::shared_ptr<Session>& session);
 void requestRender(const std::shared_ptr<Session>& session);
-void updateSessionError(const std::shared_ptr<Session>& session, const std::string& error);
+void updateSessionError(
+    const std::shared_ptr<Session>& session,
+    const std::string& error,
+    bool engineError = false
+);
 
 bool isEmbeddedMpvTraceEnabled()
 {
@@ -552,7 +559,8 @@ void renderSoftwareFrame(const std::shared_ptr<Session>& session)
     if (result < 0) {
         updateSessionError(
             session,
-            std::string("Failed to render frame: ") + mpv_error_string(result)
+            std::string("Failed to render frame: ") + mpv_error_string(result),
+            true
         );
         return;
     }
@@ -672,7 +680,8 @@ void renderOpenGLFrame(const std::shared_ptr<Session>& session)
         updateSessionError(
             session,
             std::string("Failed to render OpenGL frame: ") +
-                mpv_error_string(result)
+                mpv_error_string(result),
+            true
         );
         return;
     }
@@ -1037,11 +1046,16 @@ void updateSubtitleTracksFromNode(SessionSnapshot& snapshot, const mpv_node& nod
     );
 }
 
-void updateSessionError(const std::shared_ptr<Session>& session, const std::string& error)
+void updateSessionError(
+    const std::shared_ptr<Session>& session,
+    const std::string& error,
+    bool engineError
+)
 {
     std::lock_guard<std::mutex> lock(session->mutex);
     session->snapshot.status = SessionStatus::Error;
     session->snapshot.error = error;
+    session->snapshot.engineError = engineError;
 }
 
 uint64_t nextAsyncRequestId()
@@ -1156,6 +1170,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
             case MPV_EVENT_START_FILE:
                 session->snapshot.status = SessionStatus::Loading;
                 session->snapshot.error.clear();
+                session->snapshot.engineError = false;
                 session->snapshot.audioTracks.clear();
                 session->snapshot.selectedAudioTrackId = -1;
                 session->snapshot.subtitleTracks.clear();
@@ -1188,6 +1203,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     session->running.load()) {
                     session->snapshot.status = SessionStatus::Loading;
                     session->snapshot.error.clear();
+                    session->snapshot.engineError = false;
                     session->loadedPath = false;
                 } else if (session->running.load()) {
                     session->snapshot.status = SessionStatus::Idle;
@@ -1355,6 +1371,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                 }
                 if (level == "fatal") {
                     session->snapshot.status = SessionStatus::Error;
+                    session->snapshot.engineError = true;
                 }
                 break;
             }
@@ -1940,6 +1957,7 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
         std::lock_guard<std::mutex> lock(session->mutex);
         session->snapshot.streamUrl = streamUrl;
         session->snapshot.error.clear();
+        session->snapshot.engineError = false;
         session->snapshot.status = SessionStatus::Loading;
         session->snapshot.recordingActive = false;
         session->snapshot.recordingTargetPath.clear();
@@ -2527,6 +2545,9 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
 
     if (!snapshot.error.empty()) {
         result.Set("error", Napi::String::New(env, snapshot.error));
+        if (snapshot.engineError) {
+            result.Set("errorOrigin", Napi::String::New(env, "engine"));
+        }
     }
 
     return result;

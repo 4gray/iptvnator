@@ -511,6 +511,45 @@ describe('EmbeddedMpvRecordingTracker', () => {
         expect(db.updateSet.mock.calls[0][0].status).toBe('completed');
     });
 
+    it('finalizes a recording as interrupted when the stream drops and a reload replaces it', async () => {
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+
+        jest.useFakeTimers();
+        try {
+            tracker.onRecordingInterrupted('session-1');
+            tracker.onRecordingStarted({
+                sessionId: 'session-1',
+                targetPath: '/rec/News-20260815-213500.ts',
+                fallbackChannelName: 'Channel One',
+            });
+            await jest.advanceTimersByTimeAsync(1_600);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
+    });
+
+    it('finalizes an interrupted recording on its own when no reload follows', async () => {
+        started(tracker);
+        tracker.observeSnapshot(activeSnapshot());
+
+        jest.useFakeTimers();
+        try {
+            tracker.onRecordingInterrupted('session-1');
+            await jest.advanceTimersByTimeAsync(2_600);
+        } finally {
+            jest.useRealTimers();
+        }
+        await flush();
+
+        expect(db.updateSet).toHaveBeenCalledTimes(1);
+        expect(db.updateSet.mock.calls[0][0].status).toBe('interrupted');
+    });
+
     it('keeps a finalizing row in the ledger until its update commits', async () => {
         // finalize() removes the entry from the open map immediately, but
         // the row stays persisted as 'recording' until the queued terminal

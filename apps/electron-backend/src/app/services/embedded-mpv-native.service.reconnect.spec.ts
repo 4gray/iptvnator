@@ -33,6 +33,7 @@ jest.mock('child_process', () => ({
 const recordingTrackerMock = {
     onRecordingStarted: jest.fn(),
     onRecordingStopped: jest.fn(),
+    onRecordingInterrupted: jest.fn(),
     observeSnapshot: jest.fn(),
 };
 jest.mock('./embedded-mpv-recording-tracker', () => ({
@@ -98,6 +99,7 @@ interface MockSnapshot {
     streamUrl: string;
     recording?: { active: boolean; targetPath?: string };
     error?: string;
+    errorOrigin?: 'playback' | 'engine';
 }
 
 const BOUNDS: EmbeddedMpvBounds = { x: 0, y: 0, width: 100, height: 100 };
@@ -138,6 +140,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
     let status: EmbeddedMpvSessionStatus;
     let positionSeconds: number;
     let recordingActive: boolean;
+    let errorOrigin: 'playback' | 'engine' | undefined;
     let originalPlatform: NodeJS.Platform;
     let originalArch: string;
     let originalExperiment: string | undefined;
@@ -173,8 +176,10 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         status = 'idle';
         positionSeconds = 0;
         recordingActive = false;
+        errorOrigin = undefined;
         recordingTrackerMock.onRecordingStarted.mockReset();
         recordingTrackerMock.onRecordingStopped.mockReset();
+        recordingTrackerMock.onRecordingInterrupted.mockReset();
         recordingTrackerMock.observeSnapshot.mockReset();
         addon = {
             isSupported: jest.fn<boolean, []>(() => true),
@@ -187,6 +192,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
                 volume: 1,
                 streamUrl: LIVE.streamUrl,
                 recording: { active: recordingActive },
+                ...(errorOrigin ? { errorOrigin } : {}),
             })),
             disposeSession: jest.fn(),
             setBounds: jest.fn(),
@@ -316,6 +322,9 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         recordingActive = false;
         poll('error');
         expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+        expect(
+            recordingTrackerMock.onRecordingInterrupted
+        ).toHaveBeenCalledWith('session-1');
 
         status = 'loading';
         jest.advanceTimersByTime(2_000);
@@ -418,6 +427,18 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         status = 'loading';
         jest.advanceTimersByTime(2_000);
         expect(addon.loadPlayback).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves an error the engine attributes to itself alone', () => {
+        startPlayingLive();
+
+        errorOrigin = 'engine';
+        poll('error');
+        jest.advanceTimersByTime(120_000);
+
+        expect(lastUpdate()?.status).toBe('error');
+        expect(lastUpdate()?.reconnect).toBeUndefined();
+        expect(addon.loadPlayback).toHaveBeenCalledTimes(1);
     });
 
     it('stays quiet when the setting is off', () => {

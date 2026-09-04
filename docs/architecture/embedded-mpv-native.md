@@ -586,6 +586,12 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
 - Each attempt is tracked from the moment its reload is issued, so a reload
   that fails before the 500 ms poll ever observes it `loading` still counts
   as a failed attempt and schedules the next one.
+- An `error` the engine attributes to itself — `errorOrigin: 'engine'` in
+  the native snapshot: a fatal libmpv log in the frame-copy helper, a dead
+  helper, a macOS render-context failure — is not a stream loss. Reloading
+  media cannot repair a broken engine, so it stays the terminal error with
+  Retry; only stream-side errors (load and `END_FILE` failures, the Linux
+  process exiting) are retried.
 - A reload the engine cannot take at all — a frame-copy helper that has
   exited (exit code, signal death, or a closed stdin), reported by the
   adapter as `EmbeddedMpvSessionGoneError` — ends the

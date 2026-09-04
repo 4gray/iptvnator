@@ -30,6 +30,9 @@ import { isEmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
  *   counted as a failed attempt rather than mistaken for the original loss.
  * - A VOD reload resumes at the last position observed while playing; a live
  *   reload goes back to the live edge.
+ * - An `error` the engine attributes to itself (a macOS render failure, a
+ *   fatal libmpv log in the helper) is not a stream loss: reloading media
+ *   cannot repair a broken render context, so it stays a terminal error.
  * - A reload the engine cannot take at all (a crashed frame-copy helper,
  *   reported as `EmbeddedMpvSessionGoneError`) ends the reconnect: only a
  *   new session can recover, and the renderer's Retry creates one.
@@ -184,9 +187,15 @@ export class EmbeddedMpvReconnectCoordinator {
         state: EmbeddedMpvReconnectState,
         status: EmbeddedMpvSessionStatus,
         previousStatus: EmbeddedMpvSessionStatus | null,
-        positionSeconds?: number
+        positionSeconds?: number,
+        errorOrigin?: 'playback' | 'engine'
     ): EmbeddedMpvReconnectInfo | null {
         const now = this.now();
+
+        if (status === 'error' && errorOrigin === 'engine') {
+            this.cancel(state);
+            return null;
+        }
 
         if (
             (status === 'playing' || status === 'paused') &&

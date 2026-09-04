@@ -147,6 +147,7 @@ export function applyHelperEvent(
             session.snapshot.error = String(
                 event.error ?? 'Embedded MPV helper failed.'
             );
+            session.snapshot.errorOrigin = 'engine';
             break;
         case 'log':
             if (event.level === 'error' || event.level === 'fatal') {

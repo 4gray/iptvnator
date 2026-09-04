@@ -276,6 +276,25 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         expect(reload).not.toHaveBeenCalled();
     });
 
+    it('leaves an error the engine attributes to itself alone', () => {
+        startPlaying();
+
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'error',
+                'playing',
+                42,
+                'engine'
+            )
+        ).toBeNull();
+        jest.advanceTimersByTime(60_000);
+
+        expect(reload).not.toHaveBeenCalled();
+        expect(state.pending).toBeNull();
+    });
+
     it('does not resume a stream the user paused when it drops', () => {
         startPlaying();
         expect(

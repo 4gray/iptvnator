@@ -73,6 +73,9 @@ struct SnapshotState {
     std::string recordingStartedAt;
     std::string recordingError;
     std::string error;
+    /* True when `error` is the engine's own failure (a fatal libmpv log)
+     * rather than the stream's: the app must not reload media for it. */
+    bool engineError = false;
 };
 
 struct HelperState {
@@ -174,7 +177,10 @@ std::string composeSnapshotLocked() {
         recording.str("startedAt", s.recordingStartedAt);
     if (!s.recordingError.empty()) recording.str("error", s.recordingError);
     writer.raw("recording", recording.finish());
-    if (!s.error.empty()) writer.str("error", s.error);
+    if (!s.error.empty()) {
+        writer.str("error", s.error);
+        if (s.engineError) writer.str("errorOrigin", "engine");
+    }
     return writer.finish();
 }
 
@@ -383,6 +389,7 @@ void runMpvEventLoop() {
                 case MPV_EVENT_START_FILE:
                     s.status = "loading";
                     s.error.clear();
+                    s.engineError = false;
                     s.audioTracks.clear();
                     s.selectedAudioTrackId = -1;
                     s.subtitleTracks.clear();
@@ -414,6 +421,7 @@ void runMpvEventLoop() {
                                g_state.running.load()) {
                         s.status = "loading";
                         s.error.clear();
+                        s.engineError = false;
                         g_state.loadedPath = false;
                     } else if (g_state.running.load()) {
                         s.status = "idle";
@@ -441,6 +449,7 @@ void runMpvEventLoop() {
                     }
                     if (level == "fatal") {
                         s.status = "error";
+                        s.engineError = true;
                     }
                     emitLine(JsonWriter()
                                  .str("event", "log")
@@ -487,6 +496,7 @@ void handleLoadCommand(const Command& command) {
         }
         g_state.snapshot.streamUrl = url;
         g_state.snapshot.error.clear();
+        g_state.snapshot.engineError = false;
         g_state.snapshot.status = "loading";
         g_state.dirty = true;
     }
