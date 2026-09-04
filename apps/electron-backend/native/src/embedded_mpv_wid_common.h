@@ -2080,16 +2080,32 @@ Napi::Value SeekBy(const Napi::CallbackInfo& info)
     // while paused; on Linux it would also advertise a position that a
     // failed socket delivery never reached. Only the observed `time-pos`
     // updates the position.
+    //
+    // A step that cannot be delivered rejects the IPC, like a failed
+    // `mpv_command_async` on the in-process engines: the renderer swallows
+    // the rejection and resyncs from the next snapshot, and the main process
+    // logs it, instead of a silent no-op that looks like a seek still
+    // awaiting observation.
 #ifdef __linux__
     std::string socketPath;
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         socketPath = session->mpvIpcSocketPath;
     }
-    if (!socketPath.empty()) {
-        sendLinuxMpvCommand(
+    if (socketPath.empty()) {
+        throw Napi::Error::New(
+            env,
+            "Failed to seek playback: the mpv IPC socket is not available yet."
+        );
+    }
+    if (!sendLinuxMpvCommand(
             socketPath,
             "{\"command\":[\"seek\"," + seconds + ",\"relative+exact\"]}\n"
+        )) {
+        throw Napi::Error::New(
+            env,
+            "Failed to seek playback: the mpv IPC socket did not accept the "
+            "seek command."
         );
     }
     return env.Undefined();
