@@ -83,6 +83,17 @@ const LIVE: ResolvedPortalPlayback = {
     title: 'Live channel',
     isLive: true,
 };
+const VOD: ResolvedPortalPlayback = {
+    streamUrl: 'http://host/movie.mkv',
+    title: 'Movie',
+    isLive: false,
+    startTime: 30,
+    contentInfo: {
+        playlistId: 'playlist-1',
+        contentXtreamId: 7,
+        contentType: 'vod',
+    },
+};
 
 describe('EmbeddedMpvNativeService reconnect', () => {
     let EmbeddedMpvNativeService: typeof EmbeddedMpvNativeServiceType;
@@ -102,6 +113,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         stopRecording: jest.Mock;
     };
     let status: EmbeddedMpvSessionStatus;
+    let positionSeconds: number;
     let originalPlatform: NodeJS.Platform;
     let originalArch: string;
     let originalExperiment: string | undefined;
@@ -132,13 +144,14 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             await import('./embedded-mpv-native.service'));
         service = new EmbeddedMpvNativeService();
         status = 'idle';
+        positionSeconds = 0;
         addon = {
             isSupported: jest.fn<boolean, []>(() => true),
             createSession: jest.fn<string, unknown[]>(() => 'session-1'),
             loadPlayback: jest.fn(),
             getSessionSnapshot: jest.fn<MockSnapshot | null, [string]>(() => ({
                 status,
-                positionSeconds: 0,
+                positionSeconds,
                 durationSeconds: null,
                 volume: 1,
                 streamUrl: LIVE.streamUrl,
@@ -237,6 +250,27 @@ describe('EmbeddedMpvNativeService reconnect', () => {
 
         expect(lastUpdate()?.status).toBe('playing');
         expect(lastUpdate()?.reconnect).toBeUndefined();
+    });
+
+    it('reloads a dropped movie from the position it reached', () => {
+        service.createSession(BOUNDS, 'Title', 0.5, {
+            extraOptions: [],
+            autoReconnect: true,
+        });
+        service.loadPlayback('session-1', VOD);
+        poll('loading');
+        positionSeconds = 640;
+        poll('playing');
+        poll('playing');
+
+        poll('error');
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+
+        expect(addon.loadPlayback).toHaveBeenLastCalledWith('session-1', {
+            ...VOD,
+            startTime: 640,
+        });
     });
 
     it('treats EOF on a live stream as a drop', () => {

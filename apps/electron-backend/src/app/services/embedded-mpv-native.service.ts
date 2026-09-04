@@ -1012,7 +1012,8 @@ export class EmbeddedMpvNativeService {
             sessionId,
             session.reconnect,
             payload.status,
-            previousStatus
+            previousStatus,
+            payload.positionSeconds
         );
         if (reconnect) {
             payload.reconnect = reconnect;

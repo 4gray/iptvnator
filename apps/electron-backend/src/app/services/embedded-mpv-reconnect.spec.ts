@@ -196,6 +196,27 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         expect(reload).not.toHaveBeenCalled();
     });
 
+    it('resumes a VOD reload where it dropped but keeps live at the live edge', () => {
+        startPlaying(VOD);
+        coordinator.observe(SESSION, state, 'playing', 'playing', 95);
+        coordinator.observe(SESSION, state, 'playing', 'playing', 120);
+        coordinator.observe(SESSION, state, 'error', 'playing', 0);
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, {
+            ...VOD,
+            startTime: 120,
+        });
+
+        reload.mockClear();
+        state = createEmbeddedMpvReconnectState(true);
+        startPlaying(LIVE);
+        coordinator.observe(SESSION, state, 'playing', 'playing', 3_600);
+        coordinator.observe(SESSION, state, 'error', 'playing', 3_600);
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, LIVE);
+        expect(reload.mock.calls[0][1]).not.toHaveProperty('startTime');
+    });
+
     it('drops a pending attempt when the stream recovers on its own', () => {
         startPlaying();
         coordinator.observe(SESSION, state, 'error', 'playing');

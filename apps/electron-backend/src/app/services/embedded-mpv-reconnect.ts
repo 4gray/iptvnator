@@ -22,6 +22,8 @@ import type {
  *   not on the first `playing`, so a stream that flaps every few seconds runs
  *   out of attempts instead of being retried forever.
  * - A user-driven load, a pause, or teardown cancels everything.
+ * - A VOD reload resumes at the last position observed while playing; a live
+ *   reload goes back to the live edge.
  *
  * Status transitions arrive from `EmbeddedMpvNativeService.refreshSession()`
  * (polled every 500 ms); every engine flips to `loading` synchronously on a
@@ -46,6 +48,12 @@ export interface EmbeddedMpvReconnectState {
     attempts: number;
     /** Start of the current uninterrupted `playing` stretch. */
     playingSince: number | null;
+    /**
+     * Last position reported while the stream played. Non-live reloads carry
+     * it as `startTime`, otherwise mpv would restart at the playback's
+     * original resume offset.
+     */
+    lastPositionSeconds: number | null;
     timer: NodeJS.Timeout | null;
     /** What the renderer is shown while an attempt is scheduled or in flight. */
     pending: EmbeddedMpvReconnectInfo | null;
@@ -69,6 +77,7 @@ export function createEmbeddedMpvReconnectState(
         hadPlayed: false,
         attempts: 0,
         playingSince: null,
+        lastPositionSeconds: null,
         timer: null,
         pending: null,
     };
@@ -119,6 +128,7 @@ export class EmbeddedMpvReconnectCoordinator {
         state.hadPlayed = false;
         state.attempts = 0;
         state.playingSince = null;
+        state.lastPositionSeconds = null;
         state.pending = null;
     }
 
@@ -128,16 +138,26 @@ export class EmbeddedMpvReconnectCoordinator {
     }
 
     /**
-     * Feed one observed status. Returns what the renderer should be shown
-     * (`null` when nothing is pending).
+     * Feed one observed status (and the position that came with it). Returns
+     * what the renderer should be shown (`null` when nothing is pending).
      */
     observe(
         sessionId: string,
         state: EmbeddedMpvReconnectState,
         status: EmbeddedMpvSessionStatus,
-        previousStatus: EmbeddedMpvSessionStatus | null
+        previousStatus: EmbeddedMpvSessionStatus | null,
+        positionSeconds?: number
     ): EmbeddedMpvReconnectInfo | null {
         const now = this.now();
+
+        if (
+            (status === 'playing' || status === 'paused') &&
+            typeof positionSeconds === 'number' &&
+            Number.isFinite(positionSeconds) &&
+            positionSeconds > 0
+        ) {
+            state.lastPositionSeconds = positionSeconds;
+        }
 
         if (status === 'playing') {
             state.hadPlayed = true;
@@ -200,7 +220,7 @@ export class EmbeddedMpvReconnectCoordinator {
 
         const delay = resolveEmbeddedMpvReconnectDelayMs(state.attempts);
         const attempt = state.attempts + 1;
-        const playback = state.playback;
+        const playback = this.playbackForReload(state.playback, state);
         state.pending = {
             attempt,
             maxAttempts: EMBEDDED_MPV_RECONNECT_MAX_ATTEMPTS,
@@ -226,6 +246,24 @@ export class EmbeddedMpvReconnectCoordinator {
             this.hooks.publish(sessionId);
         }, delay);
         return state.pending;
+    }
+
+    /**
+     * Live streams reload at the live edge. Anything else resumes where the
+     * connection dropped: the stored playback still carries the offset the
+     * user originally resumed from, and reloading it would rewind the movie.
+     */
+    private playbackForReload(
+        playback: ResolvedPortalPlayback,
+        state: EmbeddedMpvReconnectState
+    ): ResolvedPortalPlayback {
+        if (
+            isLiveEmbeddedMpvPlayback(playback) ||
+            state.lastPositionSeconds === null
+        ) {
+            return playback;
+        }
+        return { ...playback, startTime: state.lastPositionSeconds };
     }
 
     private clearTimer(state: EmbeddedMpvReconnectState): void {
