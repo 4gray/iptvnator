@@ -1201,17 +1201,26 @@ export class StreamResolverService {
                         }
                     }
 
+                    // The short EPG starts at the portal's own "now"; under a
+                    // negative display offset the programme on air lies
+                    // further ahead, so the window is widened and the entry
+                    // covering the provider clock is picked, not the first.
                     const items = await this.fetchStalkerShortEpg(
                         playlist,
                         channelId,
-                        1
+                        shortEpgWindowSize(
+                            this.settingsStore.resolvedEpgOffsetMinutes(),
+                            1
+                        )
                     );
-                    epgMap.set(
-                        epgKey,
-                        items.length > 0
-                            ? this.toPreviewProgram(items[0], channelId, now)
-                            : null
-                    );
+                    let preview: EpgProgram | null = null;
+                    for (const item of items) {
+                        preview = this.toPreviewProgram(item, channelId, now);
+                        if (preview) {
+                            break;
+                        }
+                    }
+                    epgMap.set(epgKey, preview);
                 } catch {
                     epgMap.set(epgKey, null);
                 }

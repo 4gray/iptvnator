@@ -4,10 +4,7 @@ import {
     XtreamApiService,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import {
-    StalkerPortalRepairService,
-    StalkerSessionService,
-} from '@iptvnator/portal/stalker/data-access';
+import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
@@ -78,10 +75,6 @@ describe('StreamResolverService EPG display offset', () => {
                         makeAuthenticatedRequest: jest.fn(),
                     },
                 },
-                {
-                    provide: StalkerPortalRepairService,
-                    useValue: { repair: jest.fn() },
-                },
             ],
         });
 
@@ -136,5 +129,62 @@ describe('StreamResolverService EPG display offset', () => {
         expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
         expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
         expect(epgMap.get('Xtream Live')?.title).toBe('Really on air');
+    });
+
+    it('widens Stalker collection previews under a negative offset and picks the entry covering the provider clock', async () => {
+        TestBed.inject(PlaylistsService).getPlaylistById = jest.fn(() =>
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const entry = (id: string, name: string, startOffsetMin: number) => ({
+            id,
+            name,
+            descr: '',
+            time: '2026-03-26T11:00:00.000Z',
+            time_to: '2026-03-26T12:00:00.000Z',
+            ch_id: '77',
+            start_timestamp: String(nowSeconds + startOffsetMin * 60),
+            stop_timestamp: String(nowSeconds + (startOffsetMin + 30) * 60),
+        });
+        const sendIpcEvent = TestBed.inject(DataService)
+            .sendIpcEvent as jest.Mock;
+        sendIpcEvent.mockResolvedValue({
+            js: [
+                entry('10', 'Provider now', -10),
+                entry('11', 'Soon', 20),
+                entry('12', 'Really on air', 50),
+            ],
+        });
+        // The guide runs an hour behind: the show really on air is the one
+        // the portal files as starting in 50 minutes.
+        epgOffsetMinutes = -60;
+
+        const epgMap = await service.loadEpgForItems([
+            {
+                uid: 'stalker::stalker-1::77',
+                name: 'Stalker Channel',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker',
+                stalkerId: '77',
+                tvgId: '77',
+                stalkerCmd: 'ffmpeg http://stalker/77',
+            } satisfies UnifiedCollectionItem,
+        ]);
+
+        expect(epgMap.get('77')?.title).toBe('Really on air');
+        // 1 entry + ⌈60 / 15⌉ = 5 requested instead of the usual single one.
+        expect(sendIpcEvent).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                params: expect.objectContaining({ size: '5' }),
+            })
+        );
     });
 });
