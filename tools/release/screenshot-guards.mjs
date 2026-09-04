@@ -48,6 +48,8 @@ export const KNOWN_ACTIONS = [
     'open-add-playlist-xtream',
     'open-add-playlist-auto',
     'open-xtream-live',
+    'open-add-playlist-stalker',
+    'open-stalker-live',
 ];
 
 /**
@@ -408,6 +410,15 @@ const CREDENTIAL_TEXT_PATTERNS = [
 ];
 
 /**
+ * The one MAC address a published frame may show: the stalker-mock-server's
+ * `marketing-demo` scenario. It exists only in the mock's scenario table, so
+ * it identifies no real subscriber. Any other MAC-shaped text still fails the
+ * shot, which is what keeps the Stalker guide screenshots from ever carrying
+ * a real box identity.
+ */
+export const FICTIONAL_STALKER_MAC = '00:1A:79:00:00:07';
+
+/**
  * Evaluated against a DOM report collected right before each screenshot:
  * every image/background URL and the visible text. External resources or
  * credential-shaped text fail the shot.
@@ -424,8 +435,12 @@ export function evaluateFrameReport(report) {
         }
     }
 
+    const bodyText = report.bodyText
+        .split(FICTIONAL_STALKER_MAC)
+        .join('[fictional-mac]');
+
     for (const pattern of CREDENTIAL_TEXT_PATTERNS) {
-        const match = report.bodyText.match(pattern);
+        const match = bodyText.match(pattern);
 
         if (match) {
             violations.push(

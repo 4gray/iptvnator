@@ -337,7 +337,7 @@ This is an Nx monorepo with the following structure:
     - **shared/host-health** - Per-host circuit breaker for portal requests (`HostConnectivityGuard`), shared by the Electron main process and the web backend; transport-free, the owning app supplies the clock and owns the instance
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
-    - **shared/marketing-fixtures** - Provider-neutral fictional movie metadata shared by the Xtream and Stalker marketing mocks
+    - **shared/marketing-fixtures** - Provider-neutral fictional movie metadata, live channel list and the generated channel-logo SVG renderer shared by the Xtream and Stalker marketing mocks (both serve `/assets/marketing/logo/<slug>.svg`)
     - **shared/testing** - Shared test helpers
     - **ui/components** - Reusable UI components (incl. channel list)
     - **ui/epg** - EPG UI (timeline ribbon, multi-EPG, progress panel, program dialogs)

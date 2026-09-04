@@ -12,6 +12,7 @@ import {
 } from './app/auth-store.js';
 import { resetWatchdogPings } from './app/handlers/get-events.handler.js';
 import { resetAll, resetMac } from './app/data-store.js';
+import { renderMarketingLogoSvg } from '@iptvnator/shared/marketing-fixtures';
 import { SCENARIOS } from './app/scenarios.js';
 import {
     buildRequestOrigin,
@@ -53,9 +54,11 @@ app.use((req, _res, next) => {
 
 // Marketing fixtures store deployment-neutral asset paths. Resolve them
 // against the public origin of each request, including reverse-proxy headers.
+// `get_all_channels` is the full ITV list the app caches per session, so the
+// live-TV channel logos of the marketing scenario ride on it as well.
 app.use((req, res, next) => {
     if (
-        !['get_ordered_list', 'favorites'].includes(
+        !['get_ordered_list', 'get_all_channels', 'favorites'].includes(
             String(req.query['action'])
         )
     ) {
@@ -86,6 +89,17 @@ app.use(
         maxAge: '1y',
     })
 );
+
+// Channel logos of the marketing-demo scenario, rendered on the fly with the
+// same generator the Xtream mock uses, so a live-TV frame never fetches a
+// third-party image.
+app.get('/assets/marketing/logo/:slug', (req: Request, res: Response) => {
+    const size =
+        typeof req.query['size'] === 'string' ? req.query['size'] : undefined;
+    res.type('image/svg+xml')
+        .set('Cache-Control', 'public, max-age=3600')
+        .send(renderMarketingLogoSvg(String(req.params['slug'] ?? ''), size));
+});
 
 // Stalker portal.php endpoint (reseller-panel alias — tolerant, no token check)
 app.use('/portal.php', portalRouter);

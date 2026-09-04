@@ -67,6 +67,22 @@
             "setup": [
                 "open-xtream-live"
             ]
+        },
+        {
+            "slug": "guide-stalker-add-playlist",
+            "title": "Add playlist: Stalker portal",
+            "group": "guides",
+            "setup": [
+                "open-add-playlist-stalker"
+            ]
+        },
+        {
+            "slug": "guide-stalker-live",
+            "title": "Stalker Live TV",
+            "group": "guides",
+            "setup": [
+                "open-stalker-live"
+            ]
         }
     ]
 }

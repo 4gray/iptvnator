@@ -8,33 +8,32 @@ import type { Page } from '@playwright/test';
 
 import {
     AUTO_DETECT_FIXTURE_MESSAGE,
+    STALKER_FIXTURE_MAC,
+    STALKER_FIXTURE_PORTAL_URL,
+    STALKER_FIXTURE_TITLE,
     XTREAM_FIXTURE_CREDENTIALS,
     XTREAM_FIXTURE_TITLE,
     XTREAM_MOCK_ORIGIN,
 } from './capture-fixtures';
 
-let m3uPlaylistId: string | undefined;
-let xtreamPlaylistId: string | undefined;
+/** Route segment of each seeded source, as it appears in `/workspace/<provider>/<id>`. */
+export type PlaylistProvider = 'playlists' | 'xtreams' | 'stalker';
+
+const playlistIds = new Map<PlaylistProvider, string>();
 
 export function registerPlaylistId(
-    provider: 'playlists' | 'xtreams',
+    provider: PlaylistProvider,
     id: string
 ): void {
-    if (provider === 'playlists') {
-        m3uPlaylistId = id;
-    } else {
-        xtreamPlaylistId = id;
-    }
+    playlistIds.set(provider, id);
 }
 
-export function requirePlaylistId(
-    provider: 'playlists' | 'xtreams'
-): string {
+export function requirePlaylistId(provider: PlaylistProvider): string {
     return requireId(provider);
 }
 
-function requireId(provider: 'playlists' | 'xtreams'): string {
-    const id = provider === 'playlists' ? m3uPlaylistId : xtreamPlaylistId;
+function requireId(provider: PlaylistProvider): string {
+    const id = playlistIds.get(provider);
 
     if (!id) {
         throw new Error(`No captured ${provider} playlist id — seeding failed?`);
@@ -247,6 +246,52 @@ export async function runAction(
             // Deliberately no channel click: playback would pull the mock's
             // redirect to a public demo stream, and third-party video frames
             // must never enter a published shot.
+            await page
+                .locator('app-channel-list-item')
+                .first()
+                .waitFor({ state: 'visible', timeout: 30_000 });
+            await page.waitForTimeout(700);
+            return;
+        }
+        case 'open-add-playlist-stalker': {
+            await goHome(page);
+            await openAddPlaylistDialog(page);
+            const dialog = page.locator('mat-dialog-container').last();
+
+            await clickDialogOption(dialog, /stalker portal/i);
+            await dialog.locator('#title').fill(STALKER_FIXTURE_TITLE);
+            await dialog.locator('#portalUrl').fill(STALKER_FIXTURE_PORTAL_URL);
+            await dialog.locator('#macAddress').fill(STALKER_FIXTURE_MAC);
+            // Blur runs the MAC normalization the guide describes.
+            await dialog.locator('#serialNumber').focus();
+            // The form is long; frame the identity fields and the derive
+            // toggle rather than the signature fields at the bottom.
+            await dialog.locator('.derive-device-ids').scrollIntoViewIfNeeded();
+            await page.waitForTimeout(500);
+            return;
+        }
+        case 'open-stalker-live': {
+            await goHome(page);
+            await clickHrefSuffix(
+                page,
+                `/workspace/stalker/${requireId('stalker')}/vod`
+            );
+            await clickHrefSuffix(
+                page,
+                `/workspace/stalker/${requireId('stalker')}/itv`
+            );
+
+            const categories = page.locator(
+                'app-workspace-context-panel .category-item'
+            );
+            const category = param
+                ? categories.filter({ hasText: param }).first()
+                : categories.first();
+
+            await category.waitFor({ state: 'visible', timeout: 30_000 });
+            await category.click();
+            // No channel click: playback would resolve a create_link to a
+            // public demo stream, and third-party video never enters a shot.
             await page
                 .locator('app-channel-list-item')
                 .first()

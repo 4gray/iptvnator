@@ -163,7 +163,14 @@ into `apps/website/public/blog/guides/screenshots/` instead of a release folder
 guard a release shot does; the add-playlist dialog shots fill the form with the
 mock's fictional `marketing` credentials and use a labeled hand-out for the
 Auto-detect method rather than a `get.php?username=…` link, because G4 rejects
-any URL carrying query credentials.
+any URL carrying query credentials. Shots that walk into a Stalker portal
+(`open-stalker-live`) make the run start the stalker-mock-server on port 3210
+and seed its `marketing-demo` portal as a third source, which is why they are
+never part of a release run. That scenario's MAC, `00:1A:79:00:00:07`, is the
+one MAC-shaped string G4 accepts (`FICTIONAL_STALKER_MAC`); every other MAC
+still fails the frame. The scenario's live channels and logos come from
+`@iptvnator/shared/marketing-fixtures`, served by the mock itself, so no
+third-party image is ever requested.
 
 Output lands in `dist/release-highlight-cards/v<version>/`, outside version
 control — keyed by the exact version, because 0.24.0 and 0.24.1 share a blog
