@@ -17,7 +17,11 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { Channel, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    Channel,
+    EpgProgram,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { ChannelListContainerComponent } from './channel-list-container.component';
 
 function createChannel(id: string, url: string): Channel {
@@ -252,6 +256,44 @@ describe('ChannelListContainerComponent', () => {
             ['guide-news'],
             { sourceUrls: ['https://playlist.example.com/guide.xml'] }
         );
+    });
+
+    it('drops a superseded EPG refresh that completes after the newer one', () => {
+        runtimeCapabilities.supportsEpg = true;
+        storageGet.mockReturnValue(
+            of({ epgUrl: ['https://global.example.com/guide.xml'] })
+        );
+        const first = new Subject<Map<string, EpgProgram | null>>();
+        const program = (title: string): EpgProgram => ({
+            start: '2026-04-11T10:00:00.000Z',
+            stop: '2026-04-11T11:00:00.000Z',
+            channel: 'guide-news',
+            title,
+            desc: null,
+            category: null,
+        });
+        epgService.getCurrentProgramsForChannels
+            .mockReturnValueOnce(first.asObservable())
+            .mockReturnValueOnce(of(new Map([['guide-news', program('Fresh')]])));
+
+        fixture.detectChanges();
+        const channels = [
+            createChannel('guide-news', 'https://example.com/news.m3u8'),
+        ];
+        fixture.componentInstance.channelList = channels;
+        // A second fetch (e.g. the display offset changed) supersedes the first.
+        fixture.componentInstance.channelList = channels;
+        expect(
+            fixture.componentInstance.channelEpgMap().get('guide-news')?.title
+        ).toBe('Fresh');
+
+        // The stale first fetch lands last and must not overwrite the map.
+        first.next(new Map([['guide-news', program('Stale')]]));
+        first.complete();
+
+        expect(
+            fixture.componentInstance.channelEpgMap().get('guide-news')?.title
+        ).toBe('Fresh');
     });
 
     it('refreshes visible channel EPG when playlist EPG URLs arrive after channels', () => {

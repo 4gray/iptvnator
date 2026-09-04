@@ -291,4 +291,66 @@ describe('StreamResolverService EPG display offset', () => {
             jest.useRealTimers();
         }
     });
+
+    it('evaluates a whole collection load against the offset it started with', async () => {
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const listing = (
+            title: string,
+            startOffsetMin: number,
+            durationMin: number
+        ) => {
+            const start = nowSeconds + startOffsetMin * 60;
+            const stop = start + durationMin * 60;
+            return {
+                id: title,
+                epg_id: title,
+                title,
+                lang: 'en',
+                description: '',
+                channel_id: '1',
+                start: new Date(start * 1000).toISOString(),
+                end: new Date(stop * 1000).toISOString(),
+                stop: new Date(stop * 1000).toISOString(),
+                start_timestamp: String(start),
+                stop_timestamp: String(stop),
+            };
+        };
+        epgOffsetMinutes = 60;
+        // The setting flips back to 0 while the batch is still resolving
+        // credentials — before any guide request went out.
+        TestBed.inject(PlaylistsService).getPlaylistById = jest.fn(() => {
+            epgOffsetMinutes = 0;
+            return of({
+                _id: 'xtream-1',
+                serverUrl: 'https://xtream.example.com',
+                username: 'user',
+                password: 'pass',
+            } satisfies Partial<Playlist>);
+        });
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Really on air', -75, 60),
+            listing('Provider now', -15, 30),
+        ]);
+        xtreamApi.getShortEpg.mockResolvedValue([
+            listing('Provider now', -15, 30),
+        ]);
+
+        const epgMap = await service.loadEpgForItems([
+            {
+                uid: 'xtream::xtream-1::1',
+                name: 'Xtream Live',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream',
+                xtreamId: 1,
+            } satisfies UnifiedCollectionItem,
+        ]);
+
+        // The load keeps the +60 snapshot it began with: it fetches the full
+        // guide and picks the programme covering that provider clock, rather
+        // than mixing a short-EPG window for offset 0 with a +60 selection.
+        expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
+        expect(epgMap.get('Xtream Live')?.title).toBe('Really on air');
+    });
 });

@@ -133,6 +133,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Interval for refreshing EPG data */
     private epgRefreshInterval?: number;
+    /** The EPG fetch in flight; a newer fetch cancels it so a stale map never lands. */
+    private epgFetchSubscription?: Subscription;
 
     /** Global progress tick signal - triggers re-computation of progress percentages */
     readonly progressTick = signal(0);
@@ -415,6 +417,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         }
 
         this.epgAvailabilitySubscription?.unsubscribe();
+        this.epgFetchSubscription?.unsubscribe();
         this.channelList$.complete();
     }
 
@@ -422,6 +425,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * Fetches EPG data for all channels
      */
     private fetchEpgForChannels(channels: Channel[]): void {
+        // A fetch started for a previous channel list, EPG scope or display
+        // offset must not install its map after this one: cancel it first.
+        this.epgFetchSubscription?.unsubscribe();
         if (!channels || channels.length === 0) {
             this.channelEpgMap.set(new Map());
             this.channelIconMap.set(new Map());
@@ -438,7 +444,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         const epgLookupOptions = this.getPlaylistEpgLookupOptions();
 
-        forkJoin({
+        this.epgFetchSubscription = forkJoin({
             epgMap: this.epgService.getCurrentProgramsForChannels(
                 channelIds,
                 epgLookupOptions
@@ -464,8 +470,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     private getPlaylistEpgLookupOptions():
-        | { sourceUrls: string[] }
-        | undefined {
+        { sourceUrls: string[] } | undefined {
         const sourceUrls = this.playlistEpgUrls();
         return sourceUrls.length > 0 ? { sourceUrls } : undefined;
     }

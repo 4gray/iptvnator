@@ -80,6 +80,16 @@ export interface ResolvedLiveCollectionDetail {
     readonly epgItems?: EpgItem[];
 }
 
+/** Clock snapshot a whole EPG load is evaluated against; see `epgLoadClock`. */
+interface EpgLoadClock {
+    /** Wall-clock instant the load started at. */
+    wallNowMs: number;
+    /** Display offset the load was evaluated with. */
+    offsetMinutes: number;
+    /** `wallNowMs` in the provider's EPG clock. */
+    nowMs: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class StreamResolverService {
     private readonly playlistsService = inject(PlaylistsService);
@@ -88,6 +98,24 @@ export class StreamResolverService {
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
+
+    /**
+     * One clock snapshot per EPG load: the wall instant, the display offset
+     * the load was evaluated with, and the derived provider clock. Every
+     * window cut and every "is it on now" test inside the load uses this
+     * snapshot, so a setting change or a programme boundary crossed while a
+     * request is on the wire cannot make one half of the load disagree with
+     * the other (`epg-display-offset.util.ts`, clock form).
+     */
+    private epgLoadClock(): EpgLoadClock {
+        const wallNowMs = Date.now();
+        const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+        return {
+            wallNowMs,
+            offsetMinutes,
+            nowMs: epgProviderClockMs(wallNowMs, offsetMinutes),
+        };
+    }
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
     private readonly logger = createLogger('StreamResolver');
@@ -176,17 +204,10 @@ export class StreamResolverService {
             return epgMap;
         }
 
-        // One wall-clock instant for the whole load, and "now" in the
-        // provider's EPG clock derived from it (`epg-display-offset.util.ts`,
-        // clock form): the rows stay raw and the list shifts them for
-        // display. Windows cut from a full guide use the same instant, so a
-        // programme boundary crossed while a request is on the wire cannot
-        // drop the entry the selection below is looking for.
-        const wallNowMs = Date.now();
-        const now = epgProviderClockMs(
-            wallNowMs,
-            this.settingsStore.resolvedEpgOffsetMinutes()
-        );
+        // The rows stay raw and the list shifts them for display; every
+        // decision below is made against this one snapshot.
+        const clock = this.epgLoadClock();
+        const now = clock.nowMs;
         const xtreamByPlaylist = new Map<string, UnifiedCollectionItem[]>();
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 
@@ -228,15 +249,19 @@ export class StreamResolverService {
                     playlistId,
                     playlistItems,
                     epgMap,
-                    now,
-                    wallNowMs
+                    clock
                 )
             );
         }
 
         for (const [playlistId, playlistItems] of stalkerByPlaylist.entries()) {
             tasks.push(
-                this.loadStalkerEpgBatch(playlistId, playlistItems, epgMap, now)
+                this.loadStalkerEpgBatch(
+                    playlistId,
+                    playlistItems,
+                    epgMap,
+                    clock
+                )
             );
         }
 
@@ -741,7 +766,8 @@ export class StreamResolverService {
 
     private async loadStalkerEpgItems(
         item: UnifiedCollectionItem,
-        size: number
+        size: number,
+        clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(item.playlistId)
@@ -781,10 +807,7 @@ export class StreamResolverService {
         return this.fetchStalkerShortEpg(
             playlist,
             channelId,
-            shortEpgWindowSize(
-                this.settingsStore.resolvedEpgOffsetMinutes(),
-                size
-            )
+            shortEpgWindowSize(clock.offsetMinutes, size)
         );
     }
 
@@ -931,9 +954,9 @@ export class StreamResolverService {
         playlistId: string,
         channels: UnifiedCollectionItem[],
         epgMap: Map<string, EpgProgram | null>,
-        now: number,
-        wallNowMs: number
+        clock: EpgLoadClock
     ): Promise<void> {
+        const now = clock.nowMs;
         const creds = await this.getXtreamCredentials(playlistId);
         if (!creds) {
             return;
@@ -1004,7 +1027,7 @@ export class StreamResolverService {
                             creds,
                             channel.xtreamId,
                             5,
-                            wallNowMs
+                            clock
                         );
                         currentItem =
                             items.find(
@@ -1102,13 +1125,13 @@ export class StreamResolverService {
         },
         streamId: number,
         limit: number,
-        wallNowMs = Date.now()
+        clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
         if (!this.supportsProgramLookup) {
             return [];
         }
 
-        const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+        const { offsetMinutes, wallNowMs } = clock;
         const cacheKey = this.getXtreamEpgCacheKey(
             playlistId,
             streamId,
@@ -1164,8 +1187,9 @@ export class StreamResolverService {
         playlistId: string,
         channels: UnifiedCollectionItem[],
         epgMap: Map<string, EpgProgram | null>,
-        now: number
+        clock: EpgLoadClock
     ): Promise<void> {
+        const now = clock.nowMs;
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(playlistId)
         )) as Playlist | undefined;
@@ -1223,10 +1247,7 @@ export class StreamResolverService {
                     const items = await this.fetchStalkerShortEpg(
                         playlist,
                         channelId,
-                        shortEpgWindowSize(
-                            this.settingsStore.resolvedEpgOffsetMinutes(),
-                            1
-                        )
+                        shortEpgWindowSize(clock.offsetMinutes, 1)
                     );
                     let preview: EpgProgram | null = null;
                     for (const item of items) {

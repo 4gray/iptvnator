@@ -8,6 +8,7 @@ import {
     input,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -442,6 +443,23 @@ export class UnifiedLiveTabComponent {
             }
         });
 
+        // The map answers "what is on at the provider clock", so a changed
+        // display offset reloads it; the request id in loadEpgMap drops the
+        // older load. The first run only records the initial value.
+        let appliedEpgOffsetMinutes: number | null = null;
+        effect(() => {
+            const offsetMinutes = this.epgOffsetMinutes();
+            if (appliedEpgOffsetMinutes === offsetMinutes) {
+                return;
+            }
+            const isInitial = appliedEpgOffsetMinutes === null;
+            appliedEpgOffsetMinutes = offsetMinutes;
+            if (isInitial || !this.supportsEpg) {
+                return;
+            }
+            void this.loadEpgMap(untracked(() => this.items()));
+        });
+
         effect(() => {
             const target = this.autoOpenItem();
             const items = this.items();
@@ -704,8 +722,16 @@ export class UnifiedLiveTabComponent {
         void this.loadEpgMap(this.items());
     }
 
+    private epgMapRequestId = 0;
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
+        // Only the latest load may install its map: an older one — started
+        // under a previous display offset or item set — must not overwrite
+        // the refreshed result when it completes last.
+        const requestId = ++this.epgMapRequestId;
         const epgMap = await this.streamResolver.loadEpgForItems(items);
+        if (requestId !== this.epgMapRequestId) {
+            return;
+        }
         this.epgMap.set(epgMap);
     }
 
