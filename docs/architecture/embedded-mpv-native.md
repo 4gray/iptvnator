@@ -640,7 +640,13 @@ tick), and once the reload plays the service starts it again into a fresh
 file with the same folder, title and metadata, so the manager lists both
 parts. A stream that recovers by itself before the reload fires keeps its
 recording running untouched; an explicit stop or a user-driven load never
-restarts anything.
+restarts anything. An external subtitle file added through `sub-add` is
+dropped by the reload as well (the engines clear their tracks on
+`START_FILE`), so the service remembers the last added file and re-adds it
+once the reload plays — the helper's `sub-add` selects the added track, and
+`sub-delay` is an mpv-global property that survives on its own. An explicit
+subtitle-track pick after the add, a user-driven load or a missing file hand
+the selection back to the user and restore nothing.
 
 ## Live Stream Recording
 

@@ -140,6 +140,14 @@ interface EmbeddedMpvRuntimeSession {
     restartRecordingAfterReconnect: boolean;
     /** The rejected-options warning was logged for this session. */
     rejectedOptionsReported: boolean;
+    /**
+     * External subtitle file added through `addSubtitle` and still the
+     * track that add selected: an explicit track pick or a user-driven load
+     * hands selection back to the user and clears it.
+     */
+    externalSubtitlePath: string | null;
+    /** The automatic reload dropped the external subtitle; re-add it once the reload plays. */
+    restoreSubtitleAfterReconnect: boolean;
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -180,6 +188,12 @@ export class EmbeddedMpvNativeService {
                 // Consumed: a failed attempt's next reload must not re-arm
                 // the tracker's flush window and postpone the verdict.
                 session.recordingRunningAtLoss = false;
+            }
+            if (session?.externalSubtitlePath) {
+                // The engines drop external subtitle tracks with the file
+                // they were added to (START_FILE clears them); re-add the
+                // user's file once the reload plays.
+                session.restoreSubtitleAfterReconnect = true;
             }
             addon.loadPlayback(sessionId, playback);
             // Sessions run with keep-open=yes, so EOF on a live stream leaves
@@ -595,6 +609,8 @@ export class EmbeddedMpvNativeService {
             recordingRunningAtLoss: false,
             restartRecordingAfterReconnect: false,
             rejectedOptionsReported: false,
+            externalSubtitlePath: null,
+            restoreSubtitleAfterReconnect: false,
         });
 
         this.ensurePolling();
@@ -634,6 +650,9 @@ export class EmbeddedMpvNativeService {
         session.lastRecordingStart = null;
         session.recordingRunningAtLoss = false;
         session.restartRecordingAfterReconnect = false;
+        // External subtitles are source-scoped: a user-driven load drops them.
+        session.externalSubtitlePath = null;
+        session.restoreSubtitleAfterReconnect = false;
         addon.loadPlayback(sessionId, playback);
         this.refreshSession(sessionId);
     }
@@ -697,6 +716,13 @@ export class EmbeddedMpvNativeService {
             );
         }
         addon.setSubtitleTrack(sessionId, trackId);
+        // An explicit pick after an external file was added hands the
+        // selection back to the user: nothing is re-selected for them later.
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            session.externalSubtitlePath = null;
+            session.restoreSubtitleAfterReconnect = false;
+        }
         return this.refreshSession(sessionId);
     }
 
@@ -716,6 +742,10 @@ export class EmbeddedMpvNativeService {
             throw new Error('The selected subtitle file was not found.');
         }
         addon.addSubtitle(sessionId, normalized);
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            session.externalSubtitlePath = normalized;
+        }
         return this.refreshSession(sessionId);
     }
 
@@ -940,6 +970,8 @@ export class EmbeddedMpvNativeService {
         session.lastRecordingStart = null;
         session.recordingRunningAtLoss = false;
         session.restartRecordingAfterReconnect = false;
+        session.externalSubtitlePath = null;
+        session.restoreSubtitleAfterReconnect = false;
         removeSessionOptionsFile(session.optionsFile);
         session.optionsFile = null;
 
@@ -1076,6 +1108,39 @@ export class EmbeddedMpvNativeService {
 
         clearInterval(this.pollingTimer);
         this.pollingTimer = null;
+    }
+
+    /**
+     * Re-adds the external subtitle file an automatic reload dropped. The
+     * helper's `sub-add` selects the added track, which restores what the
+     * user saw before the drop; `sub-delay` is an mpv-global property and
+     * survives the reload on its own.
+     */
+    private restoreSubtitleAfterReconnect(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        const filePath = session?.externalSubtitlePath;
+        if (!session || !filePath) {
+            return;
+        }
+        try {
+            const addon = this.getAddon();
+            if (typeof addon.addSubtitle !== 'function') {
+                return;
+            }
+            if (!existsSync(filePath)) {
+                session.externalSubtitlePath = null;
+                console.warn(
+                    `[Embedded MPV][reconnect] session ${sessionId}: the external subtitle file is gone; not restoring it after the reload`
+                );
+                return;
+            }
+            addon.addSubtitle(sessionId, filePath);
+        } catch (error) {
+            console.warn(
+                `[Embedded MPV][reconnect] session ${sessionId}: could not restore the external subtitle after the reload:`,
+                error
+            );
+        }
     }
 
     /**
@@ -1219,6 +1284,14 @@ export class EmbeddedMpvNativeService {
             if (restart) {
                 setTimeout(
                     () => this.restartRecordingAfterReconnect(sessionId),
+                    0
+                );
+            }
+            const restoreSubtitle = session.restoreSubtitleAfterReconnect;
+            session.restoreSubtitleAfterReconnect = false;
+            if (restoreSubtitle) {
+                setTimeout(
+                    () => this.restoreSubtitleAfterReconnect(sessionId),
                     0
                 );
             }

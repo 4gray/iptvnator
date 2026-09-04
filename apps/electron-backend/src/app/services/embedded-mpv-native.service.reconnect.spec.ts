@@ -137,6 +137,8 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         setAudioTrack: jest.Mock;
         startRecording: jest.Mock;
         stopRecording: jest.Mock;
+        setSubtitleTrack: jest.Mock;
+        addSubtitle: jest.Mock;
     };
     let status: EmbeddedMpvSessionStatus;
     let positionSeconds: number;
@@ -206,6 +208,8 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             setAudioTrack: jest.fn(),
             startRecording: jest.fn(),
             stopRecording: jest.fn(),
+            setSubtitleTrack: jest.fn(),
+            addSubtitle: jest.fn(),
         };
         (service as unknown as { addon: typeof addon }).addon = addon;
     });
@@ -418,6 +422,63 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         } finally {
             warn.mockRestore();
         }
+    });
+
+    describe('external subtitles', () => {
+        let subtitleFile: string;
+
+        beforeEach(() => {
+            subtitleFile = path.join(userDataDir, 'movie.srt');
+            writeFileSync(
+                subtitleFile,
+                '1\n00:00:01,000 --> 00:00:02,000\nHi\n'
+            );
+        });
+
+        function dropAndReload(): void {
+            poll('error');
+            expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+            status = 'loading';
+            jest.advanceTimersByTime(2_000);
+            poll('playing');
+            jest.advanceTimersByTime(1);
+        }
+
+        it('re-adds the external subtitle file once the automatic reload plays', () => {
+            startPlayingLive();
+            service.addSubtitle('session-1', subtitleFile);
+            poll('playing');
+
+            dropAndReload();
+
+            expect(addon.addSubtitle).toHaveBeenCalledTimes(2);
+            expect(addon.addSubtitle).toHaveBeenLastCalledWith(
+                'session-1',
+                subtitleFile
+            );
+        });
+
+        it('does not re-select a file the user had switched away from', () => {
+            startPlayingLive();
+            service.addSubtitle('session-1', subtitleFile);
+            service.setSubtitleTrack('session-1', 1);
+            poll('playing');
+
+            dropAndReload();
+
+            expect(addon.addSubtitle).toHaveBeenCalledTimes(1);
+        });
+
+        it('forgets the file after a user-driven load', () => {
+            startPlayingLive();
+            service.addSubtitle('session-1', subtitleFile);
+            service.loadPlayback('session-1', LIVE);
+            poll('playing');
+
+            dropAndReload();
+
+            expect(addon.addSubtitle).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('files the interruption once even when the first reload attempt fails', () => {
