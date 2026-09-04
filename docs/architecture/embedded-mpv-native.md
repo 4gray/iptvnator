@@ -542,8 +542,10 @@ user line overrides both:
 part of that list on purpose: a stalled IPTV connection then surfaces as an
 mpv error within seconds instead of libmpv's 60 s default, and ffmpeg
 re-requests a dropped HTTP stream on its own before the app-level reconnect
-has to. Options mpv rejects are logged (trace on native-view, a `log` event
-from the helper) and never fail session creation. The service itself never
+has to. Options mpv rejects never fail session creation; they are surfaced
+in the main-process log (the native-view trace under `IPTVNATOR_TRACE_PLAYER`
+/ `IPTVNATOR_TRACE_EMBEDDED_MPV`, and for frame-copy a helper `log` event
+with prefix `iptvnator` that the adapter forwards as a warning). The service itself never
 touches the config store — it is constructed at module load, and importing it
 would drag electron-conf into every consumer of the service, its unit tests
 included.

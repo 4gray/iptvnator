@@ -175,6 +175,35 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
     });
 
+    it('surfaces the helper warning for a session option libmpv rejected', () => {
+        const sessionId = createSession();
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        try {
+            child.emitStdout({
+                event: 'log',
+                level: 'warn',
+                prefix: 'iptvnator',
+                text: 'rejected session option nonexistent-option: option not found',
+            });
+            child.emitStdout({
+                event: 'log',
+                level: 'warn',
+                prefix: 'ffmpeg/demuxer',
+                text: 'mpegts: PES packet size mismatch',
+            });
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(sessionId);
+            expect(warn.mock.calls[0][0]).toContain(
+                'rejected session option nonexistent-option'
+            );
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it('encodes loadfile options with percent-escaping', () => {
         const sessionId = createSession();
         adapter.loadPlayback(sessionId, {

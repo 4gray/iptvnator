@@ -53,7 +53,9 @@ export function buildLoadPlaybackCommand(
         );
     }
     if (playback.userAgent) {
-        fields.push(`opt.user-agent=${encodeProtocolValue(playback.userAgent)}`);
+        fields.push(
+            `opt.user-agent=${encodeProtocolValue(playback.userAgent)}`
+        );
     }
     if (playback.referer) {
         fields.push(`opt.referrer=${encodeProtocolValue(playback.referer)}`);
@@ -135,6 +137,16 @@ export function applyHelperEvent(
                     `[embedded-mpv-fc][${session.id}][mpv/${String(
                         event.prefix ?? ''
                     )}] ${String(event.text ?? '').trim()}`
+                );
+            } else if (event.level === 'warn' && event.prefix === 'iptvnator') {
+                // The helper's own warnings (a session option libmpv
+                // rejected) must reach the main-process log like the
+                // native-view trace does; mpv's warn-level chatter stays
+                // filtered.
+                console.warn(
+                    `[embedded-mpv-fc][${session.id}] ${String(
+                        event.text ?? ''
+                    ).trim()}`
                 );
             }
             break;
