@@ -1,5 +1,5 @@
 import { FormBuilder } from '@angular/forms';
-import { Settings } from '@iptvnator/shared/interfaces';
+import { Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     createSettingsForm,
     createSettingsFromFormValue,
@@ -84,6 +84,7 @@ describe('settings form utils — embedded MPV session options', () => {
 
     it('rejects forbidden keys and malformed lines in the options field', () => {
         const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ player: VideoPlayer.EmbeddedMpv });
         const control = form.get('embeddedMpvExtraOptions');
 
         control?.setValue('hwdec=auto\nvo=null\nnot an option');
@@ -97,6 +98,24 @@ describe('settings form utils — embedded MPV session options', () => {
         control?.setValue('hwdec=auto\ncache-secs=30');
 
         expect(control?.errors).toBeNull();
+    });
+
+    it('ignores extra-option errors while another player is selected', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ player: VideoPlayer.EmbeddedMpv });
+        const control = form.get('embeddedMpvExtraOptions');
+        control?.setValue('vo=null');
+        expect(form.valid).toBe(false);
+
+        form.patchValue({ player: VideoPlayer.VideoJs });
+
+        expect(control?.errors).toBeNull();
+        expect(form.valid).toBe(true);
+
+        form.patchValue({ player: VideoPlayer.EmbeddedMpv });
+
+        expect(control?.errors).toEqual({ forbiddenKeys: ['vo'] });
+        expect(form.valid).toBe(false);
     });
 
     it('carries canonical options and the reconnect opt-out into the settings object', () => {
