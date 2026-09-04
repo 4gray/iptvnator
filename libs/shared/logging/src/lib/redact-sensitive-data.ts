@@ -15,6 +15,8 @@ const SENSITIVE_KEY_NAMES = new Set([
     'credentials',
     'deviceid',
     'deviceid2',
+    // Free-form libmpv lines can carry request headers with credentials.
+    'embeddedmpvextraoptions',
     'login',
     'mac',
     'macaddress',
@@ -33,11 +35,23 @@ const SENSITIVE_KEY_NAMES = new Set([
 ]);
 
 const SENSITIVE_KEY_SUFFIXES = [
-    'apikey', 'authorization', 'cookie',
-    'deviceid', 'deviceid1', 'deviceid2',
-    'macaddress', 'passwd', 'password', 'prehash',
-    'serialnumber', 'signature', 'signature1', 'signature2',
-    'secret', 'token', 'username',
+    'apikey',
+    'authorization',
+    'cookie',
+    'deviceid',
+    'deviceid1',
+    'deviceid2',
+    'macaddress',
+    'passwd',
+    'password',
+    'prehash',
+    'serialnumber',
+    'signature',
+    'signature1',
+    'signature2',
+    'secret',
+    'token',
+    'username',
 ];
 
 const XTREAM_CREDENTIAL_PATH_SEGMENTS = new Set([
@@ -160,25 +174,20 @@ function redactUrlStrings(
     value: string,
     sanitizeValue: (value: string) => string
 ): string {
-    return value.replace(
-        /[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/giu,
-        (candidate) => {
-            try {
-                return redactUrl(new URL(candidate), sanitizeValue);
-            } catch {
-                return candidate;
-            }
+    return value.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/giu, (candidate) => {
+        try {
+            return redactUrl(new URL(candidate), sanitizeValue);
+        } catch {
+            return candidate;
         }
-    );
+    });
 }
 
 function redactEmbeddedSensitivePairs(value: string): string {
     const redactedAssignments = value.replace(
         /\b([a-z][a-z0-9_.-]*)(\s*=\s*)((?:Bearer\s+)?[^&\s,;]+)/giu,
         (match, key: string, separator: string) =>
-            isSensitiveKey(key)
-                ? `${key}${separator}${REDACTED_VALUE}`
-                : match
+            isSensitiveKey(key) ? `${key}${separator}${REDACTED_VALUE}` : match
     );
     return redactedAssignments.replace(
         /\b([a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id[12]?|login|mac(?:[-_.]?address)?|passwd|password|prehash|pwd|secret|serial[-_.]?number|set[-_.]?cookie|signature[12]?|sn|token|username))(\s*:\s*)(?:Bearer\s+)?[^;,\r\n]+/giu,
@@ -286,9 +295,10 @@ export function redactSensitiveData(
         if (error.stack) {
             const [, ...stackFrames] = error.stack.split('\n');
             output['stack'] = visitString(
-                [`${output['name']}: ${output['message']}`, ...stackFrames].join(
-                    '\n'
-                ),
+                [
+                    `${output['name']}: ${output['message']}`,
+                    ...stackFrames,
+                ].join('\n'),
                 depth + 1
             );
         }
@@ -370,8 +380,7 @@ export function redactSensitiveData(
                     const stringKey = String(key);
                     const redactedKey = visitString(stringKey, depth + 1);
                     entries[redactedKey] =
-                        isSensitiveKey(stringKey) &&
-                        !/[/:?=&]/u.test(stringKey)
+                        isSensitiveKey(stringKey) && !/[/:?=&]/u.test(stringKey)
                             ? REDACTED_VALUE
                             : visit(entry, depth + 1);
                 }

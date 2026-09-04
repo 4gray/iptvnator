@@ -247,6 +247,26 @@ describe('SETTINGS_UPDATE', () => {
         expect(output).toContain('enabled');
     });
 
+    it('does not print credentials embedded in embedded MPV extra options', () => {
+        const headerSecret = 'embedded-mpv-header-secret';
+
+        settingsUpdateHandler(
+            {},
+            {
+                language: 'de',
+                embeddedMpvExtraOptions: `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${headerSecret}`,
+            }
+        );
+
+        const output = JSON.stringify(consoleLogSpy.mock.calls);
+        expect(output).not.toContain(headerSecret);
+        expect(output).toContain('language');
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS,
+            `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${headerSecret}`
+        );
+    });
+
     it('does not print credentials embedded in external player arguments', () => {
         const authorizationSecret = 'player-authorization-secret';
         const cookieSecret = 'player-cookie-secret';
