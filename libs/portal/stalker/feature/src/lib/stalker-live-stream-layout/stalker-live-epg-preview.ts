@@ -165,6 +165,16 @@ export class StalkerEpgPreviewQueue {
             if (this.destroyed || generation !== this.generation) {
                 return;
             }
+            // The setting changed while the request was on the wire: its
+            // window was sized for the previous offset, and the sync the
+            // change triggered skipped this channel because it was in
+            // flight. Drop the result and fetch again if the row is still
+            // visible instead of committing a window nobody asked for.
+            if (offsetMinutes !== this.currentOffsetMinutes()) {
+                this.inFlight.delete(channelId);
+                this.requeue(channelId);
+                return;
+            }
             // Empty results are cached too: they mean the portal has no
             // short EPG for the channel, and refetching on every render
             // would hammer it for nothing.
@@ -180,6 +190,16 @@ export class StalkerEpgPreviewQueue {
             if (generation === this.generation) {
                 this.inFlight.delete(channelId);
             }
+        }
+    }
+
+    private requeue(channelId: string): void {
+        if (!this.visibleSet.has(channelId) || this.queue.includes(channelId)) {
+            return;
+        }
+        this.queue.push(channelId);
+        if (!this.processing) {
+            void this.processQueue();
         }
     }
 }
