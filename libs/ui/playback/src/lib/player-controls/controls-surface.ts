@@ -1,3 +1,8 @@
+import {
+    blurFocusedControl,
+    clickPointerOrigin,
+} from './pointer-focus-release';
+
 export interface ControlsSurfaceHandlers {
     /** Reveal the controls (pointer move / enter / click on the surface). */
     reveal: () => void;
@@ -35,14 +40,6 @@ const VIEWPORT_CLICK_PAUSE_DELAY_MS = 250;
 const POINTER_ATTRIBUTION_WINDOW_MS = 1000;
 
 const INTERACTIVE_SELECTOR = 'button, input, [role="slider"]';
-
-/**
- * Controls whose pointer-originated focus is released once the click that
- * produced it completes. Text entry is deliberately absent: a click into a
- * field must not end typing. The bar holds none today.
- */
-const POINTER_FOCUS_RELEASE_SELECTOR =
-    'button, input[type="range"], [role="slider"]';
 
 interface PointerPress {
     at: number;
@@ -221,9 +218,9 @@ export class ControlsSurface {
      * key press (`onDocumentKeyDown`).
      */
     wasPointerClick(event: MouseEvent): boolean {
-        const pointerType = (event as Partial<PointerEvent>).pointerType;
-        if (typeof pointerType === 'string') {
-            return pointerType !== '';
+        const origin = clickPointerOrigin(event);
+        if (origin !== null) {
+            return origin;
         }
         const press = this.lastPointerDownClick;
         this.lastPointerDownClick = null;
@@ -252,23 +249,16 @@ export class ControlsSurface {
      * a later Tab continues from it exactly as if it were still focused.
      * Handlers of the resulting `focusout` can recognize the release through
      * {@link wasPointerFocusRelease}. Returns whether focus was released.
+     * The eligibility rules live in `pointer-focus-release.ts`, shared with
+     * the vendor-chrome Video.js player.
      */
     releasePointerFocus(root: HTMLElement): boolean {
-        const active = root.ownerDocument.activeElement;
-        if (
-            !(active instanceof HTMLElement) ||
-            !root.contains(active) ||
-            !active.matches(POINTER_FOCUS_RELEASE_SELECTOR)
-        ) {
-            return false;
-        }
         this.pointerFocusRelease = true;
         try {
-            active.blur();
+            return blurFocusedControl(root);
         } finally {
             this.pointerFocusRelease = false;
         }
-        return true;
     }
 
     /**
