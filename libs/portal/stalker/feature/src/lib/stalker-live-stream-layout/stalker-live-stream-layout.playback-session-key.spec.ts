@@ -120,7 +120,10 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { openStreamOnDoubleClick: signal(false) },
+                    useValue: {
+                        openStreamOnDoubleClick: signal(false),
+                        resolvedEpgOffsetMinutes: signal(0),
+                    },
                 },
                 {
                     provide: PORTAL_PLAYER,

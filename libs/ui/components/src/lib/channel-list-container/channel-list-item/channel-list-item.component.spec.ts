@@ -256,7 +256,10 @@ describe('ChannelListItemComponent', () => {
                     { provide: MatDialog, useValue: dialog },
                     {
                         provide: SettingsStore,
-                        useValue: { stripCountryPrefix: signal(true) },
+                        useValue: {
+                            stripCountryPrefix: signal(true),
+                            resolvedEpgOffsetMinutes: signal(0),
+                        },
                     },
                 ],
             }).compileComponents();
@@ -274,5 +277,63 @@ describe('ChannelListItemComponent', () => {
                     .textContent.trim()
             ).toBe('CNN');
         });
+    });
+});
+
+describe('ChannelListItemComponent with an EPG display offset', () => {
+    it('shifts the preview times by the offset without touching the programme', async () => {
+        await TestBed.configureTestingModule({
+            imports: [
+                ChannelListItemComponent,
+                NoopAnimationsModule,
+                TranslateModule.forRoot(),
+            ],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        stripCountryPrefix: signal(false),
+                        resolvedEpgOffsetMinutes: signal(90),
+                    },
+                },
+            ],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ChannelListItemComponent);
+        const startTimestamp = Math.floor(
+            Date.parse('2026-04-05T05:30:00.000Z') / 1000
+        );
+        const stopTimestamp = Math.floor(
+            Date.parse('2026-04-05T06:00:00.000Z') / 1000
+        );
+        const program: EpgProgram = {
+            start: '2026-04-05T05:30:00.000Z',
+            stop: '2026-04-05T06:00:00.000Z',
+            channel: 'channel-1',
+            title: 'Current Show',
+            desc: null,
+            category: null,
+            startTimestamp,
+            stopTimestamp,
+        };
+
+        fixture.componentRef.setInput('name', 'Cartoon Network');
+        fixture.componentRef.setInput('epgProgram', program);
+        fixture.componentRef.setInput('showProgramInfoButton', false);
+        fixture.detectChanges();
+
+        const times = Array.from(
+            fixture.nativeElement.querySelectorAll('.epg-time'),
+            (element: Element) => element.textContent?.trim() ?? ''
+        );
+        const datePipe = new DatePipe('en-US');
+        const shiftMs = 90 * 60_000;
+
+        expect(times).toEqual([
+            datePipe.transform(startTimestamp * 1000 + shiftMs, 'HH:mm') ?? '',
+            datePipe.transform(stopTimestamp * 1000 + shiftMs, 'HH:mm') ?? '',
+        ]);
+        // The row still hands the raw programme to consumers (dialog, catch-up).
+        expect(program.startTimestamp).toBe(startTimestamp);
     });
 });

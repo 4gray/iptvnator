@@ -233,6 +233,14 @@ export interface Settings {
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */
     epgViewMode?: EpgViewMode;
+    /**
+     * Display-only correction, in whole minutes, for guides whose provider
+     * labels programme times with the wrong timezone. Clamped to ±720 by
+     * `normalizeEpgOffsetMinutes`; the two equivalent ways of applying it are
+     * documented in `epg-display-offset.util.ts`. Electron only in practice
+     * (the control is gated behind `supportsEpg`, like `epgViewMode`).
+     */
+    epgOffsetMinutes?: number;
     /** Per-rail dashboard visibility preferences. Missing keys default on. */
     dashboardRails?: DashboardRailsSettings;
     /**

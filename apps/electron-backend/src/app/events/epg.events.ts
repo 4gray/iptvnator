@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import {
+    ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
@@ -57,7 +58,7 @@ export default class EpgEvents {
                 _event,
                 args: {
                     channelIds: string[];
-                    options?: { sourceUrls?: string[] };
+                    options?: ElectronBridgeCurrentProgramsOptions;
                 }
             ) => {
                 return this.handleGetCurrentProgramsBatch(
@@ -219,7 +220,7 @@ export default class EpgEvents {
 
     private static async handleGetCurrentProgramsBatch(
         channelIds: string[],
-        options?: { sourceUrls?: string[] }
+        options?: ElectronBridgeCurrentProgramsOptions
     ): Promise<Record<string, EpgProgram | null>> {
         return queryByResolvedChannelIds(channelIds, (resolvedIds) =>
             epgQueryService.getCurrentProgramsBatch(resolvedIds, options)

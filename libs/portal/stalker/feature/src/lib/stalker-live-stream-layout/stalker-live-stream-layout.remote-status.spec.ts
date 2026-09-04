@@ -150,6 +150,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
+                        resolvedEpgOffsetMinutes: signal(0),
                     },
                 },
                 {

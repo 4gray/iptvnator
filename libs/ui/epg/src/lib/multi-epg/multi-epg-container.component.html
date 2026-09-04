@@ -108,12 +108,12 @@
                 <span class="result-title">{{ program.title }}</span>
                 <span class="result-meta">
                   <span class="result-time">
-                    {{ (program.startTimestamp ? program.startTimestamp * 1000 : program.start) | date: 'HH:mm' }}
+                    {{ programDisplayMs(program, 'start') | date: 'HH:mm' }}
                     -
-                    {{ (program.stopTimestamp ? program.stopTimestamp * 1000 : program.stop) | date: 'HH:mm' }}
+                    {{ programDisplayMs(program, 'stop') | date: 'HH:mm' }}
                   </span>
                   <span class="result-date">
-                    {{ (program.startTimestamp ? program.startTimestamp * 1000 : program.start) | date: 'MMM d' : undefined : currentLocale() }}
+                    {{ programDisplayMs(program, 'start') | date: 'MMM d' : undefined : currentLocale() }}
                   </span>
                 </span>
               </div>

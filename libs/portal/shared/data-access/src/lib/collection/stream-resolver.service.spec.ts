@@ -12,6 +12,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
+    SettingsStore,
 } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -23,7 +24,8 @@ import {
 describe('StreamResolverService', () => {
     let service: StreamResolverService;
     let playlistsService: { getPlaylistById: jest.Mock };
-    let xtreamApi: { getShortEpg: jest.Mock };
+    let xtreamApi: { getShortEpg: jest.Mock; getFullEpg: jest.Mock };
+    let epgOffsetMinutes = 0;
     let xtreamUrl: { constructLiveUrl: jest.Mock };
     let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: {
@@ -37,8 +39,10 @@ describe('StreamResolverService', () => {
         playlistsService = {
             getPlaylistById: jest.fn(),
         };
+        epgOffsetMinutes = 0;
         xtreamApi = {
             getShortEpg: jest.fn(),
+            getFullEpg: jest.fn(),
         };
         xtreamUrl = {
             constructLiveUrl: jest.fn(),
@@ -65,6 +69,12 @@ describe('StreamResolverService', () => {
                 { provide: XtreamApiService, useValue: xtreamApi },
                 { provide: XtreamUrlService, useValue: xtreamUrl },
                 { provide: DataService, useValue: dataService },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        resolvedEpgOffsetMinutes: () => epgOffsetMinutes,
+                    },
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,

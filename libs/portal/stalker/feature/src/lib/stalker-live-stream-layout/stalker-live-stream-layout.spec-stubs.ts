@@ -87,6 +87,7 @@ export class StubEpgTimelineComponent {
     readonly collapsed = input(false);
     readonly summary = input<{ title?: string } | null>(null);
     readonly summaryLabelKey = input('');
+    readonly offsetMinutes = input(0);
     readonly selectedDateChange = output<string>();
     readonly programActivated = output<EpgProgram>();
     readonly returnToLive = output<void>();

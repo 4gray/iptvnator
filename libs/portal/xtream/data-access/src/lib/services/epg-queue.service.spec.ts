@@ -7,12 +7,15 @@ import type { EpgItem } from '@iptvnator/shared/interfaces';
 
 describe('EpgQueueService', () => {
     let service: EpgQueueService;
-    let xtreamApi: { getShortEpg: jest.Mock };
+    let xtreamApi: { getShortEpg: jest.Mock; getFullEpg: jest.Mock };
     let fallback: {
         getProgramsForChannel: jest.Mock;
         getCurrentProgramsBatch: jest.Mock;
     };
-    let settings: { preferUploadedEpgOverXtream: jest.Mock };
+    let settings: {
+        preferUploadedEpgOverXtream: jest.Mock;
+        resolvedEpgOffsetMinutes: jest.Mock;
+    };
 
     const credentials = {
         serverUrl: 'https://xtream.example.com',
@@ -33,12 +36,18 @@ describe('EpgQueueService', () => {
     beforeEach(() => {
         jest.useFakeTimers();
 
-        xtreamApi = { getShortEpg: jest.fn().mockResolvedValue([]) };
+        xtreamApi = {
+            getShortEpg: jest.fn().mockResolvedValue([]),
+            getFullEpg: jest.fn().mockResolvedValue([]),
+        };
         fallback = {
             getProgramsForChannel: jest.fn().mockResolvedValue([]),
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
         };
-        settings = { preferUploadedEpgOverXtream: jest.fn(() => false) };
+        settings = {
+            preferUploadedEpgOverXtream: jest.fn(() => false),
+            resolvedEpgOffsetMinutes: jest.fn(() => 0),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -65,6 +74,165 @@ describe('EpgQueueService', () => {
         priv().xmltvPreviewByStreamId.set(streamId, item);
         return item;
     }
+
+    function listing(
+        title: string,
+        startOffsetMin: number,
+        durationMin: number
+    ): EpgItem {
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const start = nowSeconds + startOffsetMin * 60;
+        const stop = start + durationMin * 60;
+        return {
+            id: title,
+            epg_id: title,
+            title,
+            lang: 'en',
+            start: new Date(start * 1000).toISOString(),
+            end: new Date(stop * 1000).toISOString(),
+            stop: new Date(stop * 1000).toISOString(),
+            description: '',
+            channel_id: 'channel-42',
+            start_timestamp: String(start),
+            stop_timestamp: String(stop),
+        };
+    }
+
+    it('cuts the preview window out of the full guide at the provider clock when a display offset is set', async () => {
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Next', 15, 30),
+            listing('Provider now', -15, 30),
+            listing('Really on air', -75, 60),
+            listing('Long gone', -180, 60),
+            listing('Later', 45, 30),
+        ]);
+
+        await priv().fetchEpg(credentials, 42);
+
+        // +60: the programme really on air is the one the provider filed an
+        // hour ago, which the short EPG (starting at provider-now) never has.
+        expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+            'Provider now',
+            'Next',
+        ]);
+    });
+
+    it('keeps using the cheap short EPG without an offset and drops the cache when the offset changes', async () => {
+        xtreamApi.getShortEpg.mockResolvedValue([
+            listing('Provider now', -15, 30),
+        ]);
+
+        await priv().fetchEpg(credentials, 42);
+
+        expect(xtreamApi.getFullEpg).not.toHaveBeenCalled();
+        expect(service.getCached(42)).toHaveLength(1);
+
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(30);
+
+        // A different offset is a different window; the cached one is stale.
+        expect(service.getCached(42)).toBeNull();
+    });
+
+    it('discards a preview window fetched for a previous offset and fetches again', async () => {
+        let resolveShort!: (items: EpgItem[]) => void;
+        xtreamApi.getShortEpg.mockImplementationOnce(
+            () =>
+                new Promise<EpgItem[]>((resolve) => {
+                    resolveShort = resolve;
+                })
+        );
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Provider now', -15, 30),
+            listing('Really on air', -75, 60),
+        ]);
+        const emitted: string[][] = [];
+        const sub = service.epgResult$.subscribe(({ items }) =>
+            emitted.push(items.map((item) => item.title))
+        );
+        const settle = async () => {
+            for (let i = 0; i < 10; i++) await Promise.resolve();
+        };
+
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
+
+        // The setting changes while the short-EPG request is on the wire;
+        // the reload it triggers finds the stream in flight and skips it.
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        resolveShort([listing('Provider now', -15, 30)]);
+        await settle();
+        jest.advanceTimersByTime(201);
+        await settle();
+
+        // The stale window is neither committed nor emitted; the stream is
+        // fetched again from the full guide at the new provider clock.
+        expect(emitted).toEqual([['Really on air', 'Provider now']]);
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledTimes(1);
+        expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+            'Provider now',
+        ]);
+        sub.unsubscribe();
+    });
+
+    it('retires a request that fails after the offset changed and fetches again', async () => {
+        let rejectShort!: (error: Error) => void;
+        xtreamApi.getShortEpg.mockImplementationOnce(
+            () =>
+                new Promise<EpgItem[]>((_, reject) => {
+                    rejectShort = reject;
+                })
+        );
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Provider now', -15, 30),
+            listing('Really on air', -75, 60),
+        ]);
+        const settle = async () => {
+            for (let i = 0; i < 10; i++) await Promise.resolve();
+        };
+
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        await service.enqueue([{ streamId: 42 }], new Set([42]), credentials);
+        rejectShort(new Error('provider down'));
+        await settle();
+        jest.advanceTimersByTime(201);
+        await settle();
+
+        // The failure belonged to the retired request: no cooldown, and the
+        // stream was fetched again at the new provider clock.
+        expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+            'Provider now',
+        ]);
+    });
+
+    it('drops a failure cooldown together with the cache when the offset changes', async () => {
+        xtreamApi.getShortEpg.mockRejectedValueOnce(new Error('provider down'));
+        xtreamApi.getFullEpg.mockResolvedValue([
+            listing('Really on air', -75, 60),
+        ]);
+
+        await priv().fetchEpg(credentials, 42);
+        expect(priv().shouldFetch(42)).toBe(false);
+
+        // The cooldown answered "no short EPG at the provider's now"; a new
+        // offset asks a different question and must fetch again at once.
+        settings.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        expect(priv().shouldFetch(42)).toBe(true);
+
+        await priv().fetchEpg(credentials, 42);
+        expect(xtreamApi.getFullEpg).toHaveBeenCalledTimes(1);
+        expect(service.getCached(42)?.map((item) => item.title)).toEqual([
+            'Really on air',
+        ]);
+    });
 
     it('caches empty EPG responses and does not immediately refetch them', async () => {
         xtreamApi.getShortEpg.mockResolvedValue([]);
@@ -240,12 +408,9 @@ describe('EpgQueueService', () => {
         xtreamApi.getShortEpg.mockResolvedValue([]);
 
         await service.enqueue([1, 2], new Set([1, 2]), credentials);
-        expect(xtreamApi.getShortEpg).toHaveBeenCalledWith(
-            credentials,
-            1,
-            3,
-            { suppressErrorLog: true }
-        );
+        expect(xtreamApi.getShortEpg).toHaveBeenCalledWith(credentials, 1, 3, {
+            suppressErrorLog: true,
+        });
 
         const latestEnqueue = service.enqueue(
             [{ streamId: 3, epgChannelId: 'three.epg' }],
@@ -279,9 +444,8 @@ describe('EpgQueueService', () => {
         visible.delete(2);
 
         // Internal visible set must still contain 1.
-        const internal = (
-            service as unknown as { visibleSet: Set<number> }
-        ).visibleSet;
+        const internal = (service as unknown as { visibleSet: Set<number> })
+            .visibleSet;
         expect(internal.has(1)).toBe(true);
         expect(internal.has(2)).toBe(true);
         expect(internal.has(3)).toBe(true);
@@ -299,7 +463,9 @@ describe('EpgQueueService', () => {
             new Set([100]),
             credentials
         );
-        expect(priv().xmltvPreviewByStreamId.get(100)?.title).toBe('Tagesschau');
+        expect(priv().xmltvPreviewByStreamId.get(100)?.title).toBe(
+            'Tagesschau'
+        );
 
         // Second enqueue: same stream 100 but no longer has an epgChannelId.
         // Batch isn't called (no ids to fetch); preview must be cleared.

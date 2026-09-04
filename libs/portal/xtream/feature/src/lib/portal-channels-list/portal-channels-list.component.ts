@@ -29,6 +29,7 @@ import {
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     XtreamCategory,
     XtreamItem,
 } from '@iptvnator/shared/interfaces';
@@ -47,7 +48,7 @@ import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -148,8 +149,27 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
     private subscriptions = new Subscription();
+    private readonly settingsStore = inject(SettingsStore);
 
     constructor(private cdr: ChangeDetectorRef) {
+        // A changed display offset moves "now" in the provider's clock, so
+        // the visible previews are re-picked from the cached EPG. The first
+        // run only records the initial value.
+        let appliedOffsetMinutes: number | null = null;
+        effect(() => {
+            const offsetMinutes =
+                this.settingsStore.resolvedEpgOffsetMinutes();
+            if (appliedOffsetMinutes === offsetMinutes) {
+                return;
+            }
+            const isInitial = appliedOffsetMinutes === null;
+            appliedOffsetMinutes = offsetMinutes;
+            if (isInitial) {
+                return;
+            }
+            untracked(() => this.repickPreviewsForOffsetChange());
+        });
+
         effect(() => {
             const selectedItem = this.xtreamStore.selectedItem();
             const viewport = this.viewport();
@@ -255,6 +275,24 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
     }
 
+    /** Wall-clock now in the provider's EPG clock (`epg-display-offset.util.ts`). */
+    private epgClockMs(): number {
+        return epgProviderClockMs(
+            Date.now(),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
+    }
+
+    private repickPreviewsForOffsetChange(): void {
+        this.epgPrograms.clear();
+        this.currentProgramsProgress.clear();
+        const visible = this.lastVisibleChannels.length
+            ? this.lastVisibleChannels
+            : this.filteredChannels().slice(0, 50);
+        this.loadEpgForVisibleChannels(visible);
+        this.cdr.markForCheck();
+    }
+
     private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
         if (!this.supportsEpg) {
             return;
@@ -309,7 +347,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     }
 
     private updateProgramProgress(streamId: number, program: EpgItem) {
-        const now = Date.now();
+        const now = this.epgClockMs();
         const start = this.getProgramTimestampMs(
             program.start,
             program.start_timestamp
@@ -410,7 +448,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return null;
         }
 
-        const now = Date.now();
+        const now = this.epgClockMs();
         const normalizedItems = [...items].sort(
             (a, b) =>
                 this.getProgramTimestampMs(a.start, a.start_timestamp) -

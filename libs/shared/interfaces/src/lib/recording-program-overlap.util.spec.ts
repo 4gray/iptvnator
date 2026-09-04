@@ -44,6 +44,28 @@ describe('filterRecordingProgramsOverlap', () => {
         ).toEqual([]);
     });
 
+    it('moves the recorded window into the provider clock by the display offset', () => {
+        // Recorded 22:00–22:30 wall-clock. With the guide running an hour
+        // ahead (+60), that window is 21:00–21:30 in the provider's clock and
+        // covers "News" instead of "Weather" / "Late show".
+        expect(
+            filterRecordingProgramsOverlap(
+                programs,
+                '2026-08-15T22:00:00Z',
+                '2026-08-15T22:30:00Z'
+            ).map((program) => program.title)
+        ).toEqual(['Weather', 'Late show']);
+        const shifted = filterRecordingProgramsOverlap(
+            programs,
+            '2026-08-15T22:00:00Z',
+            '2026-08-15T22:30:00Z',
+            60
+        );
+        expect(shifted.map((program) => program.title)).toEqual(['News']);
+        // The snapshots themselves keep the provider's raw times.
+        expect(shifted[0].start).toBe('2026-08-15T21:00:00Z');
+    });
+
     it('keeps every overlapping program sorted by start (boundary case)', () => {
         const result = filterRecordingProgramsOverlap(
             programs,

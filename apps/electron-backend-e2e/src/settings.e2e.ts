@@ -581,6 +581,39 @@ test.describe('Electron Settings', () => {
         }
     });
 
+    test('@settings @persistence @electron persists the EPG display offset across app restart', async ({
+        dataDir,
+    }) => {
+        const firstLaunch = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(firstLaunch.mainWindow);
+            await openSettingsSection(firstLaunch.mainWindow, 'epg');
+            const offsetInput = firstLaunch.mainWindow.locator(
+                '[data-test-id="epg-offset-minutes"]'
+            );
+            await expect(offsetInput).toHaveValue('0');
+            await offsetInput.fill('-90');
+            await saveSettings(firstLaunch.mainWindow);
+        } finally {
+            await closeElectronApp(firstLaunch);
+        }
+
+        const secondLaunch = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(secondLaunch.mainWindow);
+            await openSettingsSection(secondLaunch.mainWindow, 'epg');
+            await expect(
+                secondLaunch.mainWindow.locator(
+                    '[data-test-id="epg-offset-minutes"]'
+                )
+            ).toHaveValue('-90');
+        } finally {
+            await closeElectronApp(secondLaunch);
+        }
+    });
+
     test('@settings @electron starts on sources when dashboard is disabled', async ({ dataDir }) => {
         const firstLaunch = await launchElectronApp(dataDir);
 

@@ -213,6 +213,7 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
                         stripCountryPrefix,
                         m3uVodDetails,
                         resolvedEpgViewMode: signal('timeline'),
+                        resolvedEpgOffsetMinutes: signal(0),
                         epgUrl: signal<string[]>([]),
                     },
                 },

@@ -67,6 +67,7 @@ import {
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -194,12 +195,14 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         // previous show.
         const program = findCurrentEpgItem(
             this.epgItems(),
-            this.currentTimeMs()
+            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
         );
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
             channelLogoUrl:
-                item.poster_url?.trim() || item.stream_icon?.trim() || undefined,
+                item.poster_url?.trim() ||
+                item.stream_icon?.trim() ||
+                undefined,
             playlistId: playlist?.id,
             playlistName:
                 playlistDisplayLabel(playlist?.name ?? playlist?.title) ||
@@ -234,7 +237,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         const programs = filterRecordingProgramsOverlap(
             this.controlledEpgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -281,6 +285,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(

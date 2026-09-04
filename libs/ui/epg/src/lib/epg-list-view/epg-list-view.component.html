@@ -59,8 +59,8 @@
                     <span class="cn-title">{{ summary()?.title }}</span>
                     @if (hasTimeRange()) {
                         <span class="cn-meta"
-                            >{{ summary()?.start | date: 'HH:mm' }} –
-                            {{ summary()?.stop | date: 'HH:mm' }}</span
+                            >{{ summaryStartMs() | date: 'HH:mm' }} –
+                            {{ summaryStopMs() | date: 'HH:mm' }}</span
                         >
                     }
                 }

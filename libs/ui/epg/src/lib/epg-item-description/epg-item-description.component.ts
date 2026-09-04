@@ -8,6 +8,8 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { differenceInMinutes } from 'date-fns';
 import { startWith } from 'rxjs';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import { getProgramTimeMs } from '../epg-program.utils';
 
 export type EpgItemDialogAction = 'live' | 'timeshift';
 
@@ -32,6 +34,7 @@ export type EpgItemDialogData = EpgProgram & {
 export class EpgItemDescriptionComponent {
     dialogData = inject<EpgItemDialogData>(MAT_DIALOG_DATA);
     private readonly translate = inject(TranslateService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -45,7 +48,10 @@ export class EpgItemDescriptionComponent {
     duration: string | null = null;
     primaryAction: EpgItemDialogAction | null = null;
     archiveUnavailableNote = false;
-    /** ms timestamps for the date pipe (prefer unix timestamp when present). */
+    /**
+     * Display-time ms timestamps for the date pipe (unix timestamp preferred
+     * when present, then shifted by the EPG display offset).
+     */
     startMs = 0;
     stopMs = 0;
     readonly currentLocale = computed(() => {
@@ -72,11 +78,20 @@ export class EpgItemDescriptionComponent {
         this.primaryAction = this.dialogData.primaryAction ?? null;
         this.archiveUnavailableNote =
             this.dialogData.archiveUnavailableNote ?? false;
-        this.startMs = toMs(
+        // Opened imperatively from six surfaces (timeline, list, channel rows,
+        // the multi-EPG grid and its search), so the dialog reads the display
+        // offset itself instead of trusting every opener to forward it.
+        const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+        this.startMs = getProgramTimeMs(
             this.epgProgram.start,
-            this.epgProgram.startTimestamp
+            this.epgProgram.startTimestamp,
+            offsetMinutes
         );
-        this.stopMs = toMs(this.epgProgram.stop, this.epgProgram.stopTimestamp);
+        this.stopMs = getProgramTimeMs(
+            this.epgProgram.stop,
+            this.epgProgram.stopTimestamp,
+            offsetMinutes
+        );
     }
 
     private calculateDuration(): string | null {
@@ -95,11 +110,4 @@ export class EpgItemDescriptionComponent {
             return null;
         }
     }
-}
-
-function toMs(iso: string, timestamp?: number | null): number {
-    if (Number.isFinite(timestamp) && Number(timestamp) > 0) {
-        return Number(timestamp) * 1000;
-    }
-    return Date.parse(iso);
 }

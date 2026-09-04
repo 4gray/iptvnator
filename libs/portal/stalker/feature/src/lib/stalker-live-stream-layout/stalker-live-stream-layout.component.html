@@ -225,6 +225,7 @@
         @if (epgViewMode() === 'list') {
             <app-epg-list-view
                 [programs]="activeEpgPrograms()"
+                [offsetMinutes]="epgOffsetMinutes()"
                 [channelName]="
                     controlledChannel()?.name ?? activePlaybackTitle()
                 "
@@ -247,6 +248,7 @@
         } @else {
             <app-epg-timeline
                 [programs]="activeEpgPrograms()"
+                [offsetMinutes]="epgOffsetMinutes()"
                 [channelName]="
                     controlledChannel()?.name ?? activePlaybackTitle()
                 "

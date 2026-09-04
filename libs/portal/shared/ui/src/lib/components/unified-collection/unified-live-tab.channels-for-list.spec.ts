@@ -52,6 +52,7 @@ describe('UnifiedLiveTabComponent channelsForList', () => {
                         player: signal(VideoPlayer.VideoJs),
                         stripCountryPrefix: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
+                        resolvedEpgOffsetMinutes: signal(0),
                     },
                 },
                 {
