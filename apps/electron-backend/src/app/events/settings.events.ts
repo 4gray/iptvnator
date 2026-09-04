@@ -1,10 +1,13 @@
 import { ipcMain } from 'electron';
 import {
+    normalizeEmbeddedMpvExtraOptions,
     normalizeExternalPlayerArguments,
     normalizeStartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    EMBEDDED_MPV_AUTO_RECONNECT,
+    EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
@@ -49,6 +52,18 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     // Applied on the next app start (window sandbox is fixed at creation).
     if (arg.embeddedMpvFrameCopy !== undefined) {
         store.set(EMBEDDED_MPV_FRAME_COPY, !!arg.embeddedMpvFrameCopy);
+    }
+    if (arg.embeddedMpvExtraOptions !== undefined) {
+        store.set(
+            EMBEDDED_MPV_EXTRA_OPTIONS,
+            normalizeEmbeddedMpvExtraOptions(arg.embeddedMpvExtraOptions)
+        );
+    }
+    if (arg.embeddedMpvAutoReconnect !== undefined) {
+        store.set(
+            EMBEDDED_MPV_AUTO_RECONNECT,
+            arg.embeddedMpvAutoReconnect !== false
+        );
     }
 
     // Read by initMainWindow before any renderer exists, so it applies on

@@ -67,6 +67,46 @@
             "setup": [
                 "open-xtream-live"
             ]
+        },
+        {
+            "slug": "guide-stalker-add-playlist",
+            "title": "Add playlist: Stalker portal",
+            "group": "guides",
+            "setup": [
+                "open-add-playlist-stalker"
+            ]
+        },
+        {
+            "slug": "guide-stalker-live",
+            "title": "Stalker Live TV",
+            "group": "guides",
+            "setup": [
+                "open-stalker-live"
+            ]
+        },
+        {
+            "slug": "guide-m3u-add-playlist",
+            "title": "Add playlist: M3U URL",
+            "group": "guides",
+            "setup": [
+                "open-add-playlist-m3u-url"
+            ]
+        },
+        {
+            "slug": "guide-m3u-live-groups",
+            "title": "M3U Live TV groups",
+            "group": "guides",
+            "setup": [
+                "open-m3u-groups"
+            ]
+        },
+        {
+            "slug": "guide-epg-settings",
+            "title": "Settings: EPG sources",
+            "group": "guides",
+            "setup": [
+                "open-settings-epg"
+            ]
         }
     ]
 }

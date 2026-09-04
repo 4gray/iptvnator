@@ -9,11 +9,13 @@ import {
 import { isFrameCopyPlatformSupported } from './embedded-mpv-frame-copy-platform.util';
 import {
     applyHelperEvent,
+    buildMpvOptionsPreamble,
     buildLoadPlaybackCommand,
     createInitialSnapshot,
     encodeProtocolValue,
 } from './embedded-mpv-frame-copy-protocol';
 import { resolveFrameCopyHelperSpawn } from './embedded-mpv-frame-copy-spawn';
+import { EmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
 import type {
     EmbeddedMpvFrameCopyRuntimeMode,
     LinuxFrameCopyHelperLaunchFileSystem,
@@ -83,7 +85,8 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         _windowHandle: Buffer,
         bounds: EmbeddedMpvBounds,
         _title?: string,
-        initialVolume?: number
+        initialVolume?: number,
+        extraOptions?: string[]
     ): string {
         const helperPath = this.options.resolveHelperPath();
         if (!helperPath) {
@@ -122,6 +125,13 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             killTimers: [],
         };
         this.sessions.set(sessionId, session);
+        // The helper blocks on this line before initialising libmpv; it is
+        // the private channel for options that may carry credentials.
+        if (child.stdin.writable) {
+            child.stdin.write(
+                `${buildMpvOptionsPreamble(extraOptions ?? [])}\n`
+            );
+        }
 
         child.stdout.on('data', (chunk: Buffer) =>
             this.consumeStdout(session, chunk)
@@ -134,6 +144,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         child.on('error', (error) => {
             session.snapshot.status = 'error';
             session.snapshot.error = `Helper process failed: ${error.message}`;
+            session.snapshot.errorOrigin = 'engine';
         });
         child.on('exit', (code, signal) => {
             console.log(
@@ -151,12 +162,41 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             session.snapshot.error = `The embedded MPV helper exited unexpectedly (${
                 signal ?? code ?? 'unknown'
             }).`;
+            session.snapshot.errorOrigin = 'engine';
         });
 
         return sessionId;
     }
 
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void {
+        const session = this.sessions.get(sessionId);
+        if (session && !session.disposed) {
+            if (
+                session.child.exitCode !== null ||
+                session.child.signalCode !== null ||
+                !session.child.stdin.writable
+            ) {
+                // A dead helper (exit code, signal death, or a closed stdin)
+                // cannot take a load: `send()` would drop the command
+                // silently and a reconnect would wait forever on a
+                // `loading` that nothing can ever advance.
+                throw new EmbeddedMpvSessionGoneError(
+                    sessionId,
+                    'the frame-copy helper process has exited'
+                );
+            }
+            // The native addons flip to `loading` synchronously; mirror that
+            // so the reconnect coordinator always observes loading → loss
+            // for a failed attempt, even when the helper folds START_FILE
+            // and the END_FILE error into one snapshot.
+            const snapshot = {
+                ...session.snapshot,
+                status: 'loading' as const,
+            };
+            delete snapshot.error;
+            delete snapshot.errorOrigin;
+            session.snapshot = snapshot;
+        }
         this.send(sessionId, buildLoadPlaybackCommand(playback));
     }
 
@@ -193,10 +233,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     }
 
     addSubtitle(sessionId: string, filePath: string): void {
-        this.send(
-            sessionId,
-            `sub-add\tpath=${encodeProtocolValue(filePath)}`
-        );
+        this.send(sessionId, `sub-add\tpath=${encodeProtocolValue(filePath)}`);
     }
 
     setSubtitleDelay(sessionId: string, seconds: number): void {
@@ -277,7 +314,11 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
                 `Embedded MPV frame-copy session "${sessionId}" was not found.`
             );
         }
-        if (session.child.exitCode !== null || !session.child.stdin.writable) {
+        if (
+            session.child.exitCode !== null ||
+            session.child.signalCode !== null ||
+            !session.child.stdin.writable
+        ) {
             return;
         }
         session.child.stdin.write(`${line}\n`);

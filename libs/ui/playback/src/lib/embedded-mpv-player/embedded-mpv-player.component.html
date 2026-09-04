@@ -31,13 +31,16 @@
                 data-embedded-mpv-frame
             ></canvas>
         }
-        @if (isErrored()) {
+        @if (isErrored() || isReconnecting() || isLiveEnded()) {
             <div
                 class="embedded-mpv-player__stalled"
                 role="alert"
                 aria-live="assertive"
+                [attr.data-reconnecting]="isReconnecting() ? '' : null"
             >
-                <mat-icon>error_outline</mat-icon>
+                <mat-icon>{{
+                    isReconnecting() ? 'sync' : 'error_outline'
+                }}</mat-icon>
                 <p>{{ statusLabel() }}</p>
                 <button mat-stroked-button type="button" (click)="retry()">
                     <mat-icon>refresh</mat-icon>
@@ -215,12 +218,10 @@
                         [disabled]="!canSeek()"
                         (click)="seekBy(10)"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
-                                | translate
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
-                                | translate
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
                         "
                         matTooltipPosition="above"
                     >
@@ -330,9 +331,7 @@
                             >
                                 <input
                                     class="embedded-mpv-player__slider embedded-mpv-player__slider--volume"
-                                    [style.--slider-progress.%]="
-                                        volume() * 100
-                                    "
+                                    [style.--slider-progress.%]="volume() * 100"
                                     type="range"
                                     min="0"
                                     max="1"

@@ -127,6 +127,8 @@ function translations(prefix = ''): object {
         EMBEDDED_MPV: {
             PLAYER: {
                 PLAYBACK_FAILED: `${prefix}Playback failed`,
+                RECONNECTING: `${prefix}Reconnecting {{attempt}}/{{maxAttempts}}`,
+                STREAM_ENDED: `${prefix}Live stream ended`,
                 CHECKING_SUPPORT: `${prefix}Checking support`,
                 NOT_AVAILABLE: `${prefix}Not available`,
                 LOADING_STREAM: `${prefix}Loading stream`,
@@ -384,6 +386,30 @@ describe('EmbeddedMpvControlsAdapter', () => {
 
         controller.session.set(session({ status: 'error', error: undefined }));
         expect(adapter.state().statusMessage).toBe('Playback failed');
+
+        playback.set({ ...LIVE_PLAYBACK, isLive: true });
+        controller.session.set(session({ status: 'ended' }));
+        expect(adapter.state()).toMatchObject({
+            status: 'error',
+            statusMessage: 'Live stream ended',
+        });
+        playback.set({ ...VOD_PLAYBACK, isLive: false });
+
+        controller.session.set(
+            session({
+                status: 'error',
+                error: 'Decoder exploded',
+                reconnect: {
+                    attempt: 3,
+                    maxAttempts: 6,
+                    nextAttemptAt: '2026-09-03T10:00:08Z',
+                },
+            })
+        );
+        expect(adapter.state()).toMatchObject({
+            status: 'loading',
+            statusMessage: 'Reconnecting 3/6',
+        });
     });
 
     it('delegates every non-recording shared-controls command', () => {

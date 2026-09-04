@@ -52,7 +52,12 @@ import {
     validateReleaseSlug,
 } from './screenshot-guards.mjs';
 import * as driver from './capture-app-driver';
-import { applyTheme, runAction, settleUi } from './capture-navigation';
+import {
+    applyTheme,
+    discardUnsavedSettings,
+    runAction,
+    settleUi,
+} from './capture-navigation';
 import { assertTmdbDisabled } from './capture-tmdb-check';
 import {
     drainRecordedRequests,
@@ -150,8 +155,19 @@ async function main(): Promise<void> {
     // release assets an earlier run already committed.
     const stagingDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-shots-'));
     const mockServer = await driver.ensureXtreamMockServer(workspaceRoot);
+    // The Stalker portal is seeded only for shots that walk into it: it adds
+    // a third source card to the dashboard, which release shots must not show.
+    const needsStalker = shots.some((shot: { setup: string[] }) =>
+        shot.setup.some(
+            (step) => parseSetupStep(String(step)).action === 'open-stalker-live'
+        )
+    );
+    const stalkerMockServer = needsStalker
+        ? await driver.ensureStalkerMockServer(workspaceRoot)
+        : undefined;
     const dataDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-release-shots-'));
     let app: Awaited<ReturnType<typeof driver.launchApp>> | undefined;
+    let page: Page | undefined;
     let recordedRequests: string[] = [];
     let captured = 0;
     let primaryError: unknown;
@@ -174,7 +190,7 @@ async function main(): Promise<void> {
         // main process itself fetches.
         await installRequestRecorder(app, networkPolicy());
 
-        const page = await driver.findMainWindow(app);
+        page = await driver.findMainWindow(app);
 
         // G3, second layer: page-level deny-by-default, which also blocks.
         await page.route('**/*', async (route) => {
@@ -204,7 +220,9 @@ async function main(): Promise<void> {
         await driver.sizeWindow(app, manifest.viewport);
         await driver.waitForAppReady(page);
         await assertTmdbDisabled(page); // G5
-        await driver.seedDemoData(page, driver.writeM3uFixture(dataDir));
+        await driver.seedDemoData(page, driver.writeM3uFixture(dataDir), {
+            stalker: needsStalker,
+        });
 
         for (const theme of themes) {
             await applyTheme(page, theme);
@@ -256,10 +274,16 @@ async function main(): Promise<void> {
         // isolation override is most likely, so G1 must still be evaluated.
         primaryError = error;
     } finally {
+        // A shot may leave the settings form dirty, which arms the app's
+        // close guard and would block the close below indefinitely.
+        if (page) {
+            await discardUnsavedSettings(page).catch(() => undefined);
+        }
         // Close before the G1 comparison: SQLite runs in WAL mode, so writes
         // may sit in -wal until the worker shuts down and checkpoints.
         await app?.close().catch(() => undefined);
         mockServer?.kill('SIGTERM');
+        stalkerMockServer?.kill('SIGTERM');
         rmSync(dataDir, { recursive: true, force: true });
     }
 

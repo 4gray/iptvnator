@@ -26,6 +26,7 @@ import {
     snapshotDatabaseState,
     stubbedResponseFor,
     DEFAULT_SHOT_GROUP,
+    FICTIONAL_STALKER_MAC,
     outputDirectoryFor,
     shotGroup,
     validateManifest,
@@ -55,6 +56,25 @@ function validManifest() {
         ],
     };
 }
+
+describe('frame guard MAC allowlist', () => {
+    it('lets the fictional marketing-demo MAC through but no other MAC', () => {
+        const clean = evaluateFrameReport({
+            resourceUrls: [],
+            bodyText: `Mac Address ${FICTIONAL_STALKER_MAC} Serial Number`,
+        });
+        assert.deepEqual(clean, []);
+
+        const leaked = evaluateFrameReport({
+            resourceUrls: [],
+            bodyText: `Mac Address ${FICTIONAL_STALKER_MAC} and 00:1A:79:12:34:56`,
+        });
+        assert.ok(
+            leaked.some((violation) => /00:1A:79:12:34:56/.test(violation)),
+            'a second MAC must still fail the frame'
+        );
+    });
+});
 
 describe('manifest validation', () => {
     it('accepts the committed manifest shape', () => {
@@ -159,6 +179,38 @@ describe('manifest validation', () => {
             outputDirectoryFor({ blogRoot: '/blog', group: 'guides', release: 'v0-24' }),
             path.join('/blog', 'guides', 'screenshots')
         );
+    });
+
+    it('accepts the Stalker guide actions', () => {
+        const manifest = validManifest();
+        manifest.shots.push(
+            {
+                slug: 'guide-stalker-add-playlist',
+                title: 'Stalker form',
+                group: 'guides',
+                setup: ['open-add-playlist-stalker'],
+            },
+            {
+                slug: 'guide-stalker-live',
+                title: 'Stalker live',
+                group: 'guides',
+                setup: ['open-stalker-live'],
+            },
+            {
+                slug: 'guide-m3u-add-playlist',
+                title: 'M3U URL form',
+                group: 'guides',
+                setup: ['open-add-playlist-m3u-url'],
+            },
+            {
+                slug: 'guide-epg-settings',
+                title: 'EPG settings',
+                group: 'guides',
+                setup: ['open-settings-epg'],
+            }
+        );
+
+        assert.deepEqual(validateManifest(manifest), []);
     });
 
     it('parses setup steps with and without a parameter', () => {

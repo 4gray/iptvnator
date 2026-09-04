@@ -61,6 +61,9 @@ export function resolveFrameCopyHelperSpawn(
         ...(process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY
             ? ['--audio-delay', process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY]
             : []),
+        // Session options follow as the first stdin line (see
+        // buildMpvOptionsPreamble), never as arguments `ps` could read.
+        '--mpv-options-stdin',
     ];
 
     if (process.platform !== 'linux') {
@@ -81,7 +84,9 @@ export function resolveFrameCopyHelperSpawn(
         fileSystem: helperLaunchFileSystem,
     });
     if (!launch.usable) {
-        throw new Error('The connected Snap graphics provider is not available.');
+        throw new Error(
+            'The connected Snap graphics provider is not available.'
+        );
     }
 
     return {

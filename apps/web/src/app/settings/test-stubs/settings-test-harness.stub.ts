@@ -111,6 +111,8 @@ export const DEFAULT_SETTINGS = {
     epgUrl: [],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    embeddedMpvExtraOptions: '',
+    embeddedMpvAutoReconnect: true,
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
