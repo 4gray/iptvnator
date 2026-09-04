@@ -22,6 +22,7 @@ import {
     Theme,
     VideoPlayer,
     normalizeDashboardRailsSettings,
+    normalizeStartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: Settings = {
     showCaptions: false,
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
+    startupWindowMode: 'normal',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -52,6 +54,8 @@ const DEFAULT_SETTINGS: Settings = {
     downloadFolder: '',
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    embeddedMpvExtraOptions: '',
+    embeddedMpvAutoReconnect: true,
     coverSize: 'medium',
     epgViewMode: 'timeline',
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
@@ -156,6 +160,9 @@ export const SettingsStore = signalStore(
                             webPlayerSharedControls:
                                 storedSettings.webPlayerSharedControls !==
                                 false,
+                            embeddedMpvAutoReconnect:
+                                storedSettings.embeddedMpvAutoReconnect !==
+                                false,
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
                             ),
@@ -188,6 +195,12 @@ export const SettingsStore = signalStore(
                         ? {
                               webPlayerSharedControls:
                                   settings.webPlayerSharedControls !== false,
+                          }
+                        : {}),
+                    ...(settings.embeddedMpvAutoReconnect !== undefined
+                        ? {
+                              embeddedMpvAutoReconnect:
+                                  settings.embeddedMpvAutoReconnect !== false,
                           }
                         : {}),
                     ...(settings.dashboardRails !== undefined
@@ -240,6 +253,9 @@ export const SettingsStore = signalStore(
                     showCaptions: store.showCaptions(),
                     showDashboard: store.showDashboard(),
                     startupBehavior: store.startupBehavior(),
+                    startupWindowMode: normalizeStartupWindowMode(
+                        store.startupWindowMode?.()
+                    ),
                     showExternalPlaybackBar:
                         store.showExternalPlaybackBar?.() ??
                         DEFAULT_SETTINGS.showExternalPlaybackBar,
@@ -264,6 +280,10 @@ export const SettingsStore = signalStore(
                         DEFAULT_SETTINGS.recordingFolder,
                     embeddedMpvFrameCopy:
                         store.embeddedMpvFrameCopy?.() ?? false,
+                    embeddedMpvExtraOptions:
+                        store.embeddedMpvExtraOptions?.() ?? '',
+                    embeddedMpvAutoReconnect:
+                        store.embeddedMpvAutoReconnect?.() !== false,
                     coverSize:
                         store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                     epgViewMode:

@@ -1,11 +1,23 @@
 import path from 'path';
 
+// The adapter reaches `electron` through the platform util for packaged
+// paths only; mocking it keeps this suite independent of the Electron binary
+// being present (a CI runner can restore node_modules without it).
+jest.mock('electron', () => ({
+    app: {
+        isPackaged: false,
+        getAppPath: () => '/mock/app',
+        getPath: () => '/mock/user-data',
+    },
+}));
+
 const spawnMock = jest.fn();
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => spawnMock(...args),
 }));
 
 import type { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
+import { EmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
 import {
     createFrameCopyAdapter,
     createFrameCopySession,
@@ -48,7 +60,9 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             '720',
             '--volume',
             '0.8',
+            '--mpv-options-stdin',
         ]);
+        expect(child.stdin.written[0]).toBe('mpv-options\n');
     });
 
     it('caches helper snapshot events for getSessionSnapshot', () => {
@@ -91,6 +105,116 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(adapter.getFrameSource(sessionId)?.readerPath).toBe(
             path.join('/native', 'embedded_mpv_frame_reader.node')
         );
+    });
+
+    it('sends the session options as the first stdin line, never on argv', () => {
+        adapter.createSession(
+            Buffer.alloc(0),
+            { x: 0, y: 0, width: 640, height: 360 },
+            'Title',
+            0.8,
+            ['network-timeout=10', 'http-header-fields=X-Key: s%cr\tet']
+        );
+        const [, args] = spawnMock.mock.calls[0];
+        expect(args).toContain('--mpv-options-stdin');
+        expect(args.join(' ')).not.toContain('network-timeout');
+        expect(args.join(' ')).not.toContain('X-Key');
+        expect(child.stdin.written[0]).toBe(
+            'mpv-options\to000=network-timeout=10\to001=http-header-fields=X-Key: s%25cr%09et\n'
+        );
+    });
+
+    it('flips the cached snapshot to loading as soon as a load is sent', () => {
+        const sessionId = createSession();
+        child.emitStdout({
+            event: 'snapshot',
+            status: 'error',
+            error: 'connection reset',
+            positionSeconds: 0,
+            durationSeconds: null,
+            volume: 0.8,
+            streamUrl: 'http://stream',
+            audioTracks: [],
+            selectedAudioTrackId: null,
+            subtitleTracks: [],
+            selectedSubtitleTrackId: null,
+            playbackSpeed: 1,
+            aspectOverride: 'no',
+            recording: { active: false },
+        });
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+
+        adapter.loadPlayback(sessionId, {
+            streamUrl: 'http://stream',
+            title: 'Live',
+        });
+
+        const snapshot = adapter.getSessionSnapshot(sessionId);
+        expect(snapshot?.status).toBe('loading');
+        expect(snapshot?.error).toBeUndefined();
+        expect(snapshot?.streamUrl).toBe('http://stream');
+    });
+
+    it('refuses a load once the helper process has exited', () => {
+        const sessionId = createSession();
+        child.exitCode = 1;
+        child.emit('exit', 1, null);
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+
+        expect(() =>
+            adapter.loadPlayback(sessionId, {
+                streamUrl: 'http://stream',
+                title: 'Live',
+            })
+        ).toThrow(EmbeddedMpvSessionGoneError);
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+        expect(
+            child.stdin.written.some((line) => line.startsWith('load\t'))
+        ).toBe(false);
+    });
+
+    it('refuses a load once the helper died from a signal', () => {
+        const sessionId = createSession();
+        child.signalCode = 'SIGKILL';
+        child.emit('exit', null, 'SIGKILL');
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+
+        expect(() =>
+            adapter.loadPlayback(sessionId, {
+                streamUrl: 'http://stream',
+                title: 'Live',
+            })
+        ).toThrow(EmbeddedMpvSessionGoneError);
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+    });
+
+    it('surfaces the helper warning for a session option libmpv rejected', () => {
+        const sessionId = createSession();
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        try {
+            child.emitStdout({
+                event: 'log',
+                level: 'warn',
+                prefix: 'iptvnator',
+                text: 'rejected session option nonexistent-option: option not found',
+            });
+            child.emitStdout({
+                event: 'log',
+                level: 'warn',
+                prefix: 'ffmpeg/demuxer',
+                text: 'mpegts: PES packet size mismatch',
+            });
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(sessionId);
+            expect(warn.mock.calls[0][0]).toContain(
+                'rejected session option nonexistent-option'
+            );
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('encodes loadfile options with percent-escaping', () => {

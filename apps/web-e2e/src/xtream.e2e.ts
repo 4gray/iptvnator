@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { setInputValue } from './e2e-helpers';
 import {
@@ -929,6 +929,159 @@ function formatXtreamDateTime(timestampSeconds: number): string {
 // now the app-web-player-view host, which spans all applications of one mount.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Inline series playback helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Serve a tiny VP8 clip for every episode stream. Chromium ships no
+ * proprietary codecs, so the clip stands in for the mock's external HLS
+ * redirect; the browser sniffs the WebM container from the bytes. Registered
+ * after the beforeEach proxy route, so it runs first and fetches from the
+ * mock itself (the mock ignores the url parameter).
+ */
+async function routeEpisodeClip(page: Page): Promise<void> {
+    const episodeClip = readFileSync(
+        join(__dirname, 'fixtures/playback/episode.webm')
+    );
+    await page.route(
+        (url) =>
+            url.origin === MOCK_SERVER && url.pathname.startsWith('/series/'),
+        async (route) => {
+            // Chromium's media pipeline seeks through byte ranges; a plain
+            // 200 to a Range request clamps every seek to the start, which
+            // would defeat end-of-episode steps.
+            const range = /^bytes=(\d*)-(\d*)$/.exec(
+                route.request().headers()['range'] ?? ''
+            );
+            const last = episodeClip.length - 1;
+            const start = range?.[1]
+                ? Number(range[1])
+                : range?.[2]
+                  ? Math.max(0, episodeClip.length - Number(range[2]))
+                  : 0;
+            const end =
+                range?.[1] && range[2]
+                    ? Math.min(Number(range[2]), last)
+                    : last;
+            await route.fulfill({
+                status: range ? 206 : 200,
+                headers: {
+                    'accept-ranges': 'bytes',
+                    'content-length': String(end - start + 1),
+                    'content-type': 'video/webm',
+                    ...(range
+                        ? {
+                              'content-range': `bytes ${start}-${end}/${episodeClip.length}`,
+                          }
+                        : {}),
+                },
+                body: episodeClip.subarray(start, end + 1),
+            });
+        }
+    );
+}
+
+/**
+ * The mock's episodes are .mkv, which the HTML5 player would hand to hls.js;
+ * get_series_info is rewritten to .mp4 — the extension the player gives to
+ * the native source path.
+ */
+async function rewriteSeriesEpisodesToMp4(page: Page): Promise<void> {
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        if (original.searchParams.get('action') !== 'get_series_info') {
+            await route.fallback();
+            return;
+        }
+        const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') {
+                mockUrl.searchParams.set(key, value);
+            }
+        });
+        const response = await route.fetch({ url: mockUrl.toString() });
+        const body = (await response.json()) as {
+            payload: {
+                episodes?: Record<
+                    string,
+                    Array<{ container_extension: string }>
+                >;
+            };
+        };
+        for (const episodes of Object.values(body.payload.episodes ?? {})) {
+            for (const episode of episodes) {
+                episode.container_extension = 'mp4';
+            }
+        }
+        await route.fulfill({ response, json: body });
+    });
+}
+
+/** Persist the web player engine and the shared-controls preference. */
+async function selectWebPlayer(
+    page: Page,
+    engine: string,
+    sharedControls = true
+): Promise<void> {
+    await page.goto('/workspace/settings/playback');
+    await page.locator('[data-test-id="select-video-player"]').click();
+    await page.getByRole('option', { name: engine, exact: true }).click();
+    const toggle = page.locator(
+        '[data-test-id="web-player-shared-controls-toggle"]'
+    );
+    if ((await toggle.locator('input').isChecked()) !== sharedControls) {
+        await toggle.click();
+    }
+    const saveButton = page.getByRole('button', { name: 'Save changes' });
+    await saveButton.click();
+    await expect(saveButton).toBeHidden();
+}
+
+/** Add the mock portal and start the first episode of the first series. */
+async function playFirstSeriesEpisode(
+    page: Page,
+    request: APIRequestContext
+): Promise<{ playerView: Locator; video: Locator }> {
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+    const category = categories[0];
+    const seriesItems = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
+        )
+    ).json()) as Array<{ name: string; series_id: number }>;
+    const targetSeries = seriesItems[0];
+
+    await page.goto('/');
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+    const categoryItem = page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: category.category_name })
+        .first();
+    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
+    await categoryItem.click();
+    const seriesCard = page
+        .locator('app-grid-list mat-card')
+        .filter({ hasText: targetSeries.name })
+        .first();
+    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
+    await seriesCard.click();
+
+    const episodeCards = page.locator('.episode-card');
+    await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
+    await episodeCards.first().click();
+
+    const playerView = page.locator(
+        'app-portal-inline-player app-web-player-view'
+    );
+    return { playerView, video: playerView.locator('video') };
+}
+
 test.describe('@xtream inline series fullscreen', () => {
     // No autoplay-policy flag is needed: the episode click is a user
     // activation and the fixture clip carries no audio track.
@@ -941,133 +1094,19 @@ test.describe('@xtream inline series fullscreen', () => {
         page,
         request,
     }) => {
-        // Chromium ships no proprietary codecs, so a tiny VP8 clip stands in
-        // for the mock's external HLS redirect; the browser sniffs the WebM
-        // container from the bytes. The mock's episodes are .mkv, which the
-        // HTML5 player would hand to hls.js, so get_series_info is rewritten
-        // to .mp4 — the extension the player gives to the native source path.
-        // Registered after the beforeEach proxy route, so it runs first and
-        // fetches from the mock itself (the mock ignores the url parameter).
-        const episodeClip = readFileSync(
-            join(__dirname, 'fixtures/playback/episode.webm')
-        );
-        await page.route(
-            (url) =>
-                url.origin === MOCK_SERVER &&
-                url.pathname.startsWith('/series/'),
-            async (route) => {
-                // Chromium's media pipeline seeks through byte ranges; a
-                // plain 200 to a Range request clamps every seek to the
-                // start, which would defeat the end-of-episode step below.
-                const range = /^bytes=(\d*)-(\d*)$/.exec(
-                    route.request().headers()['range'] ?? ''
-                );
-                const last = episodeClip.length - 1;
-                const start = range?.[1]
-                    ? Number(range[1])
-                    : range?.[2]
-                      ? Math.max(0, episodeClip.length - Number(range[2]))
-                      : 0;
-                const end =
-                    range?.[1] && range[2]
-                        ? Math.min(Number(range[2]), last)
-                        : last;
-                await route.fulfill({
-                    status: range ? 206 : 200,
-                    headers: {
-                        'accept-ranges': 'bytes',
-                        'content-length': String(end - start + 1),
-                        'content-type': 'video/webm',
-                        ...(range
-                            ? {
-                                  'content-range': `bytes ${start}-${end}/${episodeClip.length}`,
-                              }
-                            : {}),
-                    },
-                    body: episodeClip.subarray(start, end + 1),
-                });
-            }
-        );
-        await page.route('**/localhost:3000/xtream**', async (route) => {
-            const original = new URL(route.request().url());
-            if (original.searchParams.get('action') !== 'get_series_info') {
-                await route.fallback();
-                return;
-            }
-            const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
-            original.searchParams.forEach((value, key) => {
-                if (key !== 'targetId') {
-                    mockUrl.searchParams.set(key, value);
-                }
-            });
-            const response = await route.fetch({ url: mockUrl.toString() });
-            const body = (await response.json()) as {
-                payload: {
-                    episodes?: Record<
-                        string,
-                        Array<{ container_extension: string }>
-                    >;
-                };
-            };
-            for (const episodes of Object.values(body.payload.episodes ?? {})) {
-                for (const episode of episodes) {
-                    episode.container_extension = 'mp4';
-                }
-            }
-            await route.fulfill({ response, json: body });
-        });
+        await routeEpisodeClip(page);
+        await rewriteSeriesEpisodesToMp4(page);
 
         // Persist the HTML5 engine first: Video.js rejects the mock's
         // video/matroska source type before any bytes are sniffed.
-        await page.goto('/workspace/settings/playback');
-        await page.locator('[data-test-id="select-video-player"]').click();
-        await page
-            .getByRole('option', { name: 'HTML5 video player', exact: true })
-            .click();
-        const saveButton = page.getByRole('button', { name: 'Save changes' });
-        await saveButton.click();
-        await expect(saveButton).toBeHidden();
-
-        const categories = (await (
-            await request.get(
-                `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
-            )
-        ).json()) as Array<{ category_id: string; category_name: string }>;
-        const category = categories[0];
-        const seriesItems = (await (
-            await request.get(
-                `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
-            )
-        ).json()) as Array<{ name: string; series_id: number }>;
-        const targetSeries = seriesItems[0];
-
-        await page.goto('/');
-        await addXtreamPortal(page);
-        await page.goto(page.url().replace(/\/vod.*$/, '/series'));
-        const categoryItem = page
-            .locator('.context-panel .category-item')
-            .filter({ hasText: category.category_name })
-            .first();
-        await expect(categoryItem).toBeVisible({ timeout: 10_000 });
-        await categoryItem.click();
-        const seriesCard = page
-            .locator('app-grid-list mat-card')
-            .filter({ hasText: targetSeries.name })
-            .first();
-        await expect(seriesCard).toBeVisible({ timeout: 10_000 });
-        await seriesCard.click();
-
-        const episodeCards = page.locator('.episode-card');
-        await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
-        await episodeCards.first().click();
-
-        const playerView = page.locator(
-            'app-portal-inline-player app-web-player-view'
+        await selectWebPlayer(page, 'HTML5 video player');
+        const { playerView, video } = await playFirstSeriesEpisode(
+            page,
+            request
         );
         await expect(playerView.locator('app-html-video-player')).toBeVisible({
             timeout: 15_000,
         });
-        const video = playerView.locator('video');
         const waitForMetadata = () =>
             expect
                 .poll(() =>
@@ -1093,6 +1132,19 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect.poll(fullscreenOwner).not.toBeNull();
         await expect(overlayTitle).toContainText('S01E01');
 
+        // Chromium leaves the clicked button focused; the shared controls
+        // release that focus so Space reaches the playback shortcut instead
+        // of activating the button again (which left fullscreen while the
+        // video kept playing).
+        const paused = () =>
+            video.evaluate((el) => (el as HTMLVideoElement).paused);
+        await expect.poll(paused).toBe(false);
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(true);
+        expect(await fullscreenOwner()).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(false);
+
         // Manual switch from the shared controls' own next-episode button.
         await playerView.hover();
         await playerView
@@ -1117,5 +1169,53 @@ test.describe('@xtream inline series fullscreen', () => {
             timeout: 15_000,
         });
         expect(await fullscreenOwner()).not.toBeNull();
+    });
+});
+
+test.describe('@xtream vendor-chrome Video.js shortcuts', () => {
+    test.skip(
+        ({ browserName }) => browserName !== 'chromium',
+        'DOM fullscreen assertions target Chromium'
+    );
+
+    test('keep working after a mouse click on a control-bar button', async ({
+        page,
+        request,
+    }) => {
+        await routeEpisodeClip(page);
+        await rewriteSeriesEpisodesToMp4(page);
+        // Video.js with the shared controls opted out: the vendor control bar.
+        await selectWebPlayer(page, 'Video.js player', false);
+        const { playerView, video } = await playFirstSeriesEpisode(
+            page,
+            request
+        );
+        await expect(playerView.locator('app-vjs-player')).toBeVisible({
+            timeout: 15_000,
+        });
+        await expect(playerView.locator('app-player-controls')).toHaveCount(0);
+        const paused = () =>
+            video.evaluate((el) => (el as HTMLVideoElement).paused);
+        const fullscreenOwner = () =>
+            page.evaluate(() => document.fullscreenElement?.tagName ?? null);
+        await expect.poll(paused).toBe(false);
+
+        // Chromium leaves the clicked Video.js button focused, and a focused
+        // Video.js component swallows every key; the legacy chrome releases
+        // that focus so Space and M reach the playback shortcuts instead of
+        // Space activating the button again (which left fullscreen while the
+        // video kept playing).
+        await playerView.hover();
+        await playerView.locator('.vjs-fullscreen-control').click();
+        await expect.poll(fullscreenOwner).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(true);
+        expect(await fullscreenOwner()).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(false);
+        await page.keyboard.press('m');
+        await expect
+            .poll(() => video.evaluate((el) => (el as HTMLVideoElement).muted))
+            .toBe(true);
     });
 });

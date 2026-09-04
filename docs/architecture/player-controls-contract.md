@@ -358,6 +358,28 @@ focus) or only a transfer inside the bar, which `focusout` ignores by design,
 so the pin cannot be cleared from focus events alone. Without
 this distinction the fullscreen button kept the controls on screen until a
 click on the viewport took focus away — and that click also paused playback.
+
+The focus a pointer click leaves on a control is released once the click
+completes (`onBarClick` → `ControlsSurface.releasePointerFocus`). A focused
+control captures the keyboard: Space and Enter activate it again, and
+`ControlsShortcuts` yields to any interactive element in the key's path, so
+after a click on the fullscreen button Space left fullscreen instead of
+pausing and the seek, volume, and mute keys did nothing.
+`ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
+(non-empty for a pointer; empty for Enter/Space activation and
+`element.click()`), and a legacy `MouseEvent` click by a recent press inside
+the clicked element, answered once per press and discarded on any key press.
+Keyboard activation therefore keeps focus where Tab put it. Only buttons and
+range sliders are released; text entry would keep its focus, and the bar
+holds none. Chromium keeps its sequential focus navigation starting point at
+the blurred control, so a later Tab continues from it exactly as if it were
+still focused; the clicked button's tooltip hides with the focus. The release
+dispatches a `focusout` while the pointer still rests on the control, so the
+volume anchor's `focusout` handler skips its popover close for it
+(`wasPointerFocusRelease`), while focus leaving by keyboard still closes the
+popover. A press that never completes into a click (released off the
+control) is the one case that still leaves pointer-originated focus behind,
+which is why the key-press re-pin above remains.
 In fullscreen playback, hiding the controls also hides the pointer
 over both the controls host and the supplied player surface; revealing controls
 or destroying the component restores the surface's previous inline cursor.
@@ -409,7 +431,41 @@ straight to the engine:
 - **Video.js** (`vjs-legacy-shortcuts.ts`) goes through the player API so the
   vendor control bar stays in sync; F uses the player's
   `requestFullscreen`/`exitFullscreen`. The legacy configuration still never
-  enables `userActions.hotkeys`.
+  enables `userActions.hotkeys`. The chrome also releases the focus a pointer
+  interaction leaves on a control (`vjs-pointer-focus-release.ts`, the vendor
+  counterpart of `ControlsSurface.releasePointerFocus`, sharing
+  `pointer-focus-release.ts`'s `blurFocusedControl`): Chromium focuses a
+  clicked control-bar `<button>` or slider, and a focused Video.js component
+  captures the keyboard entirely — `Component.handleKeyDown` stops the
+  propagation of every key and `ClickableComponent` turns Space and Enter into
+  a click — so after a click on the fullscreen button Space left fullscreen
+  instead of pausing and the document-level shortcuts never saw a key. The
+  release is driven mainly by the focus landing, not the click: choosing a
+  menu item moves focus to the menu button a tick after the click
+  (`MenuItem.handleTapClick`) and that selection click never bubbles to the
+  shell, so a click handler alone would be both too early and unreached. A
+  `focusin` on an eligible control (a `<button>`, `role="button"` clickable, or
+  slider; never a `role="menuitem*"`) is released when it is attributable to a
+  recent `pointerdown` inside the shell not yet ended by a document `keydown`,
+  so keyboard `Tab` focus is preserved. A `click` runs the same release,
+  because clicking a control that was already focused (Tab, then a mouse click
+  on it) moves no focus and fires no `focusin`; a keyboard-activation click
+  carries no `pointerdown`, so attribution keeps that focus. The release is
+  scoped to the `.vjs-control-bar`, the persistent chrome that hands keys back
+  to the document; the player's other focusable surfaces manage their own
+  focus and keep it — in particular the caption-settings dialog
+  (`.vjs-text-track-settings`, a modal sibling of the control bar under
+  `.video-js`) traps focus for its Escape/Tab handling, so its Reset button is
+  left alone. Menu buttons live in the control bar and are not exempt: a
+  Video.js popup is navigated through its focused item, not its button, so
+  releasing the button never disturbs an open menu — opening focuses the item,
+  and the button focus a pointer moves through (the transient press on open,
+  item selection, and toggling an open menu shut) is released, which is what
+  lets Space work again after a menu is dismissed by clicking its button a
+  second time. ArtPlayer needs no
+  counterpart (its controls are non-focusable divs), nor do the native HTML5
+  controls (a click focuses the `<video>`, which the shortcuts do not treat as
+  interactive).
 - **ArtPlayer** (`art-player-legacy-shortcuts.ts`) uses the vendor setters its
   own hotkeys used (`toggle`, `forward`/`backward`, `volume`, `muted`,
   `fullscreen`), so ArtPlayer's notices and UI stay in sync. The legacy chrome
@@ -465,7 +521,8 @@ the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
   the hover-open path is suppressed and the first tap on the volume button
   opens the popover instead of muting; a tap while it is open toggles mute as
   the button's label says. Touch-attributed `focusout` does not schedule the
-  popover close (outside taps and other menu buttons dismiss it).
+  popover close (outside taps and other menu buttons dismiss it), and neither
+  does the `focusout` of a pointer focus release.
 - **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
   timeline/volume sliders grow their input hit strip to 28px and the thumb to
   18px; the 4px visual track is unchanged.

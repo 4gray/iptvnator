@@ -55,8 +55,10 @@ The body is capped at 400 characters — depth belongs in the blog post.
 gives it a short, poster-worthy name. The 60-character cap keeps it roughly to
 one line on the hero card; card text wraps by estimated width, so a headline of
 unusually wide glyphs may still wrap or ellipsize rather than overflow. Highlights lead the Telegram/Reddit
-announcements (everything else collapses into a "+N more" counter) and become
-ready-made section headings in the blog scaffold. Set it on the two or three
+announcements (everything else collapses into a "+N more" counter) and open the
+blog scaffold: a row in its "What changed" table and a `##` section ahead of
+the themed sections, while fixes without a highlight collapse under a spoiler
+there. Set it on the two or three
 changes worth announcing — a release where everything is a highlight has none.
 Not allowed on `type: internal`.
 

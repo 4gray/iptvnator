@@ -37,6 +37,7 @@ import { logVjsAudioTracks, setupVjsAudioTrackMenu } from './vjs-audio-tracks';
 import { VjsLegacyTracks } from './vjs-legacy-tracks';
 import { VjsMpegTsSession } from './vjs-mpegts-session';
 import { attachVjsLegacyShortcuts } from './vjs-legacy-shortcuts';
+import { attachVjsPointerFocusRelease } from './vjs-pointer-focus-release';
 import { VjsPlayerControlsBridge } from './vjs-player-controls.bridge';
 import {
     createVjsPlayerOptions,
@@ -119,6 +120,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private legacyTracks: VjsLegacyTracks | null = null;
     /** Keyboard shortcuts for the legacy chrome; null with shared controls. */
     private legacyShortcuts: LegacyPlayerShortcuts | null = null;
+    /** Pointer focus release for the legacy chrome; null with shared controls. */
+    private detachPointerFocusRelease: (() => void) | null = null;
     private desiredSource: VideoPlayerSource | null = null;
     private readyHandled = false;
     private destroyed = false;
@@ -151,6 +154,11 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 isAvailable: () => this.interactionEnabled(),
                 isLive: () => this.options().isLive !== false,
             });
+            const shell = this.playerRoot()?.nativeElement;
+            if (shell) {
+                this.detachPointerFocusRelease =
+                    attachVjsPointerFocusRelease(shell);
+            }
         }
     }
 
@@ -201,6 +209,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.destroyed = true;
         this.legacyShortcuts?.detach();
         this.legacyShortcuts = null;
+        this.detachPointerFocusRelease?.();
+        this.detachPointerFocusRelease = null;
         this.resetCoordinator.destroy();
         this.controlsBridge?.destroy();
         this.controlsBridge = null;

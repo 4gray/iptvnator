@@ -2,13 +2,7 @@ import type { PlayerSubtitleStyle } from './subtitle-style.util';
 import type { RecordingStartMetadata } from './recording-metadata.interface';
 
 export type EmbeddedMpvSessionStatus =
-    | 'idle'
-    | 'loading'
-    | 'playing'
-    | 'paused'
-    | 'ended'
-    | 'error'
-    | 'closed';
+    'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error' | 'closed';
 
 export interface EmbeddedMpvBounds {
     x: number;
@@ -129,4 +123,19 @@ export interface EmbeddedMpvSession {
     startedAt: string;
     updatedAt: string;
     error?: string;
+    /**
+     * Present while the main process is waiting to reload a dropped stream
+     * or has such a reload in flight; absent once playback is back or the
+     * attempts are exhausted. Display only — the renderer never schedules.
+     */
+    reconnect?: EmbeddedMpvReconnectInfo;
+}
+
+/** Progress of the main-process automatic reconnect for one session. */
+export interface EmbeddedMpvReconnectInfo {
+    /** 1-based number of the attempt that is scheduled or in flight. */
+    attempt: number;
+    maxAttempts: number;
+    /** ISO timestamp at which the scheduled attempt fires. */
+    nextAttemptAt: string;
 }

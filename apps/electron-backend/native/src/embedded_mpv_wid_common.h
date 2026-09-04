@@ -5,6 +5,9 @@
 #include <napi.h>
 
 #include <mpv/client.h>
+#include <string>
+
+#include "embedded_mpv_extra_options.h"
 
 #ifdef IPTVNATOR_DYNAMIC_LIBMPV
 #ifndef IPTVNATOR_MPV_SELECTANY
@@ -116,6 +119,8 @@ struct SessionSnapshot {
     double volumePercent = 100.0;
     std::string streamUrl;
     std::string error;
+    /** Keys of session options libmpv refused at creation (names only). */
+    std::vector<std::string> rejectedOptionKeys;
     std::vector<AudioTrack> audioTracks;
     int64_t selectedAudioTrackId = -1;
     std::vector<AudioTrack> subtitleTracks;
@@ -142,6 +147,8 @@ struct Session {
     std::string pendingRecordingStartedAt;
     std::string pendingRecordingStopStartedAt;
     uint64_t pendingPlaybackLoadRequestId = 0;
+    /** Session options from Settings (network defaults + user lines). */
+    std::vector<iptvnator::EmbeddedMpvExtraOption> extraOptions;
 #ifdef __linux__
     pid_t mpvProcessId = -1;
     std::string mpvIpcSocketPath;
@@ -607,6 +614,12 @@ std::vector<std::string> buildLinuxMpvArguments(
         arguments.push_back("--really-quiet");
     }
 
+    // Session options come before the per-playback ones below, so a
+    // playlist's own user-agent/headers still win over a global line.
+    for (const auto& option : session->extraOptions) {
+        arguments.push_back("--" + option.first + "=" + option.second);
+    }
+
     appendLinuxMpvOption(arguments, "force-media-title", title);
     appendLinuxMpvOption(arguments, "user-agent", userAgent);
     appendLinuxMpvOption(arguments, "referrer", referer);
@@ -983,6 +996,7 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     const auto duration = queryLinuxMpvNumber(socketPath, "duration");
     const auto volume = queryLinuxMpvNumber(socketPath, "volume");
     const auto paused = queryLinuxMpvBoolean(socketPath, "pause");
+    const auto eofReached = queryLinuxMpvBoolean(socketPath, "eof-reached");
     const auto path = queryLinuxMpvString(socketPath, "path");
     const auto trackCount =
         queryLinuxMpvInteger(socketPath, "track-list/count");
@@ -1018,9 +1032,23 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
             std::max(0.0, std::min(100.0, *volume));
     }
     if (paused) {
-        session->snapshot.status =
-            *paused ? SessionStatus::Paused : SessionStatus::Playing;
+        if (*paused) {
+            session->snapshot.status = SessionStatus::Paused;
+        } else if (
+            position ||
+            session->snapshot.status != SessionStatus::Loading
+        ) {
+            // `time-pos` only answers once the media is decoding; until then
+            // an unpaused freshly spawned process is still loading.
+            session->snapshot.status = SessionStatus::Playing;
+        }
         session->snapshot.error.clear();
+    }
+    if (eofReached && *eofReached) {
+        // keep-open=yes parks mpv paused at the end of the stream. Report
+        // that as `ended` like the in-process engines do, so the reconnect
+        // policy can tell a finished live stream from a user pause.
+        session->snapshot.status = SessionStatus::Ended;
     }
     if (path && !path->empty()) {
         session->snapshot.streamUrl = *path;
@@ -1149,7 +1177,10 @@ void loadLinuxProcessPlayback(
         session->snapshot.durationSeconds = -1.0;
         session->snapshot.streamUrl = streamUrl;
         session->snapshot.error.clear();
-        session->snapshot.status = SessionStatus::Playing;
+        // A spawned process has not opened the URL yet: stay `loading` until
+        // the poller sees a decoded position, so a URL that never plays is
+        // never mistaken for one that did (the reconnect policy keys on it).
+        session->snapshot.status = SessionStatus::Loading;
         session->snapshot.audioTracks.clear();
         session->snapshot.selectedAudioTrackId = -1;
         session->snapshot.subtitleTracks.clear();
@@ -1654,6 +1685,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         throw Napi::Error::New(env, NativeVideoHost::lastError());
     }
     traceMpvCommon("native video host created");
+    session->extraOptions = iptvnator::readEmbeddedMpvExtraOptions(info, 4);
 
 #ifdef __linux__
     session->host.setBounds(bounds);
@@ -1705,6 +1737,24 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         session->snapshot.volumePercent
     );
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
+
+    // Session options from Settings (network defaults first, then the
+    // user's lines). Applied last so a user value overrides a built-in one,
+    // and before mpv_initialize because most of them are init-only.
+    for (const auto& option : session->extraOptions) {
+        const int optionResult = mpv_set_option_string(
+            session->handle,
+            option.first.c_str(),
+            option.second.c_str()
+        );
+        if (optionResult < 0) {
+            traceMpvCommon(
+                "rejected session option " + option.first + ": " +
+                mpv_error_string(optionResult)
+            );
+            session->snapshot.rejectedOptionKeys.push_back(option.first);
+        }
+    }
     mpv_request_log_messages(session->handle, "warn");
 
     traceMpvCommon("initializing libmpv");
@@ -1936,8 +1986,16 @@ Napi::Value SetPaused(const Napi::CallbackInfo& info)
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         socketPath = session->mpvIpcSocketPath;
-        session->snapshot.status =
-            paused ? SessionStatus::Paused : SessionStatus::Playing;
+        // Optimistic only while playing/paused: a load in flight or a
+        // finished/failed stream keeps its status until the poller says
+        // otherwise, like the in-process engines' pause handling.
+        if (
+            session->snapshot.status == SessionStatus::Playing ||
+            session->snapshot.status == SessionStatus::Paused
+        ) {
+            session->snapshot.status =
+                paused ? SessionStatus::Paused : SessionStatus::Playing;
+        }
     }
     if (!socketPath.empty()) {
         sendLinuxMpvCommand(
@@ -2375,6 +2433,17 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
     }
     if (!snapshot.error.empty()) {
         result.Set("error", Napi::String::New(env, snapshot.error));
+    }
+    if (!snapshot.rejectedOptionKeys.empty()) {
+        Napi::Array keys =
+            Napi::Array::New(env, snapshot.rejectedOptionKeys.size());
+        for (size_t i = 0; i < snapshot.rejectedOptionKeys.size(); ++i) {
+            keys.Set(
+                static_cast<uint32_t>(i),
+                Napi::String::New(env, snapshot.rejectedOptionKeys[i])
+            );
+        }
+        result.Set("rejectedOptionKeys", keys);
     }
     return result;
 }

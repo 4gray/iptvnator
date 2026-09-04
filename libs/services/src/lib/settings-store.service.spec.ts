@@ -137,6 +137,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().webPlayerSharedControls).toBe(false);
     });
 
+    it('defaults embedded MPV auto-reconnect to true when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().embeddedMpvAutoReconnect).toBe(true);
+    });
+
+    it('restores a persisted false embedded MPV auto-reconnect opt-out', async () => {
+        storedSettings = { embeddedMpvAutoReconnect: false };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().embeddedMpvAutoReconnect).toBe(false);
+    });
+
     it('defaults strip country prefix to false when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);
@@ -144,6 +162,36 @@ describe('SettingsStore dashboard rail settings', () => {
         await store.loadSettings();
 
         expect(store.getSettings().stripCountryPrefix).toBe(false);
+    });
+
+    it('defaults the startup window mode to normal when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().startupWindowMode).toBe('normal');
+    });
+
+    it('restores a persisted fullscreen startup window mode', async () => {
+        storedSettings = { startupWindowMode: 'fullscreen' };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().startupWindowMode).toBe('fullscreen');
+    });
+
+    it('normalizes a persisted unknown startup window mode to normal', async () => {
+        storedSettings = {
+            startupWindowMode:
+                'kiosk' as unknown as Settings['startupWindowMode'],
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().startupWindowMode).toBe('normal');
     });
 
     it('defaults ambient player mode to false when the stored field is missing', async () => {

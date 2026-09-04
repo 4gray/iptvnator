@@ -6,11 +6,13 @@ type SettingsUpdatePayload = Omit<
     | 'embeddedMpvFrameCopy'
     | 'language'
     | 'mpvPlayerArguments'
+    | 'startupWindowMode'
     | 'vlcPlayerArguments'
 > & {
     embeddedMpvFrameCopy?: boolean | number;
     language?: string;
     mpvPlayerArguments?: ExternalPlayerArgumentsSetting;
+    startupWindowMode?: string;
     vlcPlayerArguments?: ExternalPlayerArgumentsSetting;
 };
 type SettingsUpdateHandler = (
@@ -20,9 +22,12 @@ type SettingsUpdateHandler = (
 
 const SETTINGS_UPDATE = 'SETTINGS_UPDATE';
 const STORE_KEYS = {
+    EMBEDDED_MPV_AUTO_RECONNECT: 'EMBEDDED_MPV_AUTO_RECONNECT',
+    EMBEDDED_MPV_EXTRA_OPTIONS: 'EMBEDDED_MPV_EXTRA_OPTIONS',
     EMBEDDED_MPV_FRAME_COPY: 'EMBEDDED_MPV_FRAME_COPY',
     MPV_PLAYER_ARGUMENTS: 'MPV_PLAYER_ARGUMENTS',
     MPV_REUSE_INSTANCE: 'MPV_REUSE_INSTANCE',
+    STARTUP_WINDOW_MODE: 'STARTUP_WINDOW_MODE',
     VLC_PLAYER_ARGUMENTS: 'VLC_PLAYER_ARGUMENTS',
     VLC_REUSE_INSTANCE: 'VLC_REUSE_INSTANCE',
 } as const;
@@ -44,9 +49,12 @@ jest.mock('electron', () => ({
 }));
 
 jest.mock('../services/store.service', () => ({
+    EMBEDDED_MPV_AUTO_RECONNECT: STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT,
+    EMBEDDED_MPV_EXTRA_OPTIONS: STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY: STORE_KEYS.EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS: STORE_KEYS.MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE: STORE_KEYS.MPV_REUSE_INSTANCE,
+    STARTUP_WINDOW_MODE: STORE_KEYS.STARTUP_WINDOW_MODE,
     VLC_PLAYER_ARGUMENTS: STORE_KEYS.VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE: STORE_KEYS.VLC_REUSE_INSTANCE,
     store: {
@@ -136,6 +144,48 @@ describe('SETTINGS_UPDATE', () => {
         expect(mockUpdateSettings).not.toHaveBeenCalled();
     });
 
+    it('mirrors the embedded MPV extra options in canonical form', () => {
+        settingsUpdateHandler(
+            {},
+            { embeddedMpvExtraOptions: ' --hwdec = auto \r\n\nvo=null\n' }
+        );
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS, 'hwdec=auto\nvo=null'],
+        ]);
+        expect(mockUpdateSettings).not.toHaveBeenCalled();
+    });
+
+    it('mirrors the embedded MPV auto-reconnect toggle as a boolean', () => {
+        settingsUpdateHandler({}, { embeddedMpvAutoReconnect: false });
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT, false],
+        ]);
+
+        mockStoreSet.mockClear();
+        settingsUpdateHandler({}, { embeddedMpvAutoReconnect: true });
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT, true],
+        ]);
+    });
+
+    it('mirrors the startup window mode into the main-process store', () => {
+        settingsUpdateHandler({}, { startupWindowMode: 'fullscreen' });
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.STARTUP_WINDOW_MODE, 'fullscreen'],
+        ]);
+        expect(mockUpdateSettings).not.toHaveBeenCalled();
+    });
+
+    it('normalizes an unknown startup window mode to normal instead of storing junk', () => {
+        settingsUpdateHandler({}, { startupWindowMode: 'kiosk' });
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.STARTUP_WINDOW_MODE, 'normal'],
+        ]);
+    });
+
     it('reconciles an enabled remote-control update with the stored port', () => {
         mockStoreGet.mockImplementation(
             (key: string, fallbackValue: unknown): unknown =>
@@ -195,6 +245,26 @@ describe('SETTINGS_UPDATE', () => {
         expect(output).toContain('language');
         expect(output).toContain('de');
         expect(output).toContain('enabled');
+    });
+
+    it('does not print credentials embedded in embedded MPV extra options', () => {
+        const headerSecret = 'embedded-mpv-header-secret';
+
+        settingsUpdateHandler(
+            {},
+            {
+                language: 'de',
+                embeddedMpvExtraOptions: `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${headerSecret}`,
+            }
+        );
+
+        const output = JSON.stringify(consoleLogSpy.mock.calls);
+        expect(output).not.toContain(headerSecret);
+        expect(output).toContain('language');
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS,
+            `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${headerSecret}`
+        );
     });
 
     it('does not print credentials embedded in external player arguments', () => {

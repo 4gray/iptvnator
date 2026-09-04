@@ -1,6 +1,17 @@
 import type { Stats } from 'fs';
 import path from 'path';
 
+// The adapter reaches `electron` through the platform util for packaged
+// paths only; mocking it keeps this suite independent of the Electron binary
+// being present (a CI runner can restore node_modules without it).
+jest.mock('electron', () => ({
+    app: {
+        isPackaged: false,
+        getAppPath: () => '/mock/app',
+        getPath: () => '/mock/user-data',
+    },
+}));
+
 const spawnMock = jest.fn();
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => spawnMock(...args),
@@ -98,7 +109,8 @@ describe('EmbeddedMpvFrameCopyAdapter Linux loader environment', () => {
                 GBM_BACKENDS_PATH: '/tmp/hostile-gbm',
                 LIBGL_DRIVERS_PATH: '/tmp/hostile-dri',
                 LIBVA_DRIVERS_PATH: '/tmp/hostile-va',
-                __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS: '/tmp/hostile-egl-platform',
+                __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS:
+                    '/tmp/hostile-egl-platform',
                 __EGL_VENDOR_LIBRARY_DIRS: '/tmp/hostile-egl-vendor',
                 VK_LAYER_PATH: '/tmp/hostile-vulkan',
                 XDG_CONFIG_HOME: '/tmp/hostile-xdg-config-home',

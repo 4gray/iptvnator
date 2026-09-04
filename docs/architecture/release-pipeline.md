@@ -91,8 +91,9 @@ Highlights drive three behaviors:
   dropping from the tail of the grouped list, which is ordered breaking →
   feature → fix → perf so the least consequential go first. A breaking change
   is never dropped there either.
-- **The blog scaffold** uses the highlight as a ready `###` heading instead of
-  emitting `TODO headline (<area>)`.
+- **The blog scaffold** gives each highlight a row in the opening "What
+  changed" table and its own `##` section ahead of everything else, instead of
+  emitting `TODO headline (<area>)`. Shape below.
 
 Prose fields keep `#`. `parseFrontmatterLine` strips trailing `# comment` text
 only from closed-vocabulary fields (`type`, `area`, `issues`, `screenshot`),
@@ -105,6 +106,33 @@ GitHub body is empty and GitHub's generated commit list carries the detail.
 Both announcement formats then print an explanation on stderr, leave stdout
 empty, and exit 0 — the same shape `extract-changelog-section.mjs --public`
 already uses for its empty public body.
+
+## Blog scaffold shape
+
+`renderBlogScaffold` (`tools/release/release-notes-blog.mjs`) emits the shape
+the published posts end up in, so the editor starts from the form rather than
+from the inventory — the v0.23 post shipped as the raw type-grouped list with
+area prefixes and had to be restructured after publication. In order:
+narrative intro (TODO) → `ReleaseMeta` → `## What changed` (a `ChangeTable`
+with one row per highlight; the theme is the default area label, the impact a
+TODO) → the "About the screenshots" alert when any note names a screenshot →
+one `##` section per highlight or screenshot note, with a `StatusPill`
+matching the note type → `## Breaking changes` → the remaining features folded
+into themed `##` sections → `## Performance` → `## Everything else`, holding
+every remaining fix under a `Spoiler` grouped by theme → the before-updating
+alert → `## Thanks` → `## Download` link cards (release tag, full notes, the
+compare link when a previous version is known, all releases).
+
+Themes come from `BLOG_THEMES`: a conventional-commit `area` says nothing to a
+reader ("matching", "window-controls", "electron-backend"), so notes fold into
+reader-facing headings ("Stalker portals", "Live TV, EPG and M3U"). An unmapped
+area lands in "Other changes" rather than failing; add it to the map when it
+recurs. Two defaults are deliberately dumb: every non-highlighted fix goes into
+the spoiler, and every bullet keeps its full note body. Promoting the fixes
+users will notice, compressing bullets to one line and writing the bold
+lead-ins is the editorial pass, and the scaffold marks where with `TODO`. Only
+the components the post actually uses are imported, so an MDX build never
+fails on an unused import.
 
 ## Highlight cards
 
@@ -126,6 +154,23 @@ palette in `apps/website/tailwind.config.mjs`.
 Screenshots come only from the capture script running against the mock servers.
 Never publish one taken from a real playlist or account — streams, logos and
 metadata are copyrighted, and credentials must never reach a published image.
+
+The same script also produces the evergreen screenshots of the website guides.
+Manifest shots that carry `"group": "guides"` are skipped by a release run and
+captured only with `pnpm release:screenshots --group guides`, which publishes
+into `apps/website/public/blog/guides/screenshots/` instead of a release folder
+(`outputDirectoryFor` in `screenshot-guards.mjs`). Guide shots go through every
+guard a release shot does; the add-playlist dialog shots fill the form with the
+mock's fictional `marketing` credentials and use a labeled hand-out for the
+Auto-detect method rather than a `get.php?username=…` link, because G4 rejects
+any URL carrying query credentials. Shots that walk into a Stalker portal
+(`open-stalker-live`) make the run start the stalker-mock-server on port 3210
+and seed its `marketing-demo` portal as a third source, which is why they are
+never part of a release run. That scenario's MAC, `00:1A:79:00:00:07`, is the
+one MAC-shaped string G4 accepts (`FICTIONAL_STALKER_MAC`); every other MAC
+still fails the frame. The scenario's live channels and logos come from
+`@iptvnator/shared/marketing-fixtures`, served by the mock itself, so no
+third-party image is ever requested.
 
 Output lands in `dist/release-highlight-cards/v<version>/`, outside version
 control — keyed by the exact version, because 0.24.0 and 0.24.1 share a blog

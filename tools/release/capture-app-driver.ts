@@ -14,14 +14,39 @@ import {
     type Page,
 } from '@playwright/test';
 
-import { registerPlaylistId, requirePlaylistId } from './capture-navigation';
+import {
+    M3U_FIXTURE_TITLE,
+    STALKER_FIXTURE_MAC,
+    STALKER_FIXTURE_PORTAL_URL,
+    STALKER_FIXTURE_TITLE,
+    STALKER_MOCK_ORIGIN,
+    XTREAM_FIXTURE_CREDENTIALS,
+    XTREAM_FIXTURE_TITLE,
+    XTREAM_MOCK_ORIGIN,
+} from './capture-fixtures';
+import {
+    clickDialogOption,
+    openAddPlaylistDialog,
+    registerPlaylistId,
+    requirePlaylistId,
+} from './capture-navigation';
+import type { PlaylistProvider } from './capture-navigation';
 
-export const XTREAM_MOCK_ORIGIN = 'http://localhost:3211';
-export const XTREAM_FIXTURE_TITLE = 'Fictional Xtream Demo';
-export const M3U_FIXTURE_TITLE = 'release-demo';
+export {
+    M3U_FIXTURE_TITLE,
+    XTREAM_FIXTURE_TITLE,
+    XTREAM_MOCK_ORIGIN,
+} from './capture-fixtures';
 
 /** Synthetic categories that only the marketing fixture generator produces. */
 const MOCK_FIXTURE_CATEGORIES = ['Action & Mystery', 'Urban Drama'];
+/**
+ * Live categories of the Stalker mock's marketing-demo scenario, from
+ * `MARKETING_LIVE_CATEGORIES` in `@iptvnator/shared/marketing-fixtures`.
+ * Spelled out here because `pnpm release:screenshots` runs tsx without the
+ * base tsconfig, so workspace path aliases do not resolve in this file.
+ */
+const STALKER_MOCK_FIXTURE_CATEGORIES = ['Newsroom', 'Culture & Docs'];
 
 
 /* ------------------------------------------------------------------ */
@@ -102,6 +127,73 @@ export async function ensureXtreamMockServer(
 
     child.kill('SIGTERM');
     throw new Error(`xtream-mock-server did not become healthy at ${healthUrl}`);
+}
+
+export async function ensureStalkerMockServer(
+    workspaceRoot: string
+): Promise<ChildProcess | undefined> {
+    const healthUrl = `${STALKER_MOCK_ORIGIN}/health`;
+
+    if (await isHealthy(healthUrl)) {
+        await assertStalkerMockServerIdentity();
+        return undefined;
+    }
+
+    const child = spawn(
+        path.join(workspaceRoot, 'node_modules/.bin/tsx'),
+        ['--tsconfig', 'tsconfig.base.json', 'apps/stalker-mock-server/src/main.ts'],
+        {
+            cwd: workspaceRoot,
+            env: { ...process.env, NODE_ENV: 'development', PORT: '3210' },
+            stdio: ['ignore', 'pipe', 'pipe'],
+        }
+    );
+
+    child.stderr?.on('data', (chunk) =>
+        process.stderr.write(`[stalker-mock] ${chunk}`)
+    );
+
+    const deadline = Date.now() + 20_000;
+
+    while (Date.now() < deadline) {
+        if (await isHealthy(healthUrl)) {
+            return child;
+        }
+        await sleep(500);
+    }
+
+    child.kill('SIGTERM');
+    throw new Error(`stalker-mock-server did not become healthy at ${healthUrl}`);
+}
+
+/**
+ * Same trust boundary as the Xtream check: whatever answers on the Stalker
+ * port must serve the marketing-demo scenario's fictional live categories.
+ */
+async function assertStalkerMockServerIdentity(): Promise<void> {
+    const response = await fetch(
+        `${STALKER_MOCK_ORIGIN}/portal.php?type=itv&action=get_genres&JsHttpRequest=1-xml`,
+        { headers: { Cookie: `mac=${STALKER_FIXTURE_MAC}; stb_lang=en; timezone=UTC` } }
+    ).catch(() => null);
+
+    if (!response?.ok) {
+        throw new Error(
+            `Something is listening on ${STALKER_MOCK_ORIGIN} but does not answer the Stalker portal API — stop it and let this script start the mock server itself.`
+        );
+    }
+
+    const payload = (await response.json().catch(() => null)) as
+        | { js?: { title?: string }[] }
+        | null;
+    const titles = new Set((payload?.js ?? []).map((entry) => entry.title));
+
+    for (const expected of STALKER_MOCK_FIXTURE_CATEGORIES) {
+        if (!titles.has(expected)) {
+            throw new Error(
+                `The server on ${STALKER_MOCK_ORIGIN} is not the IPTVnator marketing mock (missing live category "${expected}"). Refusing to capture screenshots from unknown data.`
+            );
+        }
+    }
 }
 
 /**
@@ -207,9 +299,21 @@ export async function waitForAppReady(page: Page): Promise<void> {
 /* Seeding                                                             */
 /* ------------------------------------------------------------------ */
 
-export async function seedDemoData(page: Page, m3uPath: string): Promise<void> {
+export interface SeedOptions {
+    /** Also add the Stalker marketing portal (guide shots only: it changes the dashboard). */
+    stalker?: boolean;
+}
+
+export async function seedDemoData(
+    page: Page,
+    m3uPath: string,
+    options: SeedOptions = {}
+): Promise<void> {
     await addXtreamPortal(page);
     await addM3uPlaylist(page, m3uPath);
+    if (options.stalker) {
+        await addStalkerPortal(page);
+    }
     await seedDashboardActivity(page);
 }
 
@@ -288,8 +392,8 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await clickDialogOption(dialog, /xtream credentials/i);
     await dialog.locator('#title').fill(XTREAM_FIXTURE_TITLE);
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_ORIGIN);
-    await dialog.locator('#username').fill('marketing');
-    await dialog.locator('#password').fill('marketing');
+    await dialog.locator('#username').fill(XTREAM_FIXTURE_CREDENTIALS.username);
+    await dialog.locator('#password').fill(XTREAM_FIXTURE_CREDENTIALS.password);
     await dialog
         .getByRole('button', { name: /^(add|add playlist)$/i })
         .last()
@@ -299,6 +403,27 @@ async function addXtreamPortal(page: Page): Promise<void> {
         timeout: 45_000,
     });
     registerPlaylistId('xtreams', idFromUrl(page.url(), 'xtreams'));
+    await page
+        .locator('.category-content-layout, app-content-card')
+        .first()
+        .waitFor({ state: 'visible', timeout: 45_000 });
+}
+
+async function addStalkerPortal(page: Page): Promise<void> {
+    await openAddPlaylistDialog(page);
+    const dialog = page.locator('mat-dialog-container').last();
+
+    await clickDialogOption(dialog, /stalker portal/i);
+    await dialog.locator('#title').fill(STALKER_FIXTURE_TITLE);
+    await dialog.locator('#portalUrl').fill(STALKER_FIXTURE_PORTAL_URL);
+    await dialog.locator('#macAddress').fill(STALKER_FIXTURE_MAC);
+    // Endpoint discovery probes the mock before the row is written.
+    await dialog.getByRole('button', { name: /^add$/i }).last().click();
+    await dialog.waitFor({ state: 'detached', timeout: 60_000 });
+    await page.waitForURL(/\/workspace\/stalker\/[^/]+\/vod/, {
+        timeout: 60_000,
+    });
+    registerPlaylistId('stalker', idFromUrl(page.url(), 'stalker'));
     await page
         .locator('.category-content-layout, app-content-card')
         .first()
@@ -329,40 +454,15 @@ async function addM3uPlaylist(page: Page, m3uPath: string): Promise<void> {
         .waitFor({ state: 'visible', timeout: 60_000 });
 }
 
-async function openAddPlaylistDialog(page: Page): Promise<void> {
-    await page.getByRole('button', { name: /add playlist/i }).first().click();
-    await page
-        .locator('mat-dialog-container')
-        .last()
-        .waitFor({ state: 'visible', timeout: 15_000 });
-}
-
-async function clickDialogOption(
-    dialog: ReturnType<Page['locator']>,
-    label: RegExp
-): Promise<void> {
-    // The add-playlist dialog has changed shape across releases: source
-    // methods were tabs, then plain buttons, now a radio group.
-    for (const role of ['radio', 'tab', 'button'] as const) {
-        const option = dialog.getByRole(role, { name: label }).first();
-
-        if ((await option.count()) > 0) {
-            await option.click();
-            return;
-        }
-    }
-
-    throw new Error(`Dialog option matching ${label} not found`);
-}
-
-
-function idFromUrl(url: string, provider: 'playlists' | 'xtreams'): string {
+function idFromUrl(url: string, provider: PlaylistProvider): string {
     // `provider` is a closed union, but build the pattern from a literal
     // anyway so no future caller can inject regex syntax through it.
     const pattern =
         provider === 'playlists'
             ? /\/workspace\/playlists\/([^/]+)\//
-            : /\/workspace\/xtreams\/([^/]+)\//;
+            : provider === 'xtreams'
+              ? /\/workspace\/xtreams\/([^/]+)\//
+              : /\/workspace\/stalker\/([^/]+)\//;
     const match = url.match(pattern);
 
     if (!match) {

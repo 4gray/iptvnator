@@ -355,3 +355,17 @@ describe('redactSensitiveData', () => {
         });
     });
 });
+
+describe('redactSensitiveData embedded MPV options', () => {
+    it('redacts the whole extra-options text, which can carry request headers', () => {
+        const secret = 'embedded-mpv-header-secret';
+
+        const redacted = redactSensitiveData({
+            player: 'embedded-mpv',
+            embeddedMpvExtraOptions: `cache-secs=5\nhttp-header-fields=X-Playback-Key: ${secret}`,
+        }) as Record<string, unknown>;
+
+        expect(JSON.stringify(redacted)).not.toContain(secret);
+        expect(redacted['player']).toBe('embedded-mpv');
+    });
+});

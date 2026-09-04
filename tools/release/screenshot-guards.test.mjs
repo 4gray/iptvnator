@@ -25,6 +25,10 @@ import {
     parseSetupStep,
     snapshotDatabaseState,
     stubbedResponseFor,
+    DEFAULT_SHOT_GROUP,
+    FICTIONAL_STALKER_MAC,
+    outputDirectoryFor,
+    shotGroup,
     validateManifest,
     validateReleaseSlug,
 } from './screenshot-guards.mjs';
@@ -52,6 +56,25 @@ function validManifest() {
         ],
     };
 }
+
+describe('frame guard MAC allowlist', () => {
+    it('lets the fictional marketing-demo MAC through but no other MAC', () => {
+        const clean = evaluateFrameReport({
+            resourceUrls: [],
+            bodyText: `Mac Address ${FICTIONAL_STALKER_MAC} Serial Number`,
+        });
+        assert.deepEqual(clean, []);
+
+        const leaked = evaluateFrameReport({
+            resourceUrls: [],
+            bodyText: `Mac Address ${FICTIONAL_STALKER_MAC} and 00:1A:79:12:34:56`,
+        });
+        assert.ok(
+            leaked.some((violation) => /00:1A:79:12:34:56/.test(violation)),
+            'a second MAC must still fail the frame'
+        );
+    });
+});
 
 describe('manifest validation', () => {
     it('accepts the committed manifest shape', () => {
@@ -101,6 +124,81 @@ describe('manifest validation', () => {
         assert.ok(
             validateManifest({ version: 1, themes: ['dark', 'light'] }).length > 0
         );
+    });
+
+    it('accepts guide shots that name a group and the actions they use', () => {
+        const manifest = validManifest();
+        manifest.shots.push(
+            {
+                slug: 'guide-xtream-add-playlist',
+                title: 'Add playlist',
+                group: 'guides',
+                setup: ['open-add-playlist-xtream'],
+            },
+            {
+                slug: 'guide-xtream-auto-detect',
+                title: 'Auto-detect',
+                group: 'guides',
+                setup: ['open-add-playlist-auto'],
+            },
+            {
+                slug: 'guide-xtream-live',
+                title: 'Live TV',
+                group: 'guides',
+                setup: ['open-xtream-live=News'],
+            }
+        );
+
+        assert.deepEqual(validateManifest(manifest), []);
+    });
+
+    it('rejects a group that is not a lowercase slug', () => {
+        const manifest = validManifest();
+        manifest.shots.push({
+            slug: 'guide',
+            title: 'x',
+            group: '../v0-24',
+            setup: ['open-dashboard'],
+        });
+
+        assert.ok(
+            validateManifest(manifest).some((error) =>
+                /group must be a lowercase slug/.test(error)
+            )
+        );
+    });
+
+    it('routes release shots by release and grouped shots by group', () => {
+        assert.equal(shotGroup({ slug: 'dashboard' }), DEFAULT_SHOT_GROUP);
+        assert.equal(shotGroup({ slug: 'guide', group: 'guides' }), 'guides');
+        assert.equal(
+            outputDirectoryFor({ blogRoot: '/blog', group: DEFAULT_SHOT_GROUP, release: 'v0-24' }),
+            path.join('/blog', 'v0-24', 'screenshots')
+        );
+        assert.equal(
+            outputDirectoryFor({ blogRoot: '/blog', group: 'guides', release: 'v0-24' }),
+            path.join('/blog', 'guides', 'screenshots')
+        );
+    });
+
+    it('accepts the Stalker guide actions', () => {
+        const manifest = validManifest();
+        manifest.shots.push(
+            {
+                slug: 'guide-stalker-add-playlist',
+                title: 'Stalker form',
+                group: 'guides',
+                setup: ['open-add-playlist-stalker'],
+            },
+            {
+                slug: 'guide-stalker-live',
+                title: 'Stalker live',
+                group: 'guides',
+                setup: ['open-stalker-live'],
+            }
+        );
+
+        assert.deepEqual(validateManifest(manifest), []);
     });
 
     it('parses setup steps with and without a parameter', () => {

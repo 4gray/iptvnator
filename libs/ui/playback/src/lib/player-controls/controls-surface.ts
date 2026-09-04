@@ -1,3 +1,8 @@
+import {
+    blurFocusedControl,
+    clickPointerOrigin,
+} from './pointer-focus-release';
+
 export interface ControlsSurfaceHandlers {
     /** Reveal the controls (pointer move / enter / click on the surface). */
     reveal: () => void;
@@ -36,6 +41,11 @@ const POINTER_ATTRIBUTION_WINDOW_MS = 1000;
 
 const INTERACTIVE_SELECTOR = 'button, input, [role="slider"]';
 
+interface PointerPress {
+    at: number;
+    target: EventTarget | null;
+}
+
 /**
  * Owns the surface + document interaction wiring for the controls: reveal on
  * pointer activity, click-to-pause on the viewport, fullscreen on double-click,
@@ -48,14 +58,20 @@ export class ControlsSurface {
     private surfaceCleanup: (() => void) | null = null;
     private clickPauseTimer: ReturnType<typeof setTimeout> | null = null;
     private lastTouchPointerDownAt: number | null = null;
-    private lastPointerDown: { at: number; target: EventTarget | null } | null =
-        null;
+    /** The most recent press, answered once by the focus event it moved. */
+    private lastPointerDown: PointerPress | null = null;
+    /** The same press, answered once by the click it completes into. */
+    private lastPointerDownClick: PointerPress | null = null;
+    /** Set while {@link releasePointerFocus} dispatches its `focusout`. */
+    private pointerFocusRelease = false;
 
     private readonly onDocumentPointerDown = (event: PointerEvent) => {
         const now = Date.now();
         this.lastTouchPointerDownAt =
             event.pointerType === 'touch' ? now : null;
-        this.lastPointerDown = { at: now, target: event.target };
+        const press: PointerPress = { at: now, target: event.target };
+        this.lastPointerDown = press;
+        this.lastPointerDownClick = press;
         const path = event.composedPath();
         if (
             !this.surface ||
@@ -68,11 +84,13 @@ export class ControlsSurface {
     };
 
     /**
-     * Keyboard input ends pointer attribution: focus that moves after a key
-     * press was moved by the keyboard, whatever the last press hit.
+     * Keyboard input ends pointer attribution: focus that moves, or a click
+     * that fires, after a key press was produced by the keyboard, whatever
+     * the last press hit.
      */
     private readonly onDocumentKeyDown = () => {
         this.lastPointerDown = null;
+        this.lastPointerDownClick = null;
     };
 
     constructor(
@@ -187,6 +205,70 @@ export class ControlsSurface {
             press.target instanceof Node &&
             focused.contains(press.target)
         );
+    }
+
+    /**
+     * Whether a click completes a pointer press rather than keyboard
+     * activation or script. Click events are PointerEvents in current
+     * engines and carry an empty `pointerType` when nothing pointed
+     * (Enter/Space on a focused button, `element.click()`); a legacy
+     * MouseEvent click is attributed to a recent press that landed inside
+     * the clicked element. A press completes into at most one click, so the
+     * record is discarded on the first click it is asked about and on any
+     * key press (`onDocumentKeyDown`).
+     */
+    wasPointerClick(event: MouseEvent): boolean {
+        const origin = clickPointerOrigin(event);
+        if (origin !== null) {
+            return origin;
+        }
+        const press = this.lastPointerDownClick;
+        this.lastPointerDownClick = null;
+        if (
+            press === null ||
+            Date.now() - press.at > POINTER_ATTRIBUTION_WINDOW_MS
+        ) {
+            return false;
+        }
+        const clicked = event.target;
+        return (
+            clicked instanceof Node &&
+            press.target instanceof Node &&
+            clicked.contains(press.target)
+        );
+    }
+
+    /**
+     * Release the focus a pointer click left on a control inside `root`.
+     * Chromium focuses a clicked `<button>`, and a focused control captures
+     * the keyboard: Space and Enter activate it again and the playback
+     * shortcuts yield to it (`ControlsShortcuts` ignores keys whose path
+     * holds an interactive element). That focus was never the keyboard's,
+     * so it is dropped once the click completes. Chromium keeps its
+     * sequential focus navigation starting point at the blurred control, so
+     * a later Tab continues from it exactly as if it were still focused.
+     * Handlers of the resulting `focusout` can recognize the release through
+     * {@link wasPointerFocusRelease}. Returns whether focus was released.
+     * The eligibility rules live in `pointer-focus-release.ts`, shared with
+     * the vendor-chrome Video.js player.
+     */
+    releasePointerFocus(root: HTMLElement): boolean {
+        this.pointerFocusRelease = true;
+        try {
+            return blurFocusedControl(root);
+        } finally {
+            this.pointerFocusRelease = false;
+        }
+    }
+
+    /**
+     * Whether the `focusout` being dispatched right now comes from
+     * {@link releasePointerFocus}: the pointer is still where it clicked, so
+     * hover-scoped state (the volume popover) must not read it as focus
+     * leaving by keyboard.
+     */
+    wasPointerFocusRelease(): boolean {
+        return this.pointerFocusRelease;
     }
 
     private onClick(event: MouseEvent): void {

@@ -92,6 +92,93 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         input.remove();
     });
 
+    describe('F11 window fullscreen toggle', () => {
+        const testWindow = window as unknown as {
+            electron?: Record<string, unknown>;
+        };
+        let toggleFullScreenWindow: jest.Mock;
+
+        function pressF11(
+            init: KeyboardEventInit = {},
+            target: EventTarget = document
+        ): KeyboardEvent {
+            const event = new KeyboardEvent('keydown', {
+                key: 'F11',
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
+            target.dispatchEvent(event);
+            return event;
+        }
+
+        function setHtmlFullscreenElement(element: Element | null): void {
+            Object.defineProperty(document, 'fullscreenElement', {
+                configurable: true,
+                value: element,
+            });
+        }
+
+        beforeEach(() => {
+            toggleFullScreenWindow = jest.fn().mockResolvedValue({
+                isMaximized: false,
+                isFullScreen: true,
+            });
+            testWindow.electron = { toggleFullScreenWindow };
+            setHtmlFullscreenElement(null);
+        });
+
+        afterEach(() => {
+            delete testWindow.electron;
+            setHtmlFullscreenElement(null);
+        });
+
+        it('toggles window fullscreen through the bridge and swallows the key', () => {
+            const event = pressF11();
+
+            expect(toggleFullScreenWindow).toHaveBeenCalledTimes(1);
+            expect(event.defaultPrevented).toBe(true);
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('works while typing in an input — it is the exit from a fullscreen launch', () => {
+            const input = document.createElement('input');
+            document.body.appendChild(input);
+
+            pressF11({}, input);
+
+            expect(toggleFullScreenWindow).toHaveBeenCalledTimes(1);
+            input.remove();
+        });
+
+        it('leaves the key alone while the player owns HTML fullscreen', () => {
+            setHtmlFullscreenElement(document.createElement('div'));
+
+            const event = pressF11();
+
+            expect(toggleFullScreenWindow).not.toHaveBeenCalled();
+            expect(event.defaultPrevented).toBe(false);
+        });
+
+        it('ignores modified and auto-repeated F11 presses', () => {
+            pressF11({ ctrlKey: true });
+            pressF11({ metaKey: true });
+            pressF11({ altKey: true });
+            pressF11({ shiftKey: true });
+            pressF11({ repeat: true });
+
+            expect(toggleFullScreenWindow).not.toHaveBeenCalled();
+        });
+
+        it('leaves F11 to the browser without a bridge', () => {
+            delete testWindow.electron;
+
+            const event = pressF11();
+
+            expect(event.defaultPrevented).toBe(false);
+        });
+    });
+
     it('does not open duplicate dialogs while one is active', () => {
         service.openShortcutsDialog();
         service.openShortcutsDialog();

@@ -662,6 +662,12 @@ export interface ElectronBridgeApi {
     ) => () => void;
     minimizeWindow: () => Promise<void>;
     toggleMaximizeWindow: () => Promise<ElectronBridgeWindowState>;
+    /**
+     * Toggles OS-level window fullscreen (F11). Reports the requested state;
+     * the `onWindowStateChange` push stays authoritative once the window
+     * manager has acted.
+     */
+    toggleFullScreenWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
     getWindowState: () => Promise<ElectronBridgeWindowState>;
     onWindowStateChange: (

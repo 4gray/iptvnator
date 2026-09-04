@@ -1,6 +1,12 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import GiscusComments from '../components/GiscusComments.astro';
+import FaqAccordion from '../components/blog/FaqAccordion.astro';
+
+interface FaqEntry {
+  q: string;
+  a: string;
+}
 
 interface Props {
   title: string;
@@ -10,9 +16,11 @@ interface Props {
   author: string;
   tags?: string[];
   heroImage?: string;
+  /** Optional FAQ from the post frontmatter: rendered after the body and emitted as FAQPage schema. */
+  faq?: FaqEntry[];
 }
 
-const { title, description, pubDate, updatedDate, author, tags = [], heroImage } = Astro.props;
+const { title, description, pubDate, updatedDate, author, tags = [], heroImage, faq = [] } = Astro.props;
 
 const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
@@ -52,6 +60,19 @@ const blogPostSchema = {
   mainEntityOfPage: canonicalURL,
   image: heroImage ? new URL(heroImage, Astro.site).toString() : undefined,
 };
+const faqSchema =
+  faq.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: faq.map((entry) => ({
+          '@type': 'Question',
+          name: entry.q,
+          acceptedAnswer: { '@type': 'Answer', text: entry.a },
+        })),
+      }
+    : null;
+const jsonLd = faqSchema ? [blogPostSchema, faqSchema] : blogPostSchema;
 ---
 
 <BaseLayout
@@ -62,7 +83,7 @@ const blogPostSchema = {
   publishedTime={pubDate.toISOString()}
   modifiedTime={(updatedDate ?? pubDate).toISOString()}
   keywords={tags}
-  jsonLd={blogPostSchema}
+  jsonLd={jsonLd}
 >
   <article class="pt-36 pb-24">
     <div class="relative mx-auto max-w-3xl px-6">
@@ -151,6 +172,17 @@ const blogPostSchema = {
       >
         <slot />
       </div>
+
+      {faq.length > 0 && (
+        <section class="mt-16" aria-labelledby="post-faq-heading">
+          <hr class="section-divider" />
+          <span class="mt-12 block font-mono text-xs uppercase tracking-[0.2em] text-accent-500">FAQ</span>
+          <h2 id="post-faq-heading" class="mt-3 font-display text-2xl font-bold tracking-tight text-surface-50 sm:text-3xl">
+            Frequently asked questions
+          </h2>
+          <FaqAccordion items={faq} />
+        </section>
+      )}
 
       <GiscusComments />
     </div>
