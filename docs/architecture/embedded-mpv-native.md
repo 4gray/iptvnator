@@ -539,6 +539,17 @@ user line overrides both:
 | Linux native-view   | written to a user-only (0600) config file under `userData/embedded-mpv/options-<pid>/` and referenced as `--include=<path>` on the `mpv --wid` command line (before the per-playback options, so a playlist's user-agent/headers still win); the file is removed on dispose, the instance directory on shutdown, and another instance's leftovers only once its process is gone (two instances may share one `userData`) |
 | Frame-copy helper   | the first stdin line (`mpv-options`, helper started with `--mpv-options-stdin`), applied after the helper's built-in block                                                                                                                                                                                                                                                                                               |
 
+The helper's own built-in block is `vo=libmpv`, the session's `hwdec`,
+`keep-open=yes`, `idle=yes`, `input-default-bindings=no`, `osc=no` and
+`ytdl=no`. The last one keeps parity with the native-view addons and the
+external MPV launch path (`--ytdl=no` in `mpv-session.service.ts`): with
+mpv's youtube-dl hook enabled, a refused HTTP open falls through to yt-dlp
+before it fails, which delays the `error` transition and can leave the
+session error reading `youtube-dl failed: unexpected error occurred`
+instead of the load error (the helper stores every error-level libmpv log
+line as the snapshot error, so whichever line lands last wins). A user
+`ytdl=yes` line overrides it like every other built-in.
+
 The list never appears on a command line: an option such as
 `http-header-fields=Authorization: …` would otherwise be readable by every
 local user through `ps` / `/proc/<pid>/cmdline`.
