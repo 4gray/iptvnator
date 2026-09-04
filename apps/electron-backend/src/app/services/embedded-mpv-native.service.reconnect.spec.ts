@@ -9,6 +9,9 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'fs';
+import { tmpdir } from 'os';
+import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
 
 const mockSpawnSync = jest.fn();
@@ -35,9 +38,11 @@ const powerSaveBlockerMock = {
     stop: jest.fn<void, [number]>(),
     isStarted: jest.fn<boolean, [number]>(() => true),
 };
+let userDataDir = '';
 const appMock = {
     isPackaged: true,
     getAppPath: () => '/mock/app.asar',
+    getPath: () => userDataDir,
     commandLine: { getSwitchValue: jest.fn<string, [string]>(() => '') },
 };
 
@@ -139,6 +144,9 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         originalExperiment =
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
         process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT = '1';
+        userDataDir = mkdtempSync(
+            path.join(tmpdir(), 'iptvnator-mpv-options-')
+        );
 
         ({ EmbeddedMpvNativeService } =
             await import('./embedded-mpv-native.service'));
@@ -171,6 +179,7 @@ describe('EmbeddedMpvNativeService reconnect', () => {
     afterEach(() => {
         service.shutdown();
         jest.useRealTimers();
+        rmSync(userDataDir, { recursive: true, force: true });
         Object.defineProperty(process, 'platform', { value: originalPlatform });
         Object.defineProperty(process, 'arch', { value: originalArch });
         if (originalExperiment === undefined) {
@@ -215,6 +224,32 @@ describe('EmbeddedMpvNativeService reconnect', () => {
             0.5,
             ['network-timeout=10', 'hwdec=no']
         );
+    });
+
+    it('hands Linux native-view its options through a user-only include file', () => {
+        Object.defineProperty(process, 'platform', { value: 'linux' });
+        Object.defineProperty(process, 'arch', { value: 'x64' });
+
+        service.createSession(BOUNDS, 'Title', 0.5, {
+            extraOptions: [
+                'network-timeout=10',
+                'http-header-fields=X-Key: secret',
+            ],
+            autoReconnect: true,
+        });
+
+        const addonOptions = addon.createSession.mock.calls[0][4] as string[];
+        expect(addonOptions).toHaveLength(1);
+        expect(addonOptions[0]).toMatch(/^include=.*session-options-.*\.conf$/);
+        const file = addonOptions[0].slice('include='.length);
+        expect(path.dirname(file)).toBe(path.join(userDataDir, 'embedded-mpv'));
+        expect(readFileSync(file, 'utf8')).toBe(
+            'network-timeout=10\nhttp-header-fields=X-Key: secret\n'
+        );
+        expect(statSync(file).mode & 0o777).toBe(0o600);
+
+        service.disposeSession('session-1');
+        expect(existsSync(file)).toBe(false);
     });
 
     it('sends an empty option list when no options were captured', () => {

@@ -9,6 +9,7 @@ import {
 import { isFrameCopyPlatformSupported } from './embedded-mpv-frame-copy-platform.util';
 import {
     applyHelperEvent,
+    buildMpvOptionsPreamble,
     buildLoadPlaybackCommand,
     createInitialSnapshot,
     encodeProtocolValue,
@@ -98,7 +99,6 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         const plan = resolveFrameCopyHelperSpawn({
             bounds,
             environment: this.options.environment,
-            extraOptions,
             helperLaunchFileSystem: this.options.helperLaunchFileSystem,
             helperPath,
             initialVolume,
@@ -125,6 +125,13 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             killTimers: [],
         };
         this.sessions.set(sessionId, session);
+        // The helper blocks on this line before initialising libmpv; it is
+        // the private channel for options that may carry credentials.
+        if (child.stdin.writable) {
+            child.stdin.write(
+                `${buildMpvOptionsPreamble(extraOptions ?? [])}\n`
+            );
+        }
 
         child.stdout.on('data', (chunk: Buffer) =>
             this.consumeStdout(session, chunk)

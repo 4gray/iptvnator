@@ -534,8 +534,12 @@ user line overrides both:
 | -------------------------- | ---------------------------------------------------------- |
 | Windows native-view        | `createSession(..., string[])` → `mpv_set_option_string`  |
 | macOS native-view          | same, in `embedded_mpv.mm`                                 |
-| Linux native-view          | stored on the session, emitted as `--key=value` on the `mpv --wid` command line before the per-playback options, so a playlist's user-agent/headers still win |
-| Frame-copy helper          | one `--mpv-option key=value` argument each, applied after the helper's built-in block |
+| Linux native-view          | written to a user-only (0600) config file under `userData/embedded-mpv/` and referenced as `--include=<path>` on the `mpv --wid` command line (before the per-playback options, so a playlist's user-agent/headers still win); the file is removed on dispose and stale ones are swept at the next start |
+| Frame-copy helper          | the first stdin line (`mpv-options`, helper started with `--mpv-options-stdin`), applied after the helper's built-in block |
+
+The list never appears on a command line: an option such as
+`http-header-fields=Authorization: …` would otherwise be readable by every
+local user through `ps` / `/proc/<pid>/cmdline`.
 
 `EMBEDDED_MPV_NETWORK_DEFAULT_OPTIONS` (`network-timeout=10`,
 `demuxer-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5`) are

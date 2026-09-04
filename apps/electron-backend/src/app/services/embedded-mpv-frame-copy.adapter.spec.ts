@@ -49,7 +49,9 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             '720',
             '--volume',
             '0.8',
+            '--mpv-options-stdin',
         ]);
+        expect(child.stdin.written[0]).toBe('mpv-options\n');
     });
 
     it('caches helper snapshot events for getSessionSnapshot', () => {
@@ -94,21 +96,21 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         );
     });
 
-    it('forwards session options to the helper as --mpv-option arguments', () => {
+    it('sends the session options as the first stdin line, never on argv', () => {
         adapter.createSession(
             Buffer.alloc(0),
             { x: 0, y: 0, width: 640, height: 360 },
             'Title',
             0.8,
-            ['network-timeout=10', 'hwdec=no']
+            ['network-timeout=10', 'http-header-fields=X-Key: s%cr\tet']
         );
         const [, args] = spawnMock.mock.calls[0];
-        expect(args.slice(-4)).toEqual([
-            '--mpv-option',
-            'network-timeout=10',
-            '--mpv-option',
-            'hwdec=no',
-        ]);
+        expect(args).toContain('--mpv-options-stdin');
+        expect(args.join(' ')).not.toContain('network-timeout');
+        expect(args.join(' ')).not.toContain('X-Key');
+        expect(child.stdin.written[0]).toBe(
+            'mpv-options\to000=network-timeout=10\to001=http-header-fields=X-Key: s%25cr%09et\n'
+        );
     });
 
     it('flips the cached snapshot to loading as soon as a load is sent', () => {

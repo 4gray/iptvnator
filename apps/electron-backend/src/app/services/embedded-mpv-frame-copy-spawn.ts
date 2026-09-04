@@ -14,12 +14,6 @@ import type {
 export interface FrameCopyHelperSpawnRequest {
     bounds: EmbeddedMpvBounds;
     environment?: NodeJS.ProcessEnv;
-    /**
-     * `key=value` libmpv options the helper applies after its built-in
-     * block (network defaults + the user's Settings lines); one
-     * `--mpv-option` argument each.
-     */
-    extraOptions?: string[];
     helperLaunchFileSystem?: LinuxFrameCopyHelperLaunchFileSystem;
     helperPath: string;
     initialVolume?: number;
@@ -42,7 +36,6 @@ export function resolveFrameCopyHelperSpawn(
     const {
         bounds,
         environment,
-        extraOptions,
         helperLaunchFileSystem,
         helperPath,
         initialVolume,
@@ -68,10 +61,10 @@ export function resolveFrameCopyHelperSpawn(
         ...(process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY
             ? ['--audio-delay', process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY]
             : []),
+        // Session options follow as the first stdin line (see
+        // buildMpvOptionsPreamble), never as arguments `ps` could read.
+        '--mpv-options-stdin',
     ];
-    for (const option of extraOptions ?? []) {
-        helperArgs.push('--mpv-option', option);
-    }
 
     if (process.platform !== 'linux') {
         return { args: helperArgs, command: helperPath, height, width };

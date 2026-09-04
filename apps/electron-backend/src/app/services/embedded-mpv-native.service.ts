@@ -39,6 +39,12 @@ import {
     EmbeddedMpvReconnectState,
 } from './embedded-mpv-reconnect';
 import type { EmbeddedMpvSessionOptions } from './embedded-mpv-session-options';
+import {
+    removeSessionOptionsFile,
+    resolveSessionOptionsDirectory,
+    sweepSessionOptionsFiles,
+    writeSessionOptionsFile,
+} from './embedded-mpv-session-options-file';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
     getFrameCopyRuntimeAvailability,
@@ -109,6 +115,8 @@ interface EmbeddedMpvRuntimeSession {
     lastPayloadKey: string;
     lastStatus: EmbeddedMpvSessionStatus | null;
     reconnect: EmbeddedMpvReconnectState;
+    /** Linux native-view only: the `--include` file carrying the options. */
+    optionsFile: string | null;
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -128,6 +136,7 @@ export class EmbeddedMpvNativeService {
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
     private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
+    private sessionOptionsFilesSwept = false;
     /**
      * Reloads a dropped stream (see embedded-mpv-reconnect.ts). `publish`
      * runs from a timer, outside the polling try/catch, so it must swallow
@@ -513,13 +522,25 @@ export class EmbeddedMpvNativeService {
             ? Buffer.alloc(0)
             : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
-        const sessionId = addon.createSession(
-            windowHandle,
-            usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds),
-            title,
-            initialVolume,
-            options?.extraOptions ?? []
+        const { addonOptions, optionsFile } = this.prepareSessionOptions(
+            options?.extraOptions ?? [],
+            usesFrameCopyAddon
         );
+        let sessionId: string;
+        try {
+            sessionId = addon.createSession(
+                windowHandle,
+                usesFrameCopyAddon
+                    ? bounds
+                    : this.scaleBoundsForNativeView(bounds),
+                title,
+                initialVolume,
+                addonOptions
+            );
+        } catch (error) {
+            removeSessionOptionsFile(optionsFile);
+            throw error;
+        }
 
         this.sessions.set(sessionId, {
             id: sessionId,
@@ -532,6 +553,7 @@ export class EmbeddedMpvNativeService {
             reconnect: createEmbeddedMpvReconnectState(
                 options?.autoReconnect ?? true
             ),
+            optionsFile,
         });
 
         this.ensurePolling();
@@ -802,12 +824,43 @@ export class EmbeddedMpvNativeService {
         return result.filePaths[0];
     }
 
+    /**
+     * How the session options reach the engine. In-process engines take the
+     * list directly; the frame-copy adapter sends it over the helper's
+     * stdin; Linux native-view runs a separate `mpv --wid` process whose
+     * argv is world-readable, so there the list goes into a user-only
+     * config file referenced with `--include`.
+     */
+    private prepareSessionOptions(
+        extraOptions: string[],
+        usesFrameCopyAddon: boolean
+    ): { addonOptions: string[]; optionsFile: string | null } {
+        if (
+            process.platform !== 'linux' ||
+            usesFrameCopyAddon ||
+            extraOptions.length === 0
+        ) {
+            return { addonOptions: extraOptions, optionsFile: null };
+        }
+        const directory = resolveSessionOptionsDirectory(
+            app.getPath('userData')
+        );
+        if (!this.sessionOptionsFilesSwept) {
+            sweepSessionOptionsFiles(directory);
+            this.sessionOptionsFilesSwept = true;
+        }
+        const optionsFile = writeSessionOptionsFile(directory, extraOptions);
+        return { addonOptions: [`include=${optionsFile}`], optionsFile };
+    }
+
     disposeSession(sessionId: string): EmbeddedMpvSession | null {
         const session = this.sessions.get(sessionId);
         if (!session) {
             return null;
         }
         this.reconnect.cancel(session.reconnect);
+        removeSessionOptionsFile(session.optionsFile);
+        session.optionsFile = null;
 
         let lastRecording: EmbeddedMpvRecordingState | undefined;
         try {

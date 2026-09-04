@@ -25,6 +25,23 @@ export function encodeProtocolValue(value: string): string {
         .replace(/\r/g, '%0D');
 }
 
+/**
+ * The first line the adapter writes to a helper started with
+ * `--mpv-options-stdin`: the session's libmpv options in application order.
+ * They travel over stdin rather than argv so a credential-bearing option is
+ * never visible to `ps`; zero-padded keys keep the order through the
+ * helper's unordered field map.
+ */
+export function buildMpvOptionsPreamble(options: readonly string[]): string {
+    return [
+        'mpv-options',
+        ...options.map(
+            (option, index) =>
+                `o${String(index).padStart(3, '0')}=${encodeProtocolValue(option)}`
+        ),
+    ].join('\t');
+}
+
 export function createInitialSnapshot(): NativeEmbeddedMpvSessionSnapshot {
     return {
         status: 'loading',
