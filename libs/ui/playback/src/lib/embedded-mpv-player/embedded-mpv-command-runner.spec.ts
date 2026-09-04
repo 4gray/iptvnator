@@ -48,6 +48,9 @@ describe('EmbeddedMpvCommandRunner', () => {
             seekEmbeddedMpv: jest
                 .fn()
                 .mockResolvedValue(createSession({ positionSeconds: 42 })),
+            seekEmbeddedMpvBy: jest
+                .fn()
+                .mockResolvedValue(createSession({ positionSeconds: 15 })),
             setEmbeddedMpvVolume: jest
                 .fn()
                 .mockResolvedValue(createSession({ volume: 0.3 })),
@@ -108,6 +111,7 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(await runner.stopRecording()).toBeNull();
         expect(electron.setEmbeddedMpvPaused).not.toHaveBeenCalled();
         expect(electron.seekEmbeddedMpv).not.toHaveBeenCalled();
+        expect(electron.seekEmbeddedMpvBy).not.toHaveBeenCalled();
     });
 
     it('guards session-dependent commands when the session snapshot is missing', async () => {
@@ -116,6 +120,7 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(await runner.seekBy(10)).toBe(false);
         expect(electron.setEmbeddedMpvPaused).not.toHaveBeenCalled();
         expect(electron.seekEmbeddedMpv).not.toHaveBeenCalled();
+        expect(electron.seekEmbeddedMpvBy).not.toHaveBeenCalled();
     });
 
     it('guards every command when the bridge method is unavailable', async () => {
@@ -139,7 +144,31 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(session()?.positionSeconds).toBe(42);
     });
 
-    it('seekBy clamps to zero and reports that it ran', async () => {
+    it('seekBy sends the delta as a relative seek instead of a snapshot-derived target', async () => {
+        // Regression: the snapshot position is a whole-second value refreshed
+        // every 500 ms and a seek reply does not carry the new position, so
+        // two presses inside that window computed as `position + delta` both
+        // landed on the same absolute target (+5 instead of +10).
+        electron.seekEmbeddedMpvBy.mockResolvedValue(
+            createSession({ positionSeconds: 10 })
+        );
+        expect(await runner.seekBy(5)).toBe(true);
+        expect(await runner.seekBy(5)).toBe(true);
+        expect(electron.seekEmbeddedMpvBy.mock.calls).toEqual([
+            ['mpv-1', 5],
+            ['mpv-1', 5],
+        ]);
+        expect(electron.seekEmbeddedMpv).not.toHaveBeenCalled();
+    });
+
+    it('seekBy reconciles the relative-seek reply into the session', async () => {
+        expect(await runner.seekBy(-5)).toBe(true);
+        expect(electron.seekEmbeddedMpvBy).toHaveBeenCalledWith('mpv-1', -5);
+        expect(session()?.positionSeconds).toBe(15);
+    });
+
+    it('seekBy falls back to a zero-clamped absolute seek when the bridge lacks the relative method', async () => {
+        delete electron.seekEmbeddedMpvBy;
         expect(await runner.seekBy(-999)).toBe(true);
         expect(electron.seekEmbeddedMpv).toHaveBeenCalledWith('mpv-1', 0);
         expect(session()?.positionSeconds).toBe(42);
@@ -168,7 +197,7 @@ describe('EmbeddedMpvCommandRunner', () => {
 
     it('swallows IPC errors and leaves the session untouched', async () => {
         const current = session();
-        electron.seekEmbeddedMpv.mockRejectedValueOnce(
+        electron.seekEmbeddedMpvBy.mockRejectedValueOnce(
             new Error('session disposed')
         );
         expect(await runner.seekBy(10)).toBe(true);

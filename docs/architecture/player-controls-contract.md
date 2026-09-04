@@ -215,7 +215,9 @@ owner.
 `PlayerControlsCommands` is an imperative, fire-and-forget surface:
 
 - `togglePlay`
-- `seekTo` / `seekBy`
+- `seekTo` / `seekBy` — `seekBy` is a relative command; Embedded MPV forwards
+  the delta to mpv itself instead of adding it to the snapshot position (see
+  `embedded-mpv-native.md`, "Resume And Track Handling")
 - `setVolume`
 - `setAudioTrack` / `setSubtitleTrack`
 - `addExternalSubtitleFile` / `setSubtitleDelay` / `setSubtitleStyle`

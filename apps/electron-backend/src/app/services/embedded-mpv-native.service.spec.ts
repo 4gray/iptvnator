@@ -102,6 +102,7 @@ interface MockAddon {
     setBounds: jest.Mock<void, [string, EmbeddedMpvBounds]>;
     setPaused: jest.Mock<void, [string, boolean]>;
     seek: jest.Mock<void, [string, number]>;
+    seekBy?: jest.Mock<void, [string, number]>;
     setVolume: jest.Mock<void, [string, number]>;
     setAudioTrack: jest.Mock<void, [string, number]>;
     startRecording: jest.Mock<void, [string, string]>;
@@ -118,6 +119,7 @@ function createMockAddon(): MockAddon {
         setBounds: jest.fn(),
         setPaused: jest.fn(),
         seek: jest.fn(),
+        seekBy: jest.fn(),
         setVolume: jest.fn(),
         setAudioTrack: jest.fn(),
         startRecording: jest.fn(),
@@ -549,6 +551,45 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             // dispatches to the adapter that owns the session.
             service.disposeSession('s-fc-bounds');
         });
+    });
+
+    it('seekBy forwards the delta to the addon as a relative seek and refreshes the snapshot', () => {
+        startSession('s1', snapshot('playing', { positionSeconds: 10 }));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', { positionSeconds: 15.4 })
+        );
+
+        const updated = service.seekBy('s1', 5);
+
+        expect(addon.seekBy).toHaveBeenCalledWith('s1', 5);
+        expect(addon.seek).not.toHaveBeenCalled();
+        expect(updated?.positionSeconds).toBe(15);
+    });
+
+    it('seekBy falls back to a zero-clamped absolute seek from the addon snapshot when the addon lacks seekBy', () => {
+        delete addon.seekBy;
+        startSession('s1', snapshot('playing', { positionSeconds: 10 }));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', { positionSeconds: 12.5 })
+        );
+
+        service.seekBy('s1', -30);
+        expect(addon.seek).toHaveBeenCalledWith('s1', 0);
+
+        service.seekBy('s1', 5);
+        expect(addon.seek).toHaveBeenLastCalledWith('s1', 17.5);
+    });
+
+    it('seekBy ignores a non-finite delta instead of sending it to mpv', () => {
+        startSession('s1', snapshot('playing', { positionSeconds: 10 }));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', { positionSeconds: 10 })
+        );
+
+        service.seekBy('s1', Number.NaN);
+
+        expect(addon.seekBy).not.toHaveBeenCalled();
+        expect(addon.seek).not.toHaveBeenCalled();
     });
 
     it('does not acquire a blocker for a loading session', () => {

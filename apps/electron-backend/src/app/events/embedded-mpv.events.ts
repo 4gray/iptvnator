@@ -7,6 +7,7 @@ import {
     EMBEDDED_MPV_LOAD_PLAYBACK,
     EMBEDDED_MPV_PREPARE,
     EMBEDDED_MPV_SEEK,
+    EMBEDDED_MPV_SEEK_BY,
     EMBEDDED_MPV_SELECT_SUBTITLE_FILE,
     EMBEDDED_MPV_SET_ASPECT,
     EMBEDDED_MPV_SET_AUDIO_TRACK,
@@ -100,6 +101,12 @@ handleEmbeddedMpv(
 
 handleEmbeddedMpv(EMBEDDED_MPV_SEEK, (sessionId: string, seconds: number) =>
     getService().seek(sessionId, seconds)
+);
+
+handleEmbeddedMpv(
+    EMBEDDED_MPV_SEEK_BY,
+    (sessionId: string, deltaSeconds: number) =>
+        getService().seekBy(sessionId, deltaSeconds)
 );
 
 handleEmbeddedMpv(
