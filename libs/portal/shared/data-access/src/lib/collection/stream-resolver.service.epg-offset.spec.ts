@@ -187,4 +187,53 @@ describe('StreamResolverService EPG display offset', () => {
             })
         );
     });
+
+    it('judges timestamp-less Stalker entries by their ISO boundaries', async () => {
+        TestBed.inject(PlaylistsService).getPlaylistById = jest.fn(() =>
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        const nowMs = Date.now();
+        const entry = (id: string, name: string, startOffsetMin: number) => ({
+            id,
+            name,
+            descr: '',
+            time: new Date(nowMs + startOffsetMin * 60_000).toISOString(),
+            time_to: new Date(
+                nowMs + (startOffsetMin + 30) * 60_000
+            ).toISOString(),
+            ch_id: '77',
+        });
+        (
+            TestBed.inject(DataService).sendIpcEvent as jest.Mock
+        ).mockResolvedValue({
+            js: [
+                entry('10', 'Provider now', -10),
+                entry('12', 'Really on air', 50),
+            ],
+        });
+        epgOffsetMinutes = -60;
+
+        const epgMap = await service.loadEpgForItems([
+            {
+                uid: 'stalker::stalker-1::77',
+                name: 'Stalker Channel',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker',
+                stalkerId: '77',
+                tvgId: '77',
+                stalkerCmd: 'ffmpeg http://stalker/77',
+            } satisfies UnifiedCollectionItem,
+        ]);
+
+        // Without unix timestamps the ISO window still rules out the
+        // portal's own "now" entry under the shifted clock.
+        expect(epgMap.get('77')?.title).toBe('Really on air');
+    });
 });

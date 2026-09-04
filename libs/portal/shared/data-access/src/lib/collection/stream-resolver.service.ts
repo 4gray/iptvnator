@@ -1335,24 +1335,29 @@ export class StreamResolverService {
         );
     }
 
+    /**
+     * The item as a preview programme, or null when it is not airing at
+     * `now`. The window comes from the unix timestamps when the portal sends
+     * them and from the ISO boundaries otherwise; an item with no readable
+     * boundary at all is accepted as-is (the portal's own "current" entry).
+     */
     private toPreviewProgram(
         item: EpgItem,
         channelId: string | number,
         now: number
     ): EpgProgram | null {
-        const startTimestamp = Number(item.start_timestamp);
-        const stopTimestamp = Number(item.stop_timestamp);
+        const startMs = epgBoundaryMs(item.start_timestamp, item.start);
+        const stopMs = epgBoundaryMs(
+            item.stop_timestamp,
+            item.stop ?? item.end
+        );
 
         if (
-            Number.isFinite(startTimestamp) &&
-            Number.isFinite(stopTimestamp) &&
-            startTimestamp > 0 &&
-            stopTimestamp > 0
+            startMs !== null &&
+            stopMs !== null &&
+            (now < startMs || now >= stopMs)
         ) {
-            const nowSeconds = Math.floor(now / 1000);
-            if (nowSeconds < startTimestamp || nowSeconds >= stopTimestamp) {
-                return null;
-            }
+            return null;
         }
 
         return {
@@ -1473,4 +1478,17 @@ export class StreamResolverService {
             ) ?? null
         );
     }
+}
+
+/** Epoch ms of a portal EPG boundary: unix seconds when present, else the ISO text. */
+function epgBoundaryMs(
+    timestamp: string | number | null | undefined,
+    iso: string | null | undefined
+): number | null {
+    const seconds = Number(timestamp);
+    if (Number.isFinite(seconds) && seconds > 0) {
+        return seconds * 1000;
+    }
+    const parsed = Date.parse(iso ?? '');
+    return Number.isFinite(parsed) ? parsed : null;
 }
