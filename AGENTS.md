@@ -278,6 +278,16 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
+- Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
+  go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
+  delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper
+  stdin command `seek-by`, Linux JSON IPC) and never advances the snapshot
+  position itself. Do not derive an absolute target from the renderer's
+  `positionSeconds`: it is floored to whole seconds, polled every 500 ms, and
+  a seek reply does not carry the new position, so rapid presses computed from
+  it collapse onto one target. Only the timeline scrub commits an absolute
+  `seek`. Contract: `docs/architecture/embedded-mpv-native.md` ("Resume And
+  Track Handling").
 - DASH (`.mpd`) sources play through a lazily imported Shaka Player source
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
