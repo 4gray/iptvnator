@@ -1158,13 +1158,17 @@ export class EmbeddedMpvNativeService {
         }
         if (
             reconnect &&
-            session.lastRecordingActive &&
             session.lastRecordingStart &&
+            (session.lastRecordingActive ||
+                payload.recording?.active === true) &&
             (previousStatus === 'playing' || previousStatus === 'paused')
         ) {
             // The outage began while a recording was running. Whether that
             // recording is over is decided by the reload hook: only an
-            // actual reload replaces the stream and stops it.
+            // actual reload replaces the stream and stops it. Recording
+            // starts asynchronously on Windows native-view and frame-copy,
+            // so a recording started within the last poll tick shows up as
+            // active only in this very snapshot, next to the error.
             session.recordingRunningAtLoss = true;
         } else if (
             reconnect === null &&

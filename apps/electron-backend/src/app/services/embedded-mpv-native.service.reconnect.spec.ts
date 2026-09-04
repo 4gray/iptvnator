@@ -345,6 +345,30 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         );
     });
 
+    it('sees a recording that became active only in the loss snapshot', () => {
+        startPlayingLive();
+        // Recording starts asynchronously: the immediate refresh after
+        // startRecording() still reports it inactive.
+        service.startRecording('session-1', { title: 'Live channel' });
+        expect(lastUpdate()?.recording?.active).toBeFalsy();
+
+        // The next poll carries the activated recording and the drop together.
+        recordingActive = true;
+        poll('error');
+        expect(lastUpdate()?.reconnect?.attempt).toBe(1);
+
+        status = 'loading';
+        recordingActive = false;
+        jest.advanceTimersByTime(2_000);
+        expect(
+            recordingTrackerMock.onRecordingInterrupted
+        ).toHaveBeenCalledWith('session-1');
+        poll('playing');
+        jest.advanceTimersByTime(1);
+
+        expect(addon.startRecording).toHaveBeenCalledTimes(2);
+    });
+
     it('files the interruption once even when the first reload attempt fails', () => {
         startPlayingLive();
         service.startRecording('session-1', { title: 'Live channel' });
