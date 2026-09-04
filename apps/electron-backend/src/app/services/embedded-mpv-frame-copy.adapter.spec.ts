@@ -1,5 +1,16 @@
 import path from 'path';
 
+// The adapter reaches `electron` through the platform util for packaged
+// paths only; mocking it keeps this suite independent of the Electron binary
+// being present (a CI runner can restore node_modules without it).
+jest.mock('electron', () => ({
+    app: {
+        isPackaged: false,
+        getAppPath: () => '/mock/app',
+        getPath: () => '/mock/user-data',
+    },
+}));
+
 const spawnMock = jest.fn();
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => spawnMock(...args),
