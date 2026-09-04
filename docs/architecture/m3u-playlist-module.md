@@ -581,11 +581,51 @@ panel live. The setting flows end-to-end (`Settings.epgViewMode` →
 is gated behind `supportsEpg`, which is false in PWA; there the stored value
 simply stays at the `'timeline'` default.
 
-EPG display times also support a global `Settings.epgOffsetMinutes` correction,
-clamped to -720..720 minutes and defaulting to zero. It is applied only while
-converting raw programme times for the timeline, list, date filtering, and
-collapsed summary; parsed XMLTV values and SQLite rows are never rewritten, so
-changing the value takes effect immediately without refreshing the guide.
+### EPG display offset
+
+EPG display times also support a global **`Settings.epgOffsetMinutes`**
+correction (Settings → EPG → _EPG time offset_; whole minutes, clamped to ±720,
+default 0) for guides whose provider labels programme times with the wrong
+timezone. It is **display-only**: parsed XMLTV values, SQLite rows, catch-up
+URLs and recording snapshots keep the provider's own times, so changing it
+never needs a guide refresh.
+
+The contract lives in `libs/shared/interfaces/src/lib/epg-display-offset.util.ts`
+and has two equivalent forms — **display** (`epgDisplayTimeMs`: shift a
+programme by `+offset`, then compare with wall-clock now or format it) and
+**clock** (`epgProviderClockMs`: express now as `now − offset` and compare with
+the raw programme times). Every consumer applies exactly one form per
+comparison; applying both doubles the shift.
+
+- **Display form** — everything in `ui/epg` (`getProgramTimeMs` feeds the
+  timeline geometry, list rows, date keys, dedup/equality, the collapsed
+  header's range and progress) receives the offset as the `offsetMinutes`
+  input from each host; `app-channel-list-item`, the dashboard time range and
+  the recording detail shift their labels the same way. The programme dialog
+  and the multi-EPG overlay are opened imperatively, so they read
+  `SettingsStore.resolvedEpgOffsetMinutes` themselves.
+- **Clock form** — every "currently airing" decision, so the row picked as
+  "now" is the one the UI renders as "now": the batched
+  `GET_CURRENT_PROGRAMS_BATCH` lookup takes an explicit `nowMs`
+  (`EpgService` passes its provider clock and tags its 60 s cache with the
+  offset; `ChannelListContainerComponent` refetches when the setting changes),
+  the channel-list progress bars, `XtreamStore.currentEpgItem`, the Xtream and
+  Stalker sidebar previews (re-picked on a change; the Xtream preview queue
+  cuts its window out of the full guide at the provider clock whenever the
+  offset is non-zero, because `get_short_epg` always starts at the provider's
+  own "now" and cannot reach the programme actually on air), the M3U player's
+  `setCurrentEpgProgram` mirror and recording-start snapshot, the unified
+  collection resolver (`StreamResolverService.loadEpgForItems`), the dashboard
+  live cards' progress, and the recording stop-time overlap
+  (`filterRecordingProgramsOverlap`).
+
+Deliberately unshifted: catch-up URLs (built from the raw `programActivated`
+programme), recording snapshots (provider data; only their display is
+shifted), and the remote-control payload. Known limit: Stalker's bulk
+`get_epg_info` and `get_short_epg` also start at the portal's "now", so with a
+positive offset a Stalker sidebar row whose true programme lies in the portal's
+past shows no preview rather than a wrong one. Like the view mode, the control
+is Electron-only in practice — it sits behind `supportsEpg`.
 
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from
