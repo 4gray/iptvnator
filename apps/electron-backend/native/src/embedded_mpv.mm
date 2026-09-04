@@ -2066,6 +2066,12 @@ Napi::Value SeekBy(const Napi::CallbackInfo& info)
     // against its own playback position and merges relative seeks that are
     // still queued, so a burst of presses accumulates instead of collapsing
     // onto one target computed from the renderer's stale snapshot.
+    //
+    // Unlike the absolute Seek above, the snapshot is deliberately NOT
+    // advanced here: the event thread may already have stored the observed
+    // post-seek `time-pos` under the same mutex, and adding the delta on top
+    // of that would count the step twice with nothing to correct it while
+    // paused. Only the observed `time-pos` updates the position.
     const char* command[] = {
         "seek",
         deltaValue.c_str(),
@@ -2084,12 +2090,6 @@ Napi::Value SeekBy(const Napi::CallbackInfo& info)
             std::string("Failed to seek playback: ") +
                 mpv_error_string(result)
         );
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(session->mutex);
-        session->snapshot.positionSeconds =
-            std::max(0.0, session->snapshot.positionSeconds + delta);
     }
 
     return env.Undefined();

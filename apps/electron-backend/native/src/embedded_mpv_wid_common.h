@@ -2014,13 +2014,19 @@ Napi::Value SeekBy(const Napi::CallbackInfo& info)
     // against its own playback position and merges relative seeks that are
     // still queued, so a burst of presses accumulates instead of collapsing
     // onto one target computed from the renderer's stale snapshot.
+    //
+    // Unlike the absolute Seek above, the snapshot is deliberately NOT
+    // advanced here: the observer (event thread or Linux IPC poll) may
+    // already have stored the post-seek `time-pos`, and adding the delta on
+    // top of that would count the step twice with nothing to correct it
+    // while paused; on Linux it would also advertise a position that a
+    // failed socket delivery never reached. Only the observed `time-pos`
+    // updates the position.
 #ifdef __linux__
     std::string socketPath;
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         socketPath = session->mpvIpcSocketPath;
-        session->snapshot.positionSeconds =
-            std::max(0.0, session->snapshot.positionSeconds + delta);
     }
     if (!socketPath.empty()) {
         sendLinuxMpvCommand(
@@ -2040,11 +2046,6 @@ Napi::Value SeekBy(const Napi::CallbackInfo& info)
     );
     if (result < 0) {
         throw Napi::Error::New(env, mpv_error_string(result));
-    }
-    {
-        std::lock_guard<std::mutex> lock(session->mutex);
-        session->snapshot.positionSeconds =
-            std::max(0.0, session->snapshot.positionSeconds + delta);
     }
     return env.Undefined();
 }

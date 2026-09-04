@@ -134,7 +134,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     await window.electron.setEmbeddedMpvPaused(sessionId, true);
                     await window.electron.loadEmbeddedMpvPlayback(sessionId, {
                         streamUrl,
-                        title: 'Two-second generated Y4M fixture',
+                        title: 'Generated Y4M fixture',
                         isLive: false,
                     });
                 },
@@ -179,6 +179,59 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     timeout: 15000,
                 })
                 .toBeGreaterThan(0);
+
+            // Relative seek steps (arrow keys, ±10 s buttons) must reach mpv
+            // as `seek <delta> relative+exact` through the real preload →
+            // main-process → helper `seek-by` path, and a burst issued without
+            // waiting for snapshots has to accumulate. Absolute targets
+            // computed from the stale renderer snapshot collapsed such bursts
+            // onto one target (about one second of progress per press).
+            await launchedFrameCopyApp.mainWindow.evaluate(
+                async (sessionId) => {
+                    const seekBy = window.electron.seekEmbeddedMpvBy;
+                    if (!seekBy) {
+                        throw new Error(
+                            'seekEmbeddedMpvBy is missing from the preload bridge'
+                        );
+                    }
+                    await Promise.all([
+                        seekBy(sessionId, 2),
+                        seekBy(sessionId, 2),
+                        seekBy(sessionId, 2),
+                    ]);
+                },
+                created.id
+            );
+            await expect
+                .poll(
+                    async () =>
+                        (
+                            await getLatestSession(
+                                launchedFrameCopyApp,
+                                created.id
+                            )
+                        )?.positionSeconds,
+                    { timeout: 15000 }
+                )
+                .toBe(6);
+            // Stepping back past the start clamps at zero instead of failing.
+            await launchedFrameCopyApp.mainWindow.evaluate(
+                (sessionId) =>
+                    window.electron.seekEmbeddedMpvBy?.(sessionId, -60),
+                created.id
+            );
+            await expect
+                .poll(
+                    async () =>
+                        (
+                            await getLatestSession(
+                                launchedFrameCopyApp,
+                                created.id
+                            )
+                        )?.positionSeconds,
+                    { timeout: 15000 }
+                )
+                .toBe(0);
 
             await launchedFrameCopyApp.mainWindow.evaluate(
                 (sessionId) =>
