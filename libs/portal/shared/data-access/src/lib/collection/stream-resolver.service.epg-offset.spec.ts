@@ -236,4 +236,59 @@ describe('StreamResolverService EPG display offset', () => {
         // portal's own "now" entry under the shifted clock.
         expect(epgMap.get('77')?.title).toBe('Really on air');
     });
+
+    it('cuts the Xtream window at the instant the batch was evaluated, not when the guide arrives', async () => {
+        jest.useFakeTimers();
+        try {
+            const startMs = Date.parse('2026-05-23T10:00:00.000Z');
+            jest.setSystemTime(startMs);
+            const nowSeconds = Math.floor(startMs / 1000);
+            const listing = (
+                title: string,
+                startOffsetMin: number,
+                durationMin: number
+            ) => {
+                const start = nowSeconds + startOffsetMin * 60;
+                const stop = start + durationMin * 60;
+                return {
+                    id: title,
+                    epg_id: title,
+                    title,
+                    lang: 'en',
+                    description: '',
+                    channel_id: '1',
+                    start: new Date(start * 1000).toISOString(),
+                    end: new Date(stop * 1000).toISOString(),
+                    stop: new Date(stop * 1000).toISOString(),
+                    start_timestamp: String(start),
+                    stop_timestamp: String(stop),
+                };
+            };
+            // +60: the provider clock at the start of the load is 09:00. "A"
+            // covers it and ends at 09:35; the guide takes 40 minutes to
+            // arrive, so a window cut at arrival time would already have
+            // dropped "A" and the row would come back empty.
+            xtreamApi.getFullEpg.mockImplementation(async () => {
+                jest.setSystemTime(startMs + 40 * 60_000);
+                return [listing('A', -90, 65), listing('B', -25, 30)];
+            });
+            epgOffsetMinutes = 60;
+
+            const epgMap = await service.loadEpgForItems([
+                {
+                    uid: 'xtream::xtream-1::1',
+                    name: 'Xtream Live',
+                    contentType: 'live',
+                    sourceType: 'xtream',
+                    playlistId: 'xtream-1',
+                    playlistName: 'Xtream',
+                    xtreamId: 1,
+                } satisfies UnifiedCollectionItem,
+            ]);
+
+            expect(epgMap.get('Xtream Live')?.title).toBe('A');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });

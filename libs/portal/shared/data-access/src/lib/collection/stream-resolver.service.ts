@@ -176,10 +176,15 @@ export class StreamResolverService {
             return epgMap;
         }
 
-        // "Now" in the provider's EPG clock (`epg-display-offset.util.ts`,
-        // clock form): the rows stay raw and the list shifts them for display.
+        // One wall-clock instant for the whole load, and "now" in the
+        // provider's EPG clock derived from it (`epg-display-offset.util.ts`,
+        // clock form): the rows stay raw and the list shifts them for
+        // display. Windows cut from a full guide use the same instant, so a
+        // programme boundary crossed while a request is on the wire cannot
+        // drop the entry the selection below is looking for.
+        const wallNowMs = Date.now();
         const now = epgProviderClockMs(
-            Date.now(),
+            wallNowMs,
             this.settingsStore.resolvedEpgOffsetMinutes()
         );
         const xtreamByPlaylist = new Map<string, UnifiedCollectionItem[]>();
@@ -219,7 +224,13 @@ export class StreamResolverService {
 
         for (const [playlistId, playlistItems] of xtreamByPlaylist.entries()) {
             tasks.push(
-                this.loadXtreamEpgBatch(playlistId, playlistItems, epgMap, now)
+                this.loadXtreamEpgBatch(
+                    playlistId,
+                    playlistItems,
+                    epgMap,
+                    now,
+                    wallNowMs
+                )
             );
         }
 
@@ -920,7 +931,8 @@ export class StreamResolverService {
         playlistId: string,
         channels: UnifiedCollectionItem[],
         epgMap: Map<string, EpgProgram | null>,
-        now: number
+        now: number,
+        wallNowMs: number
     ): Promise<void> {
         const creds = await this.getXtreamCredentials(playlistId);
         if (!creds) {
@@ -991,7 +1003,8 @@ export class StreamResolverService {
                             playlistId,
                             creds,
                             channel.xtreamId,
-                            5
+                            5,
+                            wallNowMs
                         );
                         currentItem =
                             items.find(
@@ -1088,7 +1101,8 @@ export class StreamResolverService {
             password: string;
         },
         streamId: number,
-        limit: number
+        limit: number,
+        wallNowMs = Date.now()
     ): Promise<EpgItem[]> {
         if (!this.supportsProgramLookup) {
             return [];
@@ -1130,7 +1144,8 @@ export class StreamResolverService {
                               { suppressErrorLog: true }
                           ),
                           offsetMinutes,
-                          limit
+                          limit,
+                          wallNowMs
                       );
 
             this.xtreamEpgCache.set(cacheKey, {
