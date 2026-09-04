@@ -6,7 +6,11 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { buildXtreamEpgMappingKey, EpgItem } from '@iptvnator/shared/interfaces';
+import {
+    buildXtreamEpgMappingKey,
+    EpgItem,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     XtreamApiService,
@@ -78,11 +82,22 @@ export function withEpg() {
 
     return signalStoreFeature(
         withState<EpgState>(initialEpgState),
-        withComputed((store) => ({
-            currentEpgItem: computed(() =>
-                findCurrentEpgItem(store.epgItems(), Date.now())
-            ),
-        })),
+        withComputed((store) => {
+            const settingsStore = inject(SettingsStore);
+            return {
+                currentEpgItem: computed(() =>
+                    findCurrentEpgItem(
+                        store.epgItems(),
+                        // Raw provider times vs. now in the provider's clock
+                        // (`epg-display-offset.util.ts`, clock form).
+                        epgProviderClockMs(
+                            Date.now(),
+                            settingsStore.resolvedEpgOffsetMinutes()
+                        )
+                    )
+                ),
+            };
+        }),
 
         withMethods((store) => {
             const apiService = inject(XtreamApiService);

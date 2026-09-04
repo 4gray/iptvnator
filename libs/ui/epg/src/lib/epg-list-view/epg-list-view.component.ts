@@ -34,6 +34,7 @@ import {
     summaryHasTitle,
     summaryMinutesLeft,
     summaryProgress,
+    summaryTimeMs,
 } from '../epg-timeline/epg-summary.util';
 import {
     EpgTimelineEmptyReason,
@@ -195,6 +196,13 @@ export class EpgListViewComponent {
     readonly minutesLeft = computed(() =>
         summaryMinutesLeft(this.summary(), this.nowMs(), this.offsetMinutes())
     );
+    /** Collapsed-header time range in display time (raw summary times shifted). */
+    readonly summaryStartMs = computed(() =>
+        summaryTimeMs(this.summary()?.start, this.offsetMinutes())
+    );
+    readonly summaryStopMs = computed(() =>
+        summaryTimeMs(this.summary()?.stop, this.offsetMinutes())
+    );
 
     private readonly scroll = new EpgListScrollController({
         list: () => this.list()?.nativeElement,
@@ -275,7 +283,6 @@ export class EpgListViewComponent {
                 channelName: this.channelName(),
                 channelLogo: this.channelLogo(),
                 primaryAction: epgDialogActionFor(row.when, row.canCatchUp),
-                displayOffsetMinutes: this.offsetMinutes(),
                 archiveUnavailableNote:
                     row.when === 'past' && !this.archivePlaybackAvailable(),
             })

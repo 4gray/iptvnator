@@ -10,7 +10,11 @@ describe('EpgService', () => {
     let service: EpgService;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     let snackBar: { open: jest.Mock };
-    let settingsStore: { getSettings: jest.Mock; getTrustOptions: jest.Mock };
+    let settingsStore: {
+        getSettings: jest.Mock;
+        getTrustOptions: jest.Mock;
+        resolvedEpgOffsetMinutes: jest.Mock;
+    };
 
     beforeEach(() => {
         epgBridge = {
@@ -34,6 +38,7 @@ describe('EpgService', () => {
                 trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
                 trustedInsecureTlsHosts: ['playlist.local'],
             })),
+            resolvedEpgOffsetMinutes: jest.fn(() => 0),
         };
 
         TestBed.configureTestingModule({
@@ -133,6 +138,90 @@ describe('EpgService', () => {
 
         expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1');
         jest.useRealTimers();
+    });
+
+    it('asks the desktop bridge for programmes airing at the provider clock', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest.fn().mockResolvedValue({});
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(90);
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            await firstValueFrom(
+                service.getCurrentProgramsForChannels(['channel-1'])
+            );
+
+            // +90 min display offset → the guide runs 90 min ahead, so the
+            // row airing "now" is the one the provider files under 09:00.
+            expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
+                ['channel-1'],
+                { nowMs: Date.parse('2026-05-23T09:00:00.000Z') }
+            );
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('picks the current programme in the provider clock for the per-channel lookup', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([
+            {
+                channel: 'channel-1',
+                start: '2026-05-23T09:00:00.000Z',
+                stop: '2026-05-23T10:00:00.000Z',
+                title: 'Really On Air',
+            },
+            {
+                channel: 'channel-1',
+                start: '2026-05-23T10:00:00.000Z',
+                stop: '2026-05-23T11:00:00.000Z',
+                title: 'Provider Says Now',
+            },
+        ]);
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            await expect(
+                firstValueFrom(service.getCurrentProgramForChannel('channel-1'))
+            ).resolves.toMatchObject({ title: 'Really On Air' });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('drops cached current programmes when the display offset changes', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest.fn().mockResolvedValue({
+            'guide-news': null,
+        });
+
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(30);
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+
+        // A different offset is a different "now", so the 60 s cache must
+        // not answer with the previous verdict.
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
     });
 
     it('caches current program lookups separately by EPG source URL scope', async () => {
@@ -305,12 +394,16 @@ describe('EpgService', () => {
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
             1,
             ['guide-news', 'guide-sports'],
-            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            expect.objectContaining({
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
         );
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
             2,
             ['guide-sports'],
-            { sourceUrls: ['https://global.example.com/guide.xml'] }
+            expect.objectContaining({
+                sourceUrls: ['https://global.example.com/guide.xml'],
+            })
         );
     });
 
@@ -331,7 +424,9 @@ describe('EpgService', () => {
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
             ['guide-sports'],
-            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            expect.objectContaining({
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
         );
     });
 
@@ -557,7 +652,9 @@ describe('EpgService', () => {
             expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
             expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
                 ['guide-news'],
-                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+                expect.objectContaining({
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                })
             );
         } finally {
             consoleError.mockRestore();

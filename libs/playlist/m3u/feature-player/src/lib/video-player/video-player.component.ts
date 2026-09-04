@@ -112,6 +112,7 @@ import {
     Channel,
     createDevLogger,
     EpgProgram,
+    epgProviderClockMs,
     ExternalPlayerSession,
     filterRecordingProgramsOverlap,
     OPEN_MPV_PLAYER,
@@ -436,7 +437,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         // gap must snapshot no program, not a stale one — stop enrichment
         // deliberately never overwrites a persisted start title.
         const program =
-            findCurrentEpgProgram(this.epgPrograms(), this.epgNowMs()) ?? null;
+            findCurrentEpgProgram(
+                this.epgPrograms(),
+                epgProviderClockMs(this.epgNowMs(), this.epgOffsetMinutes())
+            ) ?? null;
         const playlistName = playlistDisplayLabel(
             this.activePlaylistMeta()?.title
         );
@@ -484,7 +488,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         const programs = filterRecordingProgramsOverlap(
             this.epgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -618,7 +623,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 EpgActions.setEpgAvailableFlag({ value: programs.length > 0 })
             );
 
-            const currentProgram = findCurrentEpgProgram(programs, nowMs);
+            // Raw programme times vs. now in the provider's EPG clock
+            // (`epg-display-offset.util.ts`, clock form).
+            const currentProgram = findCurrentEpgProgram(
+                programs,
+                epgProviderClockMs(nowMs, this.epgOffsetMinutes())
+            );
             if (currentProgram) {
                 this.store.dispatch(
                     EpgActions.setCurrentEpgProgram({ program: currentProgram })

@@ -15,7 +15,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
+import {
+    EpgItemDescriptionComponent,
+    getProgramTimeMs,
+} from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
@@ -109,10 +112,9 @@ export class ChannelListItemComponent {
         this.showProgramDescription(program, event);
     }
 
-    programTimeMs(value: string, timestamp?: number | null): number {
-        return Number.isFinite(timestamp) && Number(timestamp) > 0
-            ? Number(timestamp) * 1000
-            : Date.parse(value);
+    /** Programme boundary in display time (raw time + the EPG display offset). */
+    programDisplayMs(value: string, timestamp?: number | null): number {
+        return getProgramTimeMs(value, timestamp, this.epgOffsetMinutes());
     }
 
     onFavoriteClick(event: MouseEvent): void {

@@ -134,6 +134,7 @@ describe('ChannelListContainerComponent', () => {
                     provide: SettingsStore,
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
+                        resolvedEpgOffsetMinutes: signal(0),
                     },
                 },
                 {

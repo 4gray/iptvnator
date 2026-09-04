@@ -75,8 +75,8 @@
                     }}</span>
                     @if (hasTimeRange()) {
                         <span class="epg-timeline__summary-meta"
-                            >{{ summary()?.start | date: 'HH:mm' }} –
-                            {{ summary()?.stop | date: 'HH:mm' }}</span
+                            >{{ summaryStartMs() | date: 'HH:mm' }} –
+                            {{ summaryStopMs() | date: 'HH:mm' }}</span
                         >
                     }
                 }

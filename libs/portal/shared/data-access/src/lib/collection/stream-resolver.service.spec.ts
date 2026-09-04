@@ -12,6 +12,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
+    SettingsStore,
 } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -65,6 +66,10 @@ describe('StreamResolverService', () => {
                 { provide: XtreamApiService, useValue: xtreamApi },
                 { provide: XtreamUrlService, useValue: xtreamUrl },
                 { provide: DataService, useValue: dataService },
+                {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: () => 0 },
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,

@@ -67,6 +67,7 @@ import {
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -194,7 +195,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         // previous show.
         const program = findCurrentEpgItem(
             this.epgItems(),
-            this.currentTimeMs()
+            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
         );
         return {
             channelName: item.title?.trim() || item.name?.trim() || 'Live TV',
@@ -236,7 +237,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         const programs = filterRecordingProgramsOverlap(
             this.controlledEpgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;

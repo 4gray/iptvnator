@@ -240,6 +240,28 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             this.fetchEpgForChannels(this._channelList);
         });
     });
+    private appliedEpgOffsetMinutes: number | null = null;
+    /**
+     * A changed display offset moves "now" in the provider's clock, so the
+     * current-programme map is fetched again (`EpgService` tags its cache
+     * with the offset, so this is a real refetch rather than a cache hit).
+     * The first run only records the initial value.
+     */
+    private readonly epgOffsetRefreshEffect = effect(() => {
+        const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+        if (this.appliedEpgOffsetMinutes === offsetMinutes) {
+            return;
+        }
+        const isInitial = this.appliedEpgOffsetMinutes === null;
+        this.appliedEpgOffsetMinutes = offsetMinutes;
+        if (isInitial || this._channelList.length === 0) {
+            return;
+        }
+
+        untracked(() => {
+            this.fetchEpgForChannels(this._channelList);
+        });
+    });
 
     get channelList(): Channel[] {
         return this._channelList;

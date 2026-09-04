@@ -27,9 +27,12 @@ import {
     Channel,
     ElectronBridgeEpgChannelWithPrograms,
     EpgChannel,
+    epgDisplayTimeMs,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import { SettingsStore } from '@iptvnator/services';
+import { getProgramTimeMs } from '../epg-program.utils';
 import { EpgItemDescriptionComponent } from '../epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
@@ -175,6 +178,13 @@ export class MultiEpgContainerComponent
     private readonly dialog = inject(MatDialog);
     private readonly overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
+    /**
+     * Attached to an overlay without host inputs, so the grid reads the EPG
+     * display offset itself (`epg-display-offset.util.ts`, display form).
+     */
+    private readonly epgOffsetMinutes =
+        this.settingsStore.resolvedEpgOffsetMinutes;
 
     ngOnInit() {
         // Update current time line every minute
@@ -316,23 +326,55 @@ export class MultiEpgContainerComponent
         return date;
     }
 
+    /** The cached raw date shifted into display time. */
+    private getDisplayDate(dateStr: string, offsetMinutes: number): Date {
+        const raw = this.getCachedDate(dateStr);
+        return offsetMinutes === 0
+            ? raw
+            : new Date(epgDisplayTimeMs(raw.getTime(), offsetMinutes));
+    }
+
+    /** Display-time epoch ms of a search-result boundary for the date pipe. */
+    programDisplayMs(program: EpgProgram, side: 'start' | 'stop'): number {
+        return side === 'start'
+            ? getProgramTimeMs(
+                  program.start,
+                  program.startTimestamp,
+                  this.epgOffsetMinutes()
+              )
+            : getProgramTimeMs(
+                  program.stop,
+                  program.stopTimestamp,
+                  this.epgOffsetMinutes()
+              );
+    }
+
     private enrichProgramData(): EnrichedChannel[] {
         const hourWidthValue = this.hourWidth();
         const todayValue = this.today();
         const data = this.originalEpgData();
+        // Day filter and x-position both work in display time, so a shifted
+        // programme lands in the right day column under the right hour.
+        const offsetMinutes = this.epgOffsetMinutes();
 
         return data.map((channel) => {
             const filteredPrograms = (channel.programs || [])
                 .filter((item: EpgProgram) => {
                     const itemDate = format(
-                        this.getCachedDate(item.start),
+                        this.getDisplayDate(item.start, offsetMinutes),
                         'yyyyMMdd'
                     );
                     return itemDate === todayValue;
                 })
                 .map((program: EpgProgram) => {
-                    const startDate = this.getCachedDate(program.start);
-                    const stopDate = this.getCachedDate(program.stop);
+                    const startDate = this.getDisplayDate(
+                        program.start,
+                        offsetMinutes
+                    );
+                    const stopDate = this.getDisplayDate(
+                        program.stop,
+                        offsetMinutes
+                    );
                     const startPosition =
                         (startDate.getHours() + startDate.getMinutes() / 60) *
                         hourWidthValue;

@@ -5,6 +5,7 @@ import {
     summaryHasTitle,
     summaryMinutesLeft,
     summaryProgress,
+    summaryTimeMs,
 } from './epg-summary.util';
 
 const HOUR_MS = 60 * 60_000;
@@ -17,6 +18,26 @@ function summary(overrides: EpgTimelineSummary = {}): EpgTimelineSummary {
 }
 
 describe('epg-summary.util', () => {
+    describe('summaryTimeMs', () => {
+        it('parses every summary shape into epoch ms', () => {
+            expect(summaryTimeMs(START)).toBe(START);
+            expect(summaryTimeMs(new Date(START))).toBe(START);
+            expect(summaryTimeMs(new Date(START).toISOString())).toBe(START);
+        });
+
+        it('returns null for blank or unparseable values', () => {
+            expect(summaryTimeMs(null)).toBeNull();
+            expect(summaryTimeMs(undefined)).toBeNull();
+            expect(summaryTimeMs('')).toBeNull();
+            expect(summaryTimeMs('not a date')).toBeNull();
+        });
+
+        it('shifts the raw provider time into display time by the offset', () => {
+            expect(summaryTimeMs(START, 30)).toBe(START + 30 * 60_000);
+            expect(summaryTimeMs(START, -90)).toBe(START - 90 * 60_000);
+        });
+    });
+
     describe('summaryProgress', () => {
         it('returns null for a missing summary', () => {
             expect(summaryProgress(null, NOW)).toBeNull();

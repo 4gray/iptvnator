@@ -3,6 +3,7 @@ import { Subject } from 'rxjs';
 import {
     buildXtreamEpgMappingKey,
     EpgItem,
+    epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
@@ -12,6 +13,21 @@ import { createLogger } from '@iptvnator/portal/shared/util';
 interface CacheEntry {
     data: EpgItem[];
     timestamp: number;
+    /** Display offset the window was cut for; a changed setting makes it stale. */
+    offsetMinutes: number;
+}
+
+function epgItemSeconds(item: EpgItem, side: 'start' | 'stop'): number {
+    const raw = Number(
+        side === 'start' ? item.start_timestamp : item.stop_timestamp
+    );
+    if (Number.isFinite(raw) && raw > 0) {
+        return raw;
+    }
+    const parsed = Date.parse(
+        (side === 'start' ? item.start : (item.stop ?? item.end)) ?? ''
+    );
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Number.NaN;
 }
 
 /**
@@ -75,11 +91,43 @@ export class EpgQueueService implements OnDestroy {
     getCached(streamId: number): EpgItem[] | null {
         const entry = this.cache.get(streamId);
         if (!entry) return null;
-        if (Date.now() - entry.timestamp > this.cacheTtlMs) {
+        if (
+            Date.now() - entry.timestamp > this.cacheTtlMs ||
+            entry.offsetMinutes !== this.epgOffsetMinutes()
+        ) {
             this.cache.delete(streamId);
             return null;
         }
         return entry.data;
+    }
+
+    private epgOffsetMinutes(): number {
+        return this.settingsStore.resolvedEpgOffsetMinutes();
+    }
+
+    /**
+     * The short EPG always starts at the provider's own "now", so under a
+     * display offset it cannot contain the programme actually on air: for a
+     * positive offset that programme lies in the provider's past, for a
+     * negative one it can sit further ahead than `previewLimit` items. Cut
+     * the same window out of the full guide at the provider clock instead
+     * (`epg-display-offset.util.ts`, clock form).
+     */
+    private windowAtProviderClock(
+        items: EpgItem[],
+        offsetMinutes: number
+    ): EpgItem[] {
+        const nowSeconds = Math.floor(
+            epgProviderClockMs(Date.now(), offsetMinutes) / 1000
+        );
+        return [...items]
+            .sort(
+                (left, right) =>
+                    epgItemSeconds(left, 'start') -
+                    epgItemSeconds(right, 'start')
+            )
+            .filter((item) => epgItemSeconds(item, 'stop') > nowSeconds)
+            .slice(0, this.previewLimit);
     }
 
     /**
@@ -333,13 +381,26 @@ export class EpgQueueService implements OnDestroy {
         const startEpoch = this.invalidationEpoch.get(streamId) ?? 0;
         const isStale = (): boolean =>
             (this.invalidationEpoch.get(streamId) ?? 0) !== startEpoch;
+        // Captured before the request so the entry is tagged with the offset
+        // its window was cut for, not the one current when it lands.
+        const offsetMinutes = this.epgOffsetMinutes();
         try {
-            const apiItems = await this.apiService.getShortEpg(
-                credentials,
-                streamId,
-                this.previewLimit,
-                { suppressErrorLog: true }
-            );
+            const apiItems =
+                offsetMinutes === 0
+                    ? await this.apiService.getShortEpg(
+                          credentials,
+                          streamId,
+                          this.previewLimit,
+                          { suppressErrorLog: true }
+                      )
+                    : this.windowAtProviderClock(
+                          await this.apiService.getFullEpg(
+                              credentials,
+                              streamId,
+                              { suppressErrorLog: true }
+                          ),
+                          offsetMinutes
+                      );
 
             // A mapping change during the request invalidated this result.
             if (isStale()) {
@@ -347,12 +408,12 @@ export class EpgQueueService implements OnDestroy {
             }
 
             if (apiItems.length > 0) {
-                this.recordSuccess(streamId, apiItems);
+                this.recordSuccess(streamId, apiItems, offsetMinutes);
                 return;
             }
 
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
-            this.recordSuccess(streamId, xmltv ? [xmltv] : []);
+            this.recordSuccess(streamId, xmltv ? [xmltv] : [], offsetMinutes);
         } catch (error) {
             if (isStale()) {
                 return;
@@ -374,9 +435,17 @@ export class EpgQueueService implements OnDestroy {
         }
     }
 
-    private recordSuccess(streamId: number, items: EpgItem[]): void {
+    private recordSuccess(
+        streamId: number,
+        items: EpgItem[],
+        offsetMinutes = this.epgOffsetMinutes()
+    ): void {
         const previous = this.cache.get(streamId)?.data;
-        this.cache.set(streamId, { data: items, timestamp: Date.now() });
+        this.cache.set(streamId, {
+            data: items,
+            timestamp: Date.now(),
+            offsetMinutes,
+        });
         this.failureTimestamps.delete(streamId);
 
         if (previous && previous.length === 0 && items.length === 0) {

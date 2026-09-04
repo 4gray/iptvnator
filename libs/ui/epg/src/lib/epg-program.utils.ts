@@ -1,7 +1,17 @@
 import { format } from 'date-fns';
-import type { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    epgDisplayTimeMs,
+    type EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { EPG_DATE_KEY_FORMAT } from './epg-date';
 
+/**
+ * A programme boundary as epoch ms in DISPLAY time: the unix timestamp when
+ * present (the ISO string may carry a provider-local offset the parser could
+ * not resolve), else the parsed ISO value, shifted by the EPG display offset
+ * (`epg-display-offset.util.ts`, display form). Every ui/epg geometry, date
+ * and equality helper below goes through this one conversion.
+ */
 export function getProgramTimeMs(
     isoValue: string,
     timestampValue?: number | null,
@@ -11,7 +21,7 @@ export function getProgramTimeMs(
         Number.isFinite(timestampValue) && Number(timestampValue) > 0
             ? Number(timestampValue) * 1000
             : Date.parse(isoValue);
-    return baseMs + offsetMinutes * 60_000;
+    return epgDisplayTimeMs(baseMs, offsetMinutes);
 }
 
 export function getProgramDateKey(

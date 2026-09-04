@@ -1,5 +1,9 @@
 import { ResolvedLiveCollectionDetail } from '@iptvnator/portal/shared/data-access';
-import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    epgDisplayTimeMs,
+    EpgItem,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 
 /**
@@ -127,12 +131,12 @@ function getProgramTimeMs(
 ): number | null {
     const timestamp = Number.parseInt(String(rawTimestamp ?? ''), 10);
     if (Number.isFinite(timestamp) && timestamp > 0) {
-        return timestamp * 1000 + offsetMinutes * 60_000;
+        return epgDisplayTimeMs(timestamp * 1000, offsetMinutes);
     }
 
     const parsedDate = Date.parse(rawDate ?? '');
     return Number.isFinite(parsedDate)
-        ? parsedDate + offsetMinutes * 60_000
+        ? epgDisplayTimeMs(parsedDate, offsetMinutes)
         : null;
 }
 

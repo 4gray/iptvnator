@@ -178,6 +178,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
         resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
+        resolvedEpgOffsetMinutes: signal(0),
     };
     const originalElectron = window.electron;
 

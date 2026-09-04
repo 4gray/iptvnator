@@ -48,11 +48,11 @@ import {
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { Overlay } from '@angular/cdk/overlay';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
+import { StubEpgTimelineComponent } from './video-player.spec-stubs';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -127,38 +127,6 @@ class StubWebPlayerViewComponent {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly recordingStopped = output<RecordingStoppedEvent>();
-}
-
-// Matches both live-panel selectors so the host's timeline ↔ list swap can be
-// asserted by tag name; both branches share the identical contract.
-@Component({
-    selector: 'app-epg-timeline, app-epg-list-view',
-    standalone: true,
-    template: '',
-})
-class StubEpgTimelineComponent {
-    readonly programs = input<EpgProgram[]>([]);
-    readonly channelName = input('');
-    readonly channelLogo = input('');
-    readonly archivePlaybackAvailable = input(false);
-    readonly archiveDays = input(0);
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly isLivePlayback = input(true);
-    readonly loading = input(false);
-    readonly emptyReason = input<string | null>(null);
-    readonly selectedDate = input<string | null>(null);
-    readonly collapsed = input(false);
-    readonly summary = input<LiveEpgPanelSummary | null>(null);
-    readonly summaryLabelKey = input('');
-    readonly programActivated = output<{
-        program?: EpgProgram;
-        type: 'timeshift' | 'live';
-    }>();
-    readonly returnToLive = output<void>();
-    readonly selectedDateChange = output<string>();
-    readonly openEpgSettings = output<void>();
-    readonly retry = output<void>();
-    readonly collapsedChange = output<boolean>();
 }
 
 @Directive({
@@ -420,6 +388,7 @@ describe('VideoPlayerComponent', () => {
                         showCaptions,
                         stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
+                        resolvedEpgOffsetMinutes: signal(0),
                         epgUrl: epgUrlSetting,
                     },
                 },

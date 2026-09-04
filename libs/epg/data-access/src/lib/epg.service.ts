@@ -15,6 +15,7 @@ import {
     createDevLogger,
     EpgChannelMetadata,
     EpgProgram,
+    epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import {
@@ -27,6 +28,8 @@ import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 interface CachedProgram {
     program: EpgProgram | null;
     timestamp: number;
+    /** Display offset the "now" verdict was computed with; a changed setting invalidates the entry. */
+    offsetMinutes: number;
 }
 
 const debugEpgService = createDevLogger('EpgService');
@@ -54,6 +57,21 @@ export class EpgService {
         Observable<Map<string, EpgProgram | null>>
     >();
     private readonly CACHE_TTL = 60000; // 60 seconds
+
+    /** Display offset every "currently airing" decision in here is made with. */
+    private epgOffsetMinutes(): number {
+        return this.settingsStore.resolvedEpgOffsetMinutes();
+    }
+
+    /**
+     * Wall-clock now expressed in the provider's uncorrected EPG clock. Raw
+     * programme rows are compared against this instant, so the row picked
+     * as "now" is the one the UI also renders as "now" once it shifts the
+     * times for display (`epg-display-offset.util.ts`, clock form).
+     */
+    private epgClockMs(): number {
+        return epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
+    }
 
     readonly epgAvailable$ = this.epgAvailable.asObservable();
     readonly currentEpgPrograms$ = this.currentEpgPrograms.asObservable();
@@ -185,12 +203,12 @@ export class EpgService {
      * Finds the current program from a list of programs
      */
     private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
-        const now = new Date();
+        const now = this.epgClockMs();
 
         return (
             programs.find((program) => {
-                const start = new Date(program.start);
-                const stop = new Date(program.stop);
+                const start = new Date(program.start).getTime();
+                const stop = new Date(program.stop).getTime();
                 return start <= now && now <= stop;
             }) || null
         );
@@ -239,11 +257,16 @@ export class EpgService {
         const resultMap = new Map<string, EpgProgram | null>();
         const channelsToFetch: string[] = [];
         const now = Date.now();
+        const offsetMinutes = this.epgOffsetMinutes();
 
         // Check cache for each channel
         channelIds.forEach((channelId) => {
             const cached = this.programCache.get(channelId);
-            if (cached && now - cached.timestamp < this.CACHE_TTL) {
+            if (
+                cached &&
+                now - cached.timestamp < this.CACHE_TTL &&
+                cached.offsetMinutes === offsetMinutes
+            ) {
                 resultMap.set(channelId, cached.program);
             } else {
                 channelsToFetch.push(channelId);
@@ -260,7 +283,9 @@ export class EpgService {
         // GET_CHANNEL_PROGRAMS round-trip.
         if (this.epgBridge.supportsCurrentProgramBatch) {
             return from(
-                this.epgBridge.getCurrentProgramsBatch(channelsToFetch)
+                this.epgBridge.getCurrentProgramsBatch(channelsToFetch, {
+                    nowMs: this.epgClockMs(),
+                })
             ).pipe(
                 timeout(5000),
                 map((batchResult) => {
@@ -271,6 +296,7 @@ export class EpgService {
                         this.programCache.set(channelId, {
                             program,
                             timestamp: cacheTimestamp,
+                            offsetMinutes,
                         });
                     });
                     return resultMap;
@@ -336,6 +362,9 @@ export class EpgService {
         );
         const existingRequest =
             this.fetchingCurrentProgramBatches.get(batchCacheKey);
+        // Tag entries with the offset the verdict was computed with, not the
+        // one current when the response lands.
+        const offsetMinutes = this.epgOffsetMinutes();
         const request$ =
             existingRequest ??
             this.fetchScopedCurrentProgramsBatch(
@@ -351,6 +380,7 @@ export class EpgService {
                             {
                                 program: fetchedMap.get(channelId) ?? null,
                                 timestamp: cacheTimestamp,
+                                offsetMinutes,
                             }
                         );
                     });
@@ -384,9 +414,11 @@ export class EpgService {
         sourceUrls: string[],
         fallbackSourceUrls: string[]
     ): Observable<Map<string, EpgProgram | null>> {
+        const nowMs = this.epgClockMs();
         return from(
             this.epgBridge.getCurrentProgramsBatch(channelIds, {
                 sourceUrls,
+                nowMs,
             })
         ).pipe(
             timeout(5000),
@@ -413,6 +445,7 @@ export class EpgService {
                 return from(
                     this.epgBridge.getCurrentProgramsBatch(fallbackChannelIds, {
                         sourceUrls: fallbackSourceUrls,
+                        nowMs,
                     })
                 ).pipe(
                     timeout(5000),
@@ -573,7 +606,10 @@ export class EpgService {
             return undefined;
         }
 
-        if (Date.now() - cached.timestamp >= this.CACHE_TTL) {
+        if (
+            Date.now() - cached.timestamp >= this.CACHE_TTL ||
+            cached.offsetMinutes !== this.epgOffsetMinutes()
+        ) {
             this.programCache.delete(cacheKey);
             return undefined;
         }
@@ -595,11 +631,13 @@ export class EpgService {
             return existingRequest;
         }
 
+        const offsetMinutes = this.epgOffsetMinutes();
         const request$ = fetchProgram().pipe(
             tap((program) => {
                 this.programCache.set(cacheKey, {
                     program,
                     timestamp: Date.now(),
+                    offsetMinutes,
                 });
             }),
             finalize(() => {

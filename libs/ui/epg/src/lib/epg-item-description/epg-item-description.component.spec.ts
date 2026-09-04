@@ -1,8 +1,10 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgItemDescriptionComponent } from './epg-item-description.component';
 
@@ -26,8 +28,11 @@ describe('EpgItemDescriptionComponent', () => {
                         title: 'TV Show 1',
                         desc: 'Highly interesting show about pets',
                         category: 'Fun',
-                        displayOffsetMinutes: 60,
                     } as unknown as EpgProgram,
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: signal(60) },
                 },
             ],
         }).compileComponents();
@@ -66,7 +71,7 @@ describe('EpgItemDescriptionComponent', () => {
         );
     });
 
-    it('applies the display offset to dialog timestamps', () => {
+    it('applies the stored EPG display offset to the dialog timestamps', () => {
         const start = Date.parse('2026-04-05T11:30:00.000Z');
         const stop = Date.parse('2026-04-05T12:30:00.000Z');
         const offsetMinutes = 60;

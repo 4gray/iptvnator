@@ -176,6 +176,58 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().startupWindowMode).toBe('normal');
     });
 
+    it('defaults the EPG display offset to zero when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().epgOffsetMinutes).toBe(0);
+        expect(store.resolvedEpgOffsetMinutes()).toBe(0);
+    });
+
+    it('restores a persisted EPG display offset', async () => {
+        storedSettings = { epgOffsetMinutes: -90 };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().epgOffsetMinutes).toBe(-90);
+        expect(store.resolvedEpgOffsetMinutes()).toBe(-90);
+    });
+
+    it('clamps a persisted out-of-range EPG display offset', async () => {
+        storedSettings = { epgOffsetMinutes: 5000 };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.resolvedEpgOffsetMinutes()).toBe(720);
+    });
+
+    it('drops a persisted non-numeric EPG display offset', async () => {
+        storedSettings = { epgOffsetMinutes: 'soon' as unknown as number };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.resolvedEpgOffsetMinutes()).toBe(0);
+    });
+
+    it('normalizes an updated EPG display offset before persisting it', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+
+        await store.updateSettings({ epgOffsetMinutes: 61.7 });
+
+        expect(store.resolvedEpgOffsetMinutes()).toBe(61);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            expect.any(String),
+            expect.objectContaining({ epgOffsetMinutes: 61 })
+        );
+    });
+
     it('defaults ambient player mode to false when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);

@@ -1,6 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     buildStalkerEpgMappingKey,
@@ -8,6 +12,7 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     isFullStalkerPortalPlaylist,
     Playlist,
     isStalkerStreamCredentialSafe,
@@ -80,6 +85,7 @@ export class StreamResolverService {
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
     private readonly logger = createLogger('StreamResolver');
@@ -168,7 +174,12 @@ export class StreamResolverService {
             return epgMap;
         }
 
-        const now = Date.now();
+        // "Now" in the provider's EPG clock (`epg-display-offset.util.ts`,
+        // clock form): the rows stay raw and the list shifts them for display.
+        const now = epgProviderClockMs(
+            Date.now(),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
         const xtreamByPlaylist = new Map<string, UnifiedCollectionItem[]>();
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 

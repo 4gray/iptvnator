@@ -36,6 +36,7 @@ import type {
     ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
@@ -657,7 +658,7 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId, options }),
     getCurrentProgramsBatch: (
         channelIds: string[],
-        options?: ElectronBridgeEpgLookupOptions
+        options?: ElectronBridgeCurrentProgramsOptions
     ) =>
         ipcRenderer.invoke('GET_CURRENT_PROGRAMS_BATCH', {
             channelIds,

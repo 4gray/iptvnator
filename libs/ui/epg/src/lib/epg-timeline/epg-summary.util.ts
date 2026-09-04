@@ -1,3 +1,5 @@
+import { epgDisplayTimeMs } from '@iptvnator/shared/interfaces';
+
 /**
  * Collapsed-summary payload (the current / archive programme shown when the
  * panel is collapsed). View-agnostic so a future list view can reuse the same
@@ -14,7 +16,13 @@ function clampPercent(value: number): number {
     return Math.min(100, Math.max(0, value));
 }
 
-function toTimeMs(
+/**
+ * A summary timestamp as epoch ms in display time (raw value shifted by the
+ * EPG display offset), or null when it cannot be parsed. Hosts hand the
+ * summary over with the provider's raw times, so this is the one place the
+ * collapsed header converts them.
+ */
+export function summaryTimeMs(
     value: string | number | Date | null | undefined,
     offsetMinutes = 0
 ): number | null {
@@ -27,7 +35,9 @@ function toTimeMs(
             : typeof value === 'number'
               ? value
               : Date.parse(value);
-    return Number.isFinite(parsed) ? parsed + offsetMinutes * 60_000 : null;
+    return Number.isFinite(parsed)
+        ? epgDisplayTimeMs(parsed, offsetMinutes)
+        : null;
 }
 
 /** Whether the summary has a non-blank title. */
@@ -58,8 +68,8 @@ export function summaryProgress(
     if (Number.isFinite(explicit)) {
         return clampPercent(explicit);
     }
-    const startMs = toTimeMs(summary.start, offsetMinutes);
-    const stopMs = toTimeMs(summary.stop, offsetMinutes);
+    const startMs = summaryTimeMs(summary.start, offsetMinutes);
+    const stopMs = summaryTimeMs(summary.stop, offsetMinutes);
     if (startMs === null || stopMs === null || stopMs <= startMs) {
         return null;
     }
@@ -72,7 +82,7 @@ export function summaryMinutesLeft(
     nowMs: number,
     offsetMinutes = 0
 ): number | null {
-    const stopMs = toTimeMs(summary?.stop, offsetMinutes);
+    const stopMs = summaryTimeMs(summary?.stop, offsetMinutes);
     if (stopMs === null) {
         return null;
     }

@@ -36,6 +36,7 @@ import {
     summaryHasTitle,
     summaryMinutesLeft,
     summaryProgress,
+    summaryTimeMs,
 } from './epg-summary.util';
 import { canCatchUpProgramme, epgDialogActionFor } from './epg-archive.util';
 import {
@@ -267,6 +268,13 @@ export class EpgTimelineComponent {
     readonly minutesLeft = computed(() =>
         summaryMinutesLeft(this.summary(), this.nowMs(), this.offsetMinutes())
     );
+    /** Collapsed-header time range in display time (raw summary times shifted). */
+    readonly summaryStartMs = computed(() =>
+        summaryTimeMs(this.summary()?.start, this.offsetMinutes())
+    );
+    readonly summaryStopMs = computed(() =>
+        summaryTimeMs(this.summary()?.stop, this.offsetMinutes())
+    );
 
     constructor() {
         effect((onCleanup) => {
@@ -360,7 +368,6 @@ export class EpgTimelineComponent {
                 channelName: this.channelName(),
                 channelLogo: this.channelLogo(),
                 primaryAction: this.dialogActionFor(block),
-                displayOffsetMinutes: this.offsetMinutes(),
                 archiveUnavailableNote:
                     block.when === 'past' && !this.archivePlaybackAvailable(),
             })

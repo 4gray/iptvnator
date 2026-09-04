@@ -354,7 +354,8 @@ export class UnifiedLiveTabComponent {
         const programs = filterRecordingProgramsOverlap(
             this.timelinePrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;

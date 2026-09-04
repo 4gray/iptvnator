@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import {
     ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES,
     ElectronBridgeApi,
+    ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgFetchResult,
     ElectronBridgeEpgMapping,
     ElectronBridgeEpgProgress,
@@ -26,6 +27,7 @@ export type EpgFetchResult = ElectronBridgeEpgFetchResult;
 export type EpgFreshnessResult = ElectronBridgeEpgFreshnessResult;
 export type EpgClearResult = ElectronBridgeResult;
 export type EpgLookupOptions = ElectronBridgeEpgLookupOptions;
+export type EpgCurrentProgramsOptions = ElectronBridgeCurrentProgramsOptions;
 
 type EpgElectronBridge = Pick<
     Partial<ElectronBridgeApi>,
@@ -158,7 +160,7 @@ export class EpgRuntimeBridgeService {
 
     getCurrentProgramsBatch(
         channelIds: string[],
-        options?: EpgLookupOptions
+        options?: EpgCurrentProgramsOptions
     ): Promise<Record<string, EpgProgram | null> | null> {
         if (!this.supportsCurrentProgramBatch) {
             return Promise.resolve(null);

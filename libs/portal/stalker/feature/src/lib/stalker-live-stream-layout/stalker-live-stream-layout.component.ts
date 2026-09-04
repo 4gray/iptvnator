@@ -40,6 +40,7 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -410,7 +411,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         const programs = filterRecordingProgramsOverlap(
             this.activeEpgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -1284,7 +1286,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             program.stop,
             program.stopTimestamp
         );
-        const nowMs = Date.now();
+        const nowMs = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
 
         if (
             startMs !== null &&
@@ -1416,7 +1418,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     }
 
     private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
-        const now = Date.now();
+        // Raw programme times vs. now in the provider's EPG clock
+        // (`epg-display-offset.util.ts`, clock form); reading the setting
+        // here also re-runs every computed/effect that picks previews.
+        const now = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
         return (
             programs.find((program) => {
                 const start = this.getProgramTimestampMs(
