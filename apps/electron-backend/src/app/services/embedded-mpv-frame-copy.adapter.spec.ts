@@ -93,6 +93,54 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         );
     });
 
+    it('forwards session options to the helper as --mpv-option arguments', () => {
+        adapter.createSession(
+            Buffer.alloc(0),
+            { x: 0, y: 0, width: 640, height: 360 },
+            'Title',
+            0.8,
+            ['network-timeout=10', 'hwdec=no']
+        );
+        const [, args] = spawnMock.mock.calls[0];
+        expect(args.slice(-4)).toEqual([
+            '--mpv-option',
+            'network-timeout=10',
+            '--mpv-option',
+            'hwdec=no',
+        ]);
+    });
+
+    it('flips the cached snapshot to loading as soon as a load is sent', () => {
+        const sessionId = createSession();
+        child.emitStdout({
+            event: 'snapshot',
+            status: 'error',
+            error: 'connection reset',
+            positionSeconds: 0,
+            durationSeconds: null,
+            volume: 0.8,
+            streamUrl: 'http://stream',
+            audioTracks: [],
+            selectedAudioTrackId: null,
+            subtitleTracks: [],
+            selectedSubtitleTrackId: null,
+            playbackSpeed: 1,
+            aspectOverride: 'no',
+            recording: { active: false },
+        });
+        expect(adapter.getSessionSnapshot(sessionId)?.status).toBe('error');
+
+        adapter.loadPlayback(sessionId, {
+            streamUrl: 'http://stream',
+            title: 'Live',
+        });
+
+        const snapshot = adapter.getSessionSnapshot(sessionId);
+        expect(snapshot?.status).toBe('loading');
+        expect(snapshot?.error).toBeUndefined();
+        expect(snapshot?.streamUrl).toBe('http://stream');
+    });
+
     it('encodes loadfile options with percent-escaping', () => {
         const sessionId = createSession();
         adapter.loadPlayback(sessionId, {

@@ -119,8 +119,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             volume: true,
             audioTracks: true,
             subtitles: optionalCapabilities?.subtitles ?? false,
-            externalSubtitles:
-                optionalCapabilities?.externalSubtitles ?? false,
+            externalSubtitles: optionalCapabilities?.externalSubtitles ?? false,
             subtitleDelay: optionalCapabilities?.subtitleDelay ?? false,
             subtitleStyle: optionalCapabilities?.subtitleStyle ?? false,
             playbackSpeed: optionalCapabilities?.playbackSpeed ?? false,
@@ -304,6 +303,21 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 statusMessage:
                     support.reason ??
                     this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE'),
+            };
+        }
+
+        if (session?.reconnect) {
+            // A dropped stream the main process is reloading: a spinner with
+            // the attempt count reads better than the underlying mpv error.
+            return {
+                status: 'loading',
+                statusMessage: this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.RECONNECTING',
+                    {
+                        attempt: session.reconnect.attempt,
+                        maxAttempts: session.reconnect.maxAttempts,
+                    }
+                ),
             };
         }
 

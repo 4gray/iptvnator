@@ -1,7 +1,9 @@
 import {
+    AbstractControl,
     FormArray,
     FormBuilder,
     FormControl,
+    ValidationErrors,
     Validators,
 } from '@angular/forms';
 import {
@@ -19,10 +21,21 @@ import {
     StartupWindowMode,
     StreamFormat,
     Theme,
+    validateEmbeddedMpvExtraOptions,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 
 export const EPG_URL_PATTERN = /^(http|https|file):\/\/[^ "]+$/;
+
+/**
+ * Rejects malformed lines and the option keys the embed depends on, so a
+ * value that the main process would have to drop never gets saved.
+ */
+export function embeddedMpvExtraOptionsValidator(
+    control: AbstractControl
+): ValidationErrors | null {
+    return validateEmbeddedMpvExtraOptions(control.value);
+}
 
 export function createEpgUrlControl(value = ''): FormControl<string | null> {
     return new FormControl(value, [Validators.pattern(EPG_URL_PATTERN)]);
@@ -85,7 +98,8 @@ export function createSettingsForm(
         ],
         recordingFolder: '',
         embeddedMpvFrameCopy: false,
-        embeddedMpvExtraOptions: '',
+        embeddedMpvExtraOptions: ['', [embeddedMpvExtraOptionsValidator]],
+        embeddedMpvAutoReconnect: true,
         coverSize: 'medium' as CoverSize,
         ...(supportsEpg
             ? {
@@ -160,6 +174,7 @@ export function createSettingsFromFormValue(
         embeddedMpvExtraOptions: normalizeEmbeddedMpvExtraOptions(
             value.embeddedMpvExtraOptions
         ),
+        embeddedMpvAutoReconnect: value.embeddedMpvAutoReconnect ?? true,
         coverSize: value.coverSize ?? 'medium',
         epgUrl,
         preferUploadedEpgOverXtream:
@@ -183,6 +198,3 @@ function normalizeExternalPlayerPath(
 ): string {
     return playerPath?.trim() ?? '';
 }
-
-
-

@@ -16,6 +16,7 @@
  * Usage:
  *   iptvnator_mpv_helper --shm-base /impv-<id> --width 1280 --height 720
  *                        [--volume 0..1] [--hwdec auto]
+ *                        [--mpv-option key=value]...
  */
 #include <mpv/client.h>
 
@@ -629,6 +630,10 @@ struct HelperArgs {
     std::string shmBase = "/impv";
     std::string hwdec = "auto";
     std::string audioDelay; /* seconds, mpv audio-delay passthrough */
+    /* "key=value" libmpv options from the app: network defaults plus the
+     * user's Settings > Playback lines, applied after the built-in block
+     * so they override it (mirrors the native-view addons). */
+    std::vector<std::string> mpvOptions;
     int width = 1280;
     int height = 720;
     double volume = 1;
@@ -648,6 +653,7 @@ HelperArgs parseArgs(int argc, char** argv) {
         else if (arg == "--volume") args.volume = std::atof(next().c_str());
         else if (arg == "--hwdec") args.hwdec = next();
         else if (arg == "--audio-delay") args.audioDelay = next();
+        else if (arg == "--mpv-option") args.mpvOptions.push_back(next());
         else if (arg == "--runtime-probe") args.runtimeProbe = true;
     }
     args.width = std::max(16, args.width);
@@ -810,6 +816,26 @@ int main(int argc, char** argv) {
          * lip-sync; calibrated per platform, see the architecture doc. */
         mpv_set_option_string(g_state.mpv, "audio-delay",
                               args.audioDelay.c_str());
+    }
+    for (const std::string& option : args.mpvOptions) {
+        const size_t separator = option.find('=');
+        if (separator == std::string::npos || separator == 0 ||
+            separator + 1 >= option.size()) {
+            continue;
+        }
+        const std::string key = option.substr(0, separator);
+        const std::string value = option.substr(separator + 1);
+        const int optionResult =
+            mpv_set_option_string(g_state.mpv, key.c_str(), value.c_str());
+        if (optionResult < 0) {
+            emitLine(JsonWriter()
+                         .str("event", "log")
+                         .str("level", "warn")
+                         .str("prefix", "iptvnator")
+                         .str("text", "rejected session option " + key +
+                                          ": " + mpv_error_string(optionResult))
+                         .finish());
+        }
     }
     if (mpv_initialize(g_state.mpv) < 0) {
         emitLine(JsonWriter()

@@ -173,6 +173,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     );
     readonly isPlaying = computed(() => this.session()?.status === 'playing');
     readonly isErrored = computed(() => this.session()?.status === 'error');
+    /**
+     * The main process is waiting to reload a dropped stream or has the
+     * reload in flight (see embedded-mpv-reconnect.ts); shown like an error
+     * with a countdown-free "attempt N of M" line, Retry still available.
+     */
+    readonly reconnectInfo = computed(() => this.session()?.reconnect ?? null);
+    readonly isReconnecting = computed(() => this.reconnectInfo() !== null);
     readonly isLivePlayback = computed(() => {
         const playback = this.playback();
         if (typeof playback.isLive === 'boolean') {
@@ -194,6 +201,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly statusLabel = computed(() => {
         this.translationsTick();
         const session = this.session();
+        if (session?.reconnect) {
+            return this.translate.instant('EMBEDDED_MPV.PLAYER.RECONNECTING', {
+                attempt: session.reconnect.attempt,
+                maxAttempts: session.reconnect.maxAttempts,
+            });
+        }
         if (session?.status === 'error') {
             return (
                 session.error ??

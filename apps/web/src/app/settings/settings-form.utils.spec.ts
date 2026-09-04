@@ -70,3 +70,58 @@ describe('settings form utils — startup window mode', () => {
         ).toBe('normal');
     });
 });
+
+describe('settings form utils — embedded MPV session options', () => {
+    const formBuilder = new FormBuilder();
+
+    it('defaults to no extra options and auto-reconnect on', () => {
+        const form = createSettingsForm(formBuilder, true);
+
+        expect(form.getRawValue().embeddedMpvExtraOptions).toBe('');
+        expect(form.getRawValue().embeddedMpvAutoReconnect).toBe(true);
+        expect(form.valid).toBe(true);
+    });
+
+    it('rejects forbidden keys and malformed lines in the options field', () => {
+        const form = createSettingsForm(formBuilder, true);
+        const control = form.get('embeddedMpvExtraOptions');
+
+        control?.setValue('hwdec=auto\nvo=null\nnot an option');
+
+        expect(control?.errors).toEqual({
+            invalidLines: ['not an option'],
+            forbiddenKeys: ['vo'],
+        });
+        expect(form.valid).toBe(false);
+
+        control?.setValue('hwdec=auto\ncache-secs=30');
+
+        expect(control?.errors).toBeNull();
+    });
+
+    it('carries canonical options and the reconnect opt-out into the settings object', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({
+            embeddedMpvExtraOptions: ' --hwdec = auto \r\n\ncache-secs=30 ',
+            embeddedMpvAutoReconnect: false,
+        });
+
+        const settings = createSettingsFromFormValue(form, {} as Settings);
+
+        expect(settings.embeddedMpvExtraOptions).toBe(
+            'hwdec=auto\ncache-secs=30'
+        );
+        expect(settings.embeddedMpvAutoReconnect).toBe(false);
+    });
+
+    it('falls back to auto-reconnect on when the form value is missing', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({
+            embeddedMpvAutoReconnect: null as unknown as boolean,
+        });
+
+        const settings = createSettingsFromFormValue(form, {} as Settings);
+
+        expect(settings.embeddedMpvAutoReconnect).toBe(true);
+    });
+});

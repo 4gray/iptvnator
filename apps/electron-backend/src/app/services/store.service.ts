@@ -26,12 +26,19 @@ export const EMBEDDED_MPV_FRAME_COPY = 'EMBEDDED_MPV_FRAME_COPY';
 export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 
 /**
- * Free-form extra libmpv options for the embedded (--wid) engine, one
- * "key=value" pair per line (no leading "--"). Applied via
- * mpv_set_option_string after the built-in defaults, so a user value can
- * override anything except "wid" itself.
+ * Extra libmpv options for embedded sessions, one "key=value" per line, as
+ * typed in Settings > Playback. Mirrored here by the SETTINGS_UPDATE handler
+ * because sessions are created in the main process, where the renderer's
+ * IndexedDB settings are unreachable. Turned into addon arguments by
+ * `readEmbeddedMpvSessionOptions()`.
  */
 export const EMBEDDED_MPV_EXTRA_OPTIONS = 'EMBEDDED_MPV_EXTRA_OPTIONS';
+
+/**
+ * Whether a dropped embedded MPV stream is reloaded automatically. Same
+ * mirror as above; absent means enabled.
+ */
+export const EMBEDDED_MPV_AUTO_RECONNECT = 'EMBEDDED_MPV_AUTO_RECONNECT';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
@@ -43,6 +50,7 @@ export type StoreType = {
     [VLC_REUSE_INSTANCE]: boolean;
     [EMBEDDED_MPV_FRAME_COPY]: boolean;
     [EMBEDDED_MPV_EXTRA_OPTIONS]: string;
+    [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
 };
 
@@ -51,4 +59,5 @@ const electronConfigDirectory = getElectronConfigDirectory();
 const storeOptions = electronConfigDirectory
     ? { dir: electronConfigDirectory }
     : {};
+
 export const store = new Conf<StoreType>(storeOptions);

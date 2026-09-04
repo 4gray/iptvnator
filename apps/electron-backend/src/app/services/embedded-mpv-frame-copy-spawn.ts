@@ -14,6 +14,12 @@ import type {
 export interface FrameCopyHelperSpawnRequest {
     bounds: EmbeddedMpvBounds;
     environment?: NodeJS.ProcessEnv;
+    /**
+     * `key=value` libmpv options the helper applies after its built-in
+     * block (network defaults + the user's Settings lines); one
+     * `--mpv-option` argument each.
+     */
+    extraOptions?: string[];
     helperLaunchFileSystem?: LinuxFrameCopyHelperLaunchFileSystem;
     helperPath: string;
     initialVolume?: number;
@@ -36,6 +42,7 @@ export function resolveFrameCopyHelperSpawn(
     const {
         bounds,
         environment,
+        extraOptions,
         helperLaunchFileSystem,
         helperPath,
         initialVolume,
@@ -62,6 +69,9 @@ export function resolveFrameCopyHelperSpawn(
             ? ['--audio-delay', process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY]
             : []),
     ];
+    for (const option of extraOptions ?? []) {
+        helperArgs.push('--mpv-option', option);
+    }
 
     if (process.platform !== 'linux') {
         return { args: helperArgs, command: helperPath, height, width };
@@ -81,7 +91,9 @@ export function resolveFrameCopyHelperSpawn(
         fileSystem: helperLaunchFileSystem,
     });
     if (!launch.usable) {
-        throw new Error('The connected Snap graphics provider is not available.');
+        throw new Error(
+            'The connected Snap graphics provider is not available.'
+        );
     }
 
     return {

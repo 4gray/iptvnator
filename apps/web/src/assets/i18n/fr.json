@@ -498,8 +498,12 @@
         "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "La vidéo est rendue sur le canevas de l'application, les menus et boîtes de dialogue s'affichent donc au-dessus.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Prend effet après le redémarrage de l'application.",
         "EMBEDDED_MPV_EXTRA_OPTIONS": "Options MPV intégré supplémentaires",
-        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Options libmpv avancées pour le lecteur intégré, une paire cle=valeur par ligne (sans -- au début).",
-        "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Exemple : hwdec=auto-safe. Appliqué au démarrage d'une nouvelle session MPV intégrée.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Options libmpv avancées pour le lecteur intégré, une paire key=value par ligne (sans -- au début). Elles s'appliquent sur tous les moteurs après les options intégrées et prennent effet au démarrage de la prochaine session MPV intégrée.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Exemple : hwdec=auto-safe. Les options dont dépend l'intégration (wid, vo, input-ipc-server, …) sont refusées.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_INVALID_LINES": "Format key=value non respecté : {{lines}}",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "Ces options ne peuvent pas être modifiées pour le lecteur intégré : {{keys}}",
+        "EMBEDDED_MPV_AUTO_RECONNECT": "Reconnecter automatiquement les flux interrompus",
+        "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Lorsqu'un flux en cours de lecture est interrompu, le lecteur intégré le recharge avec des délais croissants, jusqu'à 6 tentatives, avant d'abandonner. Un flux qui n'a jamais démarré doit toujours être relancé manuellement avec « Réessayer ».",
         "VOD_AUTO_FAILOVER": "Changer de source automatiquement en cas d'erreur de lecture",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Lorsqu'un film ne parvient pas à démarrer et que le même film existe dans une autre liste de lecture, bascule automatiquement vers celle-ci en conservant la position de lecture. Désactivé par défaut ; le changement est toujours annoncé, car une autre source peut proposer un doublage différent."
     },
@@ -523,6 +527,7 @@
             "RETRY": "Réessayer",
             "STALLED": "Ce flux met plus de temps que prévu à démarrer.",
             "PLAYBACK_FAILED": "Échec de la lecture avec MPV intégré.",
+            "RECONNECTING": "Connexion perdue. Reconnexion… tentative {{attempt}} sur {{maxAttempts}}",
             "CHECKING_SUPPORT": "Vérification de la prise en charge de MPV intégré...",
             "NOT_AVAILABLE": "MPV intégré n'est pas disponible dans cet environnement.",
             "LOADING_STREAM": "Chargement du flux…",
@@ -1646,4 +1651,3 @@
         }
     }
 }
-

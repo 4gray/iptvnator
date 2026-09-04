@@ -511,6 +511,80 @@ button disabled state at current-season boundaries.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
+## Session Options (Extra libmpv Options)
+
+`Settings > Playback > Extra embedded MPV options` is a free-form textarea,
+one `key=value` per line without the leading `--`. The renderer keeps the
+canonical text (`normalizeEmbeddedMpvExtraOptions`) and refuses to save
+malformed lines or the keys the embed depends on
+(`EMBEDDED_MPV_FORBIDDEN_OPTION_KEYS`: `wid`, `vo`, `force-window`,
+`input-ipc-server`, `idle`, `keep-open`, `config`, `include`, `terminal`);
+the `SETTINGS_UPDATE` handler mirrors the text into the main-process config
+(`EMBEDDED_MPV_EXTRA_OPTIONS`), because sessions are created there.
+
+At session creation the IPC handler reads the mirror through
+`readEmbeddedMpvSessionOptions()` and passes
+`resolveEmbeddedMpvSessionOptionArguments()` to
+`EmbeddedMpvNativeService.createSession(..., options)`. That list is the
+network defaults followed by the user's allowed lines, and every engine
+applies it after its own built-in options and before `mpv_initialize`, so a
+user line overrides both:
+
+| Engine                     | Transport                                                  |
+| -------------------------- | ---------------------------------------------------------- |
+| Windows native-view        | `createSession(..., string[])` → `mpv_set_option_string`  |
+| macOS native-view          | same, in `embedded_mpv.mm`                                 |
+| Linux native-view          | stored on the session, emitted as `--key=value` on the `mpv --wid` command line before the per-playback options, so a playlist's user-agent/headers still win |
+| Frame-copy helper          | one `--mpv-option key=value` argument each, applied after the helper's built-in block |
+
+`EMBEDDED_MPV_NETWORK_DEFAULT_OPTIONS` (`network-timeout=10`,
+`demuxer-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5`) are
+part of that list on purpose: a stalled IPTV connection then surfaces as an
+mpv error within seconds instead of libmpv's 60 s default, and ffmpeg
+re-requests a dropped HTTP stream on its own before the app-level reconnect
+has to. Options mpv rejects are logged (trace on native-view, a `log` event
+from the helper) and never fail session creation. The service itself never
+touches the config store — it is constructed at module load, and importing it
+would drag electron-conf into every consumer of the service, its unit tests
+included.
+
+## Network Auto-Reconnect
+
+`EmbeddedMpvReconnectCoordinator`
+(`apps/electron-backend/src/app/services/embedded-mpv-reconnect.ts`) reloads
+the last user-requested playback when a session reports a stream loss: an
+`error` status, or `ended` while the playback is live (`isLive`, else "no
+`contentInfo`", the same rule the renderer uses). It is driven by
+`refreshSession()` status transitions, so it covers every engine, and it is
+captured per session from `Settings.embeddedMpvAutoReconnect` (default on;
+mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
+
+- Only a load that already reached `playing` is retried. A URL that never
+  worked (404, refused credentials, unsupported container) keeps the manual
+  Retry instead of hammering the panel six times with the same request. The
+  Linux `mpv --wid` path reports `playing` as soon as the process spawns, so
+  on that engine the distinction is coarser.
+- Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
+  outage. The budget resets only after 30 s of uninterrupted `playing`, so a
+  stream that flaps every few seconds runs out of attempts instead of being
+  retried forever.
+- A user-driven `loadPlayback`, `paused`/`idle`, dispose, and shutdown cancel
+  a pending attempt; a stream that recovers on its own (ffmpeg-level
+  reconnect) while a retry is pending drops the retry.
+- A refused reload (the addon throws) continues the backoff itself, because
+  no status transition will ever arrive for it.
+
+Every engine flips to `loading` synchronously on a load (the frame-copy
+adapter does so optimistically before the helper confirms), which is what
+lets a failed attempt always be observed as `loading` → loss and never as
+loss → loss. While an attempt is scheduled or in flight the session carries
+`EmbeddedMpvSession.reconnect` (`attempt`, `maxAttempts`, `nextAttemptAt`);
+the renderer shows "Reconnecting… attempt N of M" in the error overlay and,
+for shared controls, as a `loading` status message, keeps Retry available
+(it disposes the session, which cancels the timer), and never schedules
+anything itself. A recording that was active when the stream dropped is
+finalized by the recording tracker as before and is not resumed.
+
 ## Live Stream Recording
 
 Embedded MPV can record live streams through mpv's `stream-record` option. IPTVnator exposes this only for playback classified as live (`ResolvedPortalPlayback.isLive` when present, otherwise no `contentInfo`); VOD, episodes, catchup playback, radio audio playback, and non-embedded players do not show the recording control.

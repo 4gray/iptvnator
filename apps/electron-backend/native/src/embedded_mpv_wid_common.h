@@ -5,8 +5,9 @@
 #include <napi.h>
 
 #include <mpv/client.h>
-#include <sstream>
 #include <string>
+
+#include "embedded_mpv_extra_options.h"
 
 #ifdef IPTVNATOR_DYNAMIC_LIBMPV
 #ifndef IPTVNATOR_MPV_SELECTANY
@@ -144,6 +145,8 @@ struct Session {
     std::string pendingRecordingStartedAt;
     std::string pendingRecordingStopStartedAt;
     uint64_t pendingPlaybackLoadRequestId = 0;
+    /** Session options from Settings (network defaults + user lines). */
+    std::vector<iptvnator::EmbeddedMpvExtraOption> extraOptions;
 #ifdef __linux__
     pid_t mpvProcessId = -1;
     std::string mpvIpcSocketPath;
@@ -607,6 +610,12 @@ std::vector<std::string> buildLinuxMpvArguments(
         arguments.push_back("--log-file=/tmp/iptvnator-embedded-mpv.log");
     } else {
         arguments.push_back("--really-quiet");
+    }
+
+    // Session options come before the per-playback ones below, so a
+    // playlist's own user-agent/headers still win over a global line.
+    for (const auto& option : session->extraOptions) {
+        arguments.push_back("--" + option.first + "=" + option.second);
     }
 
     appendLinuxMpvOption(arguments, "force-media-title", title);
@@ -1656,6 +1665,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         throw Napi::Error::New(env, NativeVideoHost::lastError());
     }
     traceMpvCommon("native video host created");
+    session->extraOptions = iptvnator::readEmbeddedMpvExtraOptions(info, 4);
 
 #ifdef __linux__
     session->host.setBounds(bounds);
@@ -1694,18 +1704,6 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     mpv_set_option_string(session->handle, "vo", "gpu");
     mpv_set_option_string(session->handle, "hwdec", "auto-safe");
 #endif
-    // Network resilience: without an explicit timeout, a stalled IPTV
-    // connection just hangs on the OS read() until a multi-minute TCP
-    // timeout, so the Electron-side reconnect watchdog in
-    // EmbeddedMpvNativeService never sees an 'error' status to act on.
-    // A short network-timeout plus ffmpeg-level auto-reconnect makes a
-    // dropped stream surface (and recover) within seconds instead.
-    mpv_set_option_string(session->handle, "network-timeout", "10");
-    mpv_set_option_string(
-        session->handle,
-        "demuxer-lavf-o",
-        "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5"
-    );
     if (std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV")) {
         mpv_set_option_string(session->handle, "msg-level", "all=trace");
         mpv_set_option_string(
@@ -1720,35 +1718,20 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     );
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
 
-    if (info.Length() >= 5 && info[4].IsString()) {
-        const std::string extraOptionsRaw =
-            info[4].As<Napi::String>().Utf8Value();
-        std::istringstream extraOptionsStream(extraOptionsRaw);
-        std::string extraOptionLine;
-        while (std::getline(extraOptionsStream, extraOptionLine)) {
-            if (!extraOptionLine.empty() && extraOptionLine.back() == '\r') {
-                extraOptionLine.pop_back();
-            }
-            const auto separatorPos = extraOptionLine.find('=');
-            if (separatorPos == std::string::npos) {
-                continue;
-            }
-            std::string key = extraOptionLine.substr(0, separatorPos);
-            std::string value = extraOptionLine.substr(separatorPos + 1);
-            const auto trim = [](std::string& s) {
-                const auto first = s.find_first_not_of(" \t");
-                const auto last = s.find_last_not_of(" \t");
-                s = (first == std::string::npos)
-                    ? std::string()
-                    : s.substr(first, last - first + 1);
-            };
-            trim(key);
-            trim(value);
-            if (key.empty()) {
-                continue;
-            }
-            traceMpvCommon(("applying extra mpv option: " + key).c_str());
-            mpv_set_option_string(session->handle, key.c_str(), value.c_str());
+    // Session options from Settings (network defaults first, then the
+    // user's lines). Applied last so a user value overrides a built-in one,
+    // and before mpv_initialize because most of them are init-only.
+    for (const auto& option : session->extraOptions) {
+        const int optionResult = mpv_set_option_string(
+            session->handle,
+            option.first.c_str(),
+            option.second.c_str()
+        );
+        if (optionResult < 0) {
+            traceMpvCommon(
+                "rejected session option " + option.first + ": " +
+                mpv_error_string(optionResult)
+            );
         }
     }
     mpv_request_log_messages(session->handle, "warn");
@@ -2423,7 +2406,3 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
 } // namespace
 
 NODE_API_MODULE(embedded_mpv, Init)
-
-
-
-

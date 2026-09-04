@@ -13,6 +13,8 @@
 #include <mpv/render.h>
 #include <mpv/render_gl.h>
 
+#include "embedded_mpv_extra_options.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -1656,6 +1658,24 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     const auto initialVolume =
         std::to_string(session->snapshot.volumePercent);
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
+
+    // Session options from Settings (network defaults first, then the
+    // user's lines). Applied last so a user value overrides a built-in one,
+    // and before mpv_initialize because most of them are init-only.
+    for (const auto& option : iptvnator::readEmbeddedMpvExtraOptions(info, 4)) {
+        const int optionResult = mpv_set_option_string(
+            session->handle,
+            option.first.c_str(),
+            option.second.c_str()
+        );
+        if (optionResult < 0) {
+            traceEmbeddedMpv(
+                session,
+                "rejected session option " + option.first + ": " +
+                    mpv_error_string(optionResult)
+            );
+        }
+    }
 
     mpv_request_log_messages(session->handle, "warn");
 

@@ -83,7 +83,8 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         _windowHandle: Buffer,
         bounds: EmbeddedMpvBounds,
         _title?: string,
-        initialVolume?: number
+        initialVolume?: number,
+        extraOptions?: string[]
     ): string {
         const helperPath = this.options.resolveHelperPath();
         if (!helperPath) {
@@ -96,6 +97,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         const plan = resolveFrameCopyHelperSpawn({
             bounds,
             environment: this.options.environment,
+            extraOptions,
             helperLaunchFileSystem: this.options.helperLaunchFileSystem,
             helperPath,
             initialVolume,
@@ -157,6 +159,15 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     }
 
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void {
+        const session = this.sessions.get(sessionId);
+        if (session && !session.disposed) {
+            // The native addons flip to `loading` synchronously; mirror that
+            // so the reconnect coordinator always observes loading → loss
+            // for a failed attempt, even when the helper folds START_FILE
+            // and the END_FILE error into one snapshot.
+            const { error: _staleError, ...snapshot } = session.snapshot;
+            session.snapshot = { ...snapshot, status: 'loading' };
+        }
         this.send(sessionId, buildLoadPlaybackCommand(playback));
     }
 
@@ -193,10 +204,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     }
 
     addSubtitle(sessionId: string, filePath: string): void {
-        this.send(
-            sessionId,
-            `sub-add\tpath=${encodeProtocolValue(filePath)}`
-        );
+        this.send(sessionId, `sub-add\tpath=${encodeProtocolValue(filePath)}`);
     }
 
     setSubtitleDelay(sessionId: string, seconds: number): void {

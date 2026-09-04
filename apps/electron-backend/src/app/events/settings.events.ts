@@ -6,6 +6,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    EMBEDDED_MPV_AUTO_RECONNECT,
     EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
@@ -58,6 +59,12 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
             normalizeEmbeddedMpvExtraOptions(arg.embeddedMpvExtraOptions)
         );
     }
+    if (arg.embeddedMpvAutoReconnect !== undefined) {
+        store.set(
+            EMBEDDED_MPV_AUTO_RECONNECT,
+            arg.embeddedMpvAutoReconnect !== false
+        );
+    }
 
     // Read by initMainWindow before any renderer exists, so it applies on
     // the next launch. Normalized here so a junk value never reaches the
@@ -94,5 +101,3 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         httpServer.updateSettings(enabled, port);
     }
 });
-
-

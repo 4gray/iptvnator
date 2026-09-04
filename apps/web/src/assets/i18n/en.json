@@ -498,8 +498,12 @@
         "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Render video onto the app canvas so menus and dialogs stack above it.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Takes effect after restarting the app.",
         "EMBEDDED_MPV_EXTRA_OPTIONS": "Extra embedded MPV options",
-        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Advanced libmpv options for the embedded player, one key=value pair per line (no leading --).",
-        "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Example: hwdec=auto-safe. Applied when a new embedded MPV session starts.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION": "Advanced libmpv options for the embedded player, one key=value pair per line (no leading --). They apply on every engine after the built-in options and take effect when the next embedded MPV session starts.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_HINT": "Example: hwdec=auto-safe. Options the embed itself depends on (wid, vo, input-ipc-server, …) are refused.",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_INVALID_LINES": "Not a key=value line: {{lines}}",
+        "EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS": "These options cannot be changed for the embedded player: {{keys}}",
+        "EMBEDDED_MPV_AUTO_RECONNECT": "Reconnect dropped streams automatically",
+        "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "When a playing stream drops, the embedded player reloads it with increasing delays, up to 6 attempts, before giving up. A stream that never started still needs a manual Retry.",
         "VOD_AUTO_FAILOVER": "Auto-switch source on playback error",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "When a movie fails to play and the same film exists in another playlist, switch to it automatically and keep the timecode. Off by default; the switch is always announced because another source can carry a different dub."
     },
@@ -523,6 +527,7 @@
             "RETRY": "Retry",
             "STALLED": "This stream is taking longer than expected to start.",
             "PLAYBACK_FAILED": "Embedded MPV playback failed.",
+            "RECONNECTING": "Connection lost. Reconnecting… attempt {{attempt}} of {{maxAttempts}}",
             "CHECKING_SUPPORT": "Checking embedded MPV support...",
             "NOT_AVAILABLE": "Embedded MPV is not available in this environment.",
             "LOADING_STREAM": "Loading stream…",
@@ -1646,4 +1651,3 @@
         }
     }
 }
-
