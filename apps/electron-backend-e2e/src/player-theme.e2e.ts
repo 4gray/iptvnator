@@ -199,6 +199,39 @@ for (const engine of [
                     }
                     if (engine === 'native') {
                         await expectThemeSurface(controls, theme);
+                        const record = controls.locator(
+                            '.embedded-mpv-player__record-button'
+                        );
+                        await expect(record).toBeVisible();
+                        // Recording behavior has its own IPC coverage; exercise
+                        // the state class here without creating a recording file.
+                        await record.evaluate((element) =>
+                            element.classList.add(
+                                'embedded-mpv-player__record-button--active'
+                            )
+                        );
+                        const liveColor = await record.evaluate((element) =>
+                            getComputedStyle(element)
+                                .getPropertyValue('--app-live-color')
+                                .trim()
+                        );
+                        await expect(record.locator('mat-icon')).toHaveCSS(
+                            'color',
+                            await record.evaluate((element, color) => {
+                                const probe = document.createElement('span');
+                                probe.style.color = color;
+                                element.append(probe);
+                                const resolved = getComputedStyle(probe).color;
+                                probe.remove();
+                                return resolved;
+                            }, liveColor)
+                        );
+                        await expectTextContrast(record, 3);
+                        await record.evaluate((element) =>
+                            element.classList.remove(
+                                'embedded-mpv-player__record-button--active'
+                            )
+                        );
                         await expect(play).toHaveCSS('outline-width', '2px');
                         const disabled = controls
                             .locator(
