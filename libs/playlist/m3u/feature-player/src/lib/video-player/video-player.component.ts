@@ -1219,7 +1219,7 @@ export class VideoPlayerComponent
 
     @HostListener('document:keydown', ['$event'])
     handleKeyPress(event: KeyboardEvent): void {
-        if (isTypingInInput(event)) {
+        if (event.defaultPrevented || isTypingInInput(event)) {
             return;
         }
         // Behind the workspace's phone context drawer the route content is
@@ -1244,6 +1244,13 @@ export class VideoPlayerComponent
         // the one way to change channels from the keyboard in fullscreen.
         if (event.key === 'PageUp' || event.key === 'PageDown') {
             if (
+                event.composedPath().some(
+                    (target) =>
+                        target instanceof Element &&
+                        target.matches(
+                            '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
+                        )
+                ) ||
                 isInsideScrollableRegion(
                     event.target,
                     this.hostElement.nativeElement

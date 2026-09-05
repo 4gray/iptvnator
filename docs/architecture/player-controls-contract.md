@@ -346,7 +346,9 @@ recent included. With external MPV/VLC configured, the panel offers only
 DASH rows: DASH forces the inline Shaka player, but selecting a non-DASH
 channel would replace the fullscreen owner with the external-player UI.
 PageUp/PageDown keep stepping onto them: those keys zap on
-the windowed player too, where switching to a station or a film is right), `LiveStreamLayoutComponent` (Xtream; the sidebar's
+the windowed player too, where switching to a station or a film is right;
+already-handled events and menu/dialog overlay targets keep their keys,
+even when a short menu has no scroll overflow), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
 route category; each `PortalChannelsListComponent` instance owns the map
 behind its heart icons, so toggles are relayed between instances through
@@ -380,7 +382,10 @@ fullscreen element for the resolution round-trip would end fullscreen on
 every zap from the panel; only `activeUid`, the row highlight, moves ahead,
 while `activeItem` stays paired with that detail so `playbackSessionKey` and
 the recording/archive metadata derived from it keep describing the stream the
-player is still showing, and both swap together once the new detail is in).
+player is still showing, and both swap together once the new detail is in.
+If replacement resolution fails while a video is retained, its player,
+catch-up override and session remain intact and the row highlight returns to
+that item).
 
 Behavior: every affordance exists only while the stage is fullscreen and the
 view's `enabled` input holds — `WebPlayerViewComponent` withholds the panel

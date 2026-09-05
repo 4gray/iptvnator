@@ -358,6 +358,52 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     });
 
     describe('PageUp/PageDown zapping', () => {
+        it.each(['menu', 'dialog', 'cdk-overlay-pane'])(
+            'leaves paging keys to a short %s overlay',
+            (kind) => {
+                const overlay = document.createElement('div');
+                if (kind === 'cdk-overlay-pane') {
+                    overlay.className = kind;
+                } else {
+                    overlay.setAttribute('role', kind);
+                }
+                overlay.style.overflowY = 'auto';
+                Object.defineProperty(overlay, 'scrollHeight', { value: 100 });
+                Object.defineProperty(overlay, 'clientHeight', { value: 100 });
+                const button = document.createElement('button');
+                overlay.appendChild(button);
+                document.body.appendChild(overlay);
+                try {
+                    for (const key of ['PageUp', 'PageDown']) {
+                        const event = new KeyboardEvent('keydown', {
+                            key,
+                            bubbles: true,
+                            cancelable: true,
+                        });
+                        button.dispatchEvent(event);
+                        expect(event.defaultPrevented).toBe(false);
+                    }
+                    expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                        setActiveChannelDispatch(nextChannel)
+                    );
+                } finally {
+                    overlay.remove();
+                }
+            }
+        );
+
+        it('honors a paging key already handled by another listener', () => {
+            const event = new KeyboardEvent('keydown', {
+                key: 'PageDown',
+                cancelable: true,
+            });
+            event.preventDefault();
+            document.dispatchEvent(event);
+            expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                setActiveChannelDispatch(nextChannel)
+            );
+        });
+
         it('PageDown plays the next channel and PageUp the previous one', () => {
             const pageDown = new KeyboardEvent('keydown', {
                 key: 'PageDown',

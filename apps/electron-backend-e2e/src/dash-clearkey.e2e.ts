@@ -433,6 +433,30 @@ for (const player of ['mpv', 'vlc']) {
                 )
                 .toBeGreaterThan(0.5);
             expect(await isFullscreen()).toBe(true);
+
+            // A short context menu has no overflow, but still owns paging
+            // keys. Observe the event after the app's document listener.
+            const viewportHeight = await page.evaluate(
+                () => window.innerHeight
+            );
+            await page.mouse.move(1, viewportHeight / 2);
+            await expect(panel).toHaveAttribute('aria-hidden', 'false');
+            await nextChannel.click({ button: 'right' });
+            const menu = page.getByRole('menu');
+            await expect(menu).toBeVisible();
+            const pagingConsumed = page.evaluate(
+                () =>
+                    new Promise<boolean>((resolve) => {
+                        document.addEventListener(
+                            'keydown',
+                            (event) => resolve(event.defaultPrevented),
+                            { once: true }
+                        );
+                    })
+            );
+            await menu.getByRole('menuitem').first().press('PageDown');
+            expect(await pagingConsumed).toBe(false);
+            await expect(nextChannel).toHaveClass(/\bactive\b/);
         } finally {
             await closeElectronApp(app);
             await fixtureServer.close();

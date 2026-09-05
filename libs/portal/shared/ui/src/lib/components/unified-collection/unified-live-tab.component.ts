@@ -809,8 +809,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         // describing the stream that player is still showing. The catch-up
         // override belongs to that detail too: clearing it early would drop
         // the mounted player back to the old channel's live URL for the
-        // gap. All of it swaps together when the new detail is in, and
-        // clears only on failure.
+        // gap. All of it swaps together when the new detail is in; a failed
+        // replacement keeps a previously mounted video and restores its row.
         this.activeUid.set(item.uid);
         this.isSelecting.set(true);
         // A previously owned radio override must not survive into a
@@ -871,10 +871,17 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             }
         } catch {
             if (requestId === this.selectionRequestId) {
-                this.activeTimeshift.set(null);
-                this.activeDetail.set(null);
-                this.activeItem.set(null);
-                this.activeUid.set(null);
+                // The fullscreen panel only offers video rows. Its previous
+                // stream is still valid when resolution of a replacement
+                // fails, so retain the player and its catch-up/session state.
+                // Radio's scoped headers were released above; that path keeps
+                // its existing reset behavior instead of reviving that scope.
+                if (!activeDetail || this.isRadioDetail(activeDetail)) {
+                    this.activeTimeshift.set(null);
+                    this.activeDetail.set(null);
+                    this.activeItem.set(null);
+                }
+                this.activeUid.set(this.activeItem()?.uid ?? null);
             }
         } finally {
             if (requestId === this.selectionRequestId) {
