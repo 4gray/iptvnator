@@ -153,3 +153,48 @@ export async function expectOverlayContrastOnWhite(
         );
     }
 }
+
+/** Skeletons are decorative, but their faintest gradient stop must remain
+ * distinguishable from the guide's background in either theme. */
+export async function expectSkeletonContrast(
+    skeleton: Locator,
+    guide: Locator
+) {
+    const background = await guide.evaluate((element) =>
+        getComputedStyle(element)
+            .backgroundColor.match(/[\d.]+/g)!
+            .slice(0, 3)
+            .map(Number)
+    );
+    const { data, info } = await sharp(
+        await skeleton.screenshot({ animations: 'disabled' })
+    )
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+    const luminance = (rgb: number[]) =>
+        rgb
+            .map((value) => {
+                const s = value / 255;
+                return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+            })
+            .reduce(
+                (sum, value, index) =>
+                    sum + value * [0.2126, 0.7152, 0.0722][index],
+                0
+            );
+    const bg = luminance(background);
+    // Middle row avoids the rounded transparent corners.
+    for (let x = 8; x < info.width - 8; x++) {
+        const offset =
+            (Math.floor(info.height / 2) * info.width + x) * info.channels;
+        const fg = luminance([
+            data[offset],
+            data[offset + 1],
+            data[offset + 2],
+        ]);
+        expect(
+            (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05)
+        ).toBeGreaterThanOrEqual(1.3);
+    }
+}

@@ -95,7 +95,9 @@ EPG timeline, list, empty states and programme details use the library-local
 selection and live accents. Text pairs with the actual surface in both themes;
 current/playing titles must not force white onto a light selection tint.
 Past programme text remains readable without reducing opacity on the whole
-card. Theme changes resolve through CSS on the mounted components immediately.
+card. List loading shimmer uses translucent primary text stops so placeholders
+remain visible on either theme’s content surface. Theme changes resolve through
+CSS on the mounted components immediately.
 
 Electron E2E measures app-panel foreground/background contrast (including
 translucency, ancestor opacity and the timeline’s sibling progress fill),

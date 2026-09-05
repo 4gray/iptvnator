@@ -24,6 +24,7 @@ import {
     applyTheme,
     expectTextContrast,
     expectThemeSurface,
+    expectSkeletonContrast,
 } from './theme-contrast';
 
 const epgCredentials = {
@@ -180,6 +181,32 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
             );
             await expectTextContrast(
                 guide.locator('[data-when="now"] .desc').first()
+            );
+        }
+        // Keep a fresh channel's EPG IPC pending so the real list loading
+        // template stays mounted through both theme changes.
+        await app.electronApp.evaluate(({ ipcMain }) => {
+            ipcMain.removeHandler('XTREAM_REQUEST');
+            ipcMain.handle(
+                'XTREAM_REQUEST',
+                () =>
+                    new Promise(() => {
+                        // Released when this isolated Electron test app closes.
+                    })
+            );
+        });
+        await app.mainWindow
+            .locator('[data-test-id="channel-item"]')
+            .nth(1)
+            .click();
+        const skeleton = guide.locator('.sk-time').first();
+        await expect(skeleton).toBeVisible();
+        for (const theme of ['light', 'dark'] as const) {
+            await applyTheme(app.mainWindow, theme);
+            await expectSkeletonContrast(skeleton, guide);
+            await expectSkeletonContrast(
+                guide.locator('.sk-title').first(),
+                guide
             );
         }
     } finally {

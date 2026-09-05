@@ -402,9 +402,9 @@
     border-radius: 6px;
     background: linear-gradient(
         90deg,
-        rgba(255, 255, 255, 0.06),
-        rgba(255, 255, 255, 0.12),
-        rgba(255, 255, 255, 0.06)
+        color-mix(in srgb, $text-primary 18%, transparent),
+        color-mix(in srgb, $text-primary 28%, transparent),
+        color-mix(in srgb, $text-primary 18%, transparent)
     );
     background-size: 200% 100%;
     animation: epg-list-shimmer 1.4s linear infinite;
