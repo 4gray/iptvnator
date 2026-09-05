@@ -423,6 +423,49 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
             }
         );
 
+        it('treats a legacy player fullscreening its nested surface as the live host owning fullscreen', () => {
+            // Vendor-chrome opt-out: Video.js/ArtPlayer fullscreen their own
+            // element inside app-web-player-view, not the host itself, and
+            // leaving fullscreen through an ineligible channel is the same
+            // loss there.
+            const first = {
+                ...sampleChannel,
+                url: 'http://localhost/first.mpd',
+            };
+            const catalog = [first, sampleChannel];
+            player.set(VideoPlayer.MPV);
+            channels.set(catalog);
+            channels$.next(catalog);
+            setActive(first);
+            const stage = document.createElement('app-web-player-view');
+            const legacySurface = document.createElement('div');
+            legacySurface.className = 'video-js';
+            stage.appendChild(legacySurface);
+            fixture.nativeElement.appendChild(stage);
+            const descriptor = Object.getOwnPropertyDescriptor(
+                document,
+                'fullscreenElement'
+            );
+            Object.defineProperty(document, 'fullscreenElement', {
+                configurable: true,
+                get: () => legacySurface,
+            });
+            try {
+                component.switchToChannelByNumber(2);
+                expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                    setActiveChannelDispatch(sampleChannel)
+                );
+            } finally {
+                if (descriptor)
+                    Object.defineProperty(
+                        document,
+                        'fullscreenElement',
+                        descriptor
+                    );
+                else Reflect.deleteProperty(document, 'fullscreenElement');
+            }
+        });
+
         it.each(['menu', 'dialog', 'cdk-overlay-pane'])(
             'leaves paging keys to a short %s overlay',
             (kind) => {

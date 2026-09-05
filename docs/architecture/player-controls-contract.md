@@ -346,9 +346,12 @@ filter, and every panel view resolves against that one list, favorites and
 recent included. With external MPV/VLC configured, the panel offers only
 DASH rows: DASH forces the inline Shaka player, but selecting a non-DASH
 channel would replace the fullscreen owner with the external-player UI.
-While the live `app-web-player-view` owns fullscreen, numeric selection and
-PageUp/PageDown (including remote commands) apply that same eligibility
-predicate. Numbers retain their original playlist positions and an ineligible
+While the live `app-web-player-view` owns fullscreen — itself under shared
+controls, or through the nested surface a legacy player fullscreens under the
+vendor-chrome opt-out (`.video-js`, ArtPlayer's container, the `<video>`), so
+the check accepts any fullscreen element inside that host — numeric
+selection and PageUp/PageDown (including remote commands) apply that same
+eligibility predicate. Numbers retain their original playlist positions and an ineligible
 number is ignored; adjacent selection skips ineligible rows. Windowed playback
 keeps the complete catalog. Already-handled events and menu/dialog overlay targets keep their keys,
 even when a short menu has no scroll overflow), `LiveStreamLayoutComponent` (Xtream; the sidebar's

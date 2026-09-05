@@ -1331,11 +1331,19 @@ export class VideoPlayerComponent
         );
     }
 
+    /**
+     * Whether this page's inline live player owns fullscreen. With shared
+     * controls the fullscreen element is `app-web-player-view` itself; with
+     * the vendor-chrome opt-out a legacy player fullscreens its own nested
+     * surface (the `.video-js` element, ArtPlayer's container, the `<video>`),
+     * so the check accepts any fullscreen element inside that host — leaving
+     * fullscreen through an ineligible channel is the same loss either way.
+     */
     private isLivePlayerFullscreen(): boolean {
         const fullscreen = document.fullscreenElement;
         return (
             !this.showMovieDetail() &&
-            !!fullscreen?.matches('app-web-player-view') &&
+            !!fullscreen?.closest('app-web-player-view') &&
             this.hostElement.nativeElement.contains(fullscreen)
         );
     }
