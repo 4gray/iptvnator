@@ -11,15 +11,18 @@ export const LIVE_EPG_TICK_MS = 30_000;
 
 // Reads either an ISO `start`/`stop` or the pre-computed `startTimestamp`
 // when present. The parsed XMLTV pipeline populates both, but legacy rows
-// only carry the strings.
+// only carry the strings. `startTimestamp`/`stopTimestamp` are unix SECONDS
+// (the same contract `getProgramTimeMs` in `@iptvnator/ui/epg` reads), so a
+// usable value is scaled to milliseconds; zero, negative or non-finite
+// values are treated as absent and fall back to the ISO string.
 function epgTimestampMs(
     program: EpgProgram,
     side: 'start' | 'stop'
 ): number | null {
     const cached =
         side === 'start' ? program.startTimestamp : program.stopTimestamp;
-    if (cached != null) {
-        return cached;
+    if (Number.isFinite(cached) && Number(cached) > 0) {
+        return Number(cached) * 1000;
     }
     const iso = side === 'start' ? program.start : program.stop;
     const ms = iso ? new Date(iso).getTime() : NaN;
