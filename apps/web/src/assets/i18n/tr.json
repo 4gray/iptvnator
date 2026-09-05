@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Kategorileri Yönet",
             "LOADING": "Kategoriler yükleniyor...",
-            "SELECTED": "Seçildi",
+            "SELECTED": "Toplam seçilen",
             "SELECT_ALL": "Tümünü Seç",
             "DESELECT_ALL": "Tümünü Kaldır",
+            "SELECT_FILTERED": "Sonuçları seç",
+            "DESELECT_FILTERED": "Sonuçların seçimini kaldır",
             "SEARCH_PLACEHOLDER": "Kategorileri ara...",
             "NO_RESULTS": "Eşleşen kategori bulunamadı",
             "NO_CATEGORIES": "Kategori mevcut değil",

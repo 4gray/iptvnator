@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "카테고리 관리",
             "LOADING": "카테고리를 불러오는 중...",
-            "SELECTED": "선택됨",
+            "SELECTED": "총 선택 수",
             "SELECT_ALL": "모두 선택",
             "DESELECT_ALL": "모두 선택 해제",
+            "SELECT_FILTERED": "검색 결과 선택",
+            "DESELECT_FILTERED": "검색 결과 선택 해제",
             "SEARCH_PLACEHOLDER": "카테고리 검색...",
             "NO_RESULTS": "일치하는 카테고리를 찾을 수 없습니다",
             "NO_CATEGORIES": "사용 가능한 카테고리가 없습니다",

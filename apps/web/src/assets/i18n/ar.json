@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "إدارة الفئات",
             "LOADING": "جارٍ تحميل الفئات...",
-            "SELECTED": "محدد",
+            "SELECTED": "إجمالي المحدد",
             "SELECT_ALL": "تحديد الكل",
             "DESELECT_ALL": "إلغاء تحديد الكل",
+            "SELECT_FILTERED": "تحديد نتائج البحث",
+            "DESELECT_FILTERED": "إلغاء تحديد نتائج البحث",
             "SEARCH_PLACEHOLDER": "بحث في الفئات...",
             "NO_RESULTS": "لم يتم العثور على فئات مطابقة",
             "NO_CATEGORIES": "لا توجد فئات متاحة",

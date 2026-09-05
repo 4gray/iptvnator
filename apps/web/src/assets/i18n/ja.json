@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "カテゴリーを管理",
             "LOADING": "カテゴリーを読み込み中...",
-            "SELECTED": "選択済み",
+            "SELECTED": "選択済みの合計",
             "SELECT_ALL": "すべて選択",
             "DESELECT_ALL": "すべて解除",
+            "SELECT_FILTERED": "検索結果を選択",
+            "DESELECT_FILTERED": "検索結果の選択を解除",
             "SEARCH_PLACEHOLDER": "カテゴリーを検索...",
             "NO_RESULTS": "一致するカテゴリーが見つかりません",
             "NO_CATEGORIES": "利用可能なカテゴリーはありません",

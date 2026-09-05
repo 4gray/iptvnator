@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Gerenciar categorias",
             "LOADING": "Carregando categorias...",
-            "SELECTED": "Selecionadas",
+            "SELECTED": "Total selecionado",
             "SELECT_ALL": "Selecionar todas",
             "DESELECT_ALL": "Desmarcar todas",
+            "SELECT_FILTERED": "Selecionar resultados",
+            "DESELECT_FILTERED": "Desmarcar resultados",
             "SEARCH_PLACEHOLDER": "Pesquisar categorias...",
             "NO_RESULTS": "Nenhuma categoria correspondente encontrada",
             "NO_CATEGORIES": "Nenhuma categoria disponível",

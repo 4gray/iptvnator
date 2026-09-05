@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "管理分类",
             "LOADING": "正在加载分类…",
-            "SELECTED": "已选择",
+            "SELECTED": "已选总数",
             "SELECT_ALL": "全选",
             "DESELECT_ALL": "取消全选",
+            "SELECT_FILTERED": "选择搜索结果",
+            "DESELECT_FILTERED": "取消选择搜索结果",
             "SEARCH_PLACEHOLDER": "搜索分类…",
             "NO_RESULTS": "未找到匹配的分类",
             "NO_CATEGORIES": "没有可用的分类",

@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Управление категориями",
             "LOADING": "Загрузка категорий…",
-            "SELECTED": "Выбрано",
+            "SELECTED": "Всего выбрано",
             "SELECT_ALL": "Выбрать всё",
             "DESELECT_ALL": "Снять выделение",
+            "SELECT_FILTERED": "Выбрать найденные",
+            "DESELECT_FILTERED": "Снять выбор с найденных",
             "SEARCH_PLACEHOLDER": "Поиск категорий…",
             "NO_RESULTS": "Подходящих категорий не найдено",
             "NO_CATEGORIES": "Нет доступных категорий",

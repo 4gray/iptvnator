@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Kategóriák kezelése",
             "LOADING": "Kategóriák betöltése…",
-            "SELECTED": "Kijelölve",
+            "SELECTED": "Összesen kijelölve",
             "SELECT_ALL": "Összes kijelölése",
             "DESELECT_ALL": "Összes kijelölésének megszüntetése",
+            "SELECT_FILTERED": "Találatok kijelölése",
+            "DESELECT_FILTERED": "Találatok kijelölésének megszüntetése",
             "SEARCH_PLACEHOLDER": "Keresés a kategóriák között…",
             "NO_RESULTS": "Nem található a keresésnek megfelelő kategória",
             "NO_CATEGORIES": "Nincs elérhető kategória",

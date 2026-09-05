@@ -992,9 +992,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Categorieën beheren",
             "LOADING": "Categorieën laden...",
-            "SELECTED": "Geselecteerd",
+            "SELECTED": "Totaal geselecteerd",
             "SELECT_ALL": "Alles selecteren",
             "DESELECT_ALL": "Alles deselecteren",
+            "SELECT_FILTERED": "Resultaten selecteren",
+            "DESELECT_FILTERED": "Resultaten deselecteren",
             "SEARCH_PLACEHOLDER": "Zoek categorieën...",
             "NO_RESULTS": "Geen overeenkomende categorieën gevonden",
             "NO_CATEGORIES": "Geen categorieën beschikbaar",
