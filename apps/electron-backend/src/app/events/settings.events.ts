@@ -12,14 +12,19 @@ import {
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
     STARTUP_WINDOW_MODE,
+    PORTAL_CONNECTIVITY_GUARD,
     store,
     VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE,
 } from '../services/store.service';
 import { httpServer } from '../server/http-server';
+import { setHostConnectivityGuardEnabled } from '../util/host-connectivity-guard';
 
 export default class SettingsEvents {
     static bootstrapSettingsEvents(): Electron.IpcMain {
+        setHostConnectivityGuardEnabled(
+            store.get(PORTAL_CONNECTIVITY_GUARD, true) !== false
+        );
         return ipcMain;
     }
 }
@@ -29,6 +34,12 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         'Received SETTINGS_UPDATE with data:',
         redactSensitiveData(arg)
     );
+
+    if (arg.portalConnectivityGuard !== undefined) {
+        const enabled = arg.portalConnectivityGuard !== false;
+        store.set(PORTAL_CONNECTIVITY_GUARD, enabled);
+        setHostConnectivityGuardEnabled(enabled);
+    }
 
     if (arg.mpvPlayerArguments !== undefined) {
         store.set(

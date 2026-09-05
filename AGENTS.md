@@ -166,6 +166,20 @@ agent-browser connect ws://127.0.0.1:9222/devtools/page/<iptvnator-page-id>
 agent-browser screenshot /tmp/iptvnator-cdp.png
 ```
 
+## Portal Connectivity Preference
+
+- Desktop Settings > General > Portal connections exposes default-on
+  `Settings.portalConnectivityGuard`. Only explicit false opts out. Save mirrors
+  the value to Electron `PORTAL_CONNECTIVITY_GUARD` and applies it without restart;
+  settings bootstrap restores it before the renderer loads. It controls Xtream
+  and Stalker together. Preference transitions clear cooldowns and invalidate old
+  request completions; unchanged saves preserve evidence. The environment switch
+  `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` remains authoritative. PWA clients do not
+  control the shared backend's guard.
+- Both account-info dialogs explain guard refusals with localized paused-request
+  copy and Retry now; Stalker preserves cached account data on a failed refresh.
+  Contract: `docs/architecture/host-connectivity-guard.md`.
+
 ## Radio / Audio Player
 
 M3U playlists can contain radio channels identified by the `radio="true"` attribute on `#EXTINF` lines. When a radio channel is selected:

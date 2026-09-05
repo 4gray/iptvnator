@@ -1625,3 +1625,17 @@ No formal migration system yet. Schema changes are applied via raw SQL in the `c
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+## Portal Connectivity Preference
+
+- Desktop Settings > General > Portal connections exposes default-on
+  `Settings.portalConnectivityGuard`. Only explicit false opts out. Save mirrors
+  the value to Electron `PORTAL_CONNECTIVITY_GUARD` and applies it without restart;
+  settings bootstrap restores it before the renderer loads. It controls Xtream
+  and Stalker together. Preference transitions clear cooldowns and invalidate old
+  request completions; unchanged saves preserve evidence. The environment switch
+  `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` remains authoritative. PWA clients do not
+  control the shared backend's guard.
+- Both account-info dialogs explain guard refusals with localized paused-request
+  copy and Retry now; Stalker preserves cached account data on a failed refresh.
+  Contract: `docs/architecture/host-connectivity-guard.md`.
