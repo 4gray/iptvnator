@@ -214,7 +214,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
     let current = 0;
     let startedAt = 0;
     let frame = 0;
-    let paused = false;
+    // Hover and focus pause independently; autoplay resumes only when neither holds.
+    let hovered = false;
+    let focused = false;
+    const paused = () => hovered || focused;
     let osdTimer = 0;
 
     const progressOf = (i) => tabs[i].querySelector('.channel-progress');
@@ -250,7 +253,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     }
 
     function tick(now) {
-      if (!paused) {
+      if (!paused()) {
         const progress = (now - startedAt) / DWELL_MS;
         if (progress >= 1) show(current + 1);
         else progressOf(current).style.width = `${progress * 100}%`;
@@ -282,13 +285,16 @@ const pad = (n: number) => String(n).padStart(2, '0');
     });
 
     // A visitor who is reading or operating the block keeps the current channel.
-    root.addEventListener('mouseenter', () => { paused = true; });
-    root.addEventListener('mouseleave', () => { paused = false; startedAt = performance.now(); });
-    root.addEventListener('focusin', () => { paused = true; });
+    const resumeIfIdle = () => {
+      if (!paused()) startedAt = performance.now();
+    };
+    root.addEventListener('mouseenter', () => { hovered = true; });
+    root.addEventListener('mouseleave', () => { hovered = false; resumeIfIdle(); });
+    root.addEventListener('focusin', () => { focused = true; });
     root.addEventListener('focusout', (event) => {
       if (root.contains(event.relatedTarget)) return;
-      paused = false;
-      startedAt = performance.now();
+      focused = false;
+      resumeIfIdle();
     });
 
     // Only run while the block is on screen.
