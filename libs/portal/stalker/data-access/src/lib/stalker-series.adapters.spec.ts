@@ -16,6 +16,100 @@ type EpisodeWithMetadata = {
 };
 
 describe('stalker-series.adapters', () => {
+    it.each([
+        'The Gentlemen s02',
+        'The Gentlemen season2',
+        'The Gentlemen (s02)',
+        'The Gentlemen (season 2)',
+        'Олдскул (2 сезон)',
+        'Олдскул (сезон 2)',
+        'Олдскул s02',
+        'Олдскул season2',
+    ])(
+        'uses the title season for lazy VOD %s without changing tracking IDs',
+        (title) => {
+            const provider = [
+                {
+                    id: 's1',
+                    video_id: 'v1',
+                    season_number: '1',
+                    name: 'Season 1',
+                },
+            ];
+            const load = (
+                seasons: ReturnType<typeof mapVodSeriesSeasonsToVm>
+            ) =>
+                seasons.map((season) => ({
+                    ...season,
+                    episodes: [
+                        {
+                            id: 'provider-episode-1',
+                            series_number: 1,
+                            name: 'Episode 1',
+                        },
+                    ],
+                }));
+            const original = mapVodSeriesEpisodes(
+                load(mapVodSeriesSeasonsToVm(provider)),
+                { parentSeriesId: 100 }
+            );
+            const correctedSeasons = mapVodSeriesSeasonsToVm(provider, title);
+            expect(correctedSeasons[0].season_number).toBe('2');
+            expect(correctedSeasons[0].episodes).toEqual([]);
+            expect(correctedSeasons[0].id).toBe('s1');
+            expect(correctedSeasons[0].video_id).toBe('v1');
+            const corrected = mapVodSeriesEpisodes(load(correctedSeasons), {
+                parentSeriesId: 100,
+            });
+            expect(Object.keys(corrected)).toEqual(['2']);
+            expect(corrected['2'][0]).toEqual(
+                expect.objectContaining({
+                    id: original['1'][0].id,
+                    season: 2,
+                    providerSeasonNumber: 1,
+                    legacyTrackingId: (original['1'][0] as EpisodeWithMetadata)
+                        .legacyTrackingId,
+                    originalId: 'provider-episode-1',
+                })
+            );
+        }
+    );
+
+    it('keeps multi-season VOD numbering despite a parent title marker', () => {
+        const provider = [1, 2].map((number) => ({
+            id: `s${number}`,
+            video_id: 'v1',
+            season_number: String(number),
+        }));
+        expect(
+            mapVodSeriesSeasonsToVm(provider, 'Show s02').map(
+                (season) => season.season_number
+            )
+        ).toEqual(['1', '2']);
+    });
+
+    it('corrects embedded and single regular season coordinates without changing episode IDs', () => {
+        const seasons = [
+            {
+                id: 's1',
+                name: 'Episodes',
+                cmd: '/media/file_100.mpg',
+                series: [1, 2],
+            },
+        ];
+        const original = mapRegularSeriesEpisodes(seasons);
+        const corrected = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            'Show (season 2)'
+        );
+        expect(Object.keys(corrected)).toEqual(['2']);
+        expect(corrected['2'][0].season).toBe(2);
+        expect(corrected['2'].map((episode) => episode.id)).toEqual(
+            original['1'].map((episode) => episode.id)
+        );
+    });
+
     it('detects vod-series flags from heterogeneous payloads', () => {
         expect(isVodSeriesItem({ is_series: true })).toBe(true);
         expect(isVodSeriesItem({ is_series: 1 })).toBe(true);

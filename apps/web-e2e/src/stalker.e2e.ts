@@ -1,7 +1,5 @@
-import {
-    type APIRequestContext,
-    type Page,
-} from '@playwright/test';
+import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
+import { type APIRequestContext, type Page } from '@playwright/test';
 import { setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 import {
@@ -1030,10 +1028,7 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
             body?.payload?.js?.data ?? body?.js?.data ?? [];
         for (const row of rows) {
             if (Array.isArray(row.series) && row.series.length > 0) {
-                row.series = [
-                    ...row.series,
-                    String(row.series.length + 1),
-                ];
+                row.series = [...row.series, String(row.series.length + 1)];
             }
         }
         await route.fulfill({ response, body: JSON.stringify(body) });
@@ -1064,6 +1059,14 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
             exact: true,
         })
     ).toBeVisible({ timeout: 10_000 });
+});
+
+test('@stalker title season markers align lazy VOD labels, TMDB episodes and watched state', async ({
+    page,
+}) => {
+    await verifyStalkerSeasonMarkers(page, () =>
+        addStalkerPortal(page, { name: 'Season Marker Portal' })
+    );
 });
 
 test('@stalker season watched toggle — embedded series marks and clears every episode', async ({

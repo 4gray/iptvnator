@@ -1415,6 +1415,17 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - Treated as series flow from VOD context.
 - Seasons are fetched lazily.
 - Episodes are fetched on season select.
+- The season resource depends on the VOD item id and series mode, so a TMDB
+  metadata patch does not reload seasons or discard loaded episodes. Pending
+  episode requests belong to the exact loading season VM; replies from an old
+  selection cannot fill a replacement list with reused provider season ids.
+- A single-season item's explicit title marker (`s02`, `season2`, `(2 сезон)`,
+  etc., in `name` or `o_name`) supplies the displayed season number, quick-start
+  code and episode/playback/download metadata, independently of UI language and
+  TMDB availability. Regular and embedded VOD series apply the same rule.
+  Multi-season items keep provider numbering. Lazy VOD retains the original
+  season key/number separately for stable tracking IDs and compatible legacy
+  progress; provider request ids remain unchanged.
 - The series quick-start CTA can load the first unloaded VOD-series season
   before playback. Unloaded seasons are considered unplayed in full season
   order, so an earlier unloaded season is not skipped just because a later
