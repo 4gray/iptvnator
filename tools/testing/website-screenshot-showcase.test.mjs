@@ -40,6 +40,8 @@ test('showcase markup: a vertical tablist with one selected channel and a panel 
     assert.match(panel, new RegExp(`aria-hidden="${i === 0 ? 'false' : 'true'}"`));
   }
   assert.match(html, /href="\/iptvnator\/features\/epg\/"/, 'captions link into the feature pages');
+  const toggleTag = html.match(/<button[^>]*data-autoplay-toggle[^>]*>/)?.[0];
+  assert.ok(toggleTag && /aria-pressed="false"/.test(toggleTag), 'a persistent pause control ships in the markup');
 
   const frames = panels.map((panel) => html.slice(html.indexOf(panel)).match(/<img[^>]*>/)[0]);
   assert.equal(frames.filter((img) => / src="/.test(img)).length, 1, 'only the first frame ships with a src');
@@ -75,6 +77,34 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     assert.equal(await selectedChannel(page), 'dashboard', 'autoplay starts on the first channel');
     const loaded = (p) => p.$$eval('.channel-panel img', (els) => els.map((el) => Boolean(el.getAttribute('src'))));
     assert.deepEqual(await loaded(page), [true, true, false, false, false, false], 'only the shown frame and the next one have a src');
+
+    // The dwell really rolls over: tab, panel, caption and badge all move to channel 02.
+    await page.waitForFunction(
+      () => document.querySelector('.channel-tab[aria-selected="true"]')?.dataset.channel === 'live-tv',
+      null,
+      { timeout: 9000 },
+    );
+    assert.deepEqual(await hiddenPanels(page), ['true', 'false', 'true', 'true', 'true', 'true'], 'the panel follows autoplay');
+    assert.equal(await page.$eval('[data-caption-label]', (el) => el.textContent.trim()), 'Live TV');
+    assert.equal(await page.$eval('[data-osd-number]', (el) => el.textContent.trim()), 'CH 02');
+    assert.deepEqual((await loaded(page)).slice(0, 3), [true, true, true], 'autoplay preloads the frame after the new channel');
+
+    // The toggle pauses until pressed again, whatever the pointer and focus do.
+    const toggle = page.locator('[data-autoplay-toggle]');
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+    assert.equal(await toggle.getAttribute('aria-label'), 'Resume auto-advance');
+    await page.mouse.move(5, 5);
+    await page.evaluate(() => document.activeElement?.blur());
+    const stoppedAt = await progressWidth(page);
+    await page.waitForTimeout(800);
+    assert.ok(Math.abs((await progressWidth(page)) - stoppedAt) < 0.5, 'the toggle keeps autoplay paused after mouseleave and blur');
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+    await page.mouse.move(5, 5);
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(500);
+    assert.ok((await progressWidth(page)) > stoppedAt, 'resuming continues the dwell');
 
     // Hover pauses.
     await page.locator('.channel-tab').nth(2).hover();
@@ -149,6 +179,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     assert.equal(await progressWidth(calm), 0, 'no progress under prefers-reduced-motion');
     assert.deepEqual(await loaded(calm), [true, false, false, false, false, false], 'no prefetch when autoplay is off');
     assert.equal(await selectedChannel(calm), 'dashboard');
+    assert.equal(await calm.locator('[data-autoplay-toggle]').count(), 0, 'no pause control when nothing advances');
     await calm.keyboard.press('Tab');
     await calm.locator('.channel-tab').nth(1).click();
     assert.equal(await selectedChannel(calm), 'live-tv', 'manual switching still works');
