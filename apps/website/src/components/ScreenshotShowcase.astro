@@ -22,7 +22,9 @@
  * Hover and focus only pause while they last, which is no use to a touch or
  * screen-reader visitor, so the list footer carries a "Pause auto-advance"
  * toggle that stays paused until pressed again (WCAG 2.2.2). It is removed
- * under reduced motion, where there is nothing to pause.
+ * under reduced motion, where there is nothing to pause. The transient pauses
+ * watch the channel list and the screen only, so pressing Resume restarts
+ * autoplay at once even though the button keeps the pointer and the focus.
  */
 const channels = [
   {
@@ -171,7 +173,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
       </div>
 
       <!-- Screen -->
-      <div class="relative aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-950 shadow-2xl shadow-black/40 lg:aspect-auto lg:min-h-[460px]">
+      <div
+        class="relative aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-950 shadow-2xl shadow-black/40 lg:aspect-auto lg:min-h-[460px]"
+        data-channel-screen
+      >
         {
           channels.map((channel, i) => (
             <div
@@ -340,14 +345,21 @@ const pad = (n: number) => String(n).padStart(2, '0');
       show(keys[event.key], { focus: true });
     });
 
-    // A visitor who is reading or operating the block keeps the current channel.
-    root.addEventListener('mouseenter', () => { hovered = true; });
-    root.addEventListener('mouseleave', () => { hovered = false; });
-    root.addEventListener('focusin', () => { focused = true; });
-    root.addEventListener('focusout', (event) => {
-      if (root.contains(event.relatedTarget)) return;
-      focused = false;
-    });
+    // A visitor who is reading the list or the screen keeps the current
+    // channel. The footer with the Pause/Resume control is deliberately not
+    // one of these regions: after pressing Resume the pointer and the focus
+    // are still on that button, and autoplay must visibly restart right away.
+    const regions = [root.querySelector('[role="tablist"]'), root.querySelector('[data-channel-screen]')].filter(Boolean);
+    const insideRegion = (node) => node instanceof Node && regions.some((region) => region.contains(node));
+    for (const region of regions) {
+      region.addEventListener('mouseenter', () => { hovered = true; });
+      region.addEventListener('mouseleave', () => { hovered = false; });
+      region.addEventListener('focusin', () => { focused = true; });
+      region.addEventListener('focusout', (event) => {
+        if (insideRegion(event.relatedTarget)) return;
+        focused = false;
+      });
+    }
 
     // Only run while the block is on screen.
     const toggle = root.querySelector('[data-autoplay-toggle]');

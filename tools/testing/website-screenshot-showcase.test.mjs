@@ -103,17 +103,26 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     const stoppedAt = await progressWidth(page);
     await page.waitForTimeout(800);
     assert.ok(Math.abs((await progressWidth(page)) - stoppedAt) < 0.5, 'the toggle keeps autoplay paused after mouseleave and blur');
+
     // A channel picked while paused does not preload its successor; resuming fetches it.
     await page.locator('.channel-tab').nth(3).click();
     assert.equal(await selectedChannel(page), 'movies');
     assert.deepEqual((await loaded(page)).slice(3, 5), [true, false], 'paused: the picked frame loads, its successor does not');
+    await page.mouse.move(5, 5);
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(300);
+    const pausedOnMovies = await progressWidth(page);
+    assert.ok(pausedOnMovies < 0.5, 'still paused on the newly picked channel');
+
+    // Resume restarts autoplay at once, with the pointer and the focus still on the button.
     await toggle.click();
     assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
     assert.deepEqual((await loaded(page)).slice(3, 5), [true, true], 'resuming preloads the successor');
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-autoplay-toggle')), true, 'the button keeps focus');
+    await page.waitForTimeout(500);
+    assert.ok((await progressWidth(page)) > pausedOnMovies + 2, 'autoplay runs while the toggle is focused and hovered');
     await page.mouse.move(5, 5);
     await page.evaluate(() => document.activeElement?.blur());
-    await page.waitForTimeout(500);
-    assert.ok((await progressWidth(page)) > stoppedAt, 'resuming continues the dwell');
 
     // Hover pauses.
     await page.locator('.channel-tab').nth(2).hover();
