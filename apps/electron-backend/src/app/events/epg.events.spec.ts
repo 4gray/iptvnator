@@ -402,6 +402,66 @@ describe('EpgEvents', () => {
         expect(terminated).toBe(true);
     });
 
+    it('waits for source cleanup before starting a replacement import of the same normalized URL', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://replacement.example/guide.xml';
+        const clear = service.clearEpgDataForSource(url);
+        const clearWorker = mockWorkerInstances[0];
+        const replacement = service.fetchEpgFromUrl(` ${url} `);
+        const workersBeforeCleanup = mockWorkerInstances.length;
+        clearWorker.emit('message', { type: 'READY' });
+        clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+        await clear;
+        await flushPromises();
+        const fetchWorker = mockWorkerInstances[1];
+        fetchWorker.emit('message', { type: 'READY' });
+        fetchWorker.emit('message', { type: 'EPG_COMPLETE' });
+        await replacement;
+        expect(workersBeforeCleanup).toBe(1);
+        expect(service.hasFetchedUrl(url)).toBe(true);
+    });
+
+    it('serializes repeated clears and retires a replacement waiting for the earlier clear', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://twice-removed.example/guide.xml';
+        const firstClear = service.clearEpgDataForSource(url);
+        const waitingFetch = service.fetchEpgFromUrl(url);
+        const secondClear = service.clearEpgDataForSource(url);
+        expect(mockWorkerInstances).toHaveLength(1);
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await firstClear;
+        await waitingFetch;
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        expect(mockWorkerInstances[1].postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG_SOURCE',
+            sourceUrl: url,
+        });
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await secondClear;
+        expect(service.hasFetchedUrl(url)).toBe(false);
+    });
+
+    it('allows a replacement import after a failed source cleanup has terminated', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://retry-clear.example/guide.xml';
+        const clear = service.clearEpgDataForSource(url);
+        const outcome = clear.catch((error: Error) => error.message);
+        const replacement = service.fetchEpgFromUrl(url);
+        mockWorkerInstances[0].emit('message', {
+            type: 'EPG_ERROR',
+            error: 'clear failed',
+        });
+        expect(await outcome).toBe('clear failed');
+        await flushPromises();
+        expect(mockWorkerInstances[0].terminate).toHaveBeenCalled();
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+        await replacement;
+        expect(service.hasFetchedUrl(url)).toBe(true);
+    });
+
     it('keeps an active EPG fetch alive when worker progress keeps moving', async () => {
         jest.useFakeTimers();
 

@@ -20,6 +20,7 @@ export class EpgSourceReconciliationError extends Error {
 export class EpgSourceSettingsService {
     private readonly injector = inject(Injector);
     private activeUrls = new Set<string>();
+    private reconciliation: Promise<void> | undefined;
     readonly revision = signal(0);
     readonly changed$ = new Subject<void>();
 
@@ -38,12 +39,35 @@ export class EpgSourceSettingsService {
             );
     }
 
+    async waitForReconciliation(): Promise<void> {
+        while (this.reconciliation) {
+            await this.reconciliation.catch(() => undefined);
+        }
+    }
+
     async synchronize(urls: string[] | string | undefined): Promise<void> {
         if (
             typeof window === 'undefined' ||
             !window.electron?.reconcileEpgSources
         )
             return;
+        // Fence existing lookups before playlist migration or IPC can yield.
+        this.revision.update((revision) => revision + 1);
+        const previous = this.reconciliation;
+        const operation = previous
+            ? previous.catch(() => undefined).then(() => this.reconcile(urls))
+            : this.reconcile(urls);
+        const pending = operation.finally(() => {
+            if (this.reconciliation === pending)
+                this.reconciliation = undefined;
+        });
+        this.reconciliation = pending;
+        return pending;
+    }
+
+    private async reconcile(
+        urls: string[] | string | undefined
+    ): Promise<void> {
         const normalized = [
             ...new Set(
                 (Array.isArray(urls) ? urls : [urls ?? ''])

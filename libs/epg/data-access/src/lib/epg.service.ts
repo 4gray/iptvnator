@@ -94,6 +94,7 @@ export class EpgService {
         // Filter out empty and duplicate URLs and send all URLs at once.
         const revision = this.sourceSettings.revision();
         await this.settingsStore.loadSettings();
+        await this.sourceSettings.waitForReconciliation();
         const validUrls = this.sourceSettings.retainCurrentSources(
             normalizeEpgUrls(urls),
             revision

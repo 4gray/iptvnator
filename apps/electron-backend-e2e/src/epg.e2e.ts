@@ -153,14 +153,16 @@ test.describe('Electron EPG', () => {
         try {
             await openSettings(app.mainWindow);
             await openSettingsSection(app.mainWindow, 'epg');
-            for (const url of [first.resourceUrl, second.resourceUrl]) {
+            for (const [index, url] of [
+                first.resourceUrl,
+                second.resourceUrl,
+            ].entries()) {
                 await app.mainWindow
                     .getByRole('button', { name: 'Add EPG source' })
                     .click();
-                await app.mainWindow
-                    .locator('.epg-source-row input')
-                    .last()
-                    .fill(url);
+                const inputs = app.mainWindow.locator('.epg-source-row input');
+                await expect(inputs).toHaveCount(index + 1);
+                await inputs.nth(index).fill(url);
             }
             await saveSettings(app.mainWindow);
             const programs = () =>

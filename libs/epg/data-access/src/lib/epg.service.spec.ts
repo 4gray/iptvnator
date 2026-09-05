@@ -1,8 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, skip } from 'rxjs';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import { firstValueFrom, of, skip } from 'rxjs';
+import {
+    EpgSourceSettingsService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
@@ -46,6 +50,19 @@ describe('EpgService', () => {
         TestBed.configureTestingModule({
             providers: [
                 EpgService,
+                {
+                    provide: PlaylistsService,
+                    useValue: {
+                        getAllPlaylists: () =>
+                            of([
+                                {
+                                    epgUrls: [
+                                        'https://playlist.example/guide.xml',
+                                    ],
+                                },
+                            ]),
+                    },
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,
@@ -138,6 +155,41 @@ describe('EpgService', () => {
         expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(2);
     });
 
+    it('waits for ongoing reconciliation and filters imports against committed owners', async () => {
+        epgBridge.supportsImport = true;
+        const original = window.electron;
+        let complete!: (result: { success: boolean }) => void;
+        window.electron = {
+            reconcileEpgSources: () =>
+                new Promise((resolve) => {
+                    complete = resolve;
+                }),
+        } as typeof window.electron;
+        try {
+            const sources = TestBed.inject(EpgSourceSettingsService);
+            const reconciliation = sources.synchronize([
+                'https://kept.example/guide.xml',
+            ]);
+            await Promise.resolve();
+            const pending = service.fetchEpg([
+                'https://removed.example/guide.xml',
+                'https://playlist.example/guide.xml',
+            ]);
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
+            complete({ success: true });
+            await reconciliation;
+            await pending;
+            expect(epgBridge.fetchEpg).toHaveBeenCalledWith(
+                ['https://playlist.example/guide.xml'],
+                expect.anything()
+            );
+        } finally {
+            window.electron = original;
+        }
+    });
+
     it('does not fetch EPG when bridge import support is disabled', () => {
         service.fetchEpg(['https://example.com/epg.xml']);
 
@@ -147,7 +199,7 @@ describe('EpgService', () => {
     it('fetches EPG through the EPG runtime bridge when import support is enabled', async () => {
         epgBridge.supportsImport = true;
 
-        service.fetchEpg([
+        await service.fetchEpg([
             'https://example.com/epg.xml',
             '',
             'https://example.com/other.xml',

@@ -1333,6 +1333,8 @@ Reconciliation finds old sources in both XMLTV tables and queued imports. It
 retires their generations before waiting for workers to exit, then uses the
 existing source-clear worker. Successfully cleared request candidates are forgotten
 without resetting their generation fences; failed cleanups remain retryable.
+Same-URL clears are serialized and replacement imports await the outstanding
+clear, so an older cleanup cannot erase a newly re-added source.
 Retired queued imports emit cancellation so progress rows disappear. Programmes are deleted by source; a globally keyed
 channel is retained while another source still has programmes, transferring its
 legacy owner to that remaining source. Manual mappings are preserved and can
@@ -1341,7 +1343,10 @@ unknown (`NULL`) ownership are conservatively left alone; the existing database
 initialization backfill handles rows whose channel still identifies their owner.
 There is no new schema migration.
 
-Renderer reconciliation increments a data revision and cancels earlier lookup
+Renderer reconciliation fences lookups before its first asynchronous step.
+Imports wait for serialized reconciliation (including playlist migration), then
+filter against its committed owner set. Completion increments the data revision again
+and cancels earlier lookup
 subscriptions, clears program caches and the selected M3U guide, and refreshes
 Xtream selection and visible channel previews, plus Stalker manual mapping
 overrides and bulk guides. A delayed startup import is

@@ -39,6 +39,7 @@ export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
     private readonly workers = new Map<string, Worker>();
     private readonly inFlightFetches = new Map<string, Promise<void>>();
+    private readonly inFlightSourceClears = new Map<string, Promise<void>>();
 
     constructor(
         private readonly loggerLabel = '[EPG Events]',
@@ -86,6 +87,26 @@ export class EpgWorkerService {
         url: string,
         options: ElectronBridgeTrustOptions = {}
     ): Promise<void> {
+        url = url.trim();
+        const generation = requestEpgSource(url);
+        const clear = this.inFlightSourceClears.get(url);
+        if (clear) {
+            await clear.catch(() => undefined);
+            if (generation !== epgSourceGeneration(url)) {
+                this.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generation
+                );
+                return;
+            }
+            return this.fetchEpgFromUrl(url, options);
+        }
         // A second request for an URL that is already being fetched must not
         // spawn a competing worker: both would parse and write the same EPG
         // data, and the late one would overwrite the early one's entry in
@@ -121,7 +142,7 @@ export class EpgWorkerService {
         url: string,
         options: ElectronBridgeTrustOptions
     ): Promise<void> {
-        const generation = requestEpgSource(url);
+        const generation = epgSourceGeneration(url);
         return new Promise((resolve, reject) => {
             let worker: Worker;
             try {
@@ -383,6 +404,21 @@ export class EpgWorkerService {
 
         retireEpgSource(normalizedSourceUrl);
         this.fetchedUrls.delete(normalizedSourceUrl);
+        const previous = this.inFlightSourceClears.get(normalizedSourceUrl);
+        const operation = previous
+            ? previous
+                  .catch(() => undefined)
+                  .then(() => this.startSourceClear(normalizedSourceUrl))
+            : this.startSourceClear(normalizedSourceUrl);
+        const clear = operation.finally(() => {
+            if (this.inFlightSourceClears.get(normalizedSourceUrl) === clear)
+                this.inFlightSourceClears.delete(normalizedSourceUrl);
+        });
+        this.inFlightSourceClears.set(normalizedSourceUrl, clear);
+        return clear;
+    }
+
+    private async startSourceClear(normalizedSourceUrl: string): Promise<void> {
         const runningWorker = this.workers.get(normalizedSourceUrl);
         if (runningWorker) {
             this.workers.delete(normalizedSourceUrl);

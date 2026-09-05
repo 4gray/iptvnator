@@ -192,13 +192,14 @@ export class AppComponent implements OnInit {
     private async fetchStaleEpgData(urls: string[]): Promise<void> {
         await this.settingsStore.loadSettings();
         const revision = this.epgSources.revision();
-        const fetchCurrentSources = (sources: string[]) => {
+        const fetchCurrentSources = async (sources: string[]) => {
+            await this.epgSources.waitForReconciliation();
             this.epgService.fetchEpg(
                 this.epgSources.retainCurrentSources(sources, revision)
             );
         };
         if (!this.epgBridge.supportsSourceFreshness) {
-            fetchCurrentSources(urls);
+            await fetchCurrentSources(urls);
             return;
         }
 
@@ -206,7 +207,7 @@ export class AppComponent implements OnInit {
             const result = await this.epgBridge.checkFreshness(urls, 12);
 
             if (!result) {
-                fetchCurrentSources(urls);
+                await fetchCurrentSources(urls);
                 return;
             }
 
@@ -228,12 +229,12 @@ export class AppComponent implements OnInit {
                 debugAppComponent(
                     `EPG: Fetching ${result.staleUrls.length} stale source(s)`
                 );
-                fetchCurrentSources(result.staleUrls);
+                await fetchCurrentSources(result.staleUrls);
             }
         } catch (error) {
             console.error('Error checking EPG freshness, fetching all:', error);
             // Fallback: fetch all URLs if freshness check fails
-            fetchCurrentSources(urls);
+            await fetchCurrentSources(urls);
         }
     }
 
