@@ -19,7 +19,7 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 
 <a
   href={`/iptvnator/blog/${slug}/`}
-  class="card-dotted group block overflow-hidden"
+  class="card-panel group block overflow-hidden"
 >
   <div class="grid items-center gap-8 md:grid-cols-2">
     <!-- Thumbnail -->
@@ -55,7 +55,7 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
       {tags.length > 0 && (
         <div class="mt-2 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
-            <span class="rounded-full border border-dashed border-accent-500/30 px-2 py-0.5 text-xs text-accent-400">
+            <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 text-xs text-surface-300">
               {tag}
             </span>
           ))}

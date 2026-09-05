@@ -28,7 +28,7 @@ const packageManagers = [
         Get started
       </span>
       <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-        Get <em class="font-medium text-accent-400" style="font-style: italic;">IPTVnator</em>
+        Get IPTVnator
       </h2>
       <p class="mt-4 text-lg text-surface-400">
         Download for your platform or use it directly in the browser.
@@ -41,7 +41,7 @@ const packageManagers = [
         platforms.map((platform) => (
           <a
             href={platform.href}
-            class="card-dotted group flex items-center gap-4 px-8 py-5"
+            class="card-panel group flex items-center gap-4 px-8 py-5"
           >
             <svg class="h-7 w-7 text-surface-500 transition-colors duration-200 group-hover:text-accent-400" fill="currentColor" viewBox="0 0 24 24">
               <path d={platform.icon} />
@@ -59,7 +59,7 @@ const packageManagers = [
     <div class="mx-auto mt-10 max-w-xl space-y-3">
       {
         packageManagers.map((pm) => (
-          <div class="flex items-center gap-4 rounded-lg border border-dashed border-surface-700/60 bg-surface-900/50 px-5 py-3.5">
+          <div class="flex items-center gap-4 rounded-lg border border-surface-700/60 bg-surface-900/50 px-5 py-3.5">
             <span class="w-20 shrink-0 font-mono text-[10px] font-medium uppercase tracking-[0.15em] text-surface-500">
               {pm.label}
             </span>

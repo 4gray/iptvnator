@@ -19,7 +19,7 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 
 <a
   href={`/iptvnator/blog/${slug}/`}
-  class="card-dotted group block"
+  class="card-panel group block"
 >
   {heroImage && (
     <div class="overflow-hidden rounded-t-lg -mx-6 -mt-6 mb-5">
@@ -40,7 +40,7 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
         <>
           <span class="text-surface-700">&middot;</span>
           {tags.map((tag) => (
-            <span class="rounded-full border border-dashed border-accent-500/30 px-2 py-0.5 text-xs text-accent-400">
+            <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 text-xs text-surface-300">
               {tag}
             </span>
           ))}

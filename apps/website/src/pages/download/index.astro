@@ -74,7 +74,7 @@ const jsonLd = [
       <div class="mx-auto max-w-2xl text-center">
         <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Download</span>
         <h1 class="mt-4 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
-          Get <em class="font-medium text-accent-400" style="font-style: italic;">IPTVnator</em>
+          Get <span class="text-accent-400">IPTVnator</span>
         </h1>
         <p class="mt-6 text-lg leading-relaxed text-surface-400">
           Pick your operating system for a direct download, install steps and the answers to the usual questions.
@@ -90,7 +90,7 @@ const jsonLd = [
 
       <div class="mt-14 grid gap-5 md:grid-cols-3">
         {cards.map((card) => (
-          <a href={card.href} class="card-dotted group flex flex-col p-7">
+          <a href={card.href} class="card-panel group flex flex-col p-7">
             <div class="flex items-center gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-300 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
                 <svg class="h-5 w-5 text-accent-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -125,7 +125,7 @@ const jsonLd = [
         <div>
           <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Package managers</span>
           <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl">
-            One command <em class="font-medium text-accent-400" style="font-style: italic;">instead</em>
+            One command instead
           </h2>
           <p class="mt-4 text-lg text-surface-400">
             Homebrew, the Snap Store and the AUR track every release. The self-hosted browser version runs from a

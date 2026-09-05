@@ -84,7 +84,7 @@ const carouselFeatures: FeatureCard[] = [
         Features
       </span>
       <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-        Everything <em class="font-medium text-accent-400" style="font-style: italic;">you need</em>
+        Everything you need
       </h2>
       <p class="mt-4 text-lg text-surface-400">
         A full-featured IPTV player packed with the tools for the best viewing experience.
@@ -95,7 +95,7 @@ const carouselFeatures: FeatureCard[] = [
     <div class="stagger-children mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2" data-stagger>
       {
         heroFeatures.map((feature, i) => (
-          <a href={feature.href} class="feature-card group relative block overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-br from-surface-900/80 via-surface-950/60 to-surface-900/40 p-7 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_30px_rgba(32,168,168,0.08)]">
+          <a href={feature.href} class="feature-card group relative block overflow-hidden rounded-lg border border-surface-600/60 bg-gradient-to-br from-surface-900/80 via-surface-950/60 to-surface-900/40 p-7 transition-all duration-500 hover:border-accent-500/40">
 
             <!-- Background watermark icon — large, rotated, partially clipped -->
             <div class={`feature-watermark pointer-events-none absolute -bottom-6 -right-4 opacity-[0.04] transition-all duration-700 ease-out group-hover:opacity-[0.1] ${i % 2 === 0 ? 'watermark-left' : 'watermark-right'}`}>
@@ -105,9 +105,6 @@ const carouselFeatures: FeatureCard[] = [
             </div>
             <!-- Watermark gradient mask — fades icon into card bg from top-left -->
             <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-surface-900/95 via-surface-950/40 to-transparent" />
-
-            <!-- CRT scanline overlay on hover -->
-            <div class="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(32,168,168,0.015) 2px, rgba(32,168,168,0.015) 4px);" />
 
             <!-- Card content -->
             <div class="relative z-[1]">
@@ -148,10 +145,10 @@ const carouselFeatures: FeatureCard[] = [
       <!-- First set of cards -->
       {
         carouselFeatures.map((feature, i) => (
-          <a href={feature.href ?? '/iptvnator/features/'} class="group relative block w-64 shrink-0 overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]">
+          <a href={feature.href ?? '/iptvnator/features/'} class="group relative block w-64 shrink-0 overflow-hidden rounded-lg border border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40">
             <div class="relative mb-3.5 inline-block">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35 group-hover:shadow-[0_0_14px_rgba(32,168,168,0.12)]">
-                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300 group-hover:drop-shadow-[0_0_4px_rgba(32,168,168,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
+                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <Fragment set:html={feature.icon} />
                 </svg>
               </div>
@@ -167,10 +164,10 @@ const carouselFeatures: FeatureCard[] = [
       <!-- Duplicate set for seamless loop -->
       {
         carouselFeatures.map((feature, i) => (
-          <div class="group relative w-64 shrink-0 overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]" aria-hidden="true">
+          <div class="group relative w-64 shrink-0 overflow-hidden rounded-lg border border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40" aria-hidden="true">
             <div class="relative mb-3.5 inline-block">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35 group-hover:shadow-[0_0_14px_rgba(32,168,168,0.12)]">
-                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300 group-hover:drop-shadow-[0_0_4px_rgba(32,168,168,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
+                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <Fragment set:html={feature.icon} />
                 </svg>
               </div>
