@@ -1335,7 +1335,8 @@ existing source-clear worker. Successfully cleared request candidates are forgot
 without resetting their generation fences; failed cleanups remain retryable.
 Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source.
-Retired queued imports emit cancellation so progress rows disappear. Programmes are deleted by source; a globally keyed
+Retired queued and running imports emit generation-scoped cancellation so progress
+rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
 channel is retained while another source still has programmes, transferring its
 legacy owner to that remaining source. Manual mappings are preserved and can
 resolve another retained source sharing that channel ID. Legacy programmes with

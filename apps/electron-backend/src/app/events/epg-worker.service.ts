@@ -182,6 +182,29 @@ export class EpgWorkerService {
                 fn();
             };
 
+            const cancelIfRetired = (exited = false): boolean => {
+                if (generation === epgSourceGeneration(url)) return false;
+                if (this.workers.get(url) === worker) this.workers.delete(url);
+                settle(() => {
+                    this.sendProgressToRenderer(
+                        url,
+                        'cancelled',
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        generation
+                    );
+                    if (exited) resolve();
+                    else
+                        void this.terminateWorker(worker, 'retired fetch').then(
+                            () => resolve()
+                        );
+                });
+                return true;
+            };
+
             const scheduleFetchTimeout = () => {
                 clearFetchTimeout();
                 timeoutId = setTimeout(() => {
@@ -207,6 +230,7 @@ export class EpgWorkerService {
             };
 
             const handleFetchTimeout = () => {
+                if (settled || cancelIfRetired()) return;
                 const errorMessage = `EPG fetch timed out after ${
                     this.fetchTimeoutMs / 1000
                 }s without progress`;
@@ -313,6 +337,7 @@ export class EpgWorkerService {
                             break;
                     }
                 } catch (err) {
+                    if (settled || cancelIfRetired()) return;
                     console.error(
                         this.loggerLabel,
                         'Error handling message:',
@@ -335,6 +360,7 @@ export class EpgWorkerService {
             });
 
             worker.on('error', (error) => {
+                if (settled || cancelIfRetired()) return;
                 console.error(this.loggerLabel, 'Worker error event:', error);
                 this.sendProgressToRenderer(
                     url,
@@ -351,7 +377,7 @@ export class EpgWorkerService {
             });
 
             worker.on('exit', (code) => {
-                if (settled) return;
+                if (settled || cancelIfRetired(true)) return;
                 const errorMessage = `Worker exited unexpectedly (code ${code})`;
                 console.error(this.loggerLabel, `${errorMessage}: ${url}`);
                 this.sendProgressToRenderer(

@@ -287,32 +287,45 @@ describe('EpgEvents', () => {
         await flushPromises();
     });
 
-    it('does not revive a retired source from late worker READY or COMPLETE messages', async () => {
-        const service = new EpgWorkerService('[Test EPG]', 1000);
-        const url = 'https://removed.example/guide.xml';
-        const fetch = service.fetchEpgFromUrl(url).catch(() => undefined);
-        const worker = mockWorkerInstances[0];
-        let finishTermination!: () => void;
-        worker.terminate.mockReturnValue(
-            new Promise<void>((resolve) => {
-                finishTermination = resolve;
-            })
-        );
-        const clear = service.clearEpgDataForSource(url);
-        worker.emit('message', { type: 'READY' });
-        worker.emit('message', { type: 'EPG_COMPLETE' });
-        expect(worker.postMessage).not.toHaveBeenCalled();
-        expect(service.hasFetchedUrl(url)).toBe(false);
-        expect(mockWorkerInstances).toHaveLength(1);
-        worker.emit('exit', 1);
-        finishTermination();
-        await flushPromises();
-        const clearWorker = mockWorkerInstances[1];
-        clearWorker.emit('message', { type: 'READY' });
-        clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
-        await clear;
-        await fetch;
-    });
+    it.each([
+        ['exit', 1],
+        ['error', new Error('terminated worker')],
+    ] as const)(
+        'cancels a retired source on %s without reviving it from late READY or COMPLETE messages',
+        async (event, payload) => {
+            const service = new EpgWorkerService('[Test EPG]', 1000);
+            const url = 'https://removed.example/guide.xml';
+            const progress = jest.spyOn(service, 'sendProgressToRenderer');
+            const fetch = service.fetchEpgFromUrl(url).then(
+                () => true,
+                () => false
+            );
+            const worker = mockWorkerInstances[0];
+            let finishTermination!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finishTermination = resolve;
+                })
+            );
+            const clear = service.clearEpgDataForSource(url);
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'EPG_COMPLETE' });
+            expect(worker.postMessage).not.toHaveBeenCalled();
+            expect(service.hasFetchedUrl(url)).toBe(false);
+            expect(mockWorkerInstances).toHaveLength(1);
+            worker.emit(event, payload);
+            finishTermination();
+            await flushPromises();
+            const clearWorker = mockWorkerInstances[1];
+            clearWorker.emit('message', { type: 'READY' });
+            clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await clear;
+            expect(await fetch).toBe(true);
+            expect(progress.mock.calls.map((call) => call[1])).toEqual([
+                'cancelled',
+            ]);
+        }
+    );
 
     it('does not start a queued source removed while an earlier source imports', async () => {
         getDatabase.mockRejectedValue(new Error('force stale for test'));
