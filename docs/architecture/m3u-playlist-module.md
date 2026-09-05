@@ -1361,7 +1361,11 @@ reconciliation and rechecks the same error row; trust-setting continuations and
 old dismissal timers cannot affect a removed or replacement row. Progress rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
 channel is retained while another source still has programmes or channel metadata.
 The additive `epg_channel_sources` table is created during database initialization
-and records each imported source's name, logo, URL and timestamp. Before removing
+and records each imported source's name, logo, URL and timestamp. A per-channel
+`write_order` advances inside the import transaction (including upserts and
+refreshes), so restoration picks the latest surviving writer even when timestamps
+collide or the clock moves backwards. Freshness still uses wall-clock timestamps.
+Existing ledgers gain the column with zero for unknowable historical order. Before removing
 source provenance, cleanup restores affected global channels from a surviving
 snapshot, including when the legacy channel owner differs from the removed
 metadata writer. Metadata-only owners survive another source's refresh or removal.

@@ -1673,7 +1673,8 @@ before worker-owned deletion. Retry waits for reconciliation and rechecks its
 error row, including after trust-setting writes. Shared channel IDs survive while
 another source has programmes or per-source channel metadata. The additive
 `epg_channel_sources` table preserves each imported source's name, logo, URL and
-timestamp so removal restores a surviving snapshot; ambiguous legacy metadata
+timestamp plus transaction-ordered `write_order`, so removal restores the latest
+surviving snapshot even when import timestamps tie; ambiguous legacy metadata
 falls back to the XMLTV ID until reimport. Manual mappings remain user preferences, but no
 longer resolve deleted data. Renderer lookup generations, Xtream previews and Stalker mapping-cache
 invalidation prevent late results from restoring removed programmes. Provider

@@ -82,6 +82,51 @@ describe('source-owned XMLTV channel metadata', () => {
         }
     );
 
+    it.each(['same tick', 'clock rollback'])(
+        'restores the latest surviving write across %s and source upserts',
+        (clockMode) => {
+            expect(
+                runDatabaseScenario(`
+            let timestamp = '2026-09-06T10:00:00.000Z';
+            sqlite.function('strftime', { varargs: true }, () => timestamp);
+            importSource('A');
+            if ('${clockMode}' === 'clock rollback') timestamp = '2026-09-06T09:00:00.000Z';
+            importSource('Z');
+            importSource('M');
+            clear.run('M');
+            const first = channel();
+            importSource('A');
+            importSource('M');
+            clear.run('M');
+            const updated = channel();
+            importSource('Z', true, true);
+            importSource('M');
+            clear.run('M');
+            process.stdout.write(JSON.stringify({first, updated, refreshed: channel()}));
+        `)
+            ).toEqual({
+                first: expect.objectContaining({
+                    display_name: 'Z News',
+                    icon_url: 'Z.png',
+                    url: 'Z.website',
+                    source_url: 'Z',
+                }),
+                updated: expect.objectContaining({
+                    display_name: 'A News',
+                    icon_url: 'A.png',
+                    url: 'A.website',
+                    source_url: 'A',
+                }),
+                refreshed: expect.objectContaining({
+                    display_name: 'Z News',
+                    icon_url: 'Z.png',
+                    url: 'Z.website',
+                    source_url: 'Z',
+                }),
+            });
+        }
+    );
+
     it('retains metadata-only owners during another source refresh and removal', () => {
         expect(
             runDatabaseScenario(`
@@ -98,6 +143,31 @@ describe('source-owned XMLTV channel metadata', () => {
                 source_url: 'B',
             }),
             remaining: null,
+        });
+    });
+
+    it('upgrades an existing ledger without losing snapshots and orders subsequent imports', () => {
+        expect(
+            runDatabaseScenario(`
+            importSource('A'); importSource('Z');
+            sqlite.exec('ALTER TABLE epg_channel_sources DROP COLUMN write_order');
+            const migration = __databaseConnectionTestHooks.columnMigrationStatements
+                .find(sql => sql.startsWith('ALTER TABLE epg_channel_sources'));
+            sqlite.exec(migration);
+            const snapshots = sqlite.prepare('SELECT source_url, write_order FROM epg_channel_sources ORDER BY source_url').all();
+            importSource('Z'); importSource('M');
+            clear.run('M');
+            process.stdout.write(JSON.stringify({ snapshots, surviving: channel() }));
+        `)
+        ).toEqual({
+            snapshots: [
+                { source_url: 'A', write_order: 0 },
+                { source_url: 'Z', write_order: 0 },
+            ],
+            surviving: expect.objectContaining({
+                display_name: 'Z News',
+                source_url: 'Z',
+            }),
         });
     });
 

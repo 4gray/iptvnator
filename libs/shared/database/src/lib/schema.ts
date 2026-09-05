@@ -217,6 +217,7 @@ export const epgChannelSources = sqliteTable(
         iconUrl: text('icon_url'),
         url: text('url'),
         updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+        writeOrder: integer('write_order').notNull().default(0),
     },
     (table) => [
         primaryKey({ columns: [table.channelId, table.sourceUrl] }),

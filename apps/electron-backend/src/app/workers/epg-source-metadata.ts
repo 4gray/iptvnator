@@ -10,7 +10,7 @@ export function restoreSurvivingChannelMetadata(
     const survivingValue = (column: string) => `(
         SELECT ${column} FROM epg_channel_sources
         WHERE channel_id = epg_channels.id AND source_url != @sourceUrl
-        ORDER BY updated_at DESC, source_url LIMIT 1
+        ORDER BY write_order DESC, updated_at DESC, source_url LIMIT 1
     )`;
     db.prepare(
         `

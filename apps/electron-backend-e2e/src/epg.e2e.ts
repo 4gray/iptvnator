@@ -189,10 +189,12 @@ test.describe('Electron EPG', () => {
         process.stdout?.on('data', capture);
         process.stderr?.on('data', capture);
         try {
-            await app.mainWindow.evaluate(async (url) => {
-                await window.electron.forceFetchEpg(url);
+            const imported = await app.mainWindow.evaluate(async (url) => {
+                const result = await window.electron.forceFetchEpg(url);
                 await window.electron.clearEpgDataForSource(url);
+                return result;
             }, sourceUrl);
+            expect(imported.success).toBe(true);
             await expect
                 .poll(() => diagnostics)
                 .toContain('EPG data cleared for source via worker');
@@ -205,8 +207,9 @@ test.describe('Electron EPG', () => {
             await expect
                 .poll(() => diagnostics)
                 .toContain('Request failed with status code 404');
-            expect(diagnostics).toContain('[EPG Worker]');
-            expect(diagnostics).toContain('Parsing complete:');
+            // Worker stdout can lose its final buffered line on termination;
+            // the awaited import result and main-process completion are authoritative.
+            expect(diagnostics).toContain('[EPG Worker] Fetching EPG source');
             expect(diagnostics).toContain('EPG parsing complete:');
             expect(diagnostics).not.toContain('epg-path-secret');
             expect(diagnostics).not.toContain('epg-query-secret');

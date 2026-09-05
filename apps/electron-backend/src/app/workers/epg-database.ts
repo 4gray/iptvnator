@@ -33,15 +33,20 @@ export class EpgDatabase {
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
 
+        // Allocated under the same SQLite write transaction as the channel
+        // upsert: ties and clock rollbacks cannot reorder surviving writers.
         this.insertChannelSourceStmt = this.db.prepare(`
             INSERT INTO epg_channel_sources
-                (channel_id, display_name, icon_url, url, source_url, updated_at)
-            VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                (channel_id, display_name, icon_url, url, source_url, updated_at, write_order)
+            VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                (SELECT COALESCE(MAX(write_order), 0) + 1
+                 FROM epg_channel_sources WHERE channel_id = ?))
             ON CONFLICT(channel_id, source_url) DO UPDATE SET
                 display_name = excluded.display_name,
                 icon_url = excluded.icon_url,
                 url = excluded.url,
-                updated_at = excluded.updated_at
+                updated_at = excluded.updated_at,
+                write_order = excluded.write_order
         `);
         this.deleteChannelSourcesStmt = this.db.prepare(
             'DELETE FROM epg_channel_sources WHERE source_url = ?'
@@ -134,7 +139,8 @@ export class EpgDatabase {
                     displayName,
                     iconUrl,
                     url,
-                    sourceUrl
+                    sourceUrl,
+                    channel.id
                 );
                 this.knownChannelIds.add(channel.id);
             }
