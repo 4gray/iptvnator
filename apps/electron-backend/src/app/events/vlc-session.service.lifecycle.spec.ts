@@ -47,6 +47,7 @@ import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
 
+const originalPlatform = process.platform;
 const spawnMock = spawn as unknown as jest.Mock;
 const streamUrl = 'https://example.com/stream.m3u8';
 const rcWrites: string[] = [];
@@ -136,6 +137,7 @@ describe('vlc-session.service process lifecycle', () => {
         // Drop any process tracked for reuse so tests stay isolated.
         shutdownVlcSession();
         consoleErrorSpy.mockRestore();
+        Object.defineProperty(process, 'platform', { value: originalPlatform });
     });
 
     describe('instance reuse', () => {
@@ -1219,12 +1221,14 @@ describe('vlc-session.service process lifecycle', () => {
         });
 
         it('retries without the RC interface when VLC exits with code 1', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' });
             mockStoreValues({
                 [VLC_PLAYER_PATH]: '/usr/bin/vlc',
                 [VLC_REUSE_INSTANCE]: true,
             });
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);
+            expect(spawnMock.mock.calls[0][1]).toContain('--rc-quiet');
 
             const retryProc = createMockChildProcess();
             spawnMock.mockReturnValueOnce(retryProc);
@@ -1234,6 +1238,7 @@ describe('vlc-session.service process lifecycle', () => {
             const retryArgs = spawnMock.mock.calls[1][1] as string[];
             expect(retryArgs.join(' ')).not.toContain('--extraintf');
             expect(retryArgs.join(' ')).not.toContain('--rc-host');
+            expect(retryArgs).not.toContain('--rc-quiet');
             // Retry processes are never tracked for reuse.
             expect(spawnMock.mock.calls[1][2]).toMatchObject({
                 detached: true,
@@ -1262,6 +1267,7 @@ describe('vlc-session.service process lifecycle', () => {
         });
 
         it('retries without the RC interface after a start error', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' });
             mockStoreValues({
                 [VLC_PLAYER_PATH]: '/usr/bin/vlc',
                 [VLC_REUSE_INSTANCE]: true,
@@ -1272,11 +1278,14 @@ describe('vlc-session.service process lifecycle', () => {
 
             const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
             await waitForSpawnCallCount(1);
+            expect(spawnMock.mock.calls[0][1]).toContain('--rc-quiet');
             proc.emit('error', new Error('rc unsupported'));
             await waitForSpawnCallCount(2);
 
             const retryArgs = spawnMock.mock.calls[1][1] as string[];
             expect(retryArgs.join(' ')).not.toContain('--extraintf');
+            expect(retryArgs.join(' ')).not.toContain('--rc-host');
+            expect(retryArgs).not.toContain('--rc-quiet');
             retryProc.emit('spawn');
             const session = await openPromise;
             expect(session.status).toBe('opened');

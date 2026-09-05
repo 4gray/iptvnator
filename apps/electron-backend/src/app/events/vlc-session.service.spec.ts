@@ -39,6 +39,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { createServer } from 'net';
 import {
+    VLC_PLAYER_ARGUMENTS,
     VLC_PLAYER_PATH,
     VLC_REUSE_INSTANCE,
     store,
@@ -51,6 +52,7 @@ import {
     shutdownVlcSession,
 } from './vlc-session.service';
 
+const originalPlatform = process.platform;
 const spawnMock = spawn as unknown as jest.Mock;
 const streamUrl = 'https://example.com/stream.m3u8';
 
@@ -86,6 +88,8 @@ describe('vlc-session.service helpers and launch args', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        Object.defineProperty(process, 'platform', { value: 'darwin' });
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
         (createServer as unknown as jest.Mock).mockImplementation(() => ({
             unref: jest.fn(),
@@ -103,7 +107,10 @@ describe('vlc-session.service helpers and launch args', () => {
     afterEach(() => {
         // Drop any process tracked for reuse so tests stay isolated.
         shutdownVlcSession();
+        jest.clearAllTimers();
+        jest.useRealTimers();
         consoleErrorSpy.mockRestore();
+        Object.defineProperty(process, 'platform', { value: originalPlatform });
     });
 
     describe('buildVlcEnqueueCommands', () => {
@@ -177,6 +184,152 @@ describe('vlc-session.service helpers and launch args', () => {
     });
 
     describe('openVlcPlayer launch args', () => {
+        it.each(['error', 'exit'])(
+            'preserves data containing --rc-quiet during an RC retry (%s)',
+            async (event) => {
+                Object.defineProperty(process, 'platform', { value: 'win32' });
+                mockStoreValues({
+                    [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                    [VLC_REUSE_INSTANCE]: true,
+                    [VLC_PLAYER_ARGUMENTS]: '--fullscreen\n--rc-quiet',
+                });
+                const proc = createMockChildProcess();
+                const retryProc = createMockChildProcess();
+                spawnMock
+                    .mockReturnValueOnce(proc)
+                    .mockReturnValueOnce(retryProc);
+                const url = `${streamUrl}?option=--rc-quiet`;
+                const openPromise = openVlcPlayer({
+                    title: 'Movie --rc-quiet',
+                    url,
+                    userAgent: 'Agent --rc-quiet',
+                });
+                await waitForSpawnCallCount(1);
+                proc.emit('spawn');
+                await openPromise;
+                proc.emit(event, event === 'exit' ? 1 : new Error('RC failed'));
+                await waitForSpawnCallCount(2);
+
+                expect(spawnMock.mock.lastCall[1]).toEqual([
+                    '--fullscreen',
+                    // Custom arguments are preserved; only the managed flag goes.
+                    '--rc-quiet',
+                    ':http-user-agent=Agent --rc-quiet',
+                    url,
+                    ':meta-title=Movie --rc-quiet',
+                ]);
+                retryProc.emit('spawn');
+                retryProc.emit('exit', 0);
+            }
+        );
+
+        it.each(['win32', 'darwin', 'linux'] as const)(
+            'adds quiet mode only for managed Windows RC launches (%s)',
+            async (platform) => {
+                Object.defineProperty(process, 'platform', { value: platform });
+                for (const reuseInstance of [false, true]) {
+                    mockStoreValues({
+                        [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                        [VLC_REUSE_INSTANCE]: reuseInstance,
+                    });
+                    const proc = createMockChildProcess();
+                    spawnMock.mockReturnValueOnce(proc);
+                    const openPromise = openVlcPlayer({
+                        title: 'RC Stream',
+                        url: streamUrl,
+                        // Exercise progress-only and reuse-only RC separately.
+                        ...(!reuseInstance && {
+                            contentInfo: {
+                                playlistId: 'playlist',
+                                contentXtreamId: 1,
+                                contentType: 'vod' as const,
+                            },
+                        }),
+                    });
+                    await waitForSpawnCallCount(reuseInstance ? 2 : 1);
+                    proc.emit('spawn');
+                    await openPromise;
+
+                    expect(spawnMock.mock.lastCall[1]).toEqual([
+                        '--extraintf=rc',
+                        '--rc-host=127.0.0.1:43210',
+                        ...(platform === 'win32' ? ['--rc-quiet'] : []),
+                        streamUrl,
+                        ':meta-title=RC Stream',
+                    ]);
+                    expect(spawnMock.mock.lastCall[2].detached).toBe(
+                        !reuseInstance
+                    );
+                    proc.emit('exit', 0);
+                }
+            }
+        );
+
+        it.each(['--rc-quiet', '--no-rc-quiet'])(
+            'keeps custom arguments before managed quiet mode (%s)',
+            async (customQuiet) => {
+                Object.defineProperty(process, 'platform', { value: 'win32' });
+                mockStoreValues({
+                    [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                    [VLC_REUSE_INSTANCE]: true,
+                    [VLC_PLAYER_ARGUMENTS]: `--fullscreen\n${customQuiet}`,
+                });
+                const proc = createMockChildProcess();
+                spawnMock.mockReturnValueOnce(proc);
+                const openPromise = openVlcPlayer({
+                    title: 'Custom',
+                    url: streamUrl,
+                });
+                await waitForSpawnCallCount(1);
+                proc.emit('spawn');
+                await openPromise;
+
+                expect(spawnMock.mock.lastCall[1]).toEqual([
+                    '--fullscreen',
+                    customQuiet,
+                    '--extraintf=rc',
+                    '--rc-host=127.0.0.1:43210',
+                    '--rc-quiet',
+                    streamUrl,
+                    ':meta-title=Custom',
+                ]);
+                proc.emit('exit', 0);
+            }
+        );
+
+        it.each([false, true])(
+            'does not add quiet mode without an RC port (reuse: %s)',
+            async (reuseInstance) => {
+                Object.defineProperty(process, 'platform', { value: 'win32' });
+                mockStoreValues({
+                    [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                    [VLC_REUSE_INSTANCE]: reuseInstance,
+                });
+                (createServer as unknown as jest.Mock).mockImplementation(
+                    () => {
+                        throw new Error('No free port');
+                    }
+                );
+                const proc = createMockChildProcess();
+                spawnMock.mockReturnValueOnce(proc);
+                const openPromise = openVlcPlayer({
+                    title: 'No RC',
+                    url: streamUrl,
+                });
+                await waitForSpawnCallCount(1);
+                proc.emit('spawn');
+                await openPromise;
+
+                expect(spawnMock.mock.lastCall[1]).toEqual([
+                    streamUrl,
+                    ':meta-title=No RC',
+                ]);
+                expect(createServer).toHaveBeenCalledTimes(
+                    reuseInstance ? 1 : 0
+                );
+            }
+        );
+
         it('spawns a detached VLC process with http options and start time', async () => {
             const proc = createMockChildProcess();
             spawnMock.mockReturnValueOnce(proc);
