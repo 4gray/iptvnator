@@ -362,7 +362,9 @@ Key files:
   inline host for the external-player UI), Xtream
   `LiveStreamLayoutComponent`,
   `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; a blank
-  panel field shows the category untouched by the sidebar's search term, the
+  panel field shows the category untouched by the sidebar's search term (or
+  the windowed full cache when playback starts from All Items without a
+  category), the
   panel's search results are windowed by `PanelSearchWindow`, and on a paged
   portal the panel copy keeps requesting pages while its matches do not fill
   it, even while the sidebar's own search is active; the retained closed

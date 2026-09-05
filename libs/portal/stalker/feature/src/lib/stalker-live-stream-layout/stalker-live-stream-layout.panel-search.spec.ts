@@ -66,7 +66,7 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         itvSelectedCategoryFromCache,
         itvFullListLoading: signal(false),
         itvFullListProgress: signal(null),
-        itvFullChannelList: signal([]),
+        itvFullChannelList: signal<typeof channels>([]),
         isPaginatedContentLoading: signal(false),
         selectedItvEpgPrograms: signal([]),
         bulkItvEpgByChannel: signal({}),
@@ -96,6 +96,8 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         searchPhrase.set('');
         itvFullListActive.set(false);
         itvSelectedCategoryFromCache.set(false);
+        store.selectedCategoryId.set('all');
+        store.itvFullChannelList.set([]);
         store.setPage.mockClear();
         await TestBed.configureTestingModule({
             imports: [
@@ -257,6 +259,39 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         expect(component.panelIdleHasMore()).toBe(false);
         // The sidebar copy is untouched by the panel's growth.
         expect(component.visibleChannels()).toHaveLength(1);
+    });
+
+    it('windows the full cache under a blank panel search when All Items has no category', () => {
+        const fullList = Array.from({ length: 250 }, (_, index) => ({
+            ...channels[0],
+            id: `full-${index}`,
+            name: `Full channel ${index}`,
+        }));
+        store.selectedCategoryId.set(null);
+        itvFullListActive.set(true);
+        store.itvFullChannelList.set(fullList);
+        itvChannels.set([]);
+        searchPhrase.set('sidebar-no-match');
+
+        const blank = signal('');
+        expect(component.channelsForList(blank)).toEqual(
+            fullList.slice(0, 100)
+        );
+        expect(component.panelIdleHasMore()).toBe(true);
+        component.loadMoreForPanel();
+        expect(component.channelsForList(blank)).toEqual(
+            fullList.slice(0, 200)
+        );
+        component.loadMoreForPanel();
+        expect(component.channelsForList(blank)).toEqual(fullList);
+        expect(component.panelIdleHasMore()).toBe(false);
+        component.loadMoreForPanel();
+        expect(store.setPage).not.toHaveBeenCalled();
+
+        store.selectedCategoryId.set('chosen-category');
+        itvSelectedCategoryFromCache.set(true);
+        itvChannels.set(channels);
+        expect(component.channelsForList(blank)).toEqual(channels);
     });
 
     it('marks the sidebar copy as the live-channels keyboard pane', () => {

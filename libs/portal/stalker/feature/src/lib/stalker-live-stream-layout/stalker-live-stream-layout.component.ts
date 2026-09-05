@@ -297,13 +297,19 @@ export class StalkerLiveStreamLayoutComponent
     );
     /**
      * The fullscreen panel's rows while its own search field is blank: the
-     * current category, windowed like the sidebar but never narrowed by the
-     * sidebar's search term.
+     * current category, or the full cache when playback started in All Items
+     * without a category. Never narrowed by the sidebar's search term.
      */
+    private readonly panelIdleSource = computed(() =>
+        this.showItvAllItems() ? this.itvFullChannelList() : this.channels()
+    );
+    private readonly panelUsesCachedRows = computed(
+        () => this.isCategoryFromCache() || this.showItvAllItems()
+    );
     readonly panelIdleChannels = computed(() =>
-        this.isCategoryFromCache()
-            ? this.channels().slice(0, this.renderLimit())
-            : this.channels()
+        this.panelUsesCachedRows()
+            ? this.panelIdleSource().slice(0, this.renderLimit())
+            : this.panelIdleSource()
     );
     /**
      * Whether {@link panelIdleChannels} can grow. Judged against the category,
@@ -312,8 +318,8 @@ export class StalkerLiveStreamLayoutComponent
      * about the unfiltered rows the blank panel is showing.
      */
     readonly panelIdleHasMore = computed(() =>
-        this.isCategoryFromCache()
-            ? this.channels().length > this.renderLimit()
+        this.panelUsesCachedRows()
+            ? this.panelIdleSource().length > this.renderLimit()
             : this.stalkerStore.hasMoreChannels()
     );
     readonly totalChannelCount = computed(() => this.filteredChannels().length);
@@ -1122,7 +1128,7 @@ export class StalkerLiveStreamLayoutComponent
      */
     loadMoreForPanel(): void {
         if (this.isLoadingMore() || !this.panelIdleHasMore()) return;
-        if (this.isCategoryFromCache()) {
+        if (this.panelUsesCachedRows()) {
             this.growRenderWindow();
             return;
         }

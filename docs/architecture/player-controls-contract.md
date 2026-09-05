@@ -362,7 +362,8 @@ in the sidebar), `StalkerLiveStreamLayoutComponent` (its list markup is one
 term — a blank panel field shows the category untouched by the sidebar's
 term, `panelIdleChannels`, so the panel never shows an unexplained subset or
 an empty state under an empty search box, and that copy grows against the
-category (`panelIdleHasMore` / `loadMoreForPanel`), never against the
+category (`panelIdleHasMore` / `loadMoreForPanel`) or the windowed full cache
+when playback starts from All Items with no selected category, never against the
 sidebar's filtered `hasMoreItems`, which a narrowing sidebar search turns
 false while the panel still has rows to reveal; every copy carries the
 `#scrollContainer` that drives infinite scroll,
