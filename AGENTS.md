@@ -166,16 +166,13 @@ agent-browser connect ws://127.0.0.1:9222/devtools/page/<iptvnator-page-id>
 agent-browser screenshot /tmp/iptvnator-cdp.png
 ```
 
-## M3U URL User-Agent
+## Xtream Category Management
 
-- The URL import form accepts an optional User-Agent and stores it as
-  `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
-  and startup auto-update. The self-hosted PWA sends it through the registered
-  target `/parse` backend proxy for import and refresh; a matching backend is
-  required, and browser playback-header restrictions still apply.
-- Reuse the existing source editor and channel-over-playlist playback header
-  precedence. Contract: `docs/architecture/m3u-playlist-module.md`
-  ("User-Agent for URL sources").
+The Electron Live TV, Movies, and Series category dialog applies Select/Deselect
+to search results while a filter is active and to the whole type otherwise.
+Button states use the matching group; "Total selected" counts the whole catalog.
+Save persists the complete draft, Close discards it, and refresh restores hidden
+categories by provider ID and type. See `docs/architecture/category-management.md`.
 
 ## Portal Connectivity Preference
 
@@ -209,6 +206,17 @@ Key files:
 - `libs/ui/playback/src/lib/audio-player/audio-player.component.scss` — cinematic hero styling
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
+
+## M3U URL User-Agent
+
+- The URL import form accepts an optional User-Agent and stores it as
+  `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
+  and startup auto-update. The self-hosted PWA sends it through the registered
+  target `/parse` backend proxy for import and refresh; a matching backend is
+  required, and browser playback-header restrictions still apply.
+- Reuse the existing source editor and channel-over-playlist playback header
+  precedence. Contract: `docs/architecture/m3u-playlist-module.md`
+  ("User-Agent for URL sources").
 
 ## Shared Player Controls
 

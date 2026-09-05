@@ -996,9 +996,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "管理類別",
             "LOADING": "正在載入類別...",
-            "SELECTED": "已選取",
+            "SELECTED": "已選總數",
             "SELECT_ALL": "全部選取",
             "DESELECT_ALL": "全部取消選取",
+            "SELECT_FILTERED": "選取搜尋結果",
+            "DESELECT_FILTERED": "取消選取搜尋結果",
             "SEARCH_PLACEHOLDER": "搜尋類別...",
             "NO_RESULTS": "找不到符合的類別",
             "NO_CATEGORIES": "沒有可用的類別",

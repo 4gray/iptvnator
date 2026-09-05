@@ -996,9 +996,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Manage Categories",
             "LOADING": "Loading categories...",
-            "SELECTED": "Selected",
+            "SELECTED": "Total selected",
             "SELECT_ALL": "Select All",
             "DESELECT_ALL": "Deselect All",
+            "SELECT_FILTERED": "Select Filtered",
+            "DESELECT_FILTERED": "Deselect Filtered",
             "SEARCH_PLACEHOLDER": "Search categories...",
             "NO_RESULTS": "No matching categories found",
             "NO_CATEGORIES": "No categories available",

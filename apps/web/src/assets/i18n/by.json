@@ -996,9 +996,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Кіраваць катэгорыямі",
             "LOADING": "Загрузка катэгорый...",
-            "SELECTED": "Выбрана",
+            "SELECTED": "Усяго выбрана",
             "SELECT_ALL": "Выбраць усе",
             "DESELECT_ALL": "Зняць выбар",
+            "SELECT_FILTERED": "Выбраць знойдзеныя",
+            "DESELECT_FILTERED": "Зняць выбар са знойдзеных",
             "SEARCH_PLACEHOLDER": "Пошук катэгорый...",
             "NO_RESULTS": "Адпаведных катэгорый не знойдзена",
             "NO_CATEGORIES": "Няма даступных катэгорый",

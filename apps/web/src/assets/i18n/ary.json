@@ -996,9 +996,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "تدبير الفئات",
             "LOADING": "جاري تشريج الفئات...",
-            "SELECTED": "متختار",
+            "SELECTED": "المجموع المختار",
             "SELECT_ALL": "اختار الكل",
             "DESELECT_ALL": "حيد الاختيار من الكل",
+            "SELECT_FILTERED": "اختار نتائج البحث",
+            "DESELECT_FILTERED": "حيد الاختيار من نتائج البحث",
             "SEARCH_PLACEHOLDER": "قلب على فئات...",
             "NO_RESULTS": "ما تلقاتش حتى فئة مطابقة",
             "NO_CATEGORIES": "ما كاينش فئات متوفرة",
