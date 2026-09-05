@@ -1,3 +1,5 @@
+import { exitOwnedPictureInPicture } from './web-video-picture-in-picture-lifecycle';
+
 const HAVE_METADATA = 1;
 const PICTURE_IN_PICTURE_ACTION = {
     ENTER: 'enter',
@@ -45,7 +47,7 @@ export class WebVideoPictureInPictureController {
     release(previousVideo: HTMLVideoElement | null): void {
         this.operation = null;
         if (previousVideo) {
-            this.exitIfOwned(previousVideo);
+            exitOwnedPictureInPicture(previousVideo);
         }
     }
 
@@ -155,26 +157,7 @@ export class WebVideoPictureInPictureController {
             return;
         }
         if (succeeded && operation.action === PICTURE_IN_PICTURE_ACTION.ENTER) {
-            this.exitIfOwned(operation.video);
-        }
-    }
-
-    private exitIfOwned(video: HTMLVideoElement): void {
-        try {
-            const ownerDocument = video.ownerDocument;
-            if (
-                ownerDocument.pictureInPictureElement !== video ||
-                typeof ownerDocument.exitPictureInPicture !== 'function'
-            ) {
-                return;
-            }
-            const result = ownerDocument.exitPictureInPicture();
-            void Promise.resolve(result).then(
-                () => undefined,
-                () => undefined
-            );
-        } catch {
-            // PiP teardown is best-effort during target replacement.
+            exitOwnedPictureInPicture(operation.video);
         }
     }
 }

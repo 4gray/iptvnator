@@ -1,3 +1,4 @@
+import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-picture.spec-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Channel } from '@iptvnator/shared/interfaces';
@@ -14,8 +15,7 @@ import {
     resetArtPlayerSpecFixtures,
 } from './art-player.component.spec-fixtures';
 
-const actualHlsModule =
-    jest.requireActual<typeof import('hls.js')>('hls.js');
+const actualHlsModule = jest.requireActual<typeof import('hls.js')>('hls.js');
 
 jest.unstable_mockModule('artplayer', () => ({
     default: MockArtplayer,
@@ -62,6 +62,77 @@ describe('ArtPlayerComponent', () => {
     afterEach(() => {
         fixture?.destroy();
     });
+
+    it.each(['channel', 'destroy', 'late entry'])(
+        'closes legacy PiP on %s',
+        (transition) => {
+            const environment = new PictureInPictureTestEnvironment();
+            try {
+                createComponent({
+                    url: 'https://example.test/one.mp4',
+                    name: 'One',
+                });
+                const video = artPlayerInstances[0].video;
+                environment.installVideo(video);
+                if (transition !== 'late entry') environment.setActive(video);
+
+                if (transition === 'channel') {
+                    fixture.componentRef.setInput('channel', {
+                        url: 'https://example.test/two.mp4',
+                        name: 'Two',
+                    });
+                    fixture.detectChanges();
+                } else {
+                    fixture.destroy();
+                }
+                if (transition === 'late entry') environment.setActive(video);
+
+                expect(environment.exit).toHaveBeenCalledTimes(1);
+                expect(document.pictureInPictureElement).toBeNull();
+            } finally {
+                environment.restore();
+            }
+        }
+    );
+
+    it.each(['channel', 'destroy', 'late entry'])(
+        'closes legacy WebKit PiP on %s',
+        (transition) => {
+            createComponent({
+                url: 'https://example.test/one.mp4',
+                name: 'One',
+            });
+            const video = artPlayerInstances[0].video;
+            let mode =
+                transition === 'late entry' ? 'inline' : 'picture-in-picture';
+            const setMode = jest.fn((next: string) => {
+                mode = next;
+                video.dispatchEvent(new Event('webkitpresentationmodechanged'));
+            });
+            Object.defineProperties(video, {
+                webkitPresentationMode: { get: () => mode },
+                webkitSetPresentationMode: { value: setMode },
+            });
+
+            if (transition === 'channel') {
+                fixture.componentRef.setInput('channel', {
+                    url: 'https://example.test/two.mp4',
+                    name: 'Two',
+                });
+                fixture.detectChanges();
+            } else {
+                fixture.destroy();
+            }
+            if (transition === 'late entry') {
+                mode = 'picture-in-picture';
+                video.dispatchEvent(new Event('webkitpresentationmodechanged'));
+            }
+
+            expect(setMode).toHaveBeenCalledTimes(1);
+            expect(setMode).toHaveBeenCalledWith('inline');
+            expect(mode).toBe('inline');
+        }
+    );
 
     it('emits a playback issue when the native video element reports an unsupported source', () => {
         createComponent({

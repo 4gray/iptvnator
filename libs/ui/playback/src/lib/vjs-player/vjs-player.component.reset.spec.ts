@@ -23,7 +23,12 @@ jest.unstable_mockModule('mpegts.js', () => ({
     },
 }));
 
-describe('VjsPlayerComponent reset lifecycle', () => {
+describe.each([false, true])(
+    'VjsPlayerComponent reset lifecycle (shared controls: %s)',
+    runResetLifecycleSuite
+);
+
+function runResetLifecycleSuite(sharedControls: boolean): void {
     let VjsPlayerComponent: typeof import('./vjs-player.component').VjsPlayerComponent;
     let fixture: ComponentFixture<VjsPlayerComponentInstance>;
     let playerHarness: ReturnType<typeof createVideoJsPlayerHarness>;
@@ -53,7 +58,10 @@ describe('VjsPlayerComponent reset lifecycle', () => {
         await TestBed.configureTestingModule({
             imports: [VjsPlayerComponent, TranslateModule.forRoot()],
             providers: [
-                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: true },
+                {
+                    provide: WEB_PLAYER_SHARED_CONTROLS,
+                    useValue: sharedControls,
+                },
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(VjsPlayerComponent);
@@ -148,7 +156,52 @@ describe('VjsPlayerComponent reset lifecycle', () => {
             expect(
                 fixture.componentInstance.controlsAdapter.capabilities()
                     .pictureInPicture
-            ).toBe(true);
+            ).toBe(sharedControls);
+        } finally {
+            environment.restore();
+        }
+    });
+
+    it('closes owned PiP on component teardown', () => {
+        const environment = new PictureInPictureTestEnvironment();
+        try {
+            const video = playerHarness.currentVideo;
+            environment.installVideo(video);
+            fixture.componentRef.setInput('options', {
+                sources: [{ src: 'https://example.test/movie.mp4' }],
+            });
+            fixture.detectChanges();
+            playerHarness.ready();
+            environment.setActive(video);
+
+            fixture.destroy();
+
+            expect(environment.exit).toHaveBeenCalledTimes(1);
+            expect(document.pictureInPictureElement).toBeNull();
+        } finally {
+            environment.restore();
+        }
+    });
+
+    it('preserves PiP when a source change retains the Tech video', () => {
+        const environment = new PictureInPictureTestEnvironment();
+        try {
+            const video = playerHarness.currentVideo;
+            environment.installVideo(video);
+            fixture.componentRef.setInput('options', {
+                sources: [{ src: 'https://example.test/one.mp4' }],
+            });
+            fixture.detectChanges();
+            playerHarness.ready();
+            environment.setActive(video);
+
+            fixture.componentRef.setInput('options', {
+                sources: [{ src: 'https://example.test/two.mp4' }],
+            });
+            fixture.detectChanges();
+
+            expect(environment.exit).not.toHaveBeenCalled();
+            expect(document.pictureInPictureElement).toBe(video);
         } finally {
             environment.restore();
         }
@@ -316,7 +369,7 @@ describe('VjsPlayerComponent reset lifecycle', () => {
         });
         expect(playerHarness.mpegTsPlayers).toHaveLength(2);
     });
-});
+}
 
 function createVideoJsPlayerHarness() {
     const listeners = new Map<string, Set<() => void>>();
