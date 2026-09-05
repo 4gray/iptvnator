@@ -486,9 +486,7 @@
         @include detail-actions.secondary-action-button;
     }
 
-    // Theme-aware surface for the chip only: the shared mixin's white-alpha
-    // fill vanishes over a bright light-theme hero, and the chip now sits
-    // beside icon buttons that already wear the tag vars. The chip's own
+    // Match the chip to its neighbouring icon buttons' tag surfaces. Its own
     // pressed state (.sources-chip--open) is more specific and still wins.
     ::ng-deep app-vod-sources-chip .sources-chip {
         background: var(--tag-bg);

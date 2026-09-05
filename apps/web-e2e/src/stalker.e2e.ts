@@ -1,6 +1,6 @@
-import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { type APIRequestContext, type Page } from '@playwright/test';
-import { setInputValue } from './e2e-helpers';
+import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
+import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { expect, test } from './fixtures';
 import {
     getRegisteredProviderUrl,
@@ -1072,7 +1072,7 @@ test('@stalker title season markers align lazy VOD labels, TMDB episodes and wat
 test('@stalker season watched toggle — embedded series marks and clears every episode', async ({
     page,
     request,
-}) => {
+}, testInfo) => {
     // Reuse the modeled embedded-series flow: find a VOD item carrying an
     // embedded series[] array, open it from its category, and land on the
     // series detail with its episode list.
@@ -1106,11 +1106,11 @@ test('@stalker season watched toggle — embedded series marks and clears every 
         })
     ).toBeVisible({ timeout: 10_000 });
 
+    await expectSeriesSurfacesInBothThemes(page, testInfo);
+
     // The season header's bulk toggle (data-test-id with a dash — getByTestId
     // only matches data-testid in this suite) counts every unwatched episode.
-    const seasonToggle = page.locator(
-        '[data-test-id="toggle-season-watched"]'
-    );
+    const seasonToggle = page.locator('[data-test-id="toggle-season-watched"]');
     await expect(seasonToggle).toBeVisible();
     await expect(seasonToggle).toContainText(
         `Mark season as watched (${episodeCount})`
