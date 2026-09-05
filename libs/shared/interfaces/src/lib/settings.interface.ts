@@ -152,7 +152,7 @@ export interface Settings {
     playerUpNextRail?: boolean;
     /**
      * Slide the live channel list over the video in fullscreen — resting the
-     * mouse on the left edge, clicking the edge handle, or pressing `C` —
+     * mouse on the left edge, tapping that edge on touch, or pressing `C` —
      * so a channel can be switched without leaving fullscreen. On by
      * default; missing values mean enabled. Applies to the shared player
      * controls (HTML5, Video.js, ArtPlayer, Embedded MPV frame-copy).
