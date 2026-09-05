@@ -147,6 +147,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await calm.mouse.move(5, 5);
     await calm.waitForTimeout(1500);
     assert.equal(await progressWidth(calm), 0, 'no progress under prefers-reduced-motion');
+    assert.deepEqual(await loaded(calm), [true, false, false, false, false, false], 'no prefetch when autoplay is off');
     assert.equal(await selectedChannel(calm), 'dashboard');
     await calm.keyboard.press('Tab');
     await calm.locator('.channel-tab').nth(1).click();

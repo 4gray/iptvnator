@@ -295,8 +295,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
     // the bar keeps its width, and the clock resumes from the same mark when
     // the block scrolls back in. Only a channel change resets the dwell.
     function start() {
-      loadFrame(current + 1);
       if (reduceMotion || frame) return;
+      loadFrame(current + 1); // autoplay is on, so the next frame will be needed
+
       if (!startedAt) startedAt = performance.now();
       frame = window.requestAnimationFrame(tick);
     }
