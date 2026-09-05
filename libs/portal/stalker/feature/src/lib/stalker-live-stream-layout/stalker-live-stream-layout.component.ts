@@ -865,7 +865,11 @@ export class StalkerLiveStreamLayoutComponent
         );
         const contentType = this.stalkerStore.selectedContentType();
         const isRadioMode = this.isRadioMode();
-        this.stalkerStore.setSelectedItem(item);
+        const deferSelection = !isRadioMode && this.usesEmbeddedPlayer();
+        // Inline video retains its stream during resolution. Keep selection,
+        // EPG and recording metadata paired with that stream until commit.
+        if (!deferSelection) this.stalkerStore.setSelectedItem(item);
+        const expectedSelectedId = this.selectedChannelId();
         this.ensureChannelWithinRenderWindow(channelId);
         // A previously owned radio override must not survive into a
         // selection that never mounts a player surface of its own — external
@@ -881,7 +885,13 @@ export class StalkerLiveStreamLayoutComponent
                 isRadioMode
             );
             const owner = { sourceId, contentType, channelId };
-            if (!this.isPlaybackRequestCurrent(requestId, owner)) {
+            if (
+                !this.isPlaybackRequestCurrent(
+                    requestId,
+                    owner,
+                    expectedSelectedId
+                )
+            ) {
                 return;
             }
 
@@ -900,12 +910,21 @@ export class StalkerLiveStreamLayoutComponent
                 const stillCurrent = headerSync ? await headerSync : true;
                 if (
                     !stillCurrent ||
-                    !this.isPlaybackRequestCurrent(requestId, owner)
+                    !this.isPlaybackRequestCurrent(
+                        requestId,
+                        owner,
+                        expectedSelectedId
+                    )
                 ) {
                     return;
                 }
                 this.setActivePlayback(playback, null);
                 return;
+            }
+
+            if (deferSelection) {
+                if (!sourceId || !channelId) return;
+                this.stalkerStore.setSelectedItem(item);
             }
 
             if (this.supportsEpg) {
@@ -923,11 +942,11 @@ export class StalkerLiveStreamLayoutComponent
             }
         } catch (error) {
             if (
-                !this.isPlaybackRequestCurrent(requestId, {
-                    sourceId,
-                    contentType,
-                    channelId,
-                })
+                !this.isPlaybackRequestCurrent(
+                    requestId,
+                    { sourceId, contentType, channelId },
+                    expectedSelectedId
+                )
             ) {
                 return;
             }
@@ -970,11 +989,12 @@ export class StalkerLiveStreamLayoutComponent
 
     private isPlaybackRequestCurrent(
         requestId: number,
-        owner: StalkerPlaybackResolutionOwner
+        owner: StalkerPlaybackResolutionOwner,
+        expectedSelectedId: string | undefined
     ): boolean {
         return (
             requestId === this.playbackRequestId &&
-            this.selectedChannelId() === owner.channelId &&
+            this.selectedChannelId() === expectedSelectedId &&
             normalizeStalkerEntityId(
                 this.stalkerStore.currentPlaylist()?._id
             ) === owner.sourceId &&

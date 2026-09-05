@@ -30,7 +30,7 @@ This file provides guidance to coding agents working in this repository.
   must receive the temporary keychain's own password, not the `.p12` import
   password. macOS runner images since `macos-26-arm64` 20260831 verify that
   password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
-  name or passphrase you entered is not correct`. Keep the patch until
+name or passphrase you entered is not correct`. Keep the patch until
   electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
   and run `pnpm run deps:electron-builder:test` after related dependency
   updates — the test fails when the patched version no longer matches the
@@ -340,7 +340,9 @@ Key files:
   panel's search results are windowed by `PanelSearchWindow`, and on a paged
   portal the panel copy keeps requesting pages while its matches do not fill
   it, even while the sidebar's own search is active; the retained closed
-  panel pauses paging and resumes automatic filling when reopened), and
+  panel pauses paging and resumes automatic filling when reopened; inline video
+  commits the selected channel with the resolved playback, retaining the old
+  selection, EPG and recording metadata during a pending or failed replacement), and
   `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
   detail mounted until the next selection resolves, with `activeItem` paired
   to that detail so the session key and recording metadata keep describing

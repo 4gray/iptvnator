@@ -374,7 +374,10 @@ landing resets the in-flight flag whether or not the sidebar shows any of it
 — while in full-list mode it never pages, since its search already sees the
 whole catalog; closing the panel pauses window growth and automatic page
 requests while preserving the mounted list, and an observer of the aside's
-`inert` attribute resumes filling on reopen and disconnects with the list),
+`inert` attribute resumes filling on reopen and disconnects with the list;
+inline video keeps the selected channel paired with its retained playback
+until the current resolver succeeds, so panel highlight, EPG and recording
+metadata remain on the playing channel during a pending or failed replacement),
 and `UnifiedLiveTabComponent` (global favorites/recent; its `activateItem`
 keeps the previous detail — and with it the mounted player that owns
 fullscreen — until the next selection has resolved, because unmounting the
