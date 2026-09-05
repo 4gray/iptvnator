@@ -763,6 +763,18 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 ### Key Features
 
+#### M3U URL User-Agent
+
+- The URL import form accepts an optional User-Agent and stores it as
+  `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
+  and startup auto-update. The self-hosted PWA sends it through the registered
+  target `/parse` backend proxy for import and refresh; a matching backend is
+  required, and browser playback-header restrictions still apply.
+- Reuse the existing source editor and channel-over-playlist playback header
+  precedence. Contract: `docs/architecture/m3u-playlist-module.md`
+  ("User-Agent for URL sources").
+
+
 **Playlist Support**:
 
 - M3U/M3U8 files (local or URL)

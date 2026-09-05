@@ -8,6 +8,7 @@ import {
     openSourceEditor,
     openSources,
     restartElectronApp,
+    refreshSource,
     saveSourceDialog,
     sourceRowByTitle,
     test,
@@ -38,6 +39,83 @@ async function openAutoRefreshPlaylistCatalog(page: Page): Promise<void> {
 }
 
 test.describe('Electron startup playlist auto-refresh', () => {
+    test('imports a protected URL with User-Agent and reuses it for manual and startup refresh', async ({
+        dataDir,
+    }) => {
+        const userAgent = 'IPTVnator-Test/1.0';
+        const urlServer = await createMutableTextServer(
+            buildAutoRefreshM3u('Original UA Channel'),
+            {
+                resourcePath: `/${autoRefreshSourceName}`,
+                requiredUserAgent: userAgent,
+            }
+        );
+        const app = await launchElectronApp(dataDir);
+        try {
+            expect((await fetch(urlServer.resourceUrl)).status).toBe(403);
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                urlServer.resourceUrl,
+                `  ${userAgent}  `
+            );
+            await openSources(app.mainWindow);
+            const dialog = await openSourceEditor(
+                app.mainWindow,
+                autoRefreshSourceName
+            );
+            await expect(
+                dialog.getByRole('textbox', { name: 'User agent', exact: true })
+            ).toHaveValue(userAgent);
+            await updateSourceDialog(dialog, { autoRefresh: true });
+            await saveSourceDialog(app.mainWindow, dialog);
+
+            urlServer.setBody(buildAutoRefreshM3u('Manual UA Channel'));
+            await refreshSource(app.mainWindow, autoRefreshSourceName);
+            await openAutoRefreshPlaylistCatalog(app.mainWindow);
+            await expect(
+                app.mainWindow
+                    .getByTestId('channel-item')
+                    .filter({ hasText: 'Manual UA Channel' })
+            ).toHaveCount(1);
+
+            // A refresh result must keep the in-memory default as well as SQLite metadata.
+            await openSources(app.mainWindow);
+            urlServer.setBody(buildAutoRefreshM3u('Second UA Channel'));
+            await refreshSource(app.mainWindow, autoRefreshSourceName);
+            await openAutoRefreshPlaylistCatalog(app.mainWindow);
+            await expect(
+                app.mainWindow
+                    .getByTestId('channel-item')
+                    .filter({ hasText: 'Second UA Channel' })
+            ).toHaveCount(1);
+
+            urlServer.setBody(buildAutoRefreshM3u('Startup UA Channel'));
+            const restarted = await restartElectronApp(app, dataDir);
+            app.electronApp = restarted.electronApp;
+            app.mainWindow = restarted.mainWindow;
+            await openAutoRefreshPlaylistCatalog(app.mainWindow);
+            await expect(
+                app.mainWindow
+                    .getByTestId('channel-item')
+                    .filter({ hasText: 'Startup UA Channel' })
+            ).toHaveCount(1);
+            await openSources(app.mainWindow);
+            const savedDialog = await openSourceEditor(
+                app.mainWindow,
+                autoRefreshSourceName
+            );
+            await expect(
+                savedDialog.getByRole('textbox', {
+                    name: 'User agent',
+                    exact: true,
+                })
+            ).toHaveValue(userAgent);
+        } finally {
+            await closeElectronApp(app);
+            await urlServer.close();
+        }
+    });
+
     test('reports failed playlists instead of an unconditional success toast', async ({
         dataDir,
     }) => {

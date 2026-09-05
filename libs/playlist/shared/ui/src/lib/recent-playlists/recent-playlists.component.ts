@@ -331,6 +331,7 @@ export class RecentPlaylistsComponent {
                 id: item._id,
                 title: item.title,
                 url: item.url,
+                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
             });
         }
     }
@@ -385,6 +386,9 @@ export class RecentPlaylistsComponent {
                         playlistId: item._id,
                         title: item.title,
                         url: item.url,
+                        ...(item.userAgent
+                            ? { userAgent: item.userAgent }
+                            : {}),
                         filePath: item.filePath,
                     },
                     {

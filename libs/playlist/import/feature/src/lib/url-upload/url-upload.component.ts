@@ -28,6 +28,7 @@ export class UrlUploadComponent implements OnInit {
     form!: FormGroup<{
         playlistName: FormControl<string>;
         playlistUrl: FormControl<string>;
+        userAgent: FormControl<string>;
     }>;
     readonly isDesktop = this.runtime.isElectron;
 
@@ -39,6 +40,7 @@ export class UrlUploadComponent implements OnInit {
                 [Validators.required, Validators.pattern(urlRegex)],
             ],
             playlistName: [''],
+            userAgent: [''],
         });
     }
 
@@ -46,6 +48,7 @@ export class UrlUploadComponent implements OnInit {
         this.form.reset({
             playlistName: '',
             playlistUrl: '',
+            userAgent: '',
         });
     }
 }

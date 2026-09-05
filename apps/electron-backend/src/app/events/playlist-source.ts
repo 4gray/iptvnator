@@ -17,6 +17,7 @@ import type { M3uImportPerformanceCapture } from './playlist-import-performance'
 import { M3U_IMPORT_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 
 export interface PlaylistFetchOptions {
+    userAgent?: string;
     performanceCapture?: M3uImportPerformanceCapture | null;
     trustedInsecureTlsHosts?: readonly string[];
 }
@@ -88,6 +89,7 @@ export async function fetchPlaylistFromUrl(
     options: PlaylistFetchOptions = {}
 ): Promise<Playlist> {
     const performanceCapture = options.performanceCapture;
+    const userAgent = options.userAgent?.trim() || undefined;
     const request = () =>
         requestWithValidatedRedirects<string>(
             url,
@@ -96,6 +98,7 @@ export async function fetchPlaylistFromUrl(
                     trustedInsecureTlsHosts: options.trustedInsecureTlsHosts,
                 }),
                 method: 'GET',
+                ...(userAgent ? { headers: { 'User-Agent': userAgent } } : {}),
                 timeout: PLAYLIST_FETCH_TIMEOUT_MS,
             },
             { allowPrivateNetworks: true }
@@ -135,12 +138,16 @@ export async function fetchPlaylistFromUrl(
                 ? 'Imported from URL'
                 : extractedName;
 
-        return createPlaylistObject(
+        const playlist = createPlaylistObject(
             title ?? playlistName,
             parsedPlaylist,
             url,
             'URL'
         );
+        if (userAgent) {
+            playlist.userAgent = userAgent;
+        }
+        return playlist;
     };
 
     return performanceCapture

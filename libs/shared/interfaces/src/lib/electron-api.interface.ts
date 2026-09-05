@@ -340,6 +340,11 @@ export interface ElectronBridgeTrustOptions {
     trustedInsecureTlsHosts?: string[];
 }
 
+export interface ElectronBridgePlaylistFetchOptions
+    extends ElectronBridgeTrustOptions {
+    userAgent?: string;
+}
+
 export interface ElectronBridgeEpgFreshnessResult {
     staleUrls: string[];
     freshUrls: string[];
@@ -718,7 +723,7 @@ export interface ElectronBridgeApi {
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
-        options?: ElectronBridgeTrustOptions
+        options?: ElectronBridgePlaylistFetchOptions
     ) => Promise<Playlist>;
     updatePlaylistFromFilePath: (
         filePath: string,

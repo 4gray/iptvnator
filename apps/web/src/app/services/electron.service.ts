@@ -145,6 +145,7 @@ export class ElectronService extends DataService {
                     id: string;
                     filePath?: string;
                     url?: string;
+                    userAgent?: string;
                     title: string;
                 }
             );
@@ -329,11 +330,10 @@ export class ElectronService extends DataService {
         const title = payload.title?.trim() || undefined;
 
         window.electron
-            .fetchPlaylistByUrl(
-                payload.url,
-                title,
-                this.settingsStore.getTrustOptions()
-            )
+            .fetchPlaylistByUrl(payload.url, title, {
+                ...this.settingsStore.getTrustOptions(),
+                userAgent: payload.userAgent,
+            })
             .then((result) => {
                 measureRendererPerformancePhase(
                     RENDERER_PERFORMANCE_PHASE.M3U_IMPORT_DISPATCH,
@@ -393,6 +393,7 @@ export class ElectronService extends DataService {
         id: string;
         url?: string;
         filePath?: string;
+        userAgent?: string;
         title: string;
     }) {
         try {
@@ -401,7 +402,10 @@ export class ElectronService extends DataService {
                 playlistObject = await window.electron.fetchPlaylistByUrl(
                     data.url,
                     data.title,
-                    this.settingsStore.getTrustOptions()
+                    {
+                        ...this.settingsStore.getTrustOptions(),
+                        userAgent: data.userAgent,
+                    }
                 );
             } else if (data.filePath && !data.url) {
                 playlistObject =

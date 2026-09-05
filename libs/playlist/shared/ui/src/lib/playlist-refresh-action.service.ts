@@ -89,6 +89,9 @@ export class PlaylistRefreshActionService {
                 id: playlist._id,
                 title: playlist.title,
                 url: playlist.url,
+                ...(playlist.userAgent
+                    ? { userAgent: playlist.userAgent }
+                    : {}),
             });
         }
     }
@@ -150,6 +153,7 @@ export class PlaylistRefreshActionService {
                     playlistId: item._id,
                     title: item.title,
                     url: item.url,
+                    ...(item.userAgent ? { userAgent: item.userAgent } : {}),
                     filePath: item.filePath,
                     trustedInsecureTlsHosts:
                         this.settingsStore.getTrustOptions()

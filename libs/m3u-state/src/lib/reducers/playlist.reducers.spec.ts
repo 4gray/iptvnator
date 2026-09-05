@@ -217,6 +217,36 @@ describe('playlistReducers', () => {
         expect(nextState.channelsLoading).toBe(false);
     });
 
+    it.each([undefined, '', 'Replacement/2.0'])(
+        'preserves the saved User-Agent unless refresh explicitly replaces it: %s',
+        (userAgent) => {
+            const existing = {
+                _id: 'playlist-1',
+                userAgent: 'IPTVnator-Test/1.0',
+            } as PlaylistMeta;
+            const state = {
+                ...initialState,
+                playlists: playlistsAdapter.addOne(
+                    existing,
+                    initialState.playlists
+                ),
+            };
+            const nextState = reducer(
+                state,
+                PlaylistActions.updatePlaylist({
+                    playlistId: existing._id,
+                    playlist: {
+                        playlist: { items: [] },
+                        ...(userAgent !== undefined ? { userAgent } : {}),
+                    } as Playlist,
+                })
+            );
+            expect(nextState.playlists.entities[existing._id]?.userAgent).toBe(
+                userAgent ?? existing.userAgent
+            );
+        }
+    );
+
     it('keeps hiddenGroupTitles on playlist refresh when the refreshed payload omits them', () => {
         const existingPlaylist: PlaylistMeta = {
             _id: 'playlist-1',

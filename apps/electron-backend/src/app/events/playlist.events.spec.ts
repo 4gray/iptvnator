@@ -220,6 +220,27 @@ describe('playlist IPC events', () => {
         expect(result).toEqual(playlist);
     });
 
+    it.each(['  IPTVnator-Test/1.0  ', '', '   '])(
+        'uses and persists the optional initial download User-Agent: %s',
+        async (userAgent) => {
+            mockAxiosGet.mockResolvedValue({ data: '#EXTM3U' });
+            mockParse.mockReturnValue({ items: [] });
+            mockCreatePlaylistObject.mockReturnValue(createPlaylist());
+
+            const result = await getHandler('fetch-playlist-by-url')(
+                createIpcEvent(),
+                'https://example.test/remote.m3u',
+                undefined,
+                { userAgent }
+            );
+
+            const expected = userAgent.trim() || undefined;
+            const request = mockAxiosGet.mock.calls[0][0];
+            expect(request.headers?.['User-Agent']).toBe(expected);
+            expect((result as Playlist).userAgent).toBe(expected);
+        }
+    );
+
     it('publishes request-scoped URL import phases only through the opt-in internal channel', async () => {
         process.env[PERF_CAPTURE_ENV] = '1';
         const body = '#EXTM3U\n#EXTINF:-1,News\nhttps://stream.test/news';

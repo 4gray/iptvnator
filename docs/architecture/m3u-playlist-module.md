@@ -56,6 +56,36 @@ There is intentionally **no URL validation** (upstream removed it in 0.15.0): an
 
 The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
 
+## User-Agent for URL sources
+
+The M3U URL form accepts an optional User-Agent, including after an Auto-detect
+handoff. It reuses the playlist editor's translated label and hint. Import
+trims the value; an empty or whitespace-only value leaves download defaults
+unchanged. A successful import stores it as `Playlist.userAgent`, so the
+existing source editor can update it without a schema migration. The editor
+also exposes this field for URL sources in the PWA.
+
+Electron carries it in `ElectronBridgePlaylistFetchOptions` alongside TLS
+trust options. `playlist-source.ts` sets the HTTP header on the first fetch,
+startup auto-update supplies each saved playlist's UA, and explicit refresh
+passes it through `PlaylistRefreshPayload` to the refresh worker. The reducer
+retains the current UA when a refresh result omits it, preserving repeated
+refreshes and playback defaults within the same session. Requests
+retain their validated redirect, private-network, TLS, timeout, and cancellation
+policies. Download errors use the shared redactor before logging.
+
+The self-hosted PWA passes the optional `userAgent` parameter to `/parse` using
+the existing registered `targetId`; the backend sets the upstream header and
+returns the value in the playlist. Refresh uses the saved value through the
+same proxy. This requires the matching web backend. The browser never sets a
+User-Agent header itself, and this does not add custom browser playback-header
+support. Electron playback retains existing per-header precedence: channel
+headers override playlist defaults. File, text, and portal imports are unchanged.
+
+Regression coverage uses synthetic UA-gated HTTP endpoints in
+`playlist-auto-refresh.e2e.ts` (Electron) and `self-hosted.e2e.ts` (PWA), plus
+form, renderer, download, proxy, and refresh-action unit tests.
+
 ## Initial URL Import Performance Benchmark (Electron)
 
 The Electron E2E project has a deterministic initial-import benchmark for
