@@ -293,6 +293,16 @@ export class StalkerLiveStreamLayoutComponent
             ? this.filteredChannels().slice(0, this.renderLimit())
             : this.filteredChannels()
     );
+    /**
+     * The fullscreen panel's rows while its own search field is blank: the
+     * current category, windowed like the sidebar but never narrowed by the
+     * sidebar's search term.
+     */
+    readonly panelIdleChannels = computed(() =>
+        this.isCategoryFromCache()
+            ? this.channels().slice(0, this.renderLimit())
+            : this.channels()
+    );
     readonly totalChannelCount = computed(() => this.filteredChannels().length);
     readonly hasMoreItems = computed(() =>
         this.isCategoryFromCache()
@@ -1027,12 +1037,16 @@ export class StalkerLiveStreamLayoutComponent
     channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
         const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
         if (!term) {
-            // Only the panel copy owns the window; the sidebar copy passes no
-            // term and must not reset it on every render.
-            if (panelSearchTerm) {
-                this.panelSearch.clear();
+            if (!panelSearchTerm) {
+                return this.visibleChannels();
             }
-            return this.visibleChannels();
+            // The panel copy with a blank field shows the category as is:
+            // the sidebar's own search term stays out of it, or the panel
+            // would show an unexplained subset (or an empty state) under an
+            // empty search box. Only this copy owns the window, and it is
+            // cleared here rather than on the sidebar's every render.
+            this.panelSearch.clear();
+            return this.panelIdleChannels();
         }
 
         // A new term renders a fresh result the user cannot have scrolled yet;
@@ -1045,8 +1059,11 @@ export class StalkerLiveStreamLayoutComponent
         return this.panelSearch.rows(term, this.searchableChannels());
     }
 
+    /** Whether the given stamped copy is showing search results. */
     hasSearchTerm(panelSearchTerm?: Signal<string>): boolean {
-        return Boolean(this.searchTerm() || panelSearchTerm?.().trim());
+        return panelSearchTerm
+            ? Boolean(panelSearchTerm().trim())
+            : Boolean(this.searchTerm());
     }
 
     loadMore() {

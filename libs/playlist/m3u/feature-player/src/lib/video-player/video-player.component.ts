@@ -282,17 +282,22 @@ export class VideoPlayerComponent
         playlistDisplayLabel(this.activePlaylistMeta()?.title)
     );
     /**
-     * Radio stations are withheld from the panel: they render through
-     * `app-audio-player` instead of `app-web-player-view`, so selecting one
-     * destroys the element that owns fullscreen and drops the user out of it —
-     * the opposite of what this panel exists for. Every panel view resolves
-     * against this list (favorites and recent look their rows up in it), so
-     * one filter covers all four. PageUp/PageDown deliberately keep stepping
-     * onto radio: those keys also zap on the windowed player, where switching
-     * to a station is exactly right.
+     * Rows the fullscreen panel may offer: everything that keeps
+     * `app-web-player-view` — the element that owns fullscreen — mounted when
+     * selected. Radio stations render through `app-audio-player` and
+     * recognized movies (with TMDB enrichment and `m3uVodDetails` on) through
+     * the VOD detail shell, so picking either destroys that element and drops
+     * the user out of fullscreen — the opposite of what this panel exists
+     * for. Every panel view resolves against this list (favorites and recent
+     * look their rows up in it), so one filter covers all four. PageUp/
+     * PageDown deliberately keep stepping onto them: those keys also zap on
+     * the windowed player, where switching to a station or a film is right.
      */
     readonly fullscreenPanelChannels = computed(() =>
-        this.channels().filter((channel) => channel.radio !== 'true')
+        this.channels().filter(
+            (channel) =>
+                channel.radio !== 'true' && !this.opensMovieDetail(channel)
+        )
     );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
@@ -328,13 +333,21 @@ export class VideoPlayerComponent
      */
     readonly showMovieDetail = computed(() => {
         const channel = this.activeChannel();
+        return !!channel && this.opensMovieDetail(channel);
+    });
+
+    /**
+     * Whether selecting `channel` swaps the live layout for the VOD detail
+     * shell — the one predicate behind {@link showMovieDetail} and the
+     * fullscreen panel's row filter, so the two can never disagree.
+     */
+    private opensMovieDetail(channel: Channel): boolean {
         return (
-            !!channel &&
             this.settingsStore.m3uVodDetails?.() !== false &&
             this.tmdbEnrichment.isEnabled() &&
             isLikelyM3uMovie(channel)
         );
-    });
+    }
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],

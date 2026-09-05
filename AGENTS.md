@@ -307,10 +307,12 @@ Key files:
   web players with shared controls and for Embedded MPV — the legacy vendor
   chrome fullscreens the engine's own element, outside which the panel cannot
   render. Providers: M3U `VideoPlayerComponent` (returns null while its VOD
-  detail hosts the player; radio is filtered out of the list it is handed,
-  since `app-audio-player` replaces the fullscreen-owning
-  `app-web-player-view`), Xtream `LiveStreamLayoutComponent`,
-  `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; the
+  detail hosts the player; radio and recognized movies are filtered out of
+  the list it is handed, since `app-audio-player` and the VOD detail shell
+  each replace the fullscreen-owning `app-web-player-view`), Xtream
+  `LiveStreamLayoutComponent`,
+  `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; a blank
+  panel field shows the category untouched by the sidebar's search term, the
   panel's search results are windowed by `PanelSearchWindow`, and on a paged
   portal the panel copy keeps requesting pages while its matches do not fill
   it, even while the sidebar's own search is active), and

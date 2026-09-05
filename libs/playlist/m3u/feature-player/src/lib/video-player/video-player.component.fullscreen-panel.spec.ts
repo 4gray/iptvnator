@@ -301,6 +301,29 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
         });
     });
 
+    describe('fullscreen panel rows', () => {
+        it('withholds recognized movies only while they would open the VOD detail', () => {
+            // With enrichment on, a movie row swaps the live layout for the
+            // VOD detail shell, which replaces the fullscreen-owning player —
+            // the same trap as radio. With enrichment off it plays inline
+            // like any live entry and stays offered.
+            channels.set([sampleChannel, movieChannel, nextChannel]);
+
+            tmdbEnabled.set(true);
+            expect(component.fullscreenPanelChannels()).toEqual([
+                sampleChannel,
+                nextChannel,
+            ]);
+
+            tmdbEnabled.set(false);
+            expect(component.fullscreenPanelChannels()).toEqual([
+                sampleChannel,
+                movieChannel,
+                nextChannel,
+            ]);
+        });
+    });
+
     describe('PageUp/PageDown zapping', () => {
         it('PageDown plays the next channel and PageUp the previous one', () => {
             const pageDown = new KeyboardEvent('keydown', {

@@ -201,6 +201,29 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         expect(component.isLoadingMore()).toBe(false);
     });
 
+    it('shows the whole category under a blank panel search, whatever the sidebar searches', () => {
+        // The sidebar's term narrows the sidebar; the panel's empty field
+        // must not inherit it, or the panel shows an unexplained subset (or
+        // an empty state) under an empty search box.
+        searchPhrase.set('one');
+        fixture.detectChanges();
+        expect(component.visibleChannels().map((c) => c.id)).toEqual([
+            'channel-one',
+        ]);
+
+        const blank = signal('');
+        expect(component.hasSearchTerm(blank)).toBe(false);
+        expect(component.channelsForList(blank).map((c) => c.id)).toEqual([
+            'channel-one',
+            'channel-two',
+        ]);
+        // The sidebar copy (no panel signal) keeps its own search.
+        expect(component.hasSearchTerm()).toBe(true);
+        expect(component.channelsForList().map((c) => c.id)).toEqual([
+            'channel-one',
+        ]);
+    });
+
     it('leaves the sidebar alone while its own search is active', async () => {
         // Only the panel copy fills itself during a sidebar search; the
         // sidebar has never paged automatically then, and this fixture

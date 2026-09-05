@@ -335,20 +335,25 @@ groups view's rail to a fixed 148px — no resize handle, and the sidebar's
 persisted `m3u-groups-nav-width` (up to 320px) is neither read nor written,
 since inside a 400px panel it would leave the channel pane unusable — and with
 `resetActiveChannelOnDestroy` false, because the container's destroy hook
-otherwise clears the active channel and stops playback; radio stations are
-filtered out of the list it is handed, since they render through
-`app-audio-player` — selecting one destroys the `app-web-player-view` that
-owns fullscreen and drops the user out of it, and every panel view resolves
-against that one list, favorites and recent included. PageUp/PageDown keep
-stepping onto radio: those keys zap on the windowed player too, where
-switching to a station is right), `LiveStreamLayoutComponent` (Xtream; the sidebar's
+otherwise clears the active channel and stops playback; radio stations and
+recognized movies are filtered out of the list it is handed — radio renders
+through `app-audio-player` and a movie, with TMDB enrichment and
+`m3uVodDetails` on, through the VOD detail shell, so selecting either destroys
+the `app-web-player-view` that owns fullscreen and drops the user out of it;
+one private `opensMovieDetail` predicate backs both `showMovieDetail` and the
+filter, and every panel view resolves against that one list, favorites and
+recent included. PageUp/PageDown keep stepping onto them: those keys zap on
+the windowed player too, where switching to a station or a film is right), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
 route category; each `PortalChannelsListComponent` instance owns the map
 behind its heart icons, so toggles are relayed between instances through
 `XtreamFavoriteMarksService`, or a heart flipped in the panel would stay stale
 in the sidebar), `StalkerLiveStreamLayoutComponent` (its list markup is one
 `ng-template` stamped into both the sidebar and the panel with its own search
-term; every copy carries the `#scrollContainer` that drives infinite scroll,
+term — a blank panel field shows the category untouched by the sidebar's
+term, `panelIdleChannels`, so the panel never shows an unexplained subset or
+an empty state under an empty search box; every copy carries the
+`#scrollContainer` that drives infinite scroll,
 and the panel's own search results go through `PanelSearchWindow`, memoized
 per term and cut to the same 100-row window the sidebar uses — grown by the
 panel copy's scroll — because in full-list mode a broad term matches most of
