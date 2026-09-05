@@ -750,6 +750,10 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
     dbUpsertAppPlaylist: (playlist: Playlist, _operationId?: string) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
+    dbMigrateAppPlaylists: (playlists: Playlist[]) =>
+        ipcRenderer.invoke('DB_MIGRATE_APP_PLAYLISTS', playlists),
+    dbRecoverLegacyPlaylists: () =>
+        ipcRenderer.invoke('DB_RECOVER_LEGACY_PLAYLISTS'),
     dbUpsertAppPlaylists: (playlists: Playlist[]) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
     dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),

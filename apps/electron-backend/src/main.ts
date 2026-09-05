@@ -1,5 +1,6 @@
+// Select persistence before eager imports (notably electron-conf) cache userData.
+import './app/services/electron-profile-bootstrap';
 import { app, BrowserWindow } from 'electron';
-import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import { autoUpdater } from 'electron-updater';
 import fixPath from 'fix-path';
 import App from './app/app';
@@ -66,12 +67,6 @@ if (
     !process.env.ELECTRON_OZONE_PLATFORM_HINT
 ) {
     app.commandLine.appendSwitch('ozone-platform', 'x11');
-}
-
-const electronUserDataPath = getElectronUserDataPath();
-
-if (electronUserDataPath) {
-    app.setPath('userData', electronUserDataPath);
 }
 
 // The frame-copy embedded MPV engine must be decided before the main window
