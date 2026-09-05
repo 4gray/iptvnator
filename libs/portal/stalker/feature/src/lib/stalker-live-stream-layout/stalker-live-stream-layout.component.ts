@@ -303,6 +303,17 @@ export class StalkerLiveStreamLayoutComponent
             ? this.channels().slice(0, this.renderLimit())
             : this.channels()
     );
+    /**
+     * Whether {@link panelIdleChannels} can grow. Judged against the category,
+     * never against the sidebar's filtered rows (`hasMoreItems`): a sidebar
+     * search that fits its matches inside the render window says nothing
+     * about the unfiltered rows the blank panel is showing.
+     */
+    readonly panelIdleHasMore = computed(() =>
+        this.isCategoryFromCache()
+            ? this.channels().length > this.renderLimit()
+            : this.stalkerStore.hasMoreChannels()
+    );
     readonly totalChannelCount = computed(() => this.filteredChannels().length);
     readonly hasMoreItems = computed(() =>
         this.isCategoryFromCache()
@@ -561,10 +572,9 @@ export class StalkerLiveStreamLayoutComponent
     readonly scrollContainers = viewChildren<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
 
-    private readonly fullscreenChannelPanelTemplate =
-        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
-            'fullscreenChannelPanel'
-        );
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
     /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
     readonly panelTemplate = computed(() =>
         this.settingsStore.fullscreenChannelPanel?.() === false
@@ -1070,9 +1080,7 @@ export class StalkerLiveStreamLayoutComponent
         if (this.isCategoryFromCache()) {
             // Extends the render window over the in-memory list — no request.
             if (this.hasMoreItems()) {
-                this.renderLimit.update(
-                    (limit) => limit + FULL_LIST_RENDER_CHUNK
-                );
+                this.growRenderWindow();
             }
             return;
         }
@@ -1083,6 +1091,24 @@ export class StalkerLiveStreamLayoutComponent
         this.isLoadingMore.set(true);
         const nextPage = this.stalkerStore.page() + 1;
         this.stalkerStore.setPage(nextPage);
+    }
+
+    /**
+     * The fullscreen panel's blank-field copy reached its end: grow it against
+     * the category. `loadMore()` would consult `hasMoreItems`, which the
+     * sidebar's search can turn false while the panel still has rows to show.
+     */
+    loadMoreForPanel(): void {
+        if (this.isLoadingMore() || !this.panelIdleHasMore()) return;
+        if (this.isCategoryFromCache()) {
+            this.growRenderWindow();
+            return;
+        }
+        this.loadMore();
+    }
+
+    private growRenderWindow(): void {
+        this.renderLimit.update((limit) => limit + FULL_LIST_RENDER_CHUNK);
     }
 
     refreshChannels(): void {
@@ -1479,7 +1505,12 @@ export class StalkerLiveStreamLayoutComponent
             if (!container) continue;
             const isPanelContainer =
                 container.closest('.fullscreen-channel-list') !== null;
-            if (!shouldAutoFillStampedList(isPanelContainer, sidebarSearchActive)) {
+            if (
+                !shouldAutoFillStampedList(
+                    isPanelContainer,
+                    sidebarSearchActive
+                )
+            ) {
                 continue;
             }
             const { scrollHeight, clientHeight } = container;
@@ -1496,9 +1527,10 @@ export class StalkerLiveStreamLayoutComponent
      * the whole catalog and a page would only widen the sidebar's window.
      */
     private driveStampedList(container: HTMLElement, nearEnd: boolean) {
+        const isPanelContainer =
+            container.closest('.fullscreen-channel-list') !== null;
         const isPanelSearch =
-            container.closest('.fullscreen-channel-list') !== null &&
-            this.panelSearch.activeTerm() !== '';
+            isPanelContainer && this.panelSearch.activeTerm() !== '';
         const action = resolvePanelSearchScroll({
             isPanelSearch,
             isNearEnd: nearEnd,
@@ -1510,6 +1542,12 @@ export class StalkerLiveStreamLayoutComponent
             return;
         }
         if (isPanelSearch && this.isCategoryFromCache()) return;
+        if (isPanelContainer && !isPanelSearch) {
+            // The blank panel shows the category, not the sidebar's filtered
+            // rows, so its continuation is judged against the category too.
+            this.loadMoreForPanel();
+            return;
+        }
         if (this.isLoadingMore() || !this.hasMoreItems()) return;
         this.loadMore();
     }

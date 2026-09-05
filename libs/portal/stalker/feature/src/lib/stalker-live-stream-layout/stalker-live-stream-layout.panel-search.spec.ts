@@ -47,6 +47,8 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
     const page = signal(0);
     const itvChannels = signal(channels);
     const searchPhrase = signal('');
+    const itvFullListActive = signal(false);
+    const itvSelectedCategoryFromCache = signal(false);
     const store = {
         getSelectedCategoryName: signal('All'),
         currentPlaylist: signal({ _id: 'playlist-one', title: 'Portal One' }),
@@ -59,9 +61,9 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         searchPhrase,
         hasMoreChannels,
         page,
-        // A legacy paged portal: no full-list cache to search in memory.
-        itvFullListActive: signal(false),
-        itvSelectedCategoryFromCache: signal(false),
+        // A legacy paged portal by default: no full-list cache in memory.
+        itvFullListActive,
+        itvSelectedCategoryFromCache,
         itvFullListLoading: signal(false),
         itvFullListProgress: signal(null),
         itvFullChannelList: signal([]),
@@ -92,6 +94,8 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         page.set(0);
         itvChannels.set(channels);
         searchPhrase.set('');
+        itvFullListActive.set(false);
+        itvSelectedCategoryFromCache.set(false);
         store.setPage.mockClear();
         await TestBed.configureTestingModule({
             imports: [
@@ -222,6 +226,37 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         expect(component.channelsForList().map((c) => c.id)).toEqual([
             'channel-one',
         ]);
+    });
+
+    it('grows the blank panel against the category, not the sidebar search', () => {
+        // Cached full-list category of 150 rows, sidebar narrowed to one:
+        // `hasMoreItems` says the sidebar is complete, yet the blank panel is
+        // showing the first 100 of 150 and must still be able to reach the rest.
+        itvFullListActive.set(true);
+        itvSelectedCategoryFromCache.set(true);
+        itvChannels.set(
+            Array.from({ length: 150 }, (_, index) => ({
+                id: `channel-${index}`,
+                cmd: `ffrt4://itv/channel-${index}`,
+                name: index === 7 ? 'Needle' : `Channel ${index}`,
+                o_name: `Channel ${index}`,
+                logo: '',
+            }))
+        );
+        searchPhrase.set('needle');
+        fixture.detectChanges();
+
+        const blank = signal('');
+        expect(component.visibleChannels()).toHaveLength(1);
+        expect(component.hasMoreItems()).toBe(false);
+        expect(component.channelsForList(blank)).toHaveLength(100);
+        expect(component.panelIdleHasMore()).toBe(true);
+
+        component.loadMoreForPanel();
+        expect(component.channelsForList(blank)).toHaveLength(150);
+        expect(component.panelIdleHasMore()).toBe(false);
+        // The sidebar copy is untouched by the panel's growth.
+        expect(component.visibleChannels()).toHaveLength(1);
     });
 
     it('leaves the sidebar alone while its own search is active', async () => {

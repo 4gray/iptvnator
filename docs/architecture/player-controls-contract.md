@@ -352,7 +352,10 @@ in the sidebar), `StalkerLiveStreamLayoutComponent` (its list markup is one
 `ng-template` stamped into both the sidebar and the panel with its own search
 term — a blank panel field shows the category untouched by the sidebar's
 term, `panelIdleChannels`, so the panel never shows an unexplained subset or
-an empty state under an empty search box; every copy carries the
+an empty state under an empty search box, and that copy grows against the
+category (`panelIdleHasMore` / `loadMoreForPanel`), never against the
+sidebar's filtered `hasMoreItems`, which a narrowing sidebar search turns
+false while the panel still has rows to reveal; every copy carries the
 `#scrollContainer` that drives infinite scroll,
 and the panel's own search results go through `PanelSearchWindow`, memoized
 per term and cut to the same 100-row window the sidebar uses — grown by the
