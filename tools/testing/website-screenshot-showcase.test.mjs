@@ -40,6 +40,10 @@ test('showcase markup: a vertical tablist with one selected channel and a panel 
     assert.match(panel, new RegExp(`aria-hidden="${i === 0 ? 'false' : 'true'}"`));
   }
   assert.match(html, /href="\/iptvnator\/features\/epg\/"/, 'captions link into the feature pages');
+
+  const frames = panels.map((panel) => html.slice(html.indexOf(panel)).match(/<img[^>]*>/)[0]);
+  assert.equal(frames.filter((img) => / src="/.test(img)).length, 1, 'only the first frame ships with a src');
+  assert.ok(frames.every((img) => /data-src="\/iptvnator\/screenshots\//.test(img)), 'every frame carries its data-src');
 });
 
 const selectedChannel = (page) => page.$eval('.channel-tab[aria-selected="true"]', (el) => el.dataset.channel);
@@ -69,6 +73,8 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
       { timeout: 5000 },
     );
     assert.equal(await selectedChannel(page), 'dashboard', 'autoplay starts on the first channel');
+    const loaded = (p) => p.$$eval('.channel-panel img', (els) => els.map((el) => Boolean(el.getAttribute('src'))));
+    assert.deepEqual(await loaded(page), [true, true, false, false, false, false], 'only the shown frame and the next one have a src');
 
     // Hover pauses.
     await page.locator('.channel-tab').nth(2).hover();
@@ -93,6 +99,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     assert.deepEqual(await hiddenPanels(page), ['true', 'true', 'true', 'false', 'true', 'true']);
     assert.equal(await page.$eval('[data-caption-label]', (el) => el.textContent.trim()), 'Movies & series');
     assert.equal(await page.$eval('[data-osd-number]', (el) => el.textContent.trim()), 'CH 04');
+    assert.deepEqual((await loaded(page)).slice(2, 5), [true, true, true], 'a shown frame and its successor get their src');
     assert.equal(await page.$eval('.channel-osd', (el) => el.classList.contains('opacity-0')), false, 'badge shows on switch');
     await page.keyboard.press('ArrowUp');
     assert.equal(await selectedChannel(page), 'epg');

@@ -8,6 +8,11 @@
  * under the active row) until the visitor hovers, focuses or scrolls the block
  * out of view; `prefers-reduced-motion` turns autoplay off entirely. Arrow keys
  * move between channels like a remote.
+ *
+ * Only the first frame ships with a `src`; the inactive panels sit stacked
+ * under it with opacity 0, so native lazy loading would fetch all six at
+ * once. The script assigns `src` from `data-src` when a channel is shown and
+ * preloads the one after it, so at most two frames are in flight.
  */
 const channels = [
   {
@@ -157,7 +162,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
               ]}
             >
               <img
-                src={channel.image}
+                src={i === 0 ? channel.image : undefined}
+                data-src={channel.image}
                 alt={channel.alt}
                 width={channel.width}
                 height={channel.height}
@@ -222,6 +228,13 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
     const progressOf = (i) => tabs[i].querySelector('.channel-progress');
 
+    // Inactive frames carry their URL in data-src; give a frame its src the
+    // first time it is needed (the shown channel and the one after it).
+    function loadFrame(i) {
+      const img = panels[(i + panels.length) % panels.length].querySelector('img');
+      if (img && !img.getAttribute('src')) img.setAttribute('src', img.dataset.src ?? '');
+    }
+
     function show(index, { focus = false, announce = true } = {}) {
       current = (index + tabs.length) % tabs.length;
       tabs.forEach((tab, i) => {
@@ -230,6 +243,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
         tab.tabIndex = active ? 0 : -1;
         progressOf(i).style.width = '0%';
       });
+      loadFrame(current);
+      loadFrame(current + 1);
       panels.forEach((panel, i) => {
         const active = i === current;
         panel.classList.toggle('opacity-0', !active);
@@ -262,6 +277,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     }
 
     function start() {
+      loadFrame(current + 1);
       if (reduceMotion || frame) return;
       startedAt = performance.now();
       frame = window.requestAnimationFrame(tick);

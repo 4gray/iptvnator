@@ -64,6 +64,19 @@ resolved version.
 canonicals, direct asset links, JSON-LD, cross-links and sitemap entries
 without depending on a specific version.
 
+Two of the suites drive the built site in a real browser:
+`tools/testing/website-screenshot-showcase.test.mjs` (the home page channel
+switcher: autoplay, hover/focus pausing, keyboard navigation, deferred frame
+sources) and `tools/testing/website-home-sections.test.mjs` (the hero and
+download panel following the visitor's OS). They share
+`tools/testing/website-browser-support.mjs`, which serves `dist/apps/website`
+on a loopback port and launches Chromium from the Playwright download or,
+failing that, the system Chrome/Chromium channel. Without any Chromium the
+browser half is **skipped locally** (the structural checks still run) and
+**fails in CI**, so a green local run only proves the interactions when a
+browser was found — run `pnpm exec playwright install chromium` once if the
+skip shows up in your output.
+
 ## Guides
 
 Evergreen how-to posts live in the blog collection next to release notes
