@@ -365,6 +365,25 @@ Use the shared `nav-list.scss` treatment for sidebar and context-panel list item
 
 If the label is too long for the rail, shorten the label key instead of shrinking the component until it becomes inconsistent.
 
+## Detail Actions And Episode Surfaces
+
+Secondary detail buttons, episode cards and list rows, and the season view
+toggle must keep visible edges in both themes before hover. Use app-owned
+surface colors and neutral borders derived from `--app-on-surface`; fixed
+white-alpha fills and borders disappear over the light detail background.
+Grid cards keep the thumbnail and title on one continuous widget surface.
+List rows use a subtle neutral fill, with the number on a slightly stronger
+inset surface. The checked grid/list toggle uses `--app-selection-surface`
+and `--app-selection-color`; hover uses the app's neutral surface treatment.
+Keep these treatments in the shared season components and detail-action
+partial so Xtream and Stalker share the same behavior.
+
+Browser regression coverage measures the composited neutral edges and selected
+toggle fill, in addition to capturing light/dark grid and list screenshots.
+Hero action edges use matching pixels from rendered screenshots with the border
+visible and transparent, retaining the artwork and gradient behind the button;
+flat ancestor-color compositing is only appropriate outside that layered hero.
+
 ## Settings Surfaces
 
 Settings use the same system but are flatter than content-heavy views.

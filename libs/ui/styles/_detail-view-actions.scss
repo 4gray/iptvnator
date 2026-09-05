@@ -41,16 +41,20 @@
     padding: 0 24px;
     font-size: 1rem;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
     color: var(--text-primary, #fff);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 14%, transparent);
     border-radius: 16px;
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
-        background: rgba(255, 255, 255, 0.14);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+        border-color: color-mix(
+            in srgb,
+            var(--app-on-surface) 22%,
+            transparent
+        );
     }
 
     mat-icon {
@@ -86,13 +90,21 @@
     }
 
     &--downloading {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, var(--app-on-surface) 4%, transparent);
+        border-color: color-mix(
+            in srgb,
+            var(--app-on-surface) 14%,
+            transparent
+        );
         cursor: not-allowed;
         opacity: 0.6;
 
         &:hover {
-            background: rgba(255, 255, 255, 0.04);
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface) 4%,
+                transparent
+            );
         }
     }
 

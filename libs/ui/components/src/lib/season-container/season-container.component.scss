@@ -84,12 +84,12 @@ app-season-tabs {
 
 // Episode Card
 .episode-card {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--app-widget-bg);
     border-radius: 6px;
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 14%, transparent);
     position: relative;
 
     // In-progress state
@@ -203,8 +203,8 @@ app-season-tabs {
 
     &:hover {
         transform: translateY(-2px);
-        background: rgba(255, 255, 255, 0.07);
-        border-color: rgba(255, 255, 255, 0.1);
+        background: var(--app-card-hover-bg);
+        border-color: color-mix(in srgb, var(--app-on-surface) 22%, transparent);
 
         .episode-card__overlay {
             opacity: 1;
@@ -469,15 +469,15 @@ app-season-tabs {
     align-items: center;
     gap: 16px;
     padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in srgb, var(--app-on-surface) 3%, transparent);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
-    border: 1px solid transparent;
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 14%, transparent);
 
     &:hover {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(255, 255, 255, 0.08);
+        background: var(--app-card-hover-bg);
+        border-color: color-mix(in srgb, var(--app-on-surface) 22%, transparent);
 
         .episode-list-item__actions {
             opacity: 1;
@@ -508,7 +508,7 @@ app-season-tabs {
         justify-content: center;
         min-width: 36px;
         height: 36px;
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--app-hover-overlay);
         border-radius: 6px;
         font-size: 0.875rem;
         font-weight: 600;
