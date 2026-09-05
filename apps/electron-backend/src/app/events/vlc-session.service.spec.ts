@@ -184,6 +184,45 @@ describe('vlc-session.service helpers and launch args', () => {
     });
 
     describe('openVlcPlayer launch args', () => {
+        it.each(['error', 'exit'])(
+            'preserves data containing --rc-quiet during an RC retry (%s)',
+            async (event) => {
+                Object.defineProperty(process, 'platform', { value: 'win32' });
+                mockStoreValues({
+                    [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                    [VLC_REUSE_INSTANCE]: true,
+                    [VLC_PLAYER_ARGUMENTS]: '--fullscreen\n--rc-quiet',
+                });
+                const proc = createMockChildProcess();
+                const retryProc = createMockChildProcess();
+                spawnMock
+                    .mockReturnValueOnce(proc)
+                    .mockReturnValueOnce(retryProc);
+                const url = `${streamUrl}?option=--rc-quiet`;
+                const openPromise = openVlcPlayer({
+                    title: 'Movie --rc-quiet',
+                    url,
+                    userAgent: 'Agent --rc-quiet',
+                });
+                await waitForSpawnCallCount(1);
+                proc.emit('spawn');
+                await openPromise;
+                proc.emit(event, event === 'exit' ? 1 : new Error('RC failed'));
+                await waitForSpawnCallCount(2);
+
+                expect(spawnMock.mock.lastCall[1]).toEqual([
+                    '--fullscreen',
+                    // Custom arguments are preserved; only the managed flag goes.
+                    '--rc-quiet',
+                    ':http-user-agent=Agent --rc-quiet',
+                    url,
+                    ':meta-title=Movie --rc-quiet',
+                ]);
+                retryProc.emit('spawn');
+                retryProc.emit('exit', 0);
+            }
+        );
+
         it.each(['win32', 'darwin', 'linux'] as const)(
             'adds quiet mode only for managed Windows RC launches (%s)',
             async (platform) => {

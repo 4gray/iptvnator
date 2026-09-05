@@ -525,7 +525,7 @@ export async function openVlcPlayer({
                             (arg) =>
                                 !arg.includes('--extraintf') &&
                                 !arg.includes('--rc-host') &&
-                                !arg.includes('--rc-quiet')
+                                arg !== '--rc-quiet'
                         );
                         spawnVlc(retryArgs, true);
                     } else {
@@ -576,7 +576,7 @@ export async function openVlcPlayer({
                             (arg) =>
                                 !arg.includes('--extraintf') &&
                                 !arg.includes('--rc-host') &&
-                                !arg.includes('--rc-quiet')
+                                arg !== '--rc-quiet'
                         );
                         spawnVlc(retryArgs, true);
                         return;
