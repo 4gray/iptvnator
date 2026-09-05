@@ -112,6 +112,7 @@ export const DEFAULT_SETTINGS = {
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',
     embeddedMpvAutoReconnect: true,
+    portalConnectivityGuard: true,
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
@@ -222,6 +223,9 @@ export function createEpgBridgeStub(): Partial<EpgRuntimeBridgeService> {
 /** The full desktop bridge the settings page expects to be present */
 export function createElectronStub(): typeof window.electron {
     return {
+        resetHostConnectivityGuard: jest
+            .fn()
+            .mockResolvedValue({ success: true }),
         checkEpgFreshness: jest.fn().mockResolvedValue({
             freshUrls: [],
             staleUrls: [],

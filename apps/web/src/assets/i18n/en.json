@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Portal connections",
+        "PORTAL_CONNECTIVITY_GUARD": "Pause requests to unavailable portals",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "After repeated connection failures, pause new Xtream and Stalker requests for 30 seconds. Try disabling this if a portal becomes unavailable intermittently. Applies after saving, without restarting.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Each request will run independently. Unavailable servers may take longer to report an error.",
         "TITLE": "Settings",
         "GENERAL": "General",
         "GENERAL_SUBTITLE": "Change the configuration of the application",
@@ -1002,6 +1006,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Requests temporarily paused",
+            "DESCRIPTION": "Requests were paused after repeated connection failures. Retry now to contact the portal immediately.",
+            "RETRY": "Retry now"
+        },
         "ALL_CATEGORIES": "All categories",
         "MY_FAVORITES": "My favorites",
         "ADD_TO_FAVORITES": "Add to favorites",

@@ -59,6 +59,40 @@ describe('SettingsComponent form', () => {
         window.electron = originalElectron;
     });
 
+    it('stages the desktop portal pause setting until Save', async () => {
+        const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-test-id="portal-connectivity-toggle"] input'
+        ) as HTMLInputElement;
+        expect(checkbox).not.toBeNull();
+        expect(checkbox.checked).toBe(true);
+        checkbox.click();
+        fixture.detectChanges();
+        expect(
+            component.settingsForm.get('portalConnectivityGuard')?.value
+        ).toBe(false);
+        expect(window.electron.updateSettings).not.toHaveBeenCalled();
+        component.form.hydrateFromStore();
+        fixture.detectChanges();
+        expect(checkbox.checked).toBe(true);
+        checkbox.click();
+        await component.form.save(() => undefined);
+        expect(window.electron.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ portalConnectivityGuard: false })
+        );
+    });
+
+    it('hides the portal pause setting when the desktop bridge is unavailable', () => {
+        fixture.destroy();
+        window.electron = undefined;
+        fixture = TestBed.createComponent(SettingsComponent);
+        fixture.detectChanges();
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="portal-connectivity-setting"]'
+            )
+        ).toBeNull();
+    });
+
     describe('Get and set settings on component init', () => {
         const settings = {
             language: Language.GERMAN,

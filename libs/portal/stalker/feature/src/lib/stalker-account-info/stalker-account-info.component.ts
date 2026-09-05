@@ -23,6 +23,7 @@ import {
     resetHostConnectivityGuard,
 } from '@iptvnator/services';
 import {
+    isHostConnectivityFastFailMessage,
     PlaylistMeta,
     type StalkerAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
@@ -56,9 +57,8 @@ const DAY_IN_MS = 86_400_000;
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StalkerAccountInfoComponent {
-    private readonly data = inject<StalkerAccountInfoDialogData>(
-        MAT_DIALOG_DATA
-    );
+    private readonly data =
+        inject<StalkerAccountInfoDialogData>(MAT_DIALOG_DATA);
     private readonly accountInfoService = inject(StalkerAccountInfoService);
     private readonly dataService = inject(DataService);
     private readonly playlistsService = inject(PlaylistsService);
@@ -72,6 +72,7 @@ export class StalkerAccountInfoComponent {
      */
     readonly isFullPortal = isFullStalkerPortalPlaylist(this.playlist);
     readonly loadState = signal<AccountLoadState>('loading');
+    readonly requestsPaused = signal(false);
     readonly snapshot = signal<StalkerAccountSnapshot | null>(null);
     readonly snapshotSource = signal<SnapshotSource | null>(null);
     readonly refreshFailed = signal(false);
@@ -242,6 +243,7 @@ export class StalkerAccountInfoComponent {
     }
 
     private async load(): Promise<void> {
+        this.requestsPaused.set(false);
         this.refreshFailed.set(false);
         if (!this.snapshot()) {
             this.loadState.set('loading');
@@ -259,6 +261,11 @@ export class StalkerAccountInfoComponent {
             }
             this.loadState.set('ready');
         } catch (error) {
+            this.requestsPaused.set(
+                isHostConnectivityFastFailMessage(
+                    error instanceof Error ? error.message : error
+                )
+            );
             this.logger.error('Failed to fetch account info', error);
             if (this.snapshot()) {
                 // Keep showing the cached snapshot; just flag the refresh.

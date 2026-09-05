@@ -19,7 +19,7 @@ const others = COMPARISONS.filter((comparison) => comparison.slug !== current);
         <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Other comparisons</span>
         <h2 class="mt-3 font-display text-2xl font-bold tracking-tight text-surface-50 sm:text-3xl">
           Still{' '}
-          <em class="font-medium text-accent-400" style="font-style: italic;">deciding?</em>
+          deciding?
         </h2>
       </div>
       <a href={COMPARE_HUB_HREF} class="font-mono text-xs uppercase tracking-[0.1em] text-accent-500 transition-colors hover:text-accent-400">All comparisons</a>
@@ -27,7 +27,7 @@ const others = COMPARISONS.filter((comparison) => comparison.slug !== current);
 
     <div class="mt-10 grid gap-4 sm:grid-cols-2">
       {others.map((comparison) => (
-        <a href={comparison.href} class="card-dotted group flex flex-col gap-3 p-6">
+        <a href={comparison.href} class="card-panel group flex flex-col gap-3 p-6">
           <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-300 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
             <svg class="h-4.5 w-4.5 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d={comparison.icon} />

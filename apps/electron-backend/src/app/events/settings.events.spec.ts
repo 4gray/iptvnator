@@ -28,6 +28,7 @@ const STORE_KEYS = {
     MPV_PLAYER_ARGUMENTS: 'MPV_PLAYER_ARGUMENTS',
     MPV_REUSE_INSTANCE: 'MPV_REUSE_INSTANCE',
     STARTUP_WINDOW_MODE: 'STARTUP_WINDOW_MODE',
+    PORTAL_CONNECTIVITY_GUARD: 'PORTAL_CONNECTIVITY_GUARD',
     VLC_PLAYER_ARGUMENTS: 'VLC_PLAYER_ARGUMENTS',
     VLC_REUSE_INSTANCE: 'VLC_REUSE_INSTANCE',
 } as const;
@@ -55,6 +56,7 @@ jest.mock('../services/store.service', () => ({
     MPV_PLAYER_ARGUMENTS: STORE_KEYS.MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE: STORE_KEYS.MPV_REUSE_INSTANCE,
     STARTUP_WINDOW_MODE: STORE_KEYS.STARTUP_WINDOW_MODE,
+    PORTAL_CONNECTIVITY_GUARD: STORE_KEYS.PORTAL_CONNECTIVITY_GUARD,
     VLC_PLAYER_ARGUMENTS: STORE_KEYS.VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE: STORE_KEYS.VLC_REUSE_INSTANCE,
     store: {
@@ -99,6 +101,37 @@ describe('SETTINGS_UPDATE', () => {
     afterEach(() => {
         jest.useRealTimers();
         consoleLogSpy.mockRestore();
+    });
+
+    it('restores the persisted preference before the renderer starts', async () => {
+        mockStoreGet.mockReturnValue(false);
+        const settingsEvents = (await import('./settings.events')).default;
+        settingsEvents.bootstrapSettingsEvents();
+        const guard = await import('../util/host-connectivity-guard');
+        expect(
+            guard.beginGuardedHostRequest('https://portal.example')
+        ).toBeNull();
+        settingsUpdateHandler({}, { portalConnectivityGuard: true });
+        expect(
+            guard.beginGuardedHostRequest('https://portal.example')
+        ).not.toBeNull();
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            STORE_KEYS.PORTAL_CONNECTIVITY_GUARD,
+            true
+        );
+    });
+
+    it('applies an opt-out immediately and preserves it through unrelated saves', async () => {
+        const guard = await import('../util/host-connectivity-guard');
+        settingsUpdateHandler({}, { portalConnectivityGuard: false });
+        settingsUpdateHandler({}, { showCaptions: true });
+        expect(
+            guard.beginGuardedHostRequest('https://portal.example')
+        ).toBeNull();
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            STORE_KEYS.PORTAL_CONNECTIVITY_GUARD,
+            false
+        );
     });
 
     it('normalizes external-player arguments and preserves explicit false reuse settings', () => {

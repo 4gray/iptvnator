@@ -7,7 +7,7 @@ interface Props {
 const { title = 'Show spoiler', open = false } = Astro.props;
 ---
 
-<details class="not-prose my-5 rounded-xl border border-dashed border-surface-700/70 bg-surface-900/50 px-4 py-3" open={open}>
+<details class="not-prose my-5 rounded-xl border border-surface-700/70 bg-surface-900/50 px-4 py-3" open={open}>
   <summary class="cursor-pointer list-none font-mono text-xs uppercase tracking-[0.1em] text-accent-300">
     <span class="inline-flex items-center gap-2">
       <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -16,7 +16,7 @@ const { title = 'Show spoiler', open = false } = Astro.props;
       {title}
     </span>
   </summary>
-  <div class="mt-3 border-t border-dashed border-surface-700/60 pt-3 text-sm leading-relaxed text-surface-300 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-1.5 [&_li]:marker:text-surface-600 [&_a]:text-accent-400 [&_a:hover]:underline [&_strong]:font-semibold [&_strong]:text-surface-100 [&_code]:rounded [&_code]:bg-surface-800/50 [&_code]:px-1 [&_code]:font-mono [&_code]:text-accent-300">
+  <div class="mt-3 border-t border-surface-700/60 pt-3 text-sm leading-relaxed text-surface-300 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-1.5 [&_li]:marker:text-surface-600 [&_a]:text-accent-400 [&_a:hover]:underline [&_strong]:font-semibold [&_strong]:text-surface-100 [&_code]:rounded [&_code]:bg-surface-800/50 [&_code]:px-1 [&_code]:font-mono [&_code]:text-accent-300">
     <slot />
   </div>
 </details>

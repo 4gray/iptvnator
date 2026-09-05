@@ -21,7 +21,7 @@ const { id, eyebrow, title, accent, lead } = Astro.props;
         {accent && (
           <Fragment>
             {' '}
-            <em class="font-medium text-accent-400" style="font-style: italic;">{accent}</em>
+            {accent}
           </Fragment>
         )}
       </h2>

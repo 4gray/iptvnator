@@ -7,10 +7,10 @@ interface Props {
 const { command, title = 'Command' } = Astro.props;
 ---
 
-<div class="not-prose my-6 rounded-xl border border-dashed border-surface-700/70 bg-surface-900/55 p-3">
+<div class="not-prose my-6 rounded-xl border border-surface-700/70 bg-surface-900/55 p-3">
   <div class="mb-2 flex items-center justify-between">
     <span class="font-mono text-[10px] uppercase tracking-[0.12em] text-surface-500">{title}</span>
-    <button class="copy-command-btn rounded-md border border-dashed border-surface-700/70 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-surface-400 transition-colors hover:text-accent-300" data-command={command}>
+    <button class="copy-command-btn rounded-md border border-surface-700/70 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-surface-400 transition-colors hover:text-accent-300" data-command={command}>
       Copy
     </button>
   </div>

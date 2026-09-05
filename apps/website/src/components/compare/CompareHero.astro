@@ -32,12 +32,12 @@ const { comparison, titleLead, titleAccent, lede, verdict } = Astro.props;
 
     <h1 class="mt-4 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
       {titleLead}{' '}
-      <em class="font-medium text-accent-400" style="font-style: italic;">{titleAccent}</em>
+      <span class="text-accent-400">{titleAccent}</span>
     </h1>
 
     <p class="mt-6 text-lg leading-relaxed text-surface-400">{lede}</p>
 
-    <div class="mt-10 rounded-xl border border-dashed border-accent-500/35 bg-accent-500/[0.06] p-6">
+    <div class="mt-10 rounded-xl border border-accent-500/35 bg-accent-500/[0.06] p-6">
       <span class="font-mono text-[10px] uppercase tracking-[0.15em] text-accent-400">Short answer</span>
       <p class="mt-2 text-base leading-relaxed text-surface-200">{verdict}</p>
     </div>

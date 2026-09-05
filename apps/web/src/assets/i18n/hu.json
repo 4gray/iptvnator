@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Portálkapcsolatok",
+        "PORTAL_CONNECTIVITY_GUARD": "Kérések szüneteltetése az elérhetetlen portálokhoz",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Ismételt kapcsolódási hibák után az új Xtream- és Stalker-kérések szüneteltetése 30 másodpercre. Ha egy portál időnként elérhetetlenné válik, próbálja kikapcsolni. Mentés után, újraindítás nélkül érvényesül.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Minden kérés önállóan fut. Elérhetetlen szervereknél a hiba megjelenése tovább tarthat.",
         "TITLE": "Beállítások",
         "GENERAL": "Általános",
         "GENERAL_SUBTITLE": "Az alkalmazás beállításainak módosítása",
@@ -1002,6 +1006,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Kérések átmenetileg szüneteltetve",
+            "DESCRIPTION": "A kérések ismételt kapcsolódási hibák után szünetelnek. Próbálja újra a portál azonnali eléréséhez.",
+            "RETRY": "Újrapróbálkozás most"
+        },
         "ALL_CATEGORIES": "Összes kategória",
         "MY_FAVORITES": "Saját kedvencek",
         "ADD_TO_FAVORITES": "Hozzáadás a kedvencekhez",

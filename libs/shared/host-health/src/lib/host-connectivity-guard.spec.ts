@@ -80,7 +80,7 @@ describe('failedAfterRedirect', () => {
     const token: HostRequestToken = {
         endpoint: ENDPOINT,
         epoch: 0,
-        startedAt: 0,
+        admissionId: 0,
         trial: false,
         trialId: 0,
     };
@@ -274,6 +274,62 @@ describe('HostConnectivityGuard', () => {
 
         expect(guard.check(HOST).allowed).toBe(true);
         expect(opened).toEqual([]);
+    });
+
+    it.each([
+        [0, 1, 2],
+        [2, 0, 1],
+        [1, 2, 0],
+    ])(
+        'counts same-millisecond siblings once in completion order %s, %s, %s',
+        (...order) => {
+            const tokens = [expectAllowed(), expectAllowed(), expectAllowed()];
+
+            for (const index of order) {
+                guard.reportFailure(tokens[index]);
+            }
+
+            expectAllowed();
+            expect(opened).toEqual([]);
+        }
+    );
+
+    it('keeps old siblings together after their endpoint state is evicted', () => {
+        const first = expectAllowed();
+        const sibling = expectAllowed();
+        for (let index = 0; index < 256; index += 1) {
+            guard.check(`http://other-${index}.example`);
+        }
+        expectAllowed();
+        advance(30_000);
+
+        guard.reportFailure(first);
+        guard.reportFailure(sibling);
+
+        expectAllowed();
+        expect(opened).toEqual([]);
+    });
+
+    it('counts a new attempt after a failure even in the same millisecond', () => {
+        failRequest();
+        failRequest();
+
+        expectBlocked();
+        expect(opened).toEqual([HOST]);
+    });
+
+    it('does not extend the cooldown for same-millisecond siblings', () => {
+        const first = expectAllowed();
+        const sibling = expectAllowed();
+        guard.reportFailure(first);
+        failRequest();
+        expectBlocked();
+
+        advance(OPEN_DURATION_MS);
+        guard.reportFailure(sibling);
+
+        expect(expectAllowed().trial).toBe(true);
+        expect(opened).toEqual([HOST]);
     });
 
     it('opens when a second fan-out fails after the first one did', () => {
@@ -537,4 +593,3 @@ describe('HostConnectivityGuard', () => {
         });
     });
 });
-
