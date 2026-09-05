@@ -21,7 +21,7 @@ const { title, rows } = Astro.props;
   <div class="border-b border-surface-700/60 px-5 py-3">
     <span class="font-mono text-[11px] uppercase tracking-[0.15em] text-accent-400">{title}</span>
   </div>
-  <ul class="divide-y divide-dashed divide-surface-700/60">
+  <ul class="divide-y divide-surface-700/60">
     {rows.map(({ download, command, note }) => {
       const size = formatAssetSize(download.size);
       return (
