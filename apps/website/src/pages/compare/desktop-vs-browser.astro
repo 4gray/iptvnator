@@ -120,10 +120,13 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
       <div>
         <CopyCommand title="Docker Compose" command="docker compose -f docker/docker-compose.yml up --build -d" />
         <p class="mt-4 text-sm leading-relaxed text-surface-500">
-          The application is then available on port 4333. Environment variables, reverse-proxy notes and the
-          limitations above are documented in{' '}
+          The application is then available on port 4333. Ports, variables, reverse-proxy notes and image tags are on
+          the{' '}
+          <a href="/iptvnator/download/docker/" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300">
+            Docker page
+          </a>, and every detail in{' '}
           <a href={`${REPO_URL}/blob/master/docker/README.md`} class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300" rel="noopener">
-            the docker directory
+            the docker README
           </a>.
         </p>
       </div>

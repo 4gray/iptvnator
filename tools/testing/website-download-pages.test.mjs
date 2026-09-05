@@ -96,12 +96,42 @@ for (const [platform, page] of Object.entries(PAGES)) {
   });
 }
 
+test('docker page: canonical, schema, quick start and links', async () => {
+  const html = await readDist('download/docker/index.html');
+  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/docker/"`));
+  assert.match(html, /docker compose -f docker\/docker-compose\.yml up --build -d/);
+  assert.match(html, /4gray\/iptvnator:latest/);
+  assert.match(html, /href="https:\/\/hub\.docker\.com\/r\/4gray\/iptvnator"/);
+  assert.match(html, /href="https:\/\/github\.com\/4gray\/iptvnator\/blob\/master\/docker\/README\.md"/);
+  assert.match(html, /href="\/iptvnator\/compare\/desktop-vs-browser\/"/);
+  assert.match(html, /href="\/iptvnator\/download\/"/);
+
+  const schema = extractJsonLd(html);
+  const app = schema.find((entry) => entry['@type'] === 'SoftwareApplication');
+  assert.ok(app, 'Expected a SoftwareApplication entry.');
+  assert.match(String(app.operatingSystem), /Docker/);
+  const faq = schema.find((entry) => entry['@type'] === 'FAQPage');
+  assert.ok(faq && faq.mainEntity.length >= 5, 'Expected a FAQPage with at least five questions.');
+  const crumbs = schema.find((entry) => entry['@type'] === 'BreadcrumbList');
+  assert.equal(crumbs.itemListElement.at(-1).item, `${SITE}/download/docker/`);
+});
+
+test('the homepage and the platform pages link to the docker page', async () => {
+  const home = await readDist('index.html');
+  assert.match(home, /href="\/iptvnator\/download\/docker\/"/);
+  for (const platform of Object.keys(PAGES)) {
+    const html = await readDist(PAGES[platform].path);
+    assert.match(html, /href="\/iptvnator\/download\/docker\/"/, `${platform} page should link to the docker page`);
+  }
+});
+
 test('download hub links to every platform page', async () => {
   const html = await readDist('download/index.html');
   assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/"`));
   for (const platform of Object.keys(PAGES)) {
     assert.match(html, new RegExp(`href="/iptvnator/download/${platform}/"`));
   }
+  assert.match(html, /href="\/iptvnator\/download\/docker\/"/);
   assert.match(html, /brew install --cask iptvnator/);
   assert.match(html, /sudo snap install iptvnator/);
 });
@@ -118,7 +148,7 @@ test('homepage download cards point at the platform pages', async () => {
 
 test('sitemap lists the download pages', async () => {
   const sitemap = await readDist('sitemap-0.xml');
-  for (const path of ['download/', 'download/windows/', 'download/macos/', 'download/linux/']) {
+  for (const path of ['download/', 'download/windows/', 'download/macos/', 'download/linux/', 'download/docker/']) {
     assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
   }
 });

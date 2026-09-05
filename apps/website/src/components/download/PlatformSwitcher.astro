@@ -3,11 +3,13 @@ import { DOWNLOAD_PLATFORMS, PLATFORM_ICON_PATHS, PLATFORM_LABELS, PLATFORM_PAGE
 import type { DownloadPlatform } from '../../lib/platforms';
 
 interface Props {
-  current?: DownloadPlatform;
+  current?: DownloadPlatform | 'docker';
 }
 
 const { current } = Astro.props;
 const others = DOWNLOAD_PLATFORMS.filter((platform) => platform !== current);
+const showDocker = current !== 'docker';
+const otherLabels = [...others.map((platform) => PLATFORM_LABELS[platform]), ...(showDocker ? ['Docker'] : [])];
 ---
 
 <section class="relative py-20">
@@ -19,7 +21,7 @@ const others = DOWNLOAD_PLATFORMS.filter((platform) => platform !== current);
         <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Other platforms</span>
         <h2 class="mt-3 font-display text-2xl font-bold tracking-tight text-surface-50 sm:text-3xl">
           Also available for{' '}
-          {others.map((platform) => PLATFORM_LABELS[platform]).join(' and ')}
+          {otherLabels.length > 1 ? `${otherLabels.slice(0, -1).join(', ')} and ${otherLabels.at(-1)}` : otherLabels[0]}
         </h2>
       </div>
 
@@ -32,6 +34,14 @@ const others = DOWNLOAD_PLATFORMS.filter((platform) => platform !== current);
             <span class="text-sm font-semibold text-surface-100">IPTVnator for {PLATFORM_LABELS[platform]}</span>
           </a>
         ))}
+        {showDocker && (
+          <a href="/iptvnator/download/docker/" class="card-panel group flex items-center gap-3 px-5 py-3">
+            <svg class="h-5 w-5 text-surface-500 transition-colors duration-200 group-hover:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+            <span class="text-sm font-semibold text-surface-100">Browser version with Docker</span>
+          </a>
+        )}
         <a href="/iptvnator/download/" class="card-panel flex items-center px-5 py-3 text-sm font-semibold text-surface-300 hover:text-accent-400">
           All downloads
         </a>

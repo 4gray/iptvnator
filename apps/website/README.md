@@ -29,8 +29,9 @@ Moderation happens in GitHub Discussions. Maintainers can hide, delete, lock, or
 
 ## Download Pages
 
-`/download/` plus `/download/windows/`, `/download/macos/` and `/download/linux/`
-are per-OS landing pages (`apps/website/src/pages/download/`). They exist for
+`/download/` plus `/download/windows/`, `/download/macos/`, `/download/linux/`
+and `/download/docker/` (the self-hosted browser version: quick start, variables,
+tags, FAQ, with `docker/README.md` as the reference behind it) are landing pages (`apps/website/src/pages/download/`). They exist for
 search visibility on "IPTVnator <OS> download" style queries and to spare users
 the 27-asset GitHub release page; each carries OS-specific install steps,
 requirements, an FAQ and `SoftwareApplication` / `FAQPage` / `BreadcrumbList`
