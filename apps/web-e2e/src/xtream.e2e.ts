@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { setInputValue, waitForScrollIdle } from './e2e-helpers';
+import {
+    setInputValue,
+    surfaceContrast,
+    waitForScrollIdle,
+} from './e2e-helpers';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
@@ -1221,6 +1225,77 @@ test.describe('@xtream vendor-chrome Video.js shortcuts', () => {
 });
 
 for (const theme of ['light', 'dark']) {
+    test(`@xtream detail surfaces stay visible (${theme})`, async ({
+        page,
+    }, testInfo) => {
+        await page.setViewportSize({ width: 1600, height: 1100 });
+        await addXtreamPortal(page, {
+            username: 'marketing',
+            password: 'marketing',
+        });
+        await page.getByRole('link', { name: 'Series', exact: true }).click();
+        await page.locator('app-grid-list mat-card').first().click();
+        const shell = page.locator('app-portal-detail-shell');
+        await expect(shell).toBeVisible();
+        await page.evaluate(
+            (dark) => document.body.classList.toggle('dark-theme', dark),
+            theme === 'dark'
+        );
+        const favorite = shell.locator('.favorite-btn').first();
+        const card = shell.locator('.episode-card').first();
+        const toggle = shell.locator('mat-button-toggle-group');
+        await expect(card).toBeVisible();
+        await expect(shell.locator('.hero__content')).toHaveCSS('opacity', '1');
+        await page.mouse.move(0, 0);
+        // A subtle edge must survive compositing on the actual theme surface.
+        // This catches white-alpha borders that disappear in the light theme.
+        for (const surface of [favorite, card, toggle]) {
+            await expect
+                .poll(async () => (await surfaceContrast(surface)).border)
+                .toBeGreaterThan(1.15);
+        }
+        const selected = toggle.locator('.mat-button-toggle-checked');
+        await expect
+            .poll(async () => (await surfaceContrast(selected)).fill)
+            .toBeGreaterThan(1.1);
+        await shell.screenshot({
+            path: testInfo.outputPath(`series-grid-${theme}.png`),
+            animations: 'disabled',
+        });
+        await card.hover();
+        await expect
+            .poll(async () => (await surfaceContrast(card)).border)
+            .toBeGreaterThan(1.15);
+        await page
+            .getByRole('radio', { name: 'List view', exact: true })
+            .click();
+        const row = shell.locator('.episode-list-item').first();
+        await expect(row).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect
+            .poll(async () => (await surfaceContrast(row)).border)
+            .toBeGreaterThan(1.15);
+        await expect
+            .poll(async () => (await surfaceContrast(selected)).fill)
+            .toBeGreaterThan(1.1);
+        await shell.screenshot({
+            path: testInfo.outputPath(`series-list-${theme}.png`),
+            animations: 'disabled',
+        });
+        await row.hover();
+        await expect
+            .poll(async () => (await surfaceContrast(row)).border)
+            .toBeGreaterThan(1.15);
+        await page
+            .getByRole('radio', { name: 'List view', exact: true })
+            .focus();
+        await page.keyboard.press('ArrowLeft');
+        await expect(
+            page.getByRole('radio', { name: 'Grid view', exact: true })
+        ).toBeChecked();
+        await expect(card).toBeVisible();
+    });
+
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
         page,
     }) => {
