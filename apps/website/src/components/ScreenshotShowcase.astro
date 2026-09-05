@@ -110,16 +110,12 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
     <div class="mt-12 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]" data-channel-switcher>
       <!-- Channel list -->
-      <div
-        class="flex flex-col overflow-hidden rounded-xl border border-surface-800 bg-surface-900/40"
-        role="tablist"
-        aria-label="App screens"
-        aria-orientation="vertical"
-      >
+      <div class="flex flex-col overflow-hidden rounded-xl border border-surface-800 bg-surface-900/40">
         <div class="flex items-center justify-between border-b border-surface-800 px-4 py-3 font-mono text-[11px] uppercase tracking-[0.15em] text-surface-500">
           <span>Channels</span>
           <span>{pad(channels.length)}</span>
         </div>
+        <div role="tablist" aria-label="App screens" aria-orientation="vertical" class="flex flex-col">
         {
           channels.map((channel, i) => (
             <button
@@ -149,6 +145,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
             </button>
           ))
         }
+        </div>
         <div class="mt-auto flex items-center justify-between gap-3 border-t border-surface-800 px-4 py-2.5 font-mono text-[11px] text-surface-500">
           <span class="hidden lg:inline">
             <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↑</kbd>
@@ -244,16 +241,16 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
     const DWELL_MS = 7000;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let current = 0;
-    let startedAt = 0;
-    let pausedAt = 0;
-    let frame = 0;
     // Hover and focus pause while they last; the toggle pauses until the
     // visitor resumes. Autoplay runs only when none of the three holds.
     let hovered = false;
     let focused = false;
     let stopped = false;
     const paused = () => hovered || focused || stopped;
+    let current = 0;
+    let startedAt = 0;
+    let pausedAt = 0;
+    let frame = 0;
     let osdTimer = 0;
 
     const progressOf = (i) => tabs[i].querySelector('.channel-progress');
@@ -274,7 +271,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
         progressOf(i).style.width = '0%';
       });
       loadFrame(current);
-      loadFrame(current + 1);
+      if (!reduceMotion && !stopped) loadFrame(current + 1);
       panels.forEach((panel, i) => {
         const active = i === current;
         panel.classList.toggle('opacity-0', !active);

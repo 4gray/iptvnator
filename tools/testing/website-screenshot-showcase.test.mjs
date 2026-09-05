@@ -42,6 +42,10 @@ test('showcase markup: a vertical tablist with one selected channel and a panel 
   assert.match(html, /href="\/iptvnator\/features\/epg\/"/, 'captions link into the feature pages');
   const toggleTag = html.match(/<button[^>]*data-autoplay-toggle[^>]*>/)?.[0];
   assert.ok(toggleTag && /aria-pressed="false"/.test(toggleTag), 'a persistent pause control ships in the markup');
+  const tablist = html.match(/<div role="tablist"[\s\S]*?<\/div>/)?.[0];
+  assert.ok(tablist, 'tablist element');
+  assert.equal((tablist.match(/<button/g) ?? []).length, CHANNELS.length, 'the tablist holds exactly the tabs');
+  assert.doesNotMatch(tablist, /data-autoplay-toggle/, 'the pause control lives outside the tablist');
 
   const frames = panels.map((panel) => html.slice(html.indexOf(panel)).match(/<img[^>]*>/)[0]);
   assert.equal(frames.filter((img) => / src="/.test(img)).length, 1, 'only the first frame ships with a src');
@@ -183,6 +187,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await calm.keyboard.press('Tab');
     await calm.locator('.channel-tab').nth(1).click();
     assert.equal(await selectedChannel(calm), 'live-tv', 'manual switching still works');
+    assert.deepEqual(await loaded(calm), [true, true, false, false, false, false], 'a manual switch loads only the chosen frame under reduced motion');
     await calm.close();
   } finally {
     await browser.close();
