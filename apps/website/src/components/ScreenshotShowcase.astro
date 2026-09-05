@@ -300,39 +300,37 @@ const pad = (n: number) => String(n).padStart(2, '0');
       if (focus) tabs[current].focus({ preventScroll: true });
     }
 
-    // The dwell clock stops while paused: the time spent hovering or focused is
-    // added to the start mark on resume, so the bar continues from where it froze.
-    function tick(now) {
-      if (paused()) {
-        if (!pausedAt) pausedAt = now;
-      } else {
+    // One scheduler. The frame loop runs only while the block is on screen
+    // and nothing pauses it; every state change calls sync(), which starts or
+    // cancels the loop. The dwell clock stops while paused: the time spent
+    // paused is added to the start mark on resume, so the bar continues from
+    // where it froze. Only a channel change resets the dwell. A paused block
+    // schedules no frames at all.
+    let visible = false;
+
+    function loop(now) {
+      const progress = (now - startedAt) / DWELL_MS;
+      if (progress >= 1) show(current + 1);
+      else progressOf(current).style.width = `${progress * 100}%`;
+      frame = window.requestAnimationFrame(loop);
+    }
+
+    function sync() {
+      const shouldRun = visible && !reduceMotion && !paused();
+      if (shouldRun && !frame) {
+        const now = performance.now();
+        if (!startedAt) startedAt = now;
         if (pausedAt) {
           startedAt += now - pausedAt;
           pausedAt = 0;
         }
-        const progress = (now - startedAt) / DWELL_MS;
-        if (progress >= 1) show(current + 1);
-        else progressOf(current).style.width = `${progress * 100}%`;
+        loadFrame(current + 1); // autoplay is on, so the next frame will be needed
+        frame = window.requestAnimationFrame(loop);
+      } else if (!shouldRun && frame) {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+        pausedAt = performance.now();
       }
-      frame = window.requestAnimationFrame(tick);
-    }
-
-    // Leaving the viewport is a pause like any other: the frame loop stops,
-    // the bar keeps its width, and the clock resumes from the same mark when
-    // the block scrolls back in. Only a channel change resets the dwell.
-    function start() {
-      if (reduceMotion || frame) return;
-      loadFrame(current + 1); // autoplay is on, so the next frame will be needed
-
-      if (!startedAt) startedAt = performance.now();
-      frame = window.requestAnimationFrame(tick);
-    }
-
-    function stop() {
-      if (!frame) return;
-      window.cancelAnimationFrame(frame);
-      frame = 0;
-      if (!pausedAt) pausedAt = performance.now();
     }
 
     tabs.forEach((tab, i) => tab.addEventListener('click', () => show(i, { focus: true })));
@@ -352,16 +350,16 @@ const pad = (n: number) => String(n).padStart(2, '0');
     const regions = [root.querySelector('[role="tablist"]'), root.querySelector('[data-channel-screen]')].filter(Boolean);
     const insideRegion = (node) => node instanceof Node && regions.some((region) => region.contains(node));
     for (const region of regions) {
-      region.addEventListener('mouseenter', () => { hovered = true; });
-      region.addEventListener('mouseleave', () => { hovered = false; });
-      region.addEventListener('focusin', () => { focused = true; });
+      region.addEventListener('mouseenter', () => { hovered = true; sync(); });
+      region.addEventListener('mouseleave', () => { hovered = false; sync(); });
+      region.addEventListener('focusin', () => { focused = true; sync(); });
       region.addEventListener('focusout', (event) => {
         if (insideRegion(event.relatedTarget)) return;
         focused = false;
+        sync();
       });
     }
 
-    // Only run while the block is on screen.
     const toggle = root.querySelector('[data-autoplay-toggle]');
     if (toggle) {
       if (reduceMotion) {
@@ -375,14 +373,19 @@ const pad = (n: number) => String(n).padStart(2, '0');
           toggle.setAttribute('aria-label', stopped ? 'Resume auto-advance' : 'Pause auto-advance');
           toggle.querySelector('[data-icon-pause]').classList.toggle('hidden', stopped);
           toggle.querySelector('[data-icon-play]').classList.toggle('hidden', !stopped);
-          // A channel picked while paused skipped its successor; fetch it now that autoplay can reach it.
-          if (!stopped) loadFrame(current + 1);
+          sync();
         });
       }
     }
 
+    // Only run while the block is on screen.
     const observer = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => (entry.isIntersecting ? start() : stop())),
+      (entries) => {
+        entries.forEach((entry) => {
+          visible = entry.isIntersecting;
+        });
+        sync();
+      },
       { threshold: 0.25 },
     );
     observer.observe(root);

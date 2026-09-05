@@ -68,6 +68,16 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const errors = [];
     page.on('pageerror', (error) => errors.push(String(error)));
+    // Count scheduled animation frames so a paused switcher can be shown to schedule none.
+    await page.addInitScript(() => {
+      const raf = window.requestAnimationFrame.bind(window);
+      window.__rafCount = 0;
+      window.requestAnimationFrame = (cb) => {
+        window.__rafCount += 1;
+        return raf(cb);
+      };
+    });
+    const rafCount = (p) => p.evaluate(() => window.__rafCount);
     await page.goto(`${origin}${BASE}/`, { waitUntil: 'networkidle' });
     await page.locator('#screenshots').scrollIntoViewIfNeeded();
     // Park the pointer away from the block so hover cannot pause autoplay.
@@ -101,8 +111,11 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await page.mouse.move(5, 5);
     await page.evaluate(() => document.activeElement?.blur());
     const stoppedAt = await progressWidth(page);
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(200);
+    const framesAtPause = await rafCount(page);
+    await page.waitForTimeout(600);
     assert.ok(Math.abs((await progressWidth(page)) - stoppedAt) < 0.5, 'the toggle keeps autoplay paused after mouseleave and blur');
+    assert.equal(await rafCount(page), framesAtPause, 'a paused switcher schedules no animation frames');
 
     // A channel picked while paused does not preload its successor; resuming fetches it.
     await page.locator('.channel-tab').nth(3).click();
@@ -113,6 +126,15 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await page.waitForTimeout(300);
     const pausedOnMovies = await progressWidth(page);
     assert.ok(pausedOnMovies < 0.5, 'still paused on the newly picked channel');
+
+    // Scrolling away and back while paused must not fetch the successor either.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(400);
+    await page.locator('#screenshots').scrollIntoViewIfNeeded();
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(400);
+    assert.deepEqual((await loaded(page)).slice(3, 5), [true, false], 'returning to a paused switcher loads no successor');
+    assert.ok((await progressWidth(page)) < 0.5, 'still paused after returning');
 
     // Resume restarts autoplay at once, with the pointer and the focus still on the button.
     await toggle.click();
