@@ -380,6 +380,9 @@ partial so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.
+Hero action edges use matching pixels from rendered screenshots with the border
+visible and transparent, retaining the artwork and gradient behind the button;
+flat ancestor-color compositing is only appropriate outside that layered hero.
 
 ## Settings Surfaces
 

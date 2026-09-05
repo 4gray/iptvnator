@@ -5,6 +5,7 @@ import type {
     TestInfo,
 } from '@playwright/test';
 import { expect } from './fixtures';
+import sharp from 'sharp';
 
 export async function setInputValue(
     input: Locator,
@@ -134,6 +135,73 @@ export async function surfaceContrast(locator: Locator): Promise<{
     });
 }
 
+/** Compare the actual hero edge with the same pixels with just its border hidden.
+ * Both rasters retain artwork, gradients, opacity and backdrop filters. Matching
+ * pixels prevent artwork detail from being mistaken for a visible button edge. */
+export async function rasterizedBorderContrast(
+    locator: Locator
+): Promise<number> {
+    const screenshot = () =>
+        locator.screenshot({ animations: 'disabled', scale: 'css' });
+    const visible = await screenshot();
+    const originalStyle = await locator.getAttribute('style');
+    let hidden: Buffer;
+    try {
+        await locator.evaluate((element) => {
+            const style = (element as HTMLElement).style;
+            style.setProperty('transition', 'none', 'important');
+            style.setProperty('border-top-color', 'transparent', 'important');
+        });
+        hidden = await screenshot();
+    } finally {
+        await locator.evaluate((element, style) => {
+            if (style === null) element.removeAttribute('style');
+            else element.setAttribute('style', style);
+        }, originalStyle);
+    }
+    const decode = (buffer: Buffer) =>
+        sharp(buffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const [before, after] = await Promise.all([
+        decode(visible),
+        decode(hidden),
+    ]);
+    expect(after.info).toEqual(before.info);
+    const luminance = (data: Buffer, x: number, y: number) => {
+        const offset = (y * before.info.width + x) * before.info.channels;
+        return [0.2126, 0.7152, 0.0722].reduce((sum, weight, index) => {
+            const value = data[offset + index] / 255;
+            return (
+                sum +
+                weight *
+                    (value <= 0.04045
+                        ? value / 12.92
+                        : ((value + 0.055) / 1.055) ** 2.4)
+            );
+        }, 0);
+    };
+    const ratios: number[] = [];
+    // Avoid rounded corners. Inspect three raster rows to tolerate a fractional
+    // CSS edge, retaining the strongest edge pixel in each sampled column.
+    for (
+        let x = Math.ceil(before.info.width / 4);
+        x < (before.info.width * 3) / 4;
+        x++
+    ) {
+        let strongest = 1;
+        for (let y = 0; y < Math.min(3, before.info.height); y++) {
+            const a = luminance(before.data, x, y);
+            const b = luminance(after.data, x, y);
+            strongest = Math.max(
+                strongest,
+                (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+            );
+        }
+        ratios.push(strongest);
+    }
+    ratios.sort((a, b) => a - b);
+    return ratios[Math.floor(ratios.length / 2)];
+}
+
 /** Check the shared series UI under a provider host before testing watched state. */
 export async function expectSeriesSurfacesInBothThemes(
     page: Page,
@@ -148,11 +216,12 @@ export async function expectSeriesSurfacesInBothThemes(
             theme === 'dark'
         );
         const shell = page.locator('app-portal-detail-shell');
-        for (const selector of [
-            '.favorite-btn',
-            '.episode-card',
-            'mat-button-toggle-group',
-        ]) {
+        await expect
+            .poll(() =>
+                rasterizedBorderContrast(shell.locator('.favorite-btn').first())
+            )
+            .toBeGreaterThan(1.1);
+        for (const selector of ['.episode-card', 'mat-button-toggle-group']) {
             await expect
                 .poll(
                     async () =>

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
+    rasterizedBorderContrast,
     setInputValue,
     surfaceContrast,
     waitForScrollIdle,
@@ -1249,7 +1250,10 @@ for (const theme of ['light', 'dark']) {
         await page.mouse.move(0, 0);
         // A subtle edge must survive compositing on the actual theme surface.
         // This catches white-alpha borders that disappear in the light theme.
-        for (const surface of [favorite, card, toggle]) {
+        await expect
+            .poll(() => rasterizedBorderContrast(favorite))
+            .toBeGreaterThan(1.1);
+        for (const surface of [card, toggle]) {
             await expect
                 .poll(async () => (await surfaceContrast(surface)).border)
                 .toBeGreaterThan(1.15);
