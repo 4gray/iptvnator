@@ -382,8 +382,9 @@ test('keeps Live TV scrolling, row actions and resizing independently accessible
                 getComputedStyle(el).getPropertyValue('app-region')
             )
         ).toBe('no-drag');
-        // Drag the native scrollbar thumb, then the separate column handle.
-        await page.mouse.move(before.x + before.width - 3, before.y + 10);
+        // Start inside the thumb, below the native Windows up-arrow button.
+        // The 40-channel mock leaves a thumb taller than 100 px here.
+        await page.mouse.move(before.x + before.width - 3, before.y + 40);
         await page.mouse.down();
         await page.mouse.move(before.x + before.width - 3, before.y + 160, {
             steps: 10,
