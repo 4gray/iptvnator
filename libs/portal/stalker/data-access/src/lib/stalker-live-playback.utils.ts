@@ -59,11 +59,11 @@ export function buildStalkerExternalPlaybackHeaders(
     // KSPlayer direct-stream profile: their access token travels in the URL
     // that create_link minted, and the portal's mac cookie/Bearer token must
     // never reach a third-party host.
+    // Leave Range to the player: a fixed bytes=0- overrides its seek offset.
     if (isCrossOriginStalkerStream(playlist, streamUrl)) {
         return {
             'User-Agent': STALKER_STREAM_USER_AGENT,
             Accept: '*/*',
-            Range: 'bytes=0-',
             Connection: 'keep-alive',
             'Icy-MetaData': '1',
         };

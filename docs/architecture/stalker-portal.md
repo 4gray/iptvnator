@@ -1184,9 +1184,17 @@ Two stream profiles exist, selected by one shared predicate:
   `Origin`/`Referer` set to the portal origin.
 - **Foreign / direct** (different host, or an https→http downgrade): the
   credential-free `KSPlayer` direct-stream profile (`User-Agent: KSPlayer`,
-  `Accept`, `Range`, `Icy-MetaData`, `Connection`). Portal credentials must
+  `Accept`, `Icy-MetaData`, `Connection`). Portal credentials must
   never reach a third-party host; direct stream URLs carry their access token
   in the URL minted by `create_link`.
+
+Neither playback profile sets `Range`; byte ranges belong to the media
+transport and must change with each seek. A static `Range: bytes=0-` overrides
+mpv's requested offset, making the server return the beginning again. After
+resuming a movie or episode this can send playback forward or to EOF instead
+of the selected time. Regression coverage in
+`stalker-live-playback.utils.spec.ts` checks both profiles and TLS downgrades;
+`with-stalker-player.feature.spec.ts` verifies the resumed CDN episode path.
 
 **The token is bound to the endpoint the headers claim.** Both header inputs —
 the portal coordinates and the Bearer token — must describe the same portal, or
@@ -1219,6 +1227,10 @@ same shared predicate — if the two ever diverged,
 `isStalkerDirectStreamProfile` in the external-player path would discard the
 renderer's credentialed headers for streams the main process misread as
 direct.
+
+The fallback also leaves `Range` unset, covered by
+`stalker-playback-context.service.spec.ts`, so external launches cannot
+reintroduce a fixed byte offset when renderer headers are absent.
 
 The mock server's `gated-stream` scenario (MAC `00:1A:79:00:00:09`) makes
 `create_link` return a local `/stream/gated/video.mp4` that answers 403
