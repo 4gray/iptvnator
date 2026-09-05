@@ -208,6 +208,36 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await page.waitForTimeout(400);
     const afterReturn = await progressWidth(page);
     assert.ok(afterReturn >= whileAway && afterReturn < whileAway + 15, `progress resumes after scrolling back (${whileAway} → ${afterReturn})`);
+    // A hidden document pauses the dwell: no frames, progress frozen, resumes on return.
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(150);
+    const hiddenAt = await progressWidth(page);
+    const framesWhileHidden = await rafCount(page);
+    await page.waitForTimeout(600);
+    assert.ok(Math.abs((await progressWidth(page)) - hiddenAt) < 0.5, 'progress holds while the document is hidden');
+    assert.equal(await rafCount(page), framesWhileHidden, 'no frames while the document is hidden');
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(400);
+    assert.ok((await progressWidth(page)) > hiddenAt, 'the dwell resumes when the document is visible again');
+
+    // Reduced motion switched on at runtime stops autoplay and hides the control; switching it off restores both.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.waitForTimeout(150);
+    const reducedAt = await progressWidth(page);
+    await page.waitForTimeout(600);
+    assert.ok(Math.abs((await progressWidth(page)) - reducedAt) < 0.5, 'autoplay stops when reduced motion is enabled at runtime');
+    assert.equal(await page.locator('[data-autoplay-toggle]').isVisible(), false, 'the pause control hides under reduced motion');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.waitForTimeout(400);
+    assert.ok((await progressWidth(page)) > reducedAt, 'autoplay resumes when the preference is cleared');
+    assert.equal(await page.locator('[data-autoplay-toggle]').isVisible(), true, 'the pause control returns');
+
     assert.deepEqual(errors, []);
     await page.close();
 
@@ -220,7 +250,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     assert.equal(await progressWidth(calm), 0, 'no progress under prefers-reduced-motion');
     assert.deepEqual(await loaded(calm), [true, false, false, false, false, false], 'no prefetch when autoplay is off');
     assert.equal(await selectedChannel(calm), 'dashboard');
-    assert.equal(await calm.locator('[data-autoplay-toggle]').count(), 0, 'no pause control when nothing advances');
+    assert.equal(await calm.locator('[data-autoplay-toggle]').isVisible(), false, 'no pause control when nothing advances');
     await calm.keyboard.press('Tab');
     await calm.locator('.channel-tab').nth(1).click();
     assert.equal(await selectedChannel(calm), 'live-tv', 'manual switching still works');

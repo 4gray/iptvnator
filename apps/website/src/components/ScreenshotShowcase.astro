@@ -245,7 +245,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
     const captionLink = root.querySelector('[data-caption-link]');
 
     const DWELL_MS = 7000;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Live, not a snapshot: a visitor may switch the OS preference while the
+    // page is open, and the scheduler follows it (see the change listener).
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reduceMotion = motionQuery.matches;
     // Hover and focus pause while they last; the toggle pauses until the
     // visitor resumes. Autoplay runs only when none of the three holds.
     let hovered = false;
@@ -319,7 +322,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
     }
 
     function sync() {
-      const shouldRun = visible && !reduceMotion && !paused();
+      // Background tabs throttle animation frames while the clock keeps
+      // running, so a hidden document counts as a pause too.
+      const shouldRun = visible && !document.hidden && !reduceMotion && !paused();
       if (shouldRun && !frame) {
         const now = performance.now();
         if (!startedAt) startedAt = now;
@@ -363,23 +368,28 @@ const pad = (n: number) => String(n).padStart(2, '0');
       });
     }
 
+    // Nothing to pause under reduced motion: the loop never starts, so the
+    // control is hidden (not removed — the preference can change at runtime).
     const toggle = root.querySelector('[data-autoplay-toggle]');
-    if (toggle) {
-      if (reduceMotion) {
-        // Nothing to pause: the loop never starts under reduced motion.
-        toggle.remove();
-      } else {
-        toggle.addEventListener('click', () => {
-          stopped = !stopped;
-          toggle.setAttribute('aria-pressed', String(stopped));
-          toggle.querySelector('[data-autoplay-label]').textContent = stopped ? 'Resume' : 'Pause';
-          toggle.setAttribute('aria-label', stopped ? 'Resume auto-advance' : 'Pause auto-advance');
-          toggle.querySelector('[data-icon-pause]').classList.toggle('hidden', stopped);
-          toggle.querySelector('[data-icon-play]').classList.toggle('hidden', !stopped);
-          sync();
-        });
-      }
-    }
+    const reflectMotionPreference = () => {
+      toggle?.classList.toggle('hidden', reduceMotion);
+      sync();
+    };
+    toggle?.addEventListener('click', () => {
+      stopped = !stopped;
+      toggle.setAttribute('aria-pressed', String(stopped));
+      toggle.querySelector('[data-autoplay-label]').textContent = stopped ? 'Resume' : 'Pause';
+      toggle.setAttribute('aria-label', stopped ? 'Resume auto-advance' : 'Pause auto-advance');
+      toggle.querySelector('[data-icon-pause]').classList.toggle('hidden', stopped);
+      toggle.querySelector('[data-icon-play]').classList.toggle('hidden', !stopped);
+      sync();
+    });
+    motionQuery.addEventListener('change', (event) => {
+      reduceMotion = event.matches;
+      reflectMotionPreference();
+    });
+    reflectMotionPreference();
+    document.addEventListener('visibilitychange', sync);
 
     // Only run while the block is on screen.
     const observer = new IntersectionObserver(
