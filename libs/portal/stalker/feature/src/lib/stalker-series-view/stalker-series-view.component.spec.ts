@@ -191,7 +191,6 @@ describe('StalkerSeriesViewComponent', () => {
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
                         fetchLinkToPlay,
-                        clearSelectedItem: jest.fn(),
                     },
                 },
                 {
@@ -226,7 +225,6 @@ describe('StalkerSeriesViewComponent', () => {
                     useValue: {
                         isEnabled: () => true,
                         getSeason: tmdbGetSeason,
-                        getSeasonEpisodes: jest.fn().mockResolvedValue(null),
                     },
                 },
                 {
@@ -1217,7 +1215,7 @@ describe('StalkerSeriesViewComponent', () => {
         } as never);
         await stabilize();
 
-        fixture.componentInstance.onSeasonSelected('1');
+        fixture.componentInstance.onSeasonSelected('2');
         await stabilize();
 
         // Season resource still loading — fetching now would pass a zero
@@ -1268,10 +1266,9 @@ describe('StalkerSeriesViewComponent', () => {
         // context while the resource reloads.
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
-        // Once the new item's own seasons land, the fetch runs WITHOUT a
-        // new seasonSelected emission — the season container deduplicates
-        // emissions when both items share the same season-key set, so the
-        // retained key must stay usable.
+        // Once the new item's own seasons land, the fetch runs without a
+        // stale-season fetch. The container selects the corrected key once
+        // the new season map is rendered.
         serialSeasonsResource.set([
             {
                 id: 'season-1',
@@ -1281,6 +1278,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
         isSerialSeasonsLoading.set(false);
+        fixture.componentInstance.onSeasonSelected('2');
         await stabilize();
         expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
     });
@@ -1307,6 +1305,7 @@ describe('StalkerSeriesViewComponent', () => {
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
         isSerialSeasonsLoading.set(false);
+        fixture.componentInstance.onSeasonSelected('3');
         await stabilize();
         expect(tmdbGetSeason).toHaveBeenCalledWith(999, 3);
     });
@@ -1325,7 +1324,7 @@ describe('StalkerSeriesViewComponent', () => {
         } as never);
         await stabilize();
 
-        fixture.componentInstance.onSeasonSelected('1');
+        fixture.componentInstance.onSeasonSelected('2');
         await stabilize();
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);

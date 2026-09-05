@@ -321,6 +321,41 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         jest.restoreAllMocks();
     });
 
+    it('ignores an old episode response after navigating to another season slice', async () => {
+        await startWithTwoLoadedEpisodes();
+        const store = TestBed.inject(StalkerStore);
+        let finishOld!: (episodes: VodSeriesSeasonVm['episodes']) => void;
+        jest.spyOn(store, 'fetchVodSeriesEpisodes').mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finishOld = resolve;
+                })
+        );
+        const oldLoad = fixture.componentInstance.loadEpisodesForSeason(
+            fixture.componentInstance.vodSeriesSeasons()[0]
+        );
+        selectedItem.set({
+            ...createVodItem(SERIES_B_ID),
+            info: { name: 'Series B s02' },
+        });
+        vodSeriesSeasonsResource.set([createSeason(SERIES_B_ID)]);
+        await settle();
+        expect(fixture.componentInstance.quickStartAction()?.episodeLabel).toBe(
+            'S02E01'
+        );
+        finishOld([createProviderEpisode('old-season-episode')]);
+        await oldLoad;
+        await settle();
+        expect(fixture.componentInstance.mappedSeasons()['2']).toEqual([]);
+        await fixture.componentInstance.loadEpisodesForSeason(
+            fixture.componentInstance.vodSeriesSeasons()[0]
+        );
+        await settle();
+        expect(fixture.componentInstance.mappedSeasons()['2'][0].season).toBe(
+            2
+        );
+    });
+
     it('marks a season watched sequentially, counting failed legacy cleanup as watched', async () => {
         const [firstId, secondId] = await startWithTwoLoadedEpisodes();
         const loadsBefore = getSeriesPlaybackPositions.mock.calls.length;

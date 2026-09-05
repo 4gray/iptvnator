@@ -388,7 +388,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             if (this.isVodSeries()) {
                 // Get seasons from the resource
                 const seasons = this.stalkerStore.getVodSeriesSeasonsResource();
-                this.vodSeriesSeasons.set(mapVodSeriesSeasonsToVm(seasons));
+                this.vodSeriesSeasons.set(
+                    mapVodSeriesSeasonsToVm(seasons, this.seriesSeasonTitle())
+                );
             } else {
                 this.vodSeriesSeasons.set([]);
             }
@@ -523,6 +525,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         youtubeEmbedUrl(this.displayItem()?.info?.tmdb_trailer)
     );
 
+    private readonly seriesSeasonTitle = computed(() =>
+        pickSeasonMarkedTitle(
+            this.displayItem()?.info?.name,
+            this.displayItem()?.info?.o_name
+        )
+    );
+
     readonly seriesMode = computed(() =>
         this.isVodSeries()
             ? STALKER_SERIES_DOWNLOAD_MODES.LazyVod
@@ -575,7 +584,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                   })
                 : mapRegularSeriesEpisodes(
                       this.regularSeasons(),
-                      displayItem?.info?.movie_image
+                      displayItem?.info?.movie_image,
+                      this.seriesSeasonTitle()
                   );
 
             // Overlay lazily fetched TMDB episode data (real names,
@@ -723,7 +733,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     private readonly vodSeasonEpisodeLoads = new Map<
         string,
-        Promise<boolean>
+        { season: VodSeriesSeasonVm; promise: Promise<boolean> }
     >();
 
     /**
@@ -737,15 +747,32 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     /** Resolves true when the portal answered, false when the request failed. */
     loadEpisodesForSeason(season: VodSeriesSeasonVm): Promise<boolean> {
-        const key = `${season.video_id}:${season.id}`;
+        const key = JSON.stringify([
+            this.seriesPlaybackOwnerKey(),
+            season.video_id,
+            season.id,
+            getVodSeriesSeasonKey(season),
+        ]);
         const inFlight = this.vodSeasonEpisodeLoads.get(key);
-        if (inFlight) {
-            return inFlight;
+        if (inFlight && this.vodSeriesSeasons().includes(inFlight.season)) {
+            return inFlight.promise;
         }
         const load = this.fetchEpisodesForSeason(season).finally(() => {
-            this.vodSeasonEpisodeLoads.delete(key);
+            if (this.vodSeasonEpisodeLoads.get(key)?.promise === load) {
+                this.vodSeasonEpisodeLoads.delete(key);
+            }
         });
-        this.vodSeasonEpisodeLoads.set(key, load);
+        const loadingSeason = this.vodSeriesSeasons().find(
+            (candidate) =>
+                candidate.id === season.id &&
+                candidate.video_id === season.video_id
+        );
+        if (loadingSeason) {
+            this.vodSeasonEpisodeLoads.set(key, {
+                season: loadingSeason,
+                promise: load,
+            });
+        }
         return load;
     }
 
@@ -754,11 +781,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     ): Promise<boolean> {
         // Set loading state in local signal
         const seasons = this.vodSeriesSeasons();
-        const index = seasons.findIndex((s) => s.id === season.id);
+        const index = seasons.findIndex(
+            (s) =>
+                s.id === season.id &&
+                s.video_id === season.video_id &&
+                getVodSeriesSeasonKey(s) === getVodSeriesSeasonKey(season)
+        );
         if (index === -1) return false;
 
         const updatedSeasons = [...seasons];
-        updatedSeasons[index] = { ...updatedSeasons[index], isLoading: true };
+        const loadingSeason = { ...updatedSeasons[index], isLoading: true };
+        updatedSeasons[index] = loadingSeason;
         this.vodSeriesSeasons.set(updatedSeasons);
 
         try {
@@ -769,7 +802,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             // Update with loaded episodes
             const newSeasons = [...this.vodSeriesSeasons()];
-            const newIndex = newSeasons.findIndex((s) => s.id === season.id);
+            // Only the exact loading VM owns this response. A navigation or
+            // refresh can reuse provider ids while replacing the season list.
+            const newIndex = newSeasons.indexOf(loadingSeason);
             if (newIndex !== -1) {
                 newSeasons[newIndex] = {
                     ...newSeasons[newIndex],
@@ -782,11 +817,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 };
                 this.vodSeriesSeasons.set(newSeasons);
             }
-            return true;
+            return newIndex !== -1;
         } catch (error) {
             this.logger.error('Failed to load episodes', error);
             const newSeasons = [...this.vodSeriesSeasons()];
-            const newIndex = newSeasons.findIndex((s) => s.id === season.id);
+            const newIndex = newSeasons.indexOf(loadingSeason);
             if (newIndex !== -1) {
                 newSeasons[newIndex] = {
                     ...newSeasons[newIndex],

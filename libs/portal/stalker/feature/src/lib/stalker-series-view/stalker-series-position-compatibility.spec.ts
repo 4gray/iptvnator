@@ -75,6 +75,36 @@ function reconcile(
 }
 
 describe('stalker series position compatibility', () => {
+    it('retains pre-correction legacy progress only for the original provider season', () => {
+        const episode = {
+            ...createEpisode({
+                legacyTrackingId: LEGACY_TRACKING_ID,
+                seasonNumber: 2,
+            }),
+            providerSeasonNumber: 1,
+        };
+        const legacyPosition = createPosition({
+            contentXtreamId: LEGACY_TRACKING_ID,
+        });
+        const result = reconcile([episode], [legacyPosition]);
+        expect(result.positionsByTrackingId.get(SCOPED_TRACKING_ID)).toEqual({
+            ...legacyPosition,
+            contentXtreamId: SCOPED_TRACKING_ID,
+            seasonNumber: 2,
+        });
+        expect(result.legacyPositionByTrackingId.get(SCOPED_TRACKING_ID)).toBe(
+            legacyPosition
+        );
+        expect(
+            reconcile([episode], [{ ...legacyPosition, seasonNumber: 3 }])
+                .positionsByTrackingId.size
+        ).toBe(0);
+        expect(
+            reconcile([episode], [{ ...legacyPosition, episodeNumber: 3 }])
+                .positionsByTrackingId.size
+        ).toBe(0);
+    });
+
     it('prefers an exact scoped row while retaining compatible legacy cleanup metadata', () => {
         const episode = createEpisode({
             legacyTrackingId: LEGACY_TRACKING_ID,
@@ -557,10 +587,7 @@ describe('stalker series position compatibility', () => {
                 legacyPosition,
             })
         ).rejects.toBe(clearError);
-        expect(order).toEqual([
-            LEGACY_TRACKING_ID,
-            SCOPED_TRACKING_ID,
-        ]);
+        expect(order).toEqual([LEGACY_TRACKING_ID, SCOPED_TRACKING_ID]);
         expect(rows.has(LEGACY_TRACKING_ID)).toBe(false);
         expect(rows.get(SCOPED_TRACKING_ID)).toBe(exactPosition);
 

@@ -100,6 +100,16 @@ export function withStalkerSeries() {
             ) => {
                 const storeContext = store as typeof store &
                     StalkerSeriesStoreContext;
+                // Enrichment patches selectedItem in place. Only provider
+                // identity/mode changes should reload seasons and reset episodes.
+                const vodSeriesMovieId = computed(() => {
+                    const item = storeContext.selectedItem();
+                    return storeContext.selectedContentType() === 'vod' &&
+                        isStalkerSeriesFlag(item?.is_series) &&
+                        item?.id != null
+                        ? String(item.id)
+                        : null;
+                });
                 const requestDeps = {
                     dataService,
                     stalkerSession,
@@ -147,32 +157,14 @@ export function withStalkerSeries() {
                     vodSeriesSeasonsResource: resource({
                         params: () => ({
                             currentPlaylist: storeContext.currentPlaylist(),
-                            selectedItem: storeContext.selectedItem(),
-                            selectedContentType:
-                                storeContext.selectedContentType(),
+                            movieId: vodSeriesMovieId(),
                         }),
                         loader: async ({
                             params,
                         }): Promise<StalkerVodSeriesSeason[]> => {
-                            const { currentPlaylist, selectedItem } = params;
+                            const { currentPlaylist, movieId } = params;
 
-                            logger.debug(
-                                'vodSeriesSeasonsResource loader called',
-                                {
-                                    item: selectedItem,
-                                    isSeries: selectedItem?.is_series,
-                                    currentPlaylist,
-                                }
-                            );
-
-                            if (
-                                !currentPlaylist ||
-                                params.selectedContentType !== 'vod' ||
-                                !selectedItem ||
-                                selectedItem.id === undefined ||
-                                selectedItem.id === null ||
-                                !isStalkerSeriesFlag(selectedItem.is_series)
-                            ) {
+                            if (!currentPlaylist || movieId === null) {
                                 logger.debug(
                                     'vodSeriesSeasonsResource skipped - conditions not met'
                                 );
@@ -184,7 +176,7 @@ export function withStalkerSeries() {
                             >(requestDeps, currentPlaylist, {
                                 action: StalkerPortalActions.GetOrderedList,
                                 type: 'vod',
-                                movie_id: selectedItem.id,
+                                movie_id: movieId,
                                 p: '1',
                             });
 

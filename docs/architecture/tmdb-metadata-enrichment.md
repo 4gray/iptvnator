@@ -261,14 +261,28 @@ keep provider numbering. `normalizeTitleKeys` strips the same markers
 (including number-first forms like "2 сезон") from search titles, so the
 show-level match is unaffected by them.
 
+Stalker applies the same correction before rendering: single-season regular,
+embedded VOD and lazy `is_series` items use the resolved season for tabs,
+quick-start labels, episode metadata and TMDB lookups. Lazy VOD corrects the
+season VM before episodes load, retaining `providerSeasonKey` and
+`providerSeasonNumber` for stable tracking IDs and legacy-position matching.
+Portal requests still use the original `video_id` and season `id`. The marker
+parser is independent of the UI language and accepts Russian and English
+markers in either title field (`name` or `o_name`).
+
+Lazy VOD season resources depend on provider item identity and mode rather
+than the full selected metadata object, so a TMDB patch cannot reload the
+season resource and discard loaded episodes. Episode replies apply only to
+the exact loading season VM; a response from a previous selection or refresh
+cannot populate a replacement season that happens to reuse its provider id.
+
 Wiring: Xtream — `XtreamStore.enrichSelectedSerialSeason(seasonKey)` fired
 from the serial detail's `(seasonSelected)`; Stalker — the series view
 keeps a `${tmdbId}|${seasonKey}`-keyed map and overlays it inside its
-`mappedSeasons` computed. Each Stalker entry records the RESOLVED season
-it was fetched for: per-season slices of one show share
-(tmdbId, provider key "1") but resolve to different seasons, and a fetch
-made with stale detail-to-detail navigation context is overwritten once
-the real context re-resolves. The fetch effect gates on coherence rather
+`mappedSeasons` computed using the corrected display keys. Each Stalker entry
+also records the resolved season it was fetched for, so a fetch made with
+stale detail-to-detail navigation context can be replaced once the real
+context resolves. The fetch effect gates on coherence rather
 than timing: it waits while the season resource reloads and requires the
 selected key to exist in the map with episodes. The retained season
 selection deliberately survives navigation — the season container

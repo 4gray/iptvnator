@@ -114,6 +114,43 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         void store.isVodSeriesSeasonsLoading();
     });
 
+    it('keeps VOD seasons loaded when TMDB patches the selected item metadata', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: {
+                data: [
+                    {
+                        id: 's1',
+                        video_id: '11',
+                        is_season: true,
+                        season_number: '1',
+                    },
+                ],
+            },
+        });
+        store.setSelectedContentType('vod');
+        store.setSelectedItem({ id: '11', name: 'Show s02', is_series: '1' });
+        await waitForCondition(
+            () => store.getVodSeriesSeasonsResource()?.length === 1
+        );
+        const originalSeasons = store.getVodSeriesSeasonsResource();
+        const item = store.selectedItem();
+        if (!item) throw new Error('Expected the selected VOD series');
+        patchState(store, {
+            selectedItem: { ...item, info: { ...item.info, tmdb_id: 777 } },
+        });
+        await flushResources();
+        await flushResources();
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(store.getVodSeriesSeasonsResource()).toBe(originalSeasons);
+        store.setSelectedItem({ id: '12', name: 'Show s03', is_series: '1' });
+        await waitForCondition(
+            () => dataService.sendIpcEvent.mock.calls.length === 2
+        );
+        expect(dataService.sendIpcEvent.mock.calls[1][1]).toMatchObject({
+            params: { movie_id: '12' },
+        });
+    });
+
     it('fetches seasons for a regular series selection', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             js: [{ id: '42:1', name: 'Season 1', series: [1, 2] }],
