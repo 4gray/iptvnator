@@ -189,14 +189,18 @@ describe('resolveDashboardHeroArtwork', () => {
 });
 
 describe('EPG enrichment helpers', () => {
+    // `startTimestamp`/`stopTimestamp` are unix SECONDS, as everywhere else
+    // in the app; the helpers scale them to the millisecond clock they get.
+    const START_S = Math.floor(Date.UTC(2026, 4, 19, 12, 0, 0) / 1000);
+    const STOP_S = Math.floor(Date.UTC(2026, 4, 19, 12, 30, 0) / 1000);
     const baseProgram = (overrides: Partial<EpgProgram> = {}): EpgProgram =>
         ({
             title: 'Tagesschau',
             desc: null,
             start: '2026-05-19T12:00:00.000Z',
             stop: '2026-05-19T12:30:00.000Z',
-            startTimestamp: Date.UTC(2026, 4, 19, 12, 0, 0),
-            stopTimestamp: Date.UTC(2026, 4, 19, 12, 30, 0),
+            startTimestamp: START_S,
+            stopTimestamp: STOP_S,
             ...overrides,
         }) as EpgProgram;
 
@@ -231,8 +235,8 @@ describe('EPG enrichment helpers', () => {
 
     describe('calcEpgProgress', () => {
         const program = baseProgram();
-        const start = program.startTimestamp as number;
-        const stop = program.stopTimestamp as number;
+        const start = START_S * 1000;
+        const stop = STOP_S * 1000;
 
         it('returns 0 at the start of the window', () => {
             expect(calcEpgProgress(program, start)).toBe(0);
@@ -255,13 +259,13 @@ describe('EPG enrichment helpers', () => {
         it('returns null when the window is zero-length or inverted', () => {
             expect(
                 calcEpgProgress(
-                    baseProgram({ stopTimestamp: start }),
+                    baseProgram({ stopTimestamp: START_S }),
                     start + 10
                 )
             ).toBeNull();
             expect(
                 calcEpgProgress(
-                    baseProgram({ stopTimestamp: start - 1 }),
+                    baseProgram({ stopTimestamp: START_S - 1 }),
                     start
                 )
             ).toBeNull();
@@ -271,8 +275,8 @@ describe('EPG enrichment helpers', () => {
     describe('buildDashboardLiveEpgDetails', () => {
         it('builds the current programme details used by the live hero banner', () => {
             const program = baseProgram({ title: 'Market Open' });
-            const start = program.startTimestamp as number;
-            const stop = program.stopTimestamp as number;
+            const start = START_S * 1000;
+            const stop = STOP_S * 1000;
             const now = start + (stop - start) / 4;
 
             expect(buildDashboardLiveEpgDetails(program, now)).toMatchObject({
