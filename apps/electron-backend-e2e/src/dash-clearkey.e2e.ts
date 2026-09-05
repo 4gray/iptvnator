@@ -421,12 +421,11 @@ for (const player of ['mpv', 'vlc']) {
             await expect(
                 panel.getByText('Unsupported MKV', { exact: false })
             ).toHaveCount(0);
-            await panel
-                .getByText('Next ClearKey DASH', { exact: false })
-                .click();
-            await expect(
-                panel.locator('.channel-list-item.active')
-            ).toContainText('Next ClearKey DASH');
+            const nextChannel = panel
+                .getByTestId('channel-item')
+                .filter({ hasText: 'Next ClearKey DASH' });
+            await nextChannel.click();
+            await expect(nextChannel).toHaveClass(/\bactive\b/);
             await expect.poll(isFullscreen).toBe(true);
             await expect
                 .poll(() =>
