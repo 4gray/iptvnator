@@ -100,7 +100,13 @@ export async function seedLegacyProfile(
     );
     await writeFile(
         join(fixture, 'main.cjs'),
-        `const {app,BrowserWindow}=require('electron'); app.setPath('userData',${JSON.stringify(profile)}); app.whenReady().then(()=>new BrowserWindow({show:false,webPreferences:{sandbox:true}}).loadFile(${JSON.stringify(index)}));`
+        `const { app, BrowserWindow } = require('electron');
+const { join } = require('path');
+app.setPath('userData', join(__dirname, '..', 'electron-backend'));
+app.whenReady().then(() => new BrowserWindow({
+    show: false,
+    webPreferences: { sandbox: true },
+}).loadFile(join(__dirname, 'index.html')));`
     );
     const app = await electron.launch({
         args: [
