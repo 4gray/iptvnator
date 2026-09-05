@@ -270,6 +270,40 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
 
         expect(store.setPage).not.toHaveBeenCalled();
     });
+
+    it('pauses automatic paging while the panel is closed and resumes on reopen', async () => {
+        hasMoreChannels.set(true);
+        searchPhrase.set('sidebar-no-match');
+        fixture.detectChanges();
+        const container = component.scrollContainers()[0].nativeElement;
+        const panel = document.createElement('aside');
+        panel.className = 'fullscreen-channel-panel';
+        container.parentElement.appendChild(panel);
+        panel.appendChild(container);
+        container.classList.add('fullscreen-channel-list');
+        // Reattach the real listener after placing the stamped list inside
+        // the same persistent aside used by the fullscreen panel.
+        component['setupScrollListener']();
+        component.channelsForList(signal('panel-no-match'));
+        await settle();
+        expect(store.setPage).toHaveBeenCalledTimes(1);
+
+        panel.setAttribute('inert', '');
+        page.set(1);
+        itvChannels.set([...channels]);
+        fixture.detectChanges();
+        await settle();
+        container.dispatchEvent(new Event('scroll'));
+        expect(component.isLoadingMore()).toBe(false);
+        expect(store.setPage).toHaveBeenCalledTimes(1);
+
+        // No new query or page arrives to wake the closed list: opening
+        // alone must resume filling its still-empty search result.
+        panel.removeAttribute('inert');
+        await settle();
+        expect(store.setPage).toHaveBeenCalledTimes(2);
+        expect(store.setPage).toHaveBeenLastCalledWith(2);
+    });
     it('scrolls a blank panel through the cached category independently of sidebar matches', async () => {
         const category = Array.from({ length: 250 }, (_, index) => ({
             ...channels[0],

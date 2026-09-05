@@ -317,7 +317,8 @@ Key files:
   panel field shows the category untouched by the sidebar's search term, the
   panel's search results are windowed by `PanelSearchWindow`, and on a paged
   portal the panel copy keeps requesting pages while its matches do not fill
-  it, even while the sidebar's own search is active), and
+  it, even while the sidebar's own search is active; the retained closed
+  panel pauses paging and resumes automatic filling when reopened), and
   `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
   detail mounted until the next selection resolves, with `activeItem` paired
   to that detail so the session key and recording metadata keep describing

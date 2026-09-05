@@ -1486,7 +1486,22 @@ export class StalkerLiveStreamLayoutComponent
             container.addEventListener('scroll', onScroll, {
                 passive: true,
             });
-            return () => container.removeEventListener('scroll', onScroll);
+            // The panel retains its view while closed. Reopening may be the
+            // only event capable of resuming an empty, non-scrollable query.
+            const panel = container.closest('.fullscreen-channel-panel');
+            const visibilityObserver = panel
+                ? new MutationObserver(() => this.checkIfNeedsMoreContent())
+                : null;
+            if (panel) {
+                visibilityObserver?.observe(panel, {
+                    attributes: true,
+                    attributeFilter: ['inert'],
+                });
+            }
+            return () => {
+                container.removeEventListener('scroll', onScroll);
+                visibilityObserver?.disconnect();
+            };
         });
         this.scrollListener = () => cleanups.forEach((cleanup) => cleanup());
     }
@@ -1527,6 +1542,9 @@ export class StalkerLiveStreamLayoutComponent
      * the whole catalog and a page would only widen the sidebar's window.
      */
     private driveStampedList(container: HTMLElement, nearEnd: boolean) {
+        // A closed panel stays mounted to preserve search and scroll, but
+        // must not grow its window or request pages until it is reopened.
+        if (container.closest('[inert]')) return;
         const isPanelContainer =
             container.closest('.fullscreen-channel-list') !== null;
         const isPanelSearch =
