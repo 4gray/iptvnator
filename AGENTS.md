@@ -313,7 +313,11 @@ Key files:
   `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; the
   panel's search results are windowed by `PanelSearchWindow`), and
   `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
-  detail mounted until the next selection resolves). CDK overlays follow the
+  detail mounted until the next selection resolves, with `activeItem` paired
+  to that detail so the session key and recording metadata keep describing
+  the stream on screen — only the `activeUid` row highlight moves ahead).
+  Xtream's two `PortalChannelsListComponent` instances relay favorite toggles
+  through `XtreamFavoriteMarksService`. CDK overlays follow the
   fullscreen element via `FullscreenOverlayContainer`. Contract:
   `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel").
 - Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)

@@ -185,26 +185,34 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         fixture.detectChanges();
         const firstDetail = component.activeDetail();
         expect(firstDetail?.playback.streamUrl).toBe(first.streamUrl);
+        const firstSessionKey = component.playbackSessionKey();
         const playerView = () =>
             fixture.debugElement.query(By.directive(StubWebPlayerViewComponent));
         expect(playerView()).not.toBeNull();
 
         // A zap from the fullscreen panel: the mounted player (the fullscreen
-        // element) must survive the resolution round-trip.
+        // element) must survive the resolution round-trip. Only the row
+        // highlight moves ahead; the item stays paired with the detail the
+        // player is still showing, so the session key and the recording/
+        // archive metadata derived from it keep describing that stream.
         const pending = component.onChannelSelected(
             component.channelsForList()[1]
         );
         fixture.detectChanges();
         expect(component.activeUid()).toBe(second.uid);
+        expect(component.activeItem()).toBe(first);
         expect(component.activeDetail()).toBe(firstDetail);
+        expect(component.playbackSessionKey()).toBe(firstSessionKey);
         expect(playerView()).not.toBeNull();
 
         resolveSecond(detailFor(second));
         await pending;
         fixture.detectChanges();
+        expect(component.activeItem()).toBe(second);
         expect(component.activeDetail()?.playback.streamUrl).toBe(
             second.streamUrl
         );
+        expect(component.playbackSessionKey()).not.toBe(firstSessionKey);
     });
 });
 

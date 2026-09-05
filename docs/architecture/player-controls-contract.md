@@ -340,7 +340,10 @@ against that one list, favorites and recent included. PageUp/PageDown keep
 stepping onto radio: those keys zap on the windowed player too, where
 switching to a station is right), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
-route category), `StalkerLiveStreamLayoutComponent` (its list markup is one
+route category; each `PortalChannelsListComponent` instance owns the map
+behind its heart icons, so toggles are relayed between instances through
+`XtreamFavoriteMarksService`, or a heart flipped in the panel would stay stale
+in the sidebar), `StalkerLiveStreamLayoutComponent` (its list markup is one
 `ng-template` stamped into both the sidebar and the panel with its own search
 term; every copy carries the `#scrollContainer` that drives infinite scroll,
 and the panel's own search results go through `PanelSearchWindow`, memoized
@@ -351,7 +354,10 @@ and `UnifiedLiveTabComponent` (global favorites/recent; its `activateItem`
 keeps the previous detail — and with it the mounted player that owns
 fullscreen — until the next selection has resolved, because unmounting the
 fullscreen element for the resolution round-trip would end fullscreen on
-every zap from the panel).
+every zap from the panel; only `activeUid`, the row highlight, moves ahead,
+while `activeItem` stays paired with that detail so `playbackSessionKey` and
+the recording/archive metadata derived from it keep describing the stream the
+player is still showing, and both swap together once the new detail is in).
 
 Behavior: every affordance exists only while the stage is fullscreen and the
 view's `enabled` input holds — `WebPlayerViewComponent` withholds the panel
@@ -1117,7 +1123,6 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-view-model.ts
 ├── controls-visibility.ts
 ├── controls-volume.ts
-├── player-fullscreen-surface.ts
 ├── web-player-controls.flag.ts
 ├── web-video-controls.adapter.ts
 ├── web-video-controls.host.ts

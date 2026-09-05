@@ -799,13 +799,16 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         }
 
         const requestId = ++this.selectionRequestId;
+        // `activeUid` is the pending selection (row highlight). `activeItem`
+        // stays paired with `activeDetail`: the previous detail stays mounted
+        // while the next one resolves, because the player it renders owns
+        // DOM fullscreen and a selection from the fullscreen channel panel
+        // must not unmount that element (which would end fullscreen) for the
+        // resolution round-trip — and everything derived from the item
+        // (`playbackSessionKey`, recording/archive metadata) must keep
+        // describing the stream that player is still showing. Both swap
+        // together when the new detail is in, and clear only on failure.
         this.activeUid.set(item.uid);
-        this.activeItem.set(item);
-        // The previous detail stays mounted while the next one resolves: the
-        // player it renders owns DOM fullscreen, and a selection from the
-        // fullscreen channel panel must not unmount that element (which
-        // would end fullscreen) for the resolution round-trip. The detail is
-        // replaced when the new one is in, and cleared only on failure.
         this.activeTimeshift.set(null);
         this.isSelecting.set(true);
         // A previously owned radio override must not survive into a
@@ -839,6 +842,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
                 }
             }
 
+            this.activeItem.set(item);
             this.activeDetail.set(detail);
 
             if (this.supportsEpg && detail.epgMode === 'm3u') {
@@ -865,6 +869,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         } catch {
             if (requestId === this.selectionRequestId) {
                 this.activeDetail.set(null);
+                this.activeItem.set(null);
                 this.activeUid.set(null);
             }
         } finally {
