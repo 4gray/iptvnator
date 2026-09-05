@@ -67,26 +67,4 @@
   .card-panel:has(.card-link:hover) {
     @apply border-surface-600 bg-surface-900/70;
   }
-
-  /* ── Carousel infinite marquee ── */
-  .carousel-track {
-    animation: marquee 40s linear infinite;
-  }
-
-  .carousel-track:hover {
-    animation-play-state: paused;
-  }
-
-  @keyframes marquee {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .carousel-track {
-      animation: none;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-  }
 }

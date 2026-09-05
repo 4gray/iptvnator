@@ -1,157 +1,156 @@
 ---
-import { Image } from 'astro:assets';
-import mascotImg from '../assets/illustrations/iptvnator-1-mascot.png';
+import type { ResolvedRelease } from '../lib/downloads';
+import { LATEST_RELEASE_URL } from '../lib/downloads';
+import type { GitHubStats } from '../lib/github-stats';
+import { formatCompactCount } from '../lib/github-stats';
 
-const heroSocialLinks = [
-  {
-    label: 'GitHub',
-    href: 'https://github.com/4gray/iptvnator',
-    icon: 'M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z',
-  },
-  {
-    label: 'Telegram',
-    href: 'https://t.me/iptvnator',
-    icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.99-1.74 6.65-2.89 7.99-3.44 3.81-1.58 4.6-1.86 5.12-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z',
-  },
-  {
-    label: 'GitHub Sponsors',
-    href: 'https://github.com/sponsors/4gray',
-    icon: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
-  },
-  {
-    label: 'Ko-fi',
-    href: 'https://ko-fi.com/4gray',
-    icon: 'M4 5h12a4 4 0 0 1 0 8h-1v2.5A4.5 4.5 0 0 1 10.5 20h-1A4.5 4.5 0 0 1 5 15.5V13H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm11 6h1a2 2 0 0 0 0-4h-1v4Z',
-  },
-];
+interface Props {
+  release: ResolvedRelease;
+  stats: GitHubStats;
+}
+
+const { release, stats } = Astro.props;
+
+/**
+ * Project numbers set in the page's own type instead of shields.io badges.
+ * Anything the build could not resolve is left out rather than faked.
+ */
+const facts = [
+  stats.stars !== null && { value: formatCompactCount(stats.stars), label: 'GitHub stars' },
+  stats.downloads !== null && { value: formatCompactCount(stats.downloads), label: 'downloads' },
+  { value: '19', label: 'languages' },
+  { value: 'MIT', label: 'license' },
+].filter((fact): fact is { value: string; label: string } => Boolean(fact));
+
+/** Demo content only: a fictional channel from the marketing fixtures, never a real broadcaster. */
+const nowPlaying = {
+  channel: 'Fieldside Sports',
+  program: 'Late Kickoff · match of the day',
+  start: '20:30',
+  end: '22:15',
+  progress: 38,
+};
 ---
 
-<section class="relative overflow-hidden pt-36 pb-24 sm:pt-44 sm:pb-32">
-  <!-- Ambient glow -->
-  <div class="pointer-events-none absolute top-0 left-1/2 h-[600px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-accent-500/[0.06] blur-[120px]"></div>
-  <div class="pointer-events-none absolute inset-x-0 top-8 z-0 overflow-hidden opacity-35 mix-blend-screen">
-    <img
-      src="/iptvnator/illustrations/hero-ambient-broadcast-waves.svg"
-      alt=""
-      aria-hidden="true"
-      class="mx-auto h-[18rem] w-[140%] max-w-none object-cover md:h-[22rem] md:w-full lg:h-[26rem]"
-      loading="eager"
-    />
-  </div>
-
+<section class="relative overflow-hidden pt-32 sm:pt-40">
   <div class="relative mx-auto max-w-6xl px-6">
-    <div class="pointer-events-none absolute -top-4 -right-12 z-0 hidden w-[18rem] opacity-75 md:block lg:w-[22rem] xl:w-[25rem]">
-      <div class="absolute inset-0 rounded-full bg-accent-500/[0.16] blur-3xl"></div>
-      <Image
-        src={mascotImg}
-        alt=""
-        aria-hidden="true"
-        width={520}
-        class="relative w-full object-contain saturate-110"
-      />
-    </div>
+    <div class="grid gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end">
+      <div>
+        <p class="flex items-center gap-2.5 font-mono text-xs uppercase tracking-[0.15em] text-surface-400">
+          <span class="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_0_3px_rgba(229,72,77,0.22)]" aria-hidden="true"></span>
+          Open-source IPTV player
+          <span class="text-surface-600" aria-hidden="true">·</span>
+          <a href={release.url} class="transition-colors hover:text-surface-100">v{release.version}</a>
+        </p>
 
-    <!-- Top section: editorial intro -->
-    <div class="mx-auto max-w-3xl text-center">
-      <!-- Mono label -->
-      <div class="mb-8 inline-flex items-center gap-3">
-        <span class="h-px w-8 bg-accent-500/50"></span>
-        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Open source IPTV player</span>
-        <span class="h-px w-8 bg-accent-500/50"></span>
-      </div>
+        <!-- Headline: the one place the accent colour is allowed inside a heading -->
+        <h1 class="mt-6 font-display text-5xl font-bold tracking-tight text-surface-50 sm:text-7xl lg:text-8xl">
+          Every playlist,<br />one <span class="text-accent-400">player.</span>
+        </h1>
 
-      <!-- Headline: the one place the accent colour is allowed inside a heading -->
-      <h1 class="font-display text-5xl font-bold tracking-tight text-surface-50 sm:text-7xl lg:text-8xl">
-        Watch, <span class="text-accent-400">your way.</span>
-      </h1>
+        <p class="mt-7 max-w-xl text-lg leading-relaxed text-surface-400">
+          M3U playlists, Xtream Codes and Stalker portals in a single app. Live TV with a program guide,
+          movies and series, downloads and recordings. On the desktop, or self-hosted in the browser.
+        </p>
 
-      <p class="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-surface-400">
-        A cross-platform player for M3U/M3U8 playlists, Xtream Codes API, and
-        Stalker portals. Desktop app and Progressive Web App.
-      </p>
-
-      <!-- CTA -->
-      <div class="mt-12 flex flex-col items-center gap-5">
-        <a
-          href="https://github.com/4gray/iptvnator/releases/latest"
-          class="group inline-flex items-center gap-3 rounded-xl bg-accent-500 px-8 py-4 text-base font-semibold text-surface-950 transition-colors duration-200 hover:bg-accent-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-300 sm:px-10 sm:py-5 sm:text-lg"
-        >
-          <svg class="h-5 w-5 transition-transform duration-300 group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16" />
-          </svg>
-          Download for desktop
-          <span class="hidden font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-surface-950/60 sm:inline">macOS · Windows · Linux</span>
-        </a>
-
-        <!-- Secondary: self-hosted web app link -->
-        <a
-          href="https://github.com/4gray/iptvnator/blob/master/docker/README.md"
-          class="group inline-flex items-center gap-2 text-sm font-medium text-surface-400 transition-colors duration-200 hover:text-surface-100"
-        >
-          Or self-host the web app
-          <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-          </svg>
-        </a>
-      </div>
-
-      <!-- Shields badges -->
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <img
-          src="https://img.shields.io/github/stars/4gray/iptvnator?style=flat&color=20a8a8&labelColor=1a1a17"
-          alt="GitHub stars"
-          class="h-5"
-          loading="lazy"
-        />
-        <img
-          src="https://img.shields.io/github/v/release/4gray/iptvnator?style=flat&color=20a8a8&labelColor=1a1a17"
-          alt="Latest release"
-          class="h-5"
-          loading="lazy"
-        />
-        <img
-          src="https://img.shields.io/github/downloads/4gray/iptvnator/total?style=flat&color=20a8a8&labelColor=1a1a17"
-          alt="Total downloads"
-          class="h-5"
-          loading="lazy"
-        />
-      </div>
-
-      <div class="mt-4 flex flex-wrap items-center justify-center gap-2.5">
-        {heroSocialLinks.map((link) => (
+        <div class="mt-9 flex flex-wrap items-center gap-3" data-hero-cta>
           <a
-            href={link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="group inline-flex items-center gap-2 rounded-full border border-surface-700/70 bg-surface-900/40 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-surface-400 transition-all duration-300 hover:border-accent-500/40 hover:bg-accent-500/[0.06] hover:text-accent-300"
-            aria-label={link.label}
-            title={link.label}
+            href="/iptvnator/download/"
+            class="group inline-flex items-center gap-2.5 rounded-xl bg-accent-500 px-6 py-3.5 text-[15px] font-semibold text-surface-950 transition-colors duration-200 hover:bg-accent-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-300"
+            data-hero-primary
           >
-            <svg class="h-3.5 w-3.5 text-surface-500 transition-colors duration-300 group-hover:text-accent-300" fill="currentColor" viewBox="0 0 24 24">
-              <path d={link.icon} />
+            <svg class="h-[18px] w-[18px] transition-transform duration-300 group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16" />
             </svg>
-            <span>{link.label}</span>
+            <span data-hero-primary-label>Download for desktop</span>
           </a>
-        ))}
+          <a
+            href="/iptvnator/download/"
+            class="inline-flex items-center rounded-xl border border-surface-700 px-5 py-3.5 text-[15px] font-medium text-surface-100 transition-colors duration-200 hover:border-surface-500 hover:bg-surface-900"
+            data-hero-secondary
+          >
+            All platforms
+          </a>
+          <a
+            href="/iptvnator/download/docker/"
+            class="group ml-1 inline-flex items-center gap-1.5 text-sm font-medium text-surface-400 transition-colors duration-200 hover:text-surface-100"
+          >
+            Self-host the web app
+            <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </a>
+        </div>
+
+        <dl class="mt-10 flex flex-wrap gap-x-8 gap-y-4">
+          {
+            facts.map((fact) => (
+              <div>
+                <dt class="sr-only">{fact.label}</dt>
+                <dd class="font-mono text-[15px] font-medium tabular-nums text-surface-100">{fact.value}</dd>
+                <dd class="mt-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-surface-500">{fact.label}</dd>
+              </div>
+            ))
+          }
+        </dl>
+      </div>
+
+      <!-- "Now playing": a card in the player's own language instead of a mascot or badges. Decorative. -->
+      <div class="hidden justify-end lg:flex" aria-hidden="true">
+        <div class="w-full max-w-sm rounded-xl border border-surface-800 bg-surface-900/60 p-4">
+          <div class="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">
+            <span>Now playing</span>
+            <span class="flex items-center gap-1.5 text-red-400">
+              <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+              Live
+            </span>
+          </div>
+          <p class="mt-3 font-display text-base font-semibold tracking-tight text-surface-50">{nowPlaying.channel}</p>
+          <p class="mt-0.5 text-[13px] text-surface-400">{nowPlaying.program}</p>
+          <div class="mt-3 h-[3px] overflow-hidden rounded-full bg-surface-800">
+            <div class="h-full bg-accent-500" style={`width: ${nowPlaying.progress}%`}></div>
+          </div>
+          <div class="mt-1.5 flex justify-between font-mono text-[11px] tabular-nums text-surface-500">
+            <span>{nowPlaying.start}</span>
+            <span>{nowPlaying.end}</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Hero screenshot (the app window chrome is part of the screenshot) -->
-    <div class="relative mx-auto mt-20 max-w-5xl">
-      <!-- Ambient glow behind image -->
-      <div class="absolute -inset-8 rounded-2xl bg-accent-500/[0.04] blur-3xl"></div>
-
-      <!-- Framed screenshot -->
-      <div class="relative overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/40">
+    <!-- App screenshot, lit by a blurred copy of itself: the player's own ambient mode -->
+    <div class="relative mt-16 sm:mt-20">
+      <div
+        class="pointer-events-none absolute inset-x-6 top-6 bottom-1/3 -z-10 rounded-[3rem] bg-cover bg-center opacity-35 blur-3xl saturate-150"
+        style="background-image: url('/iptvnator/screenshots/screenshot-player.webp')"
+        aria-hidden="true"
+      ></div>
+      <div class="overflow-hidden rounded-t-xl border border-b-0 border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/50">
         <img
           src="/iptvnator/screenshots/screenshot-player.webp"
           alt="IPTVnator desktop app: channel list, live player, and EPG guide in the dark theme"
           width="2442"
           height="1806"
-          class="h-auto w-full"
+          class="h-auto max-h-[36rem] w-full object-cover object-top"
           loading="eager"
         />
       </div>
     </div>
   </div>
 </section>
+
+<script>
+  import { detectPlatform } from '../lib/detect-platform';
+  import { PLATFORM_LABELS, PLATFORM_PAGES } from '../lib/platforms';
+
+  // Point the primary button at the visitor's own platform page. The
+  // server-rendered "Download for desktop" → /download/ stays for phones
+  // and anything the guess cannot place.
+  const platform = detectPlatform();
+  const primary = document.querySelector<HTMLAnchorElement>('[data-hero-primary]');
+  const label = document.querySelector('[data-hero-primary-label]');
+  if (platform && primary && label) {
+    primary.href = PLATFORM_PAGES[platform];
+    label.textContent = `Download for ${PLATFORM_LABELS[platform]}`;
+  }
+</script>
