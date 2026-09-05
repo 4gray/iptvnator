@@ -85,6 +85,54 @@ describe('PwaService', () => {
         expect(http.match(() => true)).toHaveLength(0);
     });
 
+    it.each([PLAYLIST_PARSE_BY_URL, PLAYLIST_UPDATE])(
+        'passes the saved User-Agent through the proxy for %s',
+        async (event) => {
+            service.sendIpcEvent(event, {
+                id: 'playlist-1',
+                url: 'https://provider.example/list.m3u',
+                userAgent: '  IPTVnator-Test/1.0  ',
+            });
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-ua' });
+            await new Promise((resolve) => setTimeout(resolve));
+            const parse = http.expectOne((req) => req.url.endsWith('/parse'));
+            expect(parse.request.params.get('userAgent')).toBe(
+                'IPTVnator-Test/1.0'
+            );
+            expect(parse.request.headers.has('User-Agent')).toBe(false);
+            parse.flush({ _id: 'playlist-1', userAgent: 'IPTVnator-Test/1.0' });
+            expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    playlist: expect.objectContaining({
+                        userAgent: 'IPTVnator-Test/1.0',
+                    }),
+                })
+            );
+        }
+    );
+
+    it.each([undefined, '', '   '])(
+        'omits a blank User-Agent from proxy requests: %s',
+        async (userAgent) => {
+            service
+                .getPlaylistFromUrl(
+                    'https://provider.example/list.m3u',
+                    userAgent
+                )
+                .subscribe();
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-default' });
+            await new Promise((resolve) => setTimeout(resolve));
+            const parse = http.expectOne((req) => req.url.endsWith('/parse'));
+            expect(parse.request.params.keys()).toEqual(['targetId']);
+            expect(parse.request.headers.has('User-Agent')).toBe(false);
+            parse.flush({});
+        }
+    );
+
     it('appends the proxy network code to the URL-import failure toast', async () => {
         // The /parse proxy reports connection-level failures as HTTP 500 with
         // a `code` field in the body (#1400). The toast must carry that code —

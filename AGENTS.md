@@ -207,6 +207,17 @@ Key files:
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
 
+## M3U URL User-Agent
+
+- The URL import form accepts an optional User-Agent and stores it as
+  `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
+  and startup auto-update. The self-hosted PWA sends it through the registered
+  target `/parse` backend proxy for import and refresh; a matching backend is
+  required, and browser playback-header restrictions still apply.
+- Reuse the existing source editor and channel-over-playlist playback header
+  precedence. Contract: `docs/architecture/m3u-playlist-module.md`
+  ("User-Agent for URL sources").
+
 ## Shared Player Controls
 
 - `libs/ui/playback/src/lib/player-controls/` contains the additive,

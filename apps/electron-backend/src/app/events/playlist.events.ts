@@ -4,6 +4,7 @@
  */
 
 import { app, dialog, ipcMain, WebContents } from 'electron';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
@@ -14,6 +15,7 @@ import {
     PLAYLIST_REFRESH_CANCELLED_RESULT_TYPE,
     PLAYLIST_REFRESH_EVENT,
     ElectronBridgeTrustOptions,
+    ElectronBridgePlaylistFetchOptions,
     Playlist,
     PlaylistRefreshCancelledResult,
     PlaylistRefreshEvent,
@@ -94,7 +96,7 @@ ipcMain.handle(
         event,
         url,
         title?: string,
-        options?: ElectronBridgeTrustOptions
+        options?: ElectronBridgePlaylistFetchOptions
     ) => {
         try {
             const performanceCapture = createM3uImportPerformanceCapture({
@@ -102,10 +104,14 @@ ipcMain.handle(
             });
             return await fetchPlaylistFromUrl(url, title, {
                 performanceCapture,
+                userAgent: options?.userAgent,
                 trustedInsecureTlsHosts: options?.trustedInsecureTlsHosts,
             });
         } catch (error) {
-            console.error('Error fetching playlist:', error);
+            console.error(
+                'Error fetching playlist:',
+                redactSensitiveData(error)
+            );
             throw error;
         }
     }

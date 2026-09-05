@@ -152,7 +152,7 @@
                     <input matInput formControlName="count" />
                 </mat-form-field>
             }
-            @if (isDesktop) {
+            @if (isDesktop || playlist.url) {
                 <mat-form-field class="w-full mb-10">
                     <mat-label>{{
                         'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate

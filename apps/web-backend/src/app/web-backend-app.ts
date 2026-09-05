@@ -231,6 +231,10 @@ export function createWebBackendApp(
             httpClient,
             now,
             url: url.href,
+            userAgent:
+                typeof req.query.userAgent === 'string'
+                    ? req.query.userAgent.trim() || undefined
+                    : undefined,
         });
 
         if (isPlaylistParseError(result)) {
@@ -656,22 +660,29 @@ async function handlePlaylistParse(options: {
     readonly httpClient: WebBackendHttpClient;
     readonly now: () => Date;
     readonly url: string;
+    readonly userAgent?: string;
 }): Promise<Record<string, unknown> | PlaylistParseError> {
     try {
         // Provider URLs are validated by /provider-targets before playlist parsing.
         // codeql[js/request-forgery]
         const response = await options.httpClient.get<string>(options.url, {
             timeout: PROVIDER_REQUEST_TIMEOUT_MS.playlist,
+            ...(options.userAgent
+                ? { headers: { 'User-Agent': options.userAgent } }
+                : {}),
         });
         const parsedPlaylist = parsePlaylist(response.data);
         const title = getLastUrlSegment(options.url);
-        return createPlaylistObject({
-            guid: options.guid,
-            now: options.now,
-            playlist: parsedPlaylist,
-            title,
-            url: options.url,
-        });
+        return {
+            ...createPlaylistObject({
+                guid: options.guid,
+                now: options.now,
+                playlist: parsedPlaylist,
+                title,
+                url: options.url,
+            }),
+            ...(options.userAgent ? { userAgent: options.userAgent } : {}),
+        };
     } catch (error) {
         logProviderRequestFailure({ error, route: '/parse', url: options.url });
         const providerError = error as ProviderError;
