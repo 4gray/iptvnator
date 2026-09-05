@@ -162,7 +162,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
                 width={channel.width}
                 height={channel.height}
                 class="h-full w-full object-cover object-left-top"
-                loading={i === 0 ? 'eager' : 'lazy'}
+                loading="lazy"
                 decoding="async"
               />
             </div>
