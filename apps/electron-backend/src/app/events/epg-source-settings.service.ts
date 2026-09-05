@@ -7,7 +7,11 @@ import {
     playlists,
 } from '../database/schema';
 import { epgWorkerService } from './epg-worker.service';
-import { requestedEpgSources, retireEpgSource } from './epg-source-generation';
+import {
+    forgetEpgSourceRequest,
+    requestedEpgSources,
+    retireEpgSource,
+} from './epg-source-generation';
 
 let reconciliation = Promise.resolve();
 
@@ -53,12 +57,13 @@ export function reconcileEpgSources(globalUrls: string[]): Promise<void> {
             const programs = await db
                 .selectDistinct({ url: epgPrograms.sourceUrl })
                 .from(epgPrograms);
+            const requested = requestedEpgSources();
             const removed = [
                 ...new Set(
                     [
                         ...channels.map((row) => row.url),
                         ...programs.map((row) => row.url),
-                        ...requestedEpgSources(),
+                        ...requested.keys(),
                     ].filter(
                         (url): url is string =>
                             !!url?.trim() && !active.has(url.trim())
@@ -67,8 +72,10 @@ export function reconcileEpgSources(globalUrls: string[]): Promise<void> {
             ];
             // Fence the whole obsolete set before awaiting the first worker exit.
             removed.forEach(retireEpgSource);
-            for (const url of removed)
+            for (const url of removed) {
                 await epgWorkerService.clearEpgDataForSource(url);
+                forgetEpgSourceRequest(url, requested.get(url.trim()));
+            }
         });
     reconciliation = next;
     return next;

@@ -182,7 +182,7 @@ settings load and playlist migration; failed settings reads and incomplete
 playlist migration never authorize pruning. Removed sources retire queued and
 running imports before worker-owned deletion. Shared channel IDs survive while
 another source has programmes; manual mappings remain user preferences, but no
-longer resolve deleted data. Renderer lookup generations and Xtream preview
+longer resolve deleted data. Renderer lookup generations, Xtream previews and Stalker mapping-cache
 invalidation prevent late results from restoring removed programmes. Provider
 EPG is independent. See `docs/architecture/m3u-playlist-module.md`
 ("XMLTV source lifecycle").

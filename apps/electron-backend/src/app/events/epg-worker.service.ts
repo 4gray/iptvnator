@@ -1,4 +1,8 @@
-import { epgSourceGeneration, retireEpgSource } from './epg-source-generation';
+import {
+    epgSourceGeneration,
+    requestEpgSource,
+    retireEpgSource,
+} from './epg-source-generation';
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -9,7 +13,8 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
-export type EpgProgressStatus = 'queued' | 'loading' | 'complete' | 'error';
+export type EpgProgressStatus =
+    'queued' | 'loading' | 'complete' | 'error' | 'cancelled';
 
 export interface EpgProgressStats {
     totalChannels: number;
@@ -59,12 +64,14 @@ export class EpgWorkerService {
         error?: string,
         queuePosition?: number,
         errorCode?: ElectronBridgeSecurityErrorCode,
-        errorHost?: string
+        errorHost?: string,
+        generation = epgSourceGeneration(url)
     ): void {
         const windows = BrowserWindow.getAllWindows();
         windows.forEach((win) => {
             win.webContents.send('EPG_PROGRESS_UPDATE', {
                 url,
+                generation,
                 status,
                 stats,
                 error,
@@ -114,7 +121,7 @@ export class EpgWorkerService {
         url: string,
         options: ElectronBridgeTrustOptions
     ): Promise<void> {
-        const generation = epgSourceGeneration(url);
+        const generation = requestEpgSource(url);
         return new Promise((resolve, reject) => {
             let worker: Worker;
             try {

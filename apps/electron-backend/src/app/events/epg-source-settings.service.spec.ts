@@ -6,7 +6,7 @@ import {
 } from '../database/schema';
 import { getDatabase } from '../database/connection';
 import { epgWorkerService } from './epg-worker.service';
-import { epgSourceGeneration } from './epg-source-generation';
+import { epgSourceGeneration, requestEpgSource } from './epg-source-generation';
 import { reconcileEpgSources } from './epg-source-settings.service';
 
 jest.mock('../database/connection', () => ({ getDatabase: jest.fn() }));
@@ -63,6 +63,45 @@ describe('committed EPG source reconciliation', () => {
                 url
             );
         }
+    });
+
+    it('does not clear historical request keys again after successful cleanup', async () => {
+        requestEpgSource('removed');
+        await reconcileEpgSources([]);
+        rows.set(epgChannels, []);
+        rows.set(epgPrograms, []);
+        jest.clearAllMocks();
+        await reconcileEpgSources([]);
+        expect(epgWorkerService.clearEpgDataForSource).not.toHaveBeenCalled();
+    });
+
+    it('retries a failed cleanup even when the queued source had no database rows', async () => {
+        rows.set(epgChannels, []);
+        rows.set(epgPrograms, []);
+        requestEpgSource('queued-only');
+        (
+            epgWorkerService.clearEpgDataForSource as jest.Mock
+        ).mockRejectedValueOnce(new Error('worker failure'));
+        await expect(reconcileEpgSources([])).rejects.toThrow('worker failure');
+        await reconcileEpgSources([]);
+        expect(epgWorkerService.clearEpgDataForSource).toHaveBeenCalledTimes(2);
+    });
+
+    it('preserves a new request received while the previous request is being cleared', async () => {
+        rows.set(epgChannels, []);
+        rows.set(epgPrograms, []);
+        requestEpgSource('requested-again');
+        (
+            epgWorkerService.clearEpgDataForSource as jest.Mock
+        ).mockImplementationOnce(async () => {
+            requestEpgSource('requested-again');
+        });
+        await reconcileEpgSources([]);
+        await reconcileEpgSources([]);
+        expect(epgWorkerService.clearEpgDataForSource).toHaveBeenCalledTimes(2);
+        jest.clearAllMocks();
+        await reconcileEpgSources([]);
+        expect(epgWorkerService.clearEpgDataForSource).not.toHaveBeenCalled();
     });
 
     it('does not prune sources before playlist migration succeeds', async () => {

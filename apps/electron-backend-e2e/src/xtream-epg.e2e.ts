@@ -116,6 +116,102 @@ test('@epg @xtream @electron removes uploaded guide data and restores provider E
     }
 });
 
+test('@epg @stalker @electron invalidates a loaded manual XMLTV mapping after source removal', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(120000);
+    await resetMockServers(request, ['stalker']);
+    const fixture = await fetchStalkerCategoryFixture(request, 'itv');
+    const item = fixture.items[0];
+    const stamp = (date: Date) =>
+        date.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const source = await createMutableTextServer(
+        `<tv><channel id="stalker-mapped"><display-name>Mapped Guide</display-name></channel>
+        <programme channel="stalker-mapped" start="${stamp(new Date(Date.now() - 600000))} +0000" stop="${stamp(new Date(Date.now() + 3600000))} +0000"><title>Retired Stalker Bulletin</title></programme></tv>`,
+        {
+            contentType: 'application/xml',
+            resourcePath: '/stalker.xml',
+        }
+    );
+    const app = await launchElectronApp(dataDir);
+    try {
+        await app.mainWindow.route('https://test-streams.mux.dev/**', () => {
+            // Keep external media pending while the local guide is exercised.
+        });
+        await addStalkerPortal(app.mainWindow, {
+            name: 'Stalker XMLTV Removal',
+        });
+        await waitForStalkerCatalog(app.mainWindow);
+        const playlistId = new URL(app.mainWindow.url()).pathname.match(
+            /\/stalker\/([^/]+)/
+        )?.[1];
+        expect(playlistId).toBeTruthy();
+        const key = `stalker:${decodeURIComponent(playlistId!)}:${String(item.id).trim()}`;
+        await app.mainWindow.evaluate(
+            (mappingKey) =>
+                window.electron.setEpgMapping(mappingKey, 'stalker-mapped'),
+            key
+        );
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow
+            .getByRole('button', { name: 'Add EPG source' })
+            .click();
+        await app.mainWindow
+            .locator('.epg-source-row input')
+            .fill(source.resourceUrl);
+        await saveSettings(app.mainWindow);
+        await expect
+            .poll(
+                () =>
+                    app.mainWindow.evaluate(async () =>
+                        (
+                            await window.electron.getChannelPrograms(
+                                'stalker-mapped'
+                            )
+                        ).map((p) => p.title)
+                    ),
+                { timeout: 30000 }
+            )
+            .toContain('Retired Stalker Bulletin');
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const row = channelItemByTitle(
+            app.mainWindow,
+            item.o_name || item.name || ''
+        ).first();
+        await expect(row.locator('.epg-title')).toHaveText(
+            'Retired Stalker Bulletin'
+        );
+        await row.click();
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .toContain('Retired Stalker Bulletin');
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow.locator('.epg-source-row button').nth(1).click();
+        await saveSettings(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        await expect(row).toBeVisible();
+        await row.click();
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .not.toContain('Retired Stalker Bulletin');
+        await expect(row.locator('.epg-title')).toHaveCount(0);
+        expect(
+            await app.mainWindow.evaluate(
+                (mappingKey) => window.electron.getEpgMapping(mappingKey),
+                key
+            )
+        ).toMatchObject({ epgChannelId: 'stalker-mapped' });
+    } finally {
+        await closeElectronApp(app);
+        await source.close();
+    }
+});
+
 for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
     test(`@epg @xtream @electron renders Xtream EPG previews and the timeline schedule in ${timeZone}`, async ({
         dataDir,

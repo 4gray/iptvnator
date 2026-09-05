@@ -108,6 +108,12 @@ export class EpgProgressService {
     }
 
     private updateProgress(progress: EpgImportProgress): void {
+        const current = this.importsMap().get(progress.url);
+        if ((progress.generation ?? 0) < (current?.generation ?? 0)) return;
+        if (progress.status === 'cancelled') {
+            this.removeImport(progress.url);
+            return;
+        }
         this.importsMap.update((current) => {
             const updated = new Map(current);
             updated.set(progress.url, progress);

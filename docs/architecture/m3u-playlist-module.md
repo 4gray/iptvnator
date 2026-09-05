@@ -1331,7 +1331,9 @@ not global XMLTV owners. No source-discovery or provider matching policy changes
 
 Reconciliation finds old sources in both XMLTV tables and queued imports. It
 retires their generations before waiting for workers to exit, then uses the
-existing source-clear worker. Programmes are deleted by source; a globally keyed
+existing source-clear worker. Successfully cleared request candidates are forgotten
+without resetting their generation fences; failed cleanups remain retryable.
+Retired queued imports emit cancellation so progress rows disappear. Programmes are deleted by source; a globally keyed
 channel is retained while another source still has programmes, transferring its
 legacy owner to that remaining source. Manual mappings are preserved and can
 resolve another retained source sharing that channel ID. Legacy programmes with
@@ -1341,7 +1343,8 @@ There is no new schema migration.
 
 Renderer reconciliation increments a data revision and cancels earlier lookup
 subscriptions, clears program caches and the selected M3U guide, and refreshes
-Xtream selection and visible channel previews. A delayed startup import is
+Xtream selection and visible channel previews, plus Stalker manual mapping
+overrides and bulk guides. A delayed startup import is
 started only if its source still belongs to the reconciled configuration; its
 completion observer is installed after settings initialization. Provider EPG
 continues through its existing APIs. Playlist refresh is not EPG cache cleanup.

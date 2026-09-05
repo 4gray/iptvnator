@@ -1,4 +1,4 @@
-import { epgSourceGeneration } from './epg-source-generation';
+import { epgSourceGeneration, requestEpgSource } from './epg-source-generation';
 import { eq } from 'drizzle-orm';
 import { ElectronBridgeTrustOptions } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
@@ -102,7 +102,7 @@ export async function handleFetchEpg(
         .filter((url) => url?.trim())
         .map((url) => url.trim());
     const generations = new Map(
-        validUrls.map((url) => [url, epgSourceGeneration(url)])
+        validUrls.map((url) => [url, requestEpgSource(url)])
     );
 
     if (validUrls.length === 0) {
@@ -152,7 +152,19 @@ export async function handleFetchEpg(
     const errors: string[] = [];
     for (const url of urlsToFetch) {
         try {
-            if (generations.get(url) !== epgSourceGeneration(url)) continue;
+            if (generations.get(url) !== epgSourceGeneration(url)) {
+                epgWorkerService.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generations.get(url)
+                );
+                continue;
+            }
             await epgWorkerService.fetchEpgFromUrl(url, options);
         } catch (error) {
             console.error(

@@ -319,6 +319,7 @@ describe('EpgEvents', () => {
         const { handleFetchEpg } = await import('./epg-fetch.service');
         const { retireEpgSource } = await import('./epg-source-generation');
         const { epgWorkerService } = await import('./epg-worker.service');
+        const progress = jest.spyOn(epgWorkerService, 'sendProgressToRenderer');
         let finishFirst!: () => void;
         const fetch = jest
             .spyOn(epgWorkerService, 'fetchEpgFromUrl')
@@ -338,6 +339,17 @@ describe('EpgEvents', () => {
         finishFirst();
         await request;
         expect(fetch).toHaveBeenCalledTimes(1);
+        expect(progress).toHaveBeenCalledWith(
+            'https://queued.example/guide.xml',
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            expect.any(Number)
+        );
+        progress.mockRestore();
         fetch.mockRestore();
     });
 

@@ -85,6 +85,7 @@ export type ElectronBridgePlaylistType =
     (typeof ELECTRON_BRIDGE_PLAYLIST_TYPES)[keyof typeof ELECTRON_BRIDGE_PLAYLIST_TYPES];
 
 export const ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES = {
+    Cancelled: 'cancelled',
     Complete: 'complete',
     Error: 'error',
     Loading: 'loading',
@@ -385,6 +386,7 @@ export interface ElectronBridgeEpgProgressStats {
 
 export interface ElectronBridgeEpgProgress {
     url: string;
+    generation?: number;
     status: ElectronBridgeEpgProgressStatus;
     stats?: ElectronBridgeEpgProgressStats;
     error?: string;
