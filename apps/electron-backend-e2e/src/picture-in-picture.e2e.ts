@@ -41,8 +41,10 @@ for (const player of ['html5', 'videojs', 'artplayer']) {
                     .getByTestId('web-player-shared-controls-setting')
                     .locator('input[type="checkbox"]')
                     .setChecked(sharedControls);
-                // The default Video.js/shared combination may already be saved.
-                if (await page.getByTestId('save-settings').isVisible()) {
+                // A fresh profile defaults to Video.js with shared controls.
+                // For changed settings, await the save control through the
+                // helper; an immediate isVisible() can miss Angular rendering it.
+                if (player !== 'videojs' || !sharedControls) {
                     await saveSettings(page);
                 }
                 const playlistPath = join(dataDir, 'pip.m3u');
