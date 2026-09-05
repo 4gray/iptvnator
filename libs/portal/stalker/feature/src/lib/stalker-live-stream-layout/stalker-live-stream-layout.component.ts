@@ -95,6 +95,7 @@ import {
 import {
     PanelSearchWindow,
     resolvePanelSearchScroll,
+    shouldAutoFillStampedList,
 } from './panel-search-window';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
 import {
@@ -650,11 +651,14 @@ export class StalkerLiveStreamLayoutComponent
         // Reset loading state when channels load and keep preview data in sync with bulk EPG.
         effect(() => {
             const channels = this.visibleChannels();
-            if (channels.length > 0) {
+            // A page landing ends the in-flight state whether or not the
+            // sidebar's search shows any of it — the fullscreen panel's own
+            // search may be what asked for that page — and every stamped
+            // list gets its fill check; the sidebar copy's gate on its search
+            // term lives in checkIfNeedsMoreContent.
+            if (this.channels().length > 0) {
                 this.isLoadingMore.set(false);
-                if (!this.searchTerm()) {
-                    setTimeout(() => this.checkIfNeedsMoreContent(), 100);
-                }
+                setTimeout(() => this.checkIfNeedsMoreContent(), 100);
             }
 
             if (this.isRadioMode() || !this.supportsEpg) {
@@ -1452,9 +1456,15 @@ export class StalkerLiveStreamLayoutComponent
      * says nothing about the pages never fetched.
      */
     private checkIfNeedsMoreContent() {
+        const sidebarSearchActive = this.searchTerm() !== '';
         for (const ref of this.scrollContainers()) {
             const container = ref.nativeElement as HTMLElement | undefined;
             if (!container) continue;
+            const isPanelContainer =
+                container.closest('.fullscreen-channel-list') !== null;
+            if (!shouldAutoFillStampedList(isPanelContainer, sidebarSearchActive)) {
+                continue;
+            }
             const { scrollHeight, clientHeight } = container;
             this.driveStampedList(container, scrollHeight <= clientHeight);
         }

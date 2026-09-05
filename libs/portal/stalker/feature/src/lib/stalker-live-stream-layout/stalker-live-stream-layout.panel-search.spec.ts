@@ -45,6 +45,8 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
     ];
     const hasMoreChannels = signal(false);
     const page = signal(0);
+    const itvChannels = signal(channels);
+    const searchPhrase = signal('');
     const store = {
         getSelectedCategoryName: signal('All'),
         currentPlaylist: signal({ _id: 'playlist-one', title: 'Portal One' }),
@@ -52,9 +54,9 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         selectedCategoryId: signal<string | null>('all'),
         selectedItvId: signal<string | undefined>(undefined),
         selectedItem: signal(null),
-        itvChannels: signal(channels),
+        itvChannels,
         radioChannels: signal([]),
-        searchPhrase: signal(''),
+        searchPhrase,
         hasMoreChannels,
         page,
         // A legacy paged portal: no full-list cache to search in memory.
@@ -88,6 +90,8 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
     beforeEach(async () => {
         hasMoreChannels.set(false);
         page.set(0);
+        itvChannels.set(channels);
+        searchPhrase.set('');
         store.setPage.mockClear();
         await TestBed.configureTestingModule({
             imports: [
@@ -162,6 +166,48 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         hasMoreChannels.set(false);
 
         expect(component.channelsForList(signal('zzz-nomatch'))).toEqual([]);
+        await settle();
+
+        expect(store.setPage).not.toHaveBeenCalled();
+    });
+
+    it('ends the in-flight state when a page lands that the sidebar search hides', async () => {
+        // The panel's search asked for the page; the sidebar's own term
+        // matches none of it, so the sidebar shows no row — that must not
+        // leave the request flagged as still in flight, or the panel could
+        // never ask for the page after it.
+        hasMoreChannels.set(true);
+        searchPhrase.set('sidebar-term-matching-nothing');
+        fixture.detectChanges();
+        expect(component.visibleChannels()).toEqual([]);
+
+        component.loadMore();
+        expect(store.setPage).toHaveBeenCalledWith(1);
+        expect(component.isLoadingMore()).toBe(true);
+
+        page.set(1);
+        itvChannels.set([
+            ...channels,
+            {
+                id: 'channel-three',
+                cmd: 'ffrt4://itv/channel-three',
+                name: 'Three',
+                o_name: 'Three',
+                logo: 'three.png',
+            },
+        ]);
+        fixture.detectChanges();
+
+        expect(component.isLoadingMore()).toBe(false);
+    });
+
+    it('leaves the sidebar alone while its own search is active', async () => {
+        // Only the panel copy fills itself during a sidebar search; the
+        // sidebar has never paged automatically then, and this fixture
+        // renders the sidebar copy only.
+        hasMoreChannels.set(true);
+        searchPhrase.set('one');
+        fixture.detectChanges();
         await settle();
 
         expect(store.setPage).not.toHaveBeenCalled();

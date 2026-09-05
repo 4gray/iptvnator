@@ -352,8 +352,11 @@ panel copy's scroll — because in full-list mode a broad term matches most of
 a multi-thousand-channel portal and the list has no virtual scroll; on a paged
 portal the panel copy also keeps requesting pages while its matches do not
 fill it — an empty or short result cannot scroll, and the term may match
-channels on pages never fetched — while in full-list mode it never pages,
-since its search already sees the whole catalog),
+channels on pages never fetched; the sidebar's own search term does not stop
+it, since that term only gates the sidebar copy's automatic fill, and a page
+landing resets the in-flight flag whether or not the sidebar shows any of it
+— while in full-list mode it never pages, since its search already sees the
+whole catalog),
 and `UnifiedLiveTabComponent` (global favorites/recent; its `activateItem`
 keeps the previous detail — and with it the mounted player that owns
 fullscreen — until the next selection has resolved, because unmounting the

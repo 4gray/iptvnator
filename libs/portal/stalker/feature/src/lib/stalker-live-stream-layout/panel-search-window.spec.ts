@@ -1,6 +1,7 @@
 import {
     PanelSearchWindow,
     resolvePanelSearchScroll,
+    shouldAutoFillStampedList,
 } from './panel-search-window';
 
 interface Row {
@@ -148,5 +149,19 @@ describe('resolvePanelSearchScroll', () => {
                 panelHasMore: false,
             })
         ).toBe('load-page');
+    });
+});
+
+describe('shouldAutoFillStampedList', () => {
+    it('lets the sidebar fill itself only while its search is idle', () => {
+        expect(shouldAutoFillStampedList(false, false)).toBe(true);
+        expect(shouldAutoFillStampedList(false, true)).toBe(false);
+    });
+
+    it('always lets the fullscreen panel fill itself', () => {
+        // The sidebar's search term is not the panel's concern: the panel's
+        // own term is what may need the next page.
+        expect(shouldAutoFillStampedList(true, false)).toBe(true);
+        expect(shouldAutoFillStampedList(true, true)).toBe(true);
     });
 });

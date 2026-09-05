@@ -16,6 +16,21 @@ export type PanelSearchScrollAction = 'idle' | 'grow-window' | 'load-page';
  * on pages that were never fetched, so once the window covers everything
  * loaded the scroll has to reach provider pagination instead of stopping.
  */
+/**
+ * Whether a stamped list that does not overflow should fill itself without a
+ * scroll. The sidebar copy never does so while its own search is active
+ * (scrolling it still pages) — that has always been its behaviour, since a
+ * client-side search would otherwise walk the whole portal on its own. The
+ * fullscreen panel's copy always does: its term is what may need the next
+ * page, and the sidebar's term is not its concern.
+ */
+export function shouldAutoFillStampedList(
+    isPanelContainer: boolean,
+    sidebarSearchActive: boolean
+): boolean {
+    return isPanelContainer || !sidebarSearchActive;
+}
+
 export function resolvePanelSearchScroll(state: {
     readonly isPanelSearch: boolean;
     readonly isNearEnd: boolean;
