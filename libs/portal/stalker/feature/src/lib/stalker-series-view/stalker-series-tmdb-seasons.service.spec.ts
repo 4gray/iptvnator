@@ -33,11 +33,22 @@ describe('StalkerSeriesTmdbSeasonsService', () => {
         service = TestBed.inject(StalkerSeriesTmdbSeasonsService);
     });
 
-    it('fetches the title-marked season for a renumbered single-season slice', async () => {
-        await service.fetchSeason(82856, '1', episodesOfSeason(1), {
-            rawTitle: 'Мандалорец (2 сезон)',
-            seasonCount: 1,
-        });
+    it.each([
+        'The Gentlemen s02',
+        'The Gentlemen season2',
+        'The Gentlemen (s02)',
+        'The Gentlemen (season 2)',
+        'Мандалорец (2 сезон)',
+        'Мандалорец (сезон 2)',
+        'Мандалорец s02',
+        'Мандалорец season2',
+    ])(
+        'fetches the title-marked season for the single-season slice %s',
+        async (rawTitle) => {
+            await service.fetchSeason(82856, '1', episodesOfSeason(1), {
+                rawTitle,
+                seasonCount: 1,
+            });
 
         expect(getSeason).toHaveBeenCalledWith(82856, 2);
 
