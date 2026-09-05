@@ -67,7 +67,13 @@
             </div>
         }
 
-        <div #scrollContainer class="channels-list">
+        <div
+            #scrollContainer
+            class="channels-list app-scrollbar"
+            appChannelScrollFocus
+            id="live-channels"
+            [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
+        >
             @if (isInitialChannelsLoading()) {
                 <app-channel-list-skeleton
                     [count]="9"
@@ -123,6 +129,7 @@
                         "
                         (clicked)="playChannel(item)"
                         (activated)="playChannel(item, true)"
+                        (keyboardActivated)="playChannel(item, true)"
                         (favoriteToggled)="toggleFavorite(item)"
                         (contextMenuRequested)="
                             onChannelContextMenu(item, $event)

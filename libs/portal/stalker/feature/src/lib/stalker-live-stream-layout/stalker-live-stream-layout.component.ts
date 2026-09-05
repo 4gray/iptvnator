@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -117,6 +118,7 @@ const FULL_LIST_RENDER_CHUNK = 100;
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        ChannelScrollFocusDirective,
         AudioPlayerComponent,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,

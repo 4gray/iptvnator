@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import {
     CdkVirtualScrollViewport,
     ScrollingModule,
@@ -75,6 +76,7 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
         MatButtonModule,
@@ -157,8 +159,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         // run only records the initial value.
         let appliedOffsetMinutes: number | null = null;
         effect(() => {
-            const offsetMinutes =
-                this.settingsStore.resolvedEpgOffsetMinutes();
+            const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
             if (appliedOffsetMinutes === offsetMinutes) {
                 return;
             }
@@ -170,12 +171,16 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             untracked(() => this.repickPreviewsForOffsetChange());
         });
 
+        const selectedChannelId = computed(() =>
+            Number(
+                (
+                    this.xtreamStore.selectedItem() as XtreamChannelListItem | null
+                )?.xtream_id
+            )
+        );
         effect(() => {
-            const selectedItem = this.xtreamStore.selectedItem();
+            const selectedId = selectedChannelId();
             const viewport = this.viewport();
-            const selectedId = Number(
-                (selectedItem as XtreamChannelListItem | null)?.xtream_id
-            );
 
             if (!viewport || !Number.isFinite(selectedId) || selectedId <= 0) {
                 return;
@@ -189,6 +194,17 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
 
+            const top = viewport.measureScrollOffset();
+            const rowTop = selectedIndex * this.channelItemSize;
+            if (
+                rowTop >= top &&
+                rowTop + this.channelItemSize <=
+                    top + viewport.getViewportSize()
+            ) {
+                // Even a smooth scroll to the current offset can cancel the
+                // user's first keyboard scroll after a pointer selection.
+                return;
+            }
             viewport.scrollToIndex(selectedIndex, 'smooth');
         });
 
@@ -529,7 +545,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     // ── Context menu ────────────────────────────────────────────
 
-    onChannelContextMenu(channel: XtreamChannelListItem, event: MouseEvent): void {
+    onChannelContextMenu(
+        channel: XtreamChannelListItem,
+        event: MouseEvent
+    ): void {
         this.contextMenuChannel.set(channel);
         this.contextMenuPosition.set({
             x: `${event.clientX}px`,

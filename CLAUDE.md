@@ -1647,3 +1647,15 @@ No formal migration system yet. Schema changes are applied via raw SQL in the `c
 - Both account-info dialogs explain guard refusals with localized paused-request
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
+
+## Channel and Detail Keyboard Scrolling
+
+Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection
+focuses the viewport, native scrolling survives virtual row recycling, and
+row Enter/Space activation stays separate from focus movement. Portal Live TV
+uses ArrowRight from the selected category and ArrowLeft from the channels
+pane to move between columns. Shared live sidebars reserve scrollbar space
+beside the resize handle. `PortalDetailShellComponent` owns a visible native
+scrollbar and guarded initial page focus. Contracts:
+`docs/architecture/iptvnator-ui-guidelines.md` and
+`docs/architecture/portal-detail-navigation.md`.

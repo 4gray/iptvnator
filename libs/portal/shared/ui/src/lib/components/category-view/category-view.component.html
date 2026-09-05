@@ -1,8 +1,10 @@
 @if (items().length > 0) {
-    <div class="nav-list">
+    <div class="nav-list" id="portal-categories">
         @for (item of items(); track $index) {
-            <a
+            <button
+                type="button"
                 class="nav-item category-item"
+                (keydown)="focusLiveChannels($event)"
                 [attr.data-category-id]="$any(item).category_id ?? item.id"
                 [class.selected]="isSelected(item)"
                 [class.category-item--selected]="isSelected(item)"
@@ -25,7 +27,7 @@
                         {{ $any(item).count }}
                     </div>
                 }
-            </a>
+            </button>
         } @empty {
             <app-playlist-error-view
                 [title]="'PORTALS.EMPTY_LIST_VIEW.TITLE' | translate"

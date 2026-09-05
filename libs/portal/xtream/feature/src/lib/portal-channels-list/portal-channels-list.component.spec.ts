@@ -410,6 +410,42 @@ describe('PortalChannelsListComponent', () => {
         expect(scrollToIndex).toHaveBeenCalledWith(15, 'smooth');
     });
 
+    it('does not start smooth alignment when a selected row is already visible', () => {
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(
+            Array.from({ length: 20 }, (_, index) => ({
+                title: `Channel ${index + 1}`,
+                xtream_id: index + 1,
+            }))
+        );
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport()!;
+        jest.spyOn(viewport, 'getViewportSize').mockReturnValue(400);
+        jest.spyOn(viewport, 'measureScrollOffset').mockReturnValue(0);
+        const scroll = jest.spyOn(viewport, 'scrollToIndex');
+        selectedItem.set({ xtream_id: 2 });
+        fixture.detectChanges();
+        expect(scroll).not.toHaveBeenCalled();
+    });
+
+    it('does not realign after an update to the same selected channel', () => {
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(
+            Array.from({ length: 20 }, (_, index) => ({
+                title: `Channel ${index + 1}`,
+                xtream_id: index + 1,
+            }))
+        );
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport()!;
+        selectedItem.set({ xtream_id: 2 });
+        fixture.detectChanges();
+        const scroll = jest.spyOn(viewport, 'scrollToIndex');
+        selectedItem.set({ xtream_id: 2 });
+        fixture.detectChanges();
+        expect(scroll).not.toHaveBeenCalled();
+    });
+
     it('does not re-scroll the virtual list when the search filter changes', () => {
         const channels = Array.from({ length: 20 }, (_, index) => ({
             title: `Channel ${index + 1}`,

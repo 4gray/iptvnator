@@ -1,5 +1,5 @@
 @if (items().length > 0) {
-    <div class="nav-list">
+    <div class="nav-list" id="portal-categories">
         @if (statusText()) {
             <div class="context-inline-status">
                 {{ statusText() }}
@@ -9,6 +9,7 @@
             <button
                 type="button"
                 class="nav-item category-item"
+                (keydown)="focusLiveChannels($event)"
                 [attr.data-category-id]="
                     $any(item).category_id ?? $any(item).xtream_id ?? item.id
                 "

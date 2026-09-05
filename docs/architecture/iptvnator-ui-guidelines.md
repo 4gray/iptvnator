@@ -120,9 +120,31 @@ the wrapper file that includes it.
 
 Every interactive descendant of a drag region—including buttons, links,
 inputs, overlays, and resize handles—requires `app-region: no-drag`. The shared
-directive-generated `.resize-handle` does not set this centrally yet. Until
-that debt is fixed, consumers in drag regions must cover the handle themselves
-and must not assume it already opts out.
+directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
+The shared live-layout sidebar reserves 8 px at its right edge so the inward
+half of the 12 px resize handle cannot cover the channel scrollbar.
+
+## Keyboard Scrolling and Channel Focus
+
+`ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
+including virtual viewports and nonvirtual Favorites/Recent/Stalker lists.
+Pointer selection focuses that owner without moving its scroll position.
+ArrowUp/Down, PageUp/Down, Home/End and Space retain native scrolling there;
+scroll keys do not bubble into document-level player shortcuts. A row's main
+button remains separate from favorite/info actions, supports native Enter and
+Space activation, and retains keyboard focus on activation. Tab/Shift+Tab use
+the normal DOM order. Scrolling from a virtual row moves focus to its viewport
+before CDK can recycle the row; asynchronous data updates never move focus.
+Xtream aligns a newly selected channel only when it is outside the viewport;
+updates to the same selected ID never re-align it. A smooth scroll to an
+already visible row would otherwise cancel an immediate keyboard scroll.
+
+In portal Live TV, ArrowRight on the selected category enters the visible
+`live-channels` region; ArrowLeft from that region or a channel's main button
+returns to the selected category in `portal-categories`. These IDs identify the
+single mounted main pane, not fullscreen or overlay lists. Navigation does not
+select a channel or start playback. Modified shortcuts, input fields, menus,
+dialogs, player controls and hidden/inert panes keep their own behavior.
 
 ## Channel List Item
 

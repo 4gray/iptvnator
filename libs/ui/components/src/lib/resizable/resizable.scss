@@ -30,6 +30,7 @@ body.resizing-active {
 
 // Resize handle base styles
 .resize-handle {
+    app-region: no-drag;
     position: absolute;
     top: 0;
     bottom: 0;

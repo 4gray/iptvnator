@@ -61,6 +61,21 @@
 }
 
 .channel-content {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    app-region: no-drag;
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
     min-width: 0;
     flex: 1;
     display: flex;

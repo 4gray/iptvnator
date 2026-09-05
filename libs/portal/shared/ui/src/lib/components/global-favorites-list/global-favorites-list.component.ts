@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import {
     CdkDragDrop,
     DragDropModule,
@@ -20,10 +21,7 @@ import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
 } from '@iptvnator/ui/components';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
@@ -56,6 +54,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         DragDropModule,
         MatIconModule,
