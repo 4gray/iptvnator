@@ -996,9 +996,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Kategorien verwalten",
             "LOADING": "Kategorien werden geladen …",
-            "SELECTED": "Ausgewählt",
+            "SELECTED": "Insgesamt ausgewählt",
             "SELECT_ALL": "Alle auswählen",
             "DESELECT_ALL": "Alle abwählen",
+            "SELECT_FILTERED": "Gefilterte auswählen",
+            "DESELECT_FILTERED": "Gefilterte abwählen",
             "SEARCH_PLACEHOLDER": "Kategorien suchen …",
             "NO_RESULTS": "Keine passenden Kategorien gefunden",
             "NO_CATEGORIES": "Keine Kategorien verfügbar",

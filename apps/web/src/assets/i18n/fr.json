@@ -996,9 +996,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Gérer les catégories",
             "LOADING": "Chargement des catégories…",
-            "SELECTED": "Sélectionnées",
+            "SELECTED": "Total sélectionné",
             "SELECT_ALL": "Tout sélectionner",
             "DESELECT_ALL": "Tout désélectionner",
+            "SELECT_FILTERED": "Sélectionner les résultats",
+            "DESELECT_FILTERED": "Désélectionner les résultats",
             "SEARCH_PLACEHOLDER": "Rechercher des catégories…",
             "NO_RESULTS": "Aucune catégorie correspondante trouvée",
             "NO_CATEGORIES": "Aucune catégorie disponible",

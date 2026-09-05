@@ -16,18 +16,30 @@
                 <button
                     mat-stroked-button
                     (click)="selectAll()"
-                    [disabled]="allSelected()"
+                    [disabled]="
+                        isSaving() ||
+                        filteredCategories().length === 0 ||
+                        allFilteredSelected()
+                    "
                 >
-                    <mat-icon>check_box</mat-icon>
-                    {{ 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL' | translate }}
+                    {{
+                        (searchTerm()
+                            ? 'XTREAM.CATEGORY_MANAGEMENT.SELECT_FILTERED'
+                            : 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL'
+                        ) | translate
+                    }}
                 </button>
                 <button
                     mat-stroked-button
                     (click)="deselectAll()"
-                    [disabled]="selectedCount() === 0"
+                    [disabled]="isSaving() || filteredSelectedCount() === 0"
                 >
-                    <mat-icon>check_box_outline_blank</mat-icon>
-                    {{ 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL' | translate }}
+                    {{
+                        (searchTerm()
+                            ? 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_FILTERED'
+                            : 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL'
+                        ) | translate
+                    }}
                 </button>
             </div>
         </div>
@@ -40,8 +52,7 @@
                 [value]="searchTerm()"
                 (input)="searchTerm.set($any($event.target).value)"
                 [placeholder]="
-                    'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER'
-                        | translate
+                    'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
                 "
             />
             @if (searchTerm()) {
@@ -65,6 +76,7 @@
                 >
                     <mat-checkbox
                         [checked]="category.selected"
+                        [aria-label]="category.name"
                         (click)="$event.stopPropagation()"
                         (change)="toggleCategory(category)"
                     >

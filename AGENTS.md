@@ -166,6 +166,14 @@ agent-browser connect ws://127.0.0.1:9222/devtools/page/<iptvnator-page-id>
 agent-browser screenshot /tmp/iptvnator-cdp.png
 ```
 
+## Xtream Category Management
+
+The Electron Live TV, Movies, and Series category dialog applies Select/Deselect
+to search results while a filter is active and to the whole type otherwise.
+Button states use the matching group; "Total selected" counts the whole catalog.
+Save persists the complete draft, Close discards it, and refresh restores hidden
+categories by provider ID and type. See `docs/architecture/category-management.md`.
+
 ## Portal Connectivity Preference
 
 - Desktop Settings > General > Portal connections exposes default-on

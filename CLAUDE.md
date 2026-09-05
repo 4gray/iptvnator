@@ -761,6 +761,14 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`). Catalog deletes and inserts commit in row-budgeted transactions of ~5,000 rows (`database/operations/catalog-deletion.ts`: per-category row counts → category groups → set-based `DELETE`s scoped to the captured category ids, never playlist-wide, since the worker interleaves requests between commits and a newer import's categories must survive an older refresh; never 100-row autocommit batches, which flush FTS5 segments and re-append index pages to the WAL on every commit, and never one giant transaction, which would starve the main-process and EPG-worker connections past their 5 s `busy_timeout`). Progress events are throttled to one per 100 ms per operation with summed `increment`s (`operation-progress-throttle.ts`); phase starts, totals reached and terminal events are never held back
 - Playlist refresh: `playlist-refresh.worker.ts`; explicit cancellation is main-process-owned and terminates the one-shot worker before acknowledging `PLAYLIST_CANCEL_REFRESH` (see `docs/architecture/m3u-playlist-module.md`)
 
+### Xtream Category Management
+
+The Electron Live TV, Movies, and Series category dialog applies Select/Deselect
+to search results while a filter is active and to the whole type otherwise.
+Button states use the matching group; "Total selected" counts the whole catalog.
+Save persists the complete draft, Close discards it, and refresh restores hidden
+categories by provider ID and type. See `docs/architecture/category-management.md`.
+
 ### Key Features
 
 **Playlist Support**:
