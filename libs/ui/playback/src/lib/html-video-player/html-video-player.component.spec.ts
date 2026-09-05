@@ -1,3 +1,4 @@
+import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-picture.spec-helpers';
 import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -102,6 +103,26 @@ describe('HtmlVideoPlayerComponent', () => {
         ).not.toBeNull();
         expect(adapterAttach).not.toHaveBeenCalled();
     });
+
+    it.each([false, true])(
+        'closes legacy PiP on teardown (late entry: %s)',
+        (lateEntry) => {
+            const environment = new PictureInPictureTestEnvironment();
+            try {
+                const video = component.videoPlayer.nativeElement;
+                environment.installVideo(video);
+                if (!lateEntry) environment.setActive(video);
+
+                fixture.destroy();
+                if (lateEntry) environment.setActive(video);
+
+                expect(environment.exit).toHaveBeenCalledTimes(1);
+                expect(document.pictureInPictureElement).toBeNull();
+            } finally {
+                environment.restore();
+            }
+        }
+    );
 
     it('drives playback keyboard shortcuts against the native video element', () => {
         const video = component.videoPlayer.nativeElement;

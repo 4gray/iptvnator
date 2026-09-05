@@ -100,6 +100,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private readonly seriesNavigationSignal =
         signal<SeriesPlaybackNavigation | null>(null);
     private readonly videoSession = new VjsVideoElementSession({
+        releasePictureInPicture: !this.sharedControls,
         clearPlaybackIssue: () => this.playbackIssue.emit(null),
         emitPlaybackEnded: () => this.playbackEnded.emit(),
     });

@@ -17,6 +17,7 @@ import {
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
+import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
@@ -215,11 +216,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
                 const session = this.getShakaSession();
                 this.bindControlsSource({ kind: 'shaka', session });
-                session.start(
-                    this.videoPlayer.nativeElement,
-                    url,
-                    channel.drm
-                );
+                session.start(this.videoPlayer.nativeElement, url, channel.drm);
                 if (channel.drm && !channel.drm.supported) {
                     // No source is loaded for unsupported DRM; reset the
                     // element so the previous stream cannot resume playing
@@ -359,6 +356,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Destroy hls instance on component destroy and clean up event listener
      */
     ngOnDestroy(): void {
+        if (!this.sharedControls) {
+            releaseVideoPictureInPicture(this.videoPlayer?.nativeElement);
+        }
         this.legacyShortcuts?.detach();
         this.legacyShortcuts = null;
         this.controlsBridge?.destroy();
