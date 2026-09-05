@@ -382,6 +382,9 @@ Key files:
   detail mounted until the next selection resolves, with `activeItem` paired
   to that detail so the session key and recording metadata keep describing
   the stream on screen — only the `activeUid` row highlight moves ahead; a
+  second activation of the row still resolving folds its start-playback or
+  auto-open intent into that request instead of launching the retained
+  stream, and a
   failed replacement restores that highlight and retains the previous video,
   catch-up and session). M3U PageUp/PageDown yield to already-handled events
   and menu/dialog overlay targets even when the menu has no scroll overflow.

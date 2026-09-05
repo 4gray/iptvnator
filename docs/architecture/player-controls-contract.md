@@ -391,6 +391,13 @@ every zap from the panel; only `activeUid`, the row highlight, moves ahead,
 while `activeItem` stays paired with that detail so `playbackSessionKey` and
 the recording/archive metadata derived from it keep describing the stream the
 player is still showing, and both swap together once the new detail is in.
+Because of that split, "the row is on screen" means highlight AND resolved
+item: `activateItem`'s fast path (a double-click's second click launching
+the external player, an auto-open reporting itself handled) requires both,
+or it would launch the retained stream in place of the one still resolving;
+a second activation of the row still resolving instead folds its
+start-playback/auto-open intent into that request (`pendingActivation`), so
+the detail launches when it lands without a second round-trip.
 If replacement resolution fails while a video is retained, its player,
 catch-up override and session remain intact and the row highlight returns to
 that item).

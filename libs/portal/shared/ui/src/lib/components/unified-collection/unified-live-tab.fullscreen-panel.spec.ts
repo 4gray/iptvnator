@@ -218,6 +218,164 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         expect(component.playbackSessionKey()).not.toBe(firstSessionKey);
     });
 
+    it('launches the row a double-click was aimed at, not the retained stream', async () => {
+        // External player, open-on-double-click: the first click on B starts
+        // resolving while A's detail stays mounted, so `activeUid` is B but
+        // `activeDetail` is A's. The double-click's second activation must
+        // neither launch A nor let B resolve without launching.
+        const first = buildM3uLiveItem();
+        const second: UnifiedCollectionItem = {
+            ...first,
+            uid: 'm3u::pl-1::m3u-channel-2',
+            name: 'M3U Live 2',
+            channelId: 'm3u-channel-2',
+            tvgId: 'm3u-channel-2',
+            streamUrl: 'https://example.com/m3u-2.m3u8',
+        };
+        const detailFor = (item: UnifiedCollectionItem) => ({
+            epgMode: 'm3u' as const,
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            channel: {
+                id: item.channelId,
+                name: item.name,
+                url: item.streamUrl,
+                group: { title: 'News' },
+                tvg: {
+                    id: item.tvgId,
+                    name: item.name,
+                    url: '',
+                    logo: '',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [],
+        });
+        let resolveSecond: (
+            detail: ReturnType<typeof detailFor>
+        ) => void = () => undefined;
+        streamResolver.resolveM3uPlaybackDetail
+            .mockResolvedValueOnce(detailFor(first))
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveSecond = resolve;
+                    })
+            );
+        recentData.recordLivePlayback.mockImplementation(
+            async (item: UnifiedCollectionItem) => item
+        );
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+        const settings = TestBed.inject(SettingsStore) as unknown as {
+            openStreamOnDoubleClick: ReturnType<typeof signal<boolean>>;
+        };
+        settings.openStreamOnDoubleClick.set(true);
+
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+
+        const pending = component.onChannelSelected(
+            component.channelsForList()[1]
+        );
+        expect(component.activeUid()).toBe(second.uid);
+        expect(component.activeItem()).toBe(first);
+
+        await component.onChannelPlaybackRequested(
+            component.channelsForList()[1]
+        );
+        // Neither the retained stream nor a second resolution of B.
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(streamResolver.resolveM3uPlaybackDetail).toHaveBeenCalledTimes(
+            2
+        );
+
+        resolveSecond(detailFor(second));
+        await pending;
+        expect(component.activeItem()).toBe(second);
+        expect(portalPlayer.openResolvedPlayback).toHaveBeenCalledTimes(1);
+        expect(portalPlayer.openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({ streamUrl: second.streamUrl })
+        );
+    });
+
+    it('lets a click on the retained row supersede the replacement still resolving', async () => {
+        // A is on screen, B is pending: clicking A again is a new selection
+        // (A is not the highlight), so B's late answer must be dropped.
+        const first = buildM3uLiveItem();
+        const second: UnifiedCollectionItem = {
+            ...first,
+            uid: 'm3u::pl-1::m3u-channel-2',
+            name: 'M3U Live 2',
+            channelId: 'm3u-channel-2',
+            tvgId: 'm3u-channel-2',
+            streamUrl: 'https://example.com/m3u-2.m3u8',
+        };
+        const detailFor = (item: UnifiedCollectionItem) => ({
+            epgMode: 'm3u' as const,
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            channel: {
+                id: item.channelId,
+                name: item.name,
+                url: item.streamUrl,
+                group: { title: 'News' },
+                tvg: {
+                    id: item.tvgId,
+                    name: item.name,
+                    url: '',
+                    logo: '',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [],
+        });
+        let resolveSecond: (
+            detail: ReturnType<typeof detailFor>
+        ) => void = () => undefined;
+        streamResolver.resolveM3uPlaybackDetail
+            .mockResolvedValueOnce(detailFor(first))
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveSecond = resolve;
+                    })
+            )
+            .mockResolvedValueOnce(detailFor(first));
+        recentData.recordLivePlayback.mockImplementation(
+            async (item: UnifiedCollectionItem) => item
+        );
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        const pending = component.onChannelSelected(
+            component.channelsForList()[1]
+        );
+        expect(component.activeUid()).toBe(second.uid);
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        expect(streamResolver.resolveM3uPlaybackDetail).toHaveBeenCalledTimes(
+            3
+        );
+        expect(component.activeUid()).toBe(first.uid);
+
+        resolveSecond(detailFor(second));
+        await pending;
+        expect(component.activeItem()).toBe(first);
+        expect(component.activeUid()).toBe(first.uid);
+    });
+
     it.each([false, true])(
         'keeps a catch-up override through replacement resolution (fails: %s)',
         async (fails) => {

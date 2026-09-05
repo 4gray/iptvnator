@@ -469,6 +469,19 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     );
 
     private selectionRequestId = 0;
+    /**
+     * The selection still resolving. `activeUid` alone cannot tell a pending
+     * highlight from the stream on screen — `activeItem`/`activeDetail` stay
+     * paired with the retained player until the replacement is in — so a
+     * second activation of the same pending row (a double-click's second
+     * click, an auto-open) folds its intent in here rather than restarting
+     * the request or, worse, launching the retained stream in its place.
+     */
+    private pendingActivation: {
+        readonly uid: string;
+        startPlayback: boolean;
+        isAutoOpen: boolean;
+    } | null = null;
 
     constructor() {
         effect(() => {
@@ -516,15 +529,17 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
                 return;
             }
 
-            if (this.activeUid() === matchedItem.uid) {
-                if (this.activeDetail()) {
-                    this.autoOpenHandled.emit();
-                    return;
-                }
-
-                if (this.isSelecting()) {
-                    return;
-                }
+            // Handled only once the row is on screen: while it is merely the
+            // pending highlight, `activeDetail` still belongs to the retained
+            // stream, and `activateItem` folds this intent into the request
+            // in flight instead of restarting it.
+            if (
+                this.activeUid() === matchedItem.uid &&
+                this.activeItem()?.uid === matchedItem.uid &&
+                this.activeDetail()
+            ) {
+                this.autoOpenHandled.emit();
+                return;
             }
 
             void this.activateItem(matchedItem, true);
@@ -749,6 +764,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
 
     onClose(): void {
         this.selectionRequestId += 1;
+        this.pendingActivation = null;
         this.isSelecting.set(false);
         this.activeDetail.set(null);
         this.activeUid.set(null);
@@ -783,7 +799,15 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         startPlayback = false
     ): Promise<void> {
         const activeDetail = this.activeDetail();
-        if (this.activeUid() === item.uid && activeDetail) {
+        // The row is on screen only when it is both the highlight and the
+        // resolved item: while a replacement resolves, `activeUid` already
+        // points at it but `activeDetail` still belongs to the retained
+        // stream, and launching that here would open the wrong channel.
+        if (
+            this.activeUid() === item.uid &&
+            this.activeItem()?.uid === item.uid &&
+            activeDetail
+        ) {
             if (
                 startPlayback &&
                 this.shouldOpenExternalPlayback(activeDetail, true)
@@ -798,7 +822,19 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             return;
         }
 
+        const pending = this.pendingActivation;
+        if (pending?.uid === item.uid && this.isSelecting()) {
+            // The same row is still resolving: fold this activation's intent
+            // into that request so its detail launches (or reports the
+            // auto-open handled) when it lands, without a second round-trip.
+            pending.startPlayback ||= startPlayback;
+            pending.isAutoOpen ||= isAutoOpen;
+            return;
+        }
+
         const requestId = ++this.selectionRequestId;
+        const activation = { uid: item.uid, startPlayback, isAutoOpen };
+        this.pendingActivation = activation;
         // `activeUid` is the pending selection (row highlight). `activeItem`
         // stays paired with `activeDetail`: the previous detail stays mounted
         // while the next one resolves, because the player it renders owns
@@ -852,7 +888,12 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
                 void this.hydrateSelectedM3uPrograms(item, detail, requestId);
             }
 
-            if (this.shouldOpenExternalPlayback(detail, startPlayback)) {
+            if (
+                this.shouldOpenExternalPlayback(
+                    detail,
+                    activation.startPlayback
+                )
+            ) {
                 void this.portalPlayer.openResolvedPlayback(detail.playback);
             }
 
@@ -866,7 +907,10 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
                 // Keep playback/EPG visible even if history persistence fails.
             }
 
-            if (requestId === this.selectionRequestId && isAutoOpen) {
+            if (
+                requestId === this.selectionRequestId &&
+                activation.isAutoOpen
+            ) {
                 this.autoOpenHandled.emit();
             }
         } catch {
@@ -885,6 +929,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             }
         } finally {
             if (requestId === this.selectionRequestId) {
+                this.pendingActivation = null;
                 this.isSelecting.set(false);
             }
         }
