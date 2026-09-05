@@ -8,6 +8,16 @@ import {
 describe('settings form utils — strip country prefix', () => {
     const formBuilder = new FormBuilder();
 
+    it('defaults portal request pauses on and preserves an explicit opt-out', () => {
+        const form = createSettingsForm(new FormBuilder(), true);
+        expect(form.get('portalConnectivityGuard')?.value).toBe(true);
+        form.patchValue({ portalConnectivityGuard: false });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings)
+                .portalConnectivityGuard
+        ).toBe(false);
+    });
+
     it('defaults the form control to false', () => {
         const form = createSettingsForm(formBuilder, true);
 

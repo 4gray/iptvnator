@@ -25,6 +25,9 @@ export const EMBEDDED_MPV_FRAME_COPY = 'EMBEDDED_MPV_FRAME_COPY';
  */
 export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 
+/** Desktop portal request cooldown; absent means enabled. */
+export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
+
 /**
  * Extra libmpv options for embedded sessions, one "key=value" per line, as
  * typed in Settings > Playback. Mirrored here by the SETTINGS_UPDATE handler
@@ -52,6 +55,7 @@ export type StoreType = {
     [EMBEDDED_MPV_EXTRA_OPTIONS]: string;
     [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
+    [PORTAL_CONNECTIVITY_GUARD]: boolean;
 };
 
 // Export singleton store instance

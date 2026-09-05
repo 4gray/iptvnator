@@ -15,11 +15,9 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
 import {
-    DataService,
-    resetHostConnectivityGuard,
-} from '@iptvnator/services';
-import {
+    isHostConnectivityFastFailMessage,
     resolveXtreamPortalStatus,
     type XtreamAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
@@ -67,6 +65,7 @@ export class AccountInfoComponent {
         () => this.data.playlist ?? this.xtreamStore.currentPlaylist()
     );
     readonly loadState = signal<AccountLoadState>('loading');
+    readonly requestsPaused = signal(false);
     readonly accountInfo = signal<XtreamAccountInfo | null>(null);
     readonly skeletonStats = [1, 2, 3, 4];
     readonly skeletonPanels = [1, 2];
@@ -241,6 +240,7 @@ export class AccountInfoComponent {
     }
 
     private async load(): Promise<void> {
+        this.requestsPaused.set(false);
         const playlist = this.currentPlaylist();
 
         if (!playlist?.serverUrl || !playlist.username || !playlist.password) {
@@ -261,6 +261,11 @@ export class AccountInfoComponent {
             this.accountInfo.set(accountInfo);
             this.loadState.set('ready');
         } catch (error) {
+            this.requestsPaused.set(
+                isHostConnectivityFastFailMessage(
+                    error instanceof Error ? error.message : error
+                )
+            );
             this.logger.error('Failed to fetch account info', error);
             this.accountInfo.set(null);
             this.loadState.set('error');

@@ -54,6 +54,25 @@ describe('SettingsStore dashboard rail settings', () => {
         });
     });
 
+    it('defaults portal request pauses on and persists an explicit opt-out', async () => {
+        const store = injector.get(SettingsStore);
+        expect(store.getSettings().portalConnectivityGuard).toBe(true);
+        await store.updateSettings({ portalConnectivityGuard: false });
+        expect(store.getSettings().portalConnectivityGuard).toBe(false);
+    });
+
+    it('restores a portal pause opt-out and keeps it through partial updates', async () => {
+        storedSettings = { portalConnectivityGuard: false };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        await store.updateSettings({ showCaptions: true });
+        expect(store.getSettings().portalConnectivityGuard).toBe(false);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ portalConnectivityGuard: false })
+        );
+    });
+
     it('shares the pending initial settings load across startup waiters', async () => {
         const pendingSettings = new Subject<Partial<Settings> | null>();
         storage.get.mockReturnValue(pendingSettings.asObservable());

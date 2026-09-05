@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "门户连接",
+        "PORTAL_CONNECTIVITY_GUARD": "暂停向不可用门户发送请求",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "连接连续失败后，暂停新的 Xtream 和 Stalker 请求 30 秒。如果门户间歇性不可用，请尝试关闭此选项。保存后生效，无需重启。",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "每个请求将独立执行。服务器不可用时，可能需要更长时间才能显示错误。",
         "TITLE": "设置",
         "GENERAL": "通用",
         "GENERAL_SUBTITLE": "更改应用程序的配置",
@@ -1002,6 +1006,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "请求已暂时暂停",
+            "DESCRIPTION": "连接连续失败后，请求已暂停。立即重试以重新连接门户。",
+            "RETRY": "立即重试"
+        },
         "ALL_CATEGORIES": "所有分类",
         "MY_FAVORITES": "我的收藏",
         "ADD_TO_FAVORITES": "添加到收藏夹",

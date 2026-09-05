@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Połączenia z portalami",
+        "PORTAL_CONNECTIVITY_GUARD": "Wstrzymuj żądania do niedostępnych portali",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Po powtarzających się błędach połączenia wstrzymuj nowe żądania Xtream i Stalker na 30 sekund. Spróbuj wyłączyć, jeśli portal bywa niedostępny. Zmiana działa po zapisaniu, bez ponownego uruchomienia.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Każde żądanie będzie wykonywane niezależnie. Niedostępne serwery mogą zgłaszać błąd z większym opóźnieniem.",
         "TITLE": "Ustawienia",
         "GENERAL": "Ogólne",
         "GENERAL_SUBTITLE": "Zmień konfigurację aplikacji",
@@ -1002,6 +1006,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Żądania tymczasowo wstrzymane",
+            "DESCRIPTION": "Żądania wstrzymano po powtarzających się błędach połączenia. Ponów próbę, aby natychmiast połączyć się z portalem.",
+            "RETRY": "Ponów teraz"
+        },
         "ALL_CATEGORIES": "Wszystkie kategorie",
         "MY_FAVORITES": "Moje ulubione",
         "ADD_TO_FAVORITES": "Dodaj do ulubionych",
