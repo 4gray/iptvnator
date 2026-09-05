@@ -102,6 +102,17 @@ name or passphrase you entered is not correct`. Keep the patch until
 - Electron-specific changes affecting IPC, SQLite, packaged runtime, external players, native file access, or Electron-only routes require Electron E2E coverage where available, or CDP/manual verification with `agent-browser` and the tracing flags documented below.
 - Final task summaries must list tests added or updated, validation commands run with results, and any skipped validation with the reason. For docs-only changes, state that unit/E2E validation was not required and verify the changed Markdown instead.
 
+## Legacy Desktop Profile Migration
+
+`electron-profile-bootstrap.ts` selects the known v0.19 `electron-backend`
+profile before eager main-process imports only when current Chromium storage
+is unused. Existing profiles retain their settings and offer explicit recovery
+of missing sources from a disposable legacy snapshot. Playlist rows and a
+completion receipt commit atomically in the DB worker; original IndexedDB is
+retained, current payload rows are preserved, and completed imports never
+replay deleted sources. Contract and recovery limits:
+`docs/architecture/m3u-playlist-module.md` (Desktop upgrades from legacy profiles).
+
 ## Electron Debugging (CDP)
 
 - Start the Electron development app with: `nx serve electron-backend`
