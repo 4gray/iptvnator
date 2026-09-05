@@ -415,9 +415,13 @@ for (const player of ['mpv', 'vlc']) {
             const isFullscreen = () =>
                 page.evaluate(() => document.fullscreenElement !== null);
             await expect.poll(isFullscreen).toBe(true);
-            await page.keyboard.press('c');
+            await page.getByTestId('fullscreen-channel-panel-hot-zone').hover();
             const panel = page.getByTestId('fullscreen-channel-panel');
             await expect(panel).toHaveAttribute('aria-hidden', 'false');
+            await expect(panel).toHaveCSS(
+                'transform',
+                'matrix(1, 0, 0, 1, 0, 0)'
+            );
             await expect(
                 panel.getByText('Unsupported MKV', { exact: false })
             ).toHaveCount(0);
@@ -441,6 +445,10 @@ for (const player of ['mpv', 'vlc']) {
             );
             await page.mouse.move(1, viewportHeight / 2);
             await expect(panel).toHaveAttribute('aria-hidden', 'false');
+            await expect(panel).toHaveCSS(
+                'transform',
+                'matrix(1, 0, 0, 1, 0, 0)'
+            );
             await nextChannel.click({ button: 'right' });
             const menu = page.getByRole('menu');
             await expect(menu).toBeVisible();
