@@ -144,12 +144,13 @@ Two more rules exist because of specific failure modes:
   evidence, not a trip. Each admitted request receives a guard-wide monotonic
   admission id. A counted failure saves the highest id admitted so far in that
   endpoint's failure record, not just the id of the request that failed. During
-  that streak, only a request
-  admitted beyond this boundary can add another failure. This distinguishes
+  that streak, only a request admitted beyond this boundary can add another
+  failure. This distinguishes
   siblings from later attempts even if admission and completion all happen in
   the same millisecond (#1438), regardless of completion order. Admission ids
-  are never reused when an endpoint's state is evicted, so old in-flight
-  siblings cannot become fresh evidence against a recreated record. Timestamps
+  are never reused when an endpoint's state is evicted. A recreated record has
+  no failure streak, so the first old in-flight failure can still count once;
+  its remaining siblings cannot add further links to that streak. Timestamps
   still determine streak expiry, cooldown and trial timeout. Only a failure that
   was actually counted may trip the threshold: a sibling settling after the open
   window elapsed would otherwise start a fresh one off the existing count and
