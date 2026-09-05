@@ -25,6 +25,7 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type Channel,
+    type EmbeddedMpvSupport,
     type RecordingStartMetadata,
     type RecordingStoppedEvent,
     type ResolvedPortalPlayback,
@@ -66,7 +67,7 @@ import {
 
 /** What the view needs from a rendered Embedded MPV player: its engine. */
 interface EmbeddedMpvEngineReporter {
-    readonly isFrameCopyEngine: Signal<boolean>;
+    readonly support: Signal<EmbeddedMpvSupport | null>;
 }
 
 function resolveWebPlayerSharedControls(): boolean {
@@ -118,11 +119,27 @@ export class WebPlayerViewComponent implements OnDestroy {
      * MPV's native-view engine paints a platform view above the page, where
      * no DOM layer can show, so the panel exists only while the rendered
      * engine is a web player or Embedded MPV's frame-copy canvas. Fails
-     * closed while the MPV component has not reported its engine yet.
+     * closed until frame-copy has been confirmed. Retain that confirmation
+     * while a replacement component probes support, so channel changes do
+     * not reset the panel. A confirmed native/unsupported result revokes it.
      */
-    readonly channelPanelAvailable = computed(() => {
-        const embeddedMpv = this.embeddedMpvPlayer();
-        return embeddedMpv === undefined || embeddedMpv.isFrameCopyEngine();
+    readonly channelPanelAvailable = linkedSignal<
+        { embedded: boolean; support: EmbeddedMpvSupport | null },
+        boolean
+    >({
+        source: () => ({
+            embedded: this.renderedApplications().some(
+                (application) => application.embeddedMpv
+            ),
+            support: this.embeddedMpvPlayer()?.support() ?? null,
+        }),
+        computation: ({ embedded, support }, previous) => {
+            if (!embedded) return true;
+            if (support === null) {
+                return previous?.source.embedded ? previous.value : false;
+            }
+            return support.supported && support.engine === 'frame-copy';
+        },
     });
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);

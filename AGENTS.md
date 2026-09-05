@@ -317,6 +317,9 @@ Key files:
   receives as `fullscreenTarget` — so it lives inside the fullscreen element
   and survives the engine remount a channel switch causes. It is withheld
   (`enabled=false`) for native-view Embedded MPV, which paints above the DOM.
+  A confirmed frame-copy capability survives the unknown support probe during
+  an engine remount, preserving panel search/scroll on channel changes; the
+  first unknown probe and confirmed native/unsupported results withhold it.
   A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
   `panelTitle`) and the panel slides that list over the video: left-edge hover
   dwell, a touch tap on that edge, or `C`. Nothing is drawn while it is closed

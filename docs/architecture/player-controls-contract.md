@@ -395,7 +395,11 @@ view's `enabled` input holds — `WebPlayerViewComponent` withholds the panel
 while the rendered engine is native-view Embedded MPV, which paints a platform
 view above the page where no DOM layer can show (frame-copy and the web
 players qualify; the gate fails closed until the MPV component reports its
-engine). Nothing is drawn over the video while the panel is closed — there is
+engine on first entry; a confirmed frame-copy capability survives an unknown
+probe during an MPV application remount, preserving the open panel and its
+search/scroll state. A confirmed native/unsupported result revokes it, and
+switching to a web engine clears the remembered MPV capability). Nothing is
+drawn over the video while the panel is closed — there is
 no handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
 left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
 is ignored. The zone stops above the controls bar (`bottom: max(25%, 140px)`)

@@ -15,6 +15,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
     VideoPlayer,
+    type EmbeddedMpvSupport,
     type RecordingStartMetadata,
     type RecordingStoppedEvent,
 } from '@iptvnator/shared/interfaces';
@@ -112,7 +113,7 @@ class StubArtPlayerComponent {
 })
 class StubEmbeddedMpvPlayerComponent {
     /** Read by the view's channel-panel gate (`EmbeddedMpvEngineReporter`). */
-    readonly isFrameCopyEngine = signal(false);
+    readonly support = signal<EmbeddedMpvSupport | null>(null);
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);

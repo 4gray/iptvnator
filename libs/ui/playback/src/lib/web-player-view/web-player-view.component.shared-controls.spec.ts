@@ -146,10 +146,54 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
             // can show over the video, so the panel is withheld.
             expect(panel().enabled()).toBe(false);
 
-            player.isFrameCopyEngine.set(true);
+            player.support.set({
+                supported: true,
+                platform: 'darwin',
+                engine: 'frame-copy',
+            });
             fixture.detectChanges();
             expect(panel().enabled()).toBe(true);
         });
+
+        it.each(['frame-copy', 'native', 'unsupported'] as const)(
+            'retains frame-copy availability during remount then applies confirmed %s support',
+            async (outcome) => {
+                fixture.componentRef.setInput(
+                    'playerOverride',
+                    VideoPlayer.EmbeddedMpv
+                );
+                fixture.detectChanges();
+                const embeddedPlayer = () =>
+                    fixture.debugElement.query(
+                        By.directive(StubEmbeddedMpvPlayerComponent)
+                    ).componentInstance as StubEmbeddedMpvPlayerComponent;
+                const first = embeddedPlayer();
+                first.support.set({
+                    supported: true,
+                    platform: 'darwin',
+                    engine: 'frame-copy',
+                });
+                fixture.detectChanges();
+                expect(panel().enabled()).toBe(true);
+
+                setPlayback({}, 'https://example.com/next-channel.m3u8');
+                fixture.detectChanges();
+                await fixture.whenStable();
+                fixture.detectChanges();
+                const remounted = embeddedPlayer();
+                expect(remounted).not.toBe(first);
+                expect(remounted.support()).toBeNull();
+                expect(panel().enabled()).toBe(true);
+
+                remounted.support.set({
+                    supported: outcome !== 'unsupported',
+                    platform: 'darwin',
+                    engine: outcome === 'frame-copy' ? 'frame-copy' : 'native',
+                });
+                fixture.detectChanges();
+                expect(panel().enabled()).toBe(outcome === 'frame-copy');
+            }
+        );
     });
 
     it('snapshots the shared controls setting for each player host', () => {
