@@ -1,113 +1,141 @@
 ---
-import { PLATFORM_ICON_PATHS, PLATFORM_LABELS, PLATFORM_PAGES } from '../lib/platforms';
-import type { DownloadPlatform } from '../lib/platforms';
+import type { ResolvedRelease } from '../lib/downloads';
+import { formatReleaseDate, resolveDownloads } from '../lib/downloads';
+import { DOWNLOAD_PLATFORMS, PLATFORM_ICON_PATHS, PLATFORM_LABELS, PLATFORM_PAGES } from '../lib/platforms';
 
-const platformOrder: DownloadPlatform[] = ['macos', 'windows', 'linux'];
-const platforms = platformOrder.map((platform) => ({
-  name: PLATFORM_LABELS[platform],
-  icon: PLATFORM_ICON_PATHS[platform],
-  href: PLATFORM_PAGES[platform],
-}));
+interface Props {
+  release: ResolvedRelease;
+}
+
+const { release } = Astro.props;
+const releaseDate = formatReleaseDate(release.publishedAt);
+
+/**
+ * One row per platform, like the settings pages inside the app. The row lists
+ * the files the release actually carries and sends the visitor to the
+ * platform page, which has the direct links plus install and first-run notes.
+ */
+const rows = DOWNLOAD_PLATFORMS.map((platform) => {
+  const downloads = resolveDownloads(release, platform);
+  const shown = [...downloads.filter((d) => d.recommended), ...downloads.filter((d) => !d.recommended)].slice(0, 2);
+  return {
+    platform,
+    label: PLATFORM_LABELS[platform],
+    icon: PLATFORM_ICON_PATHS[platform],
+    href: PLATFORM_PAGES[platform],
+    files: shown.map((d) => ({ name: d.fileName, detail: d.detail })),
+    more: Math.max(downloads.length - shown.length, 0),
+  };
+});
 
 const packageManagers = [
   { label: 'Homebrew', command: 'brew install --cask iptvnator' },
   { label: 'Snap', command: 'sudo snap install iptvnator' },
+  { label: 'AUR', command: 'yay -S iptvnator-bin' },
 ];
 ---
 
-<section id="download" class="relative overflow-hidden py-28">
-  <hr class="section-divider mb-28" />
-
-  <!-- Ambient glow -->
-  <div class="pointer-events-none absolute bottom-0 left-1/2 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-accent-500/[0.04] blur-[100px]"></div>
-
+<section id="download" class="relative py-24 sm:py-28">
   <div class="relative mx-auto max-w-6xl px-6">
-    <!-- Centered editorial header -->
-    <div class="mx-auto max-w-lg text-center">
-      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
-        Get started
-      </span>
-      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-        Get IPTVnator
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <h2 class="font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+        Get IPTVnator {release.version}
       </h2>
-      <p class="mt-4 text-lg text-surface-400">
-        Download for your platform or use it directly in the browser.
+      <p class="text-base text-surface-400 sm:text-right">
+        {releaseDate && <span>Released {releaseDate} · </span>}
+        <a href={release.url} class="text-accent-400 transition-colors hover:text-accent-300" rel="noopener">Release notes</a>
       </p>
     </div>
 
-    <!-- Platform buttons -->
-    <div class="mt-14 flex flex-wrap justify-center gap-4">
-      {
-        platforms.map((platform) => (
-          <a
-            href={platform.href}
-            class="card-panel group flex items-center gap-4 px-8 py-5"
-          >
-            <svg class="h-7 w-7 text-surface-500 transition-colors duration-200 group-hover:text-accent-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d={platform.icon} />
-            </svg>
-            <div class="text-left">
-              <div class="font-mono text-[10px] uppercase tracking-[0.15em] text-surface-500">Download for</div>
-              <div class="mt-0.5 font-semibold text-surface-100">{platform.name}</div>
-            </div>
-          </a>
-        ))
-      }
-    </div>
-
-    <!-- Package managers -->
-    <div class="mx-auto mt-10 max-w-xl space-y-3">
-      {
-        packageManagers.map((pm) => (
-          <div class="flex items-center gap-4 rounded-lg border border-surface-700/60 bg-surface-900/50 px-5 py-3.5">
-            <span class="w-20 shrink-0 font-mono text-[10px] font-medium uppercase tracking-[0.15em] text-surface-500">
-              {pm.label}
-            </span>
-            <code class="flex-1 font-mono text-sm text-accent-400/80">
-              {pm.command}
-            </code>
-            <button
-              class="copy-btn shrink-0 rounded-md p-1.5 text-surface-600 transition-colors hover:text-surface-300"
-              data-command={pm.command}
-              aria-label={`Copy ${pm.label} command`}
+    <div class="mt-12 grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]" data-download-panel>
+      <!-- Platform rows -->
+      <div class="overflow-hidden rounded-xl border border-surface-800 bg-surface-900/40">
+        {
+          rows.map((row) => (
+            <div
+              class="grid gap-4 border-t border-surface-800 p-5 first:border-t-0 transition-colors duration-300 sm:grid-cols-[9.5rem_minmax(0,1fr)_auto] sm:items-center"
+              data-platform-row={row.platform}
             >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-              </svg>
-            </button>
-          </div>
-        ))
-      }
-    </div>
+              <div class="flex items-center gap-2.5 font-display text-base font-semibold text-surface-50">
+                <svg class="h-[18px] w-[18px] shrink-0 text-surface-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d={row.icon} />
+                </svg>
+                {row.label}
+                <span class="hidden font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-accent-400" data-detected-badge>
+                  Detected
+                </span>
+              </div>
+              <ul class="min-w-0 font-mono text-xs leading-relaxed text-surface-400">
+                {row.files.map((file) => (
+                  <li class="truncate" title={file.detail}>
+                    {file.name}
+                  </li>
+                ))}
+                {row.more > 0 && <li class="text-surface-600">+ {row.more} more on the {row.label} page</li>}
+              </ul>
+              <a
+                href={row.href}
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-surface-700 px-4 py-2.5 text-sm font-semibold text-surface-100 transition-colors duration-200 hover:border-surface-500 hover:bg-surface-900"
+                data-platform-link
+              >
+                Download for {row.label}
+              </a>
+            </div>
+          ))
+        }
+      </div>
 
-    <!-- Self-hosted web app link -->
-    <div class="mt-10 text-center">
-      <p class="text-sm text-surface-500">
-        Prefer the browser version?{' '}
-        <a
-          href="/iptvnator/download/docker/"
-          class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300 hover:decoration-accent-400/50"
-        >
-          Self-host it with Docker
-        </a>
-      </p>
+      <!-- Package managers -->
+      <div class="flex flex-col rounded-xl border border-surface-800 bg-surface-900/40">
+        {
+          packageManagers.map((pm) => (
+            <div class="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 border-t border-surface-800 px-5 py-4 first:border-t-0">
+              <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">{pm.label}</span>
+              <code class="min-w-0 font-mono text-[13px] text-surface-100">{pm.command}</code>
+              <button
+                type="button"
+                class="copy-btn rounded-md border border-surface-700 px-2.5 py-1 font-mono text-[11px] text-surface-400 transition-colors hover:border-surface-500 hover:text-surface-100"
+                data-command={pm.command}
+                aria-label={`Copy ${pm.label} command`}
+              >
+                Copy
+              </button>
+            </div>
+          ))
+        }
+        <p class="mt-auto border-t border-surface-800 px-5 py-4 text-sm leading-relaxed text-surface-400">
+          Prefer the browser? <a href="/iptvnator/download/docker/" class="text-accent-400 transition-colors hover:text-accent-300">Self-host the web app</a> and open it as a PWA on any device.
+        </p>
+      </div>
     </div>
   </div>
 </section>
 
 <script>
-  document.querySelectorAll('.copy-btn').forEach((btn) => {
+  import { detectPlatform } from '../lib/detect-platform';
+
+  const platform = detectPlatform();
+  if (platform) {
+    const row = document.querySelector<HTMLElement>(`[data-platform-row="${platform}"]`);
+    row?.classList.add('bg-surface-850/60');
+    row?.querySelector('[data-detected-badge]')?.classList.remove('hidden');
+    const link = row?.querySelector('[data-platform-link]');
+    link?.classList.remove('border-surface-700', 'text-surface-100', 'hover:border-surface-500', 'hover:bg-surface-900');
+    link?.classList.add('border-transparent', 'bg-accent-500', 'text-surface-950', 'hover:bg-accent-400');
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const command = (btn as HTMLElement).dataset.command;
-      if (command) {
+      const command = btn.dataset.command;
+      if (!command) return;
+      try {
         await navigator.clipboard.writeText(command);
-        const svg = btn.querySelector('svg');
-        if (svg) {
-          svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />';
-          setTimeout(() => {
-            svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />';
-          }, 1500);
-        }
+        btn.textContent = 'Copied';
+        window.setTimeout(() => {
+          btn.textContent = 'Copy';
+        }, 1500);
+      } catch {
+        // Clipboard access can be denied; the command stays selectable as text.
       }
     });
   });

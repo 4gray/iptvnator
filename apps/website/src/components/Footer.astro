@@ -1,5 +1,6 @@
 ---
-import footerWatermark from '../assets/footer-watermark.png';
+import { Image } from 'astro:assets';
+import mascotImg from '../assets/illustrations/iptvnator-1-mascot.png';
 
 const socialLinks = [
   {
@@ -23,92 +24,73 @@ const socialLinks = [
     icon: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
   },
 ];
+
+const footerLinks = [
+  { label: 'Features', href: '/iptvnator/features/' },
+  { label: 'Compare', href: '/iptvnator/compare/' },
+  { label: 'Download', href: '/iptvnator/download/' },
+  { label: 'Blog', href: '/iptvnator/blog/' },
+  { label: 'Unofficial sites', href: '/iptvnator/blog/beware-unofficial-iptvnator-websites/' },
+];
 ---
 
-<footer class="relative overflow-hidden border-t border-surface-700/60">
-  <div class="pointer-events-none absolute inset-0">
-    <div class="absolute -bottom-32 -right-16 h-[28rem] w-[28rem] rounded-full bg-accent-500/[0.07] blur-3xl"></div>
-    <div class="absolute -bottom-24 right-2 h-[23rem] w-[23rem]">
-      <img
-        src={footerWatermark.src}
-        alt=""
-        aria-hidden="true"
-        class="footer-watermark h-full w-full object-contain opacity-[0.075] grayscale"
-        loading="lazy"
-      />
-    </div>
+<footer class="relative overflow-hidden border-t border-surface-800">
+  <!-- The mascot lives here now: a sign-off, not a hero competitor -->
+  <div class="pointer-events-none absolute -bottom-6 right-0 hidden w-64 opacity-70 md:block lg:w-72" aria-hidden="true">
+    <Image src={mascotImg} alt="" width={520} class="h-auto w-full object-contain" loading="lazy" />
   </div>
 
   <div class="relative z-10 mx-auto max-w-6xl px-6 py-16">
-    <div class="flex flex-col items-center gap-10 md:flex-row md:justify-between">
-      <!-- Logo & description -->
-      <div class="text-center md:text-left">
-        <div class="flex items-center justify-center gap-2.5 md:justify-start">
-          <img
-            src="/iptvnator/favicon-256x256.png"
-            alt="IPTVnator logo"
-            class="h-6 w-6"
-          />
+    <div class="grid gap-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] md:pr-72">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <img src="/iptvnator/favicon-256x256.png" alt="IPTVnator logo" class="h-6 w-6" />
           <span class="font-display text-lg font-semibold text-surface-100">IPTVnator</span>
         </div>
-        <p class="mt-2 text-sm text-surface-500">
-          Open-source IPTV player for everyone.
+        <p class="mt-4 max-w-md text-sm leading-relaxed text-surface-400">
+          IPTVnator is a media player. It does not provide, host or sell any media, playlists, channels or EPG
+          data; channel names, logos and titles in screenshots are demo content. You are responsible for the
+          sources you use and for complying with local laws and rights.
         </p>
+        <div class="mt-5 flex items-center gap-1">
+          {
+            socialLinks.map((link) => (
+              <a
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded-lg p-2.5 text-surface-500 transition-colors duration-200 hover:bg-surface-900 hover:text-surface-100"
+                aria-label={link.label}
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d={link.icon} />
+                </svg>
+              </a>
+            ))
+          }
+        </div>
       </div>
 
-      <!-- Social links -->
-      <div class="flex items-center gap-2">
-        {
-          socialLinks.map((link) => (
-            <a
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="rounded-lg border border-transparent p-2.5 text-surface-600 transition-all duration-200 hover:border-surface-700/60 hover:text-accent-400"
-              aria-label={link.label}
-            >
-              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d={link.icon} />
-              </svg>
-            </a>
-          ))
-        }
-      </div>
+      <nav aria-label="Footer">
+        <ul class="grid gap-2 text-sm">
+          {
+            footerLinks.map((link) => (
+              <li>
+                <a href={link.href} class="text-surface-400 transition-colors duration-200 hover:text-surface-100">
+                  {link.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
     </div>
 
-    <div class="mt-10 flex flex-col items-center justify-between gap-4 border-t border-surface-700/60 pt-8 md:flex-row">
-      <p class="font-mono text-[11px] text-surface-600">
-        MIT License. Built with <a href="https://astro.build" class="text-surface-500 transition-colors hover:text-accent-400">Astro</a>.
+    <div class="mt-12 flex flex-col gap-2 border-t border-surface-800 pt-6 font-mono text-[11px] text-surface-500 sm:flex-row sm:justify-between md:pr-72">
+      <p>
+        MIT License · Built with <a href="https://astro.build" class="transition-colors hover:text-surface-200">Astro</a>.
       </p>
-      <p class="font-mono text-[11px] text-surface-600">
-        IPTVnator does not provide any playlists or content.
-      </p>
+      <p>Hosted on GitHub Pages.</p>
     </div>
   </div>
 </footer>
-
-<style>
-  .footer-watermark {
-    transform: rotate(-14deg) scale(1.06);
-    filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
-    mix-blend-mode: screen;
-    animation: footerMarkFloat 11s ease-in-out infinite;
-  }
-
-  @keyframes footerMarkFloat {
-    0%, 100% {
-      transform: rotate(-14deg) translate3d(0, 0, 0) scale(1.06);
-      opacity: 0.065;
-    }
-    50% {
-      transform: rotate(-11deg) translate3d(-12px, -10px, 0) scale(1.1);
-      opacity: 0.09;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .footer-watermark {
-      animation: none;
-    }
-  }
-</style>

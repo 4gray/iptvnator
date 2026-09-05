@@ -64,9 +64,11 @@ resolved version.
 canonicals, direct asset links, JSON-LD, cross-links and sitemap entries
 without depending on a specific version.
 
-`tools/testing/website-screenshot-showcase.test.mjs` drives the built site in
-a real browser: the home page channel switcher (autoplay, hover/focus pausing,
-keyboard navigation, deferred frame sources). It relies on
+Two of the suites drive the built site in a real browser:
+`tools/testing/website-screenshot-showcase.test.mjs` (the home page channel
+switcher: autoplay, hover/focus pausing, keyboard navigation, deferred frame
+sources) and `tools/testing/website-home-sections.test.mjs` (the hero and
+download panel following the visitor's OS, the copy buttons). They share
 `tools/testing/website-browser-support.mjs`, which serves `dist/apps/website`
 on a loopback port and launches Chromium from the Playwright download or,
 failing that, the system Chrome/Chromium channel. Without any Chromium the
