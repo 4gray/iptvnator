@@ -311,7 +311,9 @@ Key files:
   since `app-audio-player` replaces the fullscreen-owning
   `app-web-player-view`), Xtream `LiveStreamLayoutComponent`,
   `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; the
-  panel's search results are windowed by `PanelSearchWindow`), and
+  panel's search results are windowed by `PanelSearchWindow`, and on a paged
+  portal the panel copy keeps requesting pages while its matches do not fill
+  it), and
   `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
   detail mounted until the next selection resolves, with `activeItem` paired
   to that detail so the session key and recording metadata keep describing

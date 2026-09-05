@@ -73,6 +73,38 @@ describe('PanelSearchWindow', () => {
         window.loadMore();
         expect(window.rows('tv', source)).toHaveLength(100);
     });
+
+    it('starts over when the user backspaces to a term grown earlier', () => {
+        // The window belongs to one run of edits: refining "tv" to "tvx" and
+        // deleting the x again must not remount the 200 rows "tv" had grown
+        // to, which would defeat the guard the window exists for.
+        window.rows('tv', source);
+        window.loadMore();
+        expect(window.rows('tv', source)).toHaveLength(200);
+
+        expect(window.rows('tvx', source)).toHaveLength(0);
+        expect(window.rows('tv', source)).toHaveLength(100);
+        expect(window.hasMore()).toBe(true);
+    });
+
+    it('starts over when the search is cleared and the term typed again', () => {
+        window.rows('tv', source);
+        window.loadMore();
+        window.clear();
+
+        expect(window.rows('tv', source)).toHaveLength(100);
+    });
+
+    it('keeps the grown window when the source refreshes under the same term', () => {
+        // A paged portal appends a page: the matches the user scrolled
+        // through must stay on screen, with the new ones behind them.
+        window.rows('tv', source);
+        window.loadMore();
+
+        const refreshed = [...source, ...rows(30, 'More TV')];
+        expect(window.rows('tv', refreshed)).toHaveLength(200);
+        expect(window.hasMore()).toBe(true);
+    });
 });
 
 describe('resolvePanelSearchScroll', () => {

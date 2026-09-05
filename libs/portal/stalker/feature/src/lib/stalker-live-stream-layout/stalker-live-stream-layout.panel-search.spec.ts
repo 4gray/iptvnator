@@ -1,0 +1,169 @@
+import { signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateModule } from '@ngx-translate/core';
+import { of } from 'rxjs';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import {
+    LiveLayoutSidebarStateService,
+    PORTAL_PLAYER,
+} from '@iptvnator/portal/shared/util';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
+import { ElectronStreamHeadersService } from '@iptvnator/ui/playback';
+import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
+
+const FILL_CHECK_DELAY_MS = 100;
+
+/**
+ * Focused spec for the fullscreen panel's search on a paged portal — kept
+ * separate from the main layout spec, which sits at the max-lines budget.
+ */
+describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
+    let fixture: ComponentFixture<StalkerLiveStreamLayoutComponent>;
+    let component: StalkerLiveStreamLayoutComponent;
+    const channels = [
+        {
+            id: 'channel-one',
+            cmd: 'ffrt4://itv/channel-one',
+            name: 'One',
+            o_name: 'One',
+            logo: 'one.png',
+        },
+        {
+            id: 'channel-two',
+            cmd: 'ffrt4://itv/channel-two',
+            name: 'Two',
+            o_name: 'Two',
+            logo: 'two.png',
+        },
+    ];
+    const hasMoreChannels = signal(false);
+    const page = signal(0);
+    const store = {
+        getSelectedCategoryName: signal('All'),
+        currentPlaylist: signal({ _id: 'playlist-one', title: 'Portal One' }),
+        selectedContentType: signal<'itv' | 'radio'>('itv'),
+        selectedCategoryId: signal<string | null>('all'),
+        selectedItvId: signal<string | undefined>(undefined),
+        selectedItem: signal(null),
+        itvChannels: signal(channels),
+        radioChannels: signal([]),
+        searchPhrase: signal(''),
+        hasMoreChannels,
+        page,
+        // A legacy paged portal: no full-list cache to search in memory.
+        itvFullListActive: signal(false),
+        itvSelectedCategoryFromCache: signal(false),
+        itvFullListLoading: signal(false),
+        itvFullListProgress: signal(null),
+        itvFullChannelList: signal([]),
+        isPaginatedContentLoading: signal(false),
+        selectedItvEpgPrograms: signal([]),
+        bulkItvEpgByChannel: signal({}),
+        isLoadingBulkItvEpg: signal(false),
+        setItvChannels: jest.fn(),
+        setRadioChannels: jest.fn(),
+        setPage: jest.fn(),
+        preloadItvChannels: jest.fn(),
+        applyMappedItvEpg: jest.fn(),
+        clearBulkItvEpgCache: jest.fn(),
+        ensureBulkItvEpg: jest.fn(),
+        fetchChannelEpg: jest.fn(),
+        resolveItvPlayback: jest.fn(),
+        resolveRadioPlayback: jest.fn(),
+        addToFavorites: jest.fn(),
+        removeFromFavorites: jest.fn(),
+        setSelectedItem: jest.fn(),
+    };
+
+    const settle = () =>
+        new Promise((resolve) => setTimeout(resolve, FILL_CHECK_DELAY_MS + 20));
+
+    beforeEach(async () => {
+        hasMoreChannels.set(false);
+        page.set(0);
+        store.setPage.mockClear();
+        await TestBed.configureTestingModule({
+            imports: [
+                TranslateModule.forRoot(),
+                StalkerLiveStreamLayoutComponent,
+            ],
+            providers: [
+                { provide: StalkerStore, useValue: store },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        supportsEpg: false,
+                        isElectron: false,
+                        supportsEpgMapping: false,
+                    },
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: { getPortalFavorites: () => of([]) },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        openStreamOnDoubleClick: signal(false),
+                        resolvedEpgOffsetMinutes: signal(0),
+                    },
+                },
+                {
+                    provide: PORTAL_PLAYER,
+                    useValue: {
+                        isEmbeddedPlayer: () => true,
+                        openResolvedPlayback: jest.fn(),
+                    },
+                },
+                {
+                    provide: ElectronStreamHeadersService,
+                    useValue: { apply: jest.fn(), clear: jest.fn() },
+                },
+                {
+                    provide: LiveLayoutSidebarStateService,
+                    useValue: { isCollapsed: signal(false), toggle: jest.fn() },
+                },
+                { provide: EpgRuntimeBridgeService, useValue: {} },
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        // Let the initial fill check (no more pages yet) come and go.
+        await settle();
+        store.setPage.mockClear();
+    });
+
+    afterEach(() => fixture.destroy());
+
+    it('keeps requesting pages while an empty panel search cannot scroll', async () => {
+        // A term with no match on the loaded page renders nothing the user
+        // could scroll, yet later pages may hold the channel — so the empty
+        // result itself must reach provider pagination.
+        hasMoreChannels.set(true);
+
+        expect(component.channelsForList(signal('zzz-nomatch'))).toEqual([]);
+        await settle();
+
+        expect(store.setPage).toHaveBeenCalledWith(1);
+    });
+
+    it('stops at the last page', async () => {
+        hasMoreChannels.set(false);
+
+        expect(component.channelsForList(signal('zzz-nomatch'))).toEqual([]);
+        await settle();
+
+        expect(store.setPage).not.toHaveBeenCalled();
+    });
+});

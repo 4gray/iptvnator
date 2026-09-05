@@ -1031,6 +1031,13 @@ export class StalkerLiveStreamLayoutComponent
             return this.visibleChannels();
         }
 
+        // A new term renders a fresh result the user cannot have scrolled yet;
+        // once it is on screen, a result too short to overflow must still
+        // reach provider pagination (see checkIfNeedsMoreContent). Scheduled,
+        // not run here: this is called from the template.
+        if (term !== this.panelSearch.activeTerm()) {
+            setTimeout(() => this.checkIfNeedsMoreContent(), 100);
+        }
         return this.panelSearch.rows(term, this.searchableChannels());
     }
 
@@ -1424,25 +1431,9 @@ export class StalkerLiveStreamLayoutComponent
                     scrollHeight - scrollTop - clientHeight <= scrollThreshold
                 );
             };
-            // The fullscreen panel's copy, while searching with its own term,
-            // scrolls through its own windowed matches, not the sidebar's rows.
-            const isPanelSearch = () =>
-                container.closest('.fullscreen-channel-list') !== null &&
-                this.panelSearch.activeTerm() !== '';
             const onScroll = () => {
                 this.scheduleEpgPreviewRefresh();
-                const action = resolvePanelSearchScroll({
-                    isPanelSearch: isPanelSearch(),
-                    isNearEnd: isNearEnd(),
-                    panelHasMore: this.panelSearch.hasMore(),
-                });
-                if (action === 'idle') return;
-                if (action === 'grow-window') {
-                    this.panelSearch.loadMore();
-                    return;
-                }
-                if (this.isLoadingMore() || !this.hasMoreItems()) return;
-                this.loadMore();
+                this.driveStampedList(container, isNearEnd());
             };
 
             container.addEventListener('scroll', onScroll, {
@@ -1453,15 +1444,47 @@ export class StalkerLiveStreamLayoutComponent
         this.scrollListener = () => cleanups.forEach((cleanup) => cleanup());
     }
 
+    /**
+     * A stamped list that does not overflow can never scroll, so it is
+     * driven as if scrolled to its end: the sidebar fills a tall viewport
+     * this way, and the fullscreen panel's copy keeps paging a paged portal
+     * while its search matches do not fill it — an empty or short result
+     * says nothing about the pages never fetched.
+     */
     private checkIfNeedsMoreContent() {
-        const container = this.scrollContainers()[0]?.nativeElement;
-        if (!container) return;
-        if (this.isLoadingMore() || !this.hasMoreItems()) return;
-
-        const { scrollHeight, clientHeight } = container;
-        if (scrollHeight <= clientHeight) {
-            this.loadMore();
+        for (const ref of this.scrollContainers()) {
+            const container = ref.nativeElement as HTMLElement | undefined;
+            if (!container) continue;
+            const { scrollHeight, clientHeight } = container;
+            this.driveStampedList(container, scrollHeight <= clientHeight);
         }
+    }
+
+    /**
+     * One stamped list reached (or cannot reach) its end. The fullscreen
+     * panel's copy, while searching with its own term, scrolls through its
+     * own windowed matches, not the sidebar's rows: it grows that window
+     * first and only pages the portal once the window covers every loaded
+     * match — and never in full-list mode, where its search already sees
+     * the whole catalog and a page would only widen the sidebar's window.
+     */
+    private driveStampedList(container: HTMLElement, nearEnd: boolean) {
+        const isPanelSearch =
+            container.closest('.fullscreen-channel-list') !== null &&
+            this.panelSearch.activeTerm() !== '';
+        const action = resolvePanelSearchScroll({
+            isPanelSearch,
+            isNearEnd: nearEnd,
+            panelHasMore: this.panelSearch.hasMore(),
+        });
+        if (action === 'idle') return;
+        if (action === 'grow-window') {
+            this.panelSearch.loadMore();
+            return;
+        }
+        if (isPanelSearch && this.isCategoryFromCache()) return;
+        if (this.isLoadingMore() || !this.hasMoreItems()) return;
+        this.loadMore();
     }
 
     private removeScrollListener() {

@@ -349,7 +349,11 @@ term; every copy carries the `#scrollContainer` that drives infinite scroll,
 and the panel's own search results go through `PanelSearchWindow`, memoized
 per term and cut to the same 100-row window the sidebar uses — grown by the
 panel copy's scroll — because in full-list mode a broad term matches most of
-a multi-thousand-channel portal and the list has no virtual scroll),
+a multi-thousand-channel portal and the list has no virtual scroll; on a paged
+portal the panel copy also keeps requesting pages while its matches do not
+fill it — an empty or short result cannot scroll, and the term may match
+channels on pages never fetched — while in full-list mode it never pages,
+since its search already sees the whole catalog),
 and `UnifiedLiveTabComponent` (global favorites/recent; its `activateItem`
 keeps the previous detail — and with it the mounted player that owns
 fullscreen — until the next selection has resolved, because unmounting the
@@ -373,8 +377,8 @@ not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
 zone opens the panel at once: the handler is bound to `pointerup`, not
 `pointerdown`, so the hot zone is still the tap's click target and the click
 that follows dies on it instead of reaching the video. It closes when the
-mouse leaves the panel for 420ms, on the close button (tooltip names the `C`
-shortcut), on Escape, on the host's `close`, or through a transparent scrim
+mouse leaves the panel for 420ms, on the close button (tooltip names Escape),
+on Escape, on the host's `close`, or through a transparent scrim
 over the video that swallows the click so the player's click-to-pause never
 sees it. A CDK overlay the list opens (sort menu, row context menu) renders in
 the fullscreen overlay container outside the `<aside>`, so it counts as part
@@ -396,7 +400,11 @@ that class, the panel's translucent gradient is declared on the compound
 that the panel painted no background at all.
 Keyboard: `C` is ignored while any editable element has focus and while the
 player sits inside an `inert` region; the search field is an ordinary input,
-so the controls' Space/K/F/M shortcuts stay out of it.
+so the controls' Space/K/F/M shortcuts stay out of it. That is also why `C` is
+an open shortcut, not a close one: opening with `C` focuses the search field,
+where the next `C` is a typed character, so the close shortcut the button
+advertises is Escape, which closes from the field too (unless a modal overlay
+owns it).
 
 CDK overlays render inside the fullscreen element because the app registers
 `FullscreenOverlayContainer` as the `OverlayContainer` (`app.config.ts`);

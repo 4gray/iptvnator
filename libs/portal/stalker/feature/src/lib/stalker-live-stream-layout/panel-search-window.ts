@@ -43,10 +43,20 @@ export function resolvePanelSearchScroll(state: {
  * term + source so re-renders do not re-filter thousands of rows.
  */
 export class PanelSearchWindow<T> {
-    private readonly window = signal<{ term: string; limit: number }>({
-        term: '',
-        limit: 0,
-    });
+    /**
+     * The grown window. `run` ties it to one uninterrupted run of {@link rows}
+     * calls for its term: the counter advances whenever the term changes (or
+     * the search is cleared), so backspacing to a term grown earlier starts
+     * at one chunk again instead of remounting the hundreds of rows that run
+     * had reached. It is a plain field, not a signal, because {@link rows} is
+     * read from computeds and templates, where writing a signal is an error.
+     */
+    private readonly window = signal<{
+        term: string;
+        limit: number;
+        run: number;
+    }>({ term: '', limit: 0, run: 0 });
+    private run = 0;
     private memo: PanelSearchMemo<T> | null = null;
 
     constructor(
@@ -61,6 +71,9 @@ export class PanelSearchWindow<T> {
      */
     rows(term: string, source: readonly T[]): T[] {
         const memo = this.memo;
+        if (memo === null || memo.term !== term) {
+            this.run += 1;
+        }
         const result =
             memo && memo.term === term && memo.source === source
                 ? memo.result
@@ -93,11 +106,14 @@ export class PanelSearchWindow<T> {
         this.window.set({
             term: memo.term,
             limit: this.limitFor(memo.term) + this.chunk,
+            run: this.run,
         });
     }
 
     private limitFor(term: string): number {
         const window = this.window();
-        return window.term === term ? window.limit : this.chunk;
+        return window.term === term && window.run === this.run
+            ? window.limit
+            : this.chunk;
     }
 }
