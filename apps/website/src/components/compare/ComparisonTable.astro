@@ -1,0 +1,71 @@
+---
+/**
+ * Feature matrix. A cell is `true` (supported), `false` (not supported) or a
+ * string when the honest answer is a qualifier rather than a yes or a no.
+ */
+export type ComparisonCell = boolean | string;
+
+interface ComparisonRow {
+  label: string;
+  /** One cell per column, in column order. */
+  cells: ComparisonCell[];
+  note?: string;
+}
+
+interface Props {
+  /** Column headers; the first table column is the row label. */
+  columns: string[];
+  rowHeader?: string;
+  rows: ComparisonRow[];
+  caption?: string;
+}
+
+const { columns, rowHeader = 'Capability', rows, caption } = Astro.props;
+---
+
+<figure class="not-prose">
+  <div class="overflow-x-auto rounded-lg border border-dashed border-surface-600/60 bg-surface-900/40">
+    <table class="w-full min-w-[720px] border-collapse text-left">
+      <thead>
+        <tr class="border-b border-dashed border-surface-700/60">
+          <th scope="col" class="px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-surface-500">{rowHeader}</th>
+          {columns.map((column) => (
+            <th scope="col" class="px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-accent-400">{column}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr class="border-b border-dashed border-surface-700/40 last:border-b-0 transition-colors hover:bg-surface-900/60">
+            <th scope="row" class="px-5 py-4 text-left align-top text-sm font-semibold text-surface-100">
+              {row.label}
+              {row.note && <span class="mt-1 block text-xs font-normal leading-relaxed text-surface-500">{row.note}</span>}
+            </th>
+            {row.cells.map((cell) => (
+              <td class="px-5 py-4 align-top text-sm text-surface-300">
+                {cell === true && (
+                  <span class="inline-flex items-center gap-1.5 text-accent-300">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <span class="sr-only">Yes</span>
+                  </span>
+                )}
+                {cell === false && (
+                  <span class="inline-flex items-center gap-1.5 text-surface-600">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+                    </svg>
+                    <span class="sr-only">No</span>
+                  </span>
+                )}
+                {typeof cell === 'string' && <span class="leading-relaxed">{cell}</span>}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  {caption && <figcaption class="mt-3 text-xs leading-relaxed text-surface-500">{caption}</figcaption>}
+</figure>

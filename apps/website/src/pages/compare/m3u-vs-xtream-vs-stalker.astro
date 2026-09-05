@@ -1,0 +1,152 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import CompareHero from '../../components/compare/CompareHero.astro';
+import ComparisonTable from '../../components/compare/ComparisonTable.astro';
+import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildComparisonPageSchema } from '../../lib/comparison-schema';
+import { comparisonBySlug } from '../../lib/comparisons';
+import { absoluteUrl } from '../../lib/site';
+
+const comparison = comparisonBySlug('m3u-vs-xtream-vs-stalker');
+const pageUrl = absoluteUrl('/compare/m3u-vs-xtream-vs-stalker/');
+const title = 'M3U vs Xtream Codes vs Stalker Portal – Which One Should You Use?';
+const description =
+  'The three ways IPTV providers hand out access, compared: an M3U playlist link, an Xtream Codes login, and a Stalker or Ministra portal with a MAC address. What each one gives you inside IPTVnator, how to tell which one you were given, and when the same account works both ways.';
+
+const columns = ['M3U playlist', 'Xtream Codes', 'Stalker portal'];
+
+const rows = [
+  { label: 'What you enter', cells: ['A link, a file or pasted text', 'Server URL, username, password', 'Portal URL and MAC address'] },
+  { label: 'Live TV channels', cells: [true, true, true] },
+  { label: 'Movies and series as a catalog', cells: ['Only as flat entries', true, true], note: 'A playlist can list movie files, but it carries no seasons, categories or detail pages.' },
+  { label: 'Posters, descriptions, cast', cells: ['From TMDB only', true, true] },
+  { label: 'Program guide', cells: ['XMLTV you supply', 'From the provider', 'From the portal'] },
+  { label: 'Catch-up / archive', cells: ['If the playlist declares it', true, true] },
+  { label: 'Resume where you stopped', cells: ['Movies only', true, true] },
+  { label: 'Offline downloads', cells: [false, true, true], note: 'Desktop app only, for movies and episodes.' },
+  { label: 'Local catalog for instant opening', cells: ['Whole playlist is stored', true, 'Lists are fetched on demand'] },
+  { label: 'Account and expiry information', cells: [false, true, true] },
+  { label: 'Refresh from the provider', cells: [true, true, 'Continuous'] },
+  { label: 'Works in the browser version', cells: [true, true, true], note: 'The self-hosted web version proxies all three; the desktop-only features above stay unavailable there.' },
+];
+
+const identify = [
+  {
+    title: 'A link ending in .m3u or .m3u8',
+    description:
+      'A plain playlist. Add it as an M3U URL, or download it and import the file. This is the lowest common denominator: channels and nothing else.',
+  },
+  {
+    title: 'A link containing get.php or player_api.php',
+    description:
+      'An Xtream Codes account in disguise. The part before the endpoint is the server URL, and the username and password sit in the query string. Add it as Xtream credentials instead of as a playlist.',
+  },
+  {
+    title: 'A host, a username and a password',
+    description:
+      'An Xtream Codes account. Enter the three fields and use the connection test before adding it.',
+  },
+  {
+    title: 'A portal address and a MAC address',
+    description:
+      'A Stalker or Ministra portal, the kind MAG set-top boxes use. The MAC address is the account; IPTVnator authenticates with it the way a box does.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Which one should I pick if my provider offers several?',
+    a: 'Prefer Xtream Codes when you have a username and password: it carries movies, series, provider metadata, the program guide and catch-up that a flat playlist cannot. Use a Stalker portal when the provider identifies you by MAC address. Use a plain M3U playlist when that is all you were given, or when you keep a hand-made channel list.',
+  },
+  {
+    q: 'My M3U link contains get.php. Is that an Xtream account?',
+    a: 'Almost always, yes. Panels generate that link from an Xtream Codes account, so the same credentials work in the Xtream form and unlock the movie and series catalog. Paste the whole link into the Server URL field and IPTVnator fills in the username and password for you.',
+  },
+  {
+    q: 'Can I add all three kinds of sources at once?',
+    a: 'Yes. Every source is separate, with its own favorites, history and catalog, and the dashboard, global favorites, recent items and search combine them. Several accounts of the same kind are fine too.',
+  },
+  {
+    q: 'Which one has the best program guide?',
+    a: 'Xtream and Stalker portals publish their own schedule, so the guide works without any setup. An M3U playlist needs an XMLTV source, which you add once in the settings, or which the playlist declares in its header. On the desktop app your own XMLTV sources can also fill gaps in a portal guide.',
+  },
+  {
+    q: 'Does IPTVnator convert a Stalker portal into an M3U playlist?',
+    a: 'No. It talks to the portal directly for every list and resolves a fresh link for every stream, which is what keeps favorites and history working when temporary links expire. There is no export of portal content into a playlist file.',
+  },
+  {
+    q: 'Where do I get any of these?',
+    a: 'From an IPTV provider you have a contract with. IPTVnator is a player: it ships without channels, playlists or accounts, and it never sells them.',
+  },
+];
+
+const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq });
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['M3U vs Xtream Codes', 'Xtream Codes vs Stalker portal', 'M3U or Xtream', 'IPTV connection types', 'Stalker portal vs M3U', 'IPTV player comparison']}
+  jsonLd={jsonLd}
+>
+  <CompareHero
+    comparison={comparison}
+    titleLead="M3U, Xtream Codes or"
+    titleAccent="Stalker portal?"
+    lede="Providers hand out access in three shapes, and the shape decides how much of their library you actually see. All three work in IPTVnator; they are not equally rich."
+    verdict="If your provider gave you a username and a password, use Xtream Codes. If they gave you a MAC address, use the Stalker portal form. Use a plain M3U playlist only when a link is all you have, because a playlist carries channels but no movie catalog, no provider guide and no account information."
+  />
+
+  <DownloadSection id="matrix" eyebrow="Side by side" title="What each connection" accent="gives you" lead="Everything below is about the source type, not about the provider. A generous provider on a plain playlist still cannot send what the format cannot carry.">
+    <ComparisonTable
+      columns={columns}
+      rows={rows}
+      rowHeader="Inside IPTVnator"
+      caption="Offline downloads, the local catalog and XMLTV guides are desktop-app features; the browser version plays all three source types but leaves those out."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="identify" eyebrow="Telling them apart" title="What did your provider" accent="actually send?" lead="Providers rarely name the format. The shape of what you received does it for them.">
+    <FeatureList items={identify} />
+  </DownloadSection>
+
+  <DownloadSection id="switching" eyebrow="Good to know" title="One account," accent="two ways in">
+    <div class="max-w-3xl space-y-4 text-base leading-relaxed text-surface-400">
+      <p>
+        The same subscription is often reachable as both a playlist and an Xtream account, because the panel builds the
+        playlist link out of the account. Adding it as Xtream credentials is strictly better: you get the same channels
+        plus movies, series, the provider guide, catch-up and an expiry date, and the desktop app keeps a local catalog so
+        the source opens instantly next time.
+      </p>
+      <p>
+        Stalker portals are the exception. A MAC address is a different identity mechanism, and a portal cannot be
+        expressed as a playlist or an Xtream login. If that is what you were given, the Stalker form is the only way in.
+      </p>
+      <p>
+        Switching later costs nothing: add the better source, check that it works, and remove the old one. Favorites and
+        history belong to the source, so they do not carry over.
+      </p>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="connection types">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Set it up" title="One guide per" accent="connection type">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <CompareSwitcher current="m3u-vs-xtream-vs-stalker" />
+</BaseLayout>
