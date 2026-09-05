@@ -345,7 +345,7 @@ This is an Nx monorepo with the following structure:
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
-    - **shared/host-health** - Per-host circuit breaker for portal requests (`HostConnectivityGuard`), shared by the Electron main process and the web backend; transport-free, the owning app supplies the clock and owns the instance
+    - **shared/host-health** - Per-host circuit breaker for portal requests (`HostConnectivityGuard`), shared by the Electron main process and the web backend; transport-free, the owning app supplies the clock and owns the instance. Monotonic admission ids with per-endpoint failure boundaries distinguish parallel failures from later attempts even within one clock tick (#1438)
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
     - **shared/marketing-fixtures** - Provider-neutral fictional movie metadata, live channel list and the generated channel-logo SVG renderer shared by the Xtream and Stalker marketing mocks (both serve `/assets/marketing/logo/<slug>.svg`)
