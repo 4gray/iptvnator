@@ -140,6 +140,15 @@ export function reportGuardedHostFailure(
     }
 }
 
+/** Finally cleanup, even if reporting or debug/error formatting threw. */
+export function releaseGuardedHostRequest(
+    token: HostRequestToken | null
+): void {
+    if (token && currentTokens.delete(token)) {
+        getHostConnectivityGuard().reportInconclusive(token);
+    }
+}
+
 /** Forgets the recorded failures for the endpoint `url` points at. */
 export function resetGuardedHost(url: string): boolean {
     const endpoint = portalEndpointKeyOf(url);

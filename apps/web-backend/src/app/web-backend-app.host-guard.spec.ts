@@ -13,6 +13,7 @@ import {
 } from '@iptvnator/shared/host-health';
 import { isHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
 import { createWebBackendApp } from './web-backend-app';
+import express, { Response } from 'express';
 import {
     registerProviderTarget,
     resolvePublicHost,
@@ -537,6 +538,226 @@ describe('web backend host connectivity guard', () => {
             }
         );
     });
+
+    it('keeps ownership through a real axios redirect and unfinished streaming body', async () => {
+        const provider = express();
+        let stream!: Response;
+        let arrived!: () => void;
+        const started = new Promise<void>((resolve) => {
+            arrived = resolve;
+        });
+        provider.get('/player_api.php', (_req, res) => res.redirect('/body'));
+        provider.get('/body', (_req, res) => {
+            if (stream) {
+                res.json({ duplicate: true });
+                return;
+            }
+            stream = res;
+            res.type('json').write('{"items":[');
+            arrived();
+        });
+        const { guard, advance } = createTestGuard();
+        await withServer(provider, async (providerUrl) => {
+            for (let attempt = 0; attempt < 2; attempt++) {
+                const admission = guard.check(providerUrl);
+                if (!admission.allowed)
+                    throw new Error('Expected initial admission');
+                guard.reportFailure(admission.token);
+            }
+            advance(OPEN_DURATION_MS + 1);
+            await withServer(
+                createWebBackendApp({
+                    hostGuard: guard,
+                    allowPrivateNetworkTargets: true,
+                }),
+                async (baseUrl) => {
+                    const targetId = await registerProviderTarget(
+                        baseUrl,
+                        providerUrl
+                    );
+                    const call = () =>
+                        fetch(`${baseUrl}/xtream?targetId=${targetId}`);
+                    const trial = call();
+                    try {
+                        await started;
+                        advance(25_000);
+                        stream.write('1,');
+                        advance(25_000);
+                        const response = await call();
+                        const body = (await response.json()) as {
+                            message: string;
+                        };
+                        expect(
+                            isHostConnectivityFastFailMessage(body.message)
+                        ).toBe(true);
+                    } finally {
+                        stream?.end('2]}');
+                        await trial;
+                    }
+                    await expect((await trial).json()).resolves.toMatchObject({
+                        payload: { items: [1, 2] },
+                    });
+                    expect(guard.check(providerUrl)).toMatchObject({
+                        allowed: true,
+                        token: { trial: false },
+                    });
+                }
+            );
+        });
+    });
+
+    it.each(['xtream', 'stalker'])(
+        '%s releases its trial if outcome reporting throws',
+        async (route) => {
+            const httpClient = new StubHttpClient();
+            const { advance, guard } = createTestGuard();
+            httpClient.queueNetworkError(hostLevelFailure());
+            httpClient.queueNetworkError(hostLevelFailure());
+            httpClient.queueNetworkError(hostLevelFailure());
+            httpClient.queueResponse([]);
+            await withServer(
+                createWebBackendApp({
+                    hostGuard: guard,
+                    httpClient,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (baseUrl) => {
+                    const targetId = await registerProviderTarget(
+                        baseUrl,
+                        'http://portal.example'
+                    );
+                    const call = () =>
+                        fetch(`${baseUrl}/${route}?targetId=${targetId}`);
+                    await call();
+                    await call();
+                    advance(OPEN_DURATION_MS + 1);
+                    const report = jest
+                        .spyOn(guard, 'reportFailure')
+                        .mockImplementationOnce(() => {
+                            throw new Error('outcome reporting failed');
+                        });
+                    try {
+                        expect((await call()).status).toBe(500);
+                    } finally {
+                        report.mockRestore();
+                    }
+                    await expect((await call()).json()).resolves.toMatchObject({
+                        payload: [],
+                    });
+                    expect(httpClient.requests).toHaveLength(4);
+                }
+            );
+        }
+    );
+
+    it.each(['xtream', 'stalker'])(
+        '%s holds a live trial beyond 45 seconds until the transport settles',
+        async (route) => {
+            for (const outcome of [
+                'success',
+                'failure',
+                'cancel',
+                'redirect-failure',
+            ]) {
+                const httpClient = new StubHttpClient();
+                const { advance, guard } = createTestGuard();
+                httpClient.queueNetworkError(hostLevelFailure());
+                httpClient.queueNetworkError(hostLevelFailure());
+                await withServer(
+                    createWebBackendApp({
+                        hostGuard: guard,
+                        httpClient,
+                        resolveHostname: resolvePublicHost,
+                    }),
+                    async (baseUrl) => {
+                        const targetId = await registerProviderTarget(
+                            baseUrl,
+                            'http://portal.example'
+                        );
+                        const call = () =>
+                            fetch(
+                                `${baseUrl}/${route}?targetId=${targetId}&action=get_genres`
+                            );
+                        await call();
+                        await call();
+                        advance(OPEN_DURATION_MS + 1);
+                        let settle!: () => void;
+                        let arrived!: () => void;
+                        const pending = new Promise<void>((resolve) => {
+                            settle = resolve;
+                        });
+                        const started = new Promise<void>((resolve) => {
+                            arrived = resolve;
+                        });
+                        const transport = jest
+                            .spyOn(httpClient, 'get')
+                            .mockImplementationOnce(async () => {
+                                arrived();
+                                await pending;
+                                if (outcome !== 'success') {
+                                    throw Object.assign(
+                                        hostLevelFailure(
+                                            outcome === 'cancel'
+                                                ? 'ERR_CANCELED'
+                                                : 'ETIMEDOUT'
+                                        ),
+                                        {
+                                            request: {
+                                                _currentUrl:
+                                                    outcome ===
+                                                    'redirect-failure'
+                                                        ? 'http://cdn.example/slow'
+                                                        : `http://portal.example/${route === 'xtream' ? 'player_api.php' : ''}`,
+                                            },
+                                        }
+                                    );
+                                }
+                                return { data: [] as never };
+                            });
+                        const trial = call();
+                        try {
+                            await started;
+                            // Advance only the guard clock; the HTTP route remains genuinely pending.
+                            advance(45_001);
+                            const blocked = await call();
+                            expect(
+                                isHostConnectivityFastFailMessage(
+                                    (
+                                        (await blocked.json()) as {
+                                            message: string;
+                                        }
+                                    ).message
+                                )
+                            ).toBe(true);
+                            expect(transport).toHaveBeenCalledTimes(1);
+                        } finally {
+                            settle();
+                            await trial;
+                            transport.mockRestore();
+                        }
+                        if (outcome === 'failure') {
+                            const blocked = await call();
+                            expect(
+                                isHostConnectivityFastFailMessage(
+                                    (
+                                        (await blocked.json()) as {
+                                            message: string;
+                                        }
+                                    ).message
+                                )
+                            ).toBe(true);
+                            advance(OPEN_DURATION_MS + 1);
+                        }
+                        httpClient.queueResponse([]);
+                        await expect(
+                            (await call()).json()
+                        ).resolves.toMatchObject({ payload: [] });
+                        expect(httpClient.requests).toHaveLength(3);
+                    }
+                );
+            }
+        }
+    );
 
     it('lets exactly one request through once the open window elapses', async () => {
         const httpClient = new StubHttpClient();

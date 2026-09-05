@@ -26,6 +26,7 @@ import {
     observeGuardedHostRequest,
     reportGuardedHostFailure,
     reportGuardedHostSuccess,
+    releaseGuardedHostRequest,
 } from '../util/host-connectivity-guard';
 
 export default class StalkerEvents {
@@ -264,6 +265,8 @@ ipcMain.handle(
                     status: 500,
                 };
             }
+        } finally {
+            releaseGuardedHostRequest(guardToken);
         }
     }
 );

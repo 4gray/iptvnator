@@ -101,8 +101,8 @@ export function admitProviderRequest(
  * For a request that was admitted and then abandoned before it went out — a URL
  * the SSRF policy refused, for instance. That says nothing about reachability,
  * so it must not count as a failure; but the slot a half-open trial reserved
- * has to be released, or the breaker waits out the full trial timeout for a
- * request that never happened.
+ * has to be released. Every admitted route also calls this in finally, even
+ * if outcome reporting throws; cleanup is idempotent and records no failure.
  */
 export function releaseProviderRequest(
     guard: HostConnectivityGuard,
