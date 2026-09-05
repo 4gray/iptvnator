@@ -1,0 +1,25 @@
+---
+import { blogTagHref, blogTagLabel, type BlogTag } from '../lib/blog-tags';
+
+/**
+ * A blog tag rendered as a link to its hub page. Cards that wrap their whole
+ * surface in a stretched title link stack these above it with `relative z-10`,
+ * so a chip click opens the tag, not the post.
+ */
+interface Props {
+  tag: BlogTag;
+  class?: string;
+}
+
+const { tag, class: className = '' } = Astro.props;
+---
+
+<a
+  href={blogTagHref(tag)}
+  class:list={[
+    'relative z-10 rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 text-xs text-surface-300 transition-colors hover:border-accent-500/60 hover:text-accent-400',
+    className,
+  ]}
+>
+  {blogTagLabel(tag)}
+</a>

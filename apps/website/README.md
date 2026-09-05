@@ -84,6 +84,26 @@ Two conventions set them apart:
 each guide for the FAQPage schema, a link to the download hub and the presence
 of every referenced screenshot in the build output.
 
+## Blog Tags
+
+Blog tags are a closed vocabulary in `apps/website/src/lib/blog-tags.ts`
+(`release`, `guide`, `troubleshooting`, `playback`, `m3u`, `xtream-codes`,
+`stalker-portal`, `epg`, `macos`, `security`). The content collection schema
+only accepts those slugs, so a typo in a post's `tags:` fails the build. Every
+tag with at least one published post gets a hub page at `/blog/tag/<tag>/`
+(`src/pages/blog/tag/[tag].astro`, `CollectionPage` + `BreadcrumbList` JSON-LD),
+the blog index and the hubs show a "Topics" rail with post counts
+(`BlogTagRail.astro`), and every chip on a card or a post header links to its
+hub (`BlogTagChip.astro`). The cards are `<article>` elements with the title
+link stretched over the whole card, because a card that is one big `<a>` cannot
+hold chip links.
+
+Add a tag only when it will hold more than one post for good: each tag is an
+indexable page, and a hub with a single post is a thin page. Add the slug to the
+registry with a label and a one-sentence description; nothing else needs to
+change. `tools/testing/website-blog-tags.test.mjs` checks the rail, every hub,
+the chip targets, the sitemap and the absence of nested anchors.
+
 ## Feature Pages
 
 `/features/` plus one page per feature (`m3u-player`, `xtream-codes-player`,

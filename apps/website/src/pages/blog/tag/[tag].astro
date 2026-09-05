@@ -1,0 +1,109 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import BlogPostCard from '../../../components/BlogPostCard.astro';
+import BlogTagRail from '../../../components/BlogTagRail.astro';
+import { BLOG_TAGS, BLOG_TAG_SLUGS, type BlogTag } from '../../../lib/blog-tags';
+import { absoluteUrl } from '../../../lib/site';
+
+/**
+ * Tag hub: every published post carrying one tag, newest first. Only tags
+ * with at least one published post get a page, so a chip never points at an
+ * empty hub (a chip exists only on a post that carries the tag).
+ */
+export async function getStaticPaths() {
+  const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
+  const posts = (await getCollection('blog'))
+    .filter((post) => includeDrafts || !post.data.draft)
+    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+  return BLOG_TAG_SLUGS.map((tag) => ({
+    params: { tag },
+    props: { tag, posts: posts.filter((post) => post.data.tags.includes(tag)), allPosts: posts },
+  })).filter(({ props }) => props.posts.length > 0);
+}
+
+interface Props {
+  tag: BlogTag;
+  posts: Awaited<ReturnType<typeof getCollection<'blog'>>>;
+  allPosts: Awaited<ReturnType<typeof getCollection<'blog'>>>;
+}
+
+const { tag, posts, allPosts } = Astro.props;
+const meta = BLOG_TAGS[tag];
+const pageUrl = absoluteUrl(`/blog/tag/${tag}/`);
+const countLabel = posts.length === 1 ? '1 post' : `${posts.length} posts`;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${meta.label} – IPTVnator Blog`,
+    description: meta.description,
+    url: pageUrl,
+    isPartOf: { '@type': 'Blog', name: 'IPTVnator Blog', url: absoluteUrl('/blog/') },
+    hasPart: posts.map((post) => ({
+      '@type': 'BlogPosting',
+      headline: post.data.title,
+      url: absoluteUrl(`/blog/${post.id}/`),
+      datePublished: post.data.pubDate.toISOString(),
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'IPTVnator', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: absoluteUrl('/blog/') },
+      { '@type': 'ListItem', position: 3, name: meta.label, item: pageUrl },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title={`${meta.label} | IPTVnator Blog`}
+  description={meta.description}
+  keywords={[`IPTVnator ${meta.label.toLowerCase()}`, meta.label, 'IPTVnator blog']}
+  jsonLd={jsonLd}
+>
+  <section class="pt-36 pb-24">
+    <div class="mx-auto max-w-6xl px-6">
+      <a
+        href="/iptvnator/blog/"
+        class="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.1em] text-surface-500 transition-colors hover:text-accent-400"
+      >
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to blog
+      </a>
+
+      <div class="mt-10 max-w-2xl">
+        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
+          Blog topic
+        </span>
+        <h1 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl">
+          {meta.label}
+        </h1>
+        <p class="mt-4 text-lg text-surface-400">{meta.description}</p>
+        <p class="mt-3 font-mono text-xs text-surface-500">{countLabel}</p>
+      </div>
+
+      <BlogTagRail posts={allPosts} current={tag} class="mt-8" />
+
+      <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {posts.map((post) => (
+          <BlogPostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDate={post.data.pubDate}
+            slug={post.id}
+            tags={post.data.tags}
+            heroImage={post.data.heroImage}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

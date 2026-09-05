@@ -1,5 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import BlogTagChip from '../components/BlogTagChip.astro';
+import type { BlogTag } from '../lib/blog-tags';
 import GiscusComments from '../components/GiscusComments.astro';
 import FaqAccordion from '../components/blog/FaqAccordion.astro';
 
@@ -14,7 +16,7 @@ interface Props {
   pubDate: Date;
   updatedDate?: Date;
   author: string;
-  tags?: string[];
+  tags?: BlogTag[];
   heroImage?: string;
   /** Optional FAQ from the post frontmatter: rendered after the body and emitted as FAQPage schema. */
   faq?: FaqEntry[];
@@ -119,9 +121,7 @@ const jsonLd = faqSchema ? [blogPostSchema, faqSchema] : blogPostSchema;
               <>
                 <span class="text-surface-700">&middot;</span>
                 {tags.map((tag) => (
-                  <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2.5 py-0.5 text-xs font-medium text-surface-300">
-                    {tag}
-                  </span>
+                  <BlogTagChip tag={tag} class="px-2.5 font-medium" />
                 ))}
               </>
             )

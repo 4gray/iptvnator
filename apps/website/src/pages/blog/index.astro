@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import FeaturedBlogPost from '../../components/FeaturedBlogPost.astro';
 import BlogPostCard from '../../components/BlogPostCard.astro';
+import BlogTagRail from '../../components/BlogTagRail.astro';
 
 const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
 
@@ -33,6 +34,8 @@ const remainingPosts = featuredPost ? posts.filter((post) => post.id !== feature
           Release notes, tutorials, and project updates.
         </p>
       </div>
+
+      <BlogTagRail posts={posts} class="mt-8" />
 
       {posts.length > 0 ? (
         <>

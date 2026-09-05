@@ -63,7 +63,8 @@
     @apply rounded-xl border border-surface-800 bg-surface-900/40 p-6 transition-colors duration-300;
   }
   a.card-panel:hover,
-  .card-panel:has(> a:hover) {
+  .card-panel:has(> a:hover),
+  .card-panel:has(.card-link:hover) {
     @apply border-surface-600 bg-surface-900/70;
   }
 

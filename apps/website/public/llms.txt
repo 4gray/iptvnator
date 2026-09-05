@@ -12,6 +12,9 @@
 - Download for macOS: https://4gray.github.io/iptvnator/download/macos/
 - Download for Linux: https://4gray.github.io/iptvnator/download/linux/
 - Self-host the browser version with Docker: https://4gray.github.io/iptvnator/download/docker/
+- Blog topic, all guides: https://4gray.github.io/iptvnator/blog/tag/guide/
+- Blog topic, release notes: https://4gray.github.io/iptvnator/blog/tag/release/
+- Blog topic, troubleshooting: https://4gray.github.io/iptvnator/blog/tag/troubleshooting/
 - Guide, Xtream Codes setup: https://4gray.github.io/iptvnator/blog/xtream-codes-setup-guide/
 - Guide, Stalker/Ministra portal setup: https://4gray.github.io/iptvnator/blog/stalker-portal-setup-guide/
 - Guide, M3U playlist and EPG setup: https://4gray.github.io/iptvnator/blog/m3u-playlist-epg-setup-guide/

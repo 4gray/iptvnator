@@ -1,10 +1,13 @@
 ---
+import BlogTagChip from './BlogTagChip.astro';
+import { blogTagLabel, type BlogTag } from '../lib/blog-tags';
+
 interface Props {
   title: string;
   description: string;
   pubDate: Date;
   slug: string;
-  tags?: string[];
+  tags?: BlogTag[];
   heroImage?: string;
 }
 
@@ -24,10 +27,12 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 });
 ---
 
-<a
-  href={`/iptvnator/blog/${slug}/`}
-  class="card-panel group block"
->
+{/*
+  The tag chips are links, so the card cannot be one big <a>. The title link is
+  stretched over the whole card with a ::after overlay instead; chips sit above
+  it (z-10) and keep their own targets.
+*/}
+<article class="card-panel group relative block">
   {heroImage && (
     <div class="overflow-hidden rounded-t-lg -mx-6 -mt-6 mb-5">
       <img
@@ -45,14 +50,12 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
     tags.length > 0 && (
       <div class="mt-2 flex flex-wrap gap-1.5">
         {visibleTags.map((tag) => (
-          <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 text-xs text-surface-300">
-            {tag}
-          </span>
+          <BlogTagChip tag={tag} />
         ))}
         {hiddenTags.length > 0 && (
           <span
             class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 font-mono text-xs text-surface-500"
-            title={hiddenTags.join(', ')}
+            title={hiddenTags.map(blogTagLabel).join(', ')}
           >
             +{hiddenTags.length}
           </span>
@@ -60,10 +63,13 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
       </div>
     )
   }
-  <h3
-    class="mt-3 font-display text-lg font-semibold text-surface-100 transition-colors duration-200 group-hover:text-accent-400"
-  >
-    {title}
+  <h3 class="mt-3 font-display text-lg font-semibold text-surface-100 transition-colors duration-200 group-hover:text-accent-400">
+    <a
+      href={`/iptvnator/blog/${slug}/`}
+      class="card-link after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-500"
+    >
+      {title}
+    </a>
   </h3>
   <p class="mt-2 text-sm leading-relaxed text-surface-500">
     {description}
@@ -80,4 +86,4 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
       <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
     </svg>
   </span>
-</a>
+</article>

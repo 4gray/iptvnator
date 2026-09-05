@@ -1,0 +1,45 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { BLOG_TAG_SLUGS, blogTagHref, blogTagLabel, type BlogTag } from '../lib/blog-tags';
+
+/**
+ * "Browse by topic" strip: every tag that has at least one published post,
+ * with its post count, linking to the tag hub. `current` marks the tag whose
+ * page is open.
+ */
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+  current?: BlogTag;
+  class?: string;
+}
+
+const { posts, current, class: className = '' } = Astro.props;
+
+const topics = BLOG_TAG_SLUGS.map((tag) => ({
+  tag,
+  count: posts.filter((post) => post.data.tags.includes(tag)).length,
+})).filter((topic) => topic.count > 0);
+---
+
+{
+  topics.length > 0 && (
+    <nav aria-label="Blog topics" class:list={['flex flex-wrap items-center gap-2', className]}>
+      <span class="mr-1 font-mono text-[10px] uppercase tracking-[0.15em] text-surface-500">Topics</span>
+      {topics.map(({ tag, count }) => (
+        <a
+          href={blogTagHref(tag)}
+          aria-current={tag === current ? 'page' : undefined}
+          class:list={[
+            'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors',
+            tag === current
+              ? 'border-accent-500/60 bg-accent-500/10 text-accent-400'
+              : 'border-surface-800 bg-surface-900/60 text-surface-300 hover:border-accent-500/60 hover:text-accent-400',
+          ]}
+        >
+          {blogTagLabel(tag)}
+          <span class="font-mono text-[10px] text-surface-500">{count}</span>
+        </a>
+      ))}
+    </nav>
+  )
+}
