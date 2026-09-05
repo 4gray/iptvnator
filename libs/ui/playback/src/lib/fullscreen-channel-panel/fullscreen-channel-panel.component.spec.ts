@@ -450,6 +450,31 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(isOpen()).toBe(false);
     });
 
+    it('consumes only the Escape that closes the panel', () => {
+        // Electron leaves HTML fullscreen on an unhandled Escape, so the close
+        // shortcut must claim the key — while a closed panel leaves Escape
+        // alone, so it still exits fullscreen then.
+        setFullscreen(stage);
+        openByHover();
+
+        const closing = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            cancelable: true,
+        });
+        document.dispatchEvent(closing);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
+        expect(closing.defaultPrevented).toBe(true);
+
+        const idle = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            cancelable: true,
+        });
+        document.dispatchEvent(idle);
+        fixture.detectChanges();
+        expect(idle.defaultPrevented).toBe(false);
+    });
+
     it('drops the panel, its list and the search when fullscreen ends', () => {
         setFullscreen(stage);
         openByHover();

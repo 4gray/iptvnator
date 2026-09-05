@@ -425,7 +425,10 @@ that follows dies on it instead of reaching the video. It closes when the
 mouse leaves the panel for 420ms, on the close button (tooltip names Escape),
 on Escape, on the host's `close`, or through a transparent scrim
 over the video that swallows the click so the player's click-to-pause never
-sees it. A CDK overlay the list opens (sort menu, row context menu) renders in
+sees it. The Escape that closes the panel is consumed (`preventDefault`):
+Electron leaves HTML fullscreen on an unhandled Escape, and the close
+shortcut must only slide the panel away; a closed panel leaves Escape alone,
+so the key still exits fullscreen then. A CDK overlay the list opens (sort menu, row context menu) renders in
 the fullscreen overlay container outside the `<aside>`, so it counts as part
 of the panel: while open, hover intent is tracked through a document-level
 `pointerover` (inside the aside or the overlay container cancels a pending

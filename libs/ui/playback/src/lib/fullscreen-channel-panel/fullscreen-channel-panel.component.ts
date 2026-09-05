@@ -268,6 +268,12 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         }
         if (event.key === 'Escape') {
             if (this.state.open() && !this.hasModalOverlay()) {
+                // Consume the key: Electron exits HTML fullscreen on an
+                // unhandled Escape, and the advertised close shortcut must
+                // only slide the panel away, not end the session with it.
+                // A closed panel leaves Escape alone, so it still exits
+                // fullscreen then; an overlay-owned Escape is untouched too.
+                event.preventDefault();
                 this.state.hide();
             }
             return;
