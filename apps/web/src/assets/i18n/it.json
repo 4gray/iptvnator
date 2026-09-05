@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Connessioni ai portali",
+        "PORTAL_CONNECTIVITY_GUARD": "Sospendi le richieste ai portali non disponibili",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Dopo ripetuti errori di connessione, sospendi le nuove richieste Xtream e Stalker per 30 secondi. Prova a disattivare se un portale diventa intermittentemente non disponibile. Si applica al salvataggio, senza riavvio.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Ogni richiesta verrà eseguita indipendentemente. I server non disponibili potrebbero impiegare più tempo a segnalare un errore.",
         "TITLE": "Impostazioni IPTVnator",
         "GENERAL": "Generale",
         "GENERAL_SUBTITLE": "Modifica le impostazioni generali dell'applicazione",
@@ -1004,6 +1008,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Richieste temporaneamente sospese",
+            "DESCRIPTION": "Le richieste sono state sospese dopo ripetuti errori di connessione. Riprova per contattare subito il portale.",
+            "RETRY": "Riprova ora"
+        },
         "ALL_CATEGORIES": "Tutte le categorie",
         "MY_FAVORITES": "I miei preferiti",
         "ADD_TO_FAVORITES": "Aggiungi ai preferiti",

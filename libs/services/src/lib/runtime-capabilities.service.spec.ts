@@ -10,6 +10,16 @@ describe('RuntimeCapabilitiesService', () => {
         testWindow.electron = originalElectron;
     });
 
+    it('offers the portal cooldown setting only with both desktop bridge methods', () => {
+        const service = new RuntimeCapabilitiesService();
+        testWindow.electron = { updateSettings: jest.fn() };
+        expect(service.supportsPortalConnectivityGuard).toBe(false);
+        testWindow.electron['resetHostConnectivityGuard'] = jest.fn();
+        expect(service.supportsPortalConnectivityGuard).toBe(true);
+        testWindow.electron = undefined;
+        expect(service.supportsPortalConnectivityGuard).toBe(false);
+    });
+
     it('reports browser PWA capabilities when the Electron bridge is absent', () => {
         testWindow.electron = undefined;
 

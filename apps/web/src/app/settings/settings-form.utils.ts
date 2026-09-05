@@ -107,6 +107,7 @@ export function createSettingsForm(
         embeddedMpvFrameCopy: false,
         embeddedMpvExtraOptions: ['', [embeddedMpvExtraOptionsValidator]],
         embeddedMpvAutoReconnect: true,
+        portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
         ...(supportsEpg
             ? {
@@ -195,6 +196,7 @@ export function createSettingsFromFormValue(
             value.embeddedMpvExtraOptions
         ),
         embeddedMpvAutoReconnect: value.embeddedMpvAutoReconnect ?? true,
+        portalConnectivityGuard: value.portalConnectivityGuard !== false,
         coverSize: value.coverSize ?? 'medium',
         epgUrl,
         preferUploadedEpgOverXtream:

@@ -84,6 +84,33 @@ describe('StalkerAccountInfoComponent', () => {
         };
     });
 
+    it.each([false, true])(
+        'explains a paused refresh with cached snapshot=%s and allows retry',
+        async (cached) => {
+            if (cached)
+                playlistsService.getPlaylist.mockReturnValue(
+                    of({ ...playlist, stalkerAccountInfo: cachedSnapshot })
+                );
+            accountInfoService.fetchAccountInfo.mockRejectedValueOnce(
+                new Error(
+                    "Error invoking remote method 'STALKER_REQUEST': Portal http://portal.example is not responding; skipped after repeated connection failures"
+                )
+            );
+            await createComponent();
+            expect(component.requestsPaused()).toBe(true);
+            expect(component.isCachedSnapshot()).toBe(cached);
+            expect(fixture.nativeElement.textContent).toContain(
+                'PORTALS.REQUESTS_PAUSED.DESCRIPTION'
+            );
+            expect(fixture.nativeElement.textContent).toContain(
+                'PORTALS.REQUESTS_PAUSED.RETRY'
+            );
+            await component.reload();
+            expect(component.requestsPaused()).toBe(false);
+            expect(component.refreshFailed()).toBe(false);
+        }
+    );
+
     it('shows the fresh snapshot when the portal answers', async () => {
         await createComponent();
 

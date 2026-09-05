@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "포털 연결",
+        "PORTAL_CONNECTIVITY_GUARD": "사용할 수 없는 포털에 대한 요청 일시 중지",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "연결 오류가 반복되면 새 Xtream 및 Stalker 요청을 30초 동안 중지합니다. 포털을 간헐적으로 사용할 수 없다면 이 옵션을 꺼 보세요. 저장 후 재시작 없이 적용됩니다.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "각 요청이 독립적으로 실행됩니다. 서버를 사용할 수 없으면 오류가 표시되기까지 더 오래 걸릴 수 있습니다.",
         "TITLE": "설정",
         "GENERAL": "일반",
         "GENERAL_SUBTITLE": "애플리케이션 구성을 변경합니다",
@@ -1004,6 +1008,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "요청이 일시 중지됨",
+            "DESCRIPTION": "연결 오류가 반복되어 요청이 중지되었습니다. 지금 다시 시도하여 포털에 즉시 연결하세요.",
+            "RETRY": "지금 다시 시도"
+        },
         "ALL_CATEGORIES": "모든 카테고리",
         "MY_FAVORITES": "내가 좋아하는 것들",
         "ADD_TO_FAVORITES": "즐겨 찾기에 추가",

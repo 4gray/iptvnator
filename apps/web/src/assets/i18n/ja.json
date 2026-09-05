@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "ポータル接続",
+        "PORTAL_CONNECTIVITY_GUARD": "利用できないポータルへのリクエストを一時停止",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "接続エラーが繰り返された場合、新しい Xtream と Stalker のリクエストを30秒間停止します。ポータルが断続的に利用できなくなる場合は、無効にしてみてください。保存後、再起動せずに適用されます。",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "各リクエストは個別に実行されます。サーバーが利用できない場合、エラーの表示に時間がかかることがあります。",
         "TITLE": "設定",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "アプリケーションの設定を変更",
@@ -1004,6 +1008,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "リクエストを一時停止中",
+            "DESCRIPTION": "接続エラーが繰り返されたため、リクエストを停止しました。今すぐ再試行すると、ポータルに直ちに接続します。",
+            "RETRY": "今すぐ再試行"
+        },
         "ALL_CATEGORIES": "すべてのカテゴリー",
         "MY_FAVORITES": "お気に入り",
         "ADD_TO_FAVORITES": "お気に入りに追加",

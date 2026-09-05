@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "入口網站連線",
+        "PORTAL_CONNECTIVITY_GUARD": "暫停向無法使用的入口網站傳送請求",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "連線連續失敗後，暫停新的 Xtream 和 Stalker 請求 30 秒。如果入口網站間歇性無法使用，請嘗試關閉此選項。儲存後生效，無需重新啟動。",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "每個請求將獨立執行。伺服器無法使用時，可能需要更長時間才能顯示錯誤。",
         "TITLE": "設定",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "更改應用程式的配置",
@@ -1004,6 +1008,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "請求已暫時暫停",
+            "DESCRIPTION": "連線連續失敗後，請求已暫停。立即重試以重新連線至入口網站。",
+            "RETRY": "立即重試"
+        },
         "ALL_CATEGORIES": "所有類別",
         "MY_FAVORITES": "我的最愛",
         "ADD_TO_FAVORITES": "新增至最愛",

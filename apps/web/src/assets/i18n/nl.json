@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Portalverbindingen",
+        "PORTAL_CONNECTIVITY_GUARD": "Verzoeken aan onbereikbare portals pauzeren",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Pauzeer nieuwe Xtream- en Stalker-verzoeken 30 seconden na herhaalde verbindingsfouten. Probeer dit uit te schakelen als een portal af en toe onbereikbaar is. Geldt na opslaan, zonder herstart.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Elk verzoek wordt onafhankelijk uitgevoerd. Bij onbereikbare servers kan een foutmelding langer duren.",
         "TITLE": "Instellingen",
         "GENERAL": "Algemeen",
         "GENERAL_SUBTITLE": "Wijzig de configuratie van de applicatie",
@@ -1004,6 +1008,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Verzoeken tijdelijk gepauzeerd",
+            "DESCRIPTION": "Verzoeken zijn gepauzeerd na herhaalde verbindingsfouten. Probeer opnieuw om de portal direct te bereiken.",
+            "RETRY": "Nu opnieuw proberen"
+        },
         "ALL_CATEGORIES": "Alle categorieën",
         "MY_FAVORITES": "Mijn favorieten",
         "ADD_TO_FAVORITES": "Voeg toe aan favorieten",

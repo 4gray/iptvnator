@@ -22,6 +22,16 @@ export { HostConnectivityGuardError };
 export type { HostRequestToken };
 
 let sharedGuard: HostConnectivityGuard | null = null;
+let enabled = true;
+let currentTokens = new WeakSet<HostRequestToken>();
+
+/** Apply a saved desktop preference without letting old requests affect a new guard. */
+export function setHostConnectivityGuardEnabled(value: boolean): void {
+    if (enabled === value) return;
+    enabled = value;
+    sharedGuard = null;
+    currentTokens = new WeakSet<HostRequestToken>();
+}
 
 /** The guard both portal IPC handlers share. */
 export function getHostConnectivityGuard(): HostConnectivityGuard {
@@ -40,6 +50,8 @@ export function getHostConnectivityGuard(): HostConnectivityGuard {
 
 /** Test seam: forgets the shared guard so each spec starts clean. */
 export function resetHostConnectivityGuardForTests(): void {
+    enabled = true;
+    currentTokens = new WeakSet<HostRequestToken>();
     sharedGuard = null;
 }
 
@@ -53,7 +65,7 @@ export function resetHostConnectivityGuardForTests(): void {
  */
 export function beginGuardedHostRequest(url: string): HostRequestToken | null {
     const endpoint = portalEndpointKeyOf(url);
-    if (!endpoint) {
+    if (!endpoint || !enabled) {
         return null;
     }
 
@@ -62,6 +74,7 @@ export function beginGuardedHostRequest(url: string): HostRequestToken | null {
         throw new HostConnectivityGuardError(endpoint);
     }
 
+    currentTokens.add(check.token);
     return check.token;
 }
 
@@ -70,11 +83,14 @@ export function observeGuardedHostRequest(
     url: string
 ): HostRequestToken | null {
     const endpoint = portalEndpointKeyOf(url);
-    return endpoint ? getHostConnectivityGuard().observe(endpoint) : null;
+    if (!endpoint || !enabled) return null;
+    const token = getHostConnectivityGuard().observe(endpoint);
+    currentTokens.add(token);
+    return token;
 }
 
 export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
-    if (token) {
+    if (token && currentTokens.has(token)) {
         getHostConnectivityGuard().reportSuccess(token);
     }
 }
@@ -91,7 +107,7 @@ export function reportGuardedHostFailure(
     error: unknown,
     options: { countFailures?: boolean; requestUrl?: string } = {}
 ): void {
-    if (!token) {
+    if (!token || !currentTokens.has(token)) {
         return;
     }
 
