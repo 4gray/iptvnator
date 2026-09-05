@@ -55,7 +55,7 @@ const releaseDate = formatReleaseDate(release.publishedAt);
 
         <h1 class="mt-6 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
           {titleLead}{' '}
-          <em class="font-medium text-accent-400" style="font-style: italic;">{titleAccent}</em>
+          <span class="text-accent-400">{titleAccent}</span>
         </h1>
 
         <p class="mt-6 max-w-xl text-lg leading-relaxed text-surface-400">{lede}</p>
@@ -82,14 +82,14 @@ const releaseDate = formatReleaseDate(release.publishedAt);
 
         <ul class="mt-8 flex flex-wrap gap-2" aria-label="Key facts">
           {facts.map((fact) => (
-            <li class="rounded-full border border-dashed border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
+            <li class="rounded-full border border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
           ))}
         </ul>
       </div>
 
       <figure class="relative">
         <div class="pointer-events-none absolute -inset-6 rounded-3xl bg-accent-500/[0.05] blur-2xl"></div>
-        <div class="relative overflow-hidden rounded-xl border border-dashed border-surface-600/60 bg-surface-900/60 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+        <div class="relative overflow-hidden rounded-xl border border-surface-600/60 bg-surface-900/60 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
           <img
             src={screenshot.src}
             alt={screenshot.alt}

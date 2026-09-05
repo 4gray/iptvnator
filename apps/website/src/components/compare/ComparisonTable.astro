@@ -24,10 +24,10 @@ const { columns, rowHeader = 'Capability', rows, caption } = Astro.props;
 ---
 
 <figure class="not-prose">
-  <div class="overflow-x-auto rounded-lg border border-dashed border-surface-600/60 bg-surface-900/40">
+  <div class="overflow-x-auto rounded-lg border border-surface-600/60 bg-surface-900/40">
     <table class="w-full min-w-[720px] border-collapse text-left">
       <thead>
-        <tr class="border-b border-dashed border-surface-700/60">
+        <tr class="border-b border-surface-700/60">
           <th scope="col" class="px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-surface-500">{rowHeader}</th>
           {columns.map((column) => (
             <th scope="col" class="px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-accent-400">{column}</th>
@@ -36,7 +36,7 @@ const { columns, rowHeader = 'Capability', rows, caption } = Astro.props;
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr class="border-b border-dashed border-surface-700/40 last:border-b-0 transition-colors hover:bg-surface-900/60">
+          <tr class="border-b border-surface-700/40 last:border-b-0 transition-colors hover:bg-surface-900/60">
             <th scope="row" class="px-5 py-4 text-left align-top text-sm font-semibold text-surface-100">
               {row.label}
               {row.note && <span class="mt-1 block text-xs font-normal leading-relaxed text-surface-500">{row.note}</span>}

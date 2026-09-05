@@ -48,7 +48,7 @@ const { feature, titleLead, titleAccent, lede, facts, screenshot } = Astro.props
 
         <h1 class="mt-6 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
           {titleLead}{' '}
-          <em class="font-medium text-accent-400" style="font-style: italic;">{titleAccent}</em>
+          <span class="text-accent-400">{titleAccent}</span>
         </h1>
 
         <p class="mt-6 max-w-xl text-lg leading-relaxed text-surface-400">{lede}</p>
@@ -65,7 +65,7 @@ const { feature, titleLead, titleAccent, lede, facts, screenshot } = Astro.props
           </a>
           <a
             href={feature.guide.href}
-            class="inline-flex items-center gap-3 rounded-xl border border-dashed border-surface-600/60 bg-surface-900/50 px-6 py-4 text-base font-semibold text-surface-100 transition-all duration-300 hover:border-accent-500/40 hover:bg-accent-500/[0.05]"
+            class="inline-flex items-center gap-3 rounded-xl border border-surface-600/60 bg-surface-900/50 px-6 py-4 text-base font-semibold text-surface-100 transition-all duration-300 hover:border-accent-500/40 hover:bg-accent-500/[0.05]"
           >
             <svg class="h-5 w-5 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.483 9.246 5 7.5 5 5.205 5 3.182 5.836 2 7.117v11.41C3.182 17.247 5.205 16.41 7.5 16.41c1.746 0 3.332.484 4.5 1.254m0-11.41C13.168 5.483 14.754 5 16.5 5c2.295 0 4.318.836 5.5 2.117v11.41C20.818 17.247 18.795 16.41 16.5 16.41c-1.746 0-3.332.484-4.5 1.254" />
@@ -76,14 +76,14 @@ const { feature, titleLead, titleAccent, lede, facts, screenshot } = Astro.props
 
         <ul class="mt-8 flex flex-wrap gap-2" aria-label="Key facts">
           {facts.map((fact) => (
-            <li class="rounded-full border border-dashed border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
+            <li class="rounded-full border border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
           ))}
         </ul>
       </div>
 
       <figure class="relative">
         <div class="pointer-events-none absolute -inset-6 rounded-3xl bg-accent-500/[0.05] blur-2xl"></div>
-        <div class="relative overflow-hidden rounded-xl border border-dashed border-surface-600/60 bg-surface-900/60 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+        <div class="relative overflow-hidden rounded-xl border border-surface-600/60 bg-surface-900/60 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
           <img
             src={screenshot.src}
             alt={screenshot.alt}

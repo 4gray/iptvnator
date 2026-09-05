@@ -119,7 +119,7 @@ const jsonLd = faqSchema ? [blogPostSchema, faqSchema] : blogPostSchema;
               <>
                 <span class="text-surface-700">&middot;</span>
                 {tags.map((tag) => (
-                  <span class="rounded-full border border-dashed border-accent-500/30 px-2.5 py-0.5 text-xs font-medium text-accent-400">
+                  <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2.5 py-0.5 text-xs font-medium text-surface-300">
                     {tag}
                   </span>
                 ))}
@@ -138,7 +138,7 @@ const jsonLd = faqSchema ? [blogPostSchema, faqSchema] : blogPostSchema;
           <img
             src={AUTHOR_AVATAR_URL}
             alt={`${author} avatar`}
-            class="h-8 w-8 rounded-full border border-dashed border-accent-500/30 object-cover"
+            class="h-8 w-8 rounded-full border border-surface-700 object-cover"
             loading="lazy"
           />
           <div>
@@ -168,7 +168,7 @@ const jsonLd = faqSchema ? [blogPostSchema, faqSchema] : blogPostSchema;
 
       <!-- Content -->
       <div
-        class="prose prose-invert mt-12 max-w-none prose-headings:font-display prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-surface-100 prose-p:text-surface-300 prose-a:text-accent-400 prose-a:no-underline prose-a:decoration-accent-500/30 hover:prose-a:underline prose-strong:text-surface-100 prose-code:rounded prose-code:bg-surface-800/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-accent-300 prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:border prose-pre:border-dashed prose-pre:border-surface-700/60 prose-pre:bg-surface-900/50 prose-blockquote:border-accent-500/30 prose-blockquote:text-surface-400 prose-hr:border-dashed prose-hr:border-surface-700/60"
+        class="prose prose-invert mt-12 max-w-none prose-headings:font-display prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-surface-100 prose-p:text-surface-300 prose-a:text-accent-400 prose-a:no-underline prose-a:decoration-accent-500/30 hover:prose-a:underline prose-strong:text-surface-100 prose-code:rounded prose-code:bg-surface-800/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-accent-300 prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:border prose-pre:prose-pre:border-surface-700/60 prose-pre:bg-surface-900/50 prose-blockquote:border-accent-500/30 prose-blockquote:text-surface-400 prose-hr:prose-hr:border-surface-700/60"
       >
         <slot />
       </div>
