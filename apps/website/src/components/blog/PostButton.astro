@@ -12,7 +12,7 @@ const { href, label, external = true } = Astro.props;
   href={href}
   target={external ? '_blank' : undefined}
   rel={external ? 'noopener noreferrer' : undefined}
-  class="not-prose group my-6 inline-flex items-center gap-2 rounded-lg border border-dashed border-accent-500/35 bg-accent-500/[0.08] px-4 py-2.5 text-sm font-medium text-accent-200 transition-all duration-200 hover:border-accent-400/50 hover:bg-accent-500/[0.14] hover:text-accent-100"
+  class="not-prose group my-6 inline-flex items-center gap-2 rounded-lg border border-accent-500/35 bg-accent-500/[0.08] px-4 py-2.5 text-sm font-medium text-accent-200 transition-all duration-200 hover:border-accent-400/50 hover:bg-accent-500/[0.14] hover:text-accent-100"
 >
   <span>{label ?? 'Open link'}</span>
   <svg class="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

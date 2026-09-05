@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Connexions aux portails",
+        "PORTAL_CONNECTIVITY_GUARD": "Suspendre les requêtes aux portails indisponibles",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Après plusieurs échecs de connexion, suspendre les nouvelles requêtes Xtream et Stalker pendant 30 secondes. Essayez de désactiver cette option si un portail devient indisponible par intermittence. Prend effet après enregistrement, sans redémarrage.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Chaque requête sera exécutée indépendamment. Les serveurs indisponibles peuvent mettre plus de temps à signaler une erreur.",
         "TITLE": "Paramètres",
         "GENERAL": "Général",
         "GENERAL_SUBTITLE": "Modifier la configuration de l'application",
@@ -999,9 +1003,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Gérer les catégories",
             "LOADING": "Chargement des catégories…",
-            "SELECTED": "Sélectionnées",
+            "SELECTED": "Total sélectionné",
             "SELECT_ALL": "Tout sélectionner",
             "DESELECT_ALL": "Tout désélectionner",
+            "SELECT_FILTERED": "Sélectionner les résultats",
+            "DESELECT_FILTERED": "Désélectionner les résultats",
             "SEARCH_PLACEHOLDER": "Rechercher des catégories…",
             "NO_RESULTS": "Aucune catégorie correspondante trouvée",
             "NO_CATEGORIES": "Aucune catégorie disponible",
@@ -1009,6 +1015,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Requêtes temporairement suspendues",
+            "DESCRIPTION": "Les requêtes ont été suspendues après plusieurs échecs de connexion. Réessayez pour contacter le portail immédiatement.",
+            "RETRY": "Réessayer maintenant"
+        },
         "ALL_CATEGORIES": "Toutes les catégories",
         "MY_FAVORITES": "Mes favoris",
         "ADD_TO_FAVORITES": "Ajouter aux favoris",

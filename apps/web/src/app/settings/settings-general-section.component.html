@@ -1,8 +1,4 @@
-<section
-    class="settings-group"
-    id="general"
-    [formGroup]="form()"
->
+<section class="settings-group" id="general" [formGroup]="form()">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>settings</mat-icon>
@@ -204,3 +200,48 @@
         </div>
     </div>
 </section>
+@if (supportsPortalConnectivityGuard()) {
+    <section
+        class="settings-group"
+        [formGroup]="form()"
+        data-test-id="portal-connectivity-setting"
+    >
+        <header class="settings-group__header">
+            <div class="settings-group__header-icon">
+                <mat-icon>hub</mat-icon>
+            </div>
+            <div class="settings-group__header-text">
+                <h3>{{ 'SETTINGS.PORTAL_CONNECTIONS' | translate }}</h3>
+            </div>
+        </header>
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4 id="portal-connectivity-label">
+                    {{ 'SETTINGS.PORTAL_CONNECTIVITY_GUARD' | translate }}
+                </h4>
+                <p id="portal-connectivity-description">
+                    {{
+                        'SETTINGS.PORTAL_CONNECTIVITY_GUARD_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+                @if (form().get('portalConnectivityGuard')?.value === false) {
+                    <p>
+                        {{
+                            'SETTINGS.PORTAL_CONNECTIVITY_GUARD_DISABLED'
+                                | translate
+                        }}
+                    </p>
+                }
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="portalConnectivityGuard"
+                    aria-labelledby="portal-connectivity-label"
+                    aria-describedby="portal-connectivity-description"
+                    data-test-id="portal-connectivity-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    </section>
+}

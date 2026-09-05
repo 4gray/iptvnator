@@ -69,6 +69,35 @@ timeouts but not the breaker, deliberately:
   idle-based, see above — which outlives the 45 s half-open trial expiry and
   would let a second trial in behind the first.
 
+## Desktop preference and account feedback
+
+Settings > General > Portal connections offers **Pause requests to unavailable
+portals**, enabled by default. `Settings.portalConnectivityGuard` is default-on
+for missing or non-boolean legacy values; only explicit `false` opts out. The
+form stages edits until Save and persists the choice through the normal settings
+store. `SETTINGS_UPDATE` mirrors it to Electron's `PORTAL_CONNECTIVITY_GUARD`
+config key and applies it immediately. `SettingsEvents.bootstrapSettingsEvents`
+loads that mirror before the renderer is loaded, so a saved opt-out already
+applies to the first portal request after restarting.
+
+The preference controls both Xtream and Stalker. A real preference transition
+replaces the Electron guard and its weak set of admitted request tokens, clearing
+existing cooldowns and ignoring completions from the old generation. Disabled
+requests return no token and cannot contribute failures when the user re-enables
+the guard. Saving an unchanged value preserves existing evidence.
+`IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` (or `true`) still overrides an enabled
+preference. The UI is capability-gated by `supportsPortalConnectivityGuard`
+(`updateSettings` plus `resetHostConnectivityGuard`); the PWA has no client-side
+switch for its shared server-wide guard.
+
+Both account-info dialogs classify the existing cross-process guard message and
+show a localized **Requests temporarily paused** explanation with **Retry now**.
+Stalker keeps cached account data visible and offers the same retry beside the
+paused refresh notice. Retry resets before requesting again; actual network
+failures retain the generic unavailable state. These notices describe the last
+request outcome, not a live countdown. The preference does not fix the separate
+same-millisecond sibling-counting issue #1438.
+
 ## Rules
 
 Being wrong here means refusing to talk to a portal that works, so every rule
@@ -141,10 +170,17 @@ Two more rules exist because of specific failure modes:
 
 - **Siblings are not a streak.** Catalog initialization fans out three category
   requests at once; one network hiccup failing all three is one piece of
-  evidence, not a trip. A failure counts only if its request started at or after
-  the moment the previous failure was recorded. Timestamps are millisecond
-  coarse, so this only separates siblings once a request actually took time —
-  which is precisely the expensive case worth protecting. Only a failure that
+  evidence, not a trip. Each admitted request receives a guard-wide monotonic
+  admission id. A counted failure saves the highest id admitted so far in that
+  endpoint's failure record, not just the id of the request that failed. During
+  that streak, only a request admitted beyond this boundary can add another
+  failure. This distinguishes
+  siblings from later attempts even if admission and completion all happen in
+  the same millisecond (#1438), regardless of completion order. Admission ids
+  are never reused when an endpoint's state is evicted. A recreated record has
+  no failure streak, so the first old in-flight failure can still count once;
+  its remaining siblings cannot add further links to that streak. Timestamps
+  still determine streak expiry, cooldown and trial timeout. Only a failure that
   was actually counted may trip the threshold: a sibling settling after the open
   window elapsed would otherwise start a fresh one off the existing count and
   push the half-open trial past the intended cooldown.

@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Conexiones a portales",
+        "PORTAL_CONNECTIVITY_GUARD": "Pausar solicitudes a portales no disponibles",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Tras varios fallos de conexión, pausar las nuevas solicitudes de Xtream y Stalker durante 30 segundos. Prueba a desactivarlo si un portal deja de estar disponible de forma intermitente. Se aplica al guardar, sin reiniciar.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Cada solicitud se ejecutará de forma independiente. Los servidores no disponibles pueden tardar más en mostrar un error.",
         "TITLE": "Ajustes",
         "GENERAL": "General",
         "GENERAL_SUBTITLE": "Cambia la configuracion general de la aplicacion",
@@ -999,9 +1003,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Gestionar categorías",
             "LOADING": "Cargando categorías…",
-            "SELECTED": "Seleccionadas",
+            "SELECTED": "Total seleccionado",
             "SELECT_ALL": "Seleccionar todo",
             "DESELECT_ALL": "Deseleccionar todo",
+            "SELECT_FILTERED": "Seleccionar resultados",
+            "DESELECT_FILTERED": "Deseleccionar resultados",
             "SEARCH_PLACEHOLDER": "Buscar categorías…",
             "NO_RESULTS": "No se encontraron categorías coincidentes",
             "NO_CATEGORIES": "No hay categorías disponibles",
@@ -1009,6 +1015,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Solicitudes pausadas temporalmente",
+            "DESCRIPTION": "Las solicitudes se pausaron tras varios fallos de conexión. Reintenta para contactar con el portal inmediatamente.",
+            "RETRY": "Reintentar ahora"
+        },
         "ALL_CATEGORIES": "Todas las categorías",
         "MY_FAVORITES": "Mis favoritos",
         "ADD_TO_FAVORITES": "Agregar a los favoritos",

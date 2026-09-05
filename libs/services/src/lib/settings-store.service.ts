@@ -58,6 +58,7 @@ const DEFAULT_SETTINGS: Settings = {
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',
     embeddedMpvAutoReconnect: true,
+    portalConnectivityGuard: true,
     coverSize: 'medium',
     epgViewMode: 'timeline',
     epgOffsetMinutes: 0,
@@ -170,6 +171,9 @@ export const SettingsStore = signalStore(
                             webPlayerSharedControls:
                                 storedSettings.webPlayerSharedControls !==
                                 false,
+                            portalConnectivityGuard:
+                                storedSettings.portalConnectivityGuard !==
+                                false,
                             embeddedMpvAutoReconnect:
                                 storedSettings.embeddedMpvAutoReconnect !==
                                 false,
@@ -205,6 +209,12 @@ export const SettingsStore = signalStore(
                         ? {
                               webPlayerSharedControls:
                                   settings.webPlayerSharedControls !== false,
+                          }
+                        : {}),
+                    ...(settings.portalConnectivityGuard !== undefined
+                        ? {
+                              portalConnectivityGuard:
+                                  settings.portalConnectivityGuard !== false,
                           }
                         : {}),
                     ...(settings.embeddedMpvAutoReconnect !== undefined
@@ -302,6 +312,8 @@ export const SettingsStore = signalStore(
                         store.embeddedMpvFrameCopy?.() ?? false,
                     embeddedMpvExtraOptions:
                         store.embeddedMpvExtraOptions?.() ?? '',
+                    portalConnectivityGuard:
+                        store.portalConnectivityGuard?.() !== false,
                     embeddedMpvAutoReconnect:
                         store.embeddedMpvAutoReconnect?.() !== false,
                     coverSize:

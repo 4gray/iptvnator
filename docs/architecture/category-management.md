@@ -12,7 +12,7 @@ Xtream API playlists often contain many categories, some of which may be empty, 
 4. User sees all categories with checkboxes (checked = visible, unchecked = hidden)
 5. User can:
     - Individually toggle categories
-    - Use "Select All" / "Deselect All" buttons
+    - Use "Select All" / "Deselect All" for the whole list, or "Select Filtered" / "Deselect Filtered" for search results
     - Search/filter categories by name
 6. On save, visibility preferences are persisted to the database
 7. Hidden categories no longer appear in the sidebar
@@ -59,9 +59,9 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - Path: `libs/portal/xtream/feature/src/lib/category-management-dialog/`
 - Features:
     - Checkbox list of all categories
-    - Select All / Deselect All buttons
+    - Scope-aware bulk selection buttons
     - Search/filter with clearable input
-    - Shows selected count vs total
+    - Shows total selected count vs the full catalog size, independently of the search filter
     - Saves changes to database on confirm
 
 **Integration Points**
@@ -93,6 +93,28 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
   categories through `getAllXtreamCategories()` so users can select categories
   again.
 
+### Filtered Bulk Selection
+
+The Electron dialog applies bulk actions to the currently displayed categories
+for Live TV, Movies, and Series. Search is case-insensitive. With an empty
+search, actions apply to the entire list for that content type. Changing or
+clearing the search preserves all pending selections, including both selected
+and unselected categories outside the current results.
+
+The two action buttons use localized filtered labels while searching. Select is
+disabled when every result is selected; Deselect is disabled when no result is
+selected. Both are disabled when there are no results. Partial selection enables
+both actions. The buttons have no static checkbox icon that could be mistaken
+for a group selection state; each category's checkbox reflects its own state.
+The counter is explicitly labelled "Total selected" and always uses the full
+catalog for both numerator and denominator.
+
+Save writes the complete draft using local database category IDs; closing the
+dialog without saving discards it. The existing PWA path does not expose this
+SQLite-backed dialog. Regression coverage lives in the dialog component spec
+and `apps/electron-backend-e2e/src/category-management.e2e.ts` (all three types,
+save/reopen, discard, no matches, and both existing refresh paths).
+
 ### Visibility Preservation During Refresh
 
 When a user refreshes an Xtream playlist, hidden category preferences are preserved through the following mechanism:
@@ -103,7 +125,11 @@ When a user refreshes an Xtream playlist, hidden category preferences are preser
 4. **Restoration**: Categories matching the saved xtreamIds are inserted with `hidden = true`, preserving the user's visibility preferences
 5. **ID normalization**: Xtream category IDs arrive from the API as strings, while SQLite stores `categories.xtream_id` as an integer. Restoration must normalize incoming `category_id` values before matching them against saved hidden-category xtreamIds.
 
-This ensures that users don't lose their category visibility customizations when refreshing playlists to get updated content.
+Restoration matches stable provider IDs within each playlist and content type;
+renamed categories keep their preference when their ID is unchanged. A provider
+that changes IDs creates new visible categories, even if names are reused.
+Pending preferences survive a failed refresh and are replayed after a successful
+import. The source-list refresh and workspace-header refresh both use this path.
 
 ### Debugging Note
 
@@ -170,9 +196,11 @@ global.d.ts                      # TypeScript types for IPC methods
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Manage Categories",
             "LOADING": "Loading categories...",
-            "SELECTED": "Selected",
+            "SELECTED": "Total selected",
             "SELECT_ALL": "Select All",
             "DESELECT_ALL": "Deselect All",
+            "SELECT_FILTERED": "Select Filtered",
+            "DESELECT_FILTERED": "Deselect Filtered",
             "SEARCH_PLACEHOLDER": "Search categories...",
             "NO_RESULTS": "No matching categories found",
             "NO_CATEGORIES": "No categories available",

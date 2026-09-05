@@ -867,14 +867,21 @@ path-only setting; extra flags are stored separately as `mpvPlayerArguments` and
 
 Argument fields are line-oriented: one non-empty trimmed line becomes one argv
 entry. IPTVnator prepends those custom entries before its stream-specific runtime
-arguments, then keeps the stream URL last. This avoids shell parsing, keeps paths
-with spaces safe, and preserves existing settings for users who never configured
-extra arguments.
+arguments. This avoids shell parsing, keeps paths with spaces safe, and preserves
+existing settings for users who never configured extra arguments.
 
 The arguments apply only when IPTVnator spawns a new external player process. If
 MPV or VLC instance reuse is active and an existing process is reused, subsequent
 streams are loaded through MPV IPC or VLC RC commands and new process arguments
 are not re-applied until a fresh process starts.
+
+VLC enables its TCP RC interface when content metadata requires progress
+tracking or instance reuse is enabled. On Windows, these managed RC launches
+also append `--rc-quiet` after custom arguments to suppress VLC's DOS console
+while retaining TCP control. macOS/Linux and launches without an allocated RC
+port receive no automatic quiet flag. Both launch-error and exit-code-1 retries
+remove the app-generated RC flags, including `--rc-quiet`; custom arguments
+continue to be prepended unchanged.
 
 ## Electron External Player Ownership
 

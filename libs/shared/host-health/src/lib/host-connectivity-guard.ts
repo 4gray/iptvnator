@@ -104,7 +104,8 @@ export interface HostRequestToken {
     /** Scheme, host and port — see {@link portalEndpointKeyOf}. */
     readonly endpoint: string;
     readonly epoch: number;
-    readonly startedAt: number;
+    /** Admission order within this guard, independent of clock precision. */
+    readonly admissionId: number;
     /** Whether this request is the single probe allowed while half-open. */
     readonly trial: boolean;
     /**
@@ -129,6 +130,8 @@ interface HostState {
     consecutiveFailures: number;
     /** When the last COUNTED failure was recorded. */
     lastFailureAt: number;
+    /** Latest guard-wide admission id when this host's last failure counted. */
+    lastFailureAdmissionId: number;
     openUntil: number;
     trialStartedAt: number | null;
     /** Monotonic id of the half-open slot; see `HostRequestToken.trialId`. */
@@ -201,6 +204,8 @@ export function portalEndpointKeyOf(url: string): string | null {
 
 export class HostConnectivityGuard {
     private readonly states = new Map<string, HostState>();
+    /** Never reused when an endpoint is evicted while requests are in flight. */
+    private admissionId = 0;
     private readonly now: () => number;
     private readonly onOpen?: (endpoint: string) => void;
 
@@ -224,7 +229,7 @@ export class HostConnectivityGuard {
                 token: {
                     endpoint,
                     epoch: 0,
-                    startedAt: now,
+                    admissionId: 0,
                     trial: false,
                     trialId: 0,
                 },
@@ -258,7 +263,7 @@ export class HostConnectivityGuard {
             token: {
                 endpoint,
                 epoch: state.epoch,
-                startedAt: now,
+                admissionId: ++this.admissionId,
                 trial,
                 trialId: trial ? state.trialId : 0,
             },
@@ -316,15 +321,16 @@ export class HostConnectivityGuard {
         // A request already in flight when the previous failure was recorded is
         // not the next link in a streak — it is a sibling of it. Catalog
         // loading fans out several requests at once, and one hiccup failing all
-        // of them is one piece of evidence, not a trip. A request that started
-        // at or after that moment is a genuine new attempt.
+        // of them is one piece of evidence, not a trip. Admission order makes
+        // that boundary exact even when all events share one clock tick.
         let counted = false;
         if (
             state.consecutiveFailures === 0 ||
-            token.startedAt >= state.lastFailureAt
+            token.admissionId > state.lastFailureAdmissionId
         ) {
             state.consecutiveFailures += 1;
             state.lastFailureAt = now;
+            state.lastFailureAdmissionId = this.admissionId;
             counted = true;
         }
 
@@ -388,7 +394,7 @@ export class HostConnectivityGuard {
         return {
             endpoint,
             epoch: this.states.get(endpoint)?.epoch ?? 0,
-            startedAt: this.now(),
+            admissionId: 0,
             trial: false,
             trialId: 0,
         };
@@ -425,6 +431,7 @@ export class HostConnectivityGuard {
         const state: HostState = {
             consecutiveFailures: 0,
             lastFailureAt: 0,
+            lastFailureAdmissionId: 0,
             openUntil: 0,
             trialStartedAt: null,
             trialId: 0,

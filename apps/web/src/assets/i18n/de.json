@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Portalverbindungen",
+        "PORTAL_CONNECTIVITY_GUARD": "Anfragen an nicht erreichbare Portale pausieren",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Nach wiederholten Verbindungsfehlern neue Xtream- und Stalker-Anfragen 30 Sekunden pausieren. Bei zeitweise nicht erreichbaren Portalen versuchsweise deaktivieren. Gilt nach dem Speichern ohne Neustart.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Jede Anfrage wird unabhängig ausgeführt. Bei nicht erreichbaren Servern kann die Fehlermeldung länger dauern.",
         "TITLE": "Einstellungen",
         "GENERAL": "Allgemein",
         "GENERAL_SUBTITLE": "Allgemeine App-Einstellungen ändern",
@@ -999,9 +1003,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Kategorien verwalten",
             "LOADING": "Kategorien werden geladen …",
-            "SELECTED": "Ausgewählt",
+            "SELECTED": "Insgesamt ausgewählt",
             "SELECT_ALL": "Alle auswählen",
             "DESELECT_ALL": "Alle abwählen",
+            "SELECT_FILTERED": "Gefilterte auswählen",
+            "DESELECT_FILTERED": "Gefilterte abwählen",
             "SEARCH_PLACEHOLDER": "Kategorien suchen …",
             "NO_RESULTS": "Keine passenden Kategorien gefunden",
             "NO_CATEGORIES": "Keine Kategorien verfügbar",
@@ -1009,6 +1015,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "Anfragen vorübergehend pausiert",
+            "DESCRIPTION": "Anfragen wurden nach wiederholten Verbindungsfehlern pausiert. Jetzt erneut versuchen, um das Portal sofort zu kontaktieren.",
+            "RETRY": "Jetzt erneut versuchen"
+        },
         "ALL_CATEGORIES": "Alle Kategorien",
         "MY_FAVORITES": "Meine Favoriten",
         "ADD_TO_FAVORITES": "Zu den Favoriten hinzufügen",

@@ -330,7 +330,7 @@ This is an Nx monorepo with the following structure:
 - **apps/electron-backend-e2e** - Playwright E2E tests against the Electron app
 - **apps/stalker-mock-server** - Mock Stalker/Ministra portal for dev and E2E
 - **apps/xtream-mock-server** - Mock Xtream Codes API for dev and E2E
-- **apps/website** - Astro + Tailwind landing page, blog (guides carry `faq:` frontmatter → FAQPage JSON-LD), per-OS download landing pages (`/download/`, `/download/{windows,macos,linux}/`) and feature landing pages (`/features/`, registry in `src/lib/features.ts`); direct asset links are resolved at build time from the GitHub Releases API with a `package.json` fallback (`src/lib/downloads.ts`, see `apps/website/README.md`)
+- **apps/website** - Astro + Tailwind landing page, blog (guides carry `faq:` frontmatter → FAQPage JSON-LD), per-OS download landing pages (`/download/`, `/download/{windows,macos,linux}/`) feature landing pages (`/features/`, registry in `src/lib/features.ts`) and comparison pages (`/compare/`, registry in `src/lib/comparisons.ts`, comparing IPTVnator's own options rather than other products); direct asset links are resolved at build time from the GitHub Releases API with a `package.json` fallback (`src/lib/downloads.ts`, see `apps/website/README.md`)
 - **libs/** - Shared libraries:
     - **epg/data-access** - EPG services, runtime bridge, program normalization
     - **m3u-state** - NgRx state management for M3U playlists
@@ -345,7 +345,7 @@ This is an Nx monorepo with the following structure:
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
-    - **shared/host-health** - Per-host circuit breaker for portal requests (`HostConnectivityGuard`), shared by the Electron main process and the web backend; transport-free, the owning app supplies the clock and owns the instance
+    - **shared/host-health** - Per-host circuit breaker for portal requests (`HostConnectivityGuard`), shared by the Electron main process and the web backend; transport-free, the owning app supplies the clock and owns the instance. Monotonic admission ids with per-endpoint failure boundaries distinguish parallel failures from later attempts even within one clock tick (#1438)
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
     - **shared/marketing-fixtures** - Provider-neutral fictional movie metadata, live channel list and the generated channel-logo SVG renderer shared by the Xtream and Stalker marketing mocks (both serve `/assets/marketing/logo/<slug>.svg`)
@@ -760,6 +760,14 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - EPG parsing: `epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
 - Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`). Catalog deletes and inserts commit in row-budgeted transactions of ~5,000 rows (`database/operations/catalog-deletion.ts`: per-category row counts → category groups → set-based `DELETE`s scoped to the captured category ids, never playlist-wide, since the worker interleaves requests between commits and a newer import's categories must survive an older refresh; never 100-row autocommit batches, which flush FTS5 segments and re-append index pages to the WAL on every commit, and never one giant transaction, which would starve the main-process and EPG-worker connections past their 5 s `busy_timeout`). Progress events are throttled to one per 100 ms per operation with summed `increment`s (`operation-progress-throttle.ts`); phase starts, totals reached and terminal events are never held back
 - Playlist refresh: `playlist-refresh.worker.ts`; explicit cancellation is main-process-owned and terminates the one-shot worker before acknowledging `PLAYLIST_CANCEL_REFRESH` (see `docs/architecture/m3u-playlist-module.md`)
+
+### Xtream Category Management
+
+The Electron Live TV, Movies, and Series category dialog applies Select/Deselect
+to search results while a filter is active and to the whole type otherwise.
+Button states use the matching group; "Total selected" counts the whole catalog.
+Save persists the complete draft, Close discards it, and refresh restores hidden
+categories by provider ID and type. See `docs/architecture/category-management.md`.
 
 ### Key Features
 
@@ -1625,3 +1633,17 @@ No formal migration system yet. Schema changes are applied via raw SQL in the `c
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+## Portal Connectivity Preference
+
+- Desktop Settings > General > Portal connections exposes default-on
+  `Settings.portalConnectivityGuard`. Only explicit false opts out. Save mirrors
+  the value to Electron `PORTAL_CONNECTIVITY_GUARD` and applies it without restart;
+  settings bootstrap restores it before the renderer loads. It controls Xtream
+  and Stalker together. Preference transitions clear cooldowns and invalidate old
+  request completions; unchanged saves preserve evidence. The environment switch
+  `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` remains authoritative. PWA clients do not
+  control the shared backend's guard.
+- Both account-info dialogs explain guard refusals with localized paused-request
+  copy and Retry now; Stalker preserves cached account data on a failed refresh.
+  Contract: `docs/architecture/host-connectivity-guard.md`.

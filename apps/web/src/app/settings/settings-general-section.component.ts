@@ -39,6 +39,7 @@ export class SettingsGeneralSectionComponent {
         input.required<StartupWindowModeOption[]>();
     /** Desktop only: the window-mode select needs the main-process mirror and F11 */
     readonly supportsStartupWindowMode = input(false);
+    readonly supportsPortalConnectivityGuard = input(false);
 
     readonly selectTheme = output<Theme>();
     readonly selectCoverSize = output<CoverSize>();

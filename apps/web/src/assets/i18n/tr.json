@@ -244,6 +244,10 @@
         }
     },
     "SETTINGS": {
+        "PORTAL_CONNECTIONS": "Portal bağlantıları",
+        "PORTAL_CONNECTIVITY_GUARD": "Kullanılamayan portallara istekleri duraklat",
+        "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Tekrarlanan bağlantı hatalarından sonra yeni Xtream ve Stalker isteklerini 30 saniye duraklatır. Portal zaman zaman kullanılamıyorsa kapatmayı deneyin. Kaydettikten sonra yeniden başlatmadan uygulanır.",
+        "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Her istek bağımsız yürütülür. Kullanılamayan sunucularda hata bildirimi daha uzun sürebilir.",
         "TITLE": "Ayarlar",
         "GENERAL": "Genel",
         "GENERAL_SUBTITLE": "Uygulamanın yapılandırmasını değiştirin",
@@ -999,9 +1003,11 @@
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Kategorileri Yönet",
             "LOADING": "Kategoriler yükleniyor...",
-            "SELECTED": "Seçildi",
+            "SELECTED": "Toplam seçilen",
             "SELECT_ALL": "Tümünü Seç",
             "DESELECT_ALL": "Tümünü Kaldır",
+            "SELECT_FILTERED": "Sonuçları seç",
+            "DESELECT_FILTERED": "Sonuçların seçimini kaldır",
             "SEARCH_PLACEHOLDER": "Kategorileri ara...",
             "NO_RESULTS": "Eşleşen kategori bulunamadı",
             "NO_CATEGORIES": "Kategori mevcut değil",
@@ -1009,6 +1015,11 @@
         }
     },
     "PORTALS": {
+        "REQUESTS_PAUSED": {
+            "TITLE": "İstekler geçici olarak duraklatıldı",
+            "DESCRIPTION": "Tekrarlanan bağlantı hatalarından sonra istekler duraklatıldı. Portala hemen bağlanmak için yeniden deneyin.",
+            "RETRY": "Şimdi yeniden dene"
+        },
         "ALL_CATEGORIES": "Tüm kategoriler",
         "MY_FAVORITES": "Favorilerim",
         "ADD_TO_FAVORITES": "Favorilere ekle",

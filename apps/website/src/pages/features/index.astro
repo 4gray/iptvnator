@@ -61,17 +61,23 @@ const jsonLd = [
       <div class="mx-auto max-w-2xl text-center">
         <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Features</span>
         <h1 class="mt-4 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
-          Everything <em class="font-medium text-accent-400" style="font-style: italic;">IPTVnator</em> does
+          Everything <span class="text-accent-400">IPTVnator</span> does
         </h1>
         <p class="mt-6 text-lg leading-relaxed text-surface-400">
           One player for the three ways providers hand out access, with a program guide, a phone remote and the
           comforts of a desktop app. Each page below goes into detail and links to the matching setup guide.
         </p>
+        <p class="mt-4 text-sm text-surface-500">
+          Not sure which one you need?{' '}
+          <a href="/iptvnator/compare/" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300">
+            Compare your options
+          </a>
+        </p>
       </div>
 
       <div class="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((feature) => (
-          <a href={feature.href} class="card-dotted group flex flex-col p-7">
+          <a href={feature.href} class="card-panel group flex flex-col p-7">
             <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-300 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
               <svg class="h-5 w-5 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d={feature.icon} />
@@ -87,7 +93,7 @@ const jsonLd = [
             </span>
           </a>
         ))}
-        <a href="/iptvnator/download/" class="group flex flex-col justify-between rounded-lg border border-dashed border-accent-500/40 bg-accent-500/[0.06] p-7 transition-all duration-300 hover:bg-accent-500/[0.1]">
+        <a href="/iptvnator/download/" class="group flex flex-col justify-between rounded-lg border border-accent-500/40 bg-accent-500/[0.06] p-7 transition-all duration-300 hover:bg-accent-500/[0.1]">
           <div>
             <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Get started</span>
             <h2 class="mt-4 font-display text-xl font-bold tracking-tight text-surface-50">Download for Windows, macOS or Linux</h2>
@@ -110,10 +116,10 @@ const jsonLd = [
       <div class="max-w-2xl">
         <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">And more</span>
         <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl">
-          The rest of the <em class="font-medium text-accent-400" style="font-style: italic;">desktop app</em>
+          The rest of the desktop app
         </h2>
       </div>
-      <dl class="mt-12 grid gap-px overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-surface-700/40 sm:grid-cols-2">
+      <dl class="mt-12 grid gap-px overflow-hidden rounded-lg border border-surface-600/60 bg-surface-700/40 sm:grid-cols-2">
         {more.map((item) => (
           <div class="bg-surface-950/95 px-5 py-4">
             <dt class="font-display text-base font-semibold text-surface-100">{item.title}</dt>

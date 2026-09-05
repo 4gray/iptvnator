@@ -71,14 +71,14 @@ export class CategoryManagementDialogComponent implements OnInit {
 
     readonly totalCount = computed(() => this.categories().length);
 
-    readonly allSelected = computed(
-        () =>
-            this.categories().length > 0 &&
-            this.categories().every((c) => c.selected)
+    readonly filteredSelectedCount = computed(
+        () => this.filteredCategories().filter((c) => c.selected).length
     );
 
-    readonly someSelected = computed(
-        () => this.categories().some((c) => c.selected) && !this.allSelected()
+    readonly allFilteredSelected = computed(
+        () =>
+            this.filteredCategories().length > 0 &&
+            this.filteredSelectedCount() === this.filteredCategories().length
     );
 
     async ngOnInit(): Promise<void> {
@@ -155,31 +155,30 @@ export class CategoryManagementDialogComponent implements OnInit {
     }
 
     selectAll(): void {
-        this.categories.update((cats) =>
-            cats.map((c) => ({ ...c, selected: true }))
-        );
+        this.setFilteredSelection(true);
     }
 
     deselectAll(): void {
-        this.categories.update((cats) =>
-            cats.map((c) => ({ ...c, selected: false }))
-        );
+        this.setFilteredSelection(false);
     }
 
-    toggleAll(): void {
-        if (this.allSelected()) {
-            this.deselectAll();
-        } else {
-            this.selectAll();
-        }
+    private setFilteredSelection(selected: boolean): void {
+        const ids = new Set(this.filteredCategories().map((c) => c.id));
+        this.categories.update((cats) =>
+            cats.map((c) => (ids.has(c.id) ? { ...c, selected } : c))
+        );
     }
 
     async save(): Promise<void> {
         this.isSaving.set(true);
         try {
             const categories = this.categories();
-            const toHide = categories.filter((c) => !c.selected).map((c) => c.id);
-            const toShow = categories.filter((c) => c.selected).map((c) => c.id);
+            const toHide = categories
+                .filter((c) => !c.selected)
+                .map((c) => c.id);
+            const toShow = categories
+                .filter((c) => c.selected)
+                .map((c) => c.id);
 
             if (toHide.length > 0) {
                 await this.dbService.updateCategoryVisibility(toHide, true);
