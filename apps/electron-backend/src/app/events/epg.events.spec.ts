@@ -287,6 +287,60 @@ describe('EpgEvents', () => {
         await flushPromises();
     });
 
+    it('does not revive a retired source from late worker READY or COMPLETE messages', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://removed.example/guide.xml';
+        const fetch = service.fetchEpgFromUrl(url).catch(() => undefined);
+        const worker = mockWorkerInstances[0];
+        let finishTermination!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                finishTermination = resolve;
+            })
+        );
+        const clear = service.clearEpgDataForSource(url);
+        worker.emit('message', { type: 'READY' });
+        worker.emit('message', { type: 'EPG_COMPLETE' });
+        expect(worker.postMessage).not.toHaveBeenCalled();
+        expect(service.hasFetchedUrl(url)).toBe(false);
+        expect(mockWorkerInstances).toHaveLength(1);
+        worker.emit('exit', 1);
+        finishTermination();
+        await flushPromises();
+        const clearWorker = mockWorkerInstances[1];
+        clearWorker.emit('message', { type: 'READY' });
+        clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+        await clear;
+        await fetch;
+    });
+
+    it('does not start a queued source removed while an earlier source imports', async () => {
+        getDatabase.mockRejectedValue(new Error('force stale for test'));
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        const { retireEpgSource } = await import('./epg-source-generation');
+        const { epgWorkerService } = await import('./epg-worker.service');
+        let finishFirst!: () => void;
+        const fetch = jest
+            .spyOn(epgWorkerService, 'fetchEpgFromUrl')
+            .mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishFirst = resolve;
+                    })
+            )
+            .mockResolvedValue(undefined);
+        const request = handleFetchEpg([
+            'https://first.example/guide.xml',
+            'https://queued.example/guide.xml',
+        ]);
+        await flushPromises();
+        retireEpgSource('https://queued.example/guide.xml');
+        finishFirst();
+        await request;
+        expect(fetch).toHaveBeenCalledTimes(1);
+        fetch.mockRestore();
+    });
+
     it('clears one EPG source through a worker and allows it to be fetched again', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
         const sourceUrl = 'https://playlist.example.com/guide.xml';
@@ -381,7 +435,10 @@ describe('EpgEvents', () => {
          * inserts extra queries that the original test didn't anticipate.
          */
         function queryChain<T>(data: T) {
-            const chain: Record<string, jest.Mock> = {} as Record<string, jest.Mock>;
+            const chain: Record<string, jest.Mock> = {} as Record<
+                string,
+                jest.Mock
+            >;
             chain.where = jest.fn().mockReturnValue(chain);
             chain.innerJoin = jest.fn().mockReturnValue(chain);
             chain.groupBy = jest.fn().mockReturnValue(chain);
@@ -393,25 +450,30 @@ describe('EpgEvents', () => {
         // getMapping queries (must come first — they return empty)
         const from = jest
             .fn()
-            .mockReturnValueOnce(queryChain([]))                          // 1. getMapping: epgChannelMappings
-            .mockReturnValueOnce(queryChain([]))                          // 2. getMapping: content table
+            .mockReturnValueOnce(queryChain([])) // 1. getMapping: epgChannelMappings
+            .mockReturnValueOnce(queryChain([])) // 2. getMapping: content table
             // Test expectations below
-            .mockReturnValueOnce(queryChain([]))                          // 3. selectChannelPrograms (bbc.one.uk → empty)
-            .mockReturnValueOnce(queryChain([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }]))  // 4. selectChannelById → channel found
-            .mockReturnValueOnce(queryChain([                             // 5. selectChannelPrograms (BBC.ONE.UK → programs)
-                {
-                    id: 1,
-                    channelId: 'BBC.ONE.UK',
-                    start: '2026-04-14T10:00:00Z',
-                    stop: '2026-04-14T11:00:00Z',
-                    title: 'News',
-                    description: null,
-                    category: null,
-                    iconUrl: null,
-                    rating: null,
-                    episodeNum: null,
-                },
-            ]));
+            .mockReturnValueOnce(queryChain([])) // 3. selectChannelPrograms (bbc.one.uk → empty)
+            .mockReturnValueOnce(
+                queryChain([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }])
+            ) // 4. selectChannelById → channel found
+            .mockReturnValueOnce(
+                queryChain([
+                    // 5. selectChannelPrograms (BBC.ONE.UK → programs)
+                    {
+                        id: 1,
+                        channelId: 'BBC.ONE.UK',
+                        start: '2026-04-14T10:00:00Z',
+                        stop: '2026-04-14T11:00:00Z',
+                        title: 'News',
+                        description: null,
+                        category: null,
+                        iconUrl: null,
+                        rating: null,
+                        episodeNum: null,
+                    },
+                ])
+            );
 
         select.mockImplementation(() => ({ from }));
 

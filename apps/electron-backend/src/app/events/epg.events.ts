@@ -1,3 +1,4 @@
+import { reconcileEpgSources } from './epg-source-settings.service';
 import { ipcMain } from 'electron';
 import {
     ElectronBridgeCurrentProgramsOptions,
@@ -29,6 +30,14 @@ export default class EpgEvents {
      * Bootstrap EPG events
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
+        ipcMain.handle(
+            'EPG_RECONCILE_SOURCES',
+            async (_event, args: { urls: string[] }) => {
+                await reconcileEpgSources(args.urls);
+                return { success: true };
+            }
+        );
+
         ipcMain.handle(
             'FETCH_EPG',
             async (
@@ -179,10 +188,7 @@ export default class EpgEvents {
 
         ipcMain.handle(
             'EPG_CHANNEL_SEARCH',
-            async (
-                _event,
-                args: { searchTerm: string; limit?: number }
-            ) => {
+            async (_event, args: { searchTerm: string; limit?: number }) => {
                 return handleSearchEpgChannels(args.searchTerm, args.limit);
             }
         );

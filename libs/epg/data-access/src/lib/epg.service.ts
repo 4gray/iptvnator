@@ -17,7 +17,7 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import {
     EpgLookupOptions,
     EpgRuntimeBridgeService,
@@ -42,6 +42,15 @@ export class EpgService {
     private translate = inject(TranslateService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly sourceSettings = inject(EpgSourceSettingsService);
+
+    constructor() {
+        this.sourceSettings.changed$.subscribe(() => {
+            this.clearCache();
+            this.currentEpgPrograms.next([]);
+            this.epgAvailable.next(true);
+        });
+    }
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -79,11 +88,16 @@ export class EpgService {
     /**
      * Fetches EPG from the given URLs
      */
-    fetchEpg(urls: string[]): void {
+    async fetchEpg(urls: string[]): Promise<void> {
         if (!this.epgBridge.supportsImport) return;
 
         // Filter out empty and duplicate URLs and send all URLs at once.
-        const validUrls = normalizeEpgUrls(urls);
+        const revision = this.sourceSettings.revision();
+        await this.settingsStore.loadSettings();
+        const validUrls = this.sourceSettings.retainCurrentSources(
+            normalizeEpgUrls(urls),
+            revision
+        );
         if (validUrls.length === 0) return;
 
         from(
@@ -93,6 +107,7 @@ export class EpgService {
             )
         )
             .pipe(
+                this.sourceSettings.guard(),
                 tap((result) => {
                     if (result === null) return;
 
@@ -123,6 +138,7 @@ export class EpgService {
 
         from(this.epgBridge.getChannelPrograms(channelId))
             .pipe(
+                this.sourceSettings.guard(),
                 timeout(3000),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {
@@ -187,6 +203,7 @@ export class EpgService {
         // Fetch from backend
         return this.getCachedOrFetchCurrentProgram(cacheKey, () =>
             from(this.epgBridge.getChannelPrograms(channelId)).pipe(
+                this.sourceSettings.guard(),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 map((programs: EpgProgram[]) =>
                     this.findCurrentProgram(programs)
@@ -287,6 +304,7 @@ export class EpgService {
                     nowMs: this.epgClockMs(),
                 })
             ).pipe(
+                this.sourceSettings.guard(),
                 timeout(5000),
                 map((batchResult) => {
                     const cacheTimestamp = Date.now();
@@ -311,6 +329,7 @@ export class EpgService {
         // Fallback for older preload bundles without the batch endpoint.
         const fetchObservables = channelsToFetch.map((channelId) =>
             this.getCurrentProgramForChannel(channelId).pipe(
+                this.sourceSettings.guard(),
                 timeout(5000),
                 map((program) => ({ channelId, program })),
                 catchError(() => of({ channelId, program: null }))
@@ -318,6 +337,7 @@ export class EpgService {
         );
 
         return forkJoin(fetchObservables).pipe(
+            this.sourceSettings.guard(),
             map((results) => {
                 results.forEach((result) => {
                     resultMap.set(result.channelId, result.program);
@@ -372,6 +392,7 @@ export class EpgService {
                 sourceUrls,
                 fallbackSourceUrls
             ).pipe(
+                this.sourceSettings.guard(),
                 tap((fetchedMap) => {
                     const cacheTimestamp = Date.now();
                     channelsToFetch.forEach((channelId) => {
@@ -386,7 +407,14 @@ export class EpgService {
                     });
                 }),
                 finalize(() => {
-                    this.fetchingCurrentProgramBatches.delete(batchCacheKey);
+                    if (
+                        this.fetchingCurrentProgramBatches.get(
+                            batchCacheKey
+                        ) === request$
+                    )
+                        this.fetchingCurrentProgramBatches.delete(
+                            batchCacheKey
+                        );
                 }),
                 shareReplay({ bufferSize: 1, refCount: false })
             );
@@ -396,6 +424,7 @@ export class EpgService {
         }
 
         return request$.pipe(
+            this.sourceSettings.guard(),
             map((fetchedMap) => {
                 const mergedResultMap = new Map(resultMap);
                 channelsToFetch.forEach((channelId) => {
@@ -421,6 +450,7 @@ export class EpgService {
                 nowMs,
             })
         ).pipe(
+            this.sourceSettings.guard(),
             timeout(5000),
             switchMap((scopedResult) => {
                 const resultMap = new Map<string, EpgProgram | null>();
@@ -448,6 +478,7 @@ export class EpgService {
                         nowMs,
                     })
                 ).pipe(
+                    this.sourceSettings.guard(),
                     timeout(5000),
                     map((globalResult) => {
                         fallbackChannelIds.forEach((channelId) => {
@@ -500,6 +531,7 @@ export class EpgService {
             normalizedChannelIds,
             effectiveSourceUrls
         ).pipe(
+            this.sourceSettings.guard(),
             switchMap((metadataMap) => {
                 const fallbackChannelIds =
                     sourceUrls.length > 0 && globalSourceUrls.length > 0
@@ -516,6 +548,7 @@ export class EpgService {
                     fallbackChannelIds,
                     globalSourceUrls
                 ).pipe(
+                    this.sourceSettings.guard(),
                     map((globalMetadataMap) => {
                         fallbackChannelIds.forEach((channelId) => {
                             metadataMap.set(
@@ -561,6 +594,7 @@ export class EpgService {
                 sourceUrls.length > 0 ? { sourceUrls } : undefined
             )
         ).pipe(
+            this.sourceSettings.guard(),
             map((metadataByChannelId) => {
                 return new Map<string, EpgChannelMetadata | null>(
                     channelIds.map((channelId) => [
@@ -641,6 +675,7 @@ export class EpgService {
 
         const offsetMinutes = this.epgOffsetMinutes();
         const request$ = fetchProgram().pipe(
+            this.sourceSettings.guard(),
             tap((program) => {
                 this.programCache.set(cacheKey, {
                     program,
@@ -649,7 +684,8 @@ export class EpgService {
                 });
             }),
             finalize(() => {
-                this.fetchingCurrentPrograms.delete(cacheKey);
+                if (this.fetchingCurrentPrograms.get(cacheKey) === request$)
+                    this.fetchingCurrentPrograms.delete(cacheKey);
             }),
             shareReplay({ bufferSize: 1, refCount: false })
         );
@@ -668,6 +704,7 @@ export class EpgService {
             from(
                 this.epgBridge.getChannelPrograms(channelId, { sourceUrls })
             ).pipe(
+                this.sourceSettings.guard(),
                 timeout(3000),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
                 switchMap((programs) => {

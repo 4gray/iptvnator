@@ -21,3 +21,5 @@ export * from './lib/tmdb';
 export * from './lib/xtream-pending-restore.service';
 export * from './lib/stream-probe.service';
 export * from './lib/vod-source-pin.service';
+
+export * from './lib/epg-source-settings.service';

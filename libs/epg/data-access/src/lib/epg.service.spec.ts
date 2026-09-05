@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, skip } from 'rxjs';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
@@ -11,6 +11,7 @@ describe('EpgService', () => {
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     let snackBar: { open: jest.Mock };
     let settingsStore: {
+        loadSettings: jest.Mock;
         getSettings: jest.Mock;
         getTrustOptions: jest.Mock;
         resolvedEpgOffsetMinutes: jest.Mock;
@@ -29,6 +30,7 @@ describe('EpgService', () => {
             open: jest.fn(),
         };
         settingsStore = {
+            loadSettings: jest.fn().mockResolvedValue(undefined),
             getSettings: jest.fn(() => ({
                 epgUrl: [],
                 trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
@@ -68,13 +70,81 @@ describe('EpgService', () => {
         service = TestBed.inject(EpgService);
     });
 
+    it('observes startup import completion after initial source reconciliation', async () => {
+        epgBridge.supportsImport = true;
+        let loaded!: () => void;
+        settingsStore.loadSettings.mockReturnValue(
+            new Promise<void>((resolve) => {
+                loaded = resolve;
+            })
+        );
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        jest.spyOn(sources, 'retainCurrentSources').mockImplementation(
+            (urls) => urls
+        );
+        const pending = service.fetchEpg([
+            'https://configured.example/guide.xml',
+        ]);
+        sources.revision.update((revision) => revision + 1);
+        sources.changed$.next();
+        const availability: boolean[] = [];
+        const subscription = service.epgAvailable$.subscribe((value) =>
+            availability.push(value)
+        );
+        loaded();
+        await pending;
+        await Promise.resolve();
+        expect(epgBridge.fetchEpg).toHaveBeenCalledTimes(1);
+        expect(availability.filter(Boolean)).toHaveLength(2);
+        subscription.unsubscribe();
+    });
+
+    it('does not launch an obsolete import deferred behind settings initialization', async () => {
+        epgBridge.supportsImport = true;
+        let loaded!: () => void;
+        settingsStore.loadSettings.mockReturnValue(
+            new Promise<void>((resolve) => {
+                loaded = resolve;
+            })
+        );
+        const pending = service.fetchEpg(['https://removed.example/guide.xml']);
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        sources.revision.update((revision) => revision + 1);
+        sources.changed$.next();
+        loaded();
+        await pending;
+        expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
+    });
+
+    it('prevents pending programmes from repopulating a cache after source deletion', async () => {
+        epgBridge.supportsProgramLookup = true;
+        let resolveOld!: (programs: unknown[]) => void;
+        (epgBridge.getChannelPrograms as jest.Mock).mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveOld = resolve;
+            })
+        );
+        const stale = jest.fn();
+        service.getCurrentProgramForChannel('deleted-channel').subscribe(stale);
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        sources.revision.update((revision) => revision + 1);
+        sources.changed$.next();
+        resolveOld([]);
+        await Promise.resolve();
+        expect(stale).not.toHaveBeenCalled();
+        await firstValueFrom(
+            service.getCurrentProgramForChannel('deleted-channel')
+        );
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(2);
+    });
+
     it('does not fetch EPG when bridge import support is disabled', () => {
         service.fetchEpg(['https://example.com/epg.xml']);
 
         expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
     });
 
-    it('fetches EPG through the EPG runtime bridge when import support is enabled', () => {
+    it('fetches EPG through the EPG runtime bridge when import support is enabled', async () => {
         epgBridge.supportsImport = true;
 
         service.fetchEpg([
@@ -84,6 +154,7 @@ describe('EpgService', () => {
             ' https://example.com/epg.xml ',
         ]);
 
+        await Promise.resolve();
         expect(epgBridge.fetchEpg).toHaveBeenCalledWith(
             ['https://example.com/epg.xml', 'https://example.com/other.xml'],
             {

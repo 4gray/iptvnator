@@ -267,6 +267,20 @@ export class EpgDatabaseSourceClearOperation {
 
         const clearSource = this.db.transaction((url: string) => {
             this.deleteProgramsForSourceStmt.run(url);
+            // Channels have one legacy global ID. Transfer their ownership
+            // to a surviving source before a subsequent source removal.
+            this.db
+                .prepare(
+                    `UPDATE epg_channels SET source_url = (
+                SELECT source_url FROM epg_programs
+                WHERE channel_id = epg_channels.id AND source_url IS NOT NULL
+                ORDER BY source_url LIMIT 1
+            ) WHERE source_url = ? AND EXISTS (
+                SELECT 1 FROM epg_programs
+                WHERE channel_id = epg_channels.id AND source_url IS NOT NULL
+            )`
+                )
+                .run(url);
             this.deleteOrphanChannelsForSourceStmt.run(url);
         });
 

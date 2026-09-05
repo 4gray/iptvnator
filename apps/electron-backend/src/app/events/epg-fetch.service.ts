@@ -1,3 +1,4 @@
+import { epgSourceGeneration } from './epg-source-generation';
 import { eq } from 'drizzle-orm';
 import { ElectronBridgeTrustOptions } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
@@ -45,6 +46,7 @@ export async function checkEpgFreshness(
         const db = await getDatabase();
 
         for (const url of urls) {
+            const generation = epgSourceGeneration(url);
             if (!url?.trim()) continue;
 
             const result = await db
@@ -58,6 +60,7 @@ export async function checkEpgFreshness(
                 result[0].updatedAt &&
                 result[0].updatedAt >= cutoffTime;
 
+            if (generation !== epgSourceGeneration(url)) continue;
             if (isFresh) {
                 freshUrls.push(url);
                 epgWorkerService.markFetchedUrl(url);
@@ -95,7 +98,12 @@ export async function handleFetchEpg(
     urls: string[],
     options: ElectronBridgeTrustOptions = {}
 ): Promise<EpgFetchResult> {
-    const validUrls = urls.filter((url) => url?.trim());
+    const validUrls = urls
+        .filter((url) => url?.trim())
+        .map((url) => url.trim());
+    const generations = new Map(
+        validUrls.map((url) => [url, epgSourceGeneration(url)])
+    );
 
     if (validUrls.length === 0) {
         return { success: false, message: 'No valid URLs provided' };
@@ -118,7 +126,9 @@ export async function handleFetchEpg(
     // a 'queued' status, then fetchEpgFromUrl silently skips the URL and no
     // completion update ever arrives, leaving the UI stuck at "queued".
     const urlsToFetch = staleUrls.filter(
-        (url) => !epgWorkerService.hasFetchedUrl(url)
+        (url) =>
+            generations.get(url) === epgSourceGeneration(url) &&
+            !epgWorkerService.hasFetchedUrl(url)
     );
 
     if (urlsToFetch.length === 0) {
@@ -142,6 +152,7 @@ export async function handleFetchEpg(
     const errors: string[] = [];
     for (const url of urlsToFetch) {
         try {
+            if (generations.get(url) !== epgSourceGeneration(url)) continue;
             await epgWorkerService.fetchEpgFromUrl(url, options);
         } catch (error) {
             console.error(
@@ -149,9 +160,7 @@ export async function handleFetchEpg(
                 `Error fetching EPG from ${url}:`,
                 error
             );
-            errors.push(
-                error instanceof Error ? error.message : String(error)
-            );
+            errors.push(error instanceof Error ? error.message : String(error));
         }
     }
 

@@ -1,3 +1,4 @@
+import { EpgSourceSettingsService } from '@iptvnator/services';
 import { CdkFixedSizeVirtualScroll } from '@angular/cdk/scrolling';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -168,6 +169,15 @@ describe('PortalChannelsListComponent', () => {
             writable: true,
             value: originalElectron,
         });
+    });
+
+    it('clears visible cached XMLTV previews and re-enqueues after a source changes', () => {
+        const component = fixture.componentInstance;
+        component.epgPrograms.set(50, { title: 'Removed programme' } as never);
+        component.currentProgramsProgress.set(50, 20);
+        TestBed.inject(EpgSourceSettingsService).changed$.next();
+        expect(component.epgPrograms.size).toBe(0);
+        expect(component.currentProgramsProgress.size).toBe(0);
     });
 
     it('renders a loading placeholder instead of the empty state while xtream live content is still loading', () => {

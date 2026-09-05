@@ -1,3 +1,4 @@
+import { epgSourceGeneration, retireEpgSource } from './epg-source-generation';
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -113,6 +114,7 @@ export class EpgWorkerService {
         url: string,
         options: ElectronBridgeTrustOptions
     ): Promise<void> {
+        const generation = epgSourceGeneration(url);
         return new Promise((resolve, reject) => {
             let worker: Worker;
             try {
@@ -201,6 +203,7 @@ export class EpgWorkerService {
             scheduleFetchTimeout();
 
             worker.on('message', async (message: EpgWorkerMessage) => {
+                if (settled || generation !== epgSourceGeneration(url)) return;
                 try {
                     switch (message.type) {
                         case 'READY':
@@ -371,6 +374,8 @@ export class EpgWorkerService {
             return;
         }
 
+        retireEpgSource(normalizedSourceUrl);
+        this.fetchedUrls.delete(normalizedSourceUrl);
         const runningWorker = this.workers.get(normalizedSourceUrl);
         if (runningWorker) {
             this.workers.delete(normalizedSourceUrl);

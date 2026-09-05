@@ -1,3 +1,4 @@
+import { EpgSourceSettingsService } from './epg-source-settings.service';
 import { computed, inject } from '@angular/core';
 import {
     patchState,
@@ -143,6 +144,7 @@ export const SettingsStore = signalStore(
         ),
     })),
     withMethods((store, storage = inject(StorageMap)) => {
+        const epgSources = inject(EpgSourceSettingsService);
         let settingsLoadPromise: Promise<void> | undefined;
 
         return {
@@ -190,6 +192,14 @@ export const SettingsStore = signalStore(
                             }
                         );
                     }
+                    await epgSources
+                        .synchronize(this.getSettings().epgUrl)
+                        .catch((error) => {
+                            console.warn(
+                                'Could not reconcile cached EPG sources on startup.',
+                                error
+                            );
+                        });
                 })().catch((error) => {
                     settingsLoadPromise = undefined;
                     console.error('Failed to load settings:', error);
@@ -203,6 +213,7 @@ export const SettingsStore = signalStore(
             },
 
             async updateSettings(settings: Partial<Settings>) {
+                const previousEpgUrls = store.epgUrl();
                 patchState(store, {
                     ...settings,
                     ...(settings.webPlayerSharedControls !== undefined
@@ -252,8 +263,14 @@ export const SettingsStore = signalStore(
                     console.error('Failed to save settings:', error);
                     // The in-memory patch above already applied, so without
                     // this flag the change looks saved until the next restart.
-                    patchState(store, { storageFailure: 'save' });
+                    patchState(store, {
+                        storageFailure: 'save',
+                        epgUrl: previousEpgUrls,
+                    });
                     throw error;
+                }
+                if (settings.epgUrl !== undefined) {
+                    await epgSources.synchronize(completeSettings.epgUrl);
                 }
             },
 

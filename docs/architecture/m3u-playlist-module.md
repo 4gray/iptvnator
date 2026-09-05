@@ -1311,3 +1311,37 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 3. Dispatch `FavoritesActions.hydrateFavorites` only when copying values that
    were already read from persistence into NgRx
 4. Effects persist the two user-mutation actions; hydration is reducer-only
+
+### XMLTV source lifecycle
+
+Electron treats `Settings.epgUrl` as the committed global source list. Removing
+an input is a draft edit; only a successful IndexedDB write authorizes source
+reconciliation. A storage write failure restores the previous in-memory EPG
+URLs. If subsequent cache cleanup fails, the saved URLs remain authoritative,
+the settings form remains retryable and shows the existing EPG cleanup failure
+message rather than claiming settings storage failed.
+
+`EpgSourceSettingsService` waits for `PlaylistsService.getAllPlaylists()` (which
+performs the legacy playlist migration) before invoking `EPG_RECONCILE_SOURCES`.
+Startup includes an empty global list and does not prune after a failed settings
+read. Main verifies the completed migration flag, reads every enabled M3U
+`epg_urls` list and unions them with the saved globals. Invalid ownership metadata
+aborts pruning. Detected-but-disabled sources and Xtream/Stalker provider EPG are
+not global XMLTV owners. No source-discovery or provider matching policy changes.
+
+Reconciliation finds old sources in both XMLTV tables and queued imports. It
+retires their generations before waiting for workers to exit, then uses the
+existing source-clear worker. Programmes are deleted by source; a globally keyed
+channel is retained while another source still has programmes, transferring its
+legacy owner to that remaining source. Manual mappings are preserved and can
+resolve another retained source sharing that channel ID. Legacy programmes with
+unknown (`NULL`) ownership are conservatively left alone; the existing database
+initialization backfill handles rows whose channel still identifies their owner.
+There is no new schema migration.
+
+Renderer reconciliation increments a data revision and cancels earlier lookup
+subscriptions, clears program caches and the selected M3U guide, and refreshes
+Xtream selection and visible channel previews. A delayed startup import is
+started only if its source still belongs to the reconciled configuration; its
+completion observer is installed after settings initialization. Provider EPG
+continues through its existing APIs. Playlist refresh is not EPG cache cleanup.
