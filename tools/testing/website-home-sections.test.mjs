@@ -118,16 +118,30 @@ test('browser: the download CTA and the Detected row follow the visitor OS, phon
       await page.close();
     }
 
-    const phone = await browser.newPage({
-      userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36',
-      viewport: { width: 390, height: 844 },
-    });
-    await phone.goto(`${origin}${BASE}/`, { waitUntil: 'networkidle' });
-    const phoneState = await readState(phone);
-    assert.equal(phoneState.primary, '/iptvnator/download/', 'phone keeps the generic CTA');
-    assert.equal(phoneState.label, 'Download for desktop');
-    assert.deepEqual(phoneState.detected, [], 'phone highlights no platform row');
-    await phone.close();
+    const generic = [
+      {
+        name: 'Android phone',
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36',
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+      },
+      {
+        // iPadOS asks for the desktop site with a Macintosh user agent; only the touch points give it away.
+        name: 'iPad in desktop mode',
+        userAgent: AGENTS.macos.userAgent.replace('Chrome/128.0 Safari/537.36', 'Version/17.5 Safari/605.1.15'),
+        viewport: { width: 1024, height: 768 },
+        hasTouch: true,
+      },
+    ];
+    for (const device of generic) {
+      const page = await browser.newPage({ userAgent: device.userAgent, viewport: device.viewport, hasTouch: device.hasTouch });
+      await page.goto(`${origin}${BASE}/`, { waitUntil: 'networkidle' });
+      const state = await readState(page);
+      assert.equal(state.primary, '/iptvnator/download/', `${device.name} keeps the generic CTA`);
+      assert.equal(state.label, 'Download for desktop', `${device.name} keeps the generic label`);
+      assert.deepEqual(state.detected, [], `${device.name} highlights no platform row`);
+      await page.close();
+    }
 
     // Copy buttons write the command and confirm briefly.
     const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });

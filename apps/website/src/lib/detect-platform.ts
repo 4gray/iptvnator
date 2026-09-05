@@ -11,6 +11,10 @@ import type { DownloadPlatform } from './platforms';
  * change), then the client-hints platform, then the deprecated
  * `navigator.platform`. The first source that yields a verdict wins, so a
  * source that is silent (an empty hint) falls through instead of vetoing.
+ *
+ * iPadOS asks for desktop sites with a Macintosh user agent and `MacIntel`
+ * platform, so a "mac" verdict is only trusted on a device without touch
+ * points — no Mac has a touch screen, every iPad reports several.
  */
 export function detectPlatform(): DownloadPlatform | null {
   if (typeof navigator === 'undefined') {
@@ -23,6 +27,9 @@ export function detectPlatform(): DownloadPlatform | null {
   const sources = [navigator.userAgent, hints?.platform, navigator.platform];
   for (const source of sources) {
     const verdict = classify(source ?? '');
+    if (verdict === 'macos' && navigator.maxTouchPoints > 0) {
+      return null;
+    }
     if (verdict !== undefined) {
       return verdict;
     }
