@@ -1,10 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { createServer } from 'node:http';
-import { createReadStream, existsSync, statSync } from 'node:fs';
-import { extname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { BASE_PATH as BASE, distRoot, launchBrowser, serveDist } from './website-browser-support.mjs';
 
 /**
  * The home page "Flip through the app" channel switcher.
@@ -14,23 +12,11 @@ import assert from 'node:assert/strict';
  * interaction half serves the build over HTTP and drives it in Chromium:
  * autoplay advances, hover and focus pause independently, arrow keys move
  * the selection together with the panel, caption and on-screen badge, and
- * `prefers-reduced-motion` turns autoplay off. The browser half is skipped
- * when no Chromium is available, so the structural checks still run
- * everywhere.
+ * `prefers-reduced-motion` turns autoplay off. Without a Chromium the browser
+ * half is skipped locally and fails in CI (see website-browser-support.mjs).
  */
 
-const distRoot = fileURLToPath(new URL('../../dist/apps/website/', import.meta.url));
-const BASE = '/iptvnator';
 const CHANNELS = ['dashboard', 'live-tv', 'epg', 'movies', 'downloads', 'settings'];
-
-const MIME = {
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.js': 'text/javascript',
-  '.webp': 'image/webp',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-};
 
 test('showcase markup: a vertical tablist with one selected channel and a panel each', async () => {
   const html = await readFile(join(distRoot, 'index.html'), 'utf8');
@@ -56,40 +42,6 @@ test('showcase markup: a vertical tablist with one selected channel and a panel 
   assert.match(html, /href="\/iptvnator\/features\/epg\/"/, 'captions link into the feature pages');
 });
 
-async function launchBrowser() {
-  let playwright;
-  try {
-    playwright = await import('@playwright/test');
-  } catch {
-    return null;
-  }
-  for (const options of [{}, { channel: 'chrome' }, { channel: 'chromium' }]) {
-    try {
-      return await playwright.chromium.launch(options);
-    } catch {
-      // try the next install
-    }
-  }
-  return null;
-}
-
-function serveDist() {
-  const server = createServer((req, res) => {
-    let pathname = decodeURIComponent(req.url.split('?')[0]);
-    if (pathname.startsWith(BASE)) pathname = pathname.slice(BASE.length) || '/';
-    let file = join(distRoot, pathname);
-    if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
-    if (!existsSync(file)) {
-      res.statusCode = 404;
-      res.end('not found');
-      return;
-    }
-    res.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
-    createReadStream(file).pipe(res);
-  });
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
-}
-
 const selectedChannel = (page) => page.$eval('.channel-tab[aria-selected="true"]', (el) => el.dataset.channel);
 const progressWidth = (page) =>
   page.$eval('.channel-tab[aria-selected="true"] .channel-progress', (el) => parseFloat(el.style.width) || 0);
@@ -101,8 +53,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     t.skip('no Chromium available for the browser half');
     return;
   }
-  const server = await serveDist();
-  const origin = `http://127.0.0.1:${server.address().port}`;
+  const { server, origin } = await serveDist();
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const errors = [];
