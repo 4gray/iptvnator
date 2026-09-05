@@ -1332,7 +1332,9 @@ not global XMLTV owners. No source-discovery or provider matching policy changes
 Reconciliation finds old sources in XMLTV channel, programme and per-source
 metadata tables, plus queued imports. It
 retires their generations before waiting for workers to exit, then uses the
-existing source-clear worker. Successfully cleared request candidates are forgotten
+`EpgWorkerRuntime` source-clear protocol. The runtime owns worker bootstrap and
+shutdown; `EpgWorkerService` owns source generations and serialization, while
+`runEpgFetch` owns each import’s message/timeout/exit lifecycle. Successfully cleared request candidates are forgotten
 without resetting their generation fences; failed cleanups remain retryable.
 Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
