@@ -50,6 +50,7 @@ import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -92,9 +93,18 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly sortMode = input<PortalChannelSortMode>('server');
     readonly channelsOverride = input<XtreamChannelListItem[] | null>(null);
     readonly searchTermInput = input('');
+    /**
+     * The fullscreen channel panel stamps a second instance of this list
+     * beside the sidebar's. Only the sidebar's pane may carry the
+     * `live-channels` id the category list's ArrowRight/ArrowLeft hand-off
+     * targets (`ChannelScrollFocusDirective`); a duplicate id would be
+     * invalid and could point that hand-off at the hidden copy.
+     */
+    readonly fullscreenPanelCopy = input(false);
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
+    private readonly favoriteMarks = inject(XtreamFavoriteMarksService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -253,6 +263,22 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                         );
                     });
                 });
+            // A toggle in another list instance (the sidebar and the
+            // fullscreen channel panel render this component side by side)
+            // must reach this instance's hearts too.
+            this.subscriptions.add(
+                this.favoriteMarks.changes$.subscribe((change) => {
+                    if (change.playlistId !== playlist.id) {
+                        return;
+                    }
+                    if (change.isFavorite) {
+                        this.favorites.set(change.key, true);
+                    } else {
+                        this.favorites.delete(change.key);
+                    }
+                    this.cdr.markForCheck();
+                })
+            );
         }
 
         if (this.supportsEpg) {
@@ -410,6 +436,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                     this.favorites.delete(favoriteKey);
                 }
                 this.cdr.detectChanges();
+                this.favoriteMarks.notify({
+                    playlistId,
+                    key: favoriteKey,
+                    isFavorite: result,
+                });
             });
     }
 

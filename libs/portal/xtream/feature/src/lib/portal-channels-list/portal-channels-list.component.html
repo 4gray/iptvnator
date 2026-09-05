@@ -18,7 +18,7 @@
     } @else if (filteredChannels().length > 0) {
         <cdk-virtual-scroll-viewport
             appChannelScrollFocus
-            id="live-channels"
+            [attr.id]="fullscreenPanelCopy() ? null : 'live-channels'"
             [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
             [itemSize]="channelItemSize"
             class="scroll-viewport-portals app-scrollbar"

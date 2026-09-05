@@ -1,6 +1,7 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import type {
+    EmbeddedMpvSupport,
     RecordingStartMetadata,
     RecordingStoppedEvent,
 } from '@iptvnator/shared/interfaces';
@@ -74,10 +75,20 @@ export class StubArtPlayerComponent {
 }
 
 @Component({
+    selector: 'app-fullscreen-channel-panel',
+    template: '<div data-test-id="stub-fullscreen-channel-panel"></div>',
+})
+export class StubFullscreenChannelPanelComponent {
+    readonly stage = input<HTMLElement | null>(null);
+    readonly enabled = input(true);
+}
+
+@Component({
     selector: 'app-embedded-mpv-player',
     template: '<div data-test-id="stub-embedded-mpv-player"></div>',
 })
 export class StubEmbeddedMpvPlayerComponent {
+    readonly support = signal<EmbeddedMpvSupport | null>(null);
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);

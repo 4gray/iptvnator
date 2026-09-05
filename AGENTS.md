@@ -30,7 +30,7 @@ This file provides guidance to coding agents working in this repository.
   must receive the temporary keychain's own password, not the `.p12` import
   password. macOS runner images since `macos-26-arm64` 20260831 verify that
   password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
-  name or passphrase you entered is not correct`. Keep the patch until
+name or passphrase you entered is not correct`. Keep the patch until
   electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
   and run `pnpm run deps:electron-builder:test` after related dependency
   updates — the test fails when the patched version no longer matches the
@@ -341,6 +341,63 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
+- `WebPlayerViewComponent` renders `app-fullscreen-channel-panel`
+  (`libs/ui/playback/src/lib/fullscreen-channel-panel/`) beside the engine,
+  staged on the view's `fullscreenSurface` — the same host element every engine
+  receives as `fullscreenTarget` — so it lives inside the fullscreen element
+  and survives the engine remount a channel switch causes. It is withheld
+  (`enabled=false`) for native-view Embedded MPV, which paints above the DOM.
+  A confirmed frame-copy capability survives the unknown support probe during
+  an engine remount, preserving panel search/scroll on channel changes; the
+  first unknown probe and confirmed native/unsupported results withhold it.
+  A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
+  `panelTitle`) and the panel slides that list over the video: left-edge hover
+  dwell, a touch tap on that edge, or `C`. Nothing is drawn while it is closed
+  (no handle), the hot zone stops above the controls bar, and scrim/Escape/
+  mouse-leave close it — while a CDK overlay opened from the list counts as
+  the panel, so hover keeps it open and Escape closes the overlay first. The
+  header is one row (search whose placeholder carries the host title, plus
+  close) and the list stays mounted per fullscreen session.
+  `Settings.fullscreenChannelPanel` (default on) gates it, offered only for the
+  web players with shared controls and for Embedded MPV — the legacy vendor
+  chrome fullscreens the engine's own element, outside which the panel cannot
+  render. Providers: M3U `VideoPlayerComponent` (returns null while its VOD
+  detail hosts the player; radio and recognized movies are filtered out of
+  the list it is handed, since `app-audio-player` and the VOD detail shell
+  each replace the fullscreen-owning `app-web-player-view`; with MPV/VLC
+  configured, only DASH rows stay offered because other streams leave the
+  inline host for the external-player UI), Xtream
+  `LiveStreamLayoutComponent`,
+  `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; a blank
+  panel field shows the category untouched by the sidebar's search term (or
+  the windowed full cache when playback starts from All Items without a
+  category), the
+  panel's search results are windowed by `PanelSearchWindow`, and on a paged
+  portal the panel copy keeps requesting pages while its matches do not fill
+  it, even while the sidebar's own search is active; the retained closed
+  panel pauses paging and resumes automatic filling when reopened; inline video
+  commits the selected channel with the resolved playback, retaining the old
+  selection, EPG and recording metadata during a pending or failed replacement), and
+  `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
+  detail mounted until the next selection resolves, with `activeItem` paired
+  to that detail so the session key and recording metadata keep describing
+  the stream on screen — only the `activeUid` row highlight moves ahead; a
+  second activation of the row still resolving folds its start-playback or
+  auto-open intent into that request instead of launching the retained
+  stream, and a
+  failed replacement restores that highlight and retains the previous video,
+  catch-up and session). M3U PageUp/PageDown yield to already-handled events
+  and menu/dialog overlay targets even when the menu has no scroll overflow.
+  Numeric and adjacent-channel commands share the panel eligibility filter
+  while the live web-player host owns fullscreen (itself, or through the
+  nested surface a legacy player fullscreens under the vendor-chrome
+  opt-out); numbers keep their original positions and ineligible numbers are
+  ignored. Windowed commands keep the
+  complete catalog.
+  Xtream's two `PortalChannelsListComponent` instances relay favorite toggles
+  through `XtreamFavoriteMarksService`. CDK overlays follow the
+  fullscreen element via `FullscreenOverlayContainer`. Contract:
+  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel").
 - Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
   go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
   delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper

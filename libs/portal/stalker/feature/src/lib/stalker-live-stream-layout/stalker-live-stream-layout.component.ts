@@ -8,12 +8,16 @@ import {
     computed,
     effect,
     ElementRef,
+    forwardRef,
     inject,
     linkedSignal,
     OnDestroy,
+    type Signal,
     signal,
+    TemplateRef,
     untracked,
     viewChild,
+    viewChildren,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -61,6 +65,9 @@ import {
 import {
     AudioPlayerComponent,
     ElectronStreamHeadersService,
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -86,6 +93,11 @@ import {
     StalkerStore,
     normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
+import {
+    PanelSearchWindow,
+    resolvePanelSearchScroll,
+    shouldAutoFillStampedList,
+} from './panel-search-window';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
 import {
     EPG_PREVIEW_FETCH_SIZE,
@@ -113,6 +125,15 @@ interface StalkerPlaybackResolutionOwner {
 /** Channels rendered per "page" when the full list is served from the cache. */
 const FULL_LIST_RENDER_CHUNK = 100;
 
+function matchesStalkerChannelTerm(
+    item: StalkerItvChannel,
+    term: string
+): boolean {
+    return `${item.o_name ?? ''} ${item.name ?? ''}`
+        .toLowerCase()
+        .includes(term);
+}
+
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
@@ -136,9 +157,19 @@ const FULL_LIST_RENDER_CHUNK = 100;
         TranslatePipe,
         WebPlayerViewComponent,
     ],
+    providers: [
+        // The fullscreen channel panel inside the player renders this
+        // category's channel list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => StalkerLiveStreamLayoutComponent),
+        },
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StalkerLiveStreamLayoutComponent implements OnDestroy {
+export class StalkerLiveStreamLayoutComponent
+    implements OnDestroy, FullscreenChannelPanelHost
+{
     readonly stalkerStore = inject(StalkerStore);
     private readonly playlistService = inject(PlaylistsService);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
@@ -184,13 +215,34 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.stalkerStore.itvSelectedCategoryFromCache()
     );
     /**
-     * Channels matching the search phrase. Without a term, the current
-     * category. With a term in full-list mode, the WHOLE portal's channel list
-     * (every category) so search behaves like "search all channels" — merged
+     * The rows a search term is matched against: the current category, or in
+     * full-list mode the WHOLE portal's channel list (every category) merged
      * with the currently loaded channels, because a censored (adult) category
      * is paged from the portal and its channels are intentionally absent from
-     * the full-list cache. Otherwise the loaded channels of the current
-     * category.
+     * the full-list cache.
+     */
+    private readonly searchableChannels = computed(() => {
+        const source = this.channels();
+        if (!this.isFullListMode()) {
+            return source;
+        }
+
+        const merged = new Map<string, StalkerItvChannel>();
+        for (const channel of source) {
+            merged.set(normalizeStalkerEntityId(channel.id), channel);
+        }
+        for (const channel of this.stalkerStore.itvFullChannelList()) {
+            const id = normalizeStalkerEntityId(channel.id);
+            if (!merged.has(id)) {
+                merged.set(id, channel);
+            }
+        }
+        return [...merged.values()];
+    });
+    /**
+     * Channels matching the search phrase. Without a term, the current
+     * category; with one, `searchableChannels` filtered, so search behaves
+     * like "search all channels" whenever the full list is cached.
      */
     readonly filteredChannels = computed(() => {
         const term = this.searchTerm();
@@ -198,27 +250,20 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             return this.channels();
         }
 
-        let source = this.channels();
-        if (this.isFullListMode()) {
-            const merged = new Map<string, StalkerItvChannel>();
-            for (const channel of source) {
-                merged.set(normalizeStalkerEntityId(channel.id), channel);
-            }
-            for (const channel of this.stalkerStore.itvFullChannelList()) {
-                const id = normalizeStalkerEntityId(channel.id);
-                if (!merged.has(id)) {
-                    merged.set(id, channel);
-                }
-            }
-            source = [...merged.values()];
-        }
-
-        return source.filter((item) =>
-            `${item.o_name ?? ''} ${item.name ?? ''}`
-                .toLowerCase()
-                .includes(term)
+        return this.searchableChannels().filter((item) =>
+            matchesStalkerChannelTerm(item, term)
         );
     });
+    /**
+     * The fullscreen panel's own search results, memoized and windowed like
+     * the sidebar's rows: in full-list mode a broad term matches most of a
+     * multi-thousand-channel portal, and the panel renders a component per
+     * row.
+     */
+    private readonly panelSearch = new PanelSearchWindow<StalkerItvChannel>(
+        FULL_LIST_RENDER_CHUNK,
+        matchesStalkerChannelTerm
+    );
     readonly isFullListLoading = computed(
         () => !this.isRadioMode() && this.stalkerStore.itvFullListLoading()
     );
@@ -249,6 +294,33 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.isCategoryFromCache()
             ? this.filteredChannels().slice(0, this.renderLimit())
             : this.filteredChannels()
+    );
+    /**
+     * The fullscreen panel's rows while its own search field is blank: the
+     * current category, or the full cache when playback started in All Items
+     * without a category. Never narrowed by the sidebar's search term.
+     */
+    private readonly panelIdleSource = computed(() =>
+        this.showItvAllItems() ? this.itvFullChannelList() : this.channels()
+    );
+    private readonly panelUsesCachedRows = computed(
+        () => this.isCategoryFromCache() || this.showItvAllItems()
+    );
+    readonly panelIdleChannels = computed(() =>
+        this.panelUsesCachedRows()
+            ? this.panelIdleSource().slice(0, this.renderLimit())
+            : this.panelIdleSource()
+    );
+    /**
+     * Whether {@link panelIdleChannels} can grow. Judged against the category,
+     * never against the sidebar's filtered rows (`hasMoreItems`): a sidebar
+     * search that fits its matches inside the render window says nothing
+     * about the unfiltered rows the blank panel is showing.
+     */
+    readonly panelIdleHasMore = computed(() =>
+        this.panelUsesCachedRows()
+            ? this.panelIdleSource().length > this.renderLimit()
+            : this.stalkerStore.hasMoreChannels()
     );
     readonly totalChannelCount = computed(() => this.filteredChannels().length);
     readonly hasMoreItems = computed(() =>
@@ -500,9 +572,24 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /** Favorites */
     readonly favorites = new Map<string | number, boolean>();
 
-    /** Scroll */
-    readonly scrollContainer = viewChild<ElementRef>('scrollContainer');
+    /**
+     * Scroll. The channel list template is stamped twice — in the sidebar and
+     * in the player's fullscreen channel panel — so every instance gets the
+     * infinite-scroll listener.
+     */
+    readonly scrollContainers = viewChildren<ElementRef>('scrollContainer');
     private scrollListener: (() => void) | null = null;
+
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
+    /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(() => this.selectedCategoryTitle() ?? '');
     private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -592,11 +679,14 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         // Reset loading state when channels load and keep preview data in sync with bulk EPG.
         effect(() => {
             const channels = this.visibleChannels();
-            if (channels.length > 0) {
+            // A page landing ends the in-flight state whether or not the
+            // sidebar's search shows any of it — the fullscreen panel's own
+            // search may be what asked for that page — and every stamped
+            // list gets its fill check; the sidebar copy's gate on its search
+            // term lives in checkIfNeedsMoreContent.
+            if (this.channels().length > 0) {
                 this.isLoadingMore.set(false);
-                if (!this.searchTerm()) {
-                    setTimeout(() => this.checkIfNeedsMoreContent(), 100);
-                }
+                setTimeout(() => this.checkIfNeedsMoreContent(), 100);
             }
 
             if (this.isRadioMode() || !this.supportsEpg) {
@@ -658,10 +748,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             untracked(() => void this.stalkerStore.ensureBulkItvEpg(168));
         });
 
-        // Setup scroll listener when container becomes available
+        // Setup scroll listeners when list containers become available
         effect(() => {
-            const container = this.scrollContainer();
-            if (container) {
+            if (this.scrollContainers().length > 0) {
                 this.setupScrollListener();
             }
         });
@@ -784,7 +873,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         );
         const contentType = this.stalkerStore.selectedContentType();
         const isRadioMode = this.isRadioMode();
-        this.stalkerStore.setSelectedItem(item);
+        const deferSelection = !isRadioMode && this.usesEmbeddedPlayer();
+        // Inline video retains its stream during resolution. Keep selection,
+        // EPG and recording metadata paired with that stream until commit.
+        if (!deferSelection) this.stalkerStore.setSelectedItem(item);
+        const expectedSelectedId = this.selectedChannelId();
         this.ensureChannelWithinRenderWindow(channelId);
         // A previously owned radio override must not survive into a
         // selection that never mounts a player surface of its own — external
@@ -800,7 +893,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 isRadioMode
             );
             const owner = { sourceId, contentType, channelId };
-            if (!this.isPlaybackRequestCurrent(requestId, owner)) {
+            if (
+                !this.isPlaybackRequestCurrent(
+                    requestId,
+                    owner,
+                    expectedSelectedId
+                )
+            ) {
                 return;
             }
 
@@ -819,12 +918,21 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 const stillCurrent = headerSync ? await headerSync : true;
                 if (
                     !stillCurrent ||
-                    !this.isPlaybackRequestCurrent(requestId, owner)
+                    !this.isPlaybackRequestCurrent(
+                        requestId,
+                        owner,
+                        expectedSelectedId
+                    )
                 ) {
                     return;
                 }
                 this.setActivePlayback(playback, null);
                 return;
+            }
+
+            if (deferSelection) {
+                if (!sourceId || !channelId) return;
+                this.stalkerStore.setSelectedItem(item);
             }
 
             if (this.supportsEpg) {
@@ -842,11 +950,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             }
         } catch (error) {
             if (
-                !this.isPlaybackRequestCurrent(requestId, {
-                    sourceId,
-                    contentType,
-                    channelId,
-                })
+                !this.isPlaybackRequestCurrent(
+                    requestId,
+                    { sourceId, contentType, channelId },
+                    expectedSelectedId
+                )
             ) {
                 return;
             }
@@ -889,11 +997,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     private isPlaybackRequestCurrent(
         requestId: number,
-        owner: StalkerPlaybackResolutionOwner
+        owner: StalkerPlaybackResolutionOwner,
+        expectedSelectedId: string | undefined
     ): boolean {
         return (
             requestId === this.playbackRequestId &&
-            this.selectedChannelId() === owner.channelId &&
+            this.selectedChannelId() === expectedSelectedId &&
             normalizeStalkerEntityId(
                 this.stalkerStore.currentPlaylist()?._id
             ) === owner.sourceId &&
@@ -956,13 +1065,50 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.renderLimit.set(Math.max(this.renderLimit(), needed));
     }
 
+    /**
+     * Rows for one stamped list instance. The fullscreen panel's instance
+     * searches with its own term over the same channels the sidebar search
+     * covers, windowed by {@link PanelSearchWindow} (its scroll container
+     * grows that window, see `setupScrollListener`); without one, every
+     * instance shows the sidebar's windowed rows.
+     */
+    channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
+        const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
+        if (!term) {
+            if (!panelSearchTerm) {
+                return this.visibleChannels();
+            }
+            // The panel copy with a blank field shows the category as is:
+            // the sidebar's own search term stays out of it, or the panel
+            // would show an unexplained subset (or an empty state) under an
+            // empty search box. Only this copy owns the window, and it is
+            // cleared here rather than on the sidebar's every render.
+            this.panelSearch.clear();
+            return this.panelIdleChannels();
+        }
+
+        // A new term renders a fresh result the user cannot have scrolled yet;
+        // once it is on screen, a result too short to overflow must still
+        // reach provider pagination (see checkIfNeedsMoreContent). Scheduled,
+        // not run here: this is called from the template.
+        if (term !== this.panelSearch.activeTerm()) {
+            setTimeout(() => this.checkIfNeedsMoreContent(), 100);
+        }
+        return this.panelSearch.rows(term, this.searchableChannels());
+    }
+
+    /** Whether the given stamped copy is showing search results. */
+    hasSearchTerm(panelSearchTerm?: Signal<string>): boolean {
+        return panelSearchTerm
+            ? Boolean(panelSearchTerm().trim())
+            : Boolean(this.searchTerm());
+    }
+
     loadMore() {
         if (this.isCategoryFromCache()) {
             // Extends the render window over the in-memory list — no request.
             if (this.hasMoreItems()) {
-                this.renderLimit.update(
-                    (limit) => limit + FULL_LIST_RENDER_CHUNK
-                );
+                this.growRenderWindow();
             }
             return;
         }
@@ -973,6 +1119,24 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.isLoadingMore.set(true);
         const nextPage = this.stalkerStore.page() + 1;
         this.stalkerStore.setPage(nextPage);
+    }
+
+    /**
+     * The fullscreen panel's blank-field copy reached its end: grow it against
+     * the category. `loadMore()` would consult `hasMoreItems`, which the
+     * sidebar's search can turn false while the panel still has rows to show.
+     */
+    loadMoreForPanel(): void {
+        if (this.isLoadingMore() || !this.panelIdleHasMore()) return;
+        if (this.panelUsesCachedRows()) {
+            this.growRenderWindow();
+            return;
+        }
+        this.loadMore();
+    }
+
+    private growRenderWindow(): void {
+        this.renderLimit.update((limit) => limit + FULL_LIST_RENDER_CHUNK);
     }
 
     refreshChannels(): void {
@@ -1329,35 +1493,109 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private setupScrollListener() {
         this.removeScrollListener();
 
-        const container = this.scrollContainer()?.nativeElement;
-        if (!container) return;
+        const containers = this.scrollContainers()
+            .map((ref) => ref.nativeElement as HTMLElement | undefined)
+            .filter((element): element is HTMLElement => !!element);
+        if (containers.length === 0) return;
 
-        const onScroll = () => {
-            this.scheduleEpgPreviewRefresh();
-            if (this.isLoadingMore() || !this.hasMoreItems()) return;
+        const cleanups = containers.map((container) => {
+            const isNearEnd = () => {
+                const { scrollTop, scrollHeight, clientHeight } = container;
+                const scrollThreshold = 150;
+                return (
+                    scrollHeight - scrollTop - clientHeight <= scrollThreshold
+                );
+            };
+            const onScroll = () => {
+                this.scheduleEpgPreviewRefresh();
+                this.driveStampedList(container, isNearEnd());
+            };
 
-            const { scrollTop, scrollHeight, clientHeight } = container;
-            const scrollThreshold = 150;
-
-            if (scrollHeight - scrollTop - clientHeight <= scrollThreshold) {
-                this.loadMore();
+            container.addEventListener('scroll', onScroll, {
+                passive: true,
+            });
+            // The panel retains its view while closed. Reopening may be the
+            // only event capable of resuming an empty, non-scrollable query.
+            const panel = container.closest('.fullscreen-channel-panel');
+            const visibilityObserver = panel
+                ? new MutationObserver(() => this.checkIfNeedsMoreContent())
+                : null;
+            if (panel) {
+                visibilityObserver?.observe(panel, {
+                    attributes: true,
+                    attributeFilter: ['inert'],
+                });
             }
-        };
-
-        container.addEventListener('scroll', onScroll, { passive: true });
-        this.scrollListener = () =>
-            container.removeEventListener('scroll', onScroll);
+            return () => {
+                container.removeEventListener('scroll', onScroll);
+                visibilityObserver?.disconnect();
+            };
+        });
+        this.scrollListener = () => cleanups.forEach((cleanup) => cleanup());
     }
 
+    /**
+     * A stamped list that does not overflow can never scroll, so it is
+     * driven as if scrolled to its end: the sidebar fills a tall viewport
+     * this way, and the fullscreen panel's copy keeps paging a paged portal
+     * while its search matches do not fill it — an empty or short result
+     * says nothing about the pages never fetched.
+     */
     private checkIfNeedsMoreContent() {
-        const container = this.scrollContainer()?.nativeElement;
-        if (!container) return;
-        if (this.isLoadingMore() || !this.hasMoreItems()) return;
-
-        const { scrollHeight, clientHeight } = container;
-        if (scrollHeight <= clientHeight) {
-            this.loadMore();
+        const sidebarSearchActive = this.searchTerm() !== '';
+        for (const ref of this.scrollContainers()) {
+            const container = ref.nativeElement as HTMLElement | undefined;
+            if (!container) continue;
+            const isPanelContainer =
+                container.closest('.fullscreen-channel-list') !== null;
+            if (
+                !shouldAutoFillStampedList(
+                    isPanelContainer,
+                    sidebarSearchActive
+                )
+            ) {
+                continue;
+            }
+            const { scrollHeight, clientHeight } = container;
+            this.driveStampedList(container, scrollHeight <= clientHeight);
         }
+    }
+
+    /**
+     * One stamped list reached (or cannot reach) its end. The fullscreen
+     * panel's copy, while searching with its own term, scrolls through its
+     * own windowed matches, not the sidebar's rows: it grows that window
+     * first and only pages the portal once the window covers every loaded
+     * match — and never in full-list mode, where its search already sees
+     * the whole catalog and a page would only widen the sidebar's window.
+     */
+    private driveStampedList(container: HTMLElement, nearEnd: boolean) {
+        // A closed panel stays mounted to preserve search and scroll, but
+        // must not grow its window or request pages until it is reopened.
+        if (container.closest('[inert]')) return;
+        const isPanelContainer =
+            container.closest('.fullscreen-channel-list') !== null;
+        const isPanelSearch =
+            isPanelContainer && this.panelSearch.activeTerm() !== '';
+        const action = resolvePanelSearchScroll({
+            isPanelSearch,
+            isNearEnd: nearEnd,
+            panelHasMore: this.panelSearch.hasMore(),
+        });
+        if (action === 'idle') return;
+        if (action === 'grow-window') {
+            this.panelSearch.loadMore();
+            return;
+        }
+        if (isPanelSearch && this.isCategoryFromCache()) return;
+        if (isPanelContainer && !isPanelSearch) {
+            // The blank panel shows the category, not the sidebar's filtered
+            // rows, so its continuation is judged against the category too.
+            this.loadMoreForPanel();
+            return;
+        }
+        if (this.isLoadingMore() || !this.hasMoreItems()) return;
+        this.loadMore();
     }
 
     private removeScrollListener() {

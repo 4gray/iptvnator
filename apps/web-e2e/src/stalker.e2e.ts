@@ -675,6 +675,32 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
     });
     await expect(categories.nth(1).locator('.item-count')).toHaveText('40');
 
+    // Starting from All Items leaves the category unset. Its fullscreen
+    // list must still show and window the full cache without a search term.
+    await allItemsGrid.locator('mat-card').first().click();
+    const playerView = page.locator('app-web-player-view');
+    await expect(playerView).toBeVisible();
+    await playerView.hover();
+    await playerView.getByRole('button', { name: 'Enter fullscreen' }).click();
+    await expect(
+        playerView.getByRole('button', { name: 'Exit fullscreen' })
+    ).toBeVisible();
+    await page
+        .locator('[data-test-id="fullscreen-channel-panel-hot-zone"]')
+        .hover();
+    const panel = page.locator('[data-test-id="fullscreen-channel-panel"]');
+    await expect(panel).toHaveAttribute('aria-hidden', 'false');
+    const panelRows = panel.locator('[data-test-id="channel-item"]');
+    await expect(panelRows).toHaveCount(100);
+    await panel.locator('.channels-list').evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    await expect(panelRows).toHaveCount(200);
+    await page.evaluate(() => document.exitFullscreen());
+    await expect
+        .poll(() => page.evaluate(() => !!document.fullscreenElement))
+        .toBe(false);
+
     await categories.nth(1).click();
 
     const channels = page.locator('[data-test-id="channel-item"]');

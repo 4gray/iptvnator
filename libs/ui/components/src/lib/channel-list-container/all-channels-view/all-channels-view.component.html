@@ -1,53 +1,55 @@
-<header class="all-channels-header">
-    <div class="all-channels-header__top">
-        <h2>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</h2>
-        <button
-            type="button"
-            mat-icon-button
-            class="all-channels-sort-button"
-            [matMenuTriggerFor]="channelSortMenu"
-            [matTooltip]="'Sort: ' + allChannelsSortLabel()"
-            aria-label="Sort channels"
-        >
-            <mat-icon>sort_by_alpha</mat-icon>
-        </button>
-        <button
-            type="button"
-            mat-icon-button
-            class="all-channels-sidebar-toggle"
-            [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-            (click)="sidebarToggleRequested.emit()"
-        >
-            <mat-icon>chevron_left</mat-icon>
-        </button>
-    </div>
+@if (showHeader()) {
+    <header class="all-channels-header">
+        <div class="all-channels-header__top">
+            <h2>{{ 'CHANNELS.ALL_CHANNELS' | translate }}</h2>
+            <button
+                type="button"
+                mat-icon-button
+                class="all-channels-sort-button"
+                [matMenuTriggerFor]="channelSortMenu"
+                [matTooltip]="'Sort: ' + allChannelsSortLabel()"
+                aria-label="Sort channels"
+            >
+                <mat-icon>sort_by_alpha</mat-icon>
+            </button>
+            <button
+                type="button"
+                mat-icon-button
+                class="all-channels-sidebar-toggle"
+                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
+                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
+                (click)="sidebarToggleRequested.emit()"
+            >
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+        </div>
 
-    <mat-menu #channelSortMenu="matMenu">
-        <button mat-menu-item (click)="setAllChannelsSortMode('server')">
-            <mat-icon>drag_indicator</mat-icon>
-            <span>Playlist Order</span>
-            @if (allChannelsSortMode() === 'server') {
-                <mat-icon>check</mat-icon>
-            }
-        </button>
-        <button mat-menu-item (click)="setAllChannelsSortMode('name-asc')">
-            <mat-icon>sort_by_alpha</mat-icon>
-            <span>Name A-Z</span>
-            @if (allChannelsSortMode() === 'name-asc') {
-                <mat-icon>check</mat-icon>
-            }
-        </button>
-        <button mat-menu-item (click)="setAllChannelsSortMode('name-desc')">
-            <mat-icon>sort_by_alpha</mat-icon>
-            <span>Name Z-A</span>
-            @if (allChannelsSortMode() === 'name-desc') {
-                <mat-icon>check</mat-icon>
-            }
-        </button>
-    </mat-menu>
-</header>
-<div class="all-channels-divider"></div>
+        <mat-menu #channelSortMenu="matMenu">
+            <button mat-menu-item (click)="setAllChannelsSortMode('server')">
+                <mat-icon>drag_indicator</mat-icon>
+                <span>Playlist Order</span>
+                @if (allChannelsSortMode() === 'server') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+            <button mat-menu-item (click)="setAllChannelsSortMode('name-asc')">
+                <mat-icon>sort_by_alpha</mat-icon>
+                <span>Name A-Z</span>
+                @if (allChannelsSortMode() === 'name-asc') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+            <button mat-menu-item (click)="setAllChannelsSortMode('name-desc')">
+                <mat-icon>sort_by_alpha</mat-icon>
+                <span>Name Z-A</span>
+                @if (allChannelsSortMode() === 'name-desc') {
+                    <mat-icon>check</mat-icon>
+                }
+            </button>
+        </mat-menu>
+    </header>
+    <div class="all-channels-divider"></div>
+}
 
 <div id="all-channels" class="channel-list">
     @if (filteredChannels().length === 0 && searchTerm()) {

@@ -2,6 +2,7 @@ import {
     Component,
     ElementRef,
     OnDestroy,
+    type Signal,
     ViewEncapsulation,
     computed,
     effect,
@@ -11,6 +12,7 @@ import {
     output,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
 import {
     type PlaybackDiagnostic,
@@ -23,6 +25,7 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type Channel,
+    type EmbeddedMpvSupport,
     type RecordingStartMetadata,
     type RecordingStoppedEvent,
     type ResolvedPortalPlayback,
@@ -30,6 +33,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
+import { FullscreenChannelPanelComponent } from '../fullscreen-channel-panel/fullscreen-channel-panel.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import {
@@ -61,6 +65,11 @@ import {
     toVideoPlayer,
 } from './web-player-recovery-policy';
 
+/** What the view needs from a rendered Embedded MPV player: its engine. */
+interface EmbeddedMpvEngineReporter {
+    readonly support: Signal<EmbeddedMpvSupport | null>;
+}
+
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
     const fallback = WEB_PLAYER_SHARED_CONTROLS_ENABLED;
@@ -75,6 +84,7 @@ function resolveWebPlayerSharedControls(): boolean {
     imports: [
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
+        FullscreenChannelPanelComponent,
         HtmlVideoPlayerComponent,
         PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
@@ -96,10 +106,41 @@ export class WebPlayerViewComponent implements OnDestroy {
      * episode, channel, or alternative-source switch. This host element
      * spans all applications of one mount: fullscreen entered on episode 1
      * is still in place when episode 2's engine mounts, and the fresh
-     * controls pick it up through `ControlsFullscreen.sync()`.
+     * controls pick it up through `ControlsFullscreen.sync()`. It is also
+     * the stage the fullscreen channel panel tracks, so the panel sits inside
+     * the fullscreen element and survives the same remounts.
      */
     readonly fullscreenSurface: HTMLElement = inject(ElementRef<HTMLElement>)
         .nativeElement;
+    private readonly embeddedMpvPlayer =
+        viewChild<EmbeddedMpvEngineReporter>('embeddedMpvPlayer');
+    /**
+     * The fullscreen channel panel is DOM content over the video. Embedded
+     * MPV's native-view engine paints a platform view above the page, where
+     * no DOM layer can show, so the panel exists only while the rendered
+     * engine is a web player or Embedded MPV's frame-copy canvas. Fails
+     * closed until frame-copy has been confirmed. Retain that confirmation
+     * while a replacement component probes support, so channel changes do
+     * not reset the panel. A confirmed native/unsupported result revokes it.
+     */
+    readonly channelPanelAvailable = linkedSignal<
+        { embedded: boolean; support: EmbeddedMpvSupport | null },
+        boolean
+    >({
+        source: () => ({
+            embedded: this.renderedApplications().some(
+                (application) => application.embeddedMpv
+            ),
+            support: this.embeddedMpvPlayer()?.support() ?? null,
+        }),
+        computation: ({ embedded, support }, previous) => {
+            if (!embedded) return true;
+            if (support === null) {
+                return previous?.source.embedded ? previous.value : false;
+            }
+            return support.supported && support.engine === 'frame-copy';
+        },
+    });
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
@@ -180,9 +221,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     });
     readonly selectedPlayer = computed<VideoPlayer>(() => {
         const temporary = this.recoverySession.temporaryPlayerOverride();
-        return temporary
-            ? toVideoPlayer(temporary)
-            : this.renderablePlayer();
+        return temporary ? toVideoPlayer(temporary) : this.renderablePlayer();
     });
     private readonly applicationState = createWebPlayerApplicationState({
         playback: this.playback,

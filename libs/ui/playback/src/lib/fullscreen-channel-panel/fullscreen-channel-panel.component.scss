@@ -1,0 +1,215 @@
+// Global styles on purpose (ViewEncapsulation.None): the host page's list is
+// stamped into the panel body through an ng-template, so its nodes carry the
+// host's scoping attribute and an emulated `.body > *` rule could never reach
+// them. Every selector is prefixed with `fullscreen-channel-panel`.
+
+.fullscreen-channel-panel-host {
+    // Never take layout space beside the engine; every child is absolutely
+    // positioned inside the `.web-player-view` box.
+    display: contents;
+}
+
+// ─── Closed state ────────────────────────────────────────────────────────────
+
+// Invisible by design: nothing sits over the video until the mouse rests here.
+// It stops well above the shared controls bar (up to ~130px tall in its
+// two-row layout), whose leftmost button starts 16px from the edge — the
+// strip must never intercept a click or tap meant for play/pause.
+.fullscreen-channel-panel__hot-zone {
+    position: absolute;
+    top: 0;
+    bottom: max(25%, 140px);
+    left: 0;
+    z-index: 6;
+    width: 28px;
+}
+
+// ─── Open state ──────────────────────────────────────────────────────────────
+
+.fullscreen-channel-panel__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+}
+
+.fullscreen-channel-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    width: min(400px, calc(100% - 56px));
+    color: var(--app-heading-color, #d8dce8);
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 18px 0 48px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(24px) saturate(140%);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+        transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        visibility 0s linear 240ms;
+}
+
+// Translucent graphite over the video, matching the controls' popovers. The
+// panel carries `dark-theme` for its tokens, and the app's global
+// `.dark-theme { background: var(--mat-sys-surface) !important }`
+// (apps/web/src/styles.scss) would replace this gradient with the flat
+// surface — or with no background at all where that token is not defined —
+// so the compound selector and `!important` are required to out-rank it.
+.fullscreen-channel-panel.dark-theme {
+    background: linear-gradient(
+        to right,
+        rgba(13, 15, 18, 0.94),
+        rgba(13, 15, 18, 0.88)
+    ) !important;
+}
+
+.fullscreen-channel-panel--open {
+    transform: translateX(0);
+    visibility: visible;
+    transition:
+        transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        visibility 0s;
+}
+
+// ─── Header: one row, search + close ─────────────────────────────────────────
+
+.fullscreen-channel-panel__header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 10px 6px 10px 12px;
+}
+
+.fullscreen-channel-panel__search {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    height: 36px;
+    padding: 0 6px 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.07);
+    cursor: text;
+    transition:
+        border-color 150ms ease-out,
+        background-color 150ms ease-out;
+}
+
+.fullscreen-channel-panel__search:focus-within {
+    border-color: var(--app-selection-color, #78adff);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.fullscreen-channel-panel__search-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.fullscreen-channel-panel__search-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    color: #ffffff;
+    background: transparent;
+    font: inherit;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+}
+
+.fullscreen-channel-panel__search-input::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.fullscreen-channel-panel__search-input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.fullscreen-channel-panel__search-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.75);
+    background: transparent;
+    cursor: pointer;
+}
+
+.fullscreen-channel-panel__search-clear:hover,
+.fullscreen-channel-panel__search-clear:focus-visible {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.fullscreen-channel-panel__search-clear mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+
+.fullscreen-channel-panel__close {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.8);
+    --mdc-icon-button-icon-color: currentColor;
+    --mat-icon-button-icon-color: currentColor;
+}
+
+.fullscreen-channel-panel__close:hover {
+    color: #ffffff;
+}
+
+// ─── Body ────────────────────────────────────────────────────────────────────
+
+.fullscreen-channel-panel__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+// The stamped host list is the single scroll owner of the body.
+.fullscreen-channel-panel__body > * {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+// Sidebar hosts draw their own right border; the panel already has one.
+.fullscreen-channel-panel__body > app-portal-channels-list {
+    border-right: 0;
+}
+
+// ─── Adaptations ─────────────────────────────────────────────────────────────
+
+@media (pointer: coarse) {
+    // A finger needs a wider target than a resting mouse.
+    .fullscreen-channel-panel__hot-zone {
+        width: 40px;
+    }
+}
+
+@container (max-width: 560px) {
+    .fullscreen-channel-panel {
+        width: calc(100% - 44px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fullscreen-channel-panel {
+        transition: none;
+    }
+}

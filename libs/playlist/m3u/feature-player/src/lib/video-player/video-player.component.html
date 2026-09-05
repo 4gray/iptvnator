@@ -213,3 +213,19 @@
         />
     }
 </div>
+
+<!-- Stamped into the player's fullscreen channel panel (FULLSCREEN_CHANNEL_PANEL). -->
+<ng-template
+    #fullscreenChannelPanel
+    let-searchTerm="searchTerm"
+    let-close="close"
+>
+    <app-m3u-fullscreen-channel-list
+        [channels]="fullscreenPanelChannels()"
+        [channelsLoading]="channelsLoading()"
+        [initialView]="activeView()"
+        [recentItems]="activePlaylistRecentItems()"
+        [searchTerm]="searchTerm()"
+        (closeRequested)="close()"
+    />
+</ng-template>

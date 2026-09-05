@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import {
     ComponentFixture,
     DeferBlockBehavior,
@@ -15,6 +15,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
     VideoPlayer,
+    type EmbeddedMpvSupport,
     type RecordingStartMetadata,
     type RecordingStoppedEvent,
 } from '@iptvnator/shared/interfaces';
@@ -34,6 +35,7 @@ import {
     getDiagnosticMeta,
     getDiagnosticTitleKey,
 } from '../playback-diagnostic-panel/playback-diagnostic-view.util';
+import { StubFullscreenChannelPanelComponent } from './web-player-view.spec-stubs';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -110,6 +112,8 @@ class StubArtPlayerComponent {
     template: '<div data-test-id="stub-embedded-mpv-player"></div>',
 })
 class StubEmbeddedMpvPlayerComponent {
+    /** Read by the view's channel-panel gate (`EmbeddedMpvEngineReporter`). */
+    readonly support = signal<EmbeddedMpvSupport | null>(null);
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
@@ -158,6 +162,7 @@ describe('WebPlayerViewComponent', () => {
                     imports: [
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
                         PlaybackDiagnosticPanelComponent,
@@ -193,6 +198,18 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.classList).toContain('web-player-view');
+    });
+
+    it('stages the fullscreen channel panel on the same host element the engines fullscreen', () => {
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.fullscreenSurface).toBe(
+            fixture.nativeElement
+        );
+        const panel = fixture.debugElement.query(
+            By.directive(StubFullscreenChannelPanelComponent)
+        ).componentInstance as StubFullscreenChannelPanelComponent;
+        expect(panel.stage()).toBe(fixture.componentInstance.fullscreenSurface);
     });
 
     describe('resolvedMediaTitle', () => {

@@ -70,6 +70,12 @@ export class AllChannelsViewComponent {
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();
     readonly searchTerm = input('');
+    /**
+     * The title / sort / collapse header. Off inside the fullscreen channel
+     * panel, whose own chrome names the view; the persisted sort still
+     * applies.
+     */
+    readonly showHeader = input(true);
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();

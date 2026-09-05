@@ -191,6 +191,42 @@ describe('AllChannelsViewComponent', () => {
         ).toEqual(['Zulu Vision', 'Middle News', 'Alpha Signal']);
     });
 
+    it('drops the title/sort/collapse header but keeps the persisted sort without it', () => {
+        fixture.destroy();
+        localStorage.setItem(ALL_CHANNELS_SORT_STORAGE_KEY, 'name-desc');
+
+        fixture = TestBed.createComponent(AllChannelsViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('channels', [
+            createChannel('a', 'Alpha', 'https://example.com/a'),
+            createChannel('z', 'Zulu', 'https://example.com/z'),
+        ]);
+        fixture.componentRef.setInput('searchTerm', '');
+        fixture.componentRef.setInput('channelEpgMap', new Map<string, null>());
+        fixture.componentRef.setInput(
+            'channelIconMap',
+            new Map<string, string>()
+        );
+        fixture.componentRef.setInput('progressTick', 0);
+        fixture.componentRef.setInput('shouldShowEpg', false);
+        fixture.componentRef.setInput('itemSize', 52);
+        fixture.componentRef.setInput('showHeader', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.all-channels-header')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.all-channels-divider')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('#all-channels')
+        ).not.toBeNull();
+        expect(
+            component.filteredChannels().map((channel) => channel.name)
+        ).toEqual(['Zulu', 'Alpha']);
+    });
+
     it('emits sidebar toggle requests from the inline header action', () => {
         const sidebarToggleRequested = jest.fn();
         component.sidebarToggleRequested.subscribe(sidebarToggleRequested);

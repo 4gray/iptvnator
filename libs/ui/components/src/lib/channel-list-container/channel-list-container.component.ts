@@ -187,6 +187,27 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly channelsLoading = input(false);
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
     readonly sidebarWidth = input<number | null>(null);
+    /**
+     * Search term supplied by the host instead of the workspace header's
+     * `?q=` query parameter — the fullscreen channel panel has its own field
+     * because the header is not reachable in fullscreen. `null` keeps the
+     * route-driven term.
+     */
+    readonly searchTerm = input<string | null>(null);
+    /**
+     * Drops the per-view chrome (the favorites/recent context header and the
+     * all-channels/groups title, sort and collapse headers). The fullscreen
+     * channel panel picks the view with its own switcher and owns the search
+     * row, so those headers would only stack under it. Sorting still follows
+     * the sidebar's persisted choice.
+     */
+    readonly compact = input(false);
+    /**
+     * A second list instance beside the sidebar (the fullscreen channel
+     * panel) must not stop playback when it unmounts; only the page's own
+     * list owns the active channel.
+     */
+    readonly resetActiveChannelOnDestroy = input(true);
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
     readonly sidebarToggleRequested = output<void>();
@@ -196,9 +217,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         'q',
         (value) => (value ?? '').trim().toLowerCase()
     );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
-    );
+    readonly workspaceSearchTerm = computed(() => {
+        const hostTerm = this.searchTerm();
+        if (hostTerm !== null) {
+            return hostTerm.trim().toLowerCase();
+        }
+        return this.isWorkspaceLayout ? this.routeSearchTerm() : '';
+    });
 
     readonly currentUrl = toSignal(
         this.router.events.pipe(
@@ -406,7 +431,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.store.dispatch(ChannelActions.resetActiveChannel());
+        if (this.resetActiveChannelOnDestroy()) {
+            this.store.dispatch(ChannelActions.resetActiveChannel());
+        }
 
         if (this.epgRefreshInterval) {
             clearInterval(this.epgRefreshInterval);

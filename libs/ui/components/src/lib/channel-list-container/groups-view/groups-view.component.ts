@@ -47,6 +47,8 @@ import {
 } from './group-management-dialog/group-management-dialog.component';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
+/** Rail width inside the fullscreen channel panel; see the `compact` input. */
+const COMPACT_GROUPS_NAV_WIDTH = 148;
 
 interface GroupView {
     readonly channels: Channel[];
@@ -94,6 +96,35 @@ export class GroupsViewComponent {
     /** Grouped channels object */
     readonly groupedChannels = input.required<{ [key: string]: Channel[] }>();
     readonly searchTerm = input('');
+    /**
+     * The selected group's title / sort / collapse header over the channel
+     * pane. Off inside the fullscreen channel panel; the groups rail keeps
+     * its own header since it carries the group search.
+     */
+    readonly showHeader = input(true);
+    /**
+     * Inside the fullscreen channel panel (≤400px wide): the groups rail is
+     * pinned to {@link COMPACT_GROUPS_NAV_WIDTH} with no resize handle, and
+     * the sidebar's persisted `m3u-groups-nav-width` — up to 320px — is
+     * neither read nor written, since it would leave the channel pane a few
+     * dozen pixels wide.
+     */
+    readonly compact = input(false);
+    readonly navMinWidth = computed(() =>
+        this.compact() ? COMPACT_GROUPS_NAV_WIDTH : 164
+    );
+    readonly navMaxWidth = computed(() =>
+        this.compact() ? COMPACT_GROUPS_NAV_WIDTH : 320
+    );
+    readonly navDefaultWidth = computed(() =>
+        this.compact() ? COMPACT_GROUPS_NAV_WIDTH : 208
+    );
+    /** A key of its own, so the pinned width never overwrites the sidebar's. */
+    readonly navStorageKey = computed(() =>
+        this.compact()
+            ? 'm3u-groups-nav-width-fullscreen'
+            : 'm3u-groups-nav-width'
+    );
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();
@@ -459,14 +490,18 @@ export class GroupsViewComponent {
     }
 
     onGroupsNavResizeStart(): void {
+        if (this.compact()) return;
         this.preservedContentWidth = this.measureContentPanelWidth();
     }
 
     onGroupsNavWidthChange(width: number): void {
+        // The pinned panel rail must never ask the page's sidebar to resize.
+        if (this.compact()) return;
         this.emitSidebarWidthRequest(width, this.sidebarWidthRequested);
     }
 
     onGroupsNavResizeEnd(width: number): void {
+        if (this.compact()) return;
         this.emitSidebarWidthRequest(width, this.sidebarWidthRequestEnded);
         this.preservedContentWidth = 0;
     }
