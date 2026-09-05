@@ -14,6 +14,7 @@ jest.mock('../database/connection', () => ({ getDatabase: jest.fn() }));
 jest.mock('./epg-worker.service', () => ({
     epgWorkerService: {
         clearEpgDataForSource: jest.fn().mockResolvedValue(undefined),
+        sendProgressToRenderer: jest.fn(),
     },
 }));
 
@@ -80,6 +81,52 @@ describe('committed EPG source reconciliation', () => {
         expect(epgWorkerService.clearEpgDataForSource).not.toHaveBeenCalledWith(
             'active'
         );
+    });
+
+    it('cancels completed error rows even without cached data or a running worker', async () => {
+        rows.set(epgChannels, []);
+        rows.set(epgPrograms, []);
+        const generation = requestEpgSource('failed-import');
+        await reconcileEpgSources([]);
+        expect(epgWorkerService.sendProgressToRenderer).toHaveBeenCalledWith(
+            'failed-import',
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            generation
+        );
+    });
+
+    it('cancels every retired row before the first source clear can fail', async () => {
+        const generation = epgSourceGeneration('second');
+        (
+            epgWorkerService.clearEpgDataForSource as jest.Mock
+        ).mockImplementationOnce(async () => {
+            expect(
+                epgWorkerService.sendProgressToRenderer
+            ).toHaveBeenCalledWith(
+                'second',
+                'cancelled',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                generation
+            );
+            throw new Error('clear failed');
+        });
+        await expect(reconcileEpgSources(['shared'])).rejects.toThrow(
+            'clear failed'
+        );
+        expect(
+            (
+                epgWorkerService.sendProgressToRenderer as jest.Mock
+            ).mock.calls.map(([url]) => url)
+        ).not.toContain('shared');
     });
 
     it('does not clear historical request keys again after successful cleanup', async () => {

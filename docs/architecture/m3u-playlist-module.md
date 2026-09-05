@@ -1345,8 +1345,11 @@ Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
 also awaits the in-flight fetch promise when an error/timeout has already removed
 the worker from the lookup but its termination is still pending.
-Retired queued and running imports emit generation-scoped cancellation so progress
-rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
+Every removed source emits generation-scoped cancellation before cleanup starts,
+including retained actionable errors whose workers have already finished. Retired
+queued/running imports also cancel their own generation. Retry waits for source
+reconciliation and rechecks the same error row; trust-setting continuations and
+old dismissal timers cannot affect a removed or replacement row. Progress rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
 channel is retained while another source still has programmes or channel metadata.
 The additive `epg_channel_sources` table is created during database initialization
 and records each imported source's name, logo, URL and timestamp. Before removing

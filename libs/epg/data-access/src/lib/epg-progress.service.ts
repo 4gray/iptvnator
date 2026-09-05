@@ -3,7 +3,7 @@ import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     normalizeHost,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, EpgSourceSettingsService } from '@iptvnator/services';
 import {
     EpgImportProgress,
     EpgRuntimeBridgeService,
@@ -13,6 +13,7 @@ import {
 export class EpgProgressService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly sources = inject(EpgSourceSettingsService);
     private readonly importsMap = signal<Map<string, EpgImportProgress>>(
         new Map()
     );
@@ -45,20 +46,27 @@ export class EpgProgressService {
         this.importsMap.set(new Map());
     }
 
-    retry(url: string): void {
-        // Clear the errored row so the backend's subsequent 'queued' event
-        // reappears cleanly rather than updating an existing error row.
-        this.removeImport(url);
-        if (!this.epgBridge.supportsDataManagement) {
+    async retry(url: string): Promise<void> {
+        const progress = this.importsMap().get(url);
+        if (
+            progress?.status !== 'error' ||
+            !this.epgBridge.supportsDataManagement
+        )
             return;
-        }
-        void this.epgBridge.forceFetchEpg(
+        // A settings save may already be retiring this row. Never bypass its
+        // ownership reconciliation by starting a new force-fetch generation.
+        await this.sources.waitForReconciliation();
+        if (this.importsMap().get(url) !== progress) return;
+        this.removeImport(url);
+        await this.epgBridge.forceFetchEpg(
             url,
             this.settingsStore.getTrustOptions()
         );
     }
 
     async trustPrivateNetworkSourceAndRetry(url: string): Promise<void> {
+        const progress = this.importsMap().get(url);
+        if (progress?.status !== 'error') return;
         const settings = this.settingsStore.getSettings();
         const trustedUrls = new Set(
             settings.trustedPrivateNetworkEpgUrls ?? []
@@ -68,13 +76,15 @@ export class EpgProgressService {
         await this.settingsStore.updateSettings({
             trustedPrivateNetworkEpgUrls: Array.from(trustedUrls),
         });
-        this.retry(url);
+        if (this.importsMap().get(url) === progress) await this.retry(url);
     }
 
     async trustInsecureTlsHostAndRetry(
         url: string,
         host?: string
     ): Promise<void> {
+        const progress = this.importsMap().get(url);
+        if (progress?.status !== 'error') return;
         const trustedHost = host ?? this.getHostname(url);
         if (!trustedHost) {
             return;
@@ -91,7 +101,7 @@ export class EpgProgressService {
         await this.settingsStore.updateSettings({
             trustedInsecureTlsHosts: Array.from(trustedHosts),
         });
-        this.retry(url);
+        if (this.importsMap().get(url) === progress) await this.retry(url);
     }
 
     private initializeListener(): void {
@@ -124,7 +134,10 @@ export class EpgProgressService {
             progress.status === 'complete' ||
             (progress.status === 'error' && !this.isActionableError(progress))
         ) {
-            setTimeout(() => this.removeImport(progress.url), 5000);
+            setTimeout(() => {
+                if (this.importsMap().get(progress.url) === progress)
+                    this.removeImport(progress.url);
+            }, 5000);
         }
     }
 

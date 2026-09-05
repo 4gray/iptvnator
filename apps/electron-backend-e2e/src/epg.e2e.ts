@@ -166,6 +166,78 @@ test.describe('Electron EPG', () => {
         }
     });
 
+    test('@epg @electron removes a retained error row after its import worker has finished', async ({
+        dataDir,
+    }) => {
+        const server = await createMutableTextServer(epgFixtureXml, {
+            contentType: 'application/xml',
+        });
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .fill(server.resourceUrl);
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1, { timeout: 30000 });
+            // Capture the actual generation; a force-fetch also awaits termination.
+            const generation = await app.mainWindow.evaluate(async (url) => {
+                await window.electron.clearEpgDataForSource(url);
+                const completed = new Promise<number>((resolve) => {
+                    window.electron.onEpgProgress?.((progress) => {
+                        if (
+                            progress.url === url &&
+                            progress.status === 'complete'
+                        )
+                            resolve(progress.generation ?? 0);
+                    });
+                });
+                await window.electron.forceFetchEpg(url);
+                return completed;
+            }, server.resourceUrl);
+            await app.electronApp.evaluate(
+                ({ BrowserWindow }, { url, generation }) => {
+                    BrowserWindow.getAllWindows()[0].webContents.send(
+                        'EPG_PROGRESS_UPDATE',
+                        {
+                            url,
+                            status: 'error',
+                            generation,
+                            errorCode: 'invalid-tls-certificate',
+                            error: 'Synthetic retained TLS error',
+                        }
+                    );
+                },
+                { url: server.resourceUrl, generation }
+            );
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-error'
+                )
+            ).toHaveCount(1);
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .import-item')
+            ).toHaveCount(0);
+            await expect.poll(() => getEpgChannelCount(app.mainWindow)).toBe(0);
+        } finally {
+            await closeElectronApp(app);
+            await server.close();
+        }
+    });
+
     test('@epg @electron removes only the saved source, preserves shared IDs and mappings, and repairs old orphan data on restart', async ({
         dataDir,
     }) => {

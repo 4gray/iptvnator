@@ -9,6 +9,7 @@ import {
 } from '../database/schema';
 import { epgWorkerService } from './epg-worker.service';
 import {
+    epgSourceGeneration,
     forgetEpgSourceRequest,
     requestedEpgSources,
     retireEpgSource,
@@ -76,7 +77,21 @@ export function reconcileEpgSources(globalUrls: string[]): Promise<void> {
                 ),
             ];
             // Fence the whole obsolete set before awaiting the first worker exit.
-            removed.forEach(retireEpgSource);
+            removed.forEach((url) => {
+                const generation = epgSourceGeneration(url);
+                retireEpgSource(url);
+                // Finished imports can leave actionable error rows with Retry.
+                epgWorkerService.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generation
+                );
+            });
             for (const url of removed) {
                 await epgWorkerService.clearEpgDataForSource(url);
                 forgetEpgSourceRequest(url, requested.get(url.trim()));

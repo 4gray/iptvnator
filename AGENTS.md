@@ -180,9 +180,10 @@ Saving Settings → EPG reconciles cached XMLTV with committed global URLs and
 all enabled M3U playlist sources. Startup runs the same reconciliation after
 settings load and playlist migration. Ordinary saves skip unchanged normalized
 source sets; an explicitly edited EPG field can retry a failed cleanup.
-Failed settings reads and incomplete
-playlist migration never authorize pruning. Removed sources retire queued and
-running imports before worker-owned deletion. Shared channel IDs survive while
+Failed settings reads and incomplete playlist migration never authorize pruning.
+Removed sources retire queued/running imports and dismiss retained error rows
+before worker-owned deletion. Retry waits for reconciliation and rechecks its
+error row, including after trust-setting writes. Shared channel IDs survive while
 another source has programmes or per-source channel metadata. The additive
 `epg_channel_sources` table preserves each imported source's name, logo, URL and
 timestamp so removal restores a surviving snapshot; ambiguous legacy metadata
