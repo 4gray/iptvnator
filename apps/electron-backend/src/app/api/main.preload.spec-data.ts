@@ -83,6 +83,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlist],
     },
     {
+        method: 'dbRecoverLegacyPlaylists',
+        args: [],
+        channel: 'DB_RECOVER_LEGACY_PLAYLISTS',
+        forwardedArgs: [],
+    },
+    {
         method: 'dbMigrateAppPlaylists',
         args: [playlists],
         channel: 'DB_MIGRATE_APP_PLAYLISTS',
