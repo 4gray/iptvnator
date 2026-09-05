@@ -184,7 +184,7 @@
         "@swc/core": "1.16.1",
         "@swc/helpers": "0.5.23",
         "@tailwindcss/typography": "0.5.20",
-        "@types/better-sqlite3": "^7.6.12",
+        "@types/better-sqlite3": "^9.6.0",
         "@types/cors": "2.8.19",
         "@types/express": "5.0.6",
         "@types/jest": "^30.0.0",
