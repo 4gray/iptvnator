@@ -134,7 +134,7 @@ importers:
         version: 0.45.2(@types/better-sqlite3@7.6.13)(better-sqlite3@13.0.3)
       electron-conf:
         specifier: 1.3.0
-        version: 1.3.0(electron@43.3.0)
+        version: 1.3.0(electron@44.1.1)
       electron-updater:
         specifier: 6.8.9
         version: 6.8.9
@@ -359,8 +359,8 @@ importers:
         specifier: 0.31.10
         version: 0.31.10
       electron:
-        specifier: ^43.3.0
-        version: 43.3.0
+        specifier: ^44.1.1
+        version: 44.1.1
       electron-builder:
         specifier: ^26.15.7
         version: 26.15.7(electron-builder-squirrel-windows@26.15.7)
@@ -432,7 +432,7 @@ importers:
         version: 22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))
       nx-electron:
         specifier: 22.0.0
-        version: 22.0.0(patch_hash=f4bbde1778360c4c462b255bec47a337c0465d59cdcab14ecb601161f3467002)(@nx/devkit@22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@43.3.0)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@5.9.3)
+        version: 22.0.0(patch_hash=f4bbde1778360c4c462b255bec47a337c0465d59cdcab14ecb601161f3467002)(@nx/devkit@22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@44.1.1)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@5.9.3)
       prettier:
         specifier: ^3.9.6
         version: 3.9.6
@@ -6442,8 +6442,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@43.3.0:
-    resolution: {integrity: sha512-nLlvu0WFjftWsSaTkV2B/c4NDuJBspTyXu8vKSQ6vLvFt8uG3NgN49LLKcXddwX0GqVvAQDhciWp+4xOdTdhew==}
+  electron@44.1.1:
+    resolution: {integrity: sha512-N2WCq2sbOkqQgvXJYx2lS6UiO8bF+Yr67trDnS6JKa2WxTCRQsAjGl57SUtdW9h6r5PlduBFjIhxhgd3dzv1hg==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -14990,7 +14990,7 @@ snapshots:
 
   '@npmcli/fs@5.0.0':
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   '@npmcli/git@7.0.2':
     dependencies:
@@ -15000,7 +15000,7 @@ snapshots:
       lru-cache: 11.5.2
       npm-pick-manifest: 11.0.3
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.5
       which: 6.0.1
 
   '@npmcli/installed-package-contents@4.0.0':
@@ -15017,7 +15017,7 @@ snapshots:
       hosted-git-info: 9.0.3
       json-parse-even-better-errors: 5.0.0
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.5
       spdx-expression-parse: 4.0.0
 
   '@npmcli/promise-spawn@9.0.1':
@@ -16467,7 +16467,7 @@ snapshots:
 
   '@types/sax@1.2.7':
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 20.19.9
 
   '@types/send@0.17.6':
     dependencies:
@@ -18338,10 +18338,10 @@ snapshots:
       - electron-builder-squirrel-windows
       - supports-color
 
-  electron-conf@1.3.0(electron@43.3.0):
+  electron-conf@1.3.0(electron@44.1.1):
     dependencies:
       ajv: 8.18.0
-      electron: 43.3.0
+      electron: 44.1.1
 
   electron-playwright-helpers@1.8.2:
     dependencies:
@@ -18388,7 +18388,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@43.3.0:
+  electron@44.1.1:
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0
@@ -19361,7 +19361,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.4
+      semver: 7.8.5
       serialize-error: 7.0.1
     optional: true
 
@@ -21806,7 +21806,7 @@ snapshots:
 
   node-abi@4.33.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-abort-controller@3.1.1: {}
 
@@ -21819,7 +21819,7 @@ snapshots:
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-fetch-native@1.6.7: {}
 
@@ -21843,7 +21843,7 @@ snapshots:
       graceful-fs: 4.2.11
       nopt: 9.0.0
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.5
       tar: 7.5.22
       tinyglobby: 0.2.17
       undici: 6.28.0
@@ -21869,7 +21869,7 @@ snapshots:
 
   npm-install-checks@8.0.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   npm-normalize-package-bin@5.0.0: {}
 
@@ -21890,7 +21890,7 @@ snapshots:
       npm-install-checks: 8.0.0
       npm-normalize-package-bin: 5.0.0
       npm-package-arg: 13.0.2
-      semver: 7.7.4
+      semver: 7.8.5
 
   npm-registry-fetch@19.1.1:
     dependencies:
@@ -21915,12 +21915,12 @@ snapshots:
 
   nwsapi@2.2.27: {}
 
-  nx-electron@22.0.0(patch_hash=f4bbde1778360c4c462b255bec47a337c0465d59cdcab14ecb601161f3467002)(@nx/devkit@22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@43.3.0)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@5.9.3):
+  nx-electron@22.0.0(patch_hash=f4bbde1778360c4c462b255bec47a337c0465d59cdcab14ecb601161f3467002)(@nx/devkit@22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@44.1.1)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@5.9.3):
     dependencies:
       '@nx/devkit': 22.7.8(nx@22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))
       '@nx/workspace': 22.7.8(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@5.9.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))
       copy-webpack-plugin: 12.0.2(webpack@5.104.1(@swc/core@1.16.1(@swc/helpers@0.5.23))(esbuild@0.28.2))
-      electron: 43.3.0
+      electron: 44.1.1
       electron-builder: 26.15.7(electron-builder-squirrel-windows@26.15.7)
       fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.104.1(@swc/core@1.16.1(@swc/helpers@0.5.23))(esbuild@0.28.2))
       license-webpack-plugin: 4.0.2(webpack@5.104.1(@swc/core@1.16.1(@swc/helpers@0.5.23))(esbuild@0.28.2))
