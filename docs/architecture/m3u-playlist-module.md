@@ -13,6 +13,77 @@ The M3U playlist module provides:
 - Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
+## Desktop upgrades from legacy profiles
+
+v0.19.0 stores the complete source list in IndexedDB database `iptvnator`,
+version 1, store `playlists`, key path `_id`. Source type is inferred from
+`serverUrl` (Xtream), `macAddress` (Stalker), or the M3U fields; the last-used
+source does not select which records are migrated. Settings live separately
+in `ngStorage`, and player preferences also use localStorage. SQLite already
+holds the Xtream catalogs opened in v0.19, including favorites and history;
+it is not the authoritative inventory of configured sources.
+
+The published v0.19 Linux DEB's `app.asar/package.json` names the app
+`electron-backend`. Later packages set `productName: IPTVnator`. Electron
+resolves different `userData` directories from those identities; a later
+`app.setName('iptvnator')` does not reset the cached path. The shared
+`~/.iptvnator/databases/iptvnator.db` is independent of that path, so cached
+Xtream sources can remain visible while the complete IndexedDB list is in
+the older profile. Linux usually places these profiles below `~/.config/`.
+Snap/Flatpak confinement and a changed installation type can give them
+different roots; recovery does not scan unrelated profiles or sandbox roots.
+
+`electron-profile-bootstrap.ts` runs before eager main-process imports such
+as `electron-conf`. If the current profile has no IndexedDB, Local Storage,
+Preferences, or `config.json` yet, it reuses the known `electron-backend` profile containing
+`IndexedDB/file__0.indexeddb.leveldb`, preserving its settings as well. It never
+switches an already-used current profile. E2E overrides keep both profiles and
+SQLite under the isolated test root.
+
+`PlaylistsService` sends the complete current-profile IndexedDB list through
+`DB_MIGRATE_APP_PLAYLISTS`. The worker validates every ID (including duplicates)
+and commits all rows plus `m3u-playlists-indexeddb-to-sqlite-v1` in one synchronous
+transaction. Any malformed source or failed write rolls back the entire batch;
+restarting retries it. Original IndexedDB records remain in place. Full SQLite
+rows with a `payload` are authoritative and are skipped. Cache-only Xtream rows
+receive the IndexedDB source configuration (cached credentials can be stale),
+retaining creation/import timestamps and all linked catalogs, favorites,
+history and playback positions. No provider connection is needed. Migration
+preserves stored data; it does not create missing provider catalogs or translate
+unrelated historical formats into new features.
+
+For an already-used current profile, a separate native recovery offer defaults
+to **Keep current sources**. **Recover all missing sources** explicitly explains
+that it may also restore sources intentionally deleted after upgrading. There
+is no pre-existing deletion ledger that can distinguish these from omissions,
+so recovery is never automatic. Close the old version before accepting.
+Recovery opens a disposable copy of the old IndexedDB, never the original,
+and keeps current settings and full source records. Its separate atomic receipt
+`playlists-electron-backend-profile-v1` prevents any subsequent replay, including
+after source deletion. Declining records `declined`; starting the app with
+`--recover-legacy-playlists` offers it again. That switch does not bypass consent
+or replay a completed recovery. A recovery read/write error leaves current
+sources usable, reports the failure, writes no successful receipt, and can be
+retried on restart.
+
+If the old profile is absent, unreadable, in another sandbox, or was already
+cleared by an earlier successful migration, missing source data cannot be
+reconstructed from the current SQLite cache. Restore a backup or recreate those
+sources; do not clear migration flags to force a blind replay.
+
+SQL initialization also creates indexes on added columns only after the column
+migrations. In particular, `idx_content_epg_channel` must follow the addition of
+`content.epg_channel_id`; creating it in the initial CREATE TABLE pass aborts
+initialization on the v0.19 schema before the playlist migration can run.
+
+Validation: `electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`
+seeds the exact v0.19 IndexedDB schema and verbatim SQL CREATE statements with
+61 Stalker sources, three Xtream sources, M3U, and linked cached user data.
+It exercises source-list UI, alternate last-used sources, retained settings,
+recovery consent, existing data, write failure, restart, and deletion after
+migration. Local macOS Electron verification does not substitute for installed
+Linux Mint MATE, Snap, or Flatpak upgrade testing.
+
 ## Module Structure
 
 ```

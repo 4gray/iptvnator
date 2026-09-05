@@ -72,6 +72,8 @@ type PlaylistStorageElectronApi = {
         playlist: Playlist,
         operationId?: string
     ) => Promise<unknown>;
+    dbMigrateAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
+    dbRecoverLegacyPlaylists?: () => Promise<void>;
     dbUpsertAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
 };
 
@@ -141,8 +143,12 @@ export class PlaylistsService {
         if (!this.electronMigrationPromise) {
             this.electronMigrationPromise = (async () => {
                 await this.migrateIndexedDbPlaylistsToSqlite();
+                await this.electronApi?.dbRecoverLegacyPlaylists?.();
                 await this.migrateStalkerPlaylistMetadataInSqlite();
-            })();
+            })().catch((error) => {
+                this.electronMigrationPromise = null;
+                throw error;
+            });
         }
 
         return this.electronMigrationPromise;
@@ -176,34 +182,22 @@ export class PlaylistsService {
     }
 
     private async migrateIndexedDbPlaylistsToSqlite(): Promise<void> {
-        try {
-            const electron = this.electronApi;
-            if (!electron) {
-                return;
-            }
-
-            const alreadyMigrated = await electron.dbGetAppState(
-                SQLITE_PLAYLIST_MIGRATION_FLAG
-            );
-            if (alreadyMigrated === '1') {
-                return;
-            }
-
-            const indexedDbPlaylists = await firstValueFrom(
-                this.dbService.getAll<Playlist>(DbStores.Playlists)
-            );
-
-            if (indexedDbPlaylists.length > 0) {
-                await electron.dbUpsertAppPlaylists(indexedDbPlaylists);
-                await firstValueFrom(this.dbService.clear(DbStores.Playlists));
-            }
-
+        const electron = this.electronApi;
+        if (!electron) return;
+        if (
+            (await electron.dbGetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG)) ===
+            '1'
+        )
+            return;
+        const playlists = await firstValueFrom(
+            this.dbService.getAll<Playlist>(DbStores.Playlists)
+        );
+        if (playlists.length) {
+            // The worker commits rows and the receipt atomically. Keep the
+            // original IndexedDB as a recovery source, even after success.
+            await electron.dbMigrateAppPlaylists(playlists);
+        } else {
             await electron.dbSetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG, '1');
-        } catch (error) {
-            console.error(
-                'Failed to migrate IndexedDB playlists to SQLite:',
-                error
-            );
         }
     }
 

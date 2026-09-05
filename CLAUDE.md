@@ -316,6 +316,17 @@ The target still reports success either way, so a broken glob hides missing
 coverage instead of failing. After changing such a target, compare the linted
 file count against `find <project> -name '*.ts' | wc -l`.
 
+## Legacy Desktop Profile Migration
+
+`electron-profile-bootstrap.ts` selects the known v0.19 `electron-backend`
+profile before eager main-process imports only when current Chromium storage
+is unused. Existing profiles retain their settings and offer explicit recovery
+of missing sources from a disposable legacy snapshot. Playlist rows and a
+completion receipt commit atomically in the DB worker; original IndexedDB is
+retained, current payload rows are preserved, and completed imports never
+replay deleted sources. Contract and recovery limits:
+`docs/architecture/m3u-playlist-module.md` (Desktop upgrades from legacy profiles).
+
 ## Architecture
 
 ### Monorepo Structure (Nx Workspace)

@@ -239,7 +239,6 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS idx_categories_playlist ON categories(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_title ON content(title)`,
     `CREATE INDEX IF NOT EXISTS idx_content_xtream ON content(xtream_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_content_epg_channel ON content(epg_channel_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_type_added ON content(type, added)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`,
     // Partial covering index for visible categories — supports the dashboard's
@@ -429,6 +428,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
+    // Existing v0.19 content tables gain this column above, after CREATE TABLE.
+    `CREATE INDEX IF NOT EXISTS idx_content_epg_channel ON content(epg_channel_id)`,
     // v1.3.0 -> v1.4.0: Prevent duplicate Xtream categories/content rows
     `CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)`,

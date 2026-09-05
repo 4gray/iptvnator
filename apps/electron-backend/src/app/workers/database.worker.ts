@@ -1,3 +1,4 @@
+import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import {
     closeWorkerDatabase,
     getWorkerDatabase,
@@ -677,6 +678,14 @@ async function executeRequest(
                 message.payload as Record<string, unknown>,
                 capturePhase
             );
+        }
+
+        case 'DB_MIGRATE_APP_PLAYLISTS': {
+            const payload = message.payload as {
+                playlists: Record<string, unknown>[];
+                key?: string;
+            };
+            return migrateAppPlaylists(db, payload.playlists, payload.key);
         }
 
         case 'DB_UPSERT_APP_PLAYLISTS': {

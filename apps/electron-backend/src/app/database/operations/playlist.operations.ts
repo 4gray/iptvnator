@@ -166,7 +166,7 @@ function inferPlaylistType(playlist: Record<string, unknown>): PlaylistType {
     return PLAYLIST_TYPES.M3U_TEXT;
 }
 
-function buildPlaylistRow(
+export function buildPlaylistRow(
     playlist: Record<string, unknown>
 ): schema.NewPlaylist | null {
     const id = getStringValue(playlist._id) ?? getStringValue(playlist.id);
