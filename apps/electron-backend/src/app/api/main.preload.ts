@@ -46,6 +46,7 @@ import type {
     ElectronBridgeRemoteControlCommand,
     ElectronBridgeRemoteControlStatus,
     ElectronBridgeTrustOptions,
+    ElectronBridgePlaylistFetchOptions,
     ElectronBridgeWindowState,
     ElectronBridgeXtreamContentStream,
     ExternalPlayerSession,
@@ -447,7 +448,7 @@ const electronApi: ElectronBridgeApi = {
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
-        options?: ElectronBridgeTrustOptions
+        options?: ElectronBridgePlaylistFetchOptions
     ) => ipcRenderer.invoke('fetch-playlist-by-url', url, title, options),
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),

@@ -278,9 +278,12 @@ export class AddPlaylistDialogComponent {
             formValue?.playlistName
         );
 
+        const userAgent = this.normalizeOptionalValue(formValue?.userAgent);
+
         this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
             url: playlistUrl,
             ...(playlistName ? { title: playlistName } : {}),
+            ...(userAgent ? { userAgent } : {}),
         });
         this.closeDialog();
     }

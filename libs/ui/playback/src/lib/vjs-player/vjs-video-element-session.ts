@@ -1,4 +1,7 @@
+import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
+
 export interface VjsVideoElementSessionConfig {
+    releasePictureInPicture?: boolean;
     clearPlaybackIssue: () => void;
     emitPlaybackEnded: () => void;
 }
@@ -47,6 +50,9 @@ export class VjsVideoElementSession {
             return;
         }
 
+        if (this.config.releasePictureInPicture) {
+            releaseVideoPictureInPicture(this.currentVideo);
+        }
         this.currentVideo.removeEventListener(
             'loadeddata',
             this.clearPlaybackIssue

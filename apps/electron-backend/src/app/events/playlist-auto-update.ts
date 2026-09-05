@@ -36,7 +36,7 @@ async function refreshPlaylist(
         playlistObject = await fetchPlaylistFromUrl(
             playlist.url,
             playlist.title,
-            options
+            { ...options, userAgent: playlist.userAgent }
         );
     } else if (playlist.filePath) {
         console.log(
@@ -91,7 +91,7 @@ export async function autoUpdatePlaylists(
             } catch (error) {
                 console.error(
                     `Failed to update playlist "${playlist.title}":`,
-                    error
+                    redactSensitiveData(error)
                 );
                 statuses[index] = 'failed';
             }

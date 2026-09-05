@@ -21,11 +21,12 @@
     background: var(--surface-bg);
     color: var(--text-primary);
 
-    // Hide scrollbar but keep functionality (parity with the old hero scroll)
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    &::-webkit-scrollbar {
-        display: none;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
     }
 }
 

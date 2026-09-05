@@ -133,3 +133,67 @@ test.describe('Xtream VOD Details', () => {
         }
     });
 });
+
+for (const theme of ['light', 'dark']) {
+    test(`supports keyboard and mouse scrolling in portal details (${theme})`, async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        try {
+            const page = app.mainWindow;
+            await page.setViewportSize({ width: 1200, height: 540 });
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            for (const section of ['Movies', 'Series']) {
+                await page
+                    .getByRole('link', { name: section, exact: true })
+                    .click();
+                await page.locator('app-grid-list mat-card').first().click();
+                const shell = page.locator('app-portal-detail-shell');
+                await expect(shell).toBeFocused();
+                await page.evaluate(
+                    (dark) =>
+                        document.body.classList.toggle('dark-theme', dark),
+                    theme === 'dark'
+                );
+                await expect
+                    .poll(() =>
+                        shell.evaluate(
+                            (el) => el.scrollHeight - el.clientHeight
+                        )
+                    )
+                    .toBeGreaterThan(0);
+                expect(
+                    await shell.evaluate(
+                        (el) => getComputedStyle(el).scrollbarWidth
+                    )
+                ).not.toBe('none');
+                await page.keyboard.press('PageDown');
+                await expect
+                    .poll(() => shell.evaluate((el) => el.scrollTop))
+                    .toBeGreaterThan(0);
+                await page.keyboard.press('Home');
+                await expect
+                    .poll(() => shell.evaluate((el) => el.scrollTop))
+                    .toBe(0);
+                const box = (await shell.boundingBox())!;
+                await page.mouse.move(
+                    box.x + box.width / 2,
+                    box.y + box.height / 2
+                );
+                await page.mouse.wheel(0, 300);
+                await expect
+                    .poll(() => shell.evaluate((el) => el.scrollTop))
+                    .toBeGreaterThan(0);
+                await page.keyboard.press('Tab');
+                await expect(shell.locator('.hero__back-button')).toBeFocused();
+                await page.keyboard.press('Enter');
+                await expect(shell).toHaveCount(0);
+            }
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+}

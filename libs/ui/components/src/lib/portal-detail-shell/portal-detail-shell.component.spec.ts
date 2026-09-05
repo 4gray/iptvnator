@@ -64,6 +64,42 @@ describe('PortalDetailShellComponent', () => {
         fixture.detectChanges();
     });
 
+    it('makes the scroll owner a named keyboard region and focuses it once', async () => {
+        await fixture.whenStable();
+        const shell = query('app-portal-detail-shell')!;
+        expect(shell.tabIndex).toBe(0);
+        expect(shell.getAttribute('aria-label')).toBe('Show Title');
+        expect(document.activeElement).toBe(shell);
+        const play = query('.play-btn')!;
+        play.focus();
+        host.playbackActive.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(document.activeElement).not.toBe(shell);
+    });
+
+    it('keeps native scrolling on the shell without forwarding keys to the player', () => {
+        const shell = query('app-portal-detail-shell')!;
+        const globalKey = jest.fn();
+        document.addEventListener('keydown', globalKey);
+        try {
+            const event = new KeyboardEvent('keydown', {
+                key: 'ArrowDown',
+                bubbles: true,
+                cancelable: true,
+            });
+            shell.dispatchEvent(event);
+            expect(event.defaultPrevented).toBe(false);
+            expect(globalKey).not.toHaveBeenCalled();
+            query('.play-btn')!.dispatchEvent(
+                new KeyboardEvent('keydown', { key: ' ', bubbles: true })
+            );
+            expect(globalKey).toHaveBeenCalledTimes(1);
+        } finally {
+            document.removeEventListener('keydown', globalKey);
+        }
+    });
+
     it('renders hero with stamped tags/meta/actions in browse state', () => {
         expect(query('.shell__hero--collapsed')).toBeNull();
         expect(query('app-content-hero')).toBeTruthy();

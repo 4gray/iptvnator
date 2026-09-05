@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 
 import {
@@ -47,6 +48,7 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
     styleUrls: ['./all-channels-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
         MatIconModule,

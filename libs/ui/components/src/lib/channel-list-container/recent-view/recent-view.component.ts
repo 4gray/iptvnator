@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -40,6 +41,7 @@ export interface RecentViewItem {
     styleUrls: ['./recent-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatIconModule,
         MatMenuModule,

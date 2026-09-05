@@ -223,7 +223,16 @@
         </div>
     }
 
-    <div #scrollContainer class="channels-list">
+    <!-- Only the sidebar copy is the `live-channels` pane the category
+         list's ArrowRight/ArrowLeft hand-off targets; the fullscreen panel's
+         copy must not duplicate that id. -->
+    <div
+        #scrollContainer
+        class="channels-list app-scrollbar"
+        appChannelScrollFocus
+        [attr.id]="panelSearchTerm ? null : 'live-channels'"
+        [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
+    >
         @if (isInitialChannelsLoading()) {
             <app-channel-list-skeleton
                 [count]="9"
@@ -283,6 +292,7 @@
                     "
                     (clicked)="playChannel(item)"
                     (activated)="playChannel(item, true)"
+                    (keyboardActivated)="playChannel(item, true)"
                     (favoriteToggled)="toggleFavorite(item)"
                     (contextMenuRequested)="onChannelContextMenu(item, $event)"
                 />

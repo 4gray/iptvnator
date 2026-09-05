@@ -65,7 +65,8 @@ ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
 With shared controls enabled, HTML5, Video.js, and ArtPlayer expose standard
 element picture-in-picture through the adapter's attached `<video>`. Shared
 ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
-only PiP owner. The preference-off native/vendor paths remain unchanged.
+only PiP button. Preference-off native/vendor controls keep their own UI;
+exact-owner PiP teardown also applies in that mode.
 Embedded MPV advertises no PiP capability and its command is a no-op.
 
 `Settings.webPlayerSharedControls` is default-ON: an absent stored value means
@@ -350,7 +351,10 @@ the windowed player too, where switching to a station or a film is right;
 already-handled events and menu/dialog overlay targets keep their keys,
 even when a short menu has no scroll overflow), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
-route category; each `PortalChannelsListComponent` instance owns the map
+route category, and with `fullscreenPanelCopy` so only the sidebar's pane
+carries the `live-channels` id that the category list's keyboard hand-off
+targets — the Stalker template applies the same rule to its panel copy; each
+`PortalChannelsListComponent` instance owns the map
 behind its heart icons, so toggles are relayed between instances through
 `XtreamFavoriteMarksService`, or a heart flipped in the panel would stay stale
 in the sidebar), `StalkerLiveStreamLayoutComponent` (its list markup is one
@@ -743,7 +747,7 @@ Picture-in-picture is part of the default-on shared web-controls
 rollout. It is available through standard element PiP for HTML5, Video.js, and
 ArtPlayer only when their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`.
 The preference-off HTML5 native controls, Video.js skin, and ArtPlayer vendor
-controls keep their previous behavior. Shared ArtPlayer explicitly keeps vendor
+controls keep their own PiP actions. Shared ArtPlayer explicitly keeps vendor
 `pip: false`, leaving the shared action as the single PiP owner.
 
 The contract exposes:
@@ -779,6 +783,21 @@ Video.js Tech reset and ArtPlayer video rebuild paths detach the old binding,
 perform exact-owner cleanup, and bind the replacement video. HTML5 source
 changes on a retained video target, along with ordinary same-element
 source/media events, preserve active PiP.
+
+Teardown safety is independent of the controls preference. Legacy HTML5 and
+ArtPlayer hosts release their video before destruction; Video.js also releases
+its previous Tech video when a reset replaces it. The shared
+`web-video-picture-in-picture-lifecycle.ts` helper checks the video's exact
+`ownerDocument.pictureInPictureElement` before exiting, contains API failures,
+and leaves a one-shot listener on the retired video for an in-flight
+native/vendor entry that completes after teardown. The listener captures only
+the retired video, with no timer or document listener; a WeakSet makes repeated
+release idempotent without retaining video elements. Legacy Safari/WebKit
+presentation-mode PiP is returned to `inline` on that exact video. Its
+`webkitpresentationmodechanged` listener ignores fullscreen/inline changes and
+is consumed only by the first late PiP entry. Shared controls retain
+their existing generation-guarded pending-operation cleanup. Neither path
+transfers PiP to a replacement video or closes another video's PiP.
 
 Standard element PiP displays the browser/OS video surface, not Angular shared
 control chrome. Subtitle rendering in that surface is browser-dependent.

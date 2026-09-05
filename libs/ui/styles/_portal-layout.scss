@@ -23,6 +23,8 @@
     .sidebar {
         // Width controlled by the resizable directive at runtime
         width: 400px;
+        box-sizing: border-box;
+        padding-inline-end: 8px;
         min-width: 250px;
         max-width: 600px;
         border-right: 1px solid var(--app-separator);
@@ -41,6 +43,7 @@
             // Beats the inline width set by the resizable directive while
             // preserving it so uncollapsing snaps back to the previous size.
             width: 0 !important;
+            padding-inline-end: 0;
             min-width: 0 !important;
             border-right-color: transparent;
         }
@@ -190,6 +193,7 @@
         }
 
         .sidebar {
+            padding-inline-end: 0;
             width: 100% !important;
             min-width: 0 !important;
             max-width: none;

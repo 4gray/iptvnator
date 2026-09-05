@@ -217,6 +217,20 @@ describe('autoUpdatePlaylists', () => {
         ]);
     });
 
+    it('downloads startup refreshes with each playlist’s own User-Agent', async () => {
+        mockFetchPlaylistFromUrl.mockResolvedValue(createPlaylist());
+        const playlist = createPlaylist({
+            url: 'https://example.test/list.m3u',
+            userAgent: 'IPTVnator-Test/1.0',
+        });
+        await autoUpdatePlaylists([playlist]);
+        expect(mockFetchPlaylistFromUrl).toHaveBeenCalledWith(
+            playlist.url,
+            playlist.title,
+            { userAgent: playlist.userAgent }
+        );
+    });
+
     it('skips playlists without a usable source and forwards trust options', async () => {
         mockFetchPlaylistFromUrl.mockResolvedValue(createPlaylist());
 

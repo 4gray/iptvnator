@@ -6,6 +6,23 @@ Related:
 
 - [Embedded Inline Playback](./embedded-inline-playback.md)
 
+## Detail Scroll and Focus
+
+`PortalDetailShellComponent` is the single scroll owner for portal, collection,
+M3U movie and offline detail surfaces. It is a named, focusable region with a
+native scrollbar and stable gutter. Scrollbars follow the platform's visibility
+policy; CSS must not hide them. Content that fits the pane needs no thumb.
+
+On its first render, a browse shell takes focus only if it is still on the
+page body or the enclosing workspace `main`; it does not steal focus from a
+button, input, dialog or inert surface. Replacing a loading shell can hand off
+page focus to the loaded shell, but metadata updates and browse/watch changes
+do not refocus it. Initial watch playback keeps its existing focus behavior.
+ArrowUp/Down, PageUp/Down, Home/End and Space on the shell scroll natively and
+do not reach global player shortcuts. Descendant controls retain their native
+keys and Tab order. Entering watch still scrolls to the top; Back and saved
+catalog scroll positions retain the existing navigation contract below.
+
 ## Summary
 
 - Xtream category browsing uses a route-first detail model.

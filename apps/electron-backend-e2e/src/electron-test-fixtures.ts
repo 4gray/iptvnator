@@ -1079,7 +1079,8 @@ export async function restartElectronApp(
 
 export async function importM3uPlaylistFromUrl(
     page: Page,
-    playlistUrl: string
+    playlistUrl: string,
+    userAgent?: string
 ): Promise<void> {
     await openAddPlaylistDialog(page);
     const dialog = await getActiveDialog(page);
@@ -1094,6 +1095,9 @@ export async function importM3uPlaylistFromUrl(
         dialog.locator('input[formcontrolname="playlistUrl"]'),
         playlistUrl
     );
+    if (userAgent !== undefined) {
+        await setInputValue(dialog.getByRole('textbox', { name: 'User agent', exact: true }), userAgent);
+    }
     await dialog.getByRole('button', { name: /Add playlist/i }).click();
     await dialog.waitFor({ state: 'detached' });
 }
@@ -1186,6 +1190,7 @@ export async function createMutableTextServer(
     options: {
         contentType?: string;
         resourcePath?: string;
+        requiredUserAgent?: string;
     } = {}
 ): Promise<MutableTextServer> {
     const {
@@ -1202,6 +1207,12 @@ export async function createMutableTextServer(
                 'Content-Type': 'application/json; charset=utf-8',
             });
             res.end(JSON.stringify({ error: 'Not found' }));
+            return;
+        }
+
+        if (options.requiredUserAgent && req.headers['user-agent'] !== options.requiredUserAgent) {
+            res.writeHead(403);
+            res.end('User-Agent required');
             return;
         }
 

@@ -306,6 +306,7 @@ describe('PlaylistRefreshActionService', () => {
             username: undefined,
             password: undefined,
             url: 'https://example.com/playlist.m3u',
+            userAgent: 'IPTVnator-Test/1.0',
         });
 
         service.refresh(playlist);
@@ -314,6 +315,7 @@ describe('PlaylistRefreshActionService', () => {
             id: 'playlist-url',
             title: 'URL playlist',
             url: 'https://example.com/playlist.m3u',
+            userAgent: 'IPTVnator-Test/1.0',
         });
         expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
     });
@@ -326,6 +328,7 @@ describe('PlaylistRefreshActionService', () => {
             username: undefined,
             password: undefined,
             url: 'https://playlist.local/list.m3u',
+            userAgent: 'IPTVnator-Test/1.0',
         });
         playlistRefreshService.refreshPlaylist.mockResolvedValue({
             _id: playlist._id,
@@ -338,6 +341,7 @@ describe('PlaylistRefreshActionService', () => {
         expect(playlistRefreshService.refreshPlaylist).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: 'https://playlist.local/list.m3u',
+                userAgent: 'IPTVnator-Test/1.0',
                 trustedInsecureTlsHosts: ['playlist.local'],
             })
         );

@@ -771,6 +771,18 @@ categories by provider ID and type. See `docs/architecture/category-management.m
 
 ### Key Features
 
+#### M3U URL User-Agent
+
+- The URL import form accepts an optional User-Agent and stores it as
+  `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
+  and startup auto-update. The self-hosted PWA sends it through the registered
+  target `/parse` backend proxy for import and refresh; a matching backend is
+  required, and browser playback-header restrictions still apply.
+- Reuse the existing source editor and channel-over-playlist playback header
+  precedence. Contract: `docs/architecture/m3u-playlist-module.md`
+  ("User-Agent for URL sources").
+
+
 **Playlist Support**:
 
 - M3U/M3U8 files (local or URL)
@@ -1155,7 +1167,7 @@ engine` (restart required) or
   `pictureInPictureActive`/`canPictureInPicture`, and command
   `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard
   element PiP from the adapter's attached video; shared ArtPlayer keeps vendor
-  `pip: false`, while preference-off native/vendor paths remain unchanged. The
+  `pip: false`, while preference-off native/vendor controls keep their own UI. The
   capability-gated button sits before fullscreen and uses active enter/exit
   semantics; entry is disabled until metadata, and the action is disabled while
   an operation is pending. Embedded MPV reports capability/state false with a
@@ -1168,7 +1180,14 @@ engine` (restart required) or
   serialized, and binding generation plus exact video identity protects
   replacement and teardown from stale completion. Video.js Tech reset and
   ArtPlayer rebuild rebind with exact-owner cleanup; HTML5 source changes on a
-  retained target preserve PiP.
+  retained target preserve PiP. Legacy HTML5/ArtPlayer teardown and Video.js
+  Tech replacement also release exact-owned PiP through
+  `web-video-picture-in-picture-lifecycle.ts`, independent of the controls
+  preference. A one-shot listener on the retired video closes late native/vendor
+  entries without retaining the host or touching another video's PiP. Legacy
+  WebKit presentation-mode PiP also returns the retired video to inline; its
+  presentation-change listener ignores fullscreen/inline events until a late
+  PiP entry consumes it.
   Standard PiP shows the browser/OS video surface without Angular control
   chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
   keyboard shortcut, and Embedded MPV popup/native support are out of scope.
@@ -1647,3 +1666,15 @@ No formal migration system yet. Schema changes are applied via raw SQL in the `c
 - Both account-info dialogs explain guard refusals with localized paused-request
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
+
+## Channel and Detail Keyboard Scrolling
+
+Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection
+focuses the viewport, native scrolling survives virtual row recycling, and
+row Enter/Space activation stays separate from focus movement. Portal Live TV
+uses ArrowRight from the selected category and ArrowLeft from the channels
+pane to move between columns. Shared live sidebars reserve scrollbar space
+beside the resize handle. `PortalDetailShellComponent` owns a visible native
+scrollbar and guarded initial page focus. Contracts:
+`docs/architecture/iptvnator-ui-guidelines.md` and
+`docs/architecture/portal-detail-navigation.md`.

@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -138,6 +139,7 @@ function matchesStalkerChannelTerm(
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        ChannelScrollFocusDirective,
         AudioPlayerComponent,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,

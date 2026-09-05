@@ -222,7 +222,7 @@ export class PwaService extends DataService {
 
         const playlistId = payload.id;
 
-        this.getPlaylistFromUrl(payload.url)
+        this.getPlaylistFromUrl(payload.url, payload.userAgent)
             .pipe(
                 catchError((error) => {
                     this.snackBar.open(
@@ -287,7 +287,7 @@ export class PwaService extends DataService {
 
         const title = payload.title?.trim() || undefined;
 
-        this.getPlaylistFromUrl(payload.url)
+        this.getPlaylistFromUrl(payload.url, payload.userAgent)
             .pipe(
                 catchError((error) => {
                     this.snackBar.open(
@@ -700,11 +700,17 @@ export class PwaService extends DataService {
         }
     }
 
-    getPlaylistFromUrl(url: string): Observable<Playlist> {
+    getPlaylistFromUrl(url: string, userAgent?: string): Observable<Playlist> {
+        const normalizedUserAgent = userAgent?.trim();
         return from(this.getProviderTargetId(url)).pipe(
             switchMap((targetId) =>
                 this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
-                    params: { targetId },
+                    params: {
+                        targetId,
+                        ...(normalizedUserAgent
+                            ? { userAgent: normalizedUserAgent }
+                            : {}),
+                    },
                 })
             )
         );

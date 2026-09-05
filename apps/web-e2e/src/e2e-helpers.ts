@@ -52,3 +52,22 @@ export async function postWithRetry(
 
     throw lastError;
 }
+
+/** Wait for native scrolling to settle before the next discrete keyboard action. */
+export async function waitForScrollIdle(scrollOwner: Locator): Promise<void> {
+    await scrollOwner.evaluate(
+        (element) =>
+            new Promise<void>((resolve) => {
+                let last = element.scrollTop;
+                let stableFrames = 0;
+                const frame = () => {
+                    stableFrames =
+                        element.scrollTop === last ? stableFrames + 1 : 0;
+                    last = element.scrollTop;
+                    if (stableFrames === 3) resolve();
+                    else requestAnimationFrame(frame);
+                };
+                requestAnimationFrame(frame);
+            })
+    );
+}

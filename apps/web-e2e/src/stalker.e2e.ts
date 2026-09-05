@@ -480,10 +480,22 @@ test('@stalker ITV playback survives a category switch', async ({ page }) => {
     const sidebarTitle = sidebar.locator('.category-title');
     const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    const scrollPane = sidebar.locator('#live-channels');
+    await categories.nth(1).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(scrollPane).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(categories.nth(1)).toBeFocused();
     const firstCategoryTitle = (await sidebarTitle.textContent())?.trim() ?? '';
     expect(firstCategoryTitle).not.toBe('');
 
     await channels.first().click();
+    await expect(scrollPane).toBeFocused();
+    await page.keyboard.press('PageDown');
+    await expect
+        .poll(() => scrollPane.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
     const player = page.locator('app-web-player-view');
     await expect(player).toBeVisible({ timeout: 20_000 });

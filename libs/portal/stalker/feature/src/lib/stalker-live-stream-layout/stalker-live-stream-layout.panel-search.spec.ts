@@ -259,6 +259,16 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         expect(component.visibleChannels()).toHaveLength(1);
     });
 
+    it('marks the sidebar copy as the live-channels keyboard pane', () => {
+        // The category list's ArrowRight hand-off looks the pane up by id;
+        // the sidebar copy owns it (the panel copy, stamped with a search
+        // signal, renders none).
+        const container = component.scrollContainers()[0].nativeElement;
+        expect(container.id).toBe('live-channels');
+        expect(container.getAttribute('tabindex')).toBe('0');
+        expect(container.classList.contains('app-scrollbar')).toBe(true);
+    });
+
     it('leaves the sidebar alone while its own search is active', async () => {
         // Only the panel copy fills itself during a sidebar search; the
         // sidebar has never paged automatically then, and this fixture

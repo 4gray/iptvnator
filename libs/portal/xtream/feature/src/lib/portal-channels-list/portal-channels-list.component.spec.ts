@@ -411,6 +411,42 @@ describe('PortalChannelsListComponent', () => {
         expect(scrollToIndex).toHaveBeenCalledWith(15, 'smooth');
     });
 
+    it('does not start smooth alignment when a selected row is already visible', () => {
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(
+            Array.from({ length: 20 }, (_, index) => ({
+                title: `Channel ${index + 1}`,
+                xtream_id: index + 1,
+            }))
+        );
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport()!;
+        jest.spyOn(viewport, 'getViewportSize').mockReturnValue(400);
+        jest.spyOn(viewport, 'measureScrollOffset').mockReturnValue(0);
+        const scroll = jest.spyOn(viewport, 'scrollToIndex');
+        selectedItem.set({ xtream_id: 2 });
+        fixture.detectChanges();
+        expect(scroll).not.toHaveBeenCalled();
+    });
+
+    it('does not realign after an update to the same selected channel', () => {
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(
+            Array.from({ length: 20 }, (_, index) => ({
+                title: `Channel ${index + 1}`,
+                xtream_id: index + 1,
+            }))
+        );
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport()!;
+        selectedItem.set({ xtream_id: 2 });
+        fixture.detectChanges();
+        const scroll = jest.spyOn(viewport, 'scrollToIndex');
+        selectedItem.set({ xtream_id: 2 });
+        fixture.detectChanges();
+        expect(scroll).not.toHaveBeenCalled();
+    });
+
     it('does not re-scroll the virtual list when the search filter changes', () => {
         const channels = Array.from({ length: 20 }, (_, index) => ({
             title: `Channel ${index + 1}`,
@@ -435,6 +471,25 @@ describe('PortalChannelsListComponent', () => {
         fixture.detectChanges();
 
         expect(scrollToIndex).not.toHaveBeenCalled();
+    });
+
+    it('carries the live-channels pane id only outside the fullscreen panel copy', () => {
+        // The category list's ArrowRight hand-off looks the pane up by id,
+        // so the panel's second instance must not duplicate it.
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Channel 1', xtream_id: 1 }]);
+        fixture.detectChanges();
+        const viewport = () =>
+            fixture.nativeElement.querySelector(
+                'cdk-virtual-scroll-viewport'
+            ) as HTMLElement;
+        expect(viewport().id).toBe('live-channels');
+        expect(viewport().hasAttribute('tabindex')).toBe(true);
+
+        fixture.componentRef.setInput('fullscreenPanelCopy', true);
+        fixture.detectChanges();
+        expect(viewport().hasAttribute('id')).toBe(false);
+        expect(viewport().hasAttribute('tabindex')).toBe(true);
     });
 
     it('passes the live content type when toggling a channel favorite', async () => {
@@ -489,15 +544,29 @@ describe('PortalChannelsListComponent', () => {
         ]);
 
         // A toggle announced by another instance lands here …
-        marks.notify({ playlistId: 'playlist-1', key: 'live:7', isFavorite: true });
+        marks.notify({
+            playlistId: 'playlist-1',
+            key: 'live:7',
+            isFavorite: true,
+        });
         expect(fixture.componentInstance.favorites.get('live:7')).toBe(true);
-        marks.notify({ playlistId: 'playlist-1', key: 'live:253', isFavorite: false });
+        marks.notify({
+            playlistId: 'playlist-1',
+            key: 'live:253',
+            isFavorite: false,
+        });
         expect(
             fixture.componentInstance.favorites.get('live:253')
         ).toBeUndefined();
 
         // … unless it belongs to another playlist.
-        marks.notify({ playlistId: 'playlist-2', key: 'live:9', isFavorite: true });
-        expect(fixture.componentInstance.favorites.get('live:9')).toBeUndefined();
+        marks.notify({
+            playlistId: 'playlist-2',
+            key: 'live:9',
+            isFavorite: true,
+        });
+        expect(
+            fixture.componentInstance.favorites.get('live:9')
+        ).toBeUndefined();
     });
 });

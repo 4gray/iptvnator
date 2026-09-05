@@ -619,6 +619,7 @@ describe('RecentPlaylistsComponent busy state', () => {
             password: undefined,
             filePath: undefined,
             url: 'https://example.com/test.m3u',
+            userAgent: 'IPTVnator-Test/1.0',
         });
 
         component.refreshPlaylist(item);
@@ -627,6 +628,7 @@ describe('RecentPlaylistsComponent busy state', () => {
             id: item._id,
             title: item.title,
             url: item.url,
+            userAgent: item.userAgent,
         });
     });
 
@@ -658,6 +660,7 @@ describe('RecentPlaylistsComponent busy state', () => {
             username: undefined,
             password: undefined,
             filePath: '/tmp/test.m3u',
+            userAgent: 'IPTVnator-Test/1.0',
         });
 
         lateComponent.refreshPlaylist(item);
@@ -668,6 +671,7 @@ describe('RecentPlaylistsComponent busy state', () => {
                 playlistId: item._id,
                 title: item.title,
                 url: item.url,
+                userAgent: item.userAgent,
                 filePath: item.filePath,
             },
             {

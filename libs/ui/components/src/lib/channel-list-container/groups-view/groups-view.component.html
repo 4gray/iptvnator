@@ -246,6 +246,8 @@
                 }
 
                 <cdk-virtual-scroll-viewport
+                    appChannelScrollFocus
+                    [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
                     [itemSize]="itemSize()"
                     class="groups-channels-viewport app-scrollbar"
                 >
@@ -283,6 +285,9 @@
                         "
                         (clicked)="onChannelClick(channel)"
                         (activated)="onChannelActivate(channel)"
+                        (keyboardActivated)="
+                            channelPlaybackRequested.emit(channel)
+                        "
                         (contextMenuRequested)="
                             onChannelContextMenu(channel, $event)
                         "
