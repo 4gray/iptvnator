@@ -93,6 +93,10 @@ describe('EpgDatabase', () => {
                   FROM epg_programs
                   WHERE epg_programs.channel_id = epg_channels.id
               )
+              AND NOT EXISTS (
+                  SELECT 1 FROM epg_channel_sources
+                  WHERE epg_channel_sources.channel_id = epg_channels.id
+              )
         `);
 
         expect(preparedSql).toContain(deleteTodayAndFutureSql);
@@ -230,6 +234,7 @@ describe('EpgDatabaseClearOperation', () => {
         expect(exec.mock.calls.map(([statement]) => statement)).toEqual([
             'BEGIN',
             'DELETE FROM epg_programs',
+            'DELETE FROM epg_channel_sources',
             'DELETE FROM epg_channels',
             'COMMIT',
         ]);
@@ -250,6 +255,7 @@ describe('EpgDatabaseClearOperation', () => {
         expect(exec.mock.calls.map(([statement]) => statement)).toEqual([
             'BEGIN',
             'DELETE FROM epg_programs',
+            'DELETE FROM epg_channel_sources',
             'DELETE FROM epg_channels',
             'ROLLBACK',
         ]);
@@ -275,6 +281,10 @@ describe('EpgDatabaseSourceClearOperation', () => {
                   SELECT 1
                   FROM epg_programs
                   WHERE epg_programs.channel_id = epg_channels.id
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM epg_channel_sources
+                  WHERE epg_channel_sources.channel_id = epg_channels.id
               )
         `);
 

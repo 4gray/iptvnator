@@ -33,7 +33,8 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 function createCurrentXmltvFixture(
     channelId: string,
     channelName: string,
-    programTitle: string
+    programTitle: string,
+    iconUrl?: string
 ): string {
     const start = new Date(Date.now() - 15 * 60 * 1000);
     const stop = new Date(Date.now() + 45 * 60 * 1000);
@@ -42,6 +43,7 @@ function createCurrentXmltvFixture(
 <tv>
   <channel id="${channelId}">
     <display-name>${channelName}</display-name>
+    ${iconUrl ? `<icon src="${iconUrl}"/>` : ''}
   </channel>
   <programme start="${formatXmltvDate(start)} +0000" stop="${formatXmltvDate(stop)} +0000" channel="${channelId}">
     <title>${programTitle}</title>
@@ -213,6 +215,82 @@ test.describe('Electron EPG', () => {
                     window.electron.getEpgMapping('mapped-news')
                 )
             ).toMatchObject({ epgChannelId: 'shared-news' });
+        } finally {
+            await closeElectronApp(app);
+            await first.close();
+            await second.close();
+        }
+    });
+
+    test('@epg @electron restores the first source name and logo after removing the last metadata writer', async ({
+        dataDir,
+    }) => {
+        const first = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'shared-logo',
+                'First News',
+                'First Bulletin',
+                'https://example.com/first.png'
+            ),
+            { contentType: 'application/xml', resourcePath: '/first.xml' }
+        );
+        const second = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'shared-logo',
+                'Second News',
+                'Second Bulletin',
+                'https://example.com/second.png'
+            ),
+            { contentType: 'application/xml', resourcePath: '/second.xml' }
+        );
+        let app = await launchElectronApp(dataDir);
+        const metadata = () =>
+            app.mainWindow.evaluate(
+                async () =>
+                    (
+                        await window.electron.getEpgChannelMetadata([
+                            'shared-logo',
+                        ])
+                    )['shared-logo']
+            );
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            for (const [index, source] of [first, second].entries()) {
+                await app.mainWindow
+                    .getByRole('button', { name: 'Add EPG source' })
+                    .click();
+                const inputs = app.mainWindow.locator('.epg-source-row input');
+                await expect(inputs).toHaveCount(index + 1);
+                await inputs.nth(index).fill(source.resourceUrl);
+                await saveSettings(app.mainWindow);
+                await expect.poll(metadata, { timeout: 30000 }).toMatchObject({
+                    displayName: index === 0 ? 'First News' : 'Second News',
+                    iconUrl: `https://example.com/${index === 0 ? 'first' : 'second'}.png`,
+                });
+            }
+            await app.mainWindow
+                .locator('.epg-source-row')
+                .nth(1)
+                .locator('button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            const firstMetadata = {
+                displayName: 'First News',
+                iconUrl: 'https://example.com/first.png',
+            };
+            await expect.poll(metadata).toMatchObject(firstMetadata);
+            await closeElectronApp(app);
+            app = await launchElectronApp(dataDir);
+            await expect.poll(metadata).toMatchObject(firstMetadata);
+            expect(
+                await app.mainWindow.evaluate(async () =>
+                    (
+                        await window.electron.getChannelPrograms('shared-logo')
+                    ).map((p) => p.title)
+                )
+            ).toEqual(['First Bulletin']);
         } finally {
             await closeElectronApp(app);
             await first.close();

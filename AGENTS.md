@@ -181,7 +181,10 @@ all enabled M3U playlist sources. Startup runs the same reconciliation after
 settings load and playlist migration; failed settings reads and incomplete
 playlist migration never authorize pruning. Removed sources retire queued and
 running imports before worker-owned deletion. Shared channel IDs survive while
-another source has programmes; manual mappings remain user preferences, but no
+another source has programmes or per-source channel metadata. The additive
+`epg_channel_sources` table preserves each imported source's name, logo, URL and
+timestamp so removal restores a surviving snapshot; ambiguous legacy metadata
+falls back to the XMLTV ID until reimport. Manual mappings remain user preferences, but no
 longer resolve deleted data. Renderer lookup generations, Xtream previews and Stalker mapping-cache
 invalidation prevent late results from restoring removed programmes. Provider
 EPG is independent. See `docs/architecture/m3u-playlist-module.md`

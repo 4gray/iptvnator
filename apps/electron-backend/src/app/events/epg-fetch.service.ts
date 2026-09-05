@@ -50,9 +50,9 @@ export async function checkEpgFreshness(
             if (!url?.trim()) continue;
 
             const result = await db
-                .select({ updatedAt: schema.epgChannels.updatedAt })
-                .from(schema.epgChannels)
-                .where(eq(schema.epgChannels.sourceUrl, url))
+                .select({ updatedAt: schema.epgChannelSources.updatedAt })
+                .from(schema.epgChannelSources)
+                .where(eq(schema.epgChannelSources.sourceUrl, url))
                 .limit(1);
 
             const isFresh =

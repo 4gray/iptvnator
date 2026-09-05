@@ -1,6 +1,7 @@
 import {
     appState,
     epgChannels,
+    epgChannelSources,
     epgPrograms,
     playlists,
 } from '../database/schema';
@@ -63,6 +64,22 @@ describe('committed EPG source reconciliation', () => {
                 url
             );
         }
+    });
+
+    it('finds metadata-only source owners after restart', async () => {
+        rows.set(epgChannels, [{ url: 'active' }]);
+        rows.set(epgPrograms, []);
+        rows.set(epgChannelSources, [
+            { url: 'metadata-only' },
+            { url: 'active' },
+        ]);
+        await reconcileEpgSources(['active']);
+        expect(epgWorkerService.clearEpgDataForSource).toHaveBeenCalledWith(
+            'metadata-only'
+        );
+        expect(epgWorkerService.clearEpgDataForSource).not.toHaveBeenCalledWith(
+            'active'
+        );
     });
 
     it('does not clear historical request keys again after successful cleanup', async () => {

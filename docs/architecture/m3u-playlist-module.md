@@ -1329,20 +1329,35 @@ read. Main verifies the completed migration flag, reads every enabled M3U
 aborts pruning. Detected-but-disabled sources and Xtream/Stalker provider EPG are
 not global XMLTV owners. No source-discovery or provider matching policy changes.
 
-Reconciliation finds old sources in both XMLTV tables and queued imports. It
+Reconciliation finds old sources in XMLTV channel, programme and per-source
+metadata tables, plus queued imports. It
 retires their generations before waiting for workers to exit, then uses the
 existing source-clear worker. Successfully cleared request candidates are forgotten
 without resetting their generation fences; failed cleanups remain retryable.
 Same-URL clears are serialized and replacement imports await the outstanding
-clear, so an older cleanup cannot erase a newly re-added source.
+clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
+also awaits the in-flight fetch promise when an error/timeout has already removed
+the worker from the lookup but its termination is still pending.
 Retired queued and running imports emit generation-scoped cancellation so progress
 rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
-channel is retained while another source still has programmes, transferring its
-legacy owner to that remaining source. Manual mappings are preserved and can
+channel is retained while another source still has programmes or channel metadata.
+The additive `epg_channel_sources` table is created during database initialization
+and records each imported source's name, logo, URL and timestamp. Before removing
+source provenance, cleanup restores affected global channels from a surviving
+snapshot, including when the legacy channel owner differs from the removed
+metadata writer. Metadata-only owners survive another source's refresh or removal.
+Refresh restores affected metadata before discarding that source's old snapshots;
+clear-all deletes the snapshots too. Freshness reads source-specific snapshot
+timestamps, so legacy sources without snapshots are refreshed on their next import
+check. No legacy snapshot is guessed from global
+channel metadata: its last writer may differ from its recorded owner. Affected
+legacy channels without a surviving snapshot retain programmes with a neutral
+XMLTV ID label, no logo/URL and no freshness timestamp until reimport. Historical
+metadata with no remaining source provenance cannot be selectively reconstructed. Manual mappings are preserved and can
 resolve another retained source sharing that channel ID. Legacy programmes with
 unknown (`NULL`) ownership are conservatively left alone; the existing database
 initialization backfill handles rows whose channel still identifies their owner.
-There is no new schema migration.
+
 
 Renderer reconciliation fences lookups before its first asynchronous step.
 Imports wait for serialized reconciliation (including playlist migration), then

@@ -445,11 +445,15 @@ export class EpgWorkerService {
     }
 
     private async startSourceClear(normalizedSourceUrl: string): Promise<void> {
+        const inFlight = this.inFlightFetches.get(normalizedSourceUrl);
         const runningWorker = this.workers.get(normalizedSourceUrl);
         if (runningWorker) {
             this.workers.delete(normalizedSourceUrl);
             await this.terminateWorker(runningWorker, 'source clear');
         }
+        // Error/timeout handlers may already have removed the worker from the
+        // lookup, but its fetch promise still owns asynchronous termination.
+        if (inFlight) await inFlight.catch(() => undefined);
 
         return this.runClearWorker({
             timeoutLabel: 'EPG source clear',

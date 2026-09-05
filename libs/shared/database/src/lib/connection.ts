@@ -288,6 +288,17 @@ const CREATE_TABLE_STATEMENTS = [
       source_url TEXT NOT NULL,
       updated_at TEXT DEFAULT (datetime('now'))
   )`,
+    `CREATE TABLE IF NOT EXISTS epg_channel_sources (
+      channel_id TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      icon_url TEXT,
+      url TEXT,
+      updated_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (channel_id, source_url),
+      FOREIGN KEY (channel_id) REFERENCES epg_channels(id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_epg_channel_sources_source ON epg_channel_sources(source_url)`,
     `CREATE TABLE IF NOT EXISTS epg_programs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id TEXT NOT NULL,

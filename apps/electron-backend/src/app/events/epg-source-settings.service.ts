@@ -3,6 +3,7 @@ import { getDatabase } from '../database/connection';
 import {
     appState,
     epgChannels,
+    epgChannelSources,
     epgPrograms,
     playlists,
 } from '../database/schema';
@@ -57,12 +58,16 @@ export function reconcileEpgSources(globalUrls: string[]): Promise<void> {
             const programs = await db
                 .selectDistinct({ url: epgPrograms.sourceUrl })
                 .from(epgPrograms);
+            const metadata = await db
+                .selectDistinct({ url: epgChannelSources.sourceUrl })
+                .from(epgChannelSources);
             const requested = requestedEpgSources();
             const removed = [
                 ...new Set(
                     [
                         ...channels.map((row) => row.url),
                         ...programs.map((row) => row.url),
+                        ...metadata.map((row) => row.url),
                         ...requested.keys(),
                     ].filter(
                         (url): url is string =>

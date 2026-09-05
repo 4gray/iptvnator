@@ -78,6 +78,37 @@ describe('EpgEvents', () => {
         await new Promise((resolve) => setImmediate(resolve));
     }
 
+    it.each(['missing', 'stale', 'fresh'])(
+        'uses source-owned freshness for %s metadata',
+        async (state) => {
+            const { epgChannelSources } = await import('../database/schema');
+            const { checkEpgFreshness } = await import('./epg-fetch.service');
+            const fresh = [{ updatedAt: new Date().toISOString() }];
+            const snapshots =
+                state === 'missing'
+                    ? []
+                    : state === 'fresh'
+                      ? fresh
+                      : [{ updatedAt: '2000-01-01T00:00:00Z' }];
+            getDatabase.mockResolvedValue({
+                select: () => ({
+                    from: (table: unknown) => ({
+                        where: () => ({
+                            limit: async () =>
+                                table === epgChannelSources ? snapshots : fresh,
+                        }),
+                    }),
+                }),
+            });
+            const result = await checkEpgFreshness(['shared-source'], 12);
+            expect(result).toEqual(
+                state === 'fresh'
+                    ? { freshUrls: ['shared-source'], staleUrls: [] }
+                    : { freshUrls: [], staleUrls: ['shared-source'] }
+            );
+        }
+    );
+
     it('uses the shared worker bootstrap and passes native module search paths to the EPG worker', async () => {
         const fetchPromise = (EpgEvents as unknown as Record<string, any>)[
             'fetchEpgFromUrl'
@@ -365,6 +396,41 @@ describe('EpgEvents', () => {
         progress.mockRestore();
         fetch.mockRestore();
     });
+
+    it.each([true, false])(
+        'awaits a failing worker termination before source cleanup (already retired: %s)',
+        async (alreadyRetired) => {
+            const service = new EpgWorkerService('[Test EPG]', 1000);
+            const url = `https://terminating-${alreadyRetired}.example/guide.xml`;
+            const fetch = service.fetchEpgFromUrl(url).catch(() => undefined);
+            const worker = mockWorkerInstances[0];
+            let finishTermination!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finishTermination = resolve;
+                })
+            );
+            if (alreadyRetired) {
+                const { retireEpgSource } =
+                    await import('./epg-source-generation');
+                retireEpgSource(url);
+            }
+            worker.emit(
+                'error',
+                new Error('worker failed while another source clears')
+            );
+            const clear = service.clearEpgDataForSource(url);
+            const workersBeforeTermination = mockWorkerInstances.length;
+            finishTermination();
+            await fetch;
+            await flushPromises();
+            const clearWorker = mockWorkerInstances[1];
+            clearWorker.emit('message', { type: 'READY' });
+            clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await clear;
+            expect(workersBeforeTermination).toBe(1);
+        }
+    );
 
     it('clears one EPG source through a worker and allows it to be fetched again', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
