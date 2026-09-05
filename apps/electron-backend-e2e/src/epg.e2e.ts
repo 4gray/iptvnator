@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Page } from '@playwright/test';
 import {
     buildM3uContent,
@@ -99,6 +101,121 @@ test.describe('Electron EPG', () => {
             ).not.toBeVisible();
         } finally {
             await closeElectronApp(app);
+        }
+    });
+
+    test('@epg @electron mirrors saved desktop settings when source cleanup fails', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('EPG_RECONCILE_SOURCES');
+                ipcMain.handle('EPG_RECONCILE_SOURCES', () => {
+                    throw new Error('Synthetic cleanup failure');
+                });
+            });
+            await openSettingsSection(app.mainWindow, 'general');
+            await app.mainWindow
+                .getByTestId('portal-connectivity-toggle')
+                .locator('input')
+                .uncheck();
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .fill('https://example.invalid/guide.xml');
+            await app.mainWindow
+                .getByTestId('save-settings')
+                .click({ noWaitAfter: true });
+            await expect(
+                app.mainWindow.getByText(
+                    'Failed to clear EPG data. Please try again.',
+                    { exact: true }
+                )
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toBeVisible();
+            await expect
+                .poll(async () => {
+                    const config = JSON.parse(
+                        await readFile(
+                            join(dataDir, 'config', 'config.json'),
+                            'utf8'
+                        )
+                    );
+                    return config.PORTAL_CONNECTIVITY_GUARD;
+                })
+                .toBe(false);
+            // Restore cleanup so the explicit retry can finish and close normally.
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('EPG_RECONCILE_SOURCES');
+                ipcMain.handle('EPG_RECONCILE_SOURCES', () => ({
+                    success: true,
+                    removedUrls: [],
+                }));
+            });
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).not.toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@epg @electron omits source secrets from main and parser-worker diagnostics', async ({
+        dataDir,
+    }) => {
+        const server = await createMutableTextServer(epgFixtureXml, {
+            contentType: 'application/xml; charset=utf-8',
+            resourcePath: '/epg-path-secret/guide.xml',
+        });
+        const app = await launchElectronApp(dataDir);
+        const sourceUrl = `${server.resourceUrl}?custom=epg-query-secret`;
+        let diagnostics = '';
+        const capture = (chunk: Buffer) => {
+            diagnostics += chunk.toString();
+        };
+        const process = app.electronApp.process();
+        process.stdout?.on('data', capture);
+        process.stderr?.on('data', capture);
+        try {
+            await app.mainWindow.evaluate(async (url) => {
+                await window.electron.forceFetchEpg(url);
+                await window.electron.clearEpgDataForSource(url);
+            }, sourceUrl);
+            await expect
+                .poll(() => diagnostics)
+                .toContain('EPG data cleared for source via worker');
+            const failed = await app.mainWindow.evaluate(async (url) => {
+                const missing = new URL(url);
+                missing.pathname += '/missing';
+                return window.electron.forceFetchEpg(missing.toString());
+            }, sourceUrl);
+            expect(failed.success).toBe(false);
+            await expect
+                .poll(() => diagnostics)
+                .toContain('Request failed with status code 404');
+            expect(diagnostics).toContain('[EPG Worker]');
+            expect(diagnostics).toContain('Parsing complete:');
+            expect(diagnostics).toContain('EPG parsing complete:');
+            expect(diagnostics).not.toContain('epg-path-secret');
+            expect(diagnostics).not.toContain('epg-query-secret');
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+        } finally {
+            process.stdout?.off('data', capture);
+            process.stderr?.off('data', capture);
+            await closeElectronApp(app);
+            await server.close();
         }
     });
 

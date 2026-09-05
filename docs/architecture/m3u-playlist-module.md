@@ -1319,7 +1319,9 @@ an input is a draft edit; only a successful IndexedDB write authorizes source
 reconciliation. A storage write failure restores the previous in-memory EPG
 URLs. If subsequent cache cleanup fails, the saved URLs remain authoritative,
 the settings form remains retryable and shows the existing EPG cleanup failure
-message rather than claiming settings storage failed. Ordinary settings saves
+message rather than claiming settings storage failed. Electron settings and
+external-player paths still mirror the committed values after a cleanup failure;
+a failed storage write never mirrors them. Ordinary settings saves
 compare normalized source sets and skip reconciliation when they are unchanged,
 so unrelated preferences do not depend on cache cleanup. An explicitly edited
 EPG array requests reconciliation even when the committed URLs already match
@@ -1341,6 +1343,13 @@ retires their generations before waiting for workers to exit, then uses the
 shutdown; `EpgWorkerService` owns source generations and serialization, while
 `runEpgFetch` owns each import’s message/timeout/exit lifecycle. Successfully cleared request candidates are forgotten
 without resetting their generation fences; failed cleanups remain retryable.
+Main-process and parser-worker diagnostics use `epgLogger`, applying shared
+secret redaction and omitting complete URLs from error messages, nested request
+data and redirect details. Error logs allowlist name/message/code/status/cause
+and discard transport objects (which can contain relative request paths and raw
+HTTP headers). XMLTV providers can put credentials in arbitrary path
+segments or query keys; progress IPC and caller errors retain their original
+values, while logs keep operation labels, counts and error codes.
 Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
 also awaits the in-flight fetch promise when an error/timeout has already removed

@@ -1,3 +1,4 @@
+import { epgLogger } from '../util/epg-logger';
 import {
     epgSourceGeneration,
     requestEpgSource,
@@ -105,17 +106,14 @@ export class EpgWorkerService {
         // must keep awaiting that termination window.
         const inFlight = this.inFlightFetches.get(url);
         if (inFlight) {
-            console.log(
-                this.loggerLabel,
-                `Reusing in-flight EPG fetch: ${url}`
-            );
+            epgLogger.log(this.loggerLabel, 'Reusing in-flight EPG fetch');
             return inFlight;
         }
 
         if (this.fetchedUrls.has(url)) {
-            console.log(
+            epgLogger.log(
                 this.loggerLabel,
-                `Skipping already fetched URL: ${url}`
+                'Skipping already fetched EPG source'
             );
             return;
         }
@@ -150,7 +148,7 @@ export class EpgWorkerService {
             failedWorkerLabel: 'failed clear',
             erroredWorkerLabel: 'errored clear',
             onComplete: async (worker) => {
-                console.log(this.loggerLabel, 'EPG data cleared via worker');
+                epgLogger.log(this.loggerLabel, 'EPG data cleared via worker');
                 this.fetchedUrls.clear();
                 // Resolve only after every interrupted fetch worker has exited
                 // too — they may still hold the SQLite lock the caller expects
@@ -215,9 +213,9 @@ export class EpgWorkerService {
             failedWorkerLabel: 'failed source clear',
             erroredWorkerLabel: 'errored source clear',
             onComplete: async (worker) => {
-                console.log(
+                epgLogger.log(
                     this.loggerLabel,
-                    `EPG data cleared for source via worker: ${normalizedSourceUrl}`
+                    'EPG data cleared for source via worker'
                 );
                 this.fetchedUrls.delete(normalizedSourceUrl);
                 await this.runtime.terminateWorker(

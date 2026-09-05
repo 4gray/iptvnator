@@ -1665,6 +1665,8 @@ Saving Settings → EPG reconciles cached XMLTV with committed global URLs and
 all enabled M3U playlist sources. Startup runs the same reconciliation after
 settings load and playlist migration. Ordinary saves skip unchanged normalized
 source sets; an explicitly edited EPG field can retry a failed cleanup.
+A cleanup failure after persistence still mirrors committed settings to Electron;
+the form stays dirty for retry. Failed storage writes never mirror to main.
 Failed settings reads and incomplete playlist migration never authorize pruning.
 Removed sources retire queued/running imports and dismiss retained error rows
 before worker-owned deletion. Retry waits for reconciliation and rechecks its

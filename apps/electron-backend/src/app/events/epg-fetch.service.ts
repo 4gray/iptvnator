@@ -1,3 +1,4 @@
+import { epgLogger } from '../util/epg-logger';
 import { epgSourceGeneration, requestEpgSource } from './epg-source-generation';
 import { eq } from 'drizzle-orm';
 import { ElectronBridgeTrustOptions } from '@iptvnator/shared/interfaces';
@@ -69,18 +70,18 @@ export async function checkEpgFreshness(
             }
         }
     } catch (error) {
-        console.error(loggerLabel, 'Error checking EPG freshness:', error);
+        epgLogger.error(loggerLabel, 'Error checking EPG freshness:', error);
         return { staleUrls: urls, freshUrls: [] };
     }
 
     if (freshUrls.length > 0) {
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `EPG fresh (skipping): ${freshUrls.length} source(s)`
         );
     }
     if (staleUrls.length > 0) {
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `EPG stale (will fetch): ${staleUrls.length} source(s)`
         );
@@ -132,7 +133,7 @@ export async function handleFetchEpg(
     );
 
     if (urlsToFetch.length === 0) {
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `All ${staleUrls.length} stale URL(s) already fetched this session; skipping`
         );
@@ -167,11 +168,7 @@ export async function handleFetchEpg(
             }
             await epgWorkerService.fetchEpgFromUrl(url, options);
         } catch (error) {
-            console.error(
-                loggerLabel,
-                `Error fetching EPG from ${url}:`,
-                error
-            );
+            epgLogger.error(loggerLabel, 'Error fetching EPG source:', error);
             errors.push(error instanceof Error ? error.message : String(error));
         }
     }

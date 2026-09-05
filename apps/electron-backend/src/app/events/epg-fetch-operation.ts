@@ -1,3 +1,4 @@
+import { epgLogger } from '../util/epg-logger';
 import type { Worker } from 'worker_threads';
 import type {
     ElectronBridgeSecurityErrorCode,
@@ -37,7 +38,7 @@ export function runEpgFetch(
         try {
             worker = context.runtime.createEpgWorker();
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 context.loggerLabel,
                 'Failed to create worker:',
                 error
@@ -124,7 +125,7 @@ export function runEpgFetch(
             const errorMessage = `EPG fetch timed out after ${
                 context.fetchTimeoutMs / 1000
             }s without progress`;
-            console.error(context.loggerLabel, `${errorMessage}: ${url}`);
+            epgLogger.error(context.loggerLabel, errorMessage);
             context.sendProgressToRenderer(
                 url,
                 'error',
@@ -176,9 +177,9 @@ export function runEpgFetch(
                         break;
 
                     case 'EPG_COMPLETE':
-                        console.log(
+                        epgLogger.log(
                             context.loggerLabel,
-                            `EPG parsing complete for ${url}:`,
+                            'EPG parsing complete:',
                             message.stats
                         );
                         context.sendProgressToRenderer(
@@ -196,7 +197,7 @@ export function runEpgFetch(
                         break;
 
                     case 'EPG_ERROR':
-                        console.error(
+                        epgLogger.error(
                             context.loggerLabel,
                             'Worker error:',
                             message.error
@@ -226,7 +227,7 @@ export function runEpgFetch(
                 }
             } catch (err) {
                 if (settled || cancelIfRetired()) return;
-                console.error(
+                epgLogger.error(
                     context.loggerLabel,
                     'Error handling message:',
                     err
@@ -248,7 +249,7 @@ export function runEpgFetch(
 
         worker.on('error', (error) => {
             if (settled || cancelIfRetired()) return;
-            console.error(context.loggerLabel, 'Worker error event:', error);
+            epgLogger.error(context.loggerLabel, 'Worker error event:', error);
             context.sendProgressToRenderer(
                 url,
                 'error',
@@ -266,7 +267,7 @@ export function runEpgFetch(
         worker.on('exit', (code) => {
             if (settled || cancelIfRetired(true)) return;
             const errorMessage = `Worker exited unexpectedly (code ${code})`;
-            console.error(context.loggerLabel, `${errorMessage}: ${url}`);
+            epgLogger.error(context.loggerLabel, errorMessage);
             context.sendProgressToRenderer(
                 url,
                 'error',

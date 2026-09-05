@@ -87,6 +87,9 @@ describe('SettingsComponent storage failures', () => {
         // write must not mark the form pristine — that is what keeps the
         // retry path on screen.
         expect(component.settingsForm.dirty).toBe(true);
+        expect(window.electron.updateSettings).not.toHaveBeenCalled();
+        expect(window.electron.setMpvPlayerPath).not.toHaveBeenCalled();
+        expect(window.electron.setVlcPlayerPath).not.toHaveBeenCalled();
     });
 
     it('marks the form pristine only after the settings write succeeded', async () => {
@@ -109,12 +112,31 @@ describe('SettingsComponent storage failures', () => {
         jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
         component.form.setEpgUrls(['removed-source']);
         component.form.removeEpgSource(0);
+        component.settingsForm.patchValue({
+            remoteControl: true,
+            mpvPlayerPath: '/saved/mpv',
+            vlcPlayerPath: '/saved/vlc',
+        });
         settingsStore.updateSettings
             .mockRejectedValueOnce(new EpgSourceReconciliationError())
             .mockResolvedValue(undefined);
         component.onSubmit();
         await fixture.whenStable();
         expect(component.form.epgUrl.dirty).toBe(true);
+        expect(window.electron.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                remoteControl: true,
+                mpvPlayerPath: '/saved/mpv',
+                vlcPlayerPath: '/saved/vlc',
+                epgUrl: [],
+            })
+        );
+        expect(window.electron.setMpvPlayerPath).toHaveBeenCalledWith(
+            '/saved/mpv'
+        );
+        expect(window.electron.setVlcPlayerPath).toHaveBeenCalledWith(
+            '/saved/vlc'
+        );
         expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
             expect.objectContaining({ epgUrl: [] }),
             { retryEpgCleanup: true }

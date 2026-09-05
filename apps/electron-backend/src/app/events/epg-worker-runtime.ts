@@ -1,3 +1,4 @@
+import { epgLogger } from '../util/epg-logger';
 import { app } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -30,7 +31,7 @@ export class EpgWorkerRuntime {
             try {
                 worker = this.createEpgWorker();
             } catch (error) {
-                console.error(
+                epgLogger.error(
                     this.loggerLabel,
                     'Failed to create worker for clear:',
                     error
@@ -51,7 +52,7 @@ export class EpgWorkerRuntime {
                 const errorMessage = `${options.timeoutLabel} timed out after ${
                     this.fetchTimeoutMs / 1000
                 }s`;
-                console.error(this.loggerLabel, errorMessage);
+                epgLogger.error(this.loggerLabel, errorMessage);
                 settle(() => {
                     void this.terminateWorker(
                         worker,
@@ -72,7 +73,7 @@ export class EpgWorkerRuntime {
                                 .then(() => resolve(), reject);
                         });
                     } else if (message.type === 'EPG_ERROR') {
-                        console.error(
+                        epgLogger.error(
                             this.loggerLabel,
                             'Worker clear error:',
                             message.error
@@ -92,7 +93,7 @@ export class EpgWorkerRuntime {
             );
 
             worker.on('error', (error) => {
-                console.error(
+                epgLogger.error(
                     this.loggerLabel,
                     'Worker error during clear:',
                     error
@@ -108,7 +109,7 @@ export class EpgWorkerRuntime {
             worker.on('exit', (code) => {
                 if (settled) return;
                 const errorMessage = `${options.exitLabel} exited unexpectedly (code ${code})`;
-                console.error(this.loggerLabel, errorMessage);
+                epgLogger.error(this.loggerLabel, errorMessage);
                 settle(() => reject(new Error(errorMessage)));
             });
         });
@@ -123,7 +124,7 @@ export class EpgWorkerRuntime {
         try {
             await worker.terminate();
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 this.loggerLabel,
                 `Failed to terminate ${context} worker:`,
                 error

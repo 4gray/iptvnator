@@ -67,6 +67,62 @@ describe('EpgWorkerService worker lifecycle', () => {
         consoleErrorSpy.mockRestore();
     });
 
+    it('keeps source credentials out of completion, reuse, cache and cleanup logs', async () => {
+        const secretUrl =
+            'https://secret-user:secret-password@example.com/private-key/guide.xml?custom=secret-query#secret-fragment';
+        const first = service.fetchEpgFromUrl(secretUrl);
+        const reused = service.fetchEpgFromUrl(secretUrl);
+        mockWorkerInstances[0].emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await Promise.all([first, reused]);
+        await service.fetchEpgFromUrl(secretUrl);
+        const clear = service.clearEpgDataForSource(secretUrl);
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await clear;
+        const output = JSON.stringify(consoleLogSpy.mock.calls);
+        for (const secret of [
+            'secret-user',
+            'secret-password',
+            'private-key',
+            'secret-query',
+            'secret-fragment',
+        ]) {
+            expect(output).not.toContain(secret);
+        }
+        expect(output).toContain('EPG parsing complete');
+    });
+
+    it('redacts worker errors without changing the rejected error', async () => {
+        const secretUrl =
+            'https://user:password@example.com/path-token/guide.xml?custom=query-token';
+        const error = Object.assign(new Error(`Request failed: ${secretUrl}`), {
+            config: {
+                url: secretUrl,
+                headers: { Authorization: 'Bearer header-secret' },
+            },
+            cause: new Error(
+                'Redirect failed: https://example.org/redirect-token?custom=redirect-query'
+            ),
+        });
+        const pending = service.fetchEpgFromUrl(secretUrl);
+        mockWorkerInstances[0].emit('error', error);
+        await expect(pending).rejects.toBe(error);
+        const output = JSON.stringify(consoleErrorSpy.mock.calls);
+        for (const secret of [
+            'password',
+            'path-token',
+            'query-token',
+            'header-secret',
+            'redirect-token',
+            'redirect-query',
+        ]) {
+            expect(output).not.toContain(secret);
+        }
+        expect(output).toContain('Request failed');
+    });
+
     describe('worker lifecycle', () => {
         it('spawns the worker with bootstrap paths and drives the FETCH_EPG flow', async () => {
             const options = { manuallyTrustedHosts: ['example.com'] } as any;
