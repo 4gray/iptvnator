@@ -7,6 +7,31 @@ import {
 describe('stalker playback context', () => {
     const macAddress = '00:1A:79:AA:BB:CC';
 
+    it.each([
+        ['http://range-portal.test/c/', 'http://range-cdn.test/episode.mkv'],
+        [
+            'https://range-downgrade.test/c/',
+            'http://range-downgrade.test/episode.mkv',
+        ],
+        ['http://range-owned.test/c/', 'http://range-owned.test/episode.mkv'],
+    ])(
+        'leaves seek byte ranges to the player for %s → %s',
+        (portalUrl, streamUrl) => {
+            rememberStalkerPlaybackContext({
+                streamUrl,
+                portalUrl,
+                macAddress,
+            });
+
+            const headers = getStalkerPlaybackContextHeaders(streamUrl);
+
+            expect(headers).not.toBeNull();
+            expect(
+                Object.keys(headers ?? {}).map((name) => name.toLowerCase())
+            ).not.toContain('range');
+        }
+    );
+
     function rememberSameOriginContext(
         name: string,
         serialNumber?: string
@@ -135,7 +160,8 @@ describe('stalker playback context', () => {
             // token; the lookup keys on origin+path so the second link still
             // finds its portal headers instead of playing bare.
             const firstLink = 'http://tmp-link2.example.test/ch/7?token=first';
-            const secondLink = 'http://tmp-link2.example.test/ch/7?token=second';
+            const secondLink =
+                'http://tmp-link2.example.test/ch/7?token=second';
             rememberStalkerPlaybackContext({
                 streamUrl: firstLink,
                 portalUrl:
