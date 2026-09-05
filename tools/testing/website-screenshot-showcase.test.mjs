@@ -41,7 +41,10 @@ test('showcase markup: a vertical tablist with one selected channel and a panel 
   }
   assert.match(html, /href="\/iptvnator\/features\/epg\/"/, 'captions link into the feature pages');
   const toggleTag = html.match(/<button[^>]*data-autoplay-toggle[^>]*>/)?.[0];
-  assert.ok(toggleTag && /aria-pressed="false"/.test(toggleTag), 'a persistent pause control ships in the markup');
+  assert.ok(toggleTag && /aria-label="Pause auto-advance"/.test(toggleTag), 'a persistent pause control ships in the markup');
+  assert.doesNotMatch(toggleTag, /aria-pressed/, 'the control is an action button, not a toggle with a changing name');
+  assert.match(html, /channel-osd[^"]*motion-reduce:transition-none/, 'the OSD slide is off under reduced motion');
+  assert.match(html, /channel-panel[^"]*motion-reduce:transition-none/, 'the panel fade is off under reduced motion');
   const tablist = html.match(/<div role="tablist"[\s\S]*?<\/div>/)?.[0];
   assert.ok(tablist, 'tablist element');
   assert.equal((tablist.match(/<button/g) ?? []).length, CHANNELS.length, 'the tablist holds exactly the tabs');
@@ -106,7 +109,6 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     // The toggle pauses until pressed again, whatever the pointer and focus do.
     const toggle = page.locator('[data-autoplay-toggle]');
     await toggle.click();
-    assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
     assert.equal(await toggle.getAttribute('aria-label'), 'Resume auto-advance');
     await page.mouse.move(5, 5);
     await page.evaluate(() => document.activeElement?.blur());
@@ -138,7 +140,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
 
     // Resume restarts autoplay at once, with the pointer and the focus still on the button.
     await toggle.click();
-    assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+    assert.equal(await toggle.getAttribute('aria-label'), 'Pause auto-advance');
     assert.deepEqual((await loaded(page)).slice(3, 5), [true, true], 'resuming preloads the successor');
     assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-autoplay-toggle')), true, 'the button keeps focus');
     assert.ok((await progressWidth(page)) < 3, 'time spent paused is not counted against the picked channel');

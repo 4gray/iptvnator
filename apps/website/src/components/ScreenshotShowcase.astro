@@ -157,7 +157,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
           <button
             type="button"
             class="channel-autoplay ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-surface-700 px-2.5 py-1 text-surface-300 transition-colors hover:border-surface-500 hover:text-surface-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
-            aria-pressed="false"
             aria-label="Pause auto-advance"
             data-autoplay-toggle
           >
@@ -186,7 +185,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
               aria-hidden={i === 0 ? 'false' : 'true'}
               data-channel-panel={channel.id}
               class:list={[
-                'channel-panel absolute inset-0 transition-opacity duration-300',
+                'channel-panel absolute inset-0 transition-opacity duration-300 motion-reduce:transition-none',
                 i !== 0 && 'pointer-events-none opacity-0',
               ]}
             >
@@ -206,7 +205,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
         <!-- On-screen display: shows the channel number for a moment after a switch -->
         <div
-          class="channel-osd pointer-events-none absolute left-4 top-4 flex -translate-y-1 items-center gap-2.5 rounded-lg border border-white/10 bg-surface-950/75 px-3 py-2 font-mono text-xs text-surface-100 opacity-0 backdrop-blur transition-all duration-200"
+          class="channel-osd pointer-events-none absolute left-4 top-4 flex -translate-y-1 items-center gap-2.5 rounded-lg border border-white/10 bg-surface-950/75 px-3 py-2 font-mono text-xs text-surface-100 opacity-0 backdrop-blur transition-all duration-200 motion-reduce:transition-none"
           aria-hidden="true"
         >
           <span class="font-medium text-accent-400" data-osd-number>CH 01</span>
@@ -377,7 +376,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     };
     toggle?.addEventListener('click', () => {
       stopped = !stopped;
-      toggle.setAttribute('aria-pressed', String(stopped));
+      // An action button, not a toggle: the name says what pressing it does next.
       toggle.querySelector('[data-autoplay-label]').textContent = stopped ? 'Resume' : 'Pause';
       toggle.setAttribute('aria-label', stopped ? 'Resume auto-advance' : 'Pause auto-advance');
       toggle.querySelector('[data-icon-pause]').classList.toggle('hidden', stopped);
