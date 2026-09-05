@@ -399,8 +399,8 @@ Rendering size: the helper renders at the **aspect-fit** size of the video
 (observed `dwidth`/`dheight`) inside the requested viewport and bumps a shm
 generation when it changes — letterbox bars are never baked into frames,
 frames stay as small as possible, and the canvas letterboxes with a
-transparent background (app surface shows at the sides; fullscreen keeps a
-black backdrop). Snapshots carry `videoWidth`/`videoHeight`.
+transparent canvas over a black video viewport in both windowed and
+fullscreen mode. Snapshots carry `videoWidth`/`videoHeight`.
 `IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY=<seconds>` passes through to mpv's
 `audio-delay` for lip-sync tuning until a calibration flow exists.
 

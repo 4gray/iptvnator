@@ -1,15 +1,4 @@
-// Matches the EPG timeline design system (same tokens + fallbacks).
-$surface-1: var(--surface-1, #0f141c);
-$surface-2: var(--surface-2, #161d28);
-$surface-3: var(--surface-3, #1d2533);
-$text-primary: var(--text-primary, #e7ecf3);
-$text-secondary: var(--text-secondary, #9aa3b2);
-$text-tertiary: var(--text-tertiary, #6b7384);
-$accent-blue: var(--accent-blue, #4f8eff);
-$accent-cyan: var(--accent-cyan, #5cd6ff);
-$line: var(--line, rgba(255, 255, 255, 0.06));
-$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+@use '../epg-theme' as *;
 
 .epg-dialog {
     box-sizing: border-box;
@@ -20,7 +9,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     border: 1px solid $line-strong;
     border-radius: var(--r-lg, 14px);
     overflow: hidden;
-    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--app-widget-shadow);
 
     * {
         box-sizing: border-box;
@@ -34,37 +23,24 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     display: grid;
     place-items: center;
     border-bottom: 1px solid $line;
-    background:
-        radial-gradient(
-            120% 150% at 78% 22%,
-            rgba(110, 60, 180, 0.4),
-            transparent 60%
-        ),
-        radial-gradient(
-            130% 160% at 18% 18%,
-            rgba(30, 40, 70, 0.55),
-            transparent 55%
-        ),
-        #0b0e16;
-
+    background: $surface-2;
 }
 
 .epg-dialog__hero-glyph {
     font-size: 40px;
     width: 40px;
     height: 40px;
-    color: rgba(255, 255, 255, 0.16);
+    color: $text-tertiary;
 }
 
 .epg-dialog__logo {
     max-width: 56%;
     max-height: 76px;
     object-fit: contain;
-    /* a soft plate so logos on transparent/white art stay legible on the
-       dark gradient */
+    /* Keep transparent channel artwork on an app-owned plate. */
     padding: 8px 12px;
     border-radius: 10px;
-    background: rgba(8, 11, 17, 0.42);
+    background: $surface-1;
     backdrop-filter: blur(2px);
 }
 
@@ -78,7 +54,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     gap: 7px;
     padding: 5px 11px;
     border-radius: 999px;
-    background: rgba(8, 11, 17, 0.72);
+    background: $surface-1;
     border: 1px solid $line;
     font-size: 12px;
     color: $text-secondary;
@@ -88,7 +64,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
         font-size: 15px;
         width: 15px;
         height: 15px;
-        color: $accent-blue;
+        color: $accent-text;
         flex: 0 0 auto;
     }
 }
@@ -109,7 +85,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     place-items: center;
     border: none;
     border-radius: 8px;
-    background: rgba(8, 11, 17, 0.72);
+    background: $surface-1;
     color: $text-secondary;
     cursor: pointer;
     backdrop-filter: blur(6px);
@@ -199,7 +175,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &--rating {
-        color: $accent-cyan;
+        color: $accent-text;
     }
 }
 
@@ -239,8 +215,9 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &--primary {
-        background: $accent-blue;
-        color: #fff;
+        background: var(--app-selection-surface);
+        border-color: var(--app-selection-border);
+        color: $text-primary;
 
         &:hover {
             filter: brightness(1.06);

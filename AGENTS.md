@@ -209,6 +209,13 @@ Key files:
 
 ## Shared Player Controls
 
+- The Embedded MPV native-view dock follows app theme tokens as a solid app
+  surface, including Material icon-button disabled states. Over-video loading,
+  stalled and feedback overlays keep a paired light-on-dark palette. Video
+  viewports remain black in windowed and fullscreen modes. Shared EPG panels
+  use the library-local app-token palette in `libs/ui/epg/src/lib/_epg-theme.scss`.
+  Theme/contrast contract: `docs/architecture/iptvnator-ui-guidelines.md`.
+
 - `libs/ui/playback/src/lib/player-controls/` contains the additive,
   engine-neutral `PlayerController` contract, standalone
   `app-player-controls`, generic web-video adapter/helper, and component-scoped

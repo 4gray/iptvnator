@@ -79,6 +79,33 @@ as migration debt, not patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
+## Player And EPG Theme Boundaries
+
+The native-view Embedded MPV dock is app chrome: its solid widget background,
+text, separators, sliders and interaction states resolve app tokens together.
+Material icon buttons override their component tokens, including disabled
+icons. The dock must never pair a dark fallback surface with inherited light
+app text. Loader/stall and transient feedback overlays own a light foreground
+and dark scrim because they cover video. Video viewports remain black in both
+themes and fullscreen; frame-copy and built-in shared controls keep their
+existing light-on-dark overlay palette.
+
+EPG timeline, list, empty states and programme details use the library-local
+`libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
+selection and live accents. Text pairs with the actual surface in both themes;
+current/playing titles must not force white onto a light selection tint.
+Past programme text remains readable without reducing opacity on the whole
+card. Theme changes resolve through CSS on the mounted components immediately.
+
+Electron E2E measures app-panel foreground/background contrast (including
+translucency, ancestor opacity and the timeline’s sibling progress fill),
+surface brightness and control geometry.
+Shared overlay icons are separately rasterized over a white test frame to
+include gradient scrims and Material hover/focus layers in their contrast check.
+Synthetic media is used for visual artifacts. Native-view video is composited
+outside Chromium screenshots, so playback is also verified from session
+position; a black screenshot viewport alone is not proof of failed decoding.
+
 ## Selection Pattern
 
 Apply the same visual recipe to selected list items, active channels, and current EPG items:
@@ -470,7 +497,7 @@ When updating IPTVnator UI:
 Avoid these:
 
 - introducing a new selected-state color unrelated to the theme tokens
-- copying the shared EPG's hard-coded dark/blue fallbacks into new surfaces
+- introducing independent dark-only EPG surface palettes
 - duplicating channel row markup in portal-specific views
 - showing placeholder logos behind real logos
 - making entire panes scroll when only the list should scroll

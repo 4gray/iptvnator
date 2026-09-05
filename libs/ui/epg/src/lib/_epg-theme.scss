@@ -1,0 +1,24 @@
+// App-owned EPG panels share the same live light/dark palette.
+$line: var(--app-widget-header-border);
+$line-strong: var(--app-separator);
+$surface-1: var(--app-widget-bg);
+$surface-2: var(--app-widget-header-bg);
+$surface-3: var(--app-card-hover-bg);
+$text-primary: var(--app-on-surface);
+$text-secondary: color-mix(in srgb, var(--app-on-surface) 82%, transparent);
+$text-tertiary: color-mix(in srgb, var(--app-on-surface) 76%, transparent);
+$accent-blue: var(--app-selection-color);
+$accent-cyan: var(--app-selection-color);
+// Filled accents and small accent text need different contrast on pale tints.
+$accent-text: color-mix(
+    in srgb,
+    var(--app-selection-color) 60%,
+    var(--app-on-surface)
+);
+$live-text: color-mix(
+    in srgb,
+    var(--app-live-color) 40%,
+    var(--app-on-surface)
+);
+$accent-live: var(--app-live-color);
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
