@@ -65,9 +65,6 @@ timeouts but not the breaker, deliberately:
   add-playlist dialog sends `PLAYLIST_PARSE_BY_URL`). Refusing an immediate
   retry is a regression, not a protection, and there is no natural reset site on
   that path the way portal Retry has one.
-- A large XMLTV transfer can legitimately run for minutes — the timeout is
-  idle-based, see above — which outlives the 45 s half-open trial expiry and
-  would let a second trial in behind the first.
 
 ## Desktop preference and account feedback
 
@@ -95,8 +92,8 @@ show a localized **Requests temporarily paused** explanation with **Retry now**.
 Stalker keeps cached account data visible and offers the same retry beside the
 paused refresh notice. Retry resets before requesting again; actual network
 failures retain the generic unavailable state. These notices describe the last
-request outcome, not a live countdown. The preference does not fix the separate
-same-millisecond sibling-counting issue #1438.
+request outcome, not a live countdown. Same-millisecond sibling counting is
+handled by monotonic admission ids (#1438).
 
 ## Rules
 
@@ -180,7 +177,7 @@ Two more rules exist because of specific failure modes:
   are never reused when an endpoint's state is evicted. A recreated record has
   no failure streak, so the first old in-flight failure can still count once;
   its remaining siblings cannot add further links to that streak. Timestamps
-  still determine streak expiry, cooldown and trial timeout. Only a failure that
+  still determine streak expiry and cooldown. Only a failure that
   was actually counted may trip the threshold: a sibling settling after the open
   window elapsed would otherwise start a fresh one off the existing count and
   push the half-open trial past the intended cooldown.
@@ -190,14 +187,38 @@ Two more rules exist because of specific failure modes:
   behind settle right after they press Retry and re-open the breaker underneath
   the very retry that cleared it.
 
-A half-open trial that never reports back expires after 45 s, so a leaked token
-cannot leave the breaker open forever. That expiry is why the slot has an
-identity: a trial can genuinely outlive its window — `requestWithValidatedRedirects`
-gives each of up to five redirect hops its own 30 s budget — and once a
-replacement has been admitted, the abandoned request's late report must not free
-the replacement's slot and let a third request through. `trial: true` alone
-cannot tell the two apart, so the token carries the slot id it owns; an
-abandoned trial's failure is still counted as ordinary evidence.
+### Trial ownership follows the request lifetime
+
+A half-open slot has no wall-clock expiry (#1439). A redirect chain gives each
+hop a separate timeout, and a body that keeps delivering bytes can exceed any
+fixed deadline without reaching its inactivity timeout. Neither may admit a
+second trial while the first request remains pending.
+
+The four request owners (Electron Xtream/Stalker IPC and web-backend
+`/xtream`/`/stalker`) acquire inside `try`, await the whole transport operation,
+report its outcome, and unconditionally release any remaining token in `finally`.
+`reportInconclusive` is the idempotent cleanup operation: it releases only the
+matching `trialId` and epoch and records no reachability evidence. This is the
+leak backstop even when debug logging, classification, or response formatting
+throws before an outcome report. Cleanup also runs while the environment kill
+switch is on, so switching it back off cannot revive a completed trial's slot.
+Desktop preference transitions invalidate the old guard and tokens as before.
+
+Cancellation releases after the awaited transport rejects, when it actually
+settles, rather than merely when an abort is requested. Xtream's AbortSignal
+continues through all Electron redirect hops. Stalker has no IPC cancellation
+signal, and closing a PWA client connection does not cancel the backend's outbound
+request; those slots remain owned until that transport settles. The transport's
+existing timeout handles inactivity. No heartbeat, polling timer, or larger
+trial deadline is needed. A future caller must preserve the `try`/`finally`
+contract; a custom transport that never settles needs cancellation at its own
+layer and must not be silently overlapped by a second trial.
+
+The slot still has an identity: delayed cleanup from a released owner must not
+free its replacement. A late failure still follows the ordinary streak and epoch
+rules; a real HTTP response still proves reachability and clears the record.
+Explicit reset, discovery success, preference transitions and bounded state
+eviction retain their existing rules for forgetting evidence.
 
 ## The fast-fail error is a renderer contract
 
@@ -347,7 +368,8 @@ module's contract that unreachable ≠ contacted-and-refused. The
 ## Tests
 
 - `libs/shared/host-health/src/lib/host-connectivity-guard.spec.ts` — the state
-  machine, with an injected clock.
+  machine, with an injected clock, long-lived trial ownership, late cleanup,
+  and settlement while the environment kill switch is on.
 - `apps/electron-backend/src/app/util/host-connectivity-guard.spec.ts` — the
   main-process singleton and redirect attribution through it.
 - `apps/web-backend/src/app/web-backend-app.host-guard.spec.ts` — the proxy
@@ -362,6 +384,7 @@ module's contract that unreachable ≠ contacted-and-refused. The
   that the discovery bypass is forwarded, and that a reset calls the backend.
 - `apps/electron-backend/src/app/events/stalker.events.spec.ts` and
   `xtream.events.spec.ts` — trip, fast-fail without contacting axios, reset,
-  exemption, and the absence of per-request log spam.
+  exemption, long pending requests and redirect chains, cancellation, cleanup
+  when debug reporting throws, and the absence of per-request log spam.
 - `libs/portal/stalker/data-access/src/lib/stalker-portal-discovery.utils.spec.ts`
   and `stalker-portal-repair.service.spec.ts` — the message contract.

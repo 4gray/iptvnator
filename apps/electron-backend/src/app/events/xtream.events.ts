@@ -22,6 +22,7 @@ import {
     beginGuardedHostRequest,
     reportGuardedHostFailure,
     reportGuardedHostSuccess,
+    releaseGuardedHostRequest,
 } from '../util/host-connectivity-guard';
 import {
     createXtreamMainPerformanceCaptureForRequest,
@@ -265,6 +266,7 @@ ipcMain.handle(
                 };
             }
         } finally {
+            releaseGuardedHostRequest(guardToken);
             if (activeRequestKey) {
                 activeXtreamRequests.delete(activeRequestKey);
             }

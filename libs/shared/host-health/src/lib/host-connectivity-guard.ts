@@ -46,12 +46,6 @@ export const OPEN_DURATION_MS = 30_000;
  * 30 s timeouts must fit inside it, hence comfortably above 60 s.
  */
 const FAILURE_WINDOW_MS = 120_000;
-/**
- * Safety net for a half-open trial that never reports back. Above the longest
- * request timeout (30 s) plus margin, so it only fires if a caller leaked the
- * token — without it a lost report would keep the breaker open forever.
- */
-const TRIAL_TIMEOUT_MS = 45_000;
 /** Hosts tracked at once; portals per user are few, this is just a bound. */
 const MAX_TRACKED_HOSTS = 256;
 /** Idle records are forgotten; they hold nothing worth remembering. */
@@ -111,11 +105,8 @@ export interface HostRequestToken {
     /**
      * Which half-open slot this request holds, when it holds one.
      *
-     * A trial can outlive its own window — `requestWithValidatedRedirects`
-     * gives each of up to five redirect hops its own 30 s budget — and once a
-     * replacement has been admitted, the abandoned request must not be able to
-     * free the replacement's slot. `trial: true` alone cannot tell the two
-     * apart, so the owner is identified explicitly.
+     * Cleanup from a released owner can arrive after another trial has been
+     * admitted. Only this identity (plus epoch) may release the current slot.
      */
     readonly trialId: number;
 }
@@ -133,7 +124,7 @@ interface HostState {
     /** Latest guard-wide admission id when this host's last failure counted. */
     lastFailureAdmissionId: number;
     openUntil: number;
-    trialStartedAt: number | null;
+    trialInFlight: boolean;
     /** Monotonic id of the half-open slot; see `HostRequestToken.trialId`. */
     trialId: number;
     epoch: number;
@@ -247,13 +238,10 @@ export class HostConnectivityGuard {
         // let one request through and hold the rest back until it settles.
         let trial = false;
         if (state.openUntil > 0) {
-            const trialStale =
-                state.trialStartedAt !== null &&
-                now - state.trialStartedAt >= TRIAL_TIMEOUT_MS;
-            if (state.trialStartedAt !== null && !trialStale) {
+            if (state.trialInFlight) {
                 return { allowed: false, retryAfterMs: 0 };
             }
-            state.trialStartedAt = now;
+            state.trialInFlight = true;
             state.trialId += 1;
             trial = true;
         }
@@ -276,21 +264,29 @@ export class HostConnectivityGuard {
      */
     reportSuccess(token: HostRequestToken): void {
         const state = this.states.get(token.endpoint);
-        if (!state || isHostConnectivityGuardDisabled()) {
+        if (!state) {
+            return;
+        }
+        if (isHostConnectivityGuardDisabled()) {
+            this.releaseTrial(state, token);
             return;
         }
 
         state.consecutiveFailures = 0;
         state.lastFailureAt = 0;
         state.openUntil = 0;
-        state.trialStartedAt = null;
+        state.trialInFlight = false;
         state.lastTouchedAt = this.now();
     }
 
     /** The host did not answer at all. */
     reportFailure(token: HostRequestToken): void {
         const state = this.states.get(token.endpoint);
-        if (!state || isHostConnectivityGuardDisabled()) {
+        if (!state) {
+            return;
+        }
+        if (isHostConnectivityGuardDisabled()) {
+            this.releaseTrial(state, token);
             return;
         }
 
@@ -307,7 +303,7 @@ export class HostConnectivityGuard {
         // through the streak rules below and leaves the replacement alone.
         const wasTrial = this.ownsTrial(state, token);
         if (wasTrial) {
-            state.trialStartedAt = null;
+            state.trialInFlight = false;
         }
         state.lastTouchedAt = now;
 
@@ -354,10 +350,13 @@ export class HostConnectivityGuard {
     /**
      * The request failed for a reason that says nothing about the host. Only
      * releases the half-open slot, so the next request can be the trial.
+     * Owners MUST also call this in finally, independently of outcome reporting.
+     * It is idempotent and still releases while the guard is disabled by the environment;
+     * no elapsed-time expiry can distinguish a leak from an active transfer.
      */
     reportInconclusive(token: HostRequestToken): void {
         const state = this.states.get(token.endpoint);
-        if (!state || isHostConnectivityGuardDisabled()) {
+        if (!state) {
             return;
         }
 
@@ -376,7 +375,7 @@ export class HostConnectivityGuard {
         state.consecutiveFailures = 0;
         state.lastFailureAt = 0;
         state.openUntil = 0;
-        state.trialStartedAt = null;
+        state.trialInFlight = false;
         state.epoch += 1;
         state.lastTouchedAt = now;
     }
@@ -409,7 +408,7 @@ export class HostConnectivityGuard {
     private ownsTrial(state: HostState, token: HostRequestToken): boolean {
         return (
             token.trial &&
-            state.trialStartedAt !== null &&
+            state.trialInFlight &&
             state.epoch === token.epoch &&
             state.trialId === token.trialId
         );
@@ -417,7 +416,7 @@ export class HostConnectivityGuard {
 
     private releaseTrial(state: HostState, token: HostRequestToken): void {
         if (this.ownsTrial(state, token)) {
-            state.trialStartedAt = null;
+            state.trialInFlight = false;
         }
     }
 
@@ -433,7 +432,7 @@ export class HostConnectivityGuard {
             lastFailureAt: 0,
             lastFailureAdmissionId: 0,
             openUntil: 0,
-            trialStartedAt: null,
+            trialInFlight: false,
             trialId: 0,
             epoch: 0,
             lastTouchedAt: now,
@@ -447,7 +446,7 @@ export class HostConnectivityGuard {
             if (
                 now - state.lastTouchedAt > IDLE_TTL_MS &&
                 state.openUntil <= now &&
-                state.trialStartedAt === null
+                !state.trialInFlight
             ) {
                 this.states.delete(endpoint);
             }

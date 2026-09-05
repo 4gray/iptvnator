@@ -176,6 +176,12 @@ categories by provider ID and type. See `docs/architecture/category-management.m
 
 ## Portal Connectivity Preference
 
+- Half-open trial slots follow the complete request lifetime with no elapsed-time
+  expiry. All four Electron/web-backend portal handlers release in `finally`,
+  independently of outcome reporting; cleanup preserves trial/epoch ownership
+  and works while the environment override is disabled. Contract:
+  `docs/architecture/host-connectivity-guard.md` ("Trial ownership follows the
+  request lifetime").
 - Desktop Settings > General > Portal connections exposes default-on
   `Settings.portalConnectivityGuard`. Only explicit false opts out. Save mirrors
   the value to Electron `PORTAL_CONNECTIVITY_GUARD` and applies it without restart;

@@ -83,6 +83,75 @@ describe('StalkerEvents host connectivity guard', () => {
         consoleWarnSpy.mockRestore();
     });
 
+    it('holds a live trial beyond 45 seconds and releases a cancelled request', async () => {
+        let now = 1_000;
+        const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        let cancel!: (error: Error) => void;
+        let arrived!: () => void;
+        const pending = new Promise<never>((_, reject) => {
+            cancel = reject;
+        });
+        const started = new Promise<void>((resolve) => {
+            arrived = resolve;
+        });
+        let trial: Promise<unknown> | undefined;
+        try {
+            axiosMock.mockRejectedValue(connectionRefused());
+            await expect(request()).rejects.toBeDefined();
+            await expect(request()).rejects.toBeDefined();
+            now += 30_001;
+            axiosMock.mockImplementationOnce(() => {
+                arrived();
+                return pending;
+            });
+            trial = request().catch((error) => error);
+            await started;
+            now += 45_001;
+            await expect(request()).rejects.toThrow(
+                buildHostConnectivityFastFailMessage(PORTAL_ENDPOINT)
+            );
+            expect(axiosMock).toHaveBeenCalledTimes(3);
+            cancel(
+                Object.assign(new Error('cancelled'), { code: 'ERR_CANCELED' })
+            );
+            await trial;
+            axiosMock.mockResolvedValue({ status: 200, data: [], headers: {} });
+            await expect(request()).resolves.toBeDefined();
+            expect(axiosMock).toHaveBeenCalledTimes(4);
+        } finally {
+            cancel(new Error('test cleanup'));
+            await trial;
+            clock.mockRestore();
+        }
+    });
+
+    it('releases the trial in finally when debug reporting throws before the outcome report', async () => {
+        let now = 1_000;
+        const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        const debug = await import('./portal-debug.events');
+        const reportingError = new Error('debug reporting failed');
+        try {
+            axiosMock.mockRejectedValue(connectionRefused());
+            await expect(request()).rejects.toBeDefined();
+            await expect(request()).rejects.toBeDefined();
+            now += 30_001;
+            jest.mocked(debug.emitPortalDebugEvent).mockImplementationOnce(
+                () => {
+                    throw reportingError;
+                }
+            );
+            await expect(request({ requestId: 'debug-trial' })).rejects.toBe(
+                reportingError
+            );
+            axiosMock.mockResolvedValue({ status: 200, data: [], headers: {} });
+            await expect(request()).resolves.toBeDefined();
+            expect(axiosMock).toHaveBeenCalledTimes(4);
+        } finally {
+            jest.mocked(debug.emitPortalDebugEvent).mockReset();
+            clock.mockRestore();
+        }
+    });
+
     it('stops contacting a portal host that refused twice in a row', async () => {
         axiosMock.mockRejectedValue(connectionRefused());
 

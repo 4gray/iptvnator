@@ -352,6 +352,8 @@ export function createWebBackendApp(
             });
             logProviderRequestFailure({ error, route: '/xtream', url });
             res.json(normalizeProviderError(error));
+        } finally {
+            releaseProviderRequest(hostGuard, guardToken);
         }
     });
 
@@ -459,6 +461,8 @@ export function createWebBackendApp(
             });
             logProviderRequestFailure({ error, route: '/stalker', url });
             res.json(normalizeProviderError(error));
+        } finally {
+            releaseProviderRequest(hostGuard, guardToken);
         }
     });
 
