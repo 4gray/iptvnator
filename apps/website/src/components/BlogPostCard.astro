@@ -10,6 +10,13 @@ interface Props {
 
 const { title, description, pubDate, slug, tags = [], heroImage } = Astro.props;
 
+// Cards sit in a three-column grid, so a post with five or six tags cannot show
+// them all inline. The first few render as chips; the rest collapse into a "+N"
+// chip whose tooltip lists the hidden tags. The featured card shows every tag.
+const MAX_VISIBLE_TAGS = 3;
+const visibleTags = tags.slice(0, MAX_VISIBLE_TAGS);
+const hiddenTags = tags.slice(MAX_VISIBLE_TAGS);
+
 const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'short',
@@ -31,23 +38,28 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
       />
     </div>
   )}
-  <div class="flex items-center gap-2">
-    <time datetime={pubDate.toISOString()} class="font-mono text-xs text-surface-500">
-      {formattedDate}
-    </time>
-    {
-      tags.length > 0 && (
-        <>
-          <span class="text-surface-700">&middot;</span>
-          {tags.map((tag) => (
-            <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 text-xs text-surface-300">
-              {tag}
-            </span>
-          ))}
-        </>
-      )
-    }
-  </div>
+  <time datetime={pubDate.toISOString()} class="block whitespace-nowrap font-mono text-xs text-surface-500">
+    {formattedDate}
+  </time>
+  {
+    tags.length > 0 && (
+      <div class="mt-2 flex flex-wrap gap-1.5">
+        {visibleTags.map((tag) => (
+          <span class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 text-xs text-surface-300">
+            {tag}
+          </span>
+        ))}
+        {hiddenTags.length > 0 && (
+          <span
+            class="rounded-md border border-surface-800 bg-surface-900/60 px-2 py-0.5 font-mono text-xs text-surface-500"
+            title={hiddenTags.join(', ')}
+          >
+            +{hiddenTags.length}
+          </span>
+        )}
+      </div>
+    )
+  }
   <h3
     class="mt-3 font-display text-lg font-semibold text-surface-100 transition-colors duration-200 group-hover:text-accent-400"
   >

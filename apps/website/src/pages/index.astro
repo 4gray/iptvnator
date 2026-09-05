@@ -18,8 +18,9 @@ const allPosts = (await getCollection('blog'))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 const featuredPost = allPosts.find((post) => post.data.featured) ?? allPosts[0];
-const otherPosts = featuredPost ? allPosts.filter((post) => post.id !== featuredPost.id).slice(0, 2) : [];
-const posts = featuredPost ? [featuredPost, ...otherPosts] : allPosts.slice(0, 3);
+// One featured post plus a full three-column row of cards below it.
+const otherPosts = featuredPost ? allPosts.filter((post) => post.id !== featuredPost.id).slice(0, 3) : [];
+const posts = featuredPost ? [featuredPost, ...otherPosts] : allPosts.slice(0, 4);
 
 const homeSchema = [
   {
