@@ -1,159 +1,310 @@
 ---
-const tabs = [
+/**
+ * "Flip through the app": the screenshot showcase as a channel switcher.
+ *
+ * The list on the left is the channel list of a TV player — number, name,
+ * one line about what the screen is for — and the screen on the right shows
+ * the selected shot. Channels advance on their own (a progress hairline runs
+ * under the active row) until the visitor hovers, focuses or scrolls the block
+ * out of view; `prefers-reduced-motion` turns autoplay off entirely. Arrow keys
+ * move between channels like a remote.
+ */
+const channels = [
   {
     id: 'dashboard',
     label: 'Dashboard',
+    description: 'Continue watching, recent channels and favorites across every source.',
     image: '/iptvnator/screenshots/dashboard-with-content.webp',
-    alt: 'Dashboard with recently watched content and global favorites',
+    alt: 'Dashboard with continue watching, recently watched and global favorites',
     width: 2072,
     height: 1602,
+    link: { href: '/iptvnator/features/', label: 'Every feature' },
   },
   {
     id: 'live-tv',
     label: 'Live TV',
+    description: 'Channel list with the current program, the player and the EPG timeline side by side.',
     image: '/iptvnator/screenshots/screenshot-player.webp',
-    alt: 'Live channels with the inline player and EPG',
+    alt: 'Live channels with the inline player and the program timeline',
     width: 2442,
     height: 1806,
+    link: { href: '/iptvnator/features/m3u-player/', label: 'M3U playlist player' },
   },
   {
     id: 'epg',
-    label: 'EPG Guide',
+    label: 'Program guide',
+    description: 'A multi-channel grid with a now-line you can scrub through the day.',
     image: '/iptvnator/screenshots/multi-epg-view.webp',
     alt: 'Multi-channel electronic program guide',
     width: 2180,
     height: 1448,
+    link: { href: '/iptvnator/features/epg/', label: 'TV guide (EPG)' },
+  },
+  {
+    id: 'movies',
+    label: 'Movies & series',
+    description: 'Detail pages with cast, seasons and the position you stopped at.',
+    image: '/iptvnator/screenshots/vod-details.webp',
+    alt: 'Movie detail page with poster, cast and play button',
+    width: 2260,
+    height: 1490,
+    link: { href: '/iptvnator/features/xtream-codes-player/', label: 'Xtream Codes player' },
+  },
+  {
+    id: 'downloads',
+    label: 'Downloads',
+    description: 'Offline library, download queue and live-TV recordings in one place.',
+    image: '/iptvnator/screenshots/download-manager.webp',
+    alt: 'Download manager with an offline library and a queue',
+    width: 2500,
+    height: 1602,
+    link: { href: '/iptvnator/blog/v0-23-release-notes/', label: 'Download manager notes' },
   },
   {
     id: 'settings',
     label: 'Settings',
+    description: 'Player engine, EPG, TMDB metadata, remote control and backup.',
     image: '/iptvnator/screenshots/settings.webp',
     alt: 'Application settings in the dark theme',
     width: 2500,
     height: 1602,
+    link: { href: '/iptvnator/features/remote-control/', label: 'Phone remote control' },
   },
-  {
-    id: 'add-playlist',
-    label: 'Add Playlist',
-    image: '/iptvnator/screenshots/add-playlist.webp',
-    alt: 'Add playlist dialog for M3U, Xtream, and Stalker sources',
-    width: 2260,
-    height: 1490,
-  },
-];
+] as const;
+
+const pad = (n: number) => String(n).padStart(2, '0');
 ---
 
 <section id="screenshots" class="relative py-28">
   <hr class="section-divider mb-28" />
 
   <div class="mx-auto max-w-6xl px-6">
-    <!-- Editorial header: right-aligned for variety -->
-    <div class="ml-auto max-w-xl text-right">
-      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
-        Interface
-      </span>
-      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-        See it in action
-      </h2>
-      <p class="mt-4 text-lg text-surface-400">
-        A clean, intuitive interface designed for the best viewing experience.
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div class="max-w-xl">
+        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
+          Interface
+        </span>
+        <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+          Flip through the app
+        </h2>
+      </div>
+      <p class="max-w-sm text-base text-surface-400 sm:text-right">
+        Six screens, one player. Pick a channel or let it run.
       </p>
     </div>
 
-    <div class="mt-14">
-      <!-- Tab buttons with underline style -->
-      <div class="flex flex-wrap justify-center gap-1 rounded-lg border border-surface-700/60 bg-surface-900/50 p-1.5" role="tablist">
+    <div class="mt-12 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]" data-channel-switcher>
+      <!-- Channel list -->
+      <div
+        class="flex flex-col overflow-hidden rounded-xl border border-surface-800 bg-surface-900/40"
+        role="tablist"
+        aria-label="App screens"
+        aria-orientation="vertical"
+      >
+        <div class="flex items-center justify-between border-b border-surface-800 px-4 py-3 font-mono text-[11px] uppercase tracking-[0.15em] text-surface-500">
+          <span>Channels</span>
+          <span>{pad(channels.length)}</span>
+        </div>
         {
-          tabs.map((tab, i) => (
+          channels.map((channel, i) => (
             <button
+              type="button"
               role="tab"
+              id={`screen-tab-${channel.id}`}
               aria-selected={i === 0 ? 'true' : 'false'}
-              data-tab={tab.id}
-              class:list={[
-                'screenshot-tab rounded-md px-5 py-2 font-mono text-xs uppercase tracking-[0.1em] transition-all duration-200',
-                i === 0
-                  ? 'bg-accent-500/15 text-accent-400'
-                  : 'text-surface-500 hover:text-surface-300',
-              ]}
+              aria-controls={`screen-panel-${channel.id}`}
+              tabindex={i === 0 ? 0 : -1}
+              data-channel={channel.id}
+              class="channel-tab group relative grid grid-cols-[38px_minmax(0,1fr)] gap-3 border-t border-surface-800 px-4 py-3.5 text-left transition-colors duration-200 first-of-type:border-t-0 hover:bg-white/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-400"
             >
-              {tab.label}
+              <span class="channel-number pt-0.5 font-mono text-xs tabular-nums text-surface-500 transition-colors duration-200">
+                {pad(i + 1)}
+              </span>
+              <span>
+                <span class="block font-display text-[15px] font-semibold tracking-tight text-surface-100">
+                  {channel.label}
+                </span>
+                <span class="mt-0.5 block text-[12.5px] leading-snug text-surface-500">
+                  {channel.description}
+                </span>
+              </span>
+              <span class="pointer-events-none absolute inset-x-0 -bottom-px h-0.5" aria-hidden="true">
+                <span class="channel-progress block h-full w-0 bg-accent-500" />
+              </span>
             </button>
           ))
         }
+        <div class="mt-auto border-t border-surface-800 px-4 py-3 font-mono text-[11px] text-surface-500">
+          <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↑</kbd>
+          <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↓</kbd>
+          <span class="ml-1.5">switch channel</span>
+        </div>
       </div>
 
-      <!-- Screenshots with window chrome -->
-      <div class="relative mt-8">
+      <!-- Screen -->
+      <div class="relative order-first aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/40 lg:order-none lg:aspect-auto lg:min-h-[460px]">
         {
-          tabs.map((tab, i) => (
+          channels.map((channel, i) => (
             <div
-              data-panel={tab.id}
+              role="tabpanel"
+              id={`screen-panel-${channel.id}`}
+              aria-labelledby={`screen-tab-${channel.id}`}
+              aria-hidden={i === 0 ? 'false' : 'true'}
+              data-channel-panel={channel.id}
               class:list={[
-                'screenshot-panel transition-opacity duration-300',
-                i !== 0 && 'hidden',
+                'channel-panel absolute inset-0 transition-opacity duration-300',
+                i !== 0 && 'pointer-events-none opacity-0',
               ]}
             >
-              <div class="relative mx-auto max-w-4xl">
-                <!-- Ambient glow -->
-                <div class="absolute -inset-6 rounded-2xl bg-accent-500/[0.03] blur-2xl" />
-
-                <!-- Window chrome -->
-                <div class="relative overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/30">
-                  <div class="flex items-center gap-2 border-b border-surface-700/60 px-4 py-2.5">
-                    <div class="flex gap-1.5">
-                      <span class="h-2.5 w-2.5 rounded-full bg-red-500/70" />
-                      <span class="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
-                      <span class="h-2.5 w-2.5 rounded-full bg-green-500/70" />
-                    </div>
-                    <span class="ml-2 font-mono text-[11px] text-surface-500">{tab.label}</span>
-                  </div>
-                  <img
-                    src={tab.image}
-                    alt={tab.alt}
-                    width={tab.width}
-                    height={tab.height}
-                    class="h-auto w-full"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              </div>
+              <img
+                src={channel.image}
+                alt={channel.alt}
+                width={channel.width}
+                height={channel.height}
+                class="h-full w-full object-cover object-left-top"
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
             </div>
           ))
         }
+
+        <!-- On-screen display: shows the channel number for a moment after a switch -->
+        <div
+          class="channel-osd pointer-events-none absolute left-4 top-4 flex -translate-y-1 items-center gap-2.5 rounded-lg border border-white/10 bg-surface-950/75 px-3 py-2 font-mono text-xs text-surface-100 opacity-0 backdrop-blur transition-all duration-200"
+          aria-hidden="true"
+        >
+          <span class="font-medium text-accent-400" data-osd-number>CH 01</span>
+          <span data-osd-label>{channels[0].label}</span>
+        </div>
+
+        <!-- Caption -->
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-5 bg-gradient-to-t from-surface-950/90 via-surface-950/60 to-transparent px-5 pb-4 pt-14">
+          <div class="min-w-0">
+            <span class="block font-display text-[15px] font-semibold text-surface-50" data-caption-label>{channels[0].label}</span>
+            <span class="mt-0.5 hidden text-[13px] text-surface-300 sm:block" data-caption-description>{channels[0].description}</span>
+          </div>
+          <a
+            href={channels[0].link.href}
+            class="pointer-events-auto shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.1em] text-accent-400 transition-colors hover:text-accent-300"
+            data-caption-link
+          >
+            {channels[0].link.label} →
+          </a>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<script>
-  const tabs = document.querySelectorAll('.screenshot-tab');
-  const panels = document.querySelectorAll('.screenshot-panel');
+<script define:vars={{ channels: channels.map((c) => ({ id: c.id, label: c.label, description: c.description, link: c.link })) }}>
+  const root = document.querySelector('[data-channel-switcher]');
+  if (root) {
+    const tabs = Array.from(root.querySelectorAll('.channel-tab'));
+    const panels = Array.from(root.querySelectorAll('.channel-panel'));
+    const osd = root.querySelector('.channel-osd');
+    const osdNumber = root.querySelector('[data-osd-number]');
+    const osdLabel = root.querySelector('[data-osd-label]');
+    const captionLabel = root.querySelector('[data-caption-label]');
+    const captionDescription = root.querySelector('[data-caption-description]');
+    const captionLink = root.querySelector('[data-caption-link]');
 
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const target = (tab as HTMLElement).dataset.tab;
+    const DWELL_MS = 7000;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let current = 0;
+    let startedAt = 0;
+    let frame = 0;
+    let paused = false;
+    let osdTimer = 0;
 
-      // Reset all tabs
-      tabs.forEach((t) => {
-        t.classList.remove('bg-accent-500/15', 'text-accent-400');
-        t.classList.add('text-surface-500');
-        t.setAttribute('aria-selected', 'false');
+    const progressOf = (i) => tabs[i].querySelector('.channel-progress');
+
+    function show(index, { focus = false, announce = true } = {}) {
+      current = (index + tabs.length) % tabs.length;
+      tabs.forEach((tab, i) => {
+        const active = i === current;
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.tabIndex = active ? 0 : -1;
+        progressOf(i).style.width = '0%';
       });
-
-      // Activate clicked tab
-      tab.classList.add('bg-accent-500/15', 'text-accent-400');
-      tab.classList.remove('text-surface-500');
-      tab.setAttribute('aria-selected', 'true');
-
-      // Show/hide panels
-      panels.forEach((panel) => {
-        if ((panel as HTMLElement).dataset.panel === target) {
-          panel.classList.remove('hidden');
-        } else {
-          panel.classList.add('hidden');
-        }
+      panels.forEach((panel, i) => {
+        const active = i === current;
+        panel.classList.toggle('opacity-0', !active);
+        panel.classList.toggle('pointer-events-none', !active);
+        panel.setAttribute('aria-hidden', active ? 'false' : 'true');
       });
+      const channel = channels[current];
+      captionLabel.textContent = channel.label;
+      captionDescription.textContent = channel.description;
+      captionLink.textContent = `${channel.link.label} →`;
+      captionLink.setAttribute('href', channel.link.href);
+      if (announce) {
+        osdNumber.textContent = `CH ${String(current + 1).padStart(2, '0')}`;
+        osdLabel.textContent = channel.label;
+        osd.classList.remove('opacity-0', '-translate-y-1');
+        window.clearTimeout(osdTimer);
+        osdTimer = window.setTimeout(() => osd.classList.add('opacity-0', '-translate-y-1'), 1400);
+      }
+      startedAt = performance.now();
+      if (focus) tabs[current].focus({ preventScroll: true });
+    }
+
+    function tick(now) {
+      if (!paused) {
+        const progress = (now - startedAt) / DWELL_MS;
+        if (progress >= 1) show(current + 1);
+        else progressOf(current).style.width = `${progress * 100}%`;
+      }
+      frame = window.requestAnimationFrame(tick);
+    }
+
+    function start() {
+      if (reduceMotion || frame) return;
+      startedAt = performance.now();
+      frame = window.requestAnimationFrame(tick);
+    }
+
+    function stop() {
+      if (!frame) return;
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+      progressOf(current).style.width = '0%';
+    }
+
+    tabs.forEach((tab, i) => tab.addEventListener('click', () => show(i, { focus: true })));
+
+    root.addEventListener('keydown', (event) => {
+      if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'tab') return;
+      const keys = { ArrowDown: current + 1, ArrowUp: current - 1, Home: 0, End: tabs.length - 1 };
+      if (!(event.key in keys)) return;
+      event.preventDefault();
+      show(keys[event.key], { focus: true });
     });
-  });
+
+    // A visitor who is reading or operating the block keeps the current channel.
+    root.addEventListener('mouseenter', () => { paused = true; });
+    root.addEventListener('mouseleave', () => { paused = false; startedAt = performance.now(); });
+    root.addEventListener('focusin', () => { paused = true; });
+    root.addEventListener('focusout', (event) => {
+      if (root.contains(event.relatedTarget)) return;
+      paused = false;
+      startedAt = performance.now();
+    });
+
+    // Only run while the block is on screen.
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach((entry) => (entry.isIntersecting ? start() : stop())),
+      { threshold: 0.25 },
+    );
+    observer.observe(root);
+  }
 </script>
+
+<style>
+  .channel-tab[aria-selected='true'] {
+    @apply bg-surface-850;
+  }
+  .channel-tab[aria-selected='true'] .channel-number {
+    @apply text-accent-400;
+  }
+</style>
