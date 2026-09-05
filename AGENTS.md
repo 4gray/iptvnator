@@ -539,7 +539,10 @@ Key files:
   Tech replacement also release exact-owned PiP through
   `web-video-picture-in-picture-lifecycle.ts`, independent of the controls
   preference. A one-shot listener on the retired video closes late native/vendor
-  entries without retaining the host or touching another video's PiP.
+  entries without retaining the host or touching another video's PiP. Legacy
+  WebKit presentation-mode PiP also returns the retired video to inline; its
+  presentation-change listener ignores fullscreen/inline events until a late
+  PiP entry consumes it.
   Standard PiP shows the browser/OS video surface without Angular control
   chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
   keyboard shortcut, and Embedded MPV popup/native support are out of scope.

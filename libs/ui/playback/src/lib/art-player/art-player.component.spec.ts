@@ -95,6 +95,45 @@ describe('ArtPlayerComponent', () => {
         }
     );
 
+    it.each(['channel', 'destroy', 'late entry'])(
+        'closes legacy WebKit PiP on %s',
+        (transition) => {
+            createComponent({
+                url: 'https://example.test/one.mp4',
+                name: 'One',
+            });
+            const video = artPlayerInstances[0].video;
+            let mode =
+                transition === 'late entry' ? 'inline' : 'picture-in-picture';
+            const setMode = jest.fn((next: string) => {
+                mode = next;
+                video.dispatchEvent(new Event('webkitpresentationmodechanged'));
+            });
+            Object.defineProperties(video, {
+                webkitPresentationMode: { get: () => mode },
+                webkitSetPresentationMode: { value: setMode },
+            });
+
+            if (transition === 'channel') {
+                fixture.componentRef.setInput('channel', {
+                    url: 'https://example.test/two.mp4',
+                    name: 'Two',
+                });
+                fixture.detectChanges();
+            } else {
+                fixture.destroy();
+            }
+            if (transition === 'late entry') {
+                mode = 'picture-in-picture';
+                video.dispatchEvent(new Event('webkitpresentationmodechanged'));
+            }
+
+            expect(setMode).toHaveBeenCalledTimes(1);
+            expect(setMode).toHaveBeenCalledWith('inline');
+            expect(mode).toBe('inline');
+        }
+    );
+
     it('emits a playback issue when the native video element reports an unsupported source', () => {
         createComponent({
             url: 'https://example.com/archive/movie.mkv',

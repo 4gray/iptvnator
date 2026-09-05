@@ -648,7 +648,10 @@ its previous Tech video when a reset replaces it. The shared
 and leaves a one-shot listener on the retired video for an in-flight
 native/vendor entry that completes after teardown. The listener captures only
 the retired video, with no timer or document listener; a WeakSet makes repeated
-release idempotent without retaining video elements. Shared controls retain
+release idempotent without retaining video elements. Legacy Safari/WebKit
+presentation-mode PiP is returned to `inline` on that exact video. Its
+`webkitpresentationmodechanged` listener ignores fullscreen/inline changes and
+is consumed only by the first late PiP entry. Shared controls retain
 their existing generation-guarded pending-operation cleanup. Neither path
 transfers PiP to a replacement video or closes another video's PiP.
 
