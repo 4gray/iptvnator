@@ -134,7 +134,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
                 <span class="block font-display text-[15px] font-semibold tracking-tight text-surface-100">
                   {channel.label}
                 </span>
-                <span class="mt-0.5 hidden text-[12.5px] leading-snug text-surface-500 sm:block">
+                <span class="mt-0.5 hidden text-[12.5px] leading-snug text-surface-500 sm:block lg:hidden xl:block">
                   {channel.description}
                 </span>
               </span>
@@ -152,7 +152,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       </div>
 
       <!-- Screen -->
-      <div class="relative aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/40 lg:aspect-auto lg:min-h-[460px]">
+      <div class="relative aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-950 shadow-2xl shadow-black/40 lg:aspect-auto lg:min-h-[460px]">
         {
           channels.map((channel, i) => (
             <div
@@ -172,7 +172,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
                 alt={channel.alt}
                 width={channel.width}
                 height={channel.height}
-                class="h-full w-full object-cover object-left-top"
+                class="h-full w-full object-contain"
                 loading="lazy"
                 decoding="async"
               />
