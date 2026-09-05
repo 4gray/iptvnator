@@ -363,6 +363,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
           toggle.setAttribute('aria-label', stopped ? 'Resume auto-advance' : 'Pause auto-advance');
           toggle.querySelector('[data-icon-pause]').classList.toggle('hidden', stopped);
           toggle.querySelector('[data-icon-play]').classList.toggle('hidden', !stopped);
+          // A channel picked while paused skipped its successor; fetch it now that autoplay can reach it.
+          if (!stopped) loadFrame(current + 1);
         });
       }
     }

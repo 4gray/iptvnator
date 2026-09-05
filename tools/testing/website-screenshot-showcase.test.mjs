@@ -103,8 +103,13 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     const stoppedAt = await progressWidth(page);
     await page.waitForTimeout(800);
     assert.ok(Math.abs((await progressWidth(page)) - stoppedAt) < 0.5, 'the toggle keeps autoplay paused after mouseleave and blur');
+    // A channel picked while paused does not preload its successor; resuming fetches it.
+    await page.locator('.channel-tab').nth(3).click();
+    assert.equal(await selectedChannel(page), 'movies');
+    assert.deepEqual((await loaded(page)).slice(3, 5), [true, false], 'paused: the picked frame loads, its successor does not');
     await toggle.click();
     assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+    assert.deepEqual((await loaded(page)).slice(3, 5), [true, true], 'resuming preloads the successor');
     await page.mouse.move(5, 5);
     await page.evaluate(() => document.activeElement?.blur());
     await page.waitForTimeout(500);
