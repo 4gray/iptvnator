@@ -10,12 +10,16 @@ import {
     channelItemByTitle,
     closeElectronApp,
     expect,
+    goToDashboard,
     launchElectronApp,
     LaunchedElectronApp,
     openAddPlaylistDialog,
     openSourceEditor,
+    openSettings,
+    openSettingsSection,
     openSources,
     saveSourceDialog,
+    saveSettings,
     sourceRowByTitle,
     test,
     updateSourceDialog,
@@ -372,6 +376,68 @@ async function releasePlaybackRecommendationCapture(
         capture.released = true;
         capture.releaseFirstResponse?.();
         capture.releaseFirstResponse = undefined;
+    });
+}
+
+for (const player of ['mpv', 'vlc']) {
+    test(`@electron @dash fullscreen panel keeps DASH inline with ${player} configured`, async ({
+        dataDir,
+    }) => {
+        const fixtureServer = await startDashFixtureServer();
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await openSettings(page);
+            await openSettingsSection(page, 'playback');
+            await page.getByTestId('select-video-player').click();
+            await page.getByTestId(player).click();
+            await saveSettings(page);
+            await goToDashboard(page);
+            const playlist = [
+                buildDashPlaylist(fixtureServer.origin),
+                '#EXTINF:-1 group-title="DASH",Next ClearKey DASH',
+                '#KODIPROP:inputstream.adaptive.license_type=clearkey',
+                `#KODIPROP:inputstream.adaptive.license_key=${CLEARKEY_KID}:${CLEARKEY_KEY}`,
+                `${fixtureServer.origin}/clearkey.mpd?next=1`,
+            ].join('\n');
+            await importDashPlaylistFromText(app, playlist);
+            await channelItemByTitle(page, 'ClearKey DASH').first().click();
+            const video = page.locator('app-web-player-view video').first();
+            await expect(video).toBeVisible();
+            await expect
+                .poll(() =>
+                    video.evaluate((el: HTMLVideoElement) => el.currentTime)
+                )
+                .toBeGreaterThan(0.5);
+            await page
+                .getByRole('button', { name: 'Enter fullscreen' })
+                .click();
+            const isFullscreen = () =>
+                page.evaluate(() => document.fullscreenElement !== null);
+            await expect.poll(isFullscreen).toBe(true);
+            await page.keyboard.press('c');
+            const panel = page.getByTestId('fullscreen-channel-panel');
+            await expect(panel).toHaveAttribute('aria-hidden', 'false');
+            await expect(
+                panel.getByText('Unsupported MKV', { exact: false })
+            ).toHaveCount(0);
+            await panel
+                .getByText('Next ClearKey DASH', { exact: false })
+                .click();
+            await expect(
+                panel.locator('.channel-list-item.active')
+            ).toContainText('Next ClearKey DASH');
+            await expect.poll(isFullscreen).toBe(true);
+            await expect
+                .poll(() =>
+                    video.evaluate((el: HTMLVideoElement) => el.currentTime)
+                )
+                .toBeGreaterThan(0.5);
+            expect(await isFullscreen()).toBe(true);
+        } finally {
+            await closeElectronApp(app);
+            await fixtureServer.close();
+        }
     });
 }
 

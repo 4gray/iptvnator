@@ -309,7 +309,9 @@ Key files:
   render. Providers: M3U `VideoPlayerComponent` (returns null while its VOD
   detail hosts the player; radio and recognized movies are filtered out of
   the list it is handed, since `app-audio-player` and the VOD detail shell
-  each replace the fullscreen-owning `app-web-player-view`), Xtream
+  each replace the fullscreen-owning `app-web-player-view`; with MPV/VLC
+  configured, only DASH rows stay offered because other streams leave the
+  inline host for the external-player UI), Xtream
   `LiveStreamLayoutComponent`,
   `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; a blank
   panel field shows the category untouched by the sidebar's search term, the

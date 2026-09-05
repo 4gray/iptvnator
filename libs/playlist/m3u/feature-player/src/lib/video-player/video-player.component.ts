@@ -292,11 +292,16 @@ export class VideoPlayerComponent
      * look their rows up in it), so one filter covers all four. PageUp/
      * PageDown deliberately keep stepping onto them: those keys also zap on
      * the windowed player, where switching to a station or a film is right.
+     * With external MPV/VLC configured, only DASH rows remain inline; a
+     * non-DASH selection would replace this host with the external-player UI.
      */
     readonly fullscreenPanelChannels = computed(() =>
         this.channels().filter(
             (channel) =>
-                channel.radio !== 'true' && !this.opensMovieDetail(channel)
+                channel.radio !== 'true' &&
+                !this.opensMovieDetail(channel) &&
+                (!this.isExternalPlayer(this.settingsStore.player()) ||
+                    isDashChannel(channel))
         )
     );
     readonly archivePlaybackAvailable = computed(() =>

@@ -70,6 +70,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
         undefined
     );
     const tmdbEnabled = signal(false);
+    const player = signal(VideoPlayer.VideoJs);
     const movieChannel = {
         id: 'movie-1',
         url: 'http://localhost/movies/the-film.mkv',
@@ -130,6 +131,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
         activePlaylistMeta.set(null);
         fullscreenChannelPanelSetting.set(undefined);
         tmdbEnabled.set(false);
+        player.set(VideoPlayer.VideoJs);
 
         await TestBed.configureTestingModule({
             imports: [VideoPlayerComponent],
@@ -203,7 +205,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                 {
                     provide: SettingsStore,
                     useValue: {
-                        player: signal(VideoPlayer.VideoJs),
+                        player,
                         showCaptions: signal(false),
                         stripCountryPrefix: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
@@ -248,6 +250,37 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     });
 
     describe('FULLSCREEN_CHANNEL_PANEL host', () => {
+        it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
+            'withholds rows that would leave forced-inline DASH for %s',
+            (externalPlayer) => {
+                const dashChannel = {
+                    ...sampleChannel,
+                    url: 'http://localhost/live.mpd',
+                };
+                const nextDashChannel = {
+                    ...nextChannel,
+                    url: 'http://localhost/next.mpd',
+                };
+                player.set(externalPlayer);
+                component.playerSettings.player = externalPlayer;
+                setActive(dashChannel);
+                channels.set([dashChannel, sampleChannel, nextDashChannel]);
+
+                expect(component.shouldShowInlinePlayer(dashChannel)).toBe(
+                    true
+                );
+                expect(component.panelTemplate()).not.toBeNull();
+                expect(component.fullscreenPanelChannels()).toEqual([
+                    dashChannel,
+                    nextDashChannel,
+                ]);
+                expect(component.channels()).toHaveLength(3);
+
+                player.set(VideoPlayer.Html5Player);
+                expect(component.fullscreenPanelChannels()).toHaveLength(3);
+            }
+        );
+
         it('offers the panel template unless the preference is switched off', () => {
             expect(component.panelTemplate()).not.toBeNull();
 

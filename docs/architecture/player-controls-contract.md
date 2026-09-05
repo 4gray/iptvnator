@@ -342,7 +342,10 @@ through `app-audio-player` and a movie, with TMDB enrichment and
 the `app-web-player-view` that owns fullscreen and drops the user out of it;
 one private `opensMovieDetail` predicate backs both `showMovieDetail` and the
 filter, and every panel view resolves against that one list, favorites and
-recent included. PageUp/PageDown keep stepping onto them: those keys zap on
+recent included. With external MPV/VLC configured, the panel offers only
+DASH rows: DASH forces the inline Shaka player, but selecting a non-DASH
+channel would replace the fullscreen owner with the external-player UI.
+PageUp/PageDown keep stepping onto them: those keys zap on
 the windowed player too, where switching to a station or a film is right), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
 route category; each `PortalChannelsListComponent` instance owns the map
