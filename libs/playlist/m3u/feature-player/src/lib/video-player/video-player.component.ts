@@ -1233,6 +1233,13 @@ export class VideoPlayerComponent
             ) {
                 return;
             }
+            // There is nothing to zap from until a channel is playing, and
+            // handleRemoteChannelChange would park the press on a pending
+            // subscription that fires the moment the user picks their first
+            // channel — jumping straight off it.
+            if (!this.activeChannel()) {
+                return;
+            }
             event.preventDefault();
             this.handleRemoteChannelChange(
                 event.key === 'PageUp' ? 'up' : 'down'

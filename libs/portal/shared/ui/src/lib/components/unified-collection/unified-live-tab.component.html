@@ -159,7 +159,7 @@
 <!-- Stamped into the player's fullscreen channel panel (FULLSCREEN_CHANNEL_PANEL). -->
 <ng-template #fullscreenChannelPanel let-searchTerm="searchTerm">
     <app-global-favorites-list
-        [channels]="channelsForList()"
+        [channels]="fullscreenPanelChannels()"
         [mode]="mode()"
         [showEpg]="supportsEpg"
         [favoriteUids]="favoriteUids()"

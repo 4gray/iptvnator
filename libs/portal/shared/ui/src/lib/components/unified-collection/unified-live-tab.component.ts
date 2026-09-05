@@ -457,6 +457,17 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         }))
     );
 
+    /**
+     * Rows for the fullscreen channel panel. Radio is withheld: it renders
+     * through `app-audio-player` instead of `app-web-player-view`, so
+     * selecting a station destroys the element that owns fullscreen and drops
+     * the user out of it — the opposite of what the panel exists for. The
+     * page's own list keeps every row.
+     */
+    readonly fullscreenPanelChannels = computed(() =>
+        this.channelsForList().filter((channel) => channel.radio !== 'true')
+    );
+
     private selectionRequestId = 0;
 
     constructor() {

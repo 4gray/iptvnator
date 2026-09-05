@@ -356,5 +356,32 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                 setActiveChannelDispatch(nextChannel)
             );
         });
+
+        it('ignores the keys until a channel is playing, without queueing them', () => {
+            // handleRemoteChannelChange waits for an active channel, so a press
+            // taken before the first selection would sit on a pending
+            // subscription and zap straight off that channel once it arrives.
+            activeChannel.set(null);
+            activeChannel$.next(null);
+            fixture.detectChanges();
+
+            const event = new KeyboardEvent('keydown', {
+                key: 'PageDown',
+                cancelable: true,
+            });
+            document.dispatchEvent(event);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                setActiveChannelDispatch(nextChannel)
+            );
+
+            // The queued press must not fire when the user picks a channel.
+            setActive(sampleChannel);
+            fixture.detectChanges();
+            expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                setActiveChannelDispatch(nextChannel)
+            );
+        });
     });
 });

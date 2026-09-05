@@ -289,6 +289,33 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
+- `WebPlayerViewComponent` renders `app-fullscreen-channel-panel`
+  (`libs/ui/playback/src/lib/fullscreen-channel-panel/`) beside the engine,
+  staged on the view's `fullscreenSurface` — the same host element every engine
+  receives as `fullscreenTarget` — so it lives inside the fullscreen element
+  and survives the engine remount a channel switch causes. It is withheld
+  (`enabled=false`) for native-view Embedded MPV, which paints above the DOM.
+  A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
+  `panelTitle`) and the panel slides that list over the video: left-edge hover
+  dwell, a touch tap on that edge, or `C`. Nothing is drawn while it is closed
+  (no handle), the hot zone stops above the controls bar, and scrim/Escape/
+  mouse-leave close it — while a CDK overlay opened from the list counts as
+  the panel, so hover keeps it open and Escape closes the overlay first. The
+  header is one row (search whose placeholder carries the host title, plus
+  close) and the list stays mounted per fullscreen session.
+  `Settings.fullscreenChannelPanel` (default on) gates it, offered only for the
+  web players with shared controls and for Embedded MPV — the legacy vendor
+  chrome fullscreens the engine's own element, outside which the panel cannot
+  render. Providers: M3U `VideoPlayerComponent` (returns null while its VOD
+  detail hosts the player; radio is filtered out of the list it is handed,
+  since `app-audio-player` replaces the fullscreen-owning
+  `app-web-player-view`), Xtream `LiveStreamLayoutComponent`,
+  `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; the
+  panel's search results are windowed by `PanelSearchWindow`), and
+  `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
+  detail mounted until the next selection resolves). CDK overlays follow the
+  fullscreen element via `FullscreenOverlayContainer`. Contract:
+  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel").
 - Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
   go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
   delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper

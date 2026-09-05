@@ -92,7 +92,10 @@ import {
     StalkerStore,
     normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
-import { PanelSearchWindow } from './panel-search-window';
+import {
+    PanelSearchWindow,
+    resolvePanelSearchScroll,
+} from './panel-search-window';
 import { StalkerItvAllItemsComponent } from './stalker-itv-all-items.component';
 import {
     EPG_PREVIEW_FETCH_SIZE,
@@ -1428,17 +1431,18 @@ export class StalkerLiveStreamLayoutComponent
                 this.panelSearch.activeTerm() !== '';
             const onScroll = () => {
                 this.scheduleEpgPreviewRefresh();
-                if (isPanelSearch()) {
-                    if (isNearEnd()) {
-                        this.panelSearch.loadMore();
-                    }
+                const action = resolvePanelSearchScroll({
+                    isPanelSearch: isPanelSearch(),
+                    isNearEnd: isNearEnd(),
+                    panelHasMore: this.panelSearch.hasMore(),
+                });
+                if (action === 'idle') return;
+                if (action === 'grow-window') {
+                    this.panelSearch.loadMore();
                     return;
                 }
                 if (this.isLoadingMore() || !this.hasMoreItems()) return;
-
-                if (isNearEnd()) {
-                    this.loadMore();
-                }
+                this.loadMore();
             };
 
             container.addEventListener('scroll', onScroll, {

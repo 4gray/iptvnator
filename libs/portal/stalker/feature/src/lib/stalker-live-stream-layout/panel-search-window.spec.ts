@@ -1,4 +1,7 @@
-import { PanelSearchWindow } from './panel-search-window';
+import {
+    PanelSearchWindow,
+    resolvePanelSearchScroll,
+} from './panel-search-window';
 
 interface Row {
     readonly id: number;
@@ -69,5 +72,49 @@ describe('PanelSearchWindow', () => {
         expect(window.hasMore()).toBe(false);
         window.loadMore();
         expect(window.rows('tv', source)).toHaveLength(100);
+    });
+});
+
+describe('resolvePanelSearchScroll', () => {
+    it('does nothing away from the end of the list', () => {
+        expect(
+            resolvePanelSearchScroll({
+                isPanelSearch: true,
+                isNearEnd: false,
+                panelHasMore: true,
+            })
+        ).toBe('idle');
+    });
+
+    it('grows the panel window while it still hides loaded matches', () => {
+        expect(
+            resolvePanelSearchScroll({
+                isPanelSearch: true,
+                isNearEnd: true,
+                panelHasMore: true,
+            })
+        ).toBe('grow-window');
+    });
+
+    it('reaches provider pagination once the window covers every loaded match', () => {
+        // A paged portal can hold matches on pages never fetched, so stopping
+        // at the exhausted window would hide them from the panel for good.
+        expect(
+            resolvePanelSearchScroll({
+                isPanelSearch: true,
+                isNearEnd: true,
+                panelHasMore: false,
+            })
+        ).toBe('load-page');
+    });
+
+    it('pages the sidebar list, which has no panel window', () => {
+        expect(
+            resolvePanelSearchScroll({
+                isPanelSearch: false,
+                isNearEnd: true,
+                panelHasMore: false,
+            })
+        ).toBe('load-page');
     });
 });

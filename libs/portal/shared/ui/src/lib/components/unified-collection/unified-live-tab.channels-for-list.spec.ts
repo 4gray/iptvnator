@@ -120,4 +120,40 @@ describe('UnifiedLiveTabComponent channelsForList', () => {
         expect(row.tvArchive).toBeNull();
         expect(row.tvArchiveDuration).toBeNull();
     });
+
+    it('withholds radio rows from the fullscreen panel but keeps them on the page', () => {
+        // A radio row plays through app-audio-player, which replaces the
+        // app-web-player-view that owns fullscreen — picking one from the
+        // panel would drop the user out of the mode it exists to keep.
+        const base = {
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'pl-1',
+            playlistName: 'Playlist One',
+            logo: null,
+            posterUrl: null,
+            addedAt: '2026-04-30T12:00:00.000Z',
+            position: 0,
+        };
+        const video = {
+            ...base,
+            uid: 'm3u::pl-1::tv',
+            name: 'Video Channel',
+            radio: 'false',
+        } as UnifiedCollectionItem;
+        const radio = {
+            ...base,
+            uid: 'm3u::pl-1::fm',
+            name: 'Sample FM',
+            radio: 'true',
+        } as UnifiedCollectionItem;
+        fixture.componentRef.setInput('items', [video, radio]);
+        fixture.detectChanges();
+
+        const component = fixture.componentInstance;
+        expect(component.channelsForList()).toHaveLength(2);
+        expect(
+            component.fullscreenPanelChannels().map((row) => row.uid)
+        ).toEqual([video.uid]);
+    });
 });

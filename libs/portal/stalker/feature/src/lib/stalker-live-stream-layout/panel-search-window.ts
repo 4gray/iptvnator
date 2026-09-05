@@ -6,6 +6,29 @@ interface PanelSearchMemo<T> {
     readonly result: T[];
 }
 
+/** What a scroll near the end of a stamped channel list should do next. */
+export type PanelSearchScrollAction = 'idle' | 'grow-window' | 'load-page';
+
+/**
+ * A panel search grows its own window over the matches already loaded, but
+ * only while that window still hides some: on a paged portal (or a censored
+ * category absent from the full-list cache) the term may also match channels
+ * on pages that were never fetched, so once the window covers everything
+ * loaded the scroll has to reach provider pagination instead of stopping.
+ */
+export function resolvePanelSearchScroll(state: {
+    readonly isPanelSearch: boolean;
+    readonly isNearEnd: boolean;
+    readonly panelHasMore: boolean;
+}): PanelSearchScrollAction {
+    if (!state.isNearEnd) {
+        return 'idle';
+    }
+    return state.isPanelSearch && state.panelHasMore
+        ? 'grow-window'
+        : 'load-page';
+}
+
 /**
  * Memoized, windowed matches for the fullscreen channel panel's own search
  * field.
