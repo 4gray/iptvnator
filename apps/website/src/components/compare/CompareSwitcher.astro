@@ -1,0 +1,42 @@
+---
+import { COMPARE_HUB_HREF, COMPARISONS } from '../../lib/comparisons';
+import type { ComparisonSlug } from '../../lib/comparisons';
+
+interface Props {
+  current: ComparisonSlug;
+}
+
+const { current } = Astro.props;
+const others = COMPARISONS.filter((comparison) => comparison.slug !== current);
+---
+
+<section class="relative py-20">
+  <hr class="section-divider mb-20" />
+
+  <div class="mx-auto max-w-6xl px-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Other comparisons</span>
+        <h2 class="mt-3 font-display text-2xl font-bold tracking-tight text-surface-50 sm:text-3xl">
+          Still{' '}
+          <em class="font-medium text-accent-400" style="font-style: italic;">deciding?</em>
+        </h2>
+      </div>
+      <a href={COMPARE_HUB_HREF} class="font-mono text-xs uppercase tracking-[0.1em] text-accent-500 transition-colors hover:text-accent-400">All comparisons</a>
+    </div>
+
+    <div class="mt-10 grid gap-4 sm:grid-cols-2">
+      {others.map((comparison) => (
+        <a href={comparison.href} class="card-dotted group flex flex-col gap-3 p-6">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-300 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35">
+            <svg class="h-4.5 w-4.5 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d={comparison.icon} />
+            </svg>
+          </span>
+          <span class="font-display text-base font-semibold text-surface-100">{comparison.label}</span>
+          <span class="text-xs leading-relaxed text-surface-500">{comparison.question}</span>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>

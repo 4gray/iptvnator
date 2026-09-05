@@ -14,7 +14,12 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import {
+    Channel,
+    EpgProgram,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
@@ -44,6 +49,7 @@ export interface RecentViewItem {
 export class RecentViewComponent {
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly contextMenuTrigger =
@@ -88,6 +94,12 @@ export class RecentViewComponent {
         const epgMap = this.channelEpgMap();
         const iconMap = this.channelIconMap();
         this.progressTick();
+        // Progress is measured in the provider's EPG clock: the rows keep the
+        // raw programme and the item shifts its times for display.
+        const epgClockMs = epgProviderClockMs(
+            Date.now(),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
 
         return recentItems.map(({ channel, viewedAt }) => {
             const epgProgram = resolveChannelEpgProgram(channel, epgMap);
@@ -97,7 +109,10 @@ export class RecentViewComponent {
                 viewedAt,
                 epgProgram,
                 logo: resolveChannelLogo(channel, iconMap),
-                progressPercentage: calculateEpgProgress(epgProgram),
+                progressPercentage: calculateEpgProgress(
+                    epgProgram,
+                    epgClockMs
+                ),
             };
         });
     });
@@ -155,7 +170,6 @@ export class RecentViewComponent {
             channelName: channel.name ?? channelKey,
         });
     }
-
 
     openChannelDetails(): void {
         const channel = this.contextMenuChannel();

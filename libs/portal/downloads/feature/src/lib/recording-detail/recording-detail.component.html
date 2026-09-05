@@ -167,8 +167,8 @@
                     @for (program of coveredPrograms(); track program.start) {
                         <li class="recording-detail__program">
                             <time>
-                                {{ program.start | date: 'HH:mm' }} –
-                                {{ program.stop | date: 'HH:mm' }}
+                                {{ programDisplayMs(program.start) | date: 'HH:mm' }} –
+                                {{ programDisplayMs(program.stop) | date: 'HH:mm' }}
                             </time>
                             <div>
                                 <div class="recording-detail__program-title">

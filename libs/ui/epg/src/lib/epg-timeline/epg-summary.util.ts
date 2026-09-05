@@ -1,3 +1,5 @@
+import { epgDisplayTimeMs } from '@iptvnator/shared/interfaces';
+
 /**
  * Collapsed-summary payload (the current / archive programme shown when the
  * panel is collapsed). View-agnostic so a future list view can reuse the same
@@ -14,8 +16,15 @@ function clampPercent(value: number): number {
     return Math.min(100, Math.max(0, value));
 }
 
-function toTimeMs(
-    value: string | number | Date | null | undefined
+/**
+ * A summary timestamp as epoch ms in display time (raw value shifted by the
+ * EPG display offset), or null when it cannot be parsed. Hosts hand the
+ * summary over with the provider's raw times, so this is the one place the
+ * collapsed header converts them.
+ */
+export function summaryTimeMs(
+    value: string | number | Date | null | undefined,
+    offsetMinutes = 0
 ): number | null {
     if (value === null || value === undefined || value === '') {
         return null;
@@ -26,7 +35,9 @@ function toTimeMs(
             : typeof value === 'number'
               ? value
               : Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : null;
+    return Number.isFinite(parsed)
+        ? epgDisplayTimeMs(parsed, offsetMinutes)
+        : null;
 }
 
 /** Whether the summary has a non-blank title. */
@@ -47,7 +58,8 @@ export function summaryHasTimeRange(
 /** Progress 0–100 for the summary at `nowMs`, or null when it can't be computed. */
 export function summaryProgress(
     summary: EpgTimelineSummary | null | undefined,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): number | null {
     if (!summary) {
         return null;
@@ -56,8 +68,8 @@ export function summaryProgress(
     if (Number.isFinite(explicit)) {
         return clampPercent(explicit);
     }
-    const startMs = toTimeMs(summary.start);
-    const stopMs = toTimeMs(summary.stop);
+    const startMs = summaryTimeMs(summary.start, offsetMinutes);
+    const stopMs = summaryTimeMs(summary.stop, offsetMinutes);
     if (startMs === null || stopMs === null || stopMs <= startMs) {
         return null;
     }
@@ -67,9 +79,10 @@ export function summaryProgress(
 /** Whole minutes left until the summary's stop, or null. */
 export function summaryMinutesLeft(
     summary: EpgTimelineSummary | null | undefined,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): number | null {
-    const stopMs = toTimeMs(summary?.stop);
+    const stopMs = summaryTimeMs(summary?.stop, offsetMinutes);
     if (stopMs === null) {
         return null;
     }

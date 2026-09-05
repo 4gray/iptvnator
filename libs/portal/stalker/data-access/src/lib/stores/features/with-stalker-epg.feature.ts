@@ -68,7 +68,8 @@ const initialEpgState: StalkerEpgState = {
     isLoadingBulkItvEpg: false,
 };
 
-const ACTIVE_EPG_FALLBACK_SIZE = 10;
+/** Short-EPG entries fetched for the active channel's panel fallback. */
+export const ACTIVE_EPG_FALLBACK_SIZE = 10;
 
 /**
  * EPG concern methods.

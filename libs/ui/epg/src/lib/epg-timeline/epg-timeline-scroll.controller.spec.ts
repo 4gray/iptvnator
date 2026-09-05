@@ -10,6 +10,7 @@ import {
     TIMELINE_MINUTE_MS,
     TimelineBlock,
 } from './epg-timeline.utils';
+import { getTodayEpgDateKey } from '../epg-date';
 
 function programAt(
     startOffsetMin: number,
@@ -197,6 +198,34 @@ describe('TimelineScrollController', () => {
             focus({} as HTMLElement, p); // remount → still no focus/snap
             expect(scrollSpy).not.toHaveBeenCalled();
             expect(commitDaySpy).not.toHaveBeenCalled();
+        });
+
+        it('asks the host whether today has programmes, so the display offset counts', () => {
+            // Raw dates sit three days out, but the host's predicate applies
+            // the EPG display offset and says today is covered: the controller
+            // must trust it rather than re-checking the raw dates itself.
+            const nowMs = Date.now();
+            const p = [programAt(3 * 1440, 60)];
+            const commitDay = jest.fn();
+            const offsetAware = new TimelineScrollController({
+                ribbon: () => undefined,
+                scale: () => 1,
+                axis: () => buildTimelineAxis(p, nowMs),
+                blocks: () =>
+                    buildTimelineBlocks(p, buildTimelineAxis(p, nowMs), nowMs),
+                nowMs: () => nowMs,
+                viewDayKey: () => 'today',
+                commitDay,
+                hasProgramsForDay: () => true,
+            });
+            const scroll = jest
+                .spyOn(offsetAware, 'scrollToOffset')
+                .mockImplementation(() => undefined);
+
+            offsetAware.maybeAutoFocus({} as HTMLElement, p);
+
+            expect(commitDay).toHaveBeenCalledWith(getTodayEpgDateKey());
+            expect(scroll).toHaveBeenCalledTimes(1);
         });
 
         it('skips focus entirely when the ribbon is not mounted', () => {

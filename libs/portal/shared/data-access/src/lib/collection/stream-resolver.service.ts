@@ -1,6 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     buildStalkerEpgMappingKey,
@@ -8,12 +12,15 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     isFullStalkerPortalPlaylist,
     Playlist,
     isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
+    shortEpgWindowSize,
     STALKER_REQUEST,
     StalkerPortalActions,
+    windowEpgItemsAtProviderClock,
 } from '@iptvnator/shared/interfaces';
 import {
     XtreamApiService,
@@ -73,6 +80,16 @@ export interface ResolvedLiveCollectionDetail {
     readonly epgItems?: EpgItem[];
 }
 
+/** Clock snapshot a whole EPG load is evaluated against; see `epgLoadClock`. */
+interface EpgLoadClock {
+    /** Wall-clock instant the load started at. */
+    wallNowMs: number;
+    /** Display offset the load was evaluated with. */
+    offsetMinutes: number;
+    /** `wallNowMs` in the provider's EPG clock. */
+    nowMs: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class StreamResolverService {
     private readonly playlistsService = inject(PlaylistsService);
@@ -80,6 +97,25 @@ export class StreamResolverService {
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
+
+    /**
+     * One clock snapshot per EPG load: the wall instant, the display offset
+     * the load was evaluated with, and the derived provider clock. Every
+     * window cut and every "is it on now" test inside the load uses this
+     * snapshot, so a setting change or a programme boundary crossed while a
+     * request is on the wire cannot make one half of the load disagree with
+     * the other (`epg-display-offset.util.ts`, clock form).
+     */
+    private epgLoadClock(): EpgLoadClock {
+        const wallNowMs = Date.now();
+        const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+        return {
+            wallNowMs,
+            offsetMinutes,
+            nowMs: epgProviderClockMs(wallNowMs, offsetMinutes),
+        };
+    }
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
     private readonly logger = createLogger('StreamResolver');
@@ -168,7 +204,10 @@ export class StreamResolverService {
             return epgMap;
         }
 
-        const now = Date.now();
+        // The rows stay raw and the list shifts them for display; every
+        // decision below is made against this one snapshot.
+        const clock = this.epgLoadClock();
+        const now = clock.nowMs;
         const xtreamByPlaylist = new Map<string, UnifiedCollectionItem[]>();
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 
@@ -206,13 +245,23 @@ export class StreamResolverService {
 
         for (const [playlistId, playlistItems] of xtreamByPlaylist.entries()) {
             tasks.push(
-                this.loadXtreamEpgBatch(playlistId, playlistItems, epgMap, now)
+                this.loadXtreamEpgBatch(
+                    playlistId,
+                    playlistItems,
+                    epgMap,
+                    clock
+                )
             );
         }
 
         for (const [playlistId, playlistItems] of stalkerByPlaylist.entries()) {
             tasks.push(
-                this.loadStalkerEpgBatch(playlistId, playlistItems, epgMap, now)
+                this.loadStalkerEpgBatch(
+                    playlistId,
+                    playlistItems,
+                    epgMap,
+                    clock
+                )
             );
         }
 
@@ -460,8 +509,7 @@ export class StreamResolverService {
         // `js.cmd` resolution and the playback header origin must follow
         // the endpoint that actually answered.
         const effectivePortalUrl = playlist
-            ? (this.portalRepair.applyOverride(playlist).portalUrl ??
-              portalUrl)
+            ? (this.portalRepair.applyOverride(playlist).portalUrl ?? portalUrl)
             : portalUrl;
 
         return this.buildStalkerPlayback(item, playlist, {
@@ -658,7 +706,9 @@ export class StreamResolverService {
             // 1) Check uploaded XMLTV EPG via the provider's epg_channel_id.
             // The field is populated at runtime from the content table's
             // epg_channel_id column but is not declared on the TS interface.
-            const epgKey = (item as unknown as Record<string, string | undefined | null>).epgChannelId?.trim();
+            const epgKey = (
+                item as unknown as Record<string, string | undefined | null>
+            ).epgChannelId?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
                     .getChannelPrograms(epgKey)
@@ -716,7 +766,8 @@ export class StreamResolverService {
 
     private async loadStalkerEpgItems(
         item: UnifiedCollectionItem,
-        size: number
+        size: number,
+        clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(item.playlistId)
@@ -751,12 +802,16 @@ export class StreamResolverService {
             }
         }
 
-        return this.fetchStalkerShortEpg(playlist, channelId, size);
+        // Widened under a negative display offset so the window still reaches
+        // the programme on air (`shortEpgWindowSize`).
+        return this.fetchStalkerShortEpg(
+            playlist,
+            channelId,
+            shortEpgWindowSize(clock.offsetMinutes, size)
+        );
     }
 
-    private async getXtreamCredentials(
-        playlistId: string
-    ): Promise<{
+    private async getXtreamCredentials(playlistId: string): Promise<{
         serverUrl: string;
         username: string;
         password: string;
@@ -899,8 +954,9 @@ export class StreamResolverService {
         playlistId: string,
         channels: UnifiedCollectionItem[],
         epgMap: Map<string, EpgProgram | null>,
-        now: number
+        clock: EpgLoadClock
     ): Promise<void> {
+        const now = clock.nowMs;
         const creds = await this.getXtreamCredentials(playlistId);
         if (!creds) {
             return;
@@ -932,10 +988,16 @@ export class StreamResolverService {
                     let currentItem: EpgItem | null = null;
 
                     // 1) Try uploaded XMLTV EPG via the provider's epg_channel_id.
-                    const epgChannelKey = (channel as unknown as Record<string, string | undefined | null>).epgChannelId?.trim();
+                    const epgChannelKey = (
+                        channel as unknown as Record<
+                            string,
+                            string | undefined | null
+                        >
+                    ).epgChannelId?.trim();
                     if (this.supportsProgramLookup && epgChannelKey) {
                         currentItem = await this.findCurrentInXmltv(
-                            epgChannelKey, nowSeconds
+                            epgChannelKey,
+                            nowSeconds
                         );
                     }
 
@@ -964,12 +1026,14 @@ export class StreamResolverService {
                             playlistId,
                             creds,
                             channel.xtreamId,
-                            5
+                            5,
+                            clock
                         );
                         currentItem =
                             items.find(
                                 (item) =>
-                                    Number(item.start_timestamp) <= nowSeconds &&
+                                    Number(item.start_timestamp) <=
+                                        nowSeconds &&
                                     nowSeconds < Number(item.stop_timestamp)
                             ) ?? null;
                     }
@@ -1017,9 +1081,11 @@ export class StreamResolverService {
     private getXtreamEpgCacheKey(
         playlistId: string,
         streamId: number,
-        limit: number
+        limit: number,
+        offsetMinutes: number
     ): string {
-        return `${playlistId}:${streamId}:${limit}`;
+        // A window cut at another provider clock answers a different question.
+        return `${playlistId}:${streamId}:${limit}:${offsetMinutes}`;
     }
 
     private getCachedXtreamEpgItems(cacheKey: string): EpgItem[] | null {
@@ -1058,13 +1124,20 @@ export class StreamResolverService {
             password: string;
         },
         streamId: number,
-        limit: number
+        limit: number,
+        clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
         if (!this.supportsProgramLookup) {
             return [];
         }
 
-        const cacheKey = this.getXtreamEpgCacheKey(playlistId, streamId, limit);
+        const { offsetMinutes, wallNowMs } = clock;
+        const cacheKey = this.getXtreamEpgCacheKey(
+            playlistId,
+            streamId,
+            limit,
+            offsetMinutes
+        );
         const cached = this.getCachedXtreamEpgItems(cacheKey);
         if (cached !== null) {
             return cached;
@@ -1075,14 +1148,28 @@ export class StreamResolverService {
         }
 
         try {
-            const items = await this.xtreamApi.getShortEpg(
-                credentials,
-                streamId,
-                limit,
-                {
-                    suppressErrorLog: true,
-                }
-            );
+            // get_short_epg starts at the provider's own "now" and cannot
+            // reach the programme on air under a display offset, so the
+            // same window is cut from the full guide at the provider clock
+            // instead (`epg-display-offset.util.ts`).
+            const items =
+                offsetMinutes === 0
+                    ? await this.xtreamApi.getShortEpg(
+                          credentials,
+                          streamId,
+                          limit,
+                          { suppressErrorLog: true }
+                      )
+                    : windowEpgItemsAtProviderClock(
+                          await this.xtreamApi.getFullEpg(
+                              credentials,
+                              streamId,
+                              { suppressErrorLog: true }
+                          ),
+                          offsetMinutes,
+                          limit,
+                          wallNowMs
+                      );
 
             this.xtreamEpgCache.set(cacheKey, {
                 data: items,
@@ -1100,8 +1187,9 @@ export class StreamResolverService {
         playlistId: string,
         channels: UnifiedCollectionItem[],
         epgMap: Map<string, EpgProgram | null>,
-        now: number
+        clock: EpgLoadClock
     ): Promise<void> {
+        const now = clock.nowMs;
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(playlistId)
         )) as Playlist | undefined;
@@ -1142,23 +1230,33 @@ export class StreamResolverService {
                         if (mappedItem) {
                             epgMap.set(
                                 epgKey,
-                                this.toPreviewProgram(mappedItem, channelId, now)
+                                this.toPreviewProgram(
+                                    mappedItem,
+                                    channelId,
+                                    now
+                                )
                             );
                             return;
                         }
                     }
 
+                    // The short EPG starts at the portal's own "now"; under a
+                    // negative display offset the programme on air lies
+                    // further ahead, so the window is widened and the entry
+                    // covering the provider clock is picked, not the first.
                     const items = await this.fetchStalkerShortEpg(
                         playlist,
                         channelId,
-                        1
+                        shortEpgWindowSize(clock.offsetMinutes, 1)
                     );
-                    epgMap.set(
-                        epgKey,
-                        items.length > 0
-                            ? this.toPreviewProgram(items[0], channelId, now)
-                            : null
-                    );
+                    let preview: EpgProgram | null = null;
+                    for (const item of items) {
+                        preview = this.toPreviewProgram(item, channelId, now);
+                        if (preview) {
+                            break;
+                        }
+                    }
+                    epgMap.set(epgKey, preview);
                 } catch {
                     epgMap.set(epgKey, null);
                 }
@@ -1273,24 +1371,29 @@ export class StreamResolverService {
         );
     }
 
+    /**
+     * The item as a preview programme, or null when it is not airing at
+     * `now`. The window comes from the unix timestamps when the portal sends
+     * them and from the ISO boundaries otherwise; an item with no readable
+     * boundary at all is accepted as-is (the portal's own "current" entry).
+     */
     private toPreviewProgram(
         item: EpgItem,
         channelId: string | number,
         now: number
     ): EpgProgram | null {
-        const startTimestamp = Number(item.start_timestamp);
-        const stopTimestamp = Number(item.stop_timestamp);
+        const startMs = epgBoundaryMs(item.start_timestamp, item.start);
+        const stopMs = epgBoundaryMs(
+            item.stop_timestamp,
+            item.stop ?? item.end
+        );
 
         if (
-            Number.isFinite(startTimestamp) &&
-            Number.isFinite(stopTimestamp) &&
-            startTimestamp > 0 &&
-            stopTimestamp > 0
+            startMs !== null &&
+            stopMs !== null &&
+            (now < startMs || now >= stopMs)
         ) {
-            const nowSeconds = Math.floor(now / 1000);
-            if (nowSeconds < startTimestamp || nowSeconds >= stopTimestamp) {
-                return null;
-            }
+            return null;
         }
 
         return {
@@ -1403,10 +1506,25 @@ export class StreamResolverService {
             .catch(() => null);
         if (!programs || programs.length === 0) return null;
         const items = this.mapProgramsToEpgItems(programs);
-        return items.find(
-            (item) =>
-                Number(item.start_timestamp) <= nowSeconds &&
-                nowSeconds < Number(item.stop_timestamp)
-        ) ?? null;
+        return (
+            items.find(
+                (item) =>
+                    Number(item.start_timestamp) <= nowSeconds &&
+                    nowSeconds < Number(item.stop_timestamp)
+            ) ?? null
+        );
     }
+}
+
+/** Epoch ms of a portal EPG boundary: unix seconds when present, else the ISO text. */
+function epgBoundaryMs(
+    timestamp: string | number | null | undefined,
+    iso: string | null | undefined
+): number | null {
+    const seconds = Number(timestamp);
+    if (Number.isFinite(seconds) && seconds > 0) {
+        return seconds * 1000;
+    }
+    const parsed = Date.parse(iso ?? '');
+    return Number.isFinite(parsed) ? parsed : null;
 }

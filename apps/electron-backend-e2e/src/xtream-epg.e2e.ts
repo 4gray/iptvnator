@@ -291,6 +291,95 @@ test('@radio @stalker @electron keeps radio rows compact at narrow widths', asyn
     }
 });
 
+test('@epg @xtream @electron shifts the sidebar preview and the timeline "now" block by the EPG display offset', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const offsetMinutes = 60;
+    // The guide runs an hour ahead of the real schedule, so the programme
+    // actually on air is the one the provider files under "an hour ago" —
+    // and every surface must agree on that same programme.
+    const providerNowSeconds = Math.floor(Date.now() / 1000) - offsetMinutes * 60;
+    const expectedProgram = fixture.fullEpg.find(
+        (listing) =>
+            listing.startTimestamp <= providerNowSeconds &&
+            providerNowSeconds < listing.stopTimestamp
+    );
+    if (!expectedProgram) {
+        throw new Error(
+            'Expected the Xtream EPG fixture to cover the shifted current time.'
+        );
+    }
+    const app = await launchElectronApp(dataDir, { env: { TZ: 'UTC' } });
+
+    try {
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow
+            .locator('[data-test-id="epg-offset-minutes"]')
+            .fill(String(offsetMinutes));
+        await saveSettings(app.mainWindow);
+        await goToDashboard(app.mainWindow);
+
+        await addXtreamPortal(app.mainWindow, {
+            name: `${epgPortalName} Offset`,
+            username: epgCredentials.username,
+            password: epgCredentials.password,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const channelRow = channelItemByTitle(
+            app.mainWindow,
+            fixture.stream.name ?? ''
+        ).first();
+        await expect(channelRow).toBeVisible({ timeout: 20000 });
+
+        // Sidebar preview: the shifted programme, with shifted times.
+        await expect
+            .poll(async () =>
+                (
+                    (await channelRow.locator('.epg-title').textContent()) ??
+                    ''
+                ).trim()
+            )
+            .toBe(expectedProgram.title);
+        await expect
+            .poll(async () =>
+                (await channelRow.locator('.epg-time').allInnerTexts()).map(
+                    (value) => value.trim()
+                )
+            )
+            .toEqual([
+                formatTimeInZone(
+                    expectedProgram.startTimestamp + offsetMinutes * 60,
+                    'UTC'
+                ),
+                formatTimeInZone(
+                    expectedProgram.stopTimestamp + offsetMinutes * 60,
+                    'UTC'
+                ),
+            ]);
+
+        // Timeline: the same programme is the highlighted "now" block.
+        await channelRow.click();
+        await expect(app.mainWindow.locator('app-epg-timeline')).toBeVisible({
+            timeout: 20000,
+        });
+        await expect(
+            app.mainWindow
+                .locator(
+                    'app-epg-timeline .epg-timeline__block.is-now .epg-timeline__block-title'
+                )
+                .first()
+        ).toHaveText(expectedProgram.title);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
 test('@epg @xtream @electron renders the vertical list view when the setting is "list"', async ({
     dataDir,
     request,

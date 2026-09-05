@@ -86,6 +86,52 @@ describe('dashboard-live-epg.utils', () => {
         });
     });
 
+    describe('EPG display offset', () => {
+        it('formats the range and progress in wall-clock terms by default', () => {
+            expect(formatEpgTimeRange(program())).toBe('20:00 – 21:00');
+            expect(
+                buildDashboardLiveEpgDetails(program(), MIDPOINT_MS)
+            ).toEqual({
+                nowPlayingTitle: 'Evening News',
+                nowPlayingTimeRange: '20:00 – 21:00',
+                nowPlayingProgress: 50,
+            });
+        });
+
+        it('shifts the label and measures progress in the provider clock with a display offset', () => {
+            // Offset +60: the guide runs an hour ahead, so the 20:00 row
+            // really airs 21:00–22:00 and at 20:30 has not started yet.
+            expect(formatEpgTimeRange(program(), 60)).toBe('21:00 – 22:00');
+            expect(
+                buildDashboardLiveEpgDetails(program(), MIDPOINT_MS, 60)
+            ).toEqual({
+                nowPlayingTitle: 'Evening News',
+                nowPlayingTimeRange: '21:00 – 22:00',
+                nowPlayingProgress: 0,
+            });
+            // Offset -30: it really started at 19:30 and has finished.
+            expect(
+                buildDashboardLiveEpgDetails(program(), MIDPOINT_MS, -30)
+                    ?.nowPlayingProgress
+            ).toBe(100);
+        });
+
+        it('applies the offset to seconds-based timestamps as well', () => {
+            const row = program({
+                start: '2000-01-01T00:00:00.000Z',
+                stop: '2000-01-01T01:00:00.000Z',
+                startTimestamp: Math.floor(START.getTime() / 1000),
+                stopTimestamp: Math.floor(STOP.getTime() / 1000),
+            });
+
+            expect(formatEpgTimeRange(row, 60)).toBe('21:00 – 22:00');
+            expect(
+                buildDashboardLiveEpgDetails(row, MIDPOINT_MS, 60)
+                    ?.nowPlayingProgress
+            ).toBe(0);
+        });
+    });
+
     describe('buildDashboardLiveEpgDetails', () => {
         it('returns null for a missing programme', () => {
             expect(buildDashboardLiveEpgDetails(null, MIDPOINT_MS)).toBeNull();

@@ -21,6 +21,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
+    normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeStartupWindowMode,
 } from '@iptvnator/shared/interfaces';
@@ -58,6 +59,7 @@ const DEFAULT_SETTINGS: Settings = {
     embeddedMpvAutoReconnect: true,
     coverSize: 'medium',
     epgViewMode: 'timeline',
+    epgOffsetMinutes: 0,
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
     preferUploadedEpgOverXtream: false,
     trustedPrivateNetworkEpgUrls: [],
@@ -134,6 +136,9 @@ export const SettingsStore = signalStore(
         resolvedEpgViewMode: computed<EpgViewMode>(
             () => store.epgViewMode?.() ?? 'timeline'
         ),
+        resolvedEpgOffsetMinutes: computed(() =>
+            normalizeEpgOffsetMinutes(store.epgOffsetMinutes?.())
+        ),
     })),
     withMethods((store, storage = inject(StorageMap)) => {
         let settingsLoadPromise: Promise<void> | undefined;
@@ -154,6 +159,10 @@ export const SettingsStore = signalStore(
                         patchState(store, {
                             ...DEFAULT_SETTINGS,
                             ...storedSettings,
+                            epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                                storedSettings.epgOffsetMinutes
+                            ),
+
                             // Absent in settings stored before the default
                             // flip means "never chose" — those users get the
                             // new default; only an explicit false opts out.
@@ -207,6 +216,13 @@ export const SettingsStore = signalStore(
                         ? {
                               dashboardRails: normalizeDashboardRailsSettings(
                                   settings.dashboardRails
+                              ),
+                          }
+                        : {}),
+                    ...(settings.epgOffsetMinutes !== undefined
+                        ? {
+                              epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                                  settings.epgOffsetMinutes
                               ),
                           }
                         : {}),
@@ -288,6 +304,9 @@ export const SettingsStore = signalStore(
                         store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                     epgViewMode:
                         store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
+                    epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                        store.epgOffsetMinutes?.()
+                    ),
                     dashboardRails: normalizeDashboardRailsSettings(
                         store.dashboardRails?.()
                     ),

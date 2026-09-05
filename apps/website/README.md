@@ -96,3 +96,22 @@ per-page switcher, the homepage feature cards and
 registry entry and one `.astro` file. Screenshots come only from the
 mock-backed guide and release captures, never from the older homepage
 screenshots that show real channel names.
+
+## Comparison Pages
+
+`/compare/` plus one page per decision the app asks users to make
+(`m3u-vs-xtream-vs-stalker`, `playback-engines`, `desktop-vs-browser`) live in
+`apps/website/src/pages/compare/`. They compare IPTVnator's own options against
+each other, never other products, so every claim is checkable against this
+repository; the registry is `src/lib/comparisons.ts`.
+
+Each page opens with a one-paragraph verdict (`CompareHero`), carries at least
+one `ComparisonTable` (cells are `true`, `false` or a qualifying string) and
+emits `WebPage` / `FAQPage` / `BreadcrumbList` JSON-LD from
+`src/lib/comparison-schema.ts` — deliberately not `SoftwareApplication`, since
+these pages are guidance rather than a product listing, and
+`tools/testing/website-compare-pages.test.mjs` asserts that.
+
+Naming a competitor on these pages is a product decision, not a technical one.
+Phase 3 of `.plans/2026-09-03-marketing-landing-pages.md` covers that and is
+still open.

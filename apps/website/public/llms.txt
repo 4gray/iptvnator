@@ -20,6 +20,10 @@
 - Feature, Stalker portal player: https://4gray.github.io/iptvnator/features/stalker-portal-player/
 - Feature, TV guide (EPG): https://4gray.github.io/iptvnator/features/epg/
 - Feature, phone remote control: https://4gray.github.io/iptvnator/features/remote-control/
+- Comparisons overview: https://4gray.github.io/iptvnator/compare/
+- Compare, M3U vs Xtream Codes vs Stalker portal: https://4gray.github.io/iptvnator/compare/m3u-vs-xtream-vs-stalker/
+- Compare, playback engines (built-in vs MPV/VLC vs embedded MPV): https://4gray.github.io/iptvnator/compare/playback-engines/
+- Compare, desktop app vs self-hosted browser version: https://4gray.github.io/iptvnator/compare/desktop-vs-browser/
 - Release Notes (v0.18): https://4gray.github.io/iptvnator/blog/v0-18-release-notes/
 - Troubleshooting (macOS app damaged fix): https://4gray.github.io/iptvnator/blog/macos-arm-app-damaged-fix/
 - Source Code: https://github.com/4gray/iptvnator

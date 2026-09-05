@@ -330,7 +330,7 @@ This is an Nx monorepo with the following structure:
 - **apps/electron-backend-e2e** - Playwright E2E tests against the Electron app
 - **apps/stalker-mock-server** - Mock Stalker/Ministra portal for dev and E2E
 - **apps/xtream-mock-server** - Mock Xtream Codes API for dev and E2E
-- **apps/website** - Astro + Tailwind landing page, blog (guides carry `faq:` frontmatter → FAQPage JSON-LD), per-OS download landing pages (`/download/`, `/download/{windows,macos,linux}/`) and feature landing pages (`/features/`, registry in `src/lib/features.ts`); direct asset links are resolved at build time from the GitHub Releases API with a `package.json` fallback (`src/lib/downloads.ts`, see `apps/website/README.md`)
+- **apps/website** - Astro + Tailwind landing page, blog (guides carry `faq:` frontmatter → FAQPage JSON-LD), per-OS download landing pages (`/download/`, `/download/{windows,macos,linux}/`) feature landing pages (`/features/`, registry in `src/lib/features.ts`) and comparison pages (`/compare/`, registry in `src/lib/comparisons.ts`, comparing IPTVnator's own options rather than other products); direct asset links are resolved at build time from the GitHub Releases API with a `package.json` fallback (`src/lib/downloads.ts`, see `apps/website/README.md`)
 - **libs/** - Shared libraries:
     - **epg/data-access** - EPG services, runtime bridge, program normalization
     - **m3u-state** - NgRx state management for M3U playlists
@@ -1427,6 +1427,7 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 - XMLTV format support
 - Background parsing in worker thread
 - Stored in database for quick lookup
+- Global display-time offset (`Settings.epgOffsetMinutes`, Settings → EPG, ±720 min, Electron only): display-only, provider data is never rewritten. Two equivalent forms in `libs/shared/interfaces/src/lib/epg-display-offset.util.ts` — `epgDisplayTimeMs` (shift the programme; `ui/epg` rendering via the `offsetMinutes` input, channel rows, dashboard/recording labels; the programme dialog and multi-EPG overlay read the store themselves) and `epgProviderClockMs` (shift "now"; every "currently airing" decision: the `GET_CURRENT_PROGRAMS_BATCH` lookup takes an explicit `nowMs` and `EpgService` tags its cache with the offset, Xtream/Stalker/M3U current-programme selection and previews, the unified collection resolver, dashboard progress, recording overlap). A consumer applies exactly one form per comparison. Contract: `docs/architecture/m3u-playlist-module.md` ("EPG display offset")
 - Manual EPG mapping (Electron only): right-click a channel in any list (M3U views, Xtream portal list, Stalker ITV sidebar, global favorites) → "Map EPG channel" attaches it to an uploaded-XMLTV channel; stored in `epg_channel_mappings` keyed by the M3U lookup key or a playlist-scoped portal key (`xtream:{playlistId}:{id}` / `stalker:{playlistId}:{id}`, helpers in `libs/shared/interfaces/src/lib/epg-mapping-key.util.ts`); resolved on every EPG path (single + batch IPC lookups, portal detail views, preview queues); dialog: `libs/ui/components/src/lib/channel-list-container/epg-mapping-dialog/`
 
 **TMDB Metadata Enrichment** (opt-in):

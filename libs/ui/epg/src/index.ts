@@ -1,5 +1,6 @@
 export * from './lib/epg-item-description/epg-item-description.component';
 export * from './lib/epg-program-activation-event';
+export * from './lib/epg-program.utils';
 export * from './lib/epg-list-view/epg-list-view.component';
 export * from './lib/epg-list-view/epg-list-view-row/epg-list-view-row.component';
 export * from './lib/epg-list-view/epg-list-view.utils';
@@ -18,6 +19,7 @@ export {
     summaryHasTitle,
     summaryMinutesLeft,
     summaryProgress,
+    summaryTimeMs,
 } from './lib/epg-timeline/epg-summary.util';
 export * from './lib/epg-progress-panel/epg-progress-panel.component';
 export * from './lib/epg-source-status/epg-source-status.component';

@@ -8,6 +8,7 @@ import {
     input,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -71,6 +72,7 @@ import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -275,6 +277,7 @@ export class UnifiedLiveTabComponent {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly liveEpgPanelSummary = computed(() => {
         const timeshift = this.activeTimeshift();
         if (timeshift) {
@@ -282,7 +285,10 @@ export class UnifiedLiveTabComponent {
             return toLiveEpgPanelSummary(timeshift.program);
         }
         this.progressTick();
-        return getLiveEpgPanelSummary(this.activeDetail());
+        return getLiveEpgPanelSummary(
+            this.activeDetail(),
+            this.epgOffsetMinutes()
+        );
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
         this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
@@ -298,7 +304,10 @@ export class UnifiedLiveTabComponent {
         // Date.now() verdict, and a recording started after an EPG boundary
         // would snapshot the previous show.
         this.progressTick();
-        const now = Date.now();
+        // Raw programme times vs. now in the provider's EPG clock, like the
+        // panel summary — the start snapshot is authoritative for the
+        // recording's title, so it must name the same programme.
+        const now = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
         const program =
             this.timelinePrograms().find((candidate) => {
                 const start = Date.parse(candidate.start);
@@ -350,7 +359,8 @@ export class UnifiedLiveTabComponent {
         const programs = filterRecordingProgramsOverlap(
             this.timelinePrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -431,6 +441,23 @@ export class UnifiedLiveTabComponent {
             if (activeUid && !items.some((item) => item.uid === activeUid)) {
                 this.onClose();
             }
+        });
+
+        // The map answers "what is on at the provider clock", so a changed
+        // display offset reloads it; the request id in loadEpgMap drops the
+        // older load. The first run only records the initial value.
+        let appliedEpgOffsetMinutes: number | null = null;
+        effect(() => {
+            const offsetMinutes = this.epgOffsetMinutes();
+            if (appliedEpgOffsetMinutes === offsetMinutes) {
+                return;
+            }
+            const isInitial = appliedEpgOffsetMinutes === null;
+            appliedEpgOffsetMinutes = offsetMinutes;
+            if (isInitial || !this.supportsEpg) {
+                return;
+            }
+            void this.loadEpgMap(untracked(() => this.items()));
         });
 
         effect(() => {
@@ -695,8 +722,16 @@ export class UnifiedLiveTabComponent {
         void this.loadEpgMap(this.items());
     }
 
+    private epgMapRequestId = 0;
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
+        // Only the latest load may install its map: an older one — started
+        // under a previous display offset or item set — must not overwrite
+        // the refreshed result when it completes last.
+        const requestId = ++this.epgMapRequestId;
         const epgMap = await this.streamResolver.loadEpgForItems(items);
+        if (requestId !== this.epgMapRequestId) {
+            return;
+        }
         this.epgMap.set(epgMap);
     }
 

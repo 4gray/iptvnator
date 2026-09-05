@@ -1,6 +1,8 @@
-import type {
-    DashboardRailsSettings,
-    EpgProgram,
+import {
+    epgDisplayTimeMs,
+    epgProviderClockMs,
+    type DashboardRailsSettings,
+    type EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import type { DashboardRailCard } from './dashboard-rail.component';
 
@@ -37,13 +39,19 @@ function formatEpgTime(ms: number): string {
         .padStart(2, '0')}`;
 }
 
-export function formatEpgTimeRange(program: EpgProgram): string | null {
+/** "HH:mm – HH:mm" in display time (raw times + the EPG display offset). */
+export function formatEpgTimeRange(
+    program: EpgProgram,
+    offsetMinutes = 0
+): string | null {
     const start = epgTimestampMs(program, 'start');
     const stop = epgTimestampMs(program, 'stop');
     if (start == null || stop == null) {
         return null;
     }
-    return `${formatEpgTime(start)} – ${formatEpgTime(stop)}`;
+    return `${formatEpgTime(epgDisplayTimeMs(start, offsetMinutes))} – ${formatEpgTime(
+        epgDisplayTimeMs(stop, offsetMinutes)
+    )}`;
 }
 
 export function calcEpgProgress(
@@ -68,9 +76,15 @@ export interface DashboardLiveEpgDetails {
     readonly nowPlayingProgress: number | null;
 }
 
+/**
+ * `nowMs` is wall-clock; `offsetMinutes` is the EPG display offset, applied in
+ * its two forms (`epg-display-offset.util.ts`): the range is shifted for
+ * display while progress compares the raw times with the provider clock.
+ */
 export function buildDashboardLiveEpgDetails(
     program: EpgProgram | null,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): DashboardLiveEpgDetails | null {
     if (!program) {
         return null;
@@ -78,8 +92,11 @@ export function buildDashboardLiveEpgDetails(
 
     const details: DashboardLiveEpgDetails = {
         nowPlayingTitle: program.title?.trim() || null,
-        nowPlayingTimeRange: formatEpgTimeRange(program),
-        nowPlayingProgress: calcEpgProgress(program, nowMs),
+        nowPlayingTimeRange: formatEpgTimeRange(program, offsetMinutes),
+        nowPlayingProgress: calcEpgProgress(
+            program,
+            epgProviderClockMs(nowMs, offsetMinutes)
+        ),
     };
 
     return details.nowPlayingTitle ||

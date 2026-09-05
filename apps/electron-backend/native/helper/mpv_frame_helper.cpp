@@ -834,6 +834,12 @@ int main(int argc, char** argv) {
     mpv_set_option_string(g_state.mpv, "idle", "yes");
     mpv_set_option_string(g_state.mpv, "input-default-bindings", "no");
     mpv_set_option_string(g_state.mpv, "osc", "no");
+    /* Keep parity with the native-view addons and the external MPV launch
+     * path: with mpv's youtube-dl hook enabled, a refused HTTP open falls
+     * through to yt-dlp and the session error reads "youtube-dl failed"
+     * instead of the load error. A user `ytdl=yes` session option
+     * (applied below, before mpv_initialize) still overrides it. */
+    mpv_set_option_string(g_state.mpv, "ytdl", "no");
     if (!args.audioDelay.empty()) {
         /* Compensates the frame-copy video-path latency to restore
          * lip-sync; calibrated per platform, see the architecture doc. */

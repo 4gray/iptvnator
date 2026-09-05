@@ -81,6 +81,7 @@ export class StubEpgTimelineComponent {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     readonly summary = input<any>(null);
     readonly summaryLabelKey = input('');
+    readonly offsetMinutes = input(0);
     readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();
     readonly programActivated = output<EpgProgramActivationEvent>();
