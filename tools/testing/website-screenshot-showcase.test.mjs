@@ -82,8 +82,13 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     const pausedAt = await progressWidth(page);
     await page.waitForTimeout(700);
     assert.ok(Math.abs((await progressWidth(page)) - pausedAt) < 0.5, 'progress holds while hovered');
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(400);
+    const resumed = await progressWidth(page);
+    assert.ok(resumed >= pausedAt && resumed < pausedAt + 15, `progress resumes from where it paused (${pausedAt} → ${resumed})`);
 
     // Clicking selects immediately and focus keeps the pause after the pointer leaves.
+    await page.locator('.channel-tab').nth(2).hover();
     await page.locator('.channel-tab').nth(2).click();
     assert.equal(await selectedChannel(page), 'epg');
     assert.equal(await page.evaluate(() => document.activeElement?.dataset.channel), 'epg', 'click moves focus to the tab');

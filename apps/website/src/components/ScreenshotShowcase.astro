@@ -13,6 +13,11 @@
  * under it with opacity 0, so native lazy loading would fetch all six at
  * once. The script assigns `src` from `data-src` when a channel is shown and
  * preloads the one after it, so at most two frames are in flight.
+ *
+ * The list precedes the screen in the DOM at every breakpoint (tabs before
+ * their panels, focus order equals reading order); on phones the list simply
+ * hides the per-channel descriptions and the keyboard hint so the screen
+ * stays close.
  */
 const channels = [
   {
@@ -120,7 +125,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
               aria-controls={`screen-panel-${channel.id}`}
               tabindex={i === 0 ? 0 : -1}
               data-channel={channel.id}
-              class="channel-tab group relative grid grid-cols-[38px_minmax(0,1fr)] gap-3 border-t border-surface-800 px-4 py-3.5 text-left transition-colors duration-200 first-of-type:border-t-0 hover:bg-white/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-400"
+              class="channel-tab group relative grid grid-cols-[38px_minmax(0,1fr)] gap-3 border-t border-surface-800 px-4 py-3 text-left sm:py-3.5 transition-colors duration-200 first-of-type:border-t-0 hover:bg-white/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-400"
             >
               <span class="channel-number pt-0.5 font-mono text-xs tabular-nums text-surface-500 transition-colors duration-200">
                 {pad(i + 1)}
@@ -129,7 +134,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
                 <span class="block font-display text-[15px] font-semibold tracking-tight text-surface-100">
                   {channel.label}
                 </span>
-                <span class="mt-0.5 block text-[12.5px] leading-snug text-surface-500">
+                <span class="mt-0.5 hidden text-[12.5px] leading-snug text-surface-500 sm:block">
                   {channel.description}
                 </span>
               </span>
@@ -139,7 +144,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
             </button>
           ))
         }
-        <div class="mt-auto border-t border-surface-800 px-4 py-3 font-mono text-[11px] text-surface-500">
+        <div class="mt-auto hidden border-t border-surface-800 px-4 py-3 font-mono text-[11px] text-surface-500 lg:block">
           <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↑</kbd>
           <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↓</kbd>
           <span class="ml-1.5">switch channel</span>
@@ -147,7 +152,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       </div>
 
       <!-- Screen -->
-      <div class="relative order-first aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/40 lg:order-none lg:aspect-auto lg:min-h-[460px]">
+      <div class="relative aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/40 lg:aspect-auto lg:min-h-[460px]">
         {
           channels.map((channel, i) => (
             <div
@@ -219,6 +224,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let current = 0;
     let startedAt = 0;
+    let pausedAt = 0;
     let frame = 0;
     // Hover and focus pause independently; autoplay resumes only when neither holds.
     let hovered = false;
@@ -264,11 +270,20 @@ const pad = (n: number) => String(n).padStart(2, '0');
         osdTimer = window.setTimeout(() => osd.classList.add('opacity-0', '-translate-y-1'), 1400);
       }
       startedAt = performance.now();
+      pausedAt = 0;
       if (focus) tabs[current].focus({ preventScroll: true });
     }
 
+    // The dwell clock stops while paused: the time spent hovering or focused is
+    // added to the start mark on resume, so the bar continues from where it froze.
     function tick(now) {
-      if (!paused()) {
+      if (paused()) {
+        if (!pausedAt) pausedAt = now;
+      } else {
+        if (pausedAt) {
+          startedAt += now - pausedAt;
+          pausedAt = 0;
+        }
         const progress = (now - startedAt) / DWELL_MS;
         if (progress >= 1) show(current + 1);
         else progressOf(current).style.width = `${progress * 100}%`;
@@ -280,6 +295,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       loadFrame(current + 1);
       if (reduceMotion || frame) return;
       startedAt = performance.now();
+      pausedAt = 0;
       frame = window.requestAnimationFrame(tick);
     }
 
@@ -301,16 +317,12 @@ const pad = (n: number) => String(n).padStart(2, '0');
     });
 
     // A visitor who is reading or operating the block keeps the current channel.
-    const resumeIfIdle = () => {
-      if (!paused()) startedAt = performance.now();
-    };
     root.addEventListener('mouseenter', () => { hovered = true; });
-    root.addEventListener('mouseleave', () => { hovered = false; resumeIfIdle(); });
+    root.addEventListener('mouseleave', () => { hovered = false; });
     root.addEventListener('focusin', () => { focused = true; });
     root.addEventListener('focusout', (event) => {
       if (root.contains(event.relatedTarget)) return;
       focused = false;
-      resumeIfIdle();
     });
 
     // Only run while the block is on screen.
