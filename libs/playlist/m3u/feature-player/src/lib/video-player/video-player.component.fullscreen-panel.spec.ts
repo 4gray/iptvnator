@@ -128,6 +128,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
         storeMock.dispatch.mockClear();
         setActive(sampleChannel);
         channels.set([sampleChannel, nextChannel]);
+        channels$.next([sampleChannel, nextChannel]);
         activePlaylistMeta.set(null);
         fullscreenChannelPanelSetting.set(undefined);
         tmdbEnabled.set(false);
@@ -358,6 +359,70 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     });
 
     describe('PageUp/PageDown zapping', () => {
+        it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
+            'keeps numeric and adjacent selections inline in fullscreen with %s',
+            (externalPlayer) => {
+                const first = {
+                    ...sampleChannel,
+                    url: 'http://localhost/first.mpd',
+                };
+                const last = {
+                    ...nextChannel,
+                    url: 'http://localhost/last.mpd',
+                };
+                const catalog = [first, sampleChannel, last];
+                player.set(externalPlayer);
+                channels.set(catalog);
+                channels$.next(catalog);
+                setActive(first);
+                const stage = document.createElement('app-web-player-view');
+                fixture.nativeElement.appendChild(stage);
+                let fullscreen: Element | null = stage;
+                const descriptor = Object.getOwnPropertyDescriptor(
+                    document,
+                    'fullscreenElement'
+                );
+                Object.defineProperty(document, 'fullscreenElement', {
+                    configurable: true,
+                    get: () => fullscreen,
+                });
+                try {
+                    component.switchToChannelByNumber(2);
+                    expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                        setActiveChannelDispatch(sampleChannel)
+                    );
+                    component.switchToChannelByNumber(3);
+                    expect(storeMock.dispatch).toHaveBeenCalledWith(
+                        setActiveChannelDispatch(last)
+                    );
+
+                    storeMock.dispatch.mockClear();
+                    component.handleRemoteChannelChange('down');
+                    expect(storeMock.dispatch).toHaveBeenCalledWith(
+                        setActiveChannelDispatch(last)
+                    );
+                    expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+                        setActiveChannelDispatch(sampleChannel)
+                    );
+
+                    fullscreen = null;
+                    storeMock.dispatch.mockClear();
+                    component.switchToChannelByNumber(2);
+                    expect(storeMock.dispatch).toHaveBeenCalledWith(
+                        setActiveChannelDispatch(sampleChannel)
+                    );
+                } finally {
+                    if (descriptor)
+                        Object.defineProperty(
+                            document,
+                            'fullscreenElement',
+                            descriptor
+                        );
+                    else Reflect.deleteProperty(document, 'fullscreenElement');
+                }
+            }
+        );
+
         it.each(['menu', 'dialog', 'cdk-overlay-pane'])(
             'leaves paging keys to a short %s overlay',
             (kind) => {

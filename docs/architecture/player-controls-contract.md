@@ -346,9 +346,11 @@ filter, and every panel view resolves against that one list, favorites and
 recent included. With external MPV/VLC configured, the panel offers only
 DASH rows: DASH forces the inline Shaka player, but selecting a non-DASH
 channel would replace the fullscreen owner with the external-player UI.
-PageUp/PageDown keep stepping onto them: those keys zap on
-the windowed player too, where switching to a station or a film is right;
-already-handled events and menu/dialog overlay targets keep their keys,
+While the live `app-web-player-view` owns fullscreen, numeric selection and
+PageUp/PageDown (including remote commands) apply that same eligibility
+predicate. Numbers retain their original playlist positions and an ineligible
+number is ignored; adjacent selection skips ineligible rows. Windowed playback
+keeps the complete catalog. Already-handled events and menu/dialog overlay targets keep their keys,
 even when a short menu has no scroll overflow), `LiveStreamLayoutComponent` (Xtream; the sidebar's
 rows via `channelsOverride` so the second list instance never re-applies the
 route category, and with `fullscreenPanelCopy` so only the sidebar's pane

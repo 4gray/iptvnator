@@ -465,6 +465,30 @@ for (const player of ['mpv', 'vlc']) {
             await menu.getByRole('menuitem').first().press('PageDown');
             expect(await pagingConsumed).toBe(false);
             await expect(nextChannel).toHaveClass(/\bactive\b/);
+
+            await page.keyboard.press('Escape');
+            await expect(menu).toBeHidden();
+            await page.mouse.move(600, viewportHeight / 2);
+            await expect(panel).toHaveAttribute('aria-hidden', 'true');
+            // Original channel 3 is the excluded MKV. Numeric selection
+            // must preserve fullscreen without renumbering the catalog.
+            await page.keyboard.press('3');
+            await expect(page.locator('.channel-number-overlay')).toHaveCount(
+                1
+            );
+            await expect(page.locator('.channel-number-overlay')).toHaveCount(
+                0
+            );
+            expect(await isFullscreen()).toBe(true);
+            await expect(nextChannel).toHaveClass(/\bactive\b/);
+
+            await page.keyboard.press('PageDown');
+            const firstChannel = panel.getByTestId('channel-item').filter({
+                hasText: 'ClearKey DASH',
+                hasNotText: 'Next ClearKey DASH',
+            });
+            await expect(firstChannel).toHaveClass(/\bactive\b/);
+            expect(await isFullscreen()).toBe(true);
         } finally {
             await closeElectronApp(app);
             await fixtureServer.close();

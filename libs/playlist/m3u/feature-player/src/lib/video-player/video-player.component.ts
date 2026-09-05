@@ -262,10 +262,9 @@ export class VideoPlayerComponent
         () => this.playlistContext.activePlaylist()?.recentlyViewed ?? []
     );
 
-    private readonly fullscreenChannelPanelTemplate =
-        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
-            'fullscreenChannelPanel'
-        );
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
     /**
      * FULLSCREEN_CHANNEL_PANEL: the playlist's channel list, unless opted
      * out. Withheld while the M3U VOD detail hosts the player: a movie is
@@ -289,20 +288,14 @@ export class VideoPlayerComponent
      * the VOD detail shell, so picking either destroys that element and drops
      * the user out of fullscreen — the opposite of what this panel exists
      * for. Every panel view resolves against this list (favorites and recent
-     * look their rows up in it), so one filter covers all four. PageUp/
-     * PageDown deliberately keep stepping onto them: those keys also zap on
-     * the windowed player, where switching to a station or a film is right.
+     * look their rows up in it), so one filter covers all four. Numeric and
+     * adjacent-channel commands apply the same restriction in fullscreen;
+     * windowed playback keeps the complete catalog and its numbering.
      * With external MPV/VLC configured, only DASH rows remain inline; a
      * non-DASH selection would replace this host with the external-player UI.
      */
     readonly fullscreenPanelChannels = computed(() =>
-        this.channels().filter(
-            (channel) =>
-                channel.radio !== 'true' &&
-                !this.opensMovieDetail(channel) &&
-                (!this.isExternalPlayer(this.settingsStore.player()) ||
-                    isDashChannel(channel))
-        )
+        this.channels().filter((channel) => this.keepsInlinePlayer(channel))
     );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
@@ -955,7 +948,11 @@ export class VideoPlayerComponent
             .subscribe({
                 next: ({ channels, activeChannel }) => {
                     const nextChannel = getAdjacentChannelItem(
-                        channels,
+                        this.isLivePlayerFullscreen()
+                            ? channels.filter((channel) =>
+                                  this.keepsInlinePlayer(channel)
+                              )
+                            : channels,
                         activeChannel.url,
                         direction,
                         (channel) => channel.url
@@ -1244,13 +1241,15 @@ export class VideoPlayerComponent
         // the one way to change channels from the keyboard in fullscreen.
         if (event.key === 'PageUp' || event.key === 'PageDown') {
             if (
-                event.composedPath().some(
-                    (target) =>
-                        target instanceof Element &&
-                        target.matches(
-                            '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
-                        )
-                ) ||
+                event
+                    .composedPath()
+                    .some(
+                        (target) =>
+                            target instanceof Element &&
+                            target.matches(
+                                '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
+                            )
+                    ) ||
                 isInsideScrollableRegion(
                     event.target,
                     this.hostElement.nativeElement
@@ -1311,12 +1310,34 @@ export class VideoPlayerComponent
                 )
             )
             .subscribe((channel) => {
-                if (channel) {
+                if (
+                    channel &&
+                    (!this.isLivePlayerFullscreen() ||
+                        this.keepsInlinePlayer(channel))
+                ) {
                     this.store.dispatch(
                         createM3uChannelPlaybackRequest(channel)
                     );
                 }
             });
+    }
+
+    private keepsInlinePlayer(channel: Channel): boolean {
+        return (
+            channel.radio !== 'true' &&
+            !this.opensMovieDetail(channel) &&
+            (!this.isExternalPlayer(this.settingsStore.player()) ||
+                isDashChannel(channel))
+        );
+    }
+
+    private isLivePlayerFullscreen(): boolean {
+        const fullscreen = document.fullscreenElement;
+        return (
+            !this.showMovieDetail() &&
+            !!fullscreen?.matches('app-web-player-view') &&
+            this.hostElement.nativeElement.contains(fullscreen)
+        );
     }
 
     /**

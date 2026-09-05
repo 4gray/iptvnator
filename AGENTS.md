@@ -388,6 +388,10 @@ Key files:
   failed replacement restores that highlight and retains the previous video,
   catch-up and session). M3U PageUp/PageDown yield to already-handled events
   and menu/dialog overlay targets even when the menu has no scroll overflow.
+  Numeric and adjacent-channel commands share the panel eligibility filter
+  while the live web-player host owns fullscreen; numbers keep their original
+  positions and ineligible numbers are ignored. Windowed commands keep the
+  complete catalog.
   Xtream's two `PortalChannelsListComponent` instances relay favorite toggles
   through `XtreamFavoriteMarksService`. CDK overlays follow the
   fullscreen element via `FullscreenOverlayContainer`. Contract:
