@@ -330,7 +330,10 @@ row, labels in tooltip and `aria-label` — over a second
 `ChannelListContainerComponent` instance in `compact` mode, which drops the
 container's per-view title/sort/collapse headers (`showHeader` on the
 all-channels and groups views; the persisted sort still applies) so nothing
-stacks between the search row and the first channel, and with
+stacks between the search row and the first channel, and which also pins the
+groups view's rail to a fixed 148px — no resize handle, and the sidebar's
+persisted `m3u-groups-nav-width` (up to 320px) is neither read nor written,
+since inside a 400px panel it would leave the channel pane unusable — and with
 `resetActiveChannelOnDestroy` false, because the container's destroy hook
 otherwise clears the active channel and stops playback; radio stations are
 filtered out of the list it is handed, since they render through

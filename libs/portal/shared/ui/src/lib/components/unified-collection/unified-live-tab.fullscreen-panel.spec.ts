@@ -10,7 +10,7 @@ import {
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { VideoPlayer } from '@iptvnator/shared/interfaces';
+import { EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     PORTAL_PLAYER,
     UnifiedCollectionItem,
@@ -213,6 +213,72 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
             second.streamUrl
         );
         expect(component.playbackSessionKey()).not.toBe(firstSessionKey);
+    });
+
+    it('keeps a catch-up override on the retained detail until the next one is in', async () => {
+        // The mounted player is showing an archive programme; clearing the
+        // override before the replacement resolves would drop it back to the
+        // old channel's live URL for the length of the round-trip.
+        const first = buildM3uLiveItem();
+        const second: UnifiedCollectionItem = {
+            ...first,
+            uid: 'm3u::pl-1::m3u-channel-2',
+            name: 'M3U Live 2',
+            channelId: 'm3u-channel-2',
+            tvgId: 'm3u-channel-2',
+            streamUrl: 'https://example.com/m3u-2.m3u8',
+        };
+        const detailFor = (item: UnifiedCollectionItem) => ({
+            epgMode: 'm3u' as const,
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            channel: {
+                id: item.channelId,
+                name: item.name,
+                url: item.streamUrl,
+                group: { title: 'News' },
+                tvg: { id: item.tvgId, name: item.name, url: '', logo: '', rec: '' },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [],
+        });
+        let resolveSecond: (detail: ReturnType<typeof detailFor>) => void =
+            () => undefined;
+        streamResolver.resolveM3uPlaybackDetail
+            .mockResolvedValueOnce(detailFor(first))
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveSecond = resolve;
+                    })
+            );
+        recentData.recordLivePlayback.mockImplementation(
+            async (item: UnifiedCollectionItem) => item
+        );
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        const archiveUrl = 'https://example.com/m3u-archive.m3u8';
+        component.activeTimeshift.set({
+            url: archiveUrl,
+            program: { title: 'Archived show' } as EpgProgram,
+        });
+        expect(component.inlinePlayback()?.streamUrl).toBe(archiveUrl);
+
+        const pending = component.onChannelSelected(
+            component.channelsForList()[1]
+        );
+        expect(component.inlinePlayback()?.streamUrl).toBe(archiveUrl);
+
+        resolveSecond(detailFor(second));
+        await pending;
+        expect(component.activeTimeshift()).toBeNull();
+        expect(component.inlinePlayback()?.streamUrl).toBe(second.streamUrl);
     });
 });
 

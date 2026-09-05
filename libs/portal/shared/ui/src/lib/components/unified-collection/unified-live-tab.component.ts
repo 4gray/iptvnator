@@ -806,10 +806,12 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         // must not unmount that element (which would end fullscreen) for the
         // resolution round-trip — and everything derived from the item
         // (`playbackSessionKey`, recording/archive metadata) must keep
-        // describing the stream that player is still showing. Both swap
-        // together when the new detail is in, and clear only on failure.
+        // describing the stream that player is still showing. The catch-up
+        // override belongs to that detail too: clearing it early would drop
+        // the mounted player back to the old channel's live URL for the
+        // gap. All of it swaps together when the new detail is in, and
+        // clears only on failure.
         this.activeUid.set(item.uid);
-        this.activeTimeshift.set(null);
         this.isSelecting.set(true);
         // A previously owned radio override must not survive into a
         // selection that never mounts a player surface of its own — external
@@ -842,6 +844,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
                 }
             }
 
+            this.activeTimeshift.set(null);
             this.activeItem.set(item);
             this.activeDetail.set(detail);
 
@@ -868,6 +871,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             }
         } catch {
             if (requestId === this.selectionRequestId) {
+                this.activeTimeshift.set(null);
                 this.activeDetail.set(null);
                 this.activeItem.set(null);
                 this.activeUid.set(null);

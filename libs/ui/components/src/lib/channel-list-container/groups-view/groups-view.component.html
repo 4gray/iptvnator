@@ -24,11 +24,12 @@
     <div class="groups-view-layout">
         <aside
             class="groups-nav-panel"
+            [class.groups-nav-panel--compact]="compact()"
             appResizable
-            [minWidth]="164"
-            [maxWidth]="320"
-            [defaultWidth]="208"
-            storageKey="m3u-groups-nav-width"
+            [minWidth]="navMinWidth()"
+            [maxWidth]="navMaxWidth()"
+            [defaultWidth]="navDefaultWidth()"
+            [storageKey]="navStorageKey()"
             (resizeStart)="onGroupsNavResizeStart()"
             (widthChange)="onGroupsNavWidthChange($event)"
             (resizeEnd)="onGroupsNavResizeEnd($event)"

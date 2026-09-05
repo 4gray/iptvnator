@@ -33,6 +33,20 @@
     container-type: inline-size;
 }
 
+// Fullscreen channel panel: the rail is pinned (min = max, see the
+// component's `compact` input), so the directive's handle would only show a
+// grip that cannot move. It is appended by the directive, outside this
+// component's encapsulation scope.
+.groups-nav-panel--compact {
+    min-width: 148px;
+    max-width: 148px;
+    padding-inline: 8px;
+}
+
+.groups-nav-panel--compact ::ng-deep .resize-handle {
+    display: none;
+}
+
 .groups-nav-shell {
     display: flex;
     flex: 1;
