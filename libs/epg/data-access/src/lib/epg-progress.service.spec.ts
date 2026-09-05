@@ -63,6 +63,29 @@ describe('EpgProgressService', () => {
         expect(epgBridge.onProgress).not.toHaveBeenCalled();
     });
 
+    it('removes a retired queued import immediately on cancellation', () => {
+        epgBridge.supportsProgress = true;
+        const service = configureService();
+        const listener = (epgBridge.onProgress as jest.Mock).mock.calls[0][0];
+        const url = 'https://removed.example/guide.xml';
+        listener({ url, status: 'queued' });
+        expect(service.queuedCount()).toBe(1);
+        listener({ url, status: 'cancelled' });
+        expect(service.queuedCount()).toBe(0);
+        expect(service.isVisible()).toBe(false);
+    });
+
+    it('keeps a replacement import when an older queued batch finally cancels', () => {
+        epgBridge.supportsProgress = true;
+        const service = configureService();
+        const listener = (epgBridge.onProgress as jest.Mock).mock.calls[0][0];
+        const url = 'https://readded.example/guide.xml';
+        listener({ url, status: 'queued', generation: 0 });
+        listener({ url, status: 'loading', generation: 2 });
+        listener({ url, status: 'cancelled', generation: 0 });
+        expect(service.activeCount()).toBe(1);
+    });
+
     it('does not force retry when EPG data management is disabled', () => {
         const service = configureService();
 

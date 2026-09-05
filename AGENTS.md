@@ -174,6 +174,19 @@ Button states use the matching group; "Total selected" counts the whole catalog.
 Save persists the complete draft, Close discards it, and refresh restores hidden
 categories by provider ID and type. See `docs/architecture/category-management.md`.
 
+## XMLTV Source Removal
+
+Saving Settings → EPG reconciles cached XMLTV with committed global URLs and
+all enabled M3U playlist sources. Startup runs the same reconciliation after
+settings load and playlist migration; failed settings reads and incomplete
+playlist migration never authorize pruning. Removed sources retire queued and
+running imports before worker-owned deletion. Shared channel IDs survive while
+another source has programmes; manual mappings remain user preferences, but no
+longer resolve deleted data. Renderer lookup generations, Xtream previews and Stalker mapping-cache
+invalidation prevent late results from restoring removed programmes. Provider
+EPG is independent. See `docs/architecture/m3u-playlist-module.md`
+("XMLTV source lifecycle").
+
 ## Portal Connectivity Preference
 
 - Desktop Settings > General > Portal connections exposes default-on

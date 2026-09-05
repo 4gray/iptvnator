@@ -16,7 +16,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    EpgSourceReconciliationError,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { Language, StreamFormat } from '@iptvnator/shared/interfaces';
 import { firstValueFrom, map } from 'rxjs';
@@ -307,7 +310,13 @@ export class SettingsComponent
         try {
             await this.form.save(() => this.applyChangedSettings());
             return true;
-        } catch {
+        } catch (error) {
+            if (error instanceof EpgSourceReconciliationError) {
+                this.settingsSnackbar.open(
+                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
+                );
+                return false;
+            }
             // The store already applied the change in memory, so without
             // this the save looks successful until the next restart. The
             // unsaved-changes bar stays visible so it can be retried.

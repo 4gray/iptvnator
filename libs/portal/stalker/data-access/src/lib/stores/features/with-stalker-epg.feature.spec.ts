@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    DataService,
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { EpgItem, Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
@@ -232,6 +236,44 @@ describe('withStalkerEpg', () => {
             expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
         });
 
+        it('drops removed-source overrides and reloads the selected mapping without a portal reset', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([MAPPED_PROGRAM]);
+            await store.applyMappedItvEpg(['10001']);
+            epgBridge.getChannelPrograms.mockResolvedValue([]);
+            const sources = TestBed.inject(EpgSourceSettingsService);
+            sources.revision.update((value) => value + 1);
+            sources.changed$.next();
+            expect(store.selectedItvEpgPrograms()).toEqual([]);
+            await store.applyMappedItvEpg(['10001']);
+            expect(store.selectedItvEpgPrograms()).toEqual([]);
+            // Saved mappings remain authoritative even when their source is gone.
+            expect(store.hasItvEpgMappingOverride('10001')).toBe(true);
+        });
+
+        it('ignores a mapped-program response that completes after source invalidation', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            let resolvePrograms!: (value: unknown) => void;
+            epgBridge.getChannelPrograms.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolvePrograms = resolve;
+                    })
+            );
+            const pending = store.applyMappedItvEpg(['10001']);
+            await Promise.resolve();
+            const sources = TestBed.inject(EpgSourceSettingsService);
+            sources.revision.update((value) => value + 1);
+            sources.changed$.next();
+            resolvePrograms([MAPPED_PROGRAM]);
+            await pending;
+            expect(store.selectedItvEpgPrograms()).toEqual([]);
+        });
+
         it('keeps overrides when ensureBulkItvEpg replaces the bulk record', async () => {
             epgBridge.getEpgMappingsBatch.mockResolvedValue({
                 'stalker:playlist-1:10001': 'mapped.channel.id',
@@ -257,6 +299,63 @@ describe('withStalkerEpg', () => {
                 { ...MAPPED_PROGRAM, channel: '10001' },
             ]);
             expect(record['10002']?.length).toBeGreaterThan(0);
+        });
+
+        it('does not mark later IDs checked after a stale mapped lookup rejects', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            let rejectPrograms!: (error: Error) => void;
+            epgBridge.getChannelPrograms.mockImplementationOnce(
+                () =>
+                    new Promise((_, reject) => {
+                        rejectPrograms = reject;
+                    })
+            );
+            const pending = store.applyMappedItvEpg(['10001', '10002']);
+            await Promise.resolve();
+            store.clearBulkItvEpgCache();
+            await store.applyMappedItvEpg(['10003']);
+            rejectPrograms(new Error('old request failed'));
+            await pending;
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10002': 'new.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([MAPPED_PROGRAM]);
+            await store.applyMappedItvEpg(['10002']);
+            expect(store.bulkItvEpgByChannel()['10002']).toEqual([
+                { ...MAPPED_PROGRAM, channel: '10002' },
+            ]);
+        });
+
+        it('allows initial bulk loading and mapping lookup to finish concurrently', async () => {
+            let finishBulk!: (value: unknown) => void;
+            const response = new Promise((resolve) => {
+                finishBulk = resolve;
+            });
+            dataService.sendIpcEvent.mockReturnValueOnce(response);
+            const bulk = store.ensureBulkItvEpg();
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([]);
+            await store.applyMappedItvEpg(['10001']);
+            finishBulk({
+                js: {
+                    '10001': [
+                        buildEntry(
+                            '10001',
+                            'Portal Show',
+                            1744365600,
+                            1744367400
+                        ),
+                    ],
+                },
+            });
+            await bulk;
+            expect(store.isLoadingBulkItvEpg()).toBe(false);
+            expect(store.bulkItvEpgLoaded()).toBe(true);
+            expect(store.selectedItvEpgPrograms()).toEqual([]);
         });
 
         it('does nothing when the mapping bridge is unsupported', async () => {

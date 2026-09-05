@@ -5,7 +5,7 @@ import {
     EpgItem,
     windowEpgItemsAtProviderClock,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -50,6 +50,20 @@ export class EpgQueueService implements OnDestroy {
     private readonly apiService = inject(XtreamApiService);
     private readonly fallbackService = inject(XtreamXmltvFallbackService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly sourceSubscription = inject(
+        EpgSourceSettingsService
+    ).changed$.subscribe(() => {
+        this.enqueueGeneration++;
+        this.queue = [];
+        for (const id of new Set([
+            ...this.cache.keys(),
+            ...this.inFlight,
+            ...this.visibleSet,
+        ])) {
+            this.invalidate(id);
+            this.epgResult$.next({ streamId: id, items: [] });
+        }
+    });
     private readonly logger = createLogger('EpgQueueService');
     private readonly previewLimit = 3;
 
@@ -494,6 +508,7 @@ export class EpgQueueService implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.sourceSubscription.unsubscribe();
         this.epgResult$.complete();
     }
 }
