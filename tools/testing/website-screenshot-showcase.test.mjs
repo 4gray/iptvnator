@@ -141,6 +141,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
     assert.deepEqual((await loaded(page)).slice(3, 5), [true, true], 'resuming preloads the successor');
     assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-autoplay-toggle')), true, 'the button keeps focus');
+    assert.ok((await progressWidth(page)) < 3, 'time spent paused is not counted against the picked channel');
     await page.waitForTimeout(500);
     assert.ok((await progressWidth(page)) > pausedOnMovies + 2, 'autoplay runs while the toggle is focused and hovered');
     await page.mouse.move(5, 5);

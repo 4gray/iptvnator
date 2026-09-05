@@ -295,8 +295,11 @@ const pad = (n: number) => String(n).padStart(2, '0');
         window.clearTimeout(osdTimer);
         osdTimer = window.setTimeout(() => osd.classList.add('opacity-0', '-translate-y-1'), 1400);
       }
+      // A fresh dwell for the new channel. When the loop is not running the
+      // channel starts out paused right now, so time spent paused before
+      // Resume is not counted against it.
       startedAt = performance.now();
-      pausedAt = 0;
+      pausedAt = frame ? 0 : startedAt;
       if (focus) tabs[current].focus({ preventScroll: true });
     }
 
