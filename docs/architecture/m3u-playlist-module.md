@@ -1319,7 +1319,12 @@ an input is a draft edit; only a successful IndexedDB write authorizes source
 reconciliation. A storage write failure restores the previous in-memory EPG
 URLs. If subsequent cache cleanup fails, the saved URLs remain authoritative,
 the settings form remains retryable and shows the existing EPG cleanup failure
-message rather than claiming settings storage failed.
+message rather than claiming settings storage failed. Ordinary settings saves
+compare normalized source sets and skip reconciliation when they are unchanged,
+so unrelated preferences do not depend on cache cleanup. An explicitly edited
+EPG array requests reconciliation even when the committed URLs already match
+(for example retrying a failed cleanup); removing a row marks that array dirty,
+and only successful saving clears it. Startup reconciliation always runs.
 
 `EpgSourceSettingsService` waits for `PlaylistsService.getAllPlaylists()` (which
 performs the legacy playlist migration) before invoking `EPG_RECONCILE_SOURCES`.

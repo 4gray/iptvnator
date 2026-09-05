@@ -178,7 +178,9 @@ categories by provider ID and type. See `docs/architecture/category-management.m
 
 Saving Settings → EPG reconciles cached XMLTV with committed global URLs and
 all enabled M3U playlist sources. Startup runs the same reconciliation after
-settings load and playlist migration; failed settings reads and incomplete
+settings load and playlist migration. Ordinary saves skip unchanged normalized
+source sets; an explicitly edited EPG field can retry a failed cleanup.
+Failed settings reads and incomplete
 playlist migration never authorize pruning. Removed sources retire queued and
 running imports before worker-owned deletion. Shared channel IDs survive while
 another source has programmes or per-source channel metadata. The additive

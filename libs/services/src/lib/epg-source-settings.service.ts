@@ -15,6 +15,27 @@ export class EpgSourceReconciliationError extends Error {
     }
 }
 
+function normalizeEpgSourceUrls(urls: string[] | string | undefined): string[] {
+    return [
+        ...new Set(
+            (Array.isArray(urls) ? urls : [urls ?? ''])
+                .map((url) => url.trim())
+                .filter(Boolean)
+        ),
+    ];
+}
+
+export function epgSourceUrlsChanged(
+    previous: string[] | string | undefined,
+    next: string[] | string | undefined
+): boolean {
+    return (
+        next !== undefined &&
+        JSON.stringify(normalizeEpgSourceUrls(previous).sort()) !==
+            JSON.stringify(normalizeEpgSourceUrls(next).sort())
+    );
+}
+
 /** Synchronizes committed global XMLTV settings, never unsaved form edits. */
 @Injectable({ providedIn: 'root' })
 export class EpgSourceSettingsService {
@@ -68,13 +89,7 @@ export class EpgSourceSettingsService {
     private async reconcile(
         urls: string[] | string | undefined
     ): Promise<void> {
-        const normalized = [
-            ...new Set(
-                (Array.isArray(urls) ? urls : [urls ?? ''])
-                    .map((url) => url.trim())
-                    .filter(Boolean)
-            ),
-        ];
+        const normalized = normalizeEpgSourceUrls(urls);
         // These globals are committed even if playlist ownership or cleanup
         // cannot be read. Never keep the previous global list on failure.
         this.activeUrls = new Set(normalized);

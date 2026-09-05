@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of } from 'rxjs';
+import { EpgSourceReconciliationError } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsComponent } from './settings.component';
@@ -103,6 +104,32 @@ describe('SettingsComponent storage failures', () => {
         expect(component.settingsForm.pristine).toBe(true);
     });
 
+    it('retries failed source cleanup on an explicit EPG save and clears dirty state only on success', async () => {
+        await fixture.whenStable();
+        jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
+        component.form.setEpgUrls(['removed-source']);
+        component.form.removeEpgSource(0);
+        settingsStore.updateSettings
+            .mockRejectedValueOnce(new EpgSourceReconciliationError())
+            .mockResolvedValue(undefined);
+        component.onSubmit();
+        await fixture.whenStable();
+        expect(component.form.epgUrl.dirty).toBe(true);
+        expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
+            expect.objectContaining({ epgUrl: [] }),
+            { retryEpgCleanup: true }
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.EPG_DATA_CLEAR_FAILED',
+            undefined,
+            expect.any(Object)
+        );
+        component.onSubmit();
+        await fixture.whenStable();
+        expect(settingsStore.updateSettings).toHaveBeenCalledTimes(2);
+        expect(component.form.epgUrl.pristine).toBe(true);
+    });
+
     it('keeps the user in settings when save-and-leave cannot persist', async () => {
         settingsStore.updateSettings.mockRejectedValue(
             new Error('storage unavailable')
@@ -124,5 +151,4 @@ describe('SettingsComponent storage failures', () => {
         );
         expect(component.settingsForm.dirty).toBe(true);
     });
-
 });

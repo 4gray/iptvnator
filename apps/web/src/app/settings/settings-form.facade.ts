@@ -146,6 +146,7 @@ export class SettingsFormFacade {
      */
     removeEpgSource(index: number): void {
         this.epgUrl.removeAt(index);
+        this.epgUrl.markAsDirty();
         this.form.markAsDirty();
     }
 
@@ -161,7 +162,9 @@ export class SettingsFormFacade {
             this.settingsStore.getSettings()
         );
 
-        await this.settingsStore.updateSettings(settings);
+        await this.settingsStore.updateSettings(settings, {
+            retryEpgCleanup: this.epgUrl?.dirty ?? false,
+        });
         onSaved();
 
         if (!window.electron) {

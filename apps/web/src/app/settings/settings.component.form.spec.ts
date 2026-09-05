@@ -351,11 +351,14 @@ describe('SettingsComponent form', () => {
             component.onSubmit();
             await fixture.whenStable();
 
-            expect(settingsStore.updateSettings).toHaveBeenCalledWith({
-                ...component.settingsForm.value,
-                trustedPrivateNetworkEpgUrls: [],
-                trustedInsecureTlsHosts: [],
-            });
+            expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+                {
+                    ...component.settingsForm.value,
+                    trustedPrivateNetworkEpgUrls: [],
+                    trustedInsecureTlsHosts: [],
+                },
+                { retryEpgCleanup: false }
+            );
             expect(updateSettings).toHaveBeenCalledWith({
                 ...component.settingsForm.value,
                 trustedPrivateNetworkEpgUrls: [],
@@ -375,7 +378,8 @@ describe('SettingsComponent form', () => {
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
                 expect.objectContaining({
                     webPlayerSharedControls: false,
-                })
+                }),
+                { retryEpgCleanup: false }
             );
         });
 
@@ -421,7 +425,8 @@ describe('SettingsComponent form', () => {
                 expect.objectContaining({
                     mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
                     vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
-                })
+                }),
+                { retryEpgCleanup: false }
             );
             expect(updateSettings).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -456,7 +461,8 @@ describe('SettingsComponent form', () => {
                     epgUrl: ['https://example.com/guide.xml'],
                     preferUploadedEpgOverXtream: true,
                     theme: Theme.DarkTheme,
-                })
+                }),
+                { retryEpgCleanup: false }
             );
 
             webFixture.destroy();

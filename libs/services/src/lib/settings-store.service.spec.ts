@@ -110,6 +110,64 @@ describe('SettingsStore dashboard rail settings', () => {
         );
     });
 
+    it.each([
+        { epgUrl: ['second', 'first'] },
+        { epgUrl: [' first ', 'second', 'first', ''] },
+    ])(
+        'persists unrelated settings without reconciling an unchanged normalized source set: %j',
+        async ({ epgUrl }) => {
+            storedSettings = { epgUrl: ['first', 'second'] };
+            const reconcile = jest
+                .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+                .mockResolvedValue(undefined);
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            reconcile
+                .mockClear()
+                .mockRejectedValue(new Error('migration unavailable'));
+            await expect(
+                store.updateSettings({
+                    ...store.getSettings(),
+                    language: Language.FRENCH,
+                    epgUrl,
+                })
+            ).resolves.toBeUndefined();
+            expect(reconcile).not.toHaveBeenCalled();
+            expect(store.storageFailure()).toBeNull();
+            expect(storage.set).toHaveBeenLastCalledWith(
+                STORE_KEY.Settings,
+                expect.objectContaining({ language: Language.FRENCH })
+            );
+        }
+    );
+
+    it('keeps failed cleanup retryable only when an EPG save explicitly requests it', async () => {
+        storedSettings = { epgUrl: ['removed'] };
+        const reconcile = jest
+            .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+            .mockResolvedValue(undefined);
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        reconcile.mockClear().mockRejectedValue(new Error('cleanup failed'));
+        await expect(store.updateSettings({ epgUrl: [] })).rejects.toThrow(
+            'cleanup failed'
+        );
+        reconcile.mockClear();
+        await expect(
+            store.updateSettings({
+                ...store.getSettings(),
+                language: Language.FRENCH,
+            })
+        ).resolves.toBeUndefined();
+        expect(reconcile).not.toHaveBeenCalled();
+        await expect(
+            store.updateSettings({ epgUrl: [] }, { retryEpgCleanup: true })
+        ).rejects.toThrow('cleanup failed');
+        reconcile.mockResolvedValue(undefined);
+        await store.updateSettings({ epgUrl: [] }, { retryEpgCleanup: true });
+        expect(reconcile).toHaveBeenCalledTimes(2);
+    });
+
     it('defaults portal request pauses on and persists an explicit opt-out', async () => {
         const store = injector.get(SettingsStore);
         expect(store.getSettings().portalConnectivityGuard).toBe(true);

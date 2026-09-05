@@ -5,6 +5,7 @@ import {
     closeElectronApp,
     createMutableTextServer,
     expect,
+    goToDashboard,
     importM3uPlaylistFromUrl,
     launchElectronApp,
     openWorkspaceSection,
@@ -67,6 +68,40 @@ function formatXmltvDate(date: Date): string {
 }
 
 test.describe('Electron EPG', () => {
+    test('@epg @electron saves unrelated settings when EPG reconciliation is unavailable', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'general');
+            // After startup, make any unexpected reconciliation fail.
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('EPG_RECONCILE_SOURCES');
+                ipcMain.handle('EPG_RECONCILE_SOURCES', () => {
+                    throw new Error('Synthetic migration failure');
+                });
+            });
+            const guard = app.mainWindow
+                .getByTestId('portal-connectivity-toggle')
+                .locator('input');
+            await guard.uncheck();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toBeVisible();
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).not.toBeVisible();
+            await goToDashboard(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('unsaved-dialog-save')
+            ).not.toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@epg @electron adds an EPG source, fetches guide data, removes its stored EPG data on save', async ({
         dataDir,
     }) => {
