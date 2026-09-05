@@ -270,4 +270,44 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
 
         expect(store.setPage).not.toHaveBeenCalled();
     });
+    it('scrolls a blank panel through the cached category independently of sidebar matches', async () => {
+        const category = Array.from({ length: 250 }, (_, index) => ({
+            ...channels[0],
+            id: `channel-${index}`,
+            name: `Channel ${index}`,
+            o_name: `Channel ${index}`,
+        }));
+        store.itvFullListActive.set(true);
+        store.itvSelectedCategoryFromCache.set(true);
+        itvChannels.set(category);
+        searchPhrase.set('Channel 249');
+        fixture.detectChanges();
+        await settle();
+
+        const blank = signal('');
+        const container = component.scrollContainers()[0].nativeElement;
+        // Exercise the installed scroll listener with the panel copy's DOM
+        // marker. The sidebar's one matching row has no more items.
+        container.classList.add('fullscreen-channel-list');
+        Object.defineProperties(container, {
+            scrollHeight: { configurable: true, value: 1000 },
+            clientHeight: { configurable: true, value: 200 },
+        });
+        expect(component.hasMoreItems()).toBe(false);
+        expect(component.channelsForList(blank)).toHaveLength(100);
+
+        container.scrollTop = 0;
+        container.dispatchEvent(new Event('scroll'));
+        expect(component.channelsForList(blank)).toHaveLength(100);
+
+        container.scrollTop = 800;
+        container.dispatchEvent(new Event('scroll'));
+        expect(component.channelsForList(blank)).toHaveLength(200);
+        container.dispatchEvent(new Event('scroll'));
+        expect(component.channelsForList(blank)).toEqual(category);
+        container.dispatchEvent(new Event('scroll'));
+        expect(component.channelsForList(blank)).toEqual(category);
+        expect(component.visibleChannels()).toEqual([category[249]]);
+        expect(store.setPage).not.toHaveBeenCalled();
+    });
 });
