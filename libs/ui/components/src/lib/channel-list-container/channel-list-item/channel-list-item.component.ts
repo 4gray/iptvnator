@@ -77,7 +77,10 @@ export class ChannelListItemComponent {
     readonly auxActionTooltip = input('');
 
     readonly clicked = output<void>();
+    /** Pointer double click; consumers retain their existing preference gate. */
     readonly activated = output<void>();
+    /** Explicit keyboard playback, independent of the pointer double-click preference. */
+    readonly keyboardActivated = output<void>();
     readonly favoriteToggled = output<MouseEvent>();
     readonly auxActionClicked = output<MouseEvent>();
     readonly contextMenuRequested = output<MouseEvent>();
@@ -132,7 +135,11 @@ export class ChannelListItemComponent {
             return;
         }
 
-        this.clicked.emit();
+        if (event?.detail === 0) {
+            this.keyboardActivated.emit();
+        } else {
+            this.clicked.emit();
+        }
     }
 
     onDoubleClick(): void {

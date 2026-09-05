@@ -1,3 +1,4 @@
+import { focusLiveChannels } from '@iptvnator/ui/components';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -27,6 +28,8 @@ interface WorkspaceCategoryViewItem {
     styleUrl: './workspace-context-category-view.component.scss',
 })
 export class WorkspaceContextCategoryViewComponent {
+    readonly focusLiveChannels = focusLiveChannels;
+
     readonly items = input<ReadonlyArray<WorkspaceCategoryViewItem>>([]);
     readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());

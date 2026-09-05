@@ -13,7 +13,11 @@
     @if (isDraggable()) {
         <mat-icon cdkDragHandle class="drag-icon">drag_indicator</mat-icon>
     }
-    <div class="channel-content">
+    <button
+        type="button"
+        class="channel-content"
+        [attr.aria-label]="displayName()"
+    >
         <div class="channel-logo-shell" aria-hidden="true">
             @if (showLogoFallback()) {
                 <mat-icon class="channel-logo-fallback">live_tv</mat-icon>
@@ -80,7 +84,7 @@
                 }
             }
         </div>
-    </div>
+    </button>
     @if (
         (showProgramInfoButton() && showEpg()) ||
         showFavoriteButton() ||

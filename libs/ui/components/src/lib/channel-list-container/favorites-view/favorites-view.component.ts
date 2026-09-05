@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import {
     CdkDragDrop,
     DragDropModule,
@@ -37,6 +38,7 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
     styleUrls: ['./favorites-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         DragDropModule,
         MatIconModule,
@@ -90,7 +92,9 @@ export class FavoritesViewComponent {
         y: '0px',
     });
 
-    readonly hasSearchTerm = computed(() => this.searchTerm().trim().length > 0);
+    readonly hasSearchTerm = computed(
+        () => this.searchTerm().trim().length > 0
+    );
     readonly filteredFavorites = computed(() => {
         const favorites = this.favorites();
         const term = this.searchTerm().trim().toLowerCase();
@@ -187,7 +191,6 @@ export class FavoritesViewComponent {
             channelName: channel.name ?? channelKey,
         });
     }
-
 
     openChannelDetails(): void {
         const channel = this.contextMenuChannel();

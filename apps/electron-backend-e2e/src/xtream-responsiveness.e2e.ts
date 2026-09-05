@@ -329,3 +329,88 @@ test.describe('Electron Xtream Responsiveness', () => {
         }
     });
 });
+
+test('keeps Live TV scrolling, row actions and resizing independently accessible', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['xtream']);
+    const app = await launchElectronApp(dataDir);
+    try {
+        const page = app.mainWindow;
+        await addXtreamPortal(page);
+        await waitForXtreamCatalog(page);
+        await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+        const categories = page.locator('.context-panel .category-item');
+        const category = categories.first();
+        await category.click();
+        const viewport = page.locator('.scroll-viewport-portals');
+        await expect(viewport).toBeVisible();
+        await category.focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(viewport).toBeFocused();
+        await expect(page.locator('app-web-player-view')).toHaveCount(0);
+        await page.keyboard.press('Tab');
+        await expect(
+            viewport.locator('button.channel-content').first()
+        ).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(viewport).toBeFocused();
+        await viewport.locator('.channel-name').first().click();
+        await expect(viewport).toBeFocused();
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(100);
+        const position = await viewport.evaluate((el) => el.scrollTop);
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(position);
+        await page.keyboard.press('Home');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBe(0);
+        const before = (await viewport.boundingBox())!;
+        const handle = page.locator(
+            'app-live-stream-layout .sidebar > .resize-handle'
+        );
+        const resize = (await handle.boundingBox())!;
+        expect(before.x + before.width).toBeLessThanOrEqual(resize.x);
+        expect(
+            await handle.evaluate((el) =>
+                getComputedStyle(el).getPropertyValue('app-region')
+            )
+        ).toBe('no-drag');
+        // Start inside the thumb, below the native Windows up-arrow button.
+        // The 40-channel mock leaves a thumb taller than 100 px here.
+        await page.mouse.move(before.x + before.width - 3, before.y + 40);
+        await page.mouse.down();
+        await page.mouse.move(before.x + before.width - 3, before.y + 160, {
+            steps: 10,
+        });
+        await page.mouse.up();
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(100);
+        expect((await viewport.boundingBox())!.width).toBe(before.width);
+        await page.mouse.move(resize.x + 2, resize.y + 100);
+        await page.mouse.down();
+        await page.mouse.move(resize.x + 62, resize.y + 100, { steps: 10 });
+        await page.mouse.up();
+        await expect
+            .poll(async () => (await viewport.boundingBox())!.width)
+            .toBeGreaterThan(before.width + 30);
+        await viewport.focus();
+        await page.keyboard.press('ArrowLeft');
+        await expect(category).toBeFocused();
+        await categories.nth(1).focus();
+        await page.keyboard.press('Enter');
+        await expect(categories.nth(1)).toBeFocused();
+        await expect(categories.nth(1)).toHaveAttribute('aria-current', 'true');
+        await page.keyboard.press('ArrowRight');
+        await expect(viewport).toBeFocused();
+    } finally {
+        await closeElectronApp(app);
+    }
+});

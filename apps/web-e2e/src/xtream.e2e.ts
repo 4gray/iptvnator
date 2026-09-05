@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { setInputValue } from './e2e-helpers';
+import { setInputValue, waitForScrollIdle } from './e2e-helpers';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
@@ -1219,3 +1219,107 @@ test.describe('@xtream vendor-chrome Video.js shortcuts', () => {
             .toBe(true);
     });
 });
+
+for (const theme of ['light', 'dark']) {
+    test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
+        page,
+    }) => {
+        await addXtreamPortal(page);
+        await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+        await page.evaluate(
+            (dark) => document.body.classList.toggle('dark-theme', dark),
+            theme === 'dark'
+        );
+        const category = page.locator('.context-panel .category-item').first();
+        await category.click();
+        const viewport = page.locator('.scroll-viewport-portals');
+        await expect(viewport).toBeVisible();
+        await category.focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(viewport).toBeFocused();
+        await expect(page.locator('app-web-player-view')).toHaveCount(0);
+        await page.keyboard.press('Tab');
+        const firstAction = viewport.locator('button.channel-content').first();
+        await expect(firstAction).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(viewport).toBeFocused();
+
+        const row = viewport.locator('.channel-name').first();
+        await row.click();
+        await expect(viewport).toBeFocused();
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(100);
+        await waitForScrollIdle(viewport);
+        const position = await viewport.evaluate((el) => el.scrollTop);
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(position);
+        await waitForScrollIdle(viewport);
+        await page.keyboard.press('Home');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBe(0);
+        await firstAction.focus();
+        await page.keyboard.press('Space');
+        await expect(page.locator('app-web-player-view')).toBeVisible();
+        await expect(firstAction).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(
+            viewport.locator('.favorite-button').first()
+        ).toBeFocused();
+        await page.keyboard.press('Space');
+        await expect(
+            viewport.locator('.favorite-button').first()
+        ).toBeFocused();
+        await viewport.focus();
+        const overlap = await viewport.evaluate((el) => {
+            const handle = el
+                .closest('.sidebar')!
+                .querySelector('.resize-handle')!;
+            return (
+                el.getBoundingClientRect().right -
+                handle.getBoundingClientRect().left
+            );
+        });
+        expect(overlap).toBeLessThanOrEqual(0);
+        await page.keyboard.press('ArrowLeft');
+        await expect(category).toBeFocused();
+    });
+
+    for (const section of ['Movies', 'Series']) {
+        test(`@xtream navigation: detail scroll ${section} (${theme})`, async ({
+            page,
+        }) => {
+            await page.setViewportSize({ width: 1200, height: 540 });
+            await addXtreamPortal(page);
+            await page
+                .getByRole('link', { name: section, exact: true })
+                .click();
+            await page.locator('app-grid-list mat-card').first().click();
+            const shell = page.locator('app-portal-detail-shell');
+            await expect(shell).toBeVisible();
+            await page.evaluate(
+                (dark) => document.body.classList.toggle('dark-theme', dark),
+                theme === 'dark'
+            );
+            await expect(shell).toBeFocused();
+            await expect
+                .poll(() =>
+                    shell.evaluate((el) => el.scrollHeight - el.clientHeight)
+                )
+                .toBeGreaterThan(0);
+            expect(
+                await shell.evaluate(
+                    (el) => getComputedStyle(el).scrollbarWidth
+                )
+            ).not.toBe('none');
+            await page.keyboard.press('PageDown');
+            await expect
+                .poll(() => shell.evaluate((el) => el.scrollTop))
+                .toBeGreaterThan(0);
+        });
+    }
+}

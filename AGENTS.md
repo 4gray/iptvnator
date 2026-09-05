@@ -188,6 +188,18 @@ categories by provider ID and type. See `docs/architecture/category-management.m
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
 
+## Channel and Detail Keyboard Scrolling
+
+Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection
+focuses the viewport, native scrolling survives virtual row recycling, and
+row Enter/Space activation stays separate from focus movement. Portal Live TV
+uses ArrowRight from the selected category and ArrowLeft from the channels
+pane to move between columns. Shared live sidebars reserve scrollbar space
+beside the resize handle. `PortalDetailShellComponent` owns a visible native
+scrollbar and guarded initial page focus. Contracts:
+`docs/architecture/iptvnator-ui-guidelines.md` and
+`docs/architecture/portal-detail-navigation.md`.
+
 ## Radio / Audio Player
 
 M3U playlists can contain radio channels identified by the `radio="true"` attribute on `#EXTINF` lines. When a radio channel is selected:

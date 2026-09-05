@@ -40,9 +40,9 @@ consumers currently use relative `@use` paths to the needed partial.
   of copied SCSS.
 - In an Electron drag region, every interactive descendant—buttons, links,
   inputs, overlays, and resize handles—must explicitly use
-  `app-region: no-drag`. The shared directive-generated `.resize-handle` does
-  not set this centrally yet; consumers in drag regions must cover it
-  themselves and must not assume the generated handle opts out.
+  `app-region: no-drag`. The shared directive-generated `.resize-handle` sets
+  this centrally. Shared live sidebars reserve 8 px between their scroll
+  content and the edge so scrollbar and resize hit areas stay independent.
 - A shared change must be checked across M3U, Xtream, Stalker, workspace,
   portal catalog/shared UI, and unified collections where relevant.
 

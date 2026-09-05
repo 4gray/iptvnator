@@ -34,6 +34,24 @@ describe('ChannelListItemComponent', () => {
         fixture = TestBed.createComponent(ChannelListItemComponent);
     });
 
+    it('exposes a separate keyboard activation button without nesting row actions', () => {
+        fixture.componentRef.setInput('name', 'News');
+        fixture.componentRef.setInput('showFavoriteButton', true);
+        fixture.detectChanges();
+        const primary = fixture.nativeElement.querySelector(
+            'button.channel-content'
+        );
+        expect(primary).not.toBeNull();
+        expect(primary?.querySelector('button')).toBeNull();
+        const activated = jest.fn();
+        const clicked = jest.fn();
+        fixture.componentInstance.keyboardActivated.subscribe(activated);
+        fixture.componentInstance.clicked.subscribe(clicked);
+        primary?.click();
+        expect(activated).toHaveBeenCalledTimes(1);
+        expect(clicked).not.toHaveBeenCalled();
+    });
+
     it('formats preview times from timestamp fields when raw strings are offset', () => {
         const startTimestamp = Math.floor(
             Date.parse('2026-04-05T05:30:00.000Z') / 1000

@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import { KeyValue, TitleCasePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -66,6 +67,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
         MatIconModule,
