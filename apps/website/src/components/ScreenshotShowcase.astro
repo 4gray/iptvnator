@@ -291,11 +291,13 @@ const pad = (n: number) => String(n).padStart(2, '0');
       frame = window.requestAnimationFrame(tick);
     }
 
+    // Leaving the viewport is a pause like any other: the frame loop stops,
+    // the bar keeps its width, and the clock resumes from the same mark when
+    // the block scrolls back in. Only a channel change resets the dwell.
     function start() {
       loadFrame(current + 1);
       if (reduceMotion || frame) return;
-      startedAt = performance.now();
-      pausedAt = 0;
+      if (!startedAt) startedAt = performance.now();
       frame = window.requestAnimationFrame(tick);
     }
 
@@ -303,7 +305,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       if (!frame) return;
       window.cancelAnimationFrame(frame);
       frame = 0;
-      progressOf(current).style.width = '0%';
+      if (!pausedAt) pausedAt = performance.now();
     }
 
     tabs.forEach((tab, i) => tab.addEventListener('click', () => show(i, { focus: true })));

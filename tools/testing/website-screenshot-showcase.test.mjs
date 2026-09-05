@@ -124,6 +124,19 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
       null,
       { timeout: 5000 },
     );
+
+    // Scrolling the block away pauses the dwell; scrolling back resumes it from the same mark.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(400); // let the IntersectionObserver report the exit
+    const whileAway = await progressWidth(page);
+    await page.waitForTimeout(700);
+    const stillAway = await progressWidth(page);
+    assert.ok(Math.abs(stillAway - whileAway) < 0.5, `progress holds while offscreen (${whileAway} → ${stillAway})`);
+    await page.locator('#screenshots').scrollIntoViewIfNeeded();
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(400);
+    const afterReturn = await progressWidth(page);
+    assert.ok(afterReturn >= whileAway && afterReturn < whileAway + 15, `progress resumes after scrolling back (${whileAway} → ${afterReturn})`);
     assert.deepEqual(errors, []);
     await page.close();
 
