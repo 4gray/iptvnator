@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
     display: contents;
 }
@@ -21,19 +23,26 @@
 }
 
 .workspace-loading-overlay__card {
+    --sync-secondary: color-mix(
+        in srgb,
+        var(--app-on-surface) 78%,
+        var(--app-widget-bg)
+    );
+    --sync-accent: color-mix(
+        in srgb,
+        var(--app-selection-color) 60%,
+        var(--app-on-surface)
+    );
+
     width: min(440px, 100%);
     display: grid;
     gap: 14px;
     padding: 24px 24px 20px;
     border-radius: 24px;
-    border: 1px solid var(--app-separator, rgba(255, 255, 255, 0.12));
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.06),
-            rgba(255, 255, 255, 0)
-        ),
-        var(--mat-sys-surface-container-high);
+    border: 1px solid var(--app-separator);
+    // Keep a bounded glass tint without letting the scrim own text contrast.
+    background: color-mix(in srgb, var(--app-widget-bg) 96%, transparent);
+    color: var(--app-on-surface);
     box-shadow:
         0 24px 64px rgba(0, 0, 0, 0.32),
         0 1px 0 rgba(255, 255, 255, 0.05) inset;
@@ -45,7 +54,7 @@
         font-size: 1.55rem;
         font-weight: 650;
         letter-spacing: -0.03em;
-        color: var(--app-heading-color, var(--mat-sys-on-surface));
+        color: var(--app-heading-color);
     }
 }
 
@@ -61,9 +70,9 @@
     justify-content: center;
     padding: 6px 12px;
     border-radius: 999px;
-    border: 1px solid rgba(120, 220, 255, 0.24);
-    background: rgba(120, 220, 255, 0.08);
-    color: rgba(164, 233, 255, 1);
+    border: 1px solid var(--app-separator);
+    background: var(--app-hover-overlay);
+    color: var(--sync-secondary);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -71,9 +80,9 @@
 }
 
 .workspace-loading-overlay__badge--remote {
-    border-color: rgba(105, 195, 255, 0.34);
-    background: rgba(83, 158, 255, 0.12);
-    color: rgba(202, 230, 255, 1);
+    border-color: var(--app-selection-border);
+    background: var(--app-selection-surface);
+    color: var(--sync-accent);
 }
 
 .workspace-loading-overlay__phase,
@@ -84,14 +93,14 @@
 
 .workspace-loading-overlay__phase {
     font-size: 1rem;
-    font-weight: 560;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    font-weight: 600;
+    color: var(--app-on-surface);
 }
 
 .workspace-loading-overlay__detail {
     max-width: 32ch;
     justify-self: center;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--sync-secondary);
     line-height: 1.45;
 }
 
@@ -100,11 +109,22 @@
     justify-self: center;
     line-height: 1.45;
     font-variant-numeric: tabular-nums;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--sync-secondary);
     text-wrap: balance;
 }
 
 .workspace-loading-overlay__action {
+    @include mat.button-overrides(
+        (
+            outlined-label-text-color: var(--sync-accent),
+            outlined-label-text-weight: 600,
+            outlined-outline-color: var(--sync-secondary),
+            outlined-state-layer-color: var(--app-on-surface),
+            outlined-disabled-label-text-color: var(--sync-secondary),
+            outlined-disabled-outline-color: var(--app-separator),
+        )
+    );
+
     justify-self: center;
     min-width: 180px;
     border-radius: 999px;

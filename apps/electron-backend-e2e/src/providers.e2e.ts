@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { applyTheme, expectTextContrast } from './theme-contrast';
 
 import {
     addStalkerPortal,
@@ -20,6 +21,55 @@ import {
 } from './electron-test-fixtures';
 
 test.describe('Electron Provider Smoke Tests', () => {
+    test('@xtream @theme @electron keeps sync overlay text readable in both themes', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        try {
+            // Hold the cache read so the real local-library overlay stays
+            // mounted while its theme and Material interaction states change.
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('DB_GET_CATEGORIES');
+                ipcMain.handle(
+                    'DB_GET_CATEGORIES',
+                    () => new Promise(() => {
+                        // Intentionally pending until this isolated app closes.
+                    })
+                );
+            });
+            await addXtreamPortal(app.mainWindow);
+            const overlay = app.mainWindow.locator(
+                'app-workspace-shell-import-overlay'
+            );
+            await expect(overlay).toContainText('Loading the saved catalog');
+            const action = overlay.getByRole('button', { name: 'Stop sync' });
+            for (const theme of ['light', 'dark', 'light'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                for (const selector of [
+                    'h3',
+                    '.workspace-loading-overlay__badge',
+                    '.workspace-loading-overlay__phase',
+                    '.workspace-loading-overlay__detail',
+                ]) {
+                    await expectTextContrast(overlay.locator(selector));
+                }
+                // Leave headroom for Material's translucent hover/focus layer.
+                await expectTextContrast(action, 6);
+                await action.hover();
+                await expectTextContrast(action);
+                await action.focus();
+                await expectTextContrast(action);
+                await app.mainWindow.screenshot({
+                    path: test.info().outputPath(`sync-overlay-${theme}.png`),
+                });
+            }
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@xtream @electron loads Xtream content through the Electron IPC path', async ({
         dataDir,
         request,

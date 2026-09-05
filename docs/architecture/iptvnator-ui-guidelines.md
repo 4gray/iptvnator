@@ -325,6 +325,17 @@ remain local when the meaning is explicit.
 - Use a solid or near-solid backing surface
 - Do not let it overlap or cover player controls
 
+## Workspace Xtream Sync Overlay
+
+The import/refresh card pairs a near-opaque `--app-widget-bg` surface with
+app-owned text colors in both themes. Blur belongs to the backdrop; card text
+must not depend on an unprovided Material system surface token. Phase text uses
+the primary foreground, and explanatory/progress copy uses a readable blend of
+primary text and the widget surface instead of the decorative muted token.
+Local and remote badges, and the outlined cancel button, resolve their text,
+surfaces and interaction colors together. Electron provider E2E coverage holds
+a cache read open and checks text contrast across live theme changes.
+
 ## Progress Bars
 
 Channel preview progress and EPG current-program progress should stay visually aligned.
