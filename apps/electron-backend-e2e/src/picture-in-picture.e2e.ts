@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
     channelItemByTitle,
     closeElectronApp,
@@ -5,12 +7,23 @@ import {
     goToDashboard,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
-    m3uFixturePath,
     openSettings,
     openSettingsSection,
     saveSettings,
     test,
 } from './electron-test-fixtures';
+
+const streamHost = 'https://pip-fixture.test';
+const media = readFileSync(
+    join(__dirname, '../../web-e2e/src/fixtures/playback/episode.webm')
+);
+const playlist = [
+    '#EXTM3U',
+    '#EXTINF:-1 tvg-id="pip-one" group-title="News",Channel 1',
+    `${streamHost}/one.webm`,
+    '#EXTINF:-1 tvg-id="pip-two" group-title="News",Positive News TV',
+    `${streamHost}/two.webm`,
+].join('\n');
 
 for (const player of ['html5', 'videojs', 'artplayer']) {
     for (const sharedControls of [false, true]) {
@@ -32,19 +45,40 @@ for (const player of ['html5', 'videojs', 'artplayer']) {
                 if (await page.getByTestId('save-settings').isVisible()) {
                     await saveSettings(page);
                 }
-                await goToDashboard(page);
-                await importM3uPlaylistFromNativeDialog(app, m3uFixturePath);
-                await page.waitForURL(/\/workspace\/playlists\/.+/);
-                // The test exercises the real settings/channel/host lifecycle.
-                // Keep synthetic HLS pending and emulate only the OS PiP API,
-                // which is not reliably available on headless CI desktops.
-                await page.route(
-                    'https://example.channels/**',
-                    () => undefined
+                const playlistPath = join(dataDir, 'pip.m3u');
+                writeFileSync(playlistPath, playlist);
+                await page.route(`${streamHost}/**`, (route) =>
+                    route.fulfill({
+                        status: 200,
+                        contentType: 'video/webm',
+                        body: media,
+                    })
                 );
-                await channelItemByTitle(page, 'Channel 1').first().click();
+                await goToDashboard(page);
+                await importM3uPlaylistFromNativeDialog(app, playlistPath);
+                await page.waitForURL(/\/workspace\/playlists\/.+/);
+                // Import can auto-select the first channel. Select a distinct
+                // source and wait for its actual media to load before owning PiP;
+                // merely finding a video can capture the retiring initial host.
+                await channelItemByTitle(page, 'Positive News TV')
+                    .first()
+                    .click();
                 const video = page.locator('app-web-player-view video');
                 await expect(video).toHaveCount(1);
+                await expect
+                    .poll(() =>
+                        video.evaluate((element: HTMLVideoElement) => ({
+                            source: element.currentSrc,
+                            loaded:
+                                element.readyState >=
+                                HTMLMediaElement.HAVE_CURRENT_DATA,
+                        }))
+                    )
+                    .toEqual({
+                        source: `${streamHost}/two.webm`,
+                        loaded: true,
+                    });
+                // Emulate only the OS PiP API, unavailable on headless CI.
                 const oldVideo = await video.elementHandle();
                 if (!oldVideo)
                     throw new Error(
@@ -77,9 +111,7 @@ for (const player of ['html5', 'videojs', 'artplayer']) {
                     )
                     .toBe(true);
 
-                await channelItemByTitle(page, 'Positive News TV')
-                    .first()
-                    .click();
+                await channelItemByTitle(page, 'Channel 1').first().click();
 
                 await expect
                     .poll(() =>
