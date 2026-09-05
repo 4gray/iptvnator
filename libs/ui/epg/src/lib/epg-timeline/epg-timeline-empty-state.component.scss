@@ -1,3 +1,5 @@
+@use '../epg-theme' as *;
+
 :host {
     /* Fill the area below the toolbar and centre within THAT, instead of a fixed
        min-height that overflowed the compact inline panel and pushed the icon /
@@ -9,7 +11,7 @@
     width: 100%;
     overflow: hidden;
     padding: 14px 22px;
-    background: #0a0e15;
+    background: var(--app-content-bg);
 }
 
 .epg-empty {
@@ -23,9 +25,9 @@
         display: grid;
         place-items: center;
         margin: 0 auto 10px;
-        background: var(--surface-2, #161d28);
-        border: 1px solid var(--line-strong, rgba(255, 255, 255, 0.1));
-        color: var(--text-tertiary, #6b7384);
+        background: $surface-2;
+        border: 1px solid $line-strong;
+        color: $text-tertiary;
 
         mat-icon {
             width: 24px;
@@ -36,26 +38,26 @@
         &.tone-action {
             background: rgba(79, 142, 255, 0.12);
             border-color: rgba(79, 142, 255, 0.3);
-            color: var(--accent-blue, #4f8eff);
+            color: $accent-text;
         }
 
         &.tone-warn {
             background: rgba(255, 91, 110, 0.1);
             border-color: rgba(255, 91, 110, 0.28);
-            color: var(--accent-live, #ff5b6e);
+            color: $live-text;
         }
     }
 
     &__title {
         font-size: 15.5px;
         font-weight: 600;
-        color: var(--text-primary, #e7ecf3);
+        color: $text-primary;
         margin-bottom: 5px;
     }
 
     &__sub {
         font-size: 13px;
-        color: var(--text-secondary, #9aa3b2);
+        color: $text-secondary;
         line-height: 1.45;
     }
 

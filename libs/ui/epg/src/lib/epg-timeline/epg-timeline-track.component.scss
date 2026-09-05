@@ -1,15 +1,4 @@
-$line: var(--line, rgba(255, 255, 255, 0.06));
-$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
-$surface-1: var(--surface-1, #0f141c);
-$surface-2: var(--surface-2, #161d28);
-$surface-3: var(--surface-3, #1d2533);
-$text-primary: var(--text-primary, #e7ecf3);
-$text-secondary: var(--text-secondary, #9aa3b2);
-$text-tertiary: var(--text-tertiary, #6b7384);
-$accent-blue: var(--accent-blue, #4f8eff);
-$accent-cyan: var(--accent-cyan, #5cd6ff);
-$accent-live: var(--accent-live, #ff5b6e);
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+@use '../epg-theme' as *;
 
 :host {
     box-sizing: border-box;
@@ -45,7 +34,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 }
 
 .epg-timeline__daydiv {
-    border-left: 1px solid rgba(79, 142, 255, 0.5);
+    border-left: 1px solid var(--app-selection-border);
 
     span {
         position: absolute;
@@ -55,7 +44,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.04em;
-        color: $accent-blue;
+        color: $accent-text;
         white-space: nowrap;
         text-transform: uppercase;
     }
@@ -96,7 +85,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &.is-past {
-        opacity: 0.52;
+        opacity: 1;
         background: transparent;
 
         &:hover {
@@ -105,23 +94,23 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &.is-now {
-        background: rgba(79, 142, 255, 0.1);
+        background: var(--app-selection-surface);
         border-color: $accent-blue;
         opacity: 1;
 
         .epg-timeline__block-title {
-            color: #fff;
+            color: $text-primary;
             font-weight: 600;
         }
     }
 
     &.is-playing {
-        background: rgba(79, 142, 255, 0.18);
+        background: var(--app-selection-surface-strong);
         border-color: $accent-blue;
         opacity: 1;
 
         .epg-timeline__block-title {
-            color: #fff;
+            color: $text-primary;
             font-weight: 600;
         }
     }
@@ -145,7 +134,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     pointer-events: none;
 
     &--live {
-        background: rgba(92, 214, 255, 0.12);
+        background: var(--app-selection-surface);
         border-right: 2px solid $accent-cyan;
     }
 }
@@ -269,7 +258,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 
     &.is-now .epg-timeline__block-title,
     &.is-playing .epg-timeline__block-title {
-        color: #fff;
+        color: $text-primary;
     }
 }
 
@@ -313,7 +302,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     text-transform: uppercase;
 
     &.is-now {
-        color: $accent-live;
+        color: $live-text;
 
         &::before {
             content: '';
@@ -326,7 +315,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &.is-arch {
-        color: $accent-blue;
+        color: $accent-text;
     }
 }
 
@@ -353,7 +342,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 
     &:hover {
         border-color: $accent-blue;
-        color: $accent-blue;
+        color: $accent-text;
     }
 }
 
@@ -372,7 +361,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     place-items: center;
     border: none;
     border-radius: 7px;
-    background: rgba(8, 11, 17, 0.66);
+    background: $surface-2;
     color: $text-secondary;
     cursor: pointer;
     opacity: 0;
@@ -445,7 +434,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     font-size: 9px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: $accent-blue;
+    color: $accent-text;
     white-space: nowrap;
 }
 
@@ -480,7 +469,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
         font-family: $font-mono;
         font-size: 9.5px;
         font-weight: 700;
-        color: #fff;
+        color: var(--app-widget-bg);
         background: $accent-live;
         padding: 1px 5px;
         border-radius: 4px;
@@ -496,7 +485,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     background: $surface-1;
     border: 1px solid $line-strong;
     border-radius: var(--r-md, 10px);
-    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--app-widget-shadow);
     padding: 13px 14px;
     pointer-events: none;
 }
@@ -504,7 +493,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 .epg-timeline__pop-time {
     font-family: $font-mono;
     font-size: 10.5px;
-    color: $accent-cyan;
+    color: $accent-text;
     margin-bottom: 5px;
 }
 

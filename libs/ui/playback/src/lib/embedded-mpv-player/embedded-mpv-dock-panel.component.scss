@@ -31,7 +31,7 @@
     max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: color-mix(in srgb, var(--mat-sys-on-surface) 70%, transparent);
+    color: var(--embedded-mpv-text-muted);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -67,7 +67,7 @@
     max-width: 220px;
     height: 34px;
     padding: 0 14px;
-    color: var(--mat-sys-on-surface);
+    color: var(--embedded-mpv-text);
     background: transparent;
     border: 1px solid var(--embedded-mpv-border);
     border-radius: 999px;

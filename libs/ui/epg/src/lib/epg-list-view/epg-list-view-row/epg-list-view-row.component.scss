@@ -1,14 +1,4 @@
-$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
-$surface-1: var(--surface-1, #0f141c);
-$surface-2: var(--surface-2, #161d28);
-$surface-3: var(--surface-3, #1d2533);
-$text-primary: var(--text-primary, #e7ecf3);
-$text-secondary: var(--text-secondary, #9aa3b2);
-$text-tertiary: var(--text-tertiary, #6b7384);
-$accent-blue: var(--accent-blue, #4f8eff);
-$accent-cyan: var(--accent-cyan, #5cd6ff);
-$accent-live: var(--accent-live, #ff5b6e);
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+@use '../../epg-theme' as *;
 
 :host {
     box-sizing: border-box;
@@ -47,7 +37,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: $accent-live;
+    color: $live-text;
 }
 .time-now::before {
     content: '';
@@ -80,7 +70,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 .g-now-bar {
     height: 3px;
     border-radius: 2px;
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--app-separator);
     margin-top: 8px;
     max-width: 320px;
     overflow: hidden;
@@ -100,7 +90,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: $accent-blue;
+    color: $accent-text;
 }
 .playtag mat-icon {
     width: 14px;
@@ -170,7 +160,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 }
 .watch:hover {
     border-color: $accent-blue;
-    color: $accent-blue;
+    color: $accent-text;
 }
 
 /* ── PAST — dimmed ── */
@@ -189,14 +179,14 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 /* ── NOW — accent bar + fill ── */
 :host([data-when='now']) {
     align-items: start;
-    background: rgba(79, 142, 255, 0.08);
-    border-left-color: #4f8eff;
+    background: var(--app-selection-surface);
+    border-left-color: var(--app-selection-border);
 }
 :host([data-when='now']) .time {
-    color: $accent-blue;
+    color: $accent-text;
 }
 :host([data-when='now']) .title {
-    color: #fff;
+    color: $text-primary;
     font-weight: 600;
 }
 :host([data-when='now']) .desc {
@@ -205,20 +195,20 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 
 /* ── PLAYING from archive — distinct from now ── */
 :host(.playing) {
-    background: rgba(79, 142, 255, 0.13);
-    border-left-color: #4f8eff;
+    background: var(--app-selection-surface);
+    border-left-color: var(--app-selection-border);
 }
 :host(.playing) .title {
-    color: #fff;
+    color: $text-primary;
     font-weight: 600;
 }
 :host(.playing) .watch {
     border-color: $accent-blue;
-    background: rgba(79, 142, 255, 0.18);
-    color: $accent-blue;
+    background: var(--app-selection-surface);
+    color: $accent-text;
 }
 
 /* ── SELECTED (focus) — ring only, independent of temporal/playing state ── */
 :host(.sel) {
-    box-shadow: inset 0 0 0 1px rgba(79, 142, 255, 0.55);
+    box-shadow: inset 0 0 0 1px var(--app-selection-border);
 }
