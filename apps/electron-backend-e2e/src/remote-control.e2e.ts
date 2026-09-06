@@ -448,15 +448,24 @@ async function waitForRemoteStatus(
 ): Promise<RemoteControlStatus> {
     let latestStatus: RemoteControlStatus | null = null;
 
-    await expect
-        .poll(
-            async () => {
-                latestStatus = await getRemoteStatus(request, port);
-                return latestStatus ? predicate(latestStatus) : false;
-            },
-            { timeout: 20000 }
-        )
-        .toBe(true);
+    try {
+        await expect
+            .poll(
+                async () => {
+                    latestStatus = await getRemoteStatus(request, port);
+                    return latestStatus ? predicate(latestStatus) : false;
+                },
+                { timeout: 20000 }
+            )
+            .toBe(true);
+    } catch (error) {
+        // The predicate alone says nothing about how far the status got;
+        // surface the last payload so a CI failure is diagnosable.
+        throw new Error(
+            `Remote status never matched. Last status: ${JSON.stringify(latestStatus)}`,
+            { cause: error }
+        );
+    }
 
     return latestStatus as RemoteControlStatus;
 }
