@@ -1,6 +1,6 @@
 import { classifyHostRequestFailure } from '@iptvnator/shared/host-health';
 import { ProviderRequestError } from './provider-request-error';
-import axios from 'axios';
+import { ProviderAxiosTransport } from './provider-axios-transport';
 import express from 'express';
 import { readFileSync } from 'node:fs';
 import { createServer, Agent as HttpsAgent } from 'node:https';
@@ -116,6 +116,24 @@ describe('real axios validated transport', () => {
             });
         }
     );
+    it('preserves double-slash paths and escaped segments without changing connection authority', async () => {
+        const provider = express().use((req, res) =>
+            res.json({ path: req.url, host: req.headers.host })
+        );
+        await withServer(provider, async (url) => {
+            const target = new URL(url);
+            await expect(
+                new ValidatedHttpClient(lan).get(
+                    `${url}//other.example/a%2Fb?token=a%2Bb`
+                )
+            ).resolves.toMatchObject({
+                data: {
+                    path: '//other.example/a%2Fb?token=a%2Bb',
+                    host: target.host,
+                },
+            });
+        });
+    });
     it('keeps query serialization and sends only Location query on a real redirect', async () => {
         const requests: string[] = [];
         const provider = express().use((req, res) => {
@@ -202,6 +220,19 @@ describe('real axios validated transport', () => {
             });
         }
     );
+    it('times out before headers on the custom native transport', async () => {
+        const provider = express().use(() => {
+            /* Deliberately silent synthetic provider. */
+        });
+        await withServer(provider, async (url) => {
+            await expect(
+                new ValidatedHttpClient(lan).get(url, { timeout: 100 })
+            ).rejects.toMatchObject({
+                initialResponded: false,
+                cause: { code: 'ECONNABORTED' },
+            });
+        });
+    });
     it('does not cap a healthy trickling body at the inactivity timeout', async () => {
         const provider = express().use((_req, res) => {
             let count = 0;
@@ -245,7 +276,7 @@ describe('real axios validated transport', () => {
                 // Supply the local test CA, retaining the production lookup,
                 // SNI and rejectUnauthorized defaults on the actual agent.
                 agent.options.ca = cert;
-                return axios.get(url, options);
+                return new ProviderAxiosTransport().get(url, options);
             },
         };
         await withListeningServer(server, '127.0.0.1', async (port) => {

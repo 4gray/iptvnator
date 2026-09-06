@@ -27,6 +27,12 @@ Do not invent a `test`, `build`, or `e2e` target because a similarly named
 project has one. Run affected lint/test/build targets that exist and the closest
 available E2E target for the changed behavior.
 
+E2E applications must declare runtime dependencies even when they use HTTP
+instead of TypeScript imports. `web-e2e` includes `web-backend` in
+`implicitDependencies` so provider-proxy changes invalidate cached self-hosted
+PWA tests; starting the backend through a `serve` dependency alone does not
+make its source files inputs to the test hash.
+
 ## Nx Dependency Updates
 
 Keep `nx` and every official `@nx/*` package on the same exact version. Run

@@ -1,3 +1,4 @@
+import { ProviderAxiosTransport } from './provider-axios-transport';
 import {
     discardProviderBody,
     discardProviderErrorBody,
@@ -60,7 +61,7 @@ const SENSITIVE_HEADERS = new Set([
 export class ValidatedHttpClient implements WebBackendHttpClient {
     constructor(
         private readonly policy: ProviderUrlPolicy,
-        private readonly transport: WebBackendHttpClient = axios
+        private readonly transport: WebBackendHttpClient = new ProviderAxiosTransport()
     ) {}
 
     async get<T>(

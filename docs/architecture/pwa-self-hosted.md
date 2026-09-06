@@ -166,8 +166,14 @@ chain; it still requires HTTP(S), no URL userinfo and concrete DNS addresses.
 
 Fresh HTTP/HTTPS agents pin socket lookup to the exact validated IPv4/IPv6
 answer set for that hop. No second DNS query or pooled connection may substitute
-an unvalidated address. The original hostname remains in the URL for Host, TLS
-SNI and certificate hostname checks. Axios proxies and Node environment proxies
+an unvalidated address. The default axios transport uses a fixed logical hostname (`provider.invalid`)
+so its connection authority cannot come from user-controlled URL metadata;
+the pinned lookup alone selects an IP. Its native request-options adapter sets
+`path` separately, so even `//host/path` cannot replace the connection authority.
+It also owns the deadline from dispatch through response headers, since axios's
+built-in connection timer only covers its own native transport objects. The original provider host and port are
+explicitly preserved in Host, TLS SNI and certificate identity checks (literal
+IPs omit SNI but still verify the original IP). Axios proxies and Node environment proxies
 are disabled for these requests so a proxy cannot independently resolve the
 origin. Deployments that require an outbound HTTP proxy must use a different
 network arrangement; setting `HTTP_PROXY`/`HTTPS_PROXY` does not route provider

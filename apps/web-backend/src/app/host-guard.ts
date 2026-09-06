@@ -191,6 +191,7 @@ export function reportProviderRequestFailure(
         return;
     }
 
+    const manualChain = error instanceof ProviderRequestError;
     if (error instanceof ProviderRequestError) {
         if (error.initialResponded) {
             guard.reportSuccess(token);
@@ -207,7 +208,10 @@ export function reportProviderRequestFailure(
             // other response — otherwise an ordinary timeout, a probe that was
             // redirected to a dead destination, and another ordinary timeout
             // still read as two consecutive failures.
-            if (failedAfterRedirect(error, token, options.requestUrl)) {
+            if (
+                !manualChain &&
+                failedAfterRedirect(error, token, options.requestUrl)
+            ) {
                 guard.reportSuccess(token);
                 break;
             }

@@ -146,7 +146,9 @@ policy refusals remain inconclusive. Error bodies never serialize that cause.
 path, not the query: axios `params` can append credentials absent from the
 caller's baseline. Unknown/unparseable URLs conservatively count as ordinary
 failures, and query-only redirects cannot be distinguished by this fallback.
-The shared helper and Electron behavior are unchanged by the web-backend fix.
+Wrapped web-backend requests use their explicit chain evidence and never infer
+redirects from the transport's fixed logical hostname. The shared helper and
+Electron behavior are unchanged by the web-backend fix.
 
 Known gap: the failing hop is not guarded either (it has no token of its own),
 so a permanently broken redirect chain keeps costing a full timeout.
