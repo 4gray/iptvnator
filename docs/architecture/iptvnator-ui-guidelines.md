@@ -345,9 +345,11 @@ remain local when the meaning is explicit.
   at player-only or their show-categories button while the rail is folded,
   and the shell sidebar, watching the rail's ACTUAL fold state (on the live
   root the rail stays visible at level 2, so only player-only ↔ visible is a
-  transition there), asks the context panel to pick focus up on its hide
-  chevron, or on its first header action when the chevron is withheld —
-  only on transitions, and never when another control still owns focus.
+  transition there), focuses the control the context panel names
+  (`focusTarget()`: its hide chevron, or its first header action when the
+  chevron is withheld) and, while none is rendered (categories loading, a
+  failed load), the `tabindex="-1"` aside itself — only on transitions, and
+  never when another control still owns focus.
 - The CSS class `.sidebar-collapsed` (channels rail) and
   `.context-panel--collapsed` (workspace shell categories rail) both override
   the inline width set by the `appResizable` directive with
