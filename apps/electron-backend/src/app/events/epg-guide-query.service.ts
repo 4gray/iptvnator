@@ -1,4 +1,14 @@
-import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+    and,
+    eq,
+    gt,
+    inArray,
+    isNull,
+    lt,
+    or,
+    sql,
+    type SQL,
+} from 'drizzle-orm';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
@@ -34,6 +44,17 @@ type ChannelResolver = Pick<EpgQueryService, 'getChannelMetadata'>;
  * Overlap test in SQLite `datetime()` so provider-local offsets in the
  * stored ISO strings compare correctly against the UTC window bounds.
  *
+ * `datetime()` around the indexed `start`/`stop` columns is opaque to the
+ * planner, which would use `idx_epg_programs_time_range` for `channel_id`
+ * only and then run the function over the channel's ENTIRE retained history —
+ * on a multi-week XMLTV database a 2000-key coverage probe stalls on that. So
+ * the exact test is paired with plain string comparisons against the
+ * slack-widened bounds (`toSlackIso`/`fromSlackIso`), which the planner CAN
+ * turn into a `channel_id=? AND start<?` range scan. The slack makes that
+ * prefilter a strict superset of the exact result, so it narrows the scan
+ * without ever changing the answer — see `GUIDE_WINDOW_SLACK_MS` in
+ * `epg-guide-window.util.ts` for why 48 h is enough.
+ *
  * Unlike `EpgQueryService`, which runs a scoped query and then, on an empty
  * result, a second unscoped legacy query, this predicate is folded into a
  * SINGLE query: when `sourceUrls` is non-empty, the `WHERE` clause accepts
@@ -55,6 +76,8 @@ export function guideWindowCondition(
 ): SQL {
     const overlap = and(
         inArray(schema.epgPrograms.channelId, epgIds),
+        lt(schema.epgPrograms.start, window.toSlackIso),
+        gt(schema.epgPrograms.stop, window.fromSlackIso),
         sql`datetime(${schema.epgPrograms.start}) < datetime(${window.toIso})`,
         sql`datetime(${schema.epgPrograms.stop}) > datetime(${window.fromIso})`
     ) as SQL;

@@ -104,6 +104,34 @@ function coverageSelect(rows: unknown[], whereCalls: unknown[]) {
 const FROM = Date.UTC(2026, 8, 6, 0, 0, 0);
 const TO = Date.UTC(2026, 8, 7, 0, 0, 0);
 
+const FROM_ISO = '2026-09-06T00:00:00.000Z';
+const TO_ISO = '2026-09-07T00:00:00.000Z';
+/** `FROM_ISO`/`TO_ISO` widened by the 48 h prefilter slack. */
+const FROM_SLACK_ISO = '2026-09-04T00:00:00.000Z';
+const TO_SLACK_ISO = '2026-09-09T00:00:00.000Z';
+
+/**
+ * Renders the real Drizzle predicate (never a hand-written restatement of its
+ * logic) so both its SQL shape and its behaviour can be asserted.
+ */
+function renderQuery(
+    epgIds: string[],
+    sourceUrls: string[] = []
+): { sql: string; params: unknown[] } {
+    const window = normalizeGuideWindow({
+        channelIds: epgIds,
+        fromMs: Date.parse(FROM_ISO),
+        toMs: Date.parse(TO_ISO),
+        sourceUrls,
+    });
+    if (!window) {
+        throw new Error('expected a valid window');
+    }
+    return new SQLiteSyncDialect().sqlToQuery(
+        guideWindowCondition(epgIds, window)
+    );
+}
+
 describe('normalizeGuideWindow', () => {
     it('rejects an empty or inverted window', () => {
         expect(
@@ -158,6 +186,56 @@ describe('normalizeGuideWindow', () => {
         });
         expect(window?.sourceUrls).toHaveLength(50);
     });
+
+    it('widens the index prefilter bounds to 48 h outside the exact window', () => {
+        const window = normalizeGuideWindow({
+            channelIds: ['a'],
+            fromMs: FROM,
+            toMs: TO,
+        });
+        expect(window?.fromSlackIso).toBe(FROM_SLACK_ISO);
+        expect(window?.toSlackIso).toBe(TO_SLACK_ISO);
+        expect(Date.parse(window?.fromSlackIso ?? '')).toBe(
+            FROM - 48 * 60 * 60 * 1000
+        );
+        expect(Date.parse(window?.toSlackIso ?? '')).toBe(
+            TO + 48 * 60 * 60 * 1000
+        );
+    });
+
+    it('clamps a slack bound that would overflow the serializable range', () => {
+        const window = normalizeGuideWindow({
+            channelIds: ['a'],
+            fromMs: -8.64e15,
+            toMs: 8.64e15,
+        });
+        // `toISOString()` throws past this range, so the widened bounds are
+        // clamped instead of widened. Such a window excludes every row through
+        // the exact predicate anyway.
+        expect(window?.fromSlackIso).toBe(new Date(-8.64e15).toISOString());
+        expect(window?.toSlackIso).toBe(new Date(8.64e15).toISOString());
+    });
+});
+
+describe('guideWindowCondition rendered SQL', () => {
+    it('pairs index-usable plain comparisons with the exact datetime test', () => {
+        const { sql, params } = renderQuery(['a', 'b']);
+        // Plain comparisons on the bare indexed columns: what lets the planner
+        // bound its `(channel_id, start, stop)` range scan.
+        expect(sql).toContain('"epg_programs"."start" < ?');
+        expect(sql).toContain('"epg_programs"."stop" > ?');
+        // The exact overlap test stays — the prefilter only narrows the scan.
+        expect(sql).toContain('datetime("epg_programs"."start") < datetime(?)');
+        expect(sql).toContain('datetime("epg_programs"."stop") > datetime(?)');
+        expect(params).toEqual([
+            'a',
+            'b',
+            TO_SLACK_ISO,
+            FROM_SLACK_ISO,
+            TO_ISO,
+            FROM_ISO,
+        ]);
+    });
 });
 
 /** `true` when the CLI answers `sqlite3 -version`. Present on macOS and CI. */
@@ -187,32 +265,17 @@ function inlineParams(sqlText: string, params: unknown[]): string {
 const describeWithSqlite = hasSqlite() ? describe : describe.skip;
 
 describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
-    const FROM_ISO = '2026-09-06T00:00:00.000Z';
-    const TO_ISO = '2026-09-07T00:00:00.000Z';
-
-    /**
-     * Renders the real Drizzle predicate to plain SQL (never a hand-written
-     * restatement of its logic) so it can be proven against a real SQLite
-     * engine.
-     */
+    /** The real predicate as literal SQL, ready to prove against the engine. */
     function renderPredicate(
         epgIds: string[],
         sourceUrls: string[] = []
     ): string {
-        const window = normalizeGuideWindow({
-            channelIds: epgIds,
-            fromMs: Date.parse(FROM_ISO),
-            toMs: Date.parse(TO_ISO),
-            sourceUrls,
-        });
-        if (!window) {
-            throw new Error('expected a valid window');
-        }
-        const { sql, params } = new SQLiteSyncDialect().sqlToQuery(
-            guideWindowCondition(epgIds, window)
-        );
+        const { sql, params } = renderQuery(epgIds, sourceUrls);
         return inlineParams(sql, params);
     }
+
+    const CREATE_TABLE =
+        'CREATE TABLE epg_programs (channel_id TEXT, start TEXT, stop TEXT, source_url TEXT);';
 
     function matchingChannelIds(
         predicate: string,
@@ -234,7 +297,7 @@ describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
             )
             .join(', ');
         const script = [
-            'CREATE TABLE epg_programs (channel_id TEXT, start TEXT, stop TEXT, source_url TEXT);',
+            CREATE_TABLE,
             `INSERT INTO epg_programs (channel_id, start, stop, source_url) VALUES ${values};`,
             `SELECT channel_id FROM epg_programs WHERE ${predicate} ORDER BY channel_id;`,
         ].join('\n');
@@ -307,6 +370,54 @@ describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
             ],
         ]);
         expect(result).toEqual(['empty-row', 'null-row', 'u1-row']);
+    });
+
+    it('keeps and drops the right rows around the 48 h prefilter slack', () => {
+        const predicate = renderPredicate(['far-east', 'far-future', 'junk']);
+        const result = matchingChannelIds(predicate, [
+            // Stored with the largest real offset (+14:00). In UTC this is
+            // [2026-09-06T23:00:00Z, 2026-09-07T00:30:00Z), which overlaps —
+            // but its wall-clock prefix ("07T13:00") lies 13 h past `to`, so
+            // an un-slackened plain `start < to` compare would drop it. The
+            // 48 h of slack is what keeps the prefilter a superset.
+            [
+                'far-east',
+                '2026-09-07T13:00:00+14:00',
+                '2026-09-07T14:30:00+14:00',
+                null,
+            ],
+            // Starts three days past `to`: outside the slack AND outside the
+            // exact window, so both halves of the predicate reject it.
+            [
+                'far-future',
+                '2026-09-10T00:00:00.000Z',
+                '2026-09-10T01:00:00.000Z',
+                null,
+            ],
+            // XMLTV wire format, never normalized on import: `datetime()`
+            // yields NULL, so the exact predicate excludes it regardless of
+            // what the prefilter's string compare says.
+            ['junk', '20260906180000 +0300', '20260906190000 +0300', null],
+        ]);
+        expect(result).toEqual(['far-east']);
+    });
+
+    it('lets the planner use the programme time-range index', () => {
+        const script = [
+            CREATE_TABLE,
+            'CREATE INDEX idx_epg_programs_time_range ON epg_programs(channel_id, start, stop);',
+            `EXPLAIN QUERY PLAN SELECT channel_id FROM epg_programs WHERE ${renderPredicate(
+                ['a', 'b']
+            )};`,
+        ].join('\n');
+        const plan = execFileSync('sqlite3', [':memory:', script], {
+            encoding: 'utf8',
+        });
+        // Without the plain-string prefilter the planner can only constrain
+        // `channel_id=?` and then runs `datetime()` over the channel's whole
+        // retained history; `start<?` is the part that bounds that scan.
+        expect(plan).toContain('idx_epg_programs_time_range');
+        expect(plan).toContain('channel_id=? AND start<?');
     });
 });
 
