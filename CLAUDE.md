@@ -815,7 +815,8 @@ name, else a `UTC±HH:MM` derived from the `time_now`/`timestamp_now` clock
 pair) and persists it on the playlist row through
 `PlaylistsService.transformPlaylistMeta`, because the Favorites / Recent
 resolver reads the STORED row, not the store; `DB_GET_PLAYLIST` projects it
-back from the row payload. The same value converts timestamp-less EPG
+back from the row payload, and a server URL change drops it until the next
+account-info check. The same value converts timestamp-less EPG
 `start`/`end` strings. Contract:
 `docs/architecture/xtream-portal-compatibility.md` ("Start time is the
 panel's clock, not the viewer's").

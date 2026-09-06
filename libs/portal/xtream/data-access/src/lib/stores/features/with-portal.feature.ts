@@ -62,12 +62,16 @@ export function withPortal() {
              * The Favorites / Recent catch-up resolver reads the STORED
              * playlist row, not this store, so a timezone learned here has
              * to reach storage or that path keeps rendering programme
-             * start times in the viewer's clock (issue #1562). The write is
-             * skipped when the row already carries the value and never
-             * fails the status check that learned it.
+             * start times in the viewer's clock (issue #1562). The write
+             * lands only on a row that still points at the panel the answer
+             * came from — an edit that moved the source during the request
+             * keeps the clock the edit flow dropped — is skipped when the
+             * row already carries the value, and never fails the status
+             * check that learned it.
              */
             const rememberServerTimezone = async (
                 playlistId: string,
+                credentials: XtreamCredentials,
                 serverTimezone: string
             ): Promise<void> => {
                 try {
@@ -75,6 +79,9 @@ export function withPortal() {
                         playlistsService.transformPlaylistMeta(
                             playlistId,
                             (playlist) =>
+                                playlist.serverUrl !== credentials.serverUrl ||
+                                playlist.username !== credentials.username ||
+                                playlist.password !== credentials.password ||
                                 playlist.serverTimezone === serverTimezone
                                     ? null
                                     : { ...playlist, serverTimezone }
@@ -192,6 +199,7 @@ export function withPortal() {
                         ) {
                             await rememberServerTimezone(
                                 playlist.id,
+                                credentials,
                                 serverTimezone
                             );
                         }

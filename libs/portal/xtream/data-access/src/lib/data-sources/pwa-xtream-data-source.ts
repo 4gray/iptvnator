@@ -212,6 +212,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             userAgent: playlist.userAgent,
             referrer: playlist.referrer,
             origin: playlist.origin,
+            serverTimezone: playlist.serverTimezone,
         };
     }
 
@@ -388,9 +389,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const cachedContent = this.contentCache.get(cacheKey);
         if (cachedContent) {
             return cachedContent as
-                | XtreamLiveStream[]
-                | XtreamVodStream[]
-                | XtreamSerieItem[];
+                XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[];
         }
 
         // Fetch from API

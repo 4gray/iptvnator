@@ -600,10 +600,53 @@ export async function updatePlaylist(
 ): Promise<{ success: boolean }> {
     await db
         .update(schema.playlists)
-        .set(updates)
+        .set({
+            ...updates,
+            ...(await serverTimezoneInvalidation(db, playlistId, updates)),
+        })
         .where(eq(schema.playlists.id, playlistId));
 
     return { success: true };
+}
+
+/**
+ * The persisted panel clock (`serverTimezone`, payload-only) belongs to the
+ * panel it was learned from: pointing the row at another server drops it,
+ * so Favorites / Recent catch-up cannot keep rendering the OLD panel's
+ * clock until the next account-info check (issue #1562). Returns the
+ * payload column to write, or nothing when the server is unchanged or the
+ * payload carries no clock.
+ */
+async function serverTimezoneInvalidation(
+    db: AppDatabase,
+    playlistId: string,
+    updates: { serverUrl?: string }
+): Promise<{ payload?: string }> {
+    if (updates.serverUrl === undefined) {
+        return {};
+    }
+    const rows = await db
+        .select({
+            serverUrl: schema.playlists.serverUrl,
+            payload: schema.playlists.payload,
+        })
+        .from(schema.playlists)
+        .where(eq(schema.playlists.id, playlistId))
+        .limit(1);
+    const row = rows[0];
+    if (!row || row.serverUrl === updates.serverUrl) {
+        return {};
+    }
+    const payload = parseJsonValue<Record<string, unknown> | null>(
+        row.payload,
+        null
+    );
+    if (!payload || typeof payload !== 'object' || !payload.serverTimezone) {
+        return {};
+    }
+    const rest: Record<string, unknown> = { ...payload };
+    delete rest.serverTimezone;
+    return { payload: JSON.stringify(rest) };
 }
 
 interface PlaylistDeletionCollection {

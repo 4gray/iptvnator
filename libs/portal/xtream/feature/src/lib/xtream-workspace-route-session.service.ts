@@ -53,6 +53,9 @@ function toXtreamPlaylistData(
         ...(userAgent ? { userAgent } : {}),
         ...(referrer ? { referrer } : {}),
         ...(origin ? { origin } : {}),
+        ...(playlist.serverTimezone
+            ? { serverTimezone: playlist.serverTimezone }
+            : {}),
     };
 }
 
@@ -117,9 +120,7 @@ function getXtreamRouteTarget(url: string): {
     playlistId: string | null;
     section: PortalRailSection | null;
 } {
-    const match = url.match(
-        /^\/workspace\/xtreams\/([^/?]+)(?:\/([^/?]+))?/
-    );
+    const match = url.match(/^\/workspace\/xtreams\/([^/?]+)(?:\/([^/?]+))?/);
 
     return {
         playlistId: match?.[1] ?? null,
@@ -144,7 +145,9 @@ function hasPlaylistConnectionChanges(
     const currentReferrer = normalizeOptionalConnectionValue(
         currentPlaylist.referrer
     );
-    const nextReferrer = normalizeOptionalConnectionValue(nextPlaylist.referrer);
+    const nextReferrer = normalizeOptionalConnectionValue(
+        nextPlaylist.referrer
+    );
     const currentOrigin = normalizeOptionalConnectionValue(
         currentPlaylist.origin
     );
@@ -171,11 +174,11 @@ function shouldBootstrapXtreamPlaylist(
 
     return Boolean(
         playlistId &&
-            routePlaylist &&
-            (storePlaylistId !== playlistId ||
-                currentPlaylist?.id !== playlistId ||
-                currentPlaylistUpdateDate !== routePlaylistUpdateDate ||
-                hasPlaylistConnectionChanges(currentPlaylist, routePlaylist))
+        routePlaylist &&
+        (storePlaylistId !== playlistId ||
+            currentPlaylist?.id !== playlistId ||
+            currentPlaylistUpdateDate !== routePlaylistUpdateDate ||
+            hasPlaylistConnectionChanges(currentPlaylist, routePlaylist))
     );
 }
 
@@ -183,11 +186,7 @@ function getXtreamRouteCategoryId(
     url: string,
     section: PortalRailSection | null
 ): number | null {
-    if (
-        section !== 'live' &&
-        section !== 'vod' &&
-        section !== 'series'
-    ) {
+    if (section !== 'live' && section !== 'vod' && section !== 'series') {
         return null;
     }
 
@@ -330,10 +329,9 @@ export class XtreamWorkspaceRouteSession {
                     ? this.xtreamStore.isCachedContentScopeReady(cacheScope) ||
                       (await this.xtreamStore.hasUsableOfflineCache(cacheScope))
                     : false;
-            const nextBlockReason =
-                canUseCachedContent
-                    ? null
-                    : toContentInitBlockReason(portalStatus);
+            const nextBlockReason = canUseCachedContent
+                ? null
+                : toContentInitBlockReason(portalStatus);
             const currentBlockReason =
                 this.xtreamStore.contentInitBlockReason();
 
@@ -349,11 +347,7 @@ export class XtreamWorkspaceRouteSession {
             section = this.syncRouteState(routeSection);
         }
 
-        if (
-            portalStatus !== 'active' &&
-            !canUseCachedContent &&
-            cacheScope
-        ) {
+        if (portalStatus !== 'active' && !canUseCachedContent && cacheScope) {
             canUseCachedContent =
                 this.xtreamStore.isCachedContentScopeReady(cacheScope) ||
                 (await this.xtreamStore.hasUsableOfflineCache(cacheScope));

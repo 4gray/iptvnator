@@ -230,6 +230,32 @@ describe('withPortal', () => {
             expect(storedPlaylist.serverTimezone).toBe('Europe/London');
         });
 
+        it('does not persist a late answer onto a row whose connection was edited meanwhile', async () => {
+            let answer!: (value: unknown) => void;
+            apiService.getAccountInfo.mockReturnValue(
+                new Promise((resolve) => {
+                    answer = resolve;
+                })
+            );
+
+            const pending = store.checkPortalStatus();
+            // The edit flow moved the source (and dropped the old clock)
+            // while the old panel's answer was still on the wire.
+            storedPlaylist = {
+                ...storedPlaylist,
+                serverUrl: 'https://moved.example.com',
+                serverTimezone: undefined,
+            };
+            answer({
+                user_info: { auth: 1, exp_date: '0', status: 'Active' },
+                server_info: { timezone: 'Europe/London' },
+            });
+
+            await expect(pending).resolves.toBe('active');
+            expect(transformPlaylistMeta).toHaveBeenCalledTimes(1);
+            expect(storedPlaylist.serverTimezone).toBeUndefined();
+        });
+
         it('does not mark a playlist selected meanwhile unavailable for the earlier playlist’s failure', async () => {
             const other: XtreamPlaylistData = { ...PLAYLIST, id: 'playlist-2' };
             let fail!: (reason: unknown) => void;

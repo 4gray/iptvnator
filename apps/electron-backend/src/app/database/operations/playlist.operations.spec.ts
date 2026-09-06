@@ -3,6 +3,7 @@ import {
     getAppPlaylistMetas,
     getPlaylist,
     parseAppPlaylist,
+    updatePlaylist,
 } from './playlist.operations';
 import type { AppDatabase } from '../database.types';
 
@@ -92,6 +93,58 @@ describe('playlist.operations', () => {
         await expect(
             getPlaylist(createPlaylistFavoriteChannelsDbMock(null).db, 'gone')
         ).resolves.toBeNull();
+    });
+
+    it('drops the persisted server timezone from the payload when DB_UPDATE_PLAYLIST moves the source to another server', async () => {
+        const payload = {
+            _id: 'playlist-1',
+            title: 'Xtream Source',
+            serverTimezone: 'Europe/London',
+            favorites: ['1'],
+        };
+        const read = createPlaylistFavoriteChannelsDbMock({
+            serverUrl: 'http://old.example:8080',
+            payload: JSON.stringify(payload),
+        });
+        const where = jest.fn().mockResolvedValue(undefined);
+        const set = jest.fn().mockReturnValue({ where });
+        const update = jest.fn().mockReturnValue({ set });
+        const db = {
+            select: read.select,
+            update,
+        } as unknown as AppDatabase;
+
+        await expect(
+            updatePlaylist(db, 'playlist-1', {
+                name: 'Moved',
+                serverUrl: 'http://new.example:8080',
+            })
+        ).resolves.toEqual({ success: true });
+        expect(set).toHaveBeenCalledWith({
+            name: 'Moved',
+            serverUrl: 'http://new.example:8080',
+            payload: JSON.stringify({
+                _id: 'playlist-1',
+                title: 'Xtream Source',
+                favorites: ['1'],
+            }),
+        });
+
+        set.mockClear();
+        await updatePlaylist(db, 'playlist-1', {
+            name: 'Renamed',
+            serverUrl: 'http://old.example:8080',
+        });
+        expect(set).toHaveBeenCalledWith({
+            name: 'Renamed',
+            serverUrl: 'http://old.example:8080',
+        });
+
+        set.mockClear();
+        read.select.mockClear();
+        await updatePlaylist(db, 'playlist-1', { name: 'Only renamed' });
+        expect(read.select).not.toHaveBeenCalled();
+        expect(set).toHaveBeenCalledWith({ name: 'Only renamed' });
     });
 
     it('loads app playlist metadata without selecting the large payload column', async () => {
