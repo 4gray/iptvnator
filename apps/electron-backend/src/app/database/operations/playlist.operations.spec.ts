@@ -1,9 +1,12 @@
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
     getAppPlaylistFavoriteChannels,
     getAppPlaylistMetas,
     getPlaylist,
     parseAppPlaylist,
-    updatePlaylist,
 } from './playlist.operations';
 import type { AppDatabase } from '../database.types';
 
@@ -22,6 +25,56 @@ function createPlaylistFavoriteChannelsDbMock(row: unknown | null) {
         select,
         where,
     };
+}
+
+/**
+ * Runs `updatePlaylist` against Electron's native SQLite on the real
+ * `playlists` table (create + column migrations), the way the database
+ * worker executes it; the scenario prints one JSON document.
+ */
+function runPlaylistUpdateScenario(scenario: string): unknown {
+    const operationsUrl = pathToFileURL(
+        resolve(__dirname, 'playlist.operations.ts')
+    ).href;
+    const connectionUrl = pathToFileURL(
+        resolve(process.cwd(), 'libs/shared/database/src/lib/connection.ts')
+    ).href;
+    const script = `
+        const { default: Database } = await import('better-sqlite3');
+        const { drizzle } = await import('drizzle-orm/better-sqlite3');
+        const schema = await import('@iptvnator/shared/database/schema');
+        const { updatePlaylist } = await import(${JSON.stringify(operationsUrl)});
+        const { __databaseConnectionTestHooks } = await import(${JSON.stringify(connectionUrl)});
+        const sqlite = new Database(':memory:');
+        const statements = [
+            ...__databaseConnectionTestHooks.createTableStatements,
+            ...__databaseConnectionTestHooks.columnMigrationStatements,
+        ].filter((statement) => /TABLE IF NOT EXISTS playlists\\b|ALTER TABLE playlists\\b/.test(statement));
+        for (const statement of statements) {
+            try { sqlite.exec(statement); } catch { /* column already in the base table */ }
+        }
+        const db = drizzle(sqlite, { schema });
+        ${scenario}
+        sqlite.close();
+    `;
+    return JSON.parse(
+        execFileSync(
+            createRequire(__filename)('electron'),
+            ['--import', 'tsx', '--eval', script],
+            {
+                cwd: process.cwd(),
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    ELECTRON_RUN_AS_NODE: '1',
+                    TSX_TSCONFIG_PATH: resolve(
+                        process.cwd(),
+                        'tsconfig.base.json'
+                    ),
+                },
+            }
+        )
+    );
 }
 
 describe('playlist.operations', () => {
@@ -95,56 +148,77 @@ describe('playlist.operations', () => {
         ).resolves.toBeNull();
     });
 
-    it('drops the persisted server timezone from the payload when DB_UPDATE_PLAYLIST moves the source to another server', async () => {
-        const payload = {
-            _id: 'playlist-1',
-            title: 'Xtream Source',
-            serverTimezone: 'Europe/London',
-            favorites: ['1'],
-        };
-        const read = createPlaylistFavoriteChannelsDbMock({
-            serverUrl: 'http://old.example:8080',
-            payload: JSON.stringify(payload),
-        });
-        const where = jest.fn().mockResolvedValue(undefined);
-        const set = jest.fn().mockReturnValue({ where });
-        const update = jest.fn().mockReturnValue({ set });
-        const db = {
-            select: read.select,
-            update,
-        } as unknown as AppDatabase;
+    it('drops the persisted server timezone atomically when DB_UPDATE_PLAYLIST moves the source to another server', () => {
+        // Runs the real UPDATE against Electron's SQLite: the invalidation is
+        // one CASE/json_remove expression inside the statement, never a
+        // read-modify-write that could hand a concurrent upsert's newer
+        // payload back to the past.
+        const rows = runPlaylistUpdateScenario(`
+            const seed = (id, serverUrl, payload) => sqlite.prepare(
+                'INSERT INTO playlists (id, name, serverUrl, type, payload) VALUES (?, ?, ?, ?, ?)'
+            ).run(id, id, serverUrl, 'xtream', payload);
+            seed('moved', 'http://old.example', JSON.stringify({ _id: 'moved', serverTimezone: 'Europe/London', favorites: ['1'] }));
+            seed('renamed', 'http://old.example', JSON.stringify({ _id: 'renamed', serverTimezone: 'Europe/London' }));
+            seed('no-clock', 'http://old.example', JSON.stringify({ _id: 'no-clock' }));
+            seed('broken', 'http://old.example', 'not json');
+            seed('null-url', null, JSON.stringify({ _id: 'null-url', serverTimezone: 'UTC' }));
+            seed('untouched', 'http://old.example', JSON.stringify({ _id: 'untouched', serverTimezone: 'UTC' }));
+            await updatePlaylist(db, 'moved', { name: 'Moved', serverUrl: 'http://new.example' });
+            await updatePlaylist(db, 'renamed', { name: 'Renamed', serverUrl: 'http://old.example' });
+            await updatePlaylist(db, 'no-clock', { serverUrl: 'http://new.example' });
+            await updatePlaylist(db, 'broken', { serverUrl: 'http://new.example' });
+            await updatePlaylist(db, 'null-url', { serverUrl: 'http://new.example' });
+            await updatePlaylist(db, 'untouched', { name: 'Only renamed' });
+            const rows = Object.fromEntries(
+                sqlite.prepare('SELECT id, name, serverUrl, payload FROM playlists').all().map((row) => [row.id, row])
+            );
+            process.stdout.write(JSON.stringify(rows));
+        `);
 
-        await expect(
-            updatePlaylist(db, 'playlist-1', {
+        expect(rows).toEqual({
+            moved: {
+                id: 'moved',
                 name: 'Moved',
-                serverUrl: 'http://new.example:8080',
-            })
-        ).resolves.toEqual({ success: true });
-        expect(set).toHaveBeenCalledWith({
-            name: 'Moved',
-            serverUrl: 'http://new.example:8080',
-            payload: JSON.stringify({
-                _id: 'playlist-1',
-                title: 'Xtream Source',
-                favorites: ['1'],
-            }),
+                serverUrl: 'http://new.example',
+                payload: JSON.stringify({ _id: 'moved', favorites: ['1'] }),
+            },
+            renamed: {
+                id: 'renamed',
+                name: 'Renamed',
+                serverUrl: 'http://old.example',
+                payload: JSON.stringify({
+                    _id: 'renamed',
+                    serverTimezone: 'Europe/London',
+                }),
+            },
+            'no-clock': {
+                id: 'no-clock',
+                name: 'no-clock',
+                serverUrl: 'http://new.example',
+                payload: JSON.stringify({ _id: 'no-clock' }),
+            },
+            broken: {
+                id: 'broken',
+                name: 'broken',
+                serverUrl: 'http://new.example',
+                payload: 'not json',
+            },
+            'null-url': {
+                id: 'null-url',
+                name: 'null-url',
+                serverUrl: 'http://new.example',
+                payload: JSON.stringify({ _id: 'null-url' }),
+            },
+            untouched: {
+                id: 'untouched',
+                name: 'Only renamed',
+                serverUrl: 'http://old.example',
+                payload: JSON.stringify({
+                    _id: 'untouched',
+                    serverTimezone: 'UTC',
+                }),
+            },
         });
-
-        set.mockClear();
-        await updatePlaylist(db, 'playlist-1', {
-            name: 'Renamed',
-            serverUrl: 'http://old.example:8080',
-        });
-        expect(set).toHaveBeenCalledWith({
-            name: 'Renamed',
-            serverUrl: 'http://old.example:8080',
-        });
-
-        set.mockClear();
-        read.select.mockClear();
-        await updatePlaylist(db, 'playlist-1', { name: 'Only renamed' });
-        expect(read.select).not.toHaveBeenCalled();
-        expect(set).toHaveBeenCalledWith({ name: 'Only renamed' });
     });
 
     it('loads app playlist metadata without selecting the large payload column', async () => {

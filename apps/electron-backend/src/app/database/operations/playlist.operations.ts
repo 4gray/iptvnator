@@ -602,7 +602,9 @@ export async function updatePlaylist(
         .update(schema.playlists)
         .set({
             ...updates,
-            ...(await serverTimezoneInvalidation(db, playlistId, updates)),
+            ...(updates.serverUrl === undefined
+                ? {}
+                : { payload: serverTimezoneInvalidation(updates.serverUrl) }),
         })
         .where(eq(schema.playlists.id, playlistId));
 
@@ -613,40 +615,18 @@ export async function updatePlaylist(
  * The persisted panel clock (`serverTimezone`, payload-only) belongs to the
  * panel it was learned from: pointing the row at another server drops it,
  * so Favorites / Recent catch-up cannot keep rendering the OLD panel's
- * clock until the next account-info check (issue #1562). Returns the
- * payload column to write, or nothing when the server is unchanged or the
- * payload carries no clock.
+ * clock until the next account-info check (issue #1562). The removal is
+ * one SQL expression inside the same UPDATE — the worker interleaves
+ * requests, so a read-modify-write of the payload could hand a concurrent
+ * upsert's newer payload back to the past.
  */
-async function serverTimezoneInvalidation(
-    db: AppDatabase,
-    playlistId: string,
-    updates: { serverUrl?: string }
-): Promise<{ payload?: string }> {
-    if (updates.serverUrl === undefined) {
-        return {};
-    }
-    const rows = await db
-        .select({
-            serverUrl: schema.playlists.serverUrl,
-            payload: schema.playlists.payload,
-        })
-        .from(schema.playlists)
-        .where(eq(schema.playlists.id, playlistId))
-        .limit(1);
-    const row = rows[0];
-    if (!row || row.serverUrl === updates.serverUrl) {
-        return {};
-    }
-    const payload = parseJsonValue<Record<string, unknown> | null>(
-        row.payload,
-        null
-    );
-    if (!payload || typeof payload !== 'object' || !payload.serverTimezone) {
-        return {};
-    }
-    const rest: Record<string, unknown> = { ...payload };
-    delete rest.serverTimezone;
-    return { payload: JSON.stringify(rest) };
+function serverTimezoneInvalidation(nextServerUrl: string) {
+    return sql`CASE
+        WHEN ${schema.playlists.serverUrl} IS NOT ${nextServerUrl}
+            AND json_valid(${schema.playlists.payload})
+        THEN json_remove(${schema.playlists.payload}, '$.serverTimezone')
+        ELSE ${schema.playlists.payload}
+    END`;
 }
 
 interface PlaylistDeletionCollection {
