@@ -82,6 +82,13 @@ test.describe('Electron Remote Control', () => {
                     .getByTestId('channel-item');
                 await expect(rows.nth(2)).toBeVisible();
                 if (provider === 'xtream') {
+                    // Read the order before sorting: the menu closes before the
+                    // virtual list re-renders, and reading the titles too early
+                    // captured the server order while the click below landed
+                    // on the re-sorted first row (flaky on slow runners).
+                    const serverOrder = await rows
+                        .locator('.channel-name')
+                        .allTextContents();
                     await page
                         .getByRole('button', {
                             name: 'Sort channels',
@@ -91,6 +98,11 @@ test.describe('Electron Remote Control', () => {
                     await page
                         .getByRole('menuitem', { name: 'Name Z-A' })
                         .click();
+                    await expect
+                        .poll(() =>
+                            rows.locator('.channel-name').allTextContents()
+                        )
+                        .not.toEqual(serverOrder);
                 }
                 const titles = await rows
                     .locator('.channel-name')
