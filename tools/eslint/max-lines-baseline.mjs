@@ -60,7 +60,6 @@ export const maxLinesBaseline = [
     'libs/shared/interfaces/src/lib/electron-api.interface.ts',
     'libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts',
     'libs/ui/components/src/lib/channel-list-container/groups-view/groups-view.component.ts',
-    'libs/ui/epg/src/lib/multi-epg/multi-epg-container.component.ts',
     'libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-player.component.ts',
     'libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.spec.ts',
     'libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts',

@@ -15,7 +15,7 @@ import { ElectronBridgeWindowState } from '@iptvnator/shared/interfaces';
  * native traffic lights instead.
  *
  * Rendered once in the app root so the buttons stay reachable above
- * full-window content such as the multi-EPG overlay and dialog backdrops —
+ * full-window content such as dialog backdrops —
  * mirroring how the macOS traffic lights float above everything. CDK
  * overlays render as popovers in the browser top layer (above any
  * z-index), so the host is itself a manual popover and re-enters the top
@@ -91,7 +91,7 @@ export class WindowControlsComponent implements AfterViewInit {
     /**
      * Re-enter the top layer after any other popover opens: top-layer
      * elements paint in insertion order, so hiding and re-showing puts the
-     * controls back above freshly opened CDK overlays (dialogs, multi-EPG).
+     * controls back above freshly opened CDK overlays (dialogs, menus).
      */
     private readonly onDocumentToggle = (event: Event): void => {
         const newState = (event as { newState?: string }).newState;

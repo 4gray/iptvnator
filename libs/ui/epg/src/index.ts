@@ -28,5 +28,3 @@ export * from './lib/epg-guide/epg-guide-layout.util';
 export * from './lib/epg-guide/epg-guide-preferences';
 export * from './lib/epg-guide/epg-guide.component';
 export * from './lib/epg-guide/epg-guide-now-playing.component';
-export * from './lib/multi-epg/multi-epg-container.component';
-export * from './lib/multi-epg/overlay-ref.token';

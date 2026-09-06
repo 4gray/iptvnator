@@ -400,54 +400,6 @@ export class EpgQueryService {
         }
     }
 
-    async getChannelsByRange(
-        skip: number,
-        limit: number
-    ): Promise<
-        Array<{
-            id: string;
-            displayName: string;
-            iconUrl: string | null;
-            programs: EpgProgram[];
-        }>
-    > {
-        try {
-            const db = await getDatabase();
-            const channels = await db
-                .select({
-                    id: schema.epgChannels.id,
-                    displayName: schema.epgChannels.displayName,
-                    iconUrl: schema.epgChannels.iconUrl,
-                })
-                .from(schema.epgChannels)
-                .orderBy(schema.epgChannels.displayName)
-                .offset(skip)
-                .limit(limit);
-
-            return Promise.all(
-                channels.map(async (channel) => {
-                    const programs = await db
-                        .select()
-                        .from(schema.epgPrograms)
-                        .where(eq(schema.epgPrograms.channelId, channel.id))
-                        .orderBy(schema.epgPrograms.start);
-
-                    return {
-                        ...channel,
-                        programs: programs.map(toEpgProgramFromRow),
-                    };
-                })
-            );
-        } catch (error) {
-            epgLogger.error(
-                this.loggerLabel,
-                'Error getting channels by range:',
-                error
-            );
-            return [];
-        }
-    }
-
     private normalizeChannelLookupKeys(channelIds: string[]): string[] {
         return Array.from(
             new Set(
