@@ -1382,3 +1382,84 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 3. Dispatch `FavoritesActions.hydrateFavorites` only when copying values that
    were already read from persistence into NgRx
 4. Effects persist the two user-mutation actions; hydration is reducer-only
+
+### XMLTV source lifecycle
+
+Electron treats `Settings.epgUrl` as the committed global source list. Removing
+an input is a draft edit; only a successful IndexedDB write authorizes source
+reconciliation. A storage write failure restores the previous in-memory EPG
+URLs. If subsequent cache cleanup fails, the saved URLs remain authoritative,
+the settings form remains retryable and shows the existing EPG cleanup failure
+message rather than claiming settings storage failed. Electron settings and
+external-player paths still mirror the committed values after a cleanup failure;
+a failed storage write never mirrors them. Ordinary settings saves
+compare normalized source sets and skip reconciliation when they are unchanged,
+so unrelated preferences do not depend on cache cleanup. An explicitly edited
+EPG array requests reconciliation even when the committed URLs already match
+(for example retrying a failed cleanup); removing a row marks that array dirty,
+and only successful saving clears it. Startup reconciliation always runs.
+
+`EpgSourceSettingsService` waits for `PlaylistsService.getAllPlaylists()` (which
+performs the legacy playlist migration) before invoking `EPG_RECONCILE_SOURCES`.
+Startup includes an empty global list and does not prune after a failed settings
+read. Main verifies the completed migration flag, reads every enabled M3U
+`epg_urls` list and unions them with the saved globals. Invalid ownership metadata
+aborts pruning. Detected-but-disabled sources and Xtream/Stalker provider EPG are
+not global XMLTV owners. No source-discovery or provider matching policy changes.
+
+Reconciliation finds old sources in XMLTV channel, programme and per-source
+metadata tables, plus queued imports. It
+retires their generations before waiting for workers to exit, then uses the
+`EpgWorkerRuntime` source-clear protocol. The runtime owns worker bootstrap and
+shutdown; `EpgWorkerService` owns source generations and serialization, while
+`runEpgFetch` owns each import’s message/timeout/exit lifecycle. Successfully cleared request candidates are forgotten
+without resetting their generation fences; failed cleanups remain retryable.
+Main-process and parser-worker diagnostics use `epgLogger`, applying shared
+secret redaction and omitting complete URLs from error messages, nested request
+data and redirect details. Error logs allowlist name/message/code/status/cause
+and discard transport objects (which can contain relative request paths and raw
+HTTP headers). XMLTV providers can put credentials in arbitrary path
+segments or query keys; progress IPC and caller errors retain their original
+values, while logs keep operation labels, counts and error codes.
+Same-URL clears are serialized and replacement imports await the outstanding
+clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
+also awaits the in-flight fetch promise when an error/timeout has already removed
+the worker from the lookup but its termination is still pending.
+Every removed source emits generation-scoped cancellation before cleanup starts,
+including retained actionable errors whose workers have already finished. Retired
+queued/running imports also cancel their own generation. Retry waits for source
+reconciliation and rechecks the same error row; trust-setting continuations and
+old dismissal timers cannot affect a removed or replacement row. Progress rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
+channel is retained while another source still has programmes or channel metadata.
+The additive `epg_channel_sources` table is created during database initialization
+and records each imported source's name, logo, URL and timestamp. A per-channel
+`write_order` advances inside the import transaction (including upserts and
+refreshes), so restoration picks the latest surviving writer even when timestamps
+collide or the clock moves backwards. Freshness still uses wall-clock timestamps.
+Existing ledgers gain the column with zero for unknowable historical order. Before removing
+source provenance, cleanup restores affected global channels from a surviving
+snapshot, including when the legacy channel owner differs from the removed
+metadata writer. Metadata-only owners survive another source's refresh or removal.
+Refresh restores affected metadata before discarding that source's old snapshots;
+clear-all deletes the snapshots too. Freshness reads source-specific snapshot
+timestamps, so legacy sources without snapshots are refreshed on their next import
+check. No legacy snapshot is guessed from global
+channel metadata: its last writer may differ from its recorded owner. Affected
+legacy channels without a surviving snapshot retain programmes with a neutral
+XMLTV ID label, no logo/URL and no freshness timestamp until reimport. Historical
+metadata with no remaining source provenance cannot be selectively reconstructed. Manual mappings are preserved and can
+resolve another retained source sharing that channel ID. Legacy programmes with
+unknown (`NULL`) ownership are conservatively left alone; the existing database
+initialization backfill handles rows whose channel still identifies their owner.
+
+
+Renderer reconciliation fences lookups before its first asynchronous step.
+Imports wait for serialized reconciliation (including playlist migration), then
+filter against its committed owner set. Completion increments the data revision again
+and cancels earlier lookup
+subscriptions, clears program caches and the selected M3U guide, and refreshes
+Xtream selection and visible channel previews, plus Stalker manual mapping
+overrides and bulk guides. A delayed startup import is
+started only if its source still belongs to the reconciled configuration; its
+completion observer is installed after settings initialization. Provider EPG
+continues through its existing APIs. Playlist refresh is not EPG cache cleanup.

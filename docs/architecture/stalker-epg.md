@@ -24,13 +24,13 @@ Stalker now uses two EPG paths with different purposes:
   settled bulk guide cannot answer fall back to throttled per-channel
   `get_short_epg` through `StalkerEpgPreviewQueue` (see "Channel row preview
   flow").
-  - Effect ordering matters: the eager-EPG effect is registered **after** the
-    playlist-change effect that calls `clearBulkItvEpgCache()`. On a portal
-    switch the cache is cleared first and then refilled; if the order is
-    reversed the clear clobbers the just-loaded bulk EPG on initial render.
-  - `ensureBulkItvEpg` de-duplicates (via `isLoadingBulkItvEpg` /
-    `bulkItvEpgLoaded` + matching playlist/period), so the eager trigger and the
-    play-time `loadEpgForChannel` path never double-fetch.
+    - Effect ordering matters: the eager-EPG effect is registered **after** the
+      playlist-change effect that calls `clearBulkItvEpgCache()`. On a portal
+      switch the cache is cleared first and then refilled; if the order is
+      reversed the clear clobbers the just-loaded bulk EPG on initial render.
+    - `ensureBulkItvEpg` de-duplicates (via `isLoadingBulkItvEpg` /
+      `bulkItvEpgLoaded` + matching playlist/period), so the eager trigger and the
+      play-time `loadEpgForChannel` path never double-fetch.
 - If a portal does not return usable bulk data for the selected channel, the
   active panel falls back to `get_short_epg`.
 
@@ -196,12 +196,12 @@ Normalization rules:
 
 ### Key files
 
-| File                                                                                                                 | Purpose                                                         |
-| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-epg.feature.ts`                                | bulk cache and fallback handling                                |
-| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`             | active-channel EPG loading and controlled `app-epg-timeline` wiring |
-| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html`           | active panel template                                           |
-| `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.ts`                    | shared controlled EPG timeline with date navigator                  |
+| File                                                                                                       | Purpose                                                             |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-epg.feature.ts`                      | bulk cache and fallback handling                                    |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`   | active-channel EPG loading and controlled `app-epg-timeline` wiring |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html` | active panel template                                               |
+| `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.ts`                                               | shared controlled EPG timeline with date navigator                  |
 
 ### Store API
 
@@ -283,6 +283,10 @@ rows stop consuming portal request capacity.
 - Bulk EPG is fetched once per playlist session
 - Channel switches only read from `bulkItvEpgByChannel`
 - The cache is cleared when the Stalker playlist changes
+- Committed XMLTV source reconciliation also clears mapping overrides, checked
+  IDs and bulk data, reloads the guide and selected mapping, and fences pending
+  mapping/bulk replies. Saved mappings remain authoritative even when removal
+  leaves their guide empty; portal EPG is not mixed into that empty override.
 - This implementation does not add TTL-based refresh or background polling
 
 ## Authentication

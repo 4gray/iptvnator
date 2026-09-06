@@ -20,6 +20,7 @@ import {
     DataService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    EpgSourceSettingsService,
 } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
@@ -63,6 +64,7 @@ export class AppComponent implements OnInit {
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
     private settingsStore = inject(SettingsStore);
+    private readonly epgSources = inject(EpgSourceSettingsService);
     private playbackKeepAwake = inject(PlaybackKeepAwakeService);
     private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
@@ -188,8 +190,16 @@ export class AppComponent implements OnInit {
      * Data is considered fresh if updated within the last 12 hours.
      */
     private async fetchStaleEpgData(urls: string[]): Promise<void> {
+        await this.settingsStore.loadSettings();
+        const revision = this.epgSources.revision();
+        const fetchCurrentSources = async (sources: string[]) => {
+            await this.epgSources.waitForReconciliation();
+            this.epgService.fetchEpg(
+                this.epgSources.retainCurrentSources(sources, revision)
+            );
+        };
         if (!this.epgBridge.supportsSourceFreshness) {
-            this.epgService.fetchEpg(urls);
+            await fetchCurrentSources(urls);
             return;
         }
 
@@ -197,7 +207,7 @@ export class AppComponent implements OnInit {
             const result = await this.epgBridge.checkFreshness(urls, 12);
 
             if (!result) {
-                this.epgService.fetchEpg(urls);
+                await fetchCurrentSources(urls);
                 return;
             }
 
@@ -219,12 +229,12 @@ export class AppComponent implements OnInit {
                 debugAppComponent(
                     `EPG: Fetching ${result.staleUrls.length} stale source(s)`
                 );
-                this.epgService.fetchEpg(result.staleUrls);
+                await fetchCurrentSources(result.staleUrls);
             }
         } catch (error) {
             console.error('Error checking EPG freshness, fetching all:', error);
             // Fallback: fetch all URLs if freshness check fails
-            this.epgService.fetchEpg(urls);
+            await fetchCurrentSources(urls);
         }
     }
 

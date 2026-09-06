@@ -615,11 +615,7 @@ const electronApi: ElectronBridgeApi = {
         sessionId: string,
         style: EmbeddedMpvSubtitleStyle
     ): Promise<EmbeddedMpvSession | null> =>
-        ipcRenderer.invoke(
-            'EMBEDDED_MPV_SET_SUBTITLE_STYLE',
-            sessionId,
-            style
-        ),
+        ipcRenderer.invoke('EMBEDDED_MPV_SET_SUBTITLE_STYLE', sessionId, style),
     selectEmbeddedMpvSubtitleFile: (): Promise<string | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SELECT_SUBTITLE_FILE'),
     setEmbeddedMpvSpeed: (
@@ -681,6 +677,8 @@ const electronApi: ElectronBridgeApi = {
     forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
+    reconcileEpgSources: (urls: string[]) =>
+        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),
     clearEpgDataForSource: (sourceUrl: string) =>
         ipcRenderer.invoke('EPG_CLEAR_SOURCE', { sourceUrl }),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
@@ -1118,8 +1116,7 @@ const electronApi: ElectronBridgeApi = {
     recordingsUpdatePrograms: (
         targetPath: string,
         programs: RecordingProgramSnapshot[]
-    ) =>
-        ipcRenderer.invoke('RECORDINGS_UPDATE_PROGRAMS', targetPath, programs),
+    ) => ipcRenderer.invoke('RECORDINGS_UPDATE_PROGRAMS', targetPath, programs),
     recordingsRevealFile: (filePath: string) =>
         ipcRenderer.invoke('RECORDINGS_REVEAL_FILE', filePath),
     recordingsPlayFile: (filePath: string) =>

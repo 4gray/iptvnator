@@ -49,7 +49,11 @@ import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
 
 export interface XtreamChannelListItem {
@@ -164,6 +168,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
 
     constructor(private cdr: ChangeDetectorRef) {
+        this.subscriptions.add(
+            inject(EpgSourceSettingsService).changed$.subscribe(() => {
+                this.repickPreviewsForOffsetChange();
+            })
+        );
         // A changed display offset moves "now" in the provider's clock, so
         // the visible previews are re-picked from the cached EPG. The first
         // run only records the initial value.

@@ -2,7 +2,10 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder } from '@angular/forms';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    EpgSourceReconciliationError,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     CoverSize,
     EpgViewMode,
@@ -146,6 +149,7 @@ export class SettingsFormFacade {
      */
     removeEpgSource(index: number): void {
         this.epgUrl.removeAt(index);
+        this.epgUrl.markAsDirty();
         this.form.markAsDirty();
     }
 
@@ -161,19 +165,28 @@ export class SettingsFormFacade {
             this.settingsStore.getSettings()
         );
 
-        await this.settingsStore.updateSettings(settings);
-        onSaved();
-
-        if (!window.electron) {
-            return;
+        let cleanupError: EpgSourceReconciliationError | undefined;
+        try {
+            await this.settingsStore.updateSettings(settings, {
+                retryEpgCleanup: this.epgUrl?.dirty ?? false,
+            });
+        } catch (error) {
+            if (!(error instanceof EpgSourceReconciliationError)) throw error;
+            // This error follows a successful settings write. Mirror the
+            // committed values, but retain the dirty form for cleanup retry.
+            cleanupError = error;
         }
+        if (!cleanupError) onSaved();
 
-        window.electron.updateSettings(settings);
+        if (window.electron) {
+            window.electron.updateSettings(settings);
 
-        if (this.runtime.supportsExternalPlayerPathSettings) {
-            window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
-            window.electron.setVlcPlayerPath(settings.vlcPlayerPath);
+            if (this.runtime.supportsExternalPlayerPathSettings) {
+                window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
+                window.electron.setVlcPlayerPath(settings.vlcPlayerPath);
+            }
         }
+        if (cleanupError) throw cleanupError;
     }
 
     /** Applies the saved language/theme and resets the dirty state */

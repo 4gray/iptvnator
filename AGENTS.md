@@ -185,6 +185,28 @@ Button states use the matching group; "Total selected" counts the whole catalog.
 Save persists the complete draft, Close discards it, and refresh restores hidden
 categories by provider ID and type. See `docs/architecture/category-management.md`.
 
+## XMLTV Source Removal
+
+Saving Settings → EPG reconciles cached XMLTV with committed global URLs and
+all enabled M3U playlist sources. Startup runs the same reconciliation after
+settings load and playlist migration. Ordinary saves skip unchanged normalized
+source sets; an explicitly edited EPG field can retry a failed cleanup.
+A cleanup failure after persistence still mirrors committed settings to Electron;
+the form stays dirty for retry. Failed storage writes never mirror to main.
+Failed settings reads and incomplete playlist migration never authorize pruning.
+Removed sources retire queued/running imports and dismiss retained error rows
+before worker-owned deletion. Retry waits for reconciliation and rechecks its
+error row, including after trust-setting writes. Shared channel IDs survive while
+another source has programmes or per-source channel metadata. The additive
+`epg_channel_sources` table preserves each imported source's name, logo, URL and
+timestamp plus transaction-ordered `write_order`, so removal restores the latest
+surviving snapshot even when import timestamps tie; ambiguous legacy metadata
+falls back to the XMLTV ID until reimport. Manual mappings remain user preferences, but no
+longer resolve deleted data. Renderer lookup generations, Xtream previews and Stalker mapping-cache
+invalidation prevent late results from restoring removed programmes. Provider
+EPG is independent. See `docs/architecture/m3u-playlist-module.md`
+("XMLTV source lifecycle").
+
 ## Portal Connectivity Preference
 
 - Half-open trial slots follow the complete request lifetime with no elapsed-time

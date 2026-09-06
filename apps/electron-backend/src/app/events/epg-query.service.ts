@@ -1,3 +1,4 @@
+import { epgLogger } from '../util/epg-logger';
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
     EpgChannelMetadata,
@@ -154,7 +155,7 @@ export class EpgQueryService {
 
             return [];
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 this.loggerLabel,
                 'Error getting channel programs:',
                 error
@@ -310,7 +311,7 @@ export class EpgQueryService {
             }
             return result;
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 this.loggerLabel,
                 'Error getting batch current programs:',
                 error
@@ -335,7 +336,7 @@ export class EpgQueryService {
 
             return { channels, programs: [] };
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 this.loggerLabel,
                 'Error getting all channels:',
                 error
@@ -391,7 +392,7 @@ export class EpgQueryService {
                 ])
             );
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 this.loggerLabel,
                 'Error getting channel metadata:',
                 error
@@ -439,7 +440,7 @@ export class EpgQueryService {
                 })
             );
         } catch (error) {
-            console.error(
+            epgLogger.error(
                 this.loggerLabel,
                 'Error getting channels by range:',
                 error

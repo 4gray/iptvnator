@@ -1,3 +1,5 @@
+import { epgLogger } from '../util/epg-logger';
+import { epgSourceGeneration, requestEpgSource } from './epg-source-generation';
 import { eq } from 'drizzle-orm';
 import { ElectronBridgeTrustOptions } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
@@ -45,12 +47,13 @@ export async function checkEpgFreshness(
         const db = await getDatabase();
 
         for (const url of urls) {
+            const generation = epgSourceGeneration(url);
             if (!url?.trim()) continue;
 
             const result = await db
-                .select({ updatedAt: schema.epgChannels.updatedAt })
-                .from(schema.epgChannels)
-                .where(eq(schema.epgChannels.sourceUrl, url))
+                .select({ updatedAt: schema.epgChannelSources.updatedAt })
+                .from(schema.epgChannelSources)
+                .where(eq(schema.epgChannelSources.sourceUrl, url))
                 .limit(1);
 
             const isFresh =
@@ -58,6 +61,7 @@ export async function checkEpgFreshness(
                 result[0].updatedAt &&
                 result[0].updatedAt >= cutoffTime;
 
+            if (generation !== epgSourceGeneration(url)) continue;
             if (isFresh) {
                 freshUrls.push(url);
                 epgWorkerService.markFetchedUrl(url);
@@ -66,18 +70,18 @@ export async function checkEpgFreshness(
             }
         }
     } catch (error) {
-        console.error(loggerLabel, 'Error checking EPG freshness:', error);
+        epgLogger.error(loggerLabel, 'Error checking EPG freshness:', error);
         return { staleUrls: urls, freshUrls: [] };
     }
 
     if (freshUrls.length > 0) {
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `EPG fresh (skipping): ${freshUrls.length} source(s)`
         );
     }
     if (staleUrls.length > 0) {
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `EPG stale (will fetch): ${staleUrls.length} source(s)`
         );
@@ -95,7 +99,12 @@ export async function handleFetchEpg(
     urls: string[],
     options: ElectronBridgeTrustOptions = {}
 ): Promise<EpgFetchResult> {
-    const validUrls = urls.filter((url) => url?.trim());
+    const validUrls = urls
+        .filter((url) => url?.trim())
+        .map((url) => url.trim());
+    const generations = new Map(
+        validUrls.map((url) => [url, requestEpgSource(url)])
+    );
 
     if (validUrls.length === 0) {
         return { success: false, message: 'No valid URLs provided' };
@@ -118,11 +127,13 @@ export async function handleFetchEpg(
     // a 'queued' status, then fetchEpgFromUrl silently skips the URL and no
     // completion update ever arrives, leaving the UI stuck at "queued".
     const urlsToFetch = staleUrls.filter(
-        (url) => !epgWorkerService.hasFetchedUrl(url)
+        (url) =>
+            generations.get(url) === epgSourceGeneration(url) &&
+            !epgWorkerService.hasFetchedUrl(url)
     );
 
     if (urlsToFetch.length === 0) {
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `All ${staleUrls.length} stale URL(s) already fetched this session; skipping`
         );
@@ -142,16 +153,23 @@ export async function handleFetchEpg(
     const errors: string[] = [];
     for (const url of urlsToFetch) {
         try {
+            if (generations.get(url) !== epgSourceGeneration(url)) {
+                epgWorkerService.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generations.get(url)
+                );
+                continue;
+            }
             await epgWorkerService.fetchEpgFromUrl(url, options);
         } catch (error) {
-            console.error(
-                loggerLabel,
-                `Error fetching EPG from ${url}:`,
-                error
-            );
-            errors.push(
-                error instanceof Error ? error.message : String(error)
-            );
+            epgLogger.error(loggerLabel, 'Error fetching EPG source:', error);
+            errors.push(error instanceof Error ? error.message : String(error));
         }
     }
 

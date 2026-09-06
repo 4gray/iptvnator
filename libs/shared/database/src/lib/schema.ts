@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm';
 import {
     index,
     integer,
+    primaryKey,
     sqliteTable,
     text,
     uniqueIndex,
@@ -202,6 +203,26 @@ export const epgChannels = sqliteTable(
         sourceIdx: index('idx_epg_channels_source').on(table.sourceUrl),
         nameIdx: index('idx_epg_channels_name').on(table.displayName),
     })
+);
+
+// A global XMLTV ID can be shared by sources with different channel metadata.
+export const epgChannelSources = sqliteTable(
+    'epg_channel_sources',
+    {
+        channelId: text('channel_id')
+            .notNull()
+            .references(() => epgChannels.id, { onDelete: 'cascade' }),
+        sourceUrl: text('source_url').notNull(),
+        displayName: text('display_name').notNull(),
+        iconUrl: text('icon_url'),
+        url: text('url'),
+        updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+        writeOrder: integer('write_order').notNull().default(0),
+    },
+    (table) => [
+        primaryKey({ columns: [table.channelId, table.sourceUrl] }),
+        index('idx_epg_channel_sources_source').on(table.sourceUrl),
+    ]
 );
 
 // EPG Programs table

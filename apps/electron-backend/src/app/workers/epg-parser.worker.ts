@@ -1,3 +1,4 @@
+import { epgLogger } from '../util/epg-logger';
 import type BetterSqlite3 from 'better-sqlite3';
 import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
@@ -102,7 +103,7 @@ async function fetchAndParseEpgStreaming(
     url: string,
     options: ElectronBridgeTrustOptions = {}
 ): Promise<void> {
-    console.log(loggerLabel, `Fetching EPG from ${url}`);
+    epgLogger.log(loggerLabel, 'Fetching EPG source');
 
     // Create database connection in worker
     const epgDb = new EpgDatabase(Database);
@@ -141,18 +142,15 @@ async function fetchAndParseEpgStreaming(
         const contentEncoding = getEpgResponseContentEncoding(response.headers);
 
         if (responseUrl && responseUrl !== url) {
-            console.log(
-                loggerLabel,
-                `Resolved EPG redirect: ${url} -> ${responseUrl}`
-            );
+            epgLogger.log(loggerLabel, 'Resolved EPG redirect');
         }
 
-        console.log(
+        epgLogger.log(
             loggerLabel,
             `EPG response detected as gzipped: ${isGzipped}`
         );
         if (contentEncoding) {
-            console.log(
+            epgLogger.log(
                 loggerLabel,
                 `EPG response content-encoding: ${contentEncoding}`
             );
@@ -200,7 +198,7 @@ async function fetchAndParseEpgStreaming(
                 try {
                     parser.write(chunk.toString('utf-8'));
                 } catch (err) {
-                    console.error(loggerLabel, 'Parse error:', err);
+                    epgLogger.error(loggerLabel, 'Parse error:', err);
                     epgDb.close();
                     reject(err);
                 }
@@ -209,7 +207,7 @@ async function fetchAndParseEpgStreaming(
             dataStream.on('end', () => {
                 try {
                     const stats = parser.finish();
-                    console.log(
+                    epgLogger.log(
                         loggerLabel,
                         `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs`
                     );
@@ -223,7 +221,7 @@ async function fetchAndParseEpgStreaming(
                     // real problem (unreachable feed, SAX parse failure, etc.).
                     if (stats.totalChannels === 0) {
                         const errorMessage = `EPG parse produced 0 channels — feed may be unreachable or unsupported`;
-                        console.error(loggerLabel, `${errorMessage}: ${url}`);
+                        epgLogger.error(loggerLabel, errorMessage);
                         const response: WorkerResponse = {
                             type: 'EPG_ERROR',
                             url,
@@ -251,7 +249,7 @@ async function fetchAndParseEpgStreaming(
             });
 
             dataStream.on('error', (err) => {
-                console.error(loggerLabel, 'Stream error:', err);
+                epgLogger.error(loggerLabel, 'Stream error:', err);
                 epgDb.close();
                 reject(err);
             });
@@ -315,16 +313,16 @@ function clearAllEpgData(): void {
     const clearOperation = new EpgDatabaseClearOperation(Database);
 
     try {
-        console.log(loggerLabel, 'Clearing all EPG data...');
+        epgLogger.log(loggerLabel, 'Clearing all EPG data...');
 
         clearOperation.run();
 
-        console.log(loggerLabel, 'All EPG data cleared');
+        epgLogger.log(loggerLabel, 'All EPG data cleared');
 
         const response: WorkerResponse = { type: 'CLEAR_COMPLETE' };
         parentPort?.postMessage(response);
     } catch (error) {
-        console.error(loggerLabel, 'Error clearing EPG data:', error);
+        epgLogger.error(loggerLabel, 'Error clearing EPG data:', error);
         const errorResponse: WorkerResponse = {
             type: 'EPG_ERROR',
             error: error instanceof Error ? error.message : String(error),
@@ -339,19 +337,16 @@ function clearEpgDataForSource(sourceUrl: string): void {
     const clearOperation = new EpgDatabaseSourceClearOperation(Database);
 
     try {
-        console.log(
-            loggerLabel,
-            `Clearing EPG data for source ${sourceUrl}...`
-        );
+        epgLogger.log(loggerLabel, 'Clearing EPG data for source...');
 
         clearOperation.run(sourceUrl);
 
-        console.log(loggerLabel, `EPG data cleared for source ${sourceUrl}`);
+        epgLogger.log(loggerLabel, 'EPG data cleared for source');
 
         const response: WorkerResponse = { type: 'CLEAR_COMPLETE' };
         parentPort?.postMessage(response);
     } catch (error) {
-        console.error(loggerLabel, 'Error clearing EPG source data:', error);
+        epgLogger.error(loggerLabel, 'Error clearing EPG source data:', error);
         const errorResponse: WorkerResponse = {
             type: 'EPG_ERROR',
             error: error instanceof Error ? error.message : String(error),
@@ -379,7 +374,7 @@ if (parentPort) {
                 clearEpgDataForSource(message.sourceUrl ?? '');
             }
         } catch (error) {
-            console.error(loggerLabel, 'Worker error:', error);
+            epgLogger.error(loggerLabel, 'Worker error:', error);
             const typedError = error as {
                 code?: ElectronBridgeSecurityErrorCode;
                 host?: string;
@@ -398,5 +393,5 @@ if (parentPort) {
     // Notify parent that worker is ready
     parentPort.postMessage({ type: 'READY' });
 } else {
-    console.error(loggerLabel, 'parentPort is not available!');
+    epgLogger.error(loggerLabel, 'parentPort is not available!');
 }

@@ -13,7 +13,6 @@ export const maxLinesBaseline = [
     'apps/electron-backend/src/app/database/operations/content.operations.ts',
     'apps/electron-backend/src/app/database/operations/playlist.operations.ts',
     'apps/electron-backend/src/app/events/epg-query.service.ts',
-    'apps/electron-backend/src/app/events/epg-worker.service.ts',
     'apps/electron-backend/src/app/events/mpv-session.service.ts',
     'apps/electron-backend/src/app/events/vlc-session.service.ts',
     'apps/electron-backend/src/app/services/app-update.service.ts',

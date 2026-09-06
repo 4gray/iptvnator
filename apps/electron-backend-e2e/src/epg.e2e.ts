@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Page } from '@playwright/test';
 import {
     buildM3uContent,
@@ -5,6 +7,7 @@ import {
     closeElectronApp,
     createMutableTextServer,
     expect,
+    goToDashboard,
     importM3uPlaylistFromUrl,
     launchElectronApp,
     openWorkspaceSection,
@@ -33,7 +36,8 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 function createCurrentXmltvFixture(
     channelId: string,
     channelName: string,
-    programTitle: string
+    programTitle: string,
+    iconUrl?: string
 ): string {
     const start = new Date(Date.now() - 15 * 60 * 1000);
     const stop = new Date(Date.now() + 45 * 60 * 1000);
@@ -42,6 +46,7 @@ function createCurrentXmltvFixture(
 <tv>
   <channel id="${channelId}">
     <display-name>${channelName}</display-name>
+    ${iconUrl ? `<icon src="${iconUrl}"/>` : ''}
   </channel>
   <programme start="${formatXmltvDate(start)} +0000" stop="${formatXmltvDate(stop)} +0000" channel="${channelId}">
     <title>${programTitle}</title>
@@ -65,7 +70,159 @@ function formatXmltvDate(date: Date): string {
 }
 
 test.describe('Electron EPG', () => {
-    test('@epg @electron adds an EPG source, fetches guide data, removes the source row, and clears stored EPG data', async ({
+    test('@epg @electron saves unrelated settings when EPG reconciliation is unavailable', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'general');
+            // After startup, make any unexpected reconciliation fail.
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('EPG_RECONCILE_SOURCES');
+                ipcMain.handle('EPG_RECONCILE_SOURCES', () => {
+                    throw new Error('Synthetic migration failure');
+                });
+            });
+            const guard = app.mainWindow
+                .getByTestId('portal-connectivity-toggle')
+                .locator('input');
+            await guard.uncheck();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toBeVisible();
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).not.toBeVisible();
+            await goToDashboard(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('unsaved-dialog-save')
+            ).not.toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@epg @electron mirrors saved desktop settings when source cleanup fails', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('EPG_RECONCILE_SOURCES');
+                ipcMain.handle('EPG_RECONCILE_SOURCES', () => {
+                    throw new Error('Synthetic cleanup failure');
+                });
+            });
+            await openSettingsSection(app.mainWindow, 'general');
+            await app.mainWindow
+                .getByTestId('portal-connectivity-toggle')
+                .locator('input')
+                .uncheck();
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .fill('https://example.invalid/guide.xml');
+            await app.mainWindow
+                .getByTestId('save-settings')
+                .click({ noWaitAfter: true });
+            await expect(
+                app.mainWindow.getByText(
+                    'Failed to clear EPG data. Please try again.',
+                    { exact: true }
+                )
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toBeVisible();
+            await expect
+                .poll(async () => {
+                    const config = JSON.parse(
+                        await readFile(
+                            join(dataDir, 'config', 'config.json'),
+                            'utf8'
+                        )
+                    );
+                    return config.PORTAL_CONNECTIVITY_GUARD;
+                })
+                .toBe(false);
+            // Restore cleanup so the explicit retry can finish and close normally.
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                ipcMain.removeHandler('EPG_RECONCILE_SOURCES');
+                ipcMain.handle('EPG_RECONCILE_SOURCES', () => ({
+                    success: true,
+                    removedUrls: [],
+                }));
+            });
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).not.toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@epg @electron omits source secrets from main and parser-worker diagnostics', async ({
+        dataDir,
+    }) => {
+        const server = await createMutableTextServer(epgFixtureXml, {
+            contentType: 'application/xml; charset=utf-8',
+            resourcePath: '/epg-path-secret/guide.xml',
+        });
+        const app = await launchElectronApp(dataDir);
+        const sourceUrl = `${server.resourceUrl}?custom=epg-query-secret`;
+        let diagnostics = '';
+        const capture = (chunk: Buffer) => {
+            diagnostics += chunk.toString();
+        };
+        const process = app.electronApp.process();
+        process.stdout?.on('data', capture);
+        process.stderr?.on('data', capture);
+        try {
+            const imported = await app.mainWindow.evaluate(async (url) => {
+                const result = await window.electron.forceFetchEpg(url);
+                await window.electron.clearEpgDataForSource(url);
+                return result;
+            }, sourceUrl);
+            expect(imported.success).toBe(true);
+            await expect
+                .poll(() => diagnostics)
+                .toContain('EPG data cleared for source via worker');
+            const failed = await app.mainWindow.evaluate(async (url) => {
+                const missing = new URL(url);
+                missing.pathname += '/missing';
+                return window.electron.forceFetchEpg(missing.toString());
+            }, sourceUrl);
+            expect(failed.success).toBe(false);
+            await expect
+                .poll(() => diagnostics)
+                .toContain('Request failed with status code 404');
+            // Worker stdout can lose its final buffered line on termination;
+            // the awaited import result and main-process completion are authoritative.
+            expect(diagnostics).toContain('[EPG Worker] Fetching EPG source');
+            expect(diagnostics).toContain('EPG parsing complete:');
+            expect(diagnostics).not.toContain('epg-path-secret');
+            expect(diagnostics).not.toContain('epg-query-secret');
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+        } finally {
+            process.stdout?.off('data', capture);
+            process.stderr?.off('data', capture);
+            await closeElectronApp(app);
+            await server.close();
+        }
+    });
+
+    test('@epg @electron adds an EPG source, fetches guide data, removes its stored EPG data on save', async ({
         dataDir,
     }) => {
         const epgServer = await createMutableTextServer(epgFixtureXml, {
@@ -103,6 +260,8 @@ test.describe('Electron EPG', () => {
                     .first()
             ).toBeVisible();
 
+            await saveSettings(app.mainWindow);
+
             await app.mainWindow
                 .locator('.epg-source-row button')
                 .nth(1)
@@ -116,18 +275,6 @@ test.describe('Electron EPG', () => {
             // would block the close and leak the Electron process.
             await saveSettings(app.mainWindow);
 
-            await app.mainWindow
-                .getByRole('button', { name: 'Clear EPG data' })
-                .click();
-            const dialog = app.mainWindow.locator('mat-dialog-container');
-            await expect(dialog).toBeVisible();
-            await dialog
-                .getByRole('button', { name: 'Yes', exact: true })
-                .click();
-            await app.mainWindow.waitForSelector('mat-dialog-container', {
-                state: 'detached',
-            });
-
             await expect
                 .poll(() => getEpgChannelCount(app.mainWindow), {
                     timeout: 20000,
@@ -139,9 +286,249 @@ test.describe('Electron EPG', () => {
         }
     });
 
+    test('@epg @electron removes a retained error row after its import worker has finished', async ({
+        dataDir,
+    }) => {
+        const server = await createMutableTextServer(epgFixtureXml, {
+            contentType: 'application/xml',
+        });
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .fill(server.resourceUrl);
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1, { timeout: 30000 });
+            // Capture the actual generation; a force-fetch also awaits termination.
+            const generation = await app.mainWindow.evaluate(async (url) => {
+                await window.electron.clearEpgDataForSource(url);
+                const completed = new Promise<number>((resolve) => {
+                    window.electron.onEpgProgress?.((progress) => {
+                        if (
+                            progress.url === url &&
+                            progress.status === 'complete'
+                        )
+                            resolve(progress.generation ?? 0);
+                    });
+                });
+                await window.electron.forceFetchEpg(url);
+                return completed;
+            }, server.resourceUrl);
+            await app.electronApp.evaluate(
+                ({ BrowserWindow }, { url, generation }) => {
+                    BrowserWindow.getAllWindows()[0].webContents.send(
+                        'EPG_PROGRESS_UPDATE',
+                        {
+                            url,
+                            status: 'error',
+                            generation,
+                            errorCode: 'invalid-tls-certificate',
+                            error: 'Synthetic retained TLS error',
+                        }
+                    );
+                },
+                { url: server.resourceUrl, generation }
+            );
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-error'
+                )
+            ).toHaveCount(1);
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .import-item')
+            ).toHaveCount(0);
+            await expect.poll(() => getEpgChannelCount(app.mainWindow)).toBe(0);
+        } finally {
+            await closeElectronApp(app);
+            await server.close();
+        }
+    });
+
+    test('@epg @electron removes only the saved source, preserves shared IDs and mappings, and repairs old orphan data on restart', async ({
+        dataDir,
+    }) => {
+        test.setTimeout(120000);
+        const first = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'shared-news',
+                'Shared News',
+                'Removed Bulletin'
+            ),
+            { contentType: 'application/xml', resourcePath: '/first.xml' }
+        );
+        const second = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'shared-news',
+                'Shared News',
+                'Retained Bulletin'
+            ),
+            { contentType: 'application/xml', resourcePath: '/second.xml' }
+        );
+        let app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            for (const [index, url] of [
+                first.resourceUrl,
+                second.resourceUrl,
+            ].entries()) {
+                await app.mainWindow
+                    .getByRole('button', { name: 'Add EPG source' })
+                    .click();
+                const inputs = app.mainWindow.locator('.epg-source-row input');
+                await expect(inputs).toHaveCount(index + 1);
+                await inputs.nth(index).fill(url);
+            }
+            await saveSettings(app.mainWindow);
+            const programs = () =>
+                app.mainWindow.evaluate(async () =>
+                    (
+                        await window.electron.getChannelPrograms('mapped-news')
+                    ).map((p) => p.title)
+                );
+            await app.mainWindow.evaluate(() =>
+                window.electron.setEpgMapping('mapped-news', 'shared-news')
+            );
+            await expect
+                .poll(programs, { timeout: 30000 })
+                .toEqual(['Removed Bulletin', 'Retained Bulletin']);
+            await app.mainWindow
+                .locator('.epg-source-row')
+                .first()
+                .locator('button')
+                .nth(1)
+                .click();
+            // A staged removal must not delete data before Save.
+            expect(await programs()).toContain('Removed Bulletin');
+            await saveSettings(app.mainWindow);
+            await expect.poll(programs).toEqual(['Retained Bulletin']);
+            await closeElectronApp(app);
+            app = await launchElectronApp(dataDir);
+            await expect.poll(programs).toEqual(['Retained Bulletin']);
+            // Simulate a cache left by 0.23: import a source absent from settings.
+            await app.mainWindow.evaluate(
+                (url) => window.electron.forceFetchEpg(url),
+                first.resourceUrl
+            );
+            await expect.poll(programs).toContain('Removed Bulletin');
+            await closeElectronApp(app);
+            app = await launchElectronApp(dataDir);
+            await expect.poll(programs).toEqual(['Retained Bulletin']);
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            await expect.poll(programs).toEqual([]);
+            await expect.poll(() => getEpgChannelCount(app.mainWindow)).toBe(0);
+            expect(
+                await app.mainWindow.evaluate(() =>
+                    window.electron.getEpgMapping('mapped-news')
+                )
+            ).toMatchObject({ epgChannelId: 'shared-news' });
+        } finally {
+            await closeElectronApp(app);
+            await first.close();
+            await second.close();
+        }
+    });
+
+    test('@epg @electron restores the first source name and logo after removing the last metadata writer', async ({
+        dataDir,
+    }) => {
+        const first = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'shared-logo',
+                'First News',
+                'First Bulletin',
+                'https://example.com/first.png'
+            ),
+            { contentType: 'application/xml', resourcePath: '/first.xml' }
+        );
+        const second = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'shared-logo',
+                'Second News',
+                'Second Bulletin',
+                'https://example.com/second.png'
+            ),
+            { contentType: 'application/xml', resourcePath: '/second.xml' }
+        );
+        let app = await launchElectronApp(dataDir);
+        const metadata = () =>
+            app.mainWindow.evaluate(
+                async () =>
+                    (
+                        await window.electron.getEpgChannelMetadata([
+                            'shared-logo',
+                        ])
+                    )['shared-logo']
+            );
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            for (const [index, source] of [first, second].entries()) {
+                await app.mainWindow
+                    .getByRole('button', { name: 'Add EPG source' })
+                    .click();
+                const inputs = app.mainWindow.locator('.epg-source-row input');
+                await expect(inputs).toHaveCount(index + 1);
+                await inputs.nth(index).fill(source.resourceUrl);
+                await saveSettings(app.mainWindow);
+                await expect.poll(metadata, { timeout: 30000 }).toMatchObject({
+                    displayName: index === 0 ? 'First News' : 'Second News',
+                    iconUrl: `https://example.com/${index === 0 ? 'first' : 'second'}.png`,
+                });
+            }
+            await app.mainWindow
+                .locator('.epg-source-row')
+                .nth(1)
+                .locator('button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            const firstMetadata = {
+                displayName: 'First News',
+                iconUrl: 'https://example.com/first.png',
+            };
+            await expect.poll(metadata).toMatchObject(firstMetadata);
+            await closeElectronApp(app);
+            app = await launchElectronApp(dataDir);
+            await expect.poll(metadata).toMatchObject(firstMetadata);
+            expect(
+                await app.mainWindow.evaluate(async () =>
+                    (
+                        await window.electron.getChannelPrograms('shared-logo')
+                    ).map((p) => p.title)
+                )
+            ).toEqual(['First Bulletin']);
+        } finally {
+            await closeElectronApp(app);
+            await first.close();
+            await second.close();
+        }
+    });
+
     test('@epg @electron imports and renders an EPG source declared by an M3U playlist header', async ({
         dataDir,
     }) => {
+        test.setTimeout(90000);
         const epgServer = await createMutableTextServer(
             createCurrentXmltvFixture(
                 'playlist-guide-news',
@@ -211,6 +598,27 @@ test.describe('Electron EPG', () => {
             await expect(channelItem.locator('.epg-title')).toContainText(
                 'Playlist Scoped Bulletin',
                 { timeout: 30000 }
+            );
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .fill(epgServer.resourceUrl);
+            await saveSettings(app.mainWindow);
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await saveSettings(app.mainWindow);
+            // The same URL still belongs to the saved M3U playlist.
+            const retained = await app.mainWindow.evaluate(async () =>
+                window.electron.getChannelPrograms('playlist-guide-news')
+            );
+            expect(retained.map((program) => program.title)).toContain(
+                'Playlist Scoped Bulletin'
             );
         } finally {
             await closeElectronApp(app);

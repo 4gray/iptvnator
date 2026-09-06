@@ -1,6 +1,7 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
 import type { ParsedChannel, ParsedProgram } from './epg-streaming-parser';
+import { restoreSurvivingChannelMetadata } from './epg-source-metadata';
 
 /**
  * Database helper for worker-owned EPG operations.
@@ -10,6 +11,8 @@ export class EpgDatabase {
     private readonly db: BetterSqlite3.Database;
     private readonly knownChannelIds = new Set<string>();
     private readonly insertChannelStmt: BetterSqlite3.Statement;
+    private readonly insertChannelSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteChannelSourcesStmt: BetterSqlite3.Statement;
     private readonly insertProgramStmt: BetterSqlite3.Statement;
     private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteTodayAndFutureStmt: BetterSqlite3.Statement;
@@ -29,6 +32,25 @@ export class EpgDatabase {
                 url = excluded.url,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
+
+        // Allocated under the same SQLite write transaction as the channel
+        // upsert: ties and clock rollbacks cannot reorder surviving writers.
+        this.insertChannelSourceStmt = this.db.prepare(`
+            INSERT INTO epg_channel_sources
+                (channel_id, display_name, icon_url, url, source_url, updated_at, write_order)
+            VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                (SELECT COALESCE(MAX(write_order), 0) + 1
+                 FROM epg_channel_sources WHERE channel_id = ?))
+            ON CONFLICT(channel_id, source_url) DO UPDATE SET
+                display_name = excluded.display_name,
+                icon_url = excluded.icon_url,
+                url = excluded.url,
+                updated_at = excluded.updated_at,
+                write_order = excluded.write_order
+        `);
+        this.deleteChannelSourcesStmt = this.db.prepare(
+            'DELETE FROM epg_channel_sources WHERE source_url = ?'
+        );
 
         // Guard against duplicate entries when the clearFirst logic misses old
         // rows. The same channel + start + title + source is treated as the
@@ -66,6 +88,10 @@ export class EpgDatabase {
                   FROM epg_programs
                   WHERE epg_programs.channel_id = epg_channels.id
               )
+              AND NOT EXISTS (
+                  SELECT 1 FROM epg_channel_sources
+                  WHERE epg_channel_sources.channel_id = epg_channels.id
+              )
         `);
 
         this.deleteTodayAndFutureStmt = this.db.prepare(`
@@ -88,7 +114,9 @@ export class EpgDatabase {
     ): void {
         const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
             if (clearTodayAndFuture) {
+                restoreSurvivingChannelMetadata(this.db, sourceUrl);
                 this.deleteTodayAndFutureStmt.run(sourceUrl);
+                this.deleteChannelSourcesStmt.run(sourceUrl);
                 this.deleteOrphanChannelsForSourceStmt.run(sourceUrl);
                 this.knownChannelIds.clear();
             }
@@ -105,6 +133,14 @@ export class EpgDatabase {
                     iconUrl,
                     url,
                     sourceUrl
+                );
+                this.insertChannelSourceStmt.run(
+                    channel.id,
+                    displayName,
+                    iconUrl,
+                    url,
+                    sourceUrl,
+                    channel.id
                 );
                 this.knownChannelIds.add(channel.id);
             }
@@ -222,6 +258,7 @@ export class EpgDatabaseClearOperation {
         this.db.exec('BEGIN');
         try {
             this.db.exec('DELETE FROM epg_programs');
+            this.db.exec('DELETE FROM epg_channel_sources');
             this.db.exec('DELETE FROM epg_channels');
             this.db.exec('COMMIT');
         } catch (error) {
@@ -256,6 +293,10 @@ export class EpgDatabaseSourceClearOperation {
                   FROM epg_programs
                   WHERE epg_programs.channel_id = epg_channels.id
               )
+              AND NOT EXISTS (
+                  SELECT 1 FROM epg_channel_sources
+                  WHERE epg_channel_sources.channel_id = epg_channels.id
+              )
         `);
     }
 
@@ -266,7 +307,12 @@ export class EpgDatabaseSourceClearOperation {
         }
 
         const clearSource = this.db.transaction((url: string) => {
+            // Capture affected IDs while removed-source provenance still exists.
+            restoreSurvivingChannelMetadata(this.db, url);
             this.deleteProgramsForSourceStmt.run(url);
+            this.db
+                .prepare('DELETE FROM epg_channel_sources WHERE source_url = ?')
+                .run(url);
             this.deleteOrphanChannelsForSourceStmt.run(url);
         });
 

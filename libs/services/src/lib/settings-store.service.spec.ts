@@ -1,3 +1,4 @@
+import { EpgSourceSettingsService } from './epg-source-settings.service';
 import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of, Subject } from 'rxjs';
@@ -46,12 +47,125 @@ describe('SettingsStore dashboard rail settings', () => {
         injector = Injector.create({
             providers: [
                 SettingsStore,
+                EpgSourceSettingsService,
                 {
                     provide: StorageMap,
                     useValue: storage,
                 },
             ],
         });
+    });
+
+    it('reconciles only after persistence and restores the previous EPG list on a failed save', async () => {
+        storedSettings = { epgUrl: ['https://old.example/guide.xml'] };
+        const sources = injector.get(EpgSourceSettingsService);
+        const reconcile = jest
+            .spyOn(sources, 'synchronize')
+            .mockResolvedValue(undefined);
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        reconcile.mockClear();
+        const write = new Subject<void>();
+        storage.set.mockReturnValue(write);
+        const saving = store.updateSettings({ epgUrl: [] });
+        expect(reconcile).not.toHaveBeenCalled();
+        write.error(new Error('storage unavailable'));
+        await expect(saving).rejects.toThrow('storage unavailable');
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(store.epgUrl()).toEqual(['https://old.example/guide.xml']);
+        storage.set.mockReturnValue(of(undefined));
+        await store.updateSettings({ epgUrl: [] });
+        expect(reconcile).toHaveBeenCalledWith([]);
+    });
+
+    it('never reconciles empty defaults after settings storage fails to load', async () => {
+        const pending = new Subject<unknown>();
+        storage.get.mockReturnValue(pending);
+        const reconcile = jest.spyOn(
+            injector.get(EpgSourceSettingsService),
+            'synchronize'
+        );
+        const store = injector.get(SettingsStore);
+        pending.error(new Error('cannot read settings'));
+        await store.loadSettings();
+        expect(reconcile).not.toHaveBeenCalled();
+    });
+
+    it('keeps persisted URLs authoritative when subsequent EPG cleanup fails', async () => {
+        const sources = injector.get(EpgSourceSettingsService);
+        const reconcile = jest
+            .spyOn(sources, 'synchronize')
+            .mockResolvedValue(undefined);
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        reconcile.mockRejectedValue(new Error('cleanup failed'));
+        await expect(
+            store.updateSettings({ epgUrl: ['new-source'] })
+        ).rejects.toThrow('cleanup failed');
+        expect(store.epgUrl()).toEqual(['new-source']);
+        expect(store.storageFailure()).toBeNull();
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ epgUrl: ['new-source'] })
+        );
+    });
+
+    it.each([
+        { epgUrl: ['second', 'first'] },
+        { epgUrl: [' first ', 'second', 'first', ''] },
+    ])(
+        'persists unrelated settings without reconciling an unchanged normalized source set: %j',
+        async ({ epgUrl }) => {
+            storedSettings = { epgUrl: ['first', 'second'] };
+            const reconcile = jest
+                .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+                .mockResolvedValue(undefined);
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            reconcile
+                .mockClear()
+                .mockRejectedValue(new Error('migration unavailable'));
+            await expect(
+                store.updateSettings({
+                    ...store.getSettings(),
+                    language: Language.FRENCH,
+                    epgUrl,
+                })
+            ).resolves.toBeUndefined();
+            expect(reconcile).not.toHaveBeenCalled();
+            expect(store.storageFailure()).toBeNull();
+            expect(storage.set).toHaveBeenLastCalledWith(
+                STORE_KEY.Settings,
+                expect.objectContaining({ language: Language.FRENCH })
+            );
+        }
+    );
+
+    it('keeps failed cleanup retryable only when an EPG save explicitly requests it', async () => {
+        storedSettings = { epgUrl: ['removed'] };
+        const reconcile = jest
+            .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+            .mockResolvedValue(undefined);
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        reconcile.mockClear().mockRejectedValue(new Error('cleanup failed'));
+        await expect(store.updateSettings({ epgUrl: [] })).rejects.toThrow(
+            'cleanup failed'
+        );
+        reconcile.mockClear();
+        await expect(
+            store.updateSettings({
+                ...store.getSettings(),
+                language: Language.FRENCH,
+            })
+        ).resolves.toBeUndefined();
+        expect(reconcile).not.toHaveBeenCalled();
+        await expect(
+            store.updateSettings({ epgUrl: [] }, { retryEpgCleanup: true })
+        ).rejects.toThrow('cleanup failed');
+        reconcile.mockResolvedValue(undefined);
+        await store.updateSettings({ epgUrl: [] }, { retryEpgCleanup: true });
+        expect(reconcile).toHaveBeenCalledTimes(2);
     });
 
     it('defaults portal request pauses on and persists an explicit opt-out', async () => {
@@ -448,6 +562,7 @@ describe('SettingsStore storage failure reporting', () => {
         injector = Injector.create({
             providers: [
                 SettingsStore,
+                EpgSourceSettingsService,
                 {
                     provide: StorageMap,
                     useValue: storage,

@@ -4,6 +4,7 @@ import {
     signalStoreFeature,
     withComputed,
     withMethods,
+    withHooks,
     withState,
 } from '@ngrx/signals';
 import {
@@ -11,7 +12,11 @@ import {
     EpgItem,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -104,6 +109,7 @@ export function withEpg() {
             const fallbackService = inject(XtreamXmltvFallbackService);
             const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
+            const sources = inject(EpgSourceSettingsService);
 
             const supportsEpg = (): boolean => runtime.supportsEpg;
 
@@ -146,6 +152,7 @@ export function withEpg() {
                  * sets `preferUploadedEpgOverXtream`.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
+                    const sourceRevision = sources.revision();
                     if (!supportsEpg()) {
                         patchState(store, {
                             epgItems: [],
@@ -203,6 +210,7 @@ export function withEpg() {
                                     fetchFullProvider(credentials, xtreamId),
                             });
 
+                        if (sourceRevision !== sources.revision()) return [];
                         patchState(store, {
                             epgItems,
                             isLoadingEpg: false,
@@ -210,6 +218,7 @@ export function withEpg() {
 
                         return epgItems;
                     } catch (error) {
+                        if (sourceRevision !== sources.revision()) return [];
                         logger.error('Error loading EPG', error);
                         patchState(store, {
                             epgItems: [],
@@ -254,6 +263,19 @@ export function withEpg() {
                 clearEpg(): void {
                     patchState(store, initialEpgState);
                 },
+            };
+        }),
+        withHooks((store) => {
+            const sources = inject(EpgSourceSettingsService);
+            let subscription: { unsubscribe(): void } | undefined;
+            return {
+                onInit: () => {
+                    subscription = sources.changed$.subscribe(() => {
+                        store.clearEpg();
+                        void store.loadEpg();
+                    });
+                },
+                onDestroy: () => subscription?.unsubscribe(),
             };
         })
     );

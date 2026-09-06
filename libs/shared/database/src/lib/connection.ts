@@ -287,6 +287,18 @@ const CREATE_TABLE_STATEMENTS = [
       source_url TEXT NOT NULL,
       updated_at TEXT DEFAULT (datetime('now'))
   )`,
+    `CREATE TABLE IF NOT EXISTS epg_channel_sources (
+      channel_id TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      icon_url TEXT,
+      url TEXT,
+      updated_at TEXT DEFAULT (datetime('now')),
+      write_order INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (channel_id, source_url),
+      FOREIGN KEY (channel_id) REFERENCES epg_channels(id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_epg_channel_sources_source ON epg_channel_sources(source_url)`,
     `CREATE TABLE IF NOT EXISTS epg_programs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       channel_id TEXT NOT NULL,
@@ -419,6 +431,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE content ADD COLUMN original_title TEXT`,
     // v1.7.1: Scope XMLTV programs to their source URL for playlist-local EPG lookup
     `ALTER TABLE epg_programs ADD COLUMN source_url TEXT`,
+    // Preserve writer order independently of wall-clock precision or changes.
+    `ALTER TABLE epg_channel_sources ADD COLUMN write_order INTEGER NOT NULL DEFAULT 0`,
     // Pause/resume: entity validator (ETag/Last-Modified) sent as If-Range on resume
     `ALTER TABLE downloads ADD COLUMN resume_validator TEXT`,
     // Offline details: provider-neutral display metadata captured at download time

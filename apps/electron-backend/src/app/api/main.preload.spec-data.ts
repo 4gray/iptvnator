@@ -537,6 +537,12 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [],
     },
     {
+        method: 'reconcileEpgSources',
+        args: [epgUrls],
+        channel: 'EPG_RECONCILE_SOURCES',
+        forwardedArgs: [{ urls: epgUrls }],
+    },
+    {
         method: 'clearEpgDataForSource',
         args: ['https://example.com/guide.xml'],
         channel: 'EPG_CLEAR_SOURCE',
