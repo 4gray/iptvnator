@@ -100,6 +100,7 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         store.selectedContentType.set('itv');
         store.radioChannels.set([]);
         store.itvFullChannelList.set([]);
+        store.itvFullListLoading.set(false);
         store.setPage.mockClear();
         await TestBed.configureTestingModule({
             imports: [
@@ -203,6 +204,32 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         fixture.detectChanges();
         expect(component.filteredChannels()).toHaveLength(251);
         expect(component.channelsForList(panelTerm)).toHaveLength(100);
+    });
+
+    it('searches paged All Items while the full cache is still loading', () => {
+        store.selectedCategoryId.set('*');
+        store.itvFullListLoading.set(true);
+        searchPhrase.set('one');
+        fixture.detectChanges();
+        expect(component.showItvAllItems()).toBe(false);
+        expect(component.filteredChannels()).toEqual([channels[0]]);
+        expect(component.channelsForList(signal('two'))).toEqual([channels[1]]);
+    });
+
+    it('does not relabel retained category rows as the initial All Items grid', () => {
+        // No selected category has no provider-page request. The unselected
+        // grid waits for the public cache, even if a prior category's rows
+        // are still present before the store's reset effect settles.
+        store.selectedCategoryId.set(null);
+        store.itvFullListLoading.set(true);
+        searchPhrase.set('one');
+        fixture.detectChanges();
+        expect(component.showItvAllItems()).toBe(true);
+        expect(component.filteredChannels()).toEqual([]);
+        expect(component.channelsForList(signal('two'))).toEqual([]);
+        store.itvFullChannelList.set(channels);
+        expect(component.filteredChannels()).toEqual([channels[0]]);
+        expect(component.channelsForList(signal('two'))).toEqual([channels[1]]);
     });
 
     it('does not search the ITV cache after switching to radio', () => {

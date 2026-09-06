@@ -760,6 +760,15 @@ describe('withStalkerContent full ITV channel list cache', () => {
         void store.isPaginatedContentLoading();
     }
 
+    it('does not request paged channels without a selected category', async () => {
+        setup(null);
+        enterItvCategory('');
+        await flushResources();
+        expect(store.itvChannels()).toEqual([]);
+        expect(store.hasMoreChannels()).toBe(false);
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
     it('serves the whole category from the cache without portal requests', async () => {
         setup(CACHED_CHANNELS);
         enterItvCategory('5');
