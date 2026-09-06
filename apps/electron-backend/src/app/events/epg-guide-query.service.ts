@@ -1,88 +1,63 @@
-import { and, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
 import { epgLogger } from '../util/epg-logger';
+import {
+    EpgProgramRow,
+    isValidEpgProgram,
+    toEpgProgramFromRow,
+} from './epg-program-row.util';
 import { epgQueryService, EpgQueryService } from './epg-query.service';
+import {
+    EPG_GUIDE_MAX_CHANNELS_PER_REQUEST,
+    EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST,
+    EpgGuideWindowRequest,
+    NormalizedGuideWindow,
+    normalizeGuideWindow,
+} from './epg-guide-window.util';
 
-/** The renderer splits larger batches; anything beyond this is dropped. */
-export const EPG_GUIDE_MAX_CHANNELS_PER_REQUEST = 100;
-
-/** Largest |ms| `Date` can serialize; a corrupt payload must not throw in SQL. */
-const MAX_SERIALIZABLE_MS = 8.64e15;
-
-export interface EpgGuideWindowRequest {
-    channelIds: string[];
-    /** Provider-clock instants (the renderer removes the display offset). */
-    fromMs: number;
-    toMs: number;
-    sourceUrls?: string[];
-}
-
-export interface NormalizedGuideWindow {
-    channelIds: string[];
-    fromIso: string;
-    toIso: string;
-    sourceUrls: string[];
-}
-
-interface GuideProgramRow {
-    channelId: string;
-    start: string;
-    stop: string;
-    title: string;
-    description: string | null;
-    category: string | null;
-    iconUrl: string | null;
-    rating: string | null;
-    episodeNum: string | null;
-}
+export {
+    EPG_GUIDE_MAX_CHANNELS_PER_REQUEST,
+    EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST,
+    guideWindowOverlapSqlText,
+    normalizeGuideWindow,
+} from './epg-guide-window.util';
+export type {
+    EpgGuideWindowRequest,
+    NormalizedGuideWindow,
+} from './epg-guide-window.util';
 
 type ChannelResolver = Pick<EpgQueryService, 'getChannelMetadata'>;
 
-function isUsableInstant(value: unknown): value is number {
-    return (
-        typeof value === 'number' &&
-        Number.isFinite(value) &&
-        Math.abs(value) <= MAX_SERIALIZABLE_MS
-    );
-}
-
-/** Validates and trims a request; `null` means "nothing to query". */
-export function normalizeGuideWindow(
-    request: EpgGuideWindowRequest
-): NormalizedGuideWindow | null {
-    if (
-        !isUsableInstant(request.fromMs) ||
-        !isUsableInstant(request.toMs) ||
-        request.fromMs >= request.toMs ||
-        !Array.isArray(request.channelIds)
-    ) {
-        return null;
+/**
+ * Overlap test in SQLite `datetime()` so provider-local offsets in the
+ * stored ISO strings compare correctly against the UTC window bounds. When
+ * `sourceUrls` is non-empty, the scope is additive — "these sources plus
+ * legacy (unsourced) rows" — mirroring `EpgQueryService`'s legacy fallback,
+ * so pre-multi-source imports (`source_url` null/empty) are never dropped
+ * just because a caller scoped the request to specific EPG sources.
+ */
+export function guideWindowCondition(
+    epgIds: string[],
+    window: NormalizedGuideWindow
+): SQL {
+    const overlap = and(
+        inArray(schema.epgPrograms.channelId, epgIds),
+        sql`datetime(${schema.epgPrograms.start}) < datetime(${window.toIso})`,
+        sql`datetime(${schema.epgPrograms.stop}) > datetime(${window.fromIso})`
+    ) as SQL;
+    if (window.sourceUrls.length === 0) {
+        return overlap;
     }
-    const channelIds = Array.from(
-        new Set(
-            request.channelIds
-                .map((id) => (typeof id === 'string' ? id.trim() : ''))
-                .filter((id) => id.length > 0)
-        )
-    ).slice(0, EPG_GUIDE_MAX_CHANNELS_PER_REQUEST);
-    if (channelIds.length === 0) {
-        return null;
-    }
-    const sourceUrls = Array.from(
-        new Set(
-            (request.sourceUrls ?? [])
-                .map((url) => url.trim())
-                .filter((url) => url.length > 0)
-        )
-    );
-    return {
-        channelIds,
-        fromIso: new Date(request.fromMs).toISOString(),
-        toIso: new Date(request.toMs).toISOString(),
-        sourceUrls,
-    };
+    return and(
+        overlap,
+        or(
+            inArray(schema.epgPrograms.sourceUrl, window.sourceUrls),
+            isNull(schema.epgPrograms.sourceUrl),
+            eq(schema.epgPrograms.sourceUrl, '')
+        ) as SQL
+    ) as SQL;
 }
 
 /**
@@ -98,14 +73,25 @@ export class EpgGuideQueryService {
         private readonly loggerLabel = '[EPG Guide]'
     ) {}
 
+    /**
+     * Response keys are exactly the trimmed, de-duplicated, cap-respecting
+     * requested keys (`window.channelIds`) — never the raw request. A key cut
+     * by the per-request cap is absent from the result, never present with an
+     * empty list, so a caller can tell "queried, nothing found" apart from
+     * "not queried at all". An invalid window returns `{}`.
+     */
     async getProgramsForChannels(
         request: EpgGuideWindowRequest
     ): Promise<Record<string, EpgProgram[]>> {
-        const result = this.emptyResult(request.channelIds);
-        const window = normalizeGuideWindow(request);
+        const window = normalizeGuideWindow(
+            request,
+            EPG_GUIDE_MAX_CHANNELS_PER_REQUEST
+        );
         if (!window) {
-            return result;
+            return {};
         }
+        this.warnIfTruncated(request.channelIds, window.channelIds);
+        const result = this.emptyResult(window.channelIds);
         try {
             const resolved = await this.resolveChannelIds(window);
             const epgIds = Array.from(new Set(resolved.values()));
@@ -113,7 +99,7 @@ export class EpgGuideQueryService {
                 return result;
             }
             const db = await getDatabase();
-            const rows: GuideProgramRow[] = await db
+            const rows: EpgProgramRow[] = await db
                 .select({
                     channelId: schema.epgPrograms.channelId,
                     start: schema.epgPrograms.start,
@@ -126,11 +112,13 @@ export class EpgGuideQueryService {
                     episodeNum: schema.epgPrograms.episodeNum,
                 })
                 .from(schema.epgPrograms)
-                .where(this.windowCondition(epgIds, window))
+                .where(guideWindowCondition(epgIds, window))
                 .orderBy(schema.epgPrograms.start);
             const byEpgId = this.groupPrograms(rows);
             for (const [requestedId, epgId] of resolved) {
-                result[requestedId] = byEpgId.get(epgId) ?? [];
+                // Copy so two requested keys resolving to the same channel
+                // never share one array reference.
+                result[requestedId] = [...(byEpgId.get(epgId) ?? [])];
             }
         } catch (error) {
             epgLogger.error(
@@ -145,10 +133,14 @@ export class EpgGuideQueryService {
     async getProgramCoverage(
         request: EpgGuideWindowRequest
     ): Promise<string[]> {
-        const window = normalizeGuideWindow(request);
+        const window = normalizeGuideWindow(
+            request,
+            EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST
+        );
         if (!window) {
             return [];
         }
+        this.warnIfTruncated(request.channelIds, window.channelIds);
         try {
             const resolved = await this.resolveChannelIds(window);
             const epgIds = Array.from(new Set(resolved.values()));
@@ -159,7 +151,7 @@ export class EpgGuideQueryService {
             const rows: Array<{ channelId: string }> = await db
                 .selectDistinct({ channelId: schema.epgPrograms.channelId })
                 .from(schema.epgPrograms)
-                .where(this.windowCondition(epgIds, window));
+                .where(guideWindowCondition(epgIds, window));
             const covered = new Set(rows.map((row) => row.channelId));
             return window.channelIds.filter((requestedId) => {
                 const epgId = resolved.get(requestedId);
@@ -177,12 +169,29 @@ export class EpgGuideQueryService {
 
     private emptyResult(channelIds: string[]): Record<string, EpgProgram[]> {
         const result: Record<string, EpgProgram[]> = {};
-        for (const id of Array.isArray(channelIds) ? channelIds : []) {
-            if (typeof id === 'string' && id.trim().length > 0) {
-                result[id.trim()] = [];
-            }
+        for (const id of channelIds) {
+            result[id] = [];
         }
         return result;
+    }
+
+    /**
+     * Logs (counts only — no channel keys or source URLs) when the per-request
+     * cap dropped part of the request, so an oversized batch is visible in
+     * diagnostics instead of silently losing channels.
+     */
+    private warnIfTruncated(requestedIds: unknown, keptIds: string[]): void {
+        const requestedCount = new Set(
+            (Array.isArray(requestedIds) ? requestedIds : [])
+                .map((id) => (typeof id === 'string' ? id.trim() : ''))
+                .filter((id) => id.length > 0)
+        ).size;
+        if (requestedCount > keptIds.length) {
+            epgLogger.log(this.loggerLabel, 'Guide request truncated', {
+                requested: requestedCount,
+                kept: keptIds.length,
+            });
+        }
     }
 
     /** requested key → XMLTV channel id (keys without a match are absent). */
@@ -206,49 +215,25 @@ export class EpgGuideQueryService {
     }
 
     /**
-     * Overlap test in SQLite `datetime()` so provider-local offsets in the
-     * stored ISO strings compare correctly against the UTC window bounds.
+     * Group by channel, drop rows with an invalid/unparsable start or stop
+     * (mirrors `EpgQueryService.isValidEpgProgram`), and collapse duplicate
+     * slots (same start + title).
      */
-    private windowCondition(
-        epgIds: string[],
-        window: NormalizedGuideWindow
-    ): SQL {
-        const overlap = and(
-            inArray(schema.epgPrograms.channelId, epgIds),
-            sql`datetime(${schema.epgPrograms.start}) < datetime(${window.toIso})`,
-            sql`datetime(${schema.epgPrograms.stop}) > datetime(${window.fromIso})`
-        ) as SQL;
-        if (window.sourceUrls.length === 0) {
-            return overlap;
-        }
-        return and(
-            overlap,
-            inArray(schema.epgPrograms.sourceUrl, window.sourceUrls)
-        ) as SQL;
-    }
-
-    /** Group by channel and collapse duplicate slots (same start + title). */
-    private groupPrograms(rows: GuideProgramRow[]): Map<string, EpgProgram[]> {
+    private groupPrograms(rows: EpgProgramRow[]): Map<string, EpgProgram[]> {
         const grouped = new Map<string, EpgProgram[]>();
         const seen = new Set<string>();
         for (const row of rows) {
             const key = `${row.channelId}|${row.start}|${row.title}`;
-            if (seen.has(key) || !row.start || !row.stop || !row.title) {
+            if (seen.has(key) || !row.title) {
+                continue;
+            }
+            const program = toEpgProgramFromRow(row);
+            if (!isValidEpgProgram(program)) {
                 continue;
             }
             seen.add(key);
             const list = grouped.get(row.channelId) ?? [];
-            list.push({
-                start: row.start,
-                stop: row.stop,
-                channel: row.channelId,
-                title: row.title,
-                desc: row.description,
-                category: row.category,
-                iconUrl: row.iconUrl,
-                rating: row.rating,
-                episodeNum: row.episodeNum,
-            });
+            list.push(program);
             grouped.set(row.channelId, list);
         }
         return grouped;

@@ -1,8 +1,13 @@
+import { execFileSync } from 'node:child_process';
 import {
     EPG_GUIDE_MAX_CHANNELS_PER_REQUEST,
+    EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST,
     EpgGuideQueryService,
+    guideWindowCondition,
+    guideWindowOverlapSqlText,
     normalizeGuideWindow,
 } from './epg-guide-query.service';
+import { epgLogger } from '../util/epg-logger';
 
 const getDatabase = jest.fn();
 
@@ -116,7 +121,7 @@ describe('normalizeGuideWindow', () => {
         ).toBeNull();
     });
 
-    it('trims, de-duplicates and caps the channel keys', () => {
+    it('trims, de-duplicates and caps the channel keys to the default limit', () => {
         const ids = Array.from({ length: 150 }, (_, index) => `ch-${index}`);
         const window = normalizeGuideWindow({
             channelIds: [' a ', 'a', ...ids],
@@ -130,6 +135,113 @@ describe('normalizeGuideWindow', () => {
         expect(window?.fromIso).toBe('2026-09-06T00:00:00.000Z');
         expect(window?.toIso).toBe('2026-09-07T00:00:00.000Z');
     });
+
+    it('accepts an explicit larger cap for coverage-sized requests', () => {
+        const ids = Array.from({ length: 150 }, (_, index) => `ch-${index}`);
+        const window = normalizeGuideWindow(
+            { channelIds: ids, fromMs: FROM, toMs: TO },
+            EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST
+        );
+        expect(window?.channelIds).toHaveLength(150);
+    });
+
+    it('caps sourceUrls at 50 regardless of the channel cap', () => {
+        const urls = Array.from(
+            { length: 60 },
+            (_, index) => `https://epg.example.com/${index}.xml`
+        );
+        const window = normalizeGuideWindow({
+            channelIds: ['a'],
+            fromMs: FROM,
+            toMs: TO,
+            sourceUrls: urls,
+        });
+        expect(window?.sourceUrls).toHaveLength(50);
+    });
+});
+
+describe('guideWindowCondition', () => {
+    it('flattens to the same "< datetime( ... ) AND > datetime( ... )" operator sequence as the plain-SQL twin', () => {
+        const window = normalizeGuideWindow({
+            channelIds: ['zdf.de'],
+            fromMs: FROM,
+            toMs: TO,
+        });
+        if (!window) {
+            throw new Error('expected a valid window');
+        }
+        const flattened = flattenSql(guideWindowCondition(['zdf.de'], window));
+        const ltIndex = flattened.indexOf('< datetime(');
+        const gtIndex = flattened.indexOf('> datetime(');
+        expect(ltIndex).toBeGreaterThan(-1);
+        expect(gtIndex).toBeGreaterThan(ltIndex);
+    });
+});
+
+/** `true` when the CLI answers `sqlite3 -version`. Present on macOS and CI. */
+function hasSqlite(): boolean {
+    try {
+        execFileSync('sqlite3', ['-version'], { stdio: 'ignore' });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function quote(literal: string): string {
+    return `'${literal.replace(/'/g, "''")}'`;
+}
+
+const describeWithSqlite = hasSqlite() ? describe : describe.skip;
+
+describeWithSqlite('guideWindowOverlapSqlText against SQLite', () => {
+    const FROM_ISO = '2026-09-06T00:00:00.000Z';
+    const TO_ISO = '2026-09-07T00:00:00.000Z';
+
+    function overlappingChannelIds(
+        rows: Array<[channelId: string, start: string, stop: string]>
+    ): string[] {
+        const predicate = guideWindowOverlapSqlText(FROM_ISO, TO_ISO);
+        const values = rows
+            .map(
+                ([channelId, start, stop]) =>
+                    `(${quote(channelId)}, ${quote(start)}, ${quote(stop)})`
+            )
+            .join(', ');
+        const script = [
+            'CREATE TABLE epg_programs (channel_id TEXT, start TEXT, stop TEXT);',
+            `INSERT INTO epg_programs (channel_id, start, stop) VALUES ${values};`,
+            `SELECT channel_id FROM epg_programs WHERE ${predicate} ORDER BY channel_id;`,
+        ].join('\n');
+        const out = execFileSync('sqlite3', [':memory:', script], {
+            encoding: 'utf8',
+        });
+        return out
+            .trim()
+            .split('\n')
+            .filter((line) => line.length > 0);
+    }
+
+    it('keeps rows overlapping the window and drops boundary-touching or non-overlapping rows', () => {
+        const result = overlappingChannelIds([
+            // Crosses the window start: overlaps.
+            ['a', '2026-09-05T23:30:00.000Z', '2026-09-06T00:30:00.000Z'],
+            // Spans the whole window: overlaps.
+            ['b', '2026-09-01T00:00:00.000Z', '2026-09-10T00:00:00.000Z'],
+            // stop === from: excluded (strict `>`).
+            ['c', '2026-09-05T22:00:00.000Z', '2026-09-06T00:00:00.000Z'],
+            // start === to: excluded (strict `<`).
+            ['d', '2026-09-07T00:00:00.000Z', '2026-09-07T01:00:00.000Z'],
+            // Stored with a +03:00 offset. In UTC this is
+            // [2026-09-06T23:00:00Z, 2026-09-07T00:30:00Z), which overlaps —
+            // but a raw string compare of "07T02:00...+03:00" against
+            // "07T00:00...Z" would say `start < to` is FALSE (lexically "02"
+            // sorts after "00"), wrongly excluding it. Only `datetime()`
+            // normalization recovers the correct overlap.
+            ['e', '2026-09-07T02:00:00+03:00', '2026-09-07T03:30:00+03:00'],
+        ]);
+        expect(result).toEqual(['a', 'b', 'e']);
+    });
 });
 
 describe('EpgGuideQueryService', () => {
@@ -139,16 +251,18 @@ describe('EpgGuideQueryService', () => {
     beforeEach(() => {
         getDatabase.mockReset();
         getChannelMetadata.mockReset();
+        (epgLogger.log as jest.Mock).mockReset();
+        (epgLogger.error as jest.Mock).mockReset();
         service = new EpgGuideQueryService({ getChannelMetadata }, '[Test]');
     });
 
-    it('returns an empty list per requested key for an invalid window', async () => {
+    it('returns an empty object (no per-key placeholders) for an invalid window', async () => {
         const result = await service.getProgramsForChannels({
             channelIds: ['a', 'b'],
             fromMs: TO,
             toMs: FROM,
         });
-        expect(result).toEqual({ a: [], b: [] });
+        expect(result).toEqual({});
         expect(getChannelMetadata).not.toHaveBeenCalled();
     });
 
@@ -195,6 +309,9 @@ describe('EpgGuideQueryService', () => {
             channel: 'zdf.de',
             title: 'heute-journal',
         });
+        // Both keys resolved to the same channel — each must get its own
+        // array so mutating one can never affect the other.
+        expect(result['ZDF HD']).not.toBe(result['zdf.de']);
         expect(result['unknown']).toEqual([]);
         const condition = flattenSql(whereCalls[0]);
         expect(condition).toContain('channel_id');
@@ -202,7 +319,7 @@ describe('EpgGuideQueryService', () => {
         expect(condition).toContain('2026-09-06T00:00:00.000Z');
     });
 
-    it('scopes the programme rows to the requested source URLs', async () => {
+    it('scopes the programme rows to the requested source URLs plus legacy (unsourced) rows', async () => {
         getChannelMetadata.mockResolvedValue({
             a: { id: 'a', displayName: 'A', iconUrl: null },
         });
@@ -221,7 +338,9 @@ describe('EpgGuideQueryService', () => {
         expect(getChannelMetadata).toHaveBeenCalledWith(['a'], {
             sourceUrls: ['https://guide.example.com/epg.xml'],
         });
-        expect(flattenSql(whereCalls[0])).toContain('source_url');
+        const condition = flattenSql(whereCalls[0]).toLowerCase();
+        expect(condition).toContain('source_url');
+        expect(condition).toContain('is null');
     });
 
     it('fails soft when the database throws', async () => {
@@ -239,15 +358,40 @@ describe('EpgGuideQueryService', () => {
         ).resolves.toEqual({ a: [] });
     });
 
+    it('drops channel keys cut by the per-request cap from the result entirely', async () => {
+        const ids = Array.from({ length: 101 }, (_, index) => `ch-${index}`);
+        getChannelMetadata.mockResolvedValue({});
+
+        const result = await service.getProgramsForChannels({
+            channelIds: ids,
+            fromMs: FROM,
+            toMs: TO,
+        });
+
+        expect(Object.keys(result)).toHaveLength(
+            EPG_GUIDE_MAX_CHANNELS_PER_REQUEST
+        );
+        // The 101st key was cut by the cap: absent, never present as `[]`.
+        expect('ch-100' in result).toBe(false);
+        expect(epgLogger.log).toHaveBeenCalledWith(
+            '[Test]',
+            'Guide request truncated',
+            { requested: 101, kept: EPG_GUIDE_MAX_CHANNELS_PER_REQUEST }
+        );
+    });
+
     it('reports coverage for the requested keys whose channel has a programme in the window', async () => {
         getChannelMetadata.mockResolvedValue({
             'ZDF HD': { id: 'zdf.de', displayName: 'ZDF HD', iconUrl: null },
-            'ARTE': { id: 'arte.de', displayName: 'ARTE', iconUrl: null },
+            ARTE: { id: 'arte.de', displayName: 'ARTE', iconUrl: null },
             none: null,
         });
         const whereCalls: unknown[] = [];
         getDatabase.mockResolvedValue({
-            selectDistinct: coverageSelect([{ channelId: 'zdf.de' }], whereCalls),
+            selectDistinct: coverageSelect(
+                [{ channelId: 'zdf.de' }],
+                whereCalls
+            ),
         });
 
         const covered = await service.getProgramCoverage({
@@ -258,5 +402,18 @@ describe('EpgGuideQueryService', () => {
 
         expect(covered).toEqual(['ZDF HD']);
         expect(flattenSql(whereCalls[0])).toContain('channel_id');
+    });
+
+    it('does not drop any of 150 requested keys under the larger coverage cap', async () => {
+        const ids = Array.from({ length: 150 }, (_, index) => `ch-${index}`);
+        getChannelMetadata.mockResolvedValue({});
+
+        await service.getProgramCoverage({
+            channelIds: ids,
+            fromMs: FROM,
+            toMs: TO,
+        });
+
+        expect(getChannelMetadata).toHaveBeenCalledWith(ids, {});
     });
 });
