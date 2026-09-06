@@ -194,6 +194,7 @@ describe('LiveStreamLayoutComponent', () => {
         getFavorites: jest.fn().mockReturnValue(of([])),
     };
     const xtreamUrlService = {
+        constructAutoLiveTsUrl: jest.fn(() => undefined),
         resolveCatchupUrl: jest
             .fn()
             .mockResolvedValue('https://example.com/timeshift.ts'),
@@ -353,6 +354,16 @@ describe('LiveStreamLayoutComponent', () => {
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
         window.electron = originalElectron;
+    });
+
+    it('retires committed live playback when the playlist owner changes', () => {
+        fixture.detectChanges();
+        component.playLive({ xtream_id: 10000, title: 'Synthetic' });
+        expect(component.activePlayback()).not.toBeNull();
+        currentPlaylist.set({ ...playlist, id: 'other-playlist' });
+        fixture.detectChanges();
+        expect(component.activePlayback()).toBeNull();
+        expect(component.playbackSessionKey()).toBe('');
     });
 
     it('renders the controlled epg list for electron playback', () => {
@@ -545,9 +556,7 @@ describe('LiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('.category-subtitle')
                 .textContent
         ).toContain('3 channels');
-        expect(
-            fixture.nativeElement.querySelector('mat-paginator')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
         expect(
             fixture.debugElement.query(
                 By.directive(StubPortalChannelsListComponent)

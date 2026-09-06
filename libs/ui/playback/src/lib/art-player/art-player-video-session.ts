@@ -15,6 +15,7 @@ export interface ArtPlayerVideoSessionConfig {
     emitPlaybackIssue: (issue: PlaybackDiagnostic | null) => void;
     emitTimeUpdate: (value: { currentTime: number; duration: number }) => void;
     emitPlaybackEnded: () => void;
+    emitPlaybackStarted?: () => void;
 }
 
 /** Owns native video and ArtPlayer event listeners for one player instance. */
@@ -33,6 +34,11 @@ export class ArtPlayerVideoSession {
                 })
             )
         );
+    };
+
+    private readonly handlePlaying = (): void => {
+        this.clearPlaybackIssue();
+        this.config.emitPlaybackStarted?.();
     };
 
     private readonly clearPlaybackIssue = (): void => {
@@ -73,7 +79,7 @@ export class ArtPlayerVideoSession {
     > = [
         ['error', this.handleNativePlaybackError],
         ['loadeddata', this.clearPlaybackIssue],
-        ['playing', this.clearPlaybackIssue],
+        ['playing', this.handlePlaying],
         ['volumechange', this.handleVolumeChange],
         ['ended', this.handlePlaybackEnded],
     ];

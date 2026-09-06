@@ -15,6 +15,7 @@ export interface HtmlVideoElementSessionConfig {
     emitPlaybackIssue: (issue: PlaybackDiagnostic | null) => void;
     emitTimeUpdate: (value: { currentTime: number; duration: number }) => void;
     emitPlaybackEnded: () => void;
+    emitPlaybackStarted?: () => void;
 }
 
 export class HtmlVideoElementSession {
@@ -32,6 +33,11 @@ export class HtmlVideoElementSession {
                 })
             )
         );
+    };
+
+    private readonly handlePlaying = (): void => {
+        this.clearPlaybackIssue();
+        this.config.emitPlaybackStarted?.();
     };
 
     private readonly clearPlaybackIssue = (): void => {
@@ -71,7 +77,7 @@ export class HtmlVideoElementSession {
         ['timeupdate', this.handleTimeUpdate],
         ['error', this.handleNativePlaybackError],
         ['loadeddata', this.clearPlaybackIssue],
-        ['playing', this.clearPlaybackIssue],
+        ['playing', this.handlePlaying],
         ['ended', this.handlePlaybackEnded],
     ];
 

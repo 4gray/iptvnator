@@ -262,6 +262,18 @@ scrollbar and guarded initial page focus. Contracts:
 `docs/architecture/iptvnator-ui-guidelines.md` and
 `docs/architecture/portal-detail-navigation.md`.
 
+## Xtream Live Auto Format
+
+The routed Xtream live host supplies `liveAutoTsUrl` only for Auto with explicit
+HLS+TS account evidence, using the canonical URL builder and original headers.
+The same web player may try TS once after an owned initial terminal HTTP failure,
+before `playing`; the old transport unmounts before the guarded render callback
+starts TS. No player preference or playlist cache changes. Manual formats,
+unknown formats, DRM, VOD/catch-up and stale sessions are excluded. External
+MPV/VLC and Embedded MPV retain manual TS; Video.js segment retry cycles without
+a terminal diagnostic also need manual TS. Contract and full support matrix:
+`docs/architecture/xtream-portal-compatibility.md` (Initial Auto HLS failure).
+
 ## Radio / Audio Player
 
 M3U playlists can contain radio channels identified by the `radio="true"` attribute on `#EXTINF` lines. When a radio channel is selected:

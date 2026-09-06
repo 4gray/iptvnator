@@ -51,6 +51,31 @@ describe('Xtream mock server factory', () => {
         jest.restoreAllMocks();
     });
 
+    it('serves the synthetic manifest-success/segment-failure and TS alternatives locally', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const base = `${running.origin}/live/live-fallback/live-fallback`;
+        try {
+            const manifest = await fetch(`${base}/10000.m3u8`);
+            expect(manifest.status).toBe(200);
+            expect(await manifest.text()).toContain('denied-segment.ts');
+            expect((await fetch(`${base}/denied-segment.ts`)).status).toBe(403);
+            expect((await fetch(`${base}/10001.m3u8`)).status).toBe(403);
+            expect((await fetch(`${base}/10002.ts`)).status).toBe(403);
+            const ts = await fetch(`${base}/10000.ts`, {
+                headers: { 'User-Agent': 'synthetic' },
+            });
+            expect(ts.headers.get('x-fixture-user-agent')).toBe('synthetic');
+            const bytes = new Uint8Array(await ts.arrayBuffer());
+            expect(bytes.length).toBeGreaterThan(188);
+            expect(bytes[0]).toBe(0x47);
+            expect(bytes[188]).toBe(0x47);
+        } finally {
+            await running.close();
+        }
+    });
+
     it('keeps performance controls absent unless explicitly enabled', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })

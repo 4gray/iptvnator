@@ -4,11 +4,17 @@ export interface VjsVideoElementSessionConfig {
     releasePictureInPicture?: boolean;
     clearPlaybackIssue: () => void;
     emitPlaybackEnded: () => void;
+    emitPlaybackStarted?: () => void;
 }
 
 export class VjsVideoElementSession {
     private currentVideo: HTMLVideoElement | null = null;
     private destroyed = false;
+
+    private readonly handlePlaying = (): void => {
+        this.clearPlaybackIssue();
+        this.config.emitPlaybackStarted?.();
+    };
 
     private readonly clearPlaybackIssue = () => {
         this.config.clearPlaybackIssue();
@@ -28,7 +34,7 @@ export class VjsVideoElementSession {
         this.detach();
         this.currentVideo = video;
         video.addEventListener('loadeddata', this.clearPlaybackIssue);
-        video.addEventListener('playing', this.clearPlaybackIssue);
+        video.addEventListener('playing', this.handlePlaying);
         video.addEventListener('ended', this.emitPlaybackEnded);
     }
 
@@ -57,10 +63,7 @@ export class VjsVideoElementSession {
             'loadeddata',
             this.clearPlaybackIssue
         );
-        this.currentVideo.removeEventListener(
-            'playing',
-            this.clearPlaybackIssue
-        );
+        this.currentVideo.removeEventListener('playing', this.handlePlaying);
         this.currentVideo.removeEventListener('ended', this.emitPlaybackEnded);
         this.currentVideo = null;
     }

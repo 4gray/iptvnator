@@ -169,10 +169,9 @@ export class LiveStreamLayoutComponent
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
 
-    private readonly fullscreenChannelPanelTemplate =
-        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
-            'fullscreenChannelPanel'
-        );
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
     /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
     readonly panelTemplate = computed(() =>
         this.settingsStore.fullscreenChannelPanel?.() === false
@@ -379,6 +378,7 @@ export class LiveStreamLayoutComponent
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private playbackRequestId = 0;
+    private activePlaylistId: string | null = null;
 
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
@@ -398,6 +398,16 @@ export class LiveStreamLayoutComponent
     favorites = new Map<number, boolean>();
 
     constructor() {
+        effect(() => {
+            const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
+            if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
+                this.playbackRequestId += 1;
+                this.activePlaylistId = null;
+                this.activePlayback.set(null);
+                this.activeLiveItemId.set(null);
+                this.activeCatchupProgram.set(null);
+            }
+        });
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());
@@ -547,8 +557,19 @@ export class LiveStreamLayoutComponent
         // store no-op.
         this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
+        const playlist = this.xtreamStore.currentPlaylist();
+        this.activePlaylistId = playlist?.id ?? null;
         this.activePlayback.set({
             streamUrl,
+            liveAutoTsUrl: playlist
+                ? this.xtreamUrlService.constructAutoLiveTsUrl(
+                      playlist,
+                      item.xtream_id
+                  )
+                : undefined,
+            userAgent: playlist?.userAgent,
+            referer: playlist?.referrer,
+            origin: playlist?.origin,
             title: item.title ?? item.name ?? '',
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
@@ -757,6 +778,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        this.activePlaylistId = playlist.id;
         this.activeCatchupProgram.set(program);
         this.activePlayback.set({
             streamUrl: catchupUrl,

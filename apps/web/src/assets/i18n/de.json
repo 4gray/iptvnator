@@ -358,7 +358,7 @@
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Dockt den Serienplayer in breiten Fenstern links an und zeigt daneben die kommenden Folgen an.",
         "FULLSCREEN_CHANNEL_PANEL": "Senderliste im Vollbild",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Bewege die Maus im Vollbild an den linken Rand oder drücke C, um die Senderliste einzublenden und den Sender zu wechseln, ohne das Vollbild zu verlassen.",
-        "STREAM_FORMAT_DESCRIPTION": "Standard-Streamformat auswählen (Xtream)",
+        "STREAM_FORMAT_DESCRIPTION": "Auto bevorzugt HLS. Schlägt Live-TV in MPV, VLC oder Embedded MPV fehl, den Player stoppen, ts wählen, speichern und den Sender erneut öffnen. Webplayer können bei einem anfänglichen HLS-HTTP-Fehler einmal angebotenes TS versuchen.",
         "LANGUAGE_DESCRIPTION": "Wählen Sie die Sprache der Anwendung aus",
         "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",
         "COVER_SIZE": "Cover-Größe",

@@ -113,6 +113,29 @@ export class XtreamUrlService {
         return `${normalizedCredentials.serverUrl}/live/${normalizedCredentials.username}/${normalizedCredentials.password}/${xtreamId}.${streamFormat}`;
     }
 
+    /** No probe: eligibility is explicit account evidence plus the user's Auto intent. */
+    constructAutoLiveTsUrl(
+        credentials: XtreamCredentials,
+        xtreamId: number
+    ): string | undefined {
+        const requested =
+            this.settingsStore.streamFormat() ?? StreamFormat.AutoStreamFormat;
+        const formats = this.getNormalizedAllowedOutputFormats(credentials);
+        if (
+            requested !== StreamFormat.AutoStreamFormat ||
+            !formats?.includes('m3u8') ||
+            !formats.includes('ts')
+        )
+            return undefined;
+        return (
+            this.constructLiveUrl(
+                credentials,
+                xtreamId,
+                StreamFormat.TsStreamFormat
+            ) || undefined
+        );
+    }
+
     /**
      * Construct VOD stream URL
      * Format: {serverUrl}/movie/{username}/{password}/{streamId}.{extension}

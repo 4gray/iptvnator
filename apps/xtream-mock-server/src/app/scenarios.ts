@@ -31,6 +31,17 @@ export interface ScenarioConfig {
  * Unknown credential pairs use a hash of "username:password" as seed.
  */
 export const SCENARIOS: Record<string, ScenarioConfig> = {
+    'live-fallback:live-fallback': {
+        name: 'live-format-fallback',
+        description: 'Local HLS failures and playable TS',
+        seed: 1513,
+        categoryCount: { live: 1, vod: 1, series: 1 },
+        itemsPerCategory: 4,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 1,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+    },
     'user1:pass1': {
         name: 'default',
         description: 'Balanced portal — 8 categories, 40 items each',

@@ -1,6 +1,7 @@
 import {
     Component,
     ElementRef,
+    Injector,
     OnDestroy,
     type Signal,
     ViewEncapsulation,
@@ -57,6 +58,7 @@ import {
 } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
+import { WebPlayerLiveAutoFormat } from './web-player-live-auto-format';
 import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
     isPlaybackExternallyTransferable,
@@ -223,8 +225,17 @@ export class WebPlayerViewComponent implements OnDestroy {
         const temporary = this.recoverySession.temporaryPlayerOverride();
         return temporary ? toVideoPlayer(temporary) : this.renderablePlayer();
     });
-    private readonly applicationState = createWebPlayerApplicationState({
+    private readonly liveAutoFormat = new WebPlayerLiveAutoFormat({
         playback: this.playback,
+        sessionKey: this.playbackSessionKey,
+        player: this.selectedPlayer,
+        intent: this.reloadToken,
+        autoEnabled: () =>
+            (this.settingsStore.streamFormat?.() ?? 'auto') === 'auto',
+        injector: inject(Injector),
+    });
+    private readonly applicationState = createWebPlayerApplicationState({
+        playback: this.liveAutoFormat.playback,
         streamUrl: this.streamUrl,
         title: this.title,
         startTime: this.startTime,
@@ -243,7 +254,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         externalRecovery: this.externalRecovery,
         applicationHandoff: this.applicationHandoff,
         playbackSessionKey: this.playbackSessionKey,
-        playback: this.playback,
+        playback: this.liveAutoFormat.playback,
         streamUrl: this.streamUrl,
         startTime: this.startTime,
         selectedPlayer: this.selectedPlayer,
@@ -255,6 +266,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         alternativeSourceCount: () => this.alternativeSources().length,
         managedExternalPlayersAvailable: () =>
             this.runtime.supportsManagedExternalPlayers,
+        tryAutoLiveFormat: (issue) => this.liveAutoFormat.tryFallback(issue),
         emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
         emitExternalFallbackRequested: (request) =>
             this.externalFallbackRequested.emit(request),
@@ -284,6 +296,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly renderedApplications = computed<
         readonly PlaybackApplicationOwnership[]
     >(() => {
+        if (this.liveAutoFormat.pending()) return [];
         const binding = this.activeBinding();
         const embeddedMpv =
             this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
@@ -311,6 +324,7 @@ export class WebPlayerViewComponent implements OnDestroy {
             // Session sync may clear a temporary player override. Run it before
             // tracking intent so that reset is folded into this application.
             this.recovery.syncSession();
+            if (this.liveAutoFormat.pending()) return;
             void this.recovery.diagnosticIntentToken();
             const sourceRevision = this.playbackSourceRevisionToken();
             untracked(() =>
@@ -349,6 +363,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.liveAutoFormat.destroy();
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
     }
@@ -358,6 +373,18 @@ export class WebPlayerViewComponent implements OnDestroy {
         binding: PlaybackBinding
     ): void {
         this.recovery.handlePlaybackIssue(issue, binding);
+    }
+
+    handlePlaybackStarted(binding: PlaybackBinding): void {
+        this.recovery.syncSession();
+        if (
+            this.applicationHandoff.owns(
+                binding,
+                this.playbackApplicationToken()
+            ) &&
+            !this.liveAutoFormat.pending()
+        )
+            this.liveAutoFormat.started();
     }
 
     handleTimeUpdate(
