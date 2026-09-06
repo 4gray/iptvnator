@@ -252,6 +252,37 @@ describe('withPortal', () => {
             expect(storedPlaylist.serverTimezone).toBe('Europe/London');
         });
 
+        it('does not patch the store with a late answer when the playlist was edited in place meanwhile', async () => {
+            let answer!: (value: unknown) => void;
+            apiService.getAccountInfo.mockReturnValue(
+                new Promise((resolve) => {
+                    answer = resolve;
+                })
+            );
+
+            const pending = store.checkPortalStatus();
+            // Same id, new panel: the in-place edit flow.
+            const moved: XtreamPlaylistData = {
+                ...PLAYLIST,
+                serverUrl: 'https://moved.example.com',
+            };
+            store.setCurrentPlaylist(moved);
+            storedPlaylist = {
+                ...storedPlaylist,
+                serverUrl: moved.serverUrl,
+                serverTimezone: undefined,
+            };
+            answer({
+                user_info: { auth: 1, exp_date: '0', status: 'Active' },
+                server_info: { timezone: 'Europe/London' },
+            });
+
+            await expect(pending).resolves.toBe('active');
+            expect(store.currentPlaylist()).toEqual(moved);
+            expect(store.portalStatus()).toBe('unavailable');
+            expect(storedPlaylist.serverTimezone).toBeUndefined();
+        });
+
         it('does not persist a late answer onto a row whose connection was edited meanwhile', async () => {
             let answer!: (value: unknown) => void;
             apiService.getAccountInfo.mockReturnValue(

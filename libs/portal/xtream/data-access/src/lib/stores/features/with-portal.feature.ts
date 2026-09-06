@@ -59,6 +59,26 @@ export function withPortal() {
             const playlistsService = inject(PlaylistsService);
 
             /**
+             * Whether a playlist (the store's current one, or the stored
+             * row) still points at the panel an account-info answer came
+             * from. The playlist id alone is not enough: an in-place edit
+             * keeps the id while moving the source, and an answer already on
+             * the wire for the OLD panel must not describe the new one.
+             */
+            const answersFor = (
+                candidate: {
+                    serverUrl?: string;
+                    username?: string;
+                    password?: string;
+                } | null,
+                credentials: XtreamCredentials
+            ): boolean =>
+                !!candidate &&
+                candidate.serverUrl === credentials.serverUrl &&
+                candidate.username === credentials.username &&
+                candidate.password === credentials.password;
+
+            /**
              * The Favorites / Recent catch-up resolver reads the STORED
              * playlist row, not this store, so a timezone learned here has
              * to reach storage or that path keeps rendering programme
@@ -79,9 +99,7 @@ export function withPortal() {
                         playlistsService.transformPlaylistMeta(
                             playlistId,
                             (playlist) =>
-                                playlist.serverUrl !== credentials.serverUrl ||
-                                playlist.username !== credentials.username ||
-                                playlist.password !== credentials.password ||
+                                !answersFor(playlist, credentials) ||
                                 playlist.serverTimezone === serverTimezone
                                     ? null
                                     : { ...playlist, serverTimezone }
@@ -173,15 +191,18 @@ export function withPortal() {
                                   .map((format) => format.trim())
                                   .filter(Boolean)
                             : undefined;
-                        // The answer belongs to the playlist whose
-                        // credentials were sent: its timezone is persisted
-                        // under THAT id regardless, while the store is
-                        // patched only if that playlist is still the
-                        // selected one — a source switch during the request
-                        // must not hand playlist A's status or clock to
-                        // playlist B.
+                        // The answer belongs to the panel whose credentials
+                        // were sent: its timezone is offered to THAT row
+                        // regardless, while the store is patched only if the
+                        // selected playlist is still that panel — neither a
+                        // source switch nor an in-place edit during the
+                        // request may hand the old panel's status or clock
+                        // to the new one.
                         const current = store.currentPlaylist();
-                        if (current?.id === playlist.id) {
+                        if (
+                            current?.id === playlist.id &&
+                            answersFor(current, credentials)
+                        ) {
                             patchState(store, {
                                 portalStatus,
                                 currentPlaylist: {
@@ -208,7 +229,11 @@ export function withPortal() {
                         return portalStatus;
                     } catch (error) {
                         logger.error('Error checking portal status', error);
-                        if (store.currentPlaylist()?.id === playlist.id) {
+                        const current = store.currentPlaylist();
+                        if (
+                            current?.id === playlist.id &&
+                            answersFor(current, credentials)
+                        ) {
                             patchState(store, { portalStatus: 'unavailable' });
                         }
                         return 'unavailable';
