@@ -189,7 +189,9 @@ async function resetMockServer(
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-            const response = await request.post(`${MOCK_SERVER}/reset?${query}`);
+            const response = await request.post(
+                `${MOCK_SERVER}/reset?${query}`
+            );
             if (response.ok()) {
                 return;
             }
@@ -550,13 +552,22 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
         timeout: 20_000,
     });
 
-    await page.getByRole('button', { name: 'Hide channels list' }).click();
-    const restoreButton = page.getByRole('button', {
-        name: 'Show channels list',
-    });
+    // The rail's own chevron hides the list; the workspace header carries a
+    // second toggle with the same accessible name, so scope to the rail.
+    await page
+        .locator('.sidebar')
+        .getByRole('button', { name: 'Hide channels list' })
+        .click();
+    const restoreButton = page.locator('.sidebar-restore');
     await expect(restoreButton).toBeVisible();
+    await expect(
+        page.locator('app-workspace-shell-header .header-sidebar-toggle')
+    ).toHaveAttribute('aria-pressed', 'false');
     await restoreButton.click();
     await expect(stations.first()).toBeVisible();
+    await expect(
+        page.locator('app-workspace-shell-header .header-sidebar-toggle')
+    ).toHaveAttribute('aria-pressed', 'true');
 
     await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgRequests).toHaveLength(0);
@@ -1183,9 +1194,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
     await expect(menuTrigger).toBeVisible();
     await menuTrigger.click();
-    const seriesToggle = page.locator(
-        '[data-test-id="toggle-series-watched"]'
-    );
+    const seriesToggle = page.locator('[data-test-id="toggle-series-watched"]');
     await expect(seriesToggle).toBeVisible();
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
