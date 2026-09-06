@@ -56,18 +56,20 @@ describe('WorkspaceShellContextSidebarComponent', () => {
     let liveSidebarService: LiveLayoutSidebarStateService;
     const xtreamSelectedCategoryId = signal<number | null>(1);
     const stalkerSelectedCategoryId = signal<string | null>('7');
+    const drawerOpen = signal(false);
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state');
         xtreamSelectedCategoryId.set(1);
         stalkerSelectedCategoryId.set('7');
+        drawerOpen.set(false);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
             providers: [
                 {
                     provide: WorkspaceShellContextDrawerService,
-                    useValue: { close: jest.fn() },
+                    useValue: { close: jest.fn(), isOpen: drawerOpen },
                 },
                 {
                     provide: XtreamStore,
@@ -226,6 +228,26 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 true
             );
+        });
+
+        it('takes the folded rail out of the focus order with inert, except inside the open phone drawer', () => {
+            setupLiveCategory('live');
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+
+            liveSidebarService.setState('categories-hidden');
+            fixture.detectChanges();
+            expect(aside.hasAttribute('inert')).toBe(true);
+
+            drawerOpen.set(true);
+            fixture.detectChanges();
+            expect(aside.hasAttribute('inert')).toBe(false);
+
+            drawerOpen.set(false);
+            liveSidebarService.setState('expanded');
+            fixture.detectChanges();
+            expect(aside.hasAttribute('inert')).toBe(false);
         });
 
         it('also collapses on the Stalker itv section', () => {

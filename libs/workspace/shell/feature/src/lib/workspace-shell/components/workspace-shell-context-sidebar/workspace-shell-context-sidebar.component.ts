@@ -97,6 +97,16 @@ export class WorkspaceShellContextSidebarComponent {
                 (this.liveSidebarStateService.areCategoriesHidden() &&
                     this.hasLiveCategorySelection()))
     );
+    /**
+     * A folded rail is only 0px wide; its search, sort and category buttons
+     * would still take Tab stops and screen-reader focus. `inert` removes
+     * them from both. Not while the panel renders as the open phone drawer,
+     * whose stylesheet ignores the folded state.
+     */
+    readonly isContextPanelInert = computed(
+        () =>
+            this.isContextPanelCollapsed() && !this.contextDrawer?.isOpen()
+    );
 
     closeDrawer(): void {
         this.contextDrawer?.close();

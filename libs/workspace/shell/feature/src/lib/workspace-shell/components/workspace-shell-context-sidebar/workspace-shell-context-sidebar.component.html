@@ -35,6 +35,7 @@
                 cdkFocusInitial
                 class="context-panel context-panel--route"
                 [class.context-panel--collapsed]="isContextPanelCollapsed()"
+                [attr.inert]="isContextPanelInert() ? '' : null"
                 appResizable
                 [minWidth]="240"
                 [maxWidth]="560"

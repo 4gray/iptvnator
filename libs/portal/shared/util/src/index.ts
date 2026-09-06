@@ -17,6 +17,7 @@ export * from './lib/live-epg-panel-state';
 export * from './lib/live-sidebar-state';
 export * from './lib/live-layout-sidebar-state.service';
 export * from './lib/live-categories-popover.token';
+export * from './lib/focus-handoff';
 export * from './lib/keyboard';
 export * from './lib/keyboard-shortcuts';
 export * from './lib/remote-channel-navigation';

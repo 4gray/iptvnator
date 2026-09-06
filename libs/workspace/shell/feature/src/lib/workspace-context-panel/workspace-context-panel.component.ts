@@ -23,6 +23,7 @@ import {
     asStalkerPortalError,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    focusIfFocusLost,
     LiveLayoutSidebarStateService,
     PortalCategorySortMode,
     persistPortalCategorySortMode,
@@ -105,14 +106,22 @@ export class WorkspaceContextPanelComponent {
         );
     });
     // Only while a category is selected: that is when the live layout
-    // renders the channels rail whose header offers the way back.
+    // renders the channels rail whose header offers the way back. Not in the
+    // open phone drawer either: its stylesheet ignores the folded state, so
+    // the tap would change nothing visible while persisting a preference
+    // that only bites once the window is wide again.
     readonly canHideCategories = computed(
         () =>
             this.presentation() === 'sidebar' &&
             this.isLiveSection() &&
+            !this.contextDrawer?.isOpen() &&
             (this.context().provider === 'xtreams'
                 ? this.xtreamSelectedCategoryId() !== null
                 : !!this.stalkerSelectedCategoryId())
+    );
+    private readonly hideCategoriesButton = viewChild(
+        'hideCategoriesButton',
+        { read: ElementRef<HTMLElement> }
     );
 
     readonly isXtreamCategories = computed(
@@ -360,6 +369,24 @@ export class WorkspaceContextPanelComponent {
                 queueMicrotask(() => {
                     this.searchInput()?.nativeElement.focus();
                 });
+            }
+        });
+
+        // Restoring the rail removes the layout's "show categories" button
+        // the user just activated; pick focus up on the chevron it mirrors
+        // once this rail has rendered. Only on that transition, so a deep
+        // link or a mouse click never has its focus moved.
+        let wasHidden = this.liveSidebarState.areCategoriesHidden();
+        effect(() => {
+            const hidden = this.liveSidebarState.areCategoriesHidden();
+            const restored = wasHidden && !hidden;
+            wasHidden = hidden;
+            if (restored) {
+                queueMicrotask(() =>
+                    focusIfFocusLost(
+                        this.hideCategoriesButton()?.nativeElement
+                    )
+                );
             }
         });
     }

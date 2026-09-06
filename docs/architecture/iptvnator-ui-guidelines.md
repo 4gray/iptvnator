@@ -331,6 +331,19 @@ remain local when the meaning is explicit.
   shows the channels list (#1458 reported the previous "all my channels
   disappeared" confusion). A hidden categories rail is a stable preference
   and restores as stored.
+- A folded rail is 0px wide but still rendered, so it also carries `inert`
+  (`isContextPanelInert` on the shell rail, `isSidebarCollapsed` on the
+  Xtream/Stalker channels rail) to leave the Tab order and the accessibility
+  tree; the shell rail skips `inert` while it renders as the open phone
+  drawer, whose stylesheet ignores the folded state — and the rail's hide
+  chevron is withheld there for the same reason (`canHideCategories`).
+  Folding removes or inerts the very button the user activated, so focus
+  drops to `<body>`; the side that gains the replacement affordance picks it
+  up after its next render via `focusIfFocusLost()`
+  (`@iptvnator/portal/shared/util`): the layouts focus their show-categories
+  button when the rail folds, the context panel focuses its hide chevron
+  when the rail is restored — only on those transitions, and never when
+  another control still owns focus.
 - The CSS class `.sidebar-collapsed` (channels rail) and
   `.context-panel--collapsed` (workspace shell categories rail) both override
   the inline width set by the `appResizable` directive with

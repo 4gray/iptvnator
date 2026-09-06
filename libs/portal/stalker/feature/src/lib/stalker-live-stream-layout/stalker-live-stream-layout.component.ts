@@ -74,6 +74,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    focusIfFocusLost,
     LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
@@ -513,6 +514,10 @@ export class StalkerLiveStreamLayoutComponent
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    private readonly showCategoriesButton = viewChild(
+        'showCategoriesButton',
+        { read: ElementRef<HTMLElement> }
+    );
     readonly canOpenCategoriesPopover = computed(
         () =>
             this.categoriesPopover !== null &&
@@ -616,6 +621,24 @@ export class StalkerLiveStreamLayoutComponent
     private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
+        // Folding the categories rail makes the chevron the user activated
+        // `inert`, which drops focus to <body>; pick it up on the button that
+        // brings the rail back, once this header has rendered. Only on that
+        // transition, never on a plain category change.
+        let categoriesWereHidden =
+            this.liveSidebarStateService.areCategoriesHidden();
+        effect(() => {
+            const hidden = this.liveSidebarStateService.areCategoriesHidden();
+            const folded = !categoriesWereHidden && hidden;
+            categoriesWereHidden = hidden;
+            if (folded && untracked(() => this.canOpenCategoriesPopover())) {
+                queueMicrotask(() =>
+                    focusIfFocusLost(
+                        this.showCategoriesButton()?.nativeElement
+                    )
+                );
+            }
+        });
         this.epgClockTimer = setInterval(
             () => this.epgClockTick.update((tick) => tick + 1),
             30_000

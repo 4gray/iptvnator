@@ -270,6 +270,45 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         expect(service.state()).toBe('categories-hidden');
     });
 
+    it('picks focus up on the show-categories button when the rail folds and focus was lost', async () => {
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        service.hideCategories();
+        fixture.detectChanges();
+        await new Promise((resolve) => queueMicrotask(resolve));
+
+        expect(document.activeElement).toBe(
+            query('[data-test-id="live-show-categories"]')
+        );
+    });
+
+    it('leaves focus alone when a control still owns it', async () => {
+        fixture.detectChanges();
+        const sort = query<HTMLButtonElement>(
+            '.sidebar-header [aria-label="Sort channels"]'
+        );
+        sort?.focus();
+
+        service.hideCategories();
+        fixture.detectChanges();
+        await new Promise((resolve) => queueMicrotask(resolve));
+
+        expect(document.activeElement).toBe(sort);
+    });
+
+    it('marks the folded channels rail inert at player-only', () => {
+        service.collapse();
+        fixture.detectChanges();
+
+        expect(query('.sidebar')?.hasAttribute('inert')).toBe(true);
+
+        service.expand();
+        fixture.detectChanges();
+
+        expect(query('.sidebar')?.hasAttribute('inert')).toBe(false);
+    });
+
     it('answers Cmd/Ctrl+B with the same nested toggle', () => {
         service.hideCategories();
         fixture.detectChanges();

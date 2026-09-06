@@ -13,6 +13,7 @@ import {
     OnDestroy,
     OnInit,
     signal,
+    untracked,
     viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -29,6 +30,7 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    focusIfFocusLost,
     LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
@@ -337,6 +339,10 @@ export class LiveStreamLayoutComponent
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     // Mirrors the shell's fold rule: the rail only folds while a category is
     // selected, so a search-only rail keeps its plain heading.
+    private readonly showCategoriesButton = viewChild(
+        'showCategoriesButton',
+        { read: ElementRef<HTMLElement> }
+    );
     readonly canOpenCategoriesPopover = computed(
         () =>
             this.categoriesPopover !== null &&
@@ -416,6 +422,24 @@ export class LiveStreamLayoutComponent
     favorites = new Map<number, boolean>();
 
     constructor() {
+        // Folding the categories rail makes the chevron the user activated
+        // `inert`, which drops focus to <body>; pick it up on the button that
+        // brings the rail back, once this header has rendered. Only on that
+        // transition, never on a plain category change.
+        let categoriesWereHidden =
+            this.liveSidebarStateService.areCategoriesHidden();
+        effect(() => {
+            const hidden = this.liveSidebarStateService.areCategoriesHidden();
+            const folded = !categoriesWereHidden && hidden;
+            categoriesWereHidden = hidden;
+            if (folded && untracked(() => this.canOpenCategoriesPopover())) {
+                queueMicrotask(() =>
+                    focusIfFocusLost(
+                        this.showCategoriesButton()?.nativeElement
+                    )
+                );
+            }
+        });
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());

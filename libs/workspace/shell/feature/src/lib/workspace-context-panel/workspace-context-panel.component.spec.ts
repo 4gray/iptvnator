@@ -117,6 +117,7 @@ describe('WorkspaceContextPanelComponent', () => {
     const dialog = {
         open: jest.fn(),
     };
+    const drawerOpen = signal(false);
 
     beforeEach(async () => {
         localStorage.removeItem(WORKSPACE_CATEGORY_SORT_STORAGE_KEY);
@@ -143,6 +144,7 @@ describe('WorkspaceContextPanelComponent', () => {
         ]);
         router.navigate.mockClear();
         dialog.open.mockClear();
+        drawerOpen.set(false);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceContextPanelComponent, NoopAnimationsModule],
@@ -180,7 +182,7 @@ describe('WorkspaceContextPanelComponent', () => {
                     // Root-provided in production; stubbed because the spec's
                     // Router mock has no `events` stream for the real service.
                     provide: WorkspaceShellContextDrawerService,
-                    useValue: { close: jest.fn(), isOpen: () => false },
+                    useValue: { close: jest.fn(), isOpen: drawerOpen },
                 },
             ],
         }).compileComponents();
@@ -538,6 +540,29 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.detectChanges();
 
             expect(hideButton()).not.toBeNull();
+        });
+
+        it('withholds the chevron inside the open phone drawer, whose stylesheet ignores the folded state', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            drawerOpen.set(true);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('picks focus up on the chevron when the rail is restored and focus was lost', async () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            liveSidebarService.setState('categories-hidden');
+            fixture.detectChanges();
+            (document.activeElement as HTMLElement | null)?.blur();
+
+            liveSidebarService.showCategories();
+            fixture.detectChanges();
+            await new Promise((resolve) => queueMicrotask(resolve));
+
+            expect(document.activeElement).toBe(hideButton());
         });
 
         it('withholds the chevron while no category is selected (live root has no channels rail)', () => {

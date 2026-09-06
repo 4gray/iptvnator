@@ -4,6 +4,7 @@
     <div
         class="sidebar"
         [class.sidebar-collapsed]="isSidebarCollapsed()"
+        [attr.inert]="isSidebarCollapsed() ? '' : null"
         appResizable
         [minWidth]="250"
         [maxWidth]="600"
@@ -16,6 +17,7 @@
                      back to it (a dropdown of the same list) so switching
                      categories stays one click away. -->
                 <button
+                    #showCategoriesButton
                     mat-icon-button
                     type="button"
                     class="sidebar-show-categories"
