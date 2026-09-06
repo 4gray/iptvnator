@@ -685,6 +685,7 @@
         "SHOW_PANELS_TOOLTIP": "Mostra i pannelli (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Mostra il canale in riproduzione",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carica o seleziona un'altra playlist",
         "ALL_CHANNELS": "Tutti i canali",
         "GROUPS": "Gruppi",

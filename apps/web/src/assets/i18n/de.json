@@ -685,6 +685,7 @@
         "SHOW_PANELS_TOOLTIP": "Panels einblenden (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Laufenden Sender anzeigen",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",
         "ALL_CHANNELS": "Alle Sender",
         "GROUPS": "Gruppen",

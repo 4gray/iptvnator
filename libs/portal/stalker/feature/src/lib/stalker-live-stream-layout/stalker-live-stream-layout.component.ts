@@ -19,6 +19,7 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -79,8 +80,6 @@ import {
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     createLogger,
-    getAdjacentChannelItem,
-    getChannelItemByNumber,
     isTypingInInput,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
@@ -135,6 +134,8 @@ function matchesStalkerChannelTerm(
         .toLowerCase()
         .includes(term);
 }
+
+import { StalkerLiveNavigation } from './stalker-live-navigation';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -222,36 +223,12 @@ export class StalkerLiveStreamLayoutComponent
             !this.isRadioMode() &&
             this.stalkerStore.itvSelectedCategoryFromCache()
     );
-    /**
-     * The rows a search term is matched against: the current category, or in
-     * full-list mode the WHOLE portal's channel list (every category) merged
-     * with the currently loaded channels, because a censored (adult) category
-     * is paged from the portal and its channels are intentionally absent from
-     * the full-list cache.
+    /** The store supplies the complete category when cached, accumulated pages otherwise.
+     * Only All Items has portal-wide scope. Both search fields share this source.
      */
-    private readonly searchableChannels = computed(() => {
-        const source = this.channels();
-        if (!this.isFullListMode()) {
-            return source;
-        }
-
-        const merged = new Map<string, StalkerItvChannel>();
-        for (const channel of source) {
-            merged.set(normalizeStalkerEntityId(channel.id), channel);
-        }
-        for (const channel of this.stalkerStore.itvFullChannelList()) {
-            const id = normalizeStalkerEntityId(channel.id);
-            if (!merged.has(id)) {
-                merged.set(id, channel);
-            }
-        }
-        return [...merged.values()];
-    });
-    /**
-     * Channels matching the search phrase. Without a term, the current
-     * category; with one, `searchableChannels` filtered, so search behaves
-     * like "search all channels" whenever the full list is cached.
-     */
+    private readonly searchableChannels = computed(() =>
+        this.showItvAllItems() ? this.itvFullChannelList() : this.channels()
+    );
     readonly filteredChannels = computed(() => {
         const term = this.searchTerm();
         if (!term) {
@@ -299,9 +276,11 @@ export class StalkerLiveStreamLayoutComponent
         computation: () => FULL_LIST_RENDER_CHUNK,
     });
     readonly visibleChannels = computed(() =>
-        this.isCategoryFromCache()
-            ? this.filteredChannels().slice(0, this.renderLimit())
-            : this.filteredChannels()
+        this.navigation.withRevealedItem(
+            this.isCategoryFromCache() || Boolean(this.searchTerm())
+                ? this.filteredChannels().slice(0, this.renderLimit())
+                : this.filteredChannels()
+        )
     );
     /**
      * The fullscreen panel's rows while its own search field is blank: the
@@ -331,10 +310,10 @@ export class StalkerLiveStreamLayoutComponent
             : this.stalkerStore.hasMoreChannels()
     );
     readonly totalChannelCount = computed(() => this.filteredChannels().length);
-    readonly hasMoreItems = computed(() =>
-        this.isCategoryFromCache()
-            ? this.visibleChannels().length < this.filteredChannels().length
-            : this.stalkerStore.hasMoreChannels()
+    readonly hasMoreItems = computed(
+        () =>
+            this.visibleChannels().length < this.filteredChannels().length ||
+            (!this.isCategoryFromCache() && this.stalkerStore.hasMoreChannels())
     );
     readonly isLoadingMore = signal(false);
     /**
@@ -345,7 +324,7 @@ export class StalkerLiveStreamLayoutComponent
     readonly isInitialChannelsLoading = computed(
         () =>
             !!this.stalkerStore.selectedCategoryId() &&
-            this.channels().length === 0 &&
+            this.visibleChannels().length === 0 &&
             !this.searchTerm() &&
             (this.isFullListLoading() ||
                 this.stalkerStore.isPaginatedContentLoading())
@@ -355,7 +334,7 @@ export class StalkerLiveStreamLayoutComponent
         () =>
             !!this.stalkerStore.selectedCategoryId() &&
             !this.searchTerm() &&
-            this.channels().length === 0 &&
+            this.visibleChannels().length === 0 &&
             !this.isInitialChannelsLoading()
     );
 
@@ -610,6 +589,19 @@ export class StalkerLiveStreamLayoutComponent
             : (this.fullscreenChannelPanelTemplate() ?? null)
     );
     readonly panelTitle = computed(() => this.selectedCategoryTitle() ?? '');
+    readonly navigation = new StalkerLiveNavigation({
+        store: this.stalkerStore,
+        router: inject(Router, { optional: true }),
+        sidebar: this.liveSidebarStateService,
+        rows: (term) => this.navigationRows(term),
+        play: (item) => {
+            void this.playChannel(item, true, 'preserve');
+        },
+        revealRow: (id) => this.revealPlayingRow(id),
+        loading: () =>
+            this.isLoadingMore() ||
+            this.stalkerStore.isPaginatedContentLoading(),
+    });
     private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -680,6 +672,8 @@ export class StalkerLiveStreamLayoutComponent
         effect(() => {
             const contentType = this.stalkerStore.selectedContentType();
             this.stalkerStore.selectedCategoryId();
+            this.panelSearch.clear();
+            this.isLoadingMore.set(false);
             untracked(() => {
                 if (contentType === 'radio') {
                     this.stalkerStore.setRadioChannels([]);
@@ -793,9 +787,9 @@ export class StalkerLiveStreamLayoutComponent
                 return;
             }
 
-            const selectedItem = this.stalkerStore.selectedItem();
+            const selectedItem = this.navigation.activeItem();
             const selectedType = this.stalkerStore.selectedContentType();
-            const channels = this.filteredChannels();
+            const channels = this.navigation.channels();
 
             // Radio shares this layout and its remote channel handlers, so
             // it must publish live status too — otherwise the remote shows
@@ -862,6 +856,7 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     ngOnDestroy() {
+        this.navigation.reset();
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         // Leaving the live view would otherwise keep the last channel
@@ -896,8 +891,13 @@ export class StalkerLiveStreamLayoutComponent
 
     async playChannel(
         item: StalkerItvChannel,
-        startPlayback = !this.settingsStore.openStreamOnDoubleClick()
+        startPlayback = !this.settingsStore.openStreamOnDoubleClick(),
+        navigationContext?: Signal<string> | 'preserve'
     ) {
+        const commitNavigation = this.navigation.prepare(
+            item,
+            navigationContext
+        );
         const requestId = ++this.playbackRequestId;
         const channelId = normalizeStalkerEntityId(item.id);
         const sourceId = normalizeStalkerEntityId(
@@ -958,12 +958,14 @@ export class StalkerLiveStreamLayoutComponent
                 ) {
                     return;
                 }
+                commitNavigation();
                 this.setActivePlayback(playback, null);
                 return;
             }
 
+            if (deferSelection && (!sourceId || !channelId)) return;
+            commitNavigation();
             if (deferSelection) {
-                if (!sourceId || !channelId) return;
                 this.stalkerStore.setSelectedItem(item);
             }
 
@@ -1074,13 +1076,13 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     /**
-     * In full-list mode the rendered list is windowed to `renderLimit`. When a
+     * Cached categories and search results are windowed to `renderLimit`. When a
      * channel beyond that window is selected (remote channel-up/down, numeric
      * select), grow the window so the selection is actually in the DOM and can
      * be highlighted/scrolled to instead of drifting off-window.
      */
     private ensureChannelWithinRenderWindow(channelId: string): void {
-        if (!this.isCategoryFromCache()) {
+        if (this.visibleChannels().length === this.filteredChannels().length) {
             return;
         }
 
@@ -1137,17 +1139,20 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     loadMore() {
-        if (this.isCategoryFromCache()) {
-            // Extends the render window over the in-memory list — no request.
-            if (this.hasMoreItems()) {
-                this.growRenderWindow();
-            }
+        if (this.visibleChannels().length < this.filteredChannels().length) {
+            this.growRenderWindow();
             return;
         }
+        if (this.isCategoryFromCache()) return;
+        this.loadNextChannelPage();
+    }
 
+    private loadNextChannelPage(): void {
         // Legacy portal pagination — also used for censored (adult) genres
         // that are absent from the full-list cache.
-        if (this.isLoadingMore() || !this.hasMoreItems()) return;
+        if (this.isLoadingMore() || !this.stalkerStore.hasMoreChannels())
+            return;
+        if (this.stalkerStore.isPaginatedContentLoading()) return;
         this.isLoadingMore.set(true);
         const nextPage = this.stalkerStore.page() + 1;
         this.stalkerStore.setPage(nextPage);
@@ -1164,7 +1169,7 @@ export class StalkerLiveStreamLayoutComponent
             this.growRenderWindow();
             return;
         }
-        this.loadMore();
+        this.loadNextChannelPage();
     }
 
     private growRenderWindow(): void {
@@ -1598,7 +1603,8 @@ export class StalkerLiveStreamLayoutComponent
             if (
                 !shouldAutoFillStampedList(
                     isPanelContainer,
-                    sidebarSearchActive
+                    sidebarSearchActive,
+                    !this.isRadioMode()
                 )
             ) {
                 continue;
@@ -1613,8 +1619,8 @@ export class StalkerLiveStreamLayoutComponent
      * panel's copy, while searching with its own term, scrolls through its
      * own windowed matches, not the sidebar's rows: it grows that window
      * first and only pages the portal once the window covers every loaded
-     * match — and never in full-list mode, where its search already sees
-     * the whole catalog and a page would only widen the sidebar's window.
+     * match. Cached categories (and All Items) already expose their complete
+     * source and never request provider pages from the panel.
      */
     private driveStampedList(container: HTMLElement, nearEnd: boolean) {
         // A closed panel stays mounted to preserve search and scroll, but
@@ -1634,7 +1640,10 @@ export class StalkerLiveStreamLayoutComponent
             this.panelSearch.loadMore();
             return;
         }
-        if (isPanelSearch && this.isCategoryFromCache()) return;
+        if (isPanelSearch) {
+            if (!this.panelUsesCachedRows()) this.loadNextChannelPage();
+            return;
+        }
         if (isPanelContainer && !isPanelSearch) {
             // The blank panel shows the category, not the sidebar's filtered
             // rows, so its continuation is judged against the category too.
@@ -1772,24 +1781,7 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     private handleAdjacentChannelChange(direction: 'up' | 'down'): void {
-        const activeItem = this.stalkerStore.selectedItem();
-        if (!activeItem?.id) {
-            return;
-        }
-
-        const channels = this.filteredChannels();
-        const nextItem = getAdjacentChannelItem(
-            channels,
-            activeItem.id,
-            direction,
-            (item) => item.id
-        );
-
-        if (!nextItem) {
-            return;
-        }
-
-        void this.playChannel(nextItem, true);
+        this.navigation.adjacent(direction);
     }
 
     private handleRemoteControlCommand(command: {
@@ -1800,19 +1792,40 @@ export class StalkerLiveStreamLayoutComponent
             | 'volume-toggle-mute';
         number?: number;
     }): void {
-        if (command.type !== 'channel-select-number' || !command.number) {
-            return;
-        }
+        if (command.type === 'channel-select-number')
+            this.navigation.selectNumber(command.number);
+    }
 
-        const channel = getChannelItemByNumber(
-            this.filteredChannels(),
-            command.number
-        );
-        if (!channel) {
-            return;
-        }
+    private navigationRows(term?: Signal<string>): StalkerItvChannel[] {
+        if (!term)
+            return this.showItvAllItems()
+                ? this.itvFullChannelList().filter((item) =>
+                      matchesStalkerChannelTerm(item, this.searchTerm())
+                  )
+                : this.filteredChannels();
+        const query = term().trim().toLowerCase();
+        return query
+            ? this.searchableChannels().filter((item) =>
+                  matchesStalkerChannelTerm(item, query)
+              )
+            : this.panelIdleSource();
+    }
 
-        void this.playChannel(channel, true);
+    private revealPlayingRow(id: string): boolean {
+        this.ensureChannelWithinRenderWindow(id);
+        this.cdr.detectChanges();
+        const pane = this.scrollContainers().find(
+            (container) => container.nativeElement.id === 'live-channels'
+        )?.nativeElement as HTMLElement | undefined;
+        const row =
+            pane &&
+            Array.from(
+                pane.querySelectorAll<HTMLElement>('[data-channel-id]')
+            ).find((element) => element.dataset['channelId'] === id);
+        if (!row || !pane) return false;
+        row.scrollIntoView({ block: 'nearest' });
+        pane.focus({ preventScroll: true });
+        return true;
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {

@@ -685,6 +685,7 @@
         "SHOW_PANELS_TOOLTIP": "顯示面板 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "顯示正在播放的頻道",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",
         "ALL_CHANNELS": "所有頻道",
         "GROUPS": "群組",

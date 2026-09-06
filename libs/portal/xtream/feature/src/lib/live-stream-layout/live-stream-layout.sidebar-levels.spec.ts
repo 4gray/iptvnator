@@ -42,6 +42,8 @@ class StubPortalChannelsListComponent {
     readonly channelsOverride = input<unknown[] | null>(null);
     readonly searchTermInput = input('');
     readonly fullscreenPanelCopy = input(false);
+    readonly revealRequest = input<unknown>(null);
+    readonly filteredChannels = signal<unknown[]>([]);
     readonly playClicked = output<unknown>();
     readonly playbackRequested = output<unknown>();
 }

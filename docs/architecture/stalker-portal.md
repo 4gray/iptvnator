@@ -1274,9 +1274,10 @@ The Stalker live route and radio route intentionally share
   in flight belong to the selection and survive the switch. Only a section
   change (`itv` ↔ `radio`, where the route session clears the selection)
   invalidates that request and drops the fallback. A playing channel outside
-  the newly selected category simply has no highlighted row, and remote
-  channel up/down finds no neighbour until a channel from the visible list is
-  played.
+  the newly selected category can be revealed with **Show playing channel**
+  in the channel header. Remote up/down, numeric selection and status retain
+  the captured playback order while browsing. See the
+  [queue and reveal contract](./remote-control.md#live-channel-return-and-playback-order).
 
 ## Full ITV Channel List Cache
 
@@ -1324,20 +1325,29 @@ list:
 - Loading state contract (important — regressions here strand the sidebar on a
   skeleton): in full-list mode the content loader serves the filtered list
   **synchronously** from the cache. The category-change reset effect therefore
-  must NOT `setItvChannels([])` while `itvFullListActive()` is true — it runs
+  must NOT `setItvChannels([])` while `itvSelectedCategoryFromCache()` is true — it runs
   after the store resource and would clobber the freshly served list, leaving
   every category after the first stuck on a skeleton. The initial-loading
   skeleton (`isInitialChannelsLoading`) must key off an actual in-flight load
   (`itvFullListLoading()` or `isPaginatedContentLoading()`), not merely an empty
   channel list; an empty result once loading has settled is an empty category
   and renders `PORTALS.NO_CHANNELS_IN_CATEGORY`, not a spinner.
-- Search: with the cache active, the header search spans the ENTIRE portal
-  (all genres) — filtering the store's `itvFullChannelList`, not just the
-  selected category — so searching "CNN" while a "Sports" genre is selected
-  still finds it; clearing the term returns to the selected category. The
-  workspace shell drops the `degraded-loaded-only` / "loaded only" status for
-  Stalker ITV once `itvFullListActive`; radio (no full-list cache) always keeps
-  the loaded-only hint (`workspace-shell-search.service.ts`).
+- Search (#1543): the sidebar and fullscreen fields independently filter the
+  complete **selected category**, or the whole public catalog in All Items
+  (both the uncategorized grid and `*`). Neither merges foreign cached genres
+  into a category. ITV search never changes provider request parameters or
+  resets accumulated pages: this keeps the fullscreen field independent of
+  sidebar text. Cached categories are searched before the 100-row render
+  window; uncached/censored categories continue `get_ordered_list` pages when
+  a short/empty result cannot scroll, and continue on scroll otherwise. Search
+  results use 100-row windows. Clearing or changing the query resets the render
+  window, and category changes reset both list windows without restarting playback.
+  Empty or repeated provider pages terminate pagination; a cache-ready replay
+  of the same uncached page is deduplicated without hiding later pages. Aborted
+  requests cannot overwrite the current category, even after navigating away
+  and back. Radio stays on its separate station list and server-search flow.
+  The workspace shell retains its loaded-only hint for ITV portals without
+  a full cache and for radio.
 - Windowed selection: remote channel-up/down and numeric select operate over
   the full filtered category, so the render window (`renderLimit`) grows to
   include a selection beyond it (`ensureChannelWithinRenderWindow`) instead of

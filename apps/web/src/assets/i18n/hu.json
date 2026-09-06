@@ -685,6 +685,7 @@
         "SHOW_PANELS_TOOLTIP": "Panelek megjelenítése (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Lejátszott csatorna megjelenítése",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Másik lejátszási lista feltöltése vagy kiválasztása",
         "ALL_CHANNELS": "Összes csatorna",
         "GROUPS": "Csoportok",

@@ -685,6 +685,7 @@
         "SHOW_PANELS_TOOLTIP": "Εμφάνιση πινάκων (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Εμφάνιση του καναλιού που παίζει",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Μεταφορτώστε ή επιλέξτε άλλη λίστα αναπαραγωγής",
         "ALL_CHANNELS": "Όλα τα κανάλια",
         "GROUPS": "Ομάδες",

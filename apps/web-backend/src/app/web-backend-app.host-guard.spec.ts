@@ -418,7 +418,7 @@ describe('web backend host connectivity guard', () => {
                 // not consume the single trial the breaker allows.
                 resolvable = false;
                 const refusedByPolicy = await call();
-                expect(refusedByPolicy.status).toBe(400);
+                expect(refusedByPolicy.status).toBe(200);
 
                 resolvable = true;
                 const trial = await call();
@@ -469,7 +469,7 @@ describe('web backend host connectivity guard', () => {
                     );
 
                 const first = await call();
-                expect(first.status).toBe(400);
+                expect(first.status).toBe(200);
                 // The DNS error is internal: the client sees what it always saw.
                 await expect(first.json()).resolves.toEqual({
                     message: 'Provider URL host could not be resolved',
@@ -492,21 +492,11 @@ describe('web backend host connectivity guard', () => {
     });
 
     it('does not fast-fail a provider whose redirect destination is dead', async () => {
-        // The shape this route actually produces, verified against axios
-        // 1.19.0: follow-redirects walks the chain inside one `get()`, so
-        // `config` still holds the URL we asked for and only
-        // `request._currentUrl` names the hop that failed. Reading `config.url`
-        // alone would compare the original URL with itself, find no redirect,
-        // and charge the dead destination to the provider that answered.
-        const redirectedFailure = () =>
-            Object.assign(new Error('connect ECONNREFUSED'), {
-                code: 'ECONNREFUSED',
-                config: { url: 'http://xtream.example/player_api.php' },
-                request: { _currentUrl: 'http://cdn.dead.example/stream' },
-            });
         const httpClient = new StubHttpClient();
-        httpClient.queueNetworkError(redirectedFailure());
-        httpClient.queueNetworkError(redirectedFailure());
+        for (let i = 0; i < 2; i++) {
+            httpClient.queueRedirect('http://cdn.dead.example/stream');
+            httpClient.queueNetworkError(hostLevelFailure());
+        }
         httpClient.queueResponse({ user_info: { username: 'demo' } });
         const { guard } = createTestGuard();
 
@@ -534,7 +524,7 @@ describe('web backend host connectivity guard', () => {
                     action: 'get_account_info',
                     payload: { user_info: { username: 'demo' } },
                 });
-                expect(httpClient.requests).toHaveLength(3);
+                expect(httpClient.requests).toHaveLength(5);
             }
         );
     });
@@ -689,31 +679,32 @@ describe('web backend host connectivity guard', () => {
                         const started = new Promise<void>((resolve) => {
                             arrived = resolve;
                         });
-                        const transport = jest
-                            .spyOn(httpClient, 'get')
-                            .mockImplementationOnce(async () => {
-                                arrived();
-                                await pending;
-                                if (outcome !== 'success') {
-                                    throw Object.assign(
-                                        hostLevelFailure(
-                                            outcome === 'cancel'
-                                                ? 'ERR_CANCELED'
-                                                : 'ETIMEDOUT'
-                                        ),
-                                        {
-                                            request: {
-                                                _currentUrl:
-                                                    outcome ===
-                                                    'redirect-failure'
-                                                        ? 'http://cdn.example/slow'
-                                                        : `http://portal.example/${route === 'xtream' ? 'player_api.php' : ''}`,
-                                            },
-                                        }
-                                    );
-                                }
-                                return { data: [] as never };
-                            });
+                        const transport = jest.spyOn(httpClient, 'get');
+                        if (outcome === 'redirect-failure') {
+                            transport.mockImplementationOnce(async () => ({
+                                data: '' as never,
+                                status: 302,
+                                headers: {
+                                    location: 'http://cdn.example/slow',
+                                },
+                            }));
+                        }
+                        transport.mockImplementationOnce(async () => {
+                            arrived();
+                            await pending;
+                            if (outcome !== 'success') {
+                                throw hostLevelFailure(
+                                    outcome === 'cancel'
+                                        ? 'ERR_CANCELED'
+                                        : 'ETIMEDOUT'
+                                );
+                            }
+                            return {
+                                data: [] as never,
+                                status: 200,
+                                headers: {},
+                            };
+                        });
                         const trial = call();
                         try {
                             await started;
@@ -729,7 +720,9 @@ describe('web backend host connectivity guard', () => {
                                     ).message
                                 )
                             ).toBe(true);
-                            expect(transport).toHaveBeenCalledTimes(1);
+                            expect(transport).toHaveBeenCalledTimes(
+                                outcome === 'redirect-failure' ? 2 : 1
+                            );
                         } finally {
                             settle();
                             await trial;

@@ -51,9 +51,7 @@ test('@electron @stalker built-in player plays an auth-gated portal stream', asy
         await waitForStalkerCatalog(app.mainWindow);
 
         // The portal lands on Movies; live playback lives in the ITV layout.
-        await app.mainWindow
-            .getByRole('link', { name: /live|itv/i })
-            .click();
+        await app.mainWindow.getByRole('link', { name: /live|itv/i }).click();
         await app.mainWindow.waitForURL(/stalker.*itv/);
 
         // The ITV view renders channels only after a category is selected;
@@ -84,6 +82,40 @@ test('@electron @stalker built-in player plays an auth-gated portal stream', asy
                 { timeout: 20_000 }
             )
             .toBeGreaterThan(0.5);
+        // Search/category changes must keep the playing native-hosted engine
+        // while both ITV categories contain the same search word (#1543).
+        const playingVideo = await video.elementHandle();
+        await categories.nth(1).click();
+        const search = app.mainWindow.locator('input[type="search"]').first();
+        await search.fill('TV');
+        await search.press('Enter');
+        await expect(app.mainWindow).toHaveURL(/q=TV/);
+        await expect(
+            app.mainWindow.locator('#live-channels .channel-name')
+        ).toHaveCount(5);
+        const firstNames = await app.mainWindow
+            .locator('#live-channels .channel-name')
+            .allTextContents();
+        await categories.nth(2).click();
+        await expect(
+            app.mainWindow.locator('#live-channels .channel-name')
+        ).toHaveCount(5);
+        await expect
+            .poll(async () => {
+                const names = await app.mainWindow
+                    .locator('#live-channels .channel-name')
+                    .allTextContents();
+                return names.every((name) => !firstNames.includes(name));
+            })
+            .toBe(true);
+        expect(
+            await playingVideo?.evaluate((element) => element.isConnected)
+        ).toBe(true);
+        await expect
+            .poll(() =>
+                video.evaluate((element: HTMLVideoElement) => element.paused)
+            )
+            .toBe(false);
         await expect(
             app.mainWindow.getByTestId('playback-diagnostic-banner')
         ).toBeHidden();

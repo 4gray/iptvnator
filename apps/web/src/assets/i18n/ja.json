@@ -685,6 +685,7 @@
         "SHOW_PANELS_TOOLTIP": "パネルを表示 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "再生中のチャンネルを表示",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "アップロードまたは他のプレイリストを選択",
         "ALL_CHANNELS": "すべてのチャンネル",
         "GROUPS": "グループ",
