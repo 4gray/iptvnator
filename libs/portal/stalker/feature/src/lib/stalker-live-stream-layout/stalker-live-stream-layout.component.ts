@@ -75,8 +75,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
-    handoffFocusOnLiveSidebarChange,
-    LIVE_CATEGORIES_POPOVER,
+    createLivePanelsController,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     createLogger,
@@ -187,12 +186,6 @@ export class StalkerLiveStreamLayoutComponent
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
-    // Shell-provided; absent when no categories rail exists to fold (unit
-    // tests, hosts outside the workspace shell), in which case the header
-    // keeps its plain title.
-    private readonly categoriesPopover = inject(LIVE_CATEGORIES_POPOVER, {
-        optional: true,
-    });
     private readonly logger = createLogger('StalkerLiveStream');
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
 
@@ -492,19 +485,25 @@ export class StalkerLiveStreamLayoutComponent
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
-    private readonly showCategoriesButton = viewChild(
-        'showCategoriesButton',
-        { read: ElementRef<HTMLElement> }
-    );
+    // `viewChild()` must be a direct field initializer for the compiler to
+    // register the query, so the refs live here and feed the controller.
+    private readonly showCategoriesButton = viewChild('showCategoriesButton', {
+        read: ElementRef<HTMLElement>,
+    });
     private readonly restoreButton = viewChild('restoreButton', {
         read: ElementRef<HTMLElement>,
     });
-    readonly canOpenCategoriesPopover = computed(
-        () =>
-            this.categoriesPopover !== null &&
-            this.liveSidebarStateService.areCategoriesHidden()
-    );
+    // Nested panel levels, category dropdown bridge and focus handoff; the
+    // template binds to it directly. The sidebar only renders with a
+    // selected category, and the fold rule keys on the same selection.
+    readonly livePanels = createLivePanelsController({
+        hasSelectedCategory: computed(
+            () => !!this.stalkerStore.selectedCategoryId()
+        ),
+        showCategoriesButton: this.showCategoriesButton,
+        restoreButton: this.restoreButton,
+    });
+    readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
     );
@@ -616,27 +615,6 @@ export class StalkerLiveStreamLayoutComponent
     private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
-        // Every level change inerts or removes the button the user activated
-        // and drops focus to <body>; hand it to the affordance that replaces
-        // it once this template has rendered (see the helper's contract).
-        // Watched through the EFFECTIVE level: on the live root the rail
-        // stays visible at `categories-hidden`, and it is the first category
-        // selection that folds it — a fold without a state change.
-        handoffFocusOnLiveSidebarChange(
-            computed(() =>
-                this.liveSidebarStateService.isCollapsed()
-                    ? 'collapsed'
-                    : this.canOpenCategoriesPopover()
-                      ? 'categories-hidden'
-                      : 'expanded'
-            ),
-            (next) =>
-                next === 'collapsed'
-                    ? this.restoreButton()?.nativeElement
-                    : next === 'categories-hidden'
-                      ? this.showCategoriesButton()?.nativeElement
-                      : null
-        );
         this.epgClockTimer = setInterval(
             () => this.epgClockTick.update((tick) => tick + 1),
             30_000
@@ -1195,25 +1173,6 @@ export class StalkerLiveStreamLayoutComponent
         persistLiveEpgPanelState(state);
     }
 
-    /** `Cmd/Ctrl+B` and the floating restore handle. */
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
-    }
-
-    /** The channels header chevron: player only. */
-    collapsePanels(): void {
-        this.liveSidebarStateService.collapse();
-    }
-
-    showCategories(): void {
-        this.categoriesPopover?.close();
-        this.liveSidebarStateService.showCategories();
-    }
-
-    openCategoriesPopover(origin: HTMLElement): void {
-        this.categoriesPopover?.open(origin);
-    }
-
     handleRadioChannelSwitch(direction: 'next' | 'previous'): void {
         this.handleAdjacentChannelChange(direction === 'next' ? 'down' : 'up');
     }
@@ -1230,7 +1189,7 @@ export class StalkerLiveStreamLayoutComponent
             !this.hostElement.nativeElement.closest('[inert]')
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanels.toggleSidebar();
         }
     }
 

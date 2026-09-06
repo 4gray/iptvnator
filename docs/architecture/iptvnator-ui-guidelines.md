@@ -349,10 +349,13 @@ remain local when the meaning is explicit.
   Every level change removes or inerts the very button the user activated,
   so focus drops to `<body>`; the side that gains the replacement affordance
   picks it up after its next render via `focusIfFocusLost()`
-  (`@iptvnator/portal/shared/util`): the layouts install
-  `handoffFocusOnLiveSidebarChange()` over their EFFECTIVE level (on the
-  live root the first category selection folds the rail with no state
-  change) and focus the floating restore handle at player-only or their
+  (`@iptvnator/portal/shared/util`): the layouts own a
+  `LivePanelsController` (`createLivePanelsController()` in a field
+  initializer; it bundles the level flags, the popover bridge and the
+  handoff, so the layout components carry none of it) which installs
+  `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level (on the live
+  root the first category selection folds the rail with no state change)
+  and focuses the floating restore handle at player-only or the
   show-categories button while the rail is folded,
   and the shell sidebar, watching the rail's ACTUAL fold state (on the live
   root the rail stays visible at level 2, so only player-only ↔ visible is a

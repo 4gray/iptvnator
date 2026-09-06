@@ -29,9 +29,7 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
-    handoffFocusOnLiveSidebarChange,
-    LIVE_CATEGORIES_POPOVER,
-    LiveLayoutSidebarStateService,
+    createLivePanelsController,
     PORTAL_PLAYER,
     PortalChannelSortMode,
     getPortalChannelSortModeLabel,
@@ -149,15 +147,6 @@ export class LiveStreamLayoutComponent
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
-    );
-    // Shell-provided; absent when no categories rail exists to fold (unit
-    // tests, hosts outside the workspace shell), in which case the header
-    // keeps its plain title.
-    private readonly categoriesPopover = inject(LIVE_CATEGORIES_POPOVER, {
-        optional: true,
-    });
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -328,22 +317,23 @@ export class LiveStreamLayoutComponent
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
-    // Mirrors the shell's fold rule: the rail only folds while a category is
-    // selected, so a search-only rail keeps its plain heading.
-    private readonly showCategoriesButton = viewChild(
-        'showCategoriesButton',
-        { read: ElementRef<HTMLElement> }
-    );
+    // `viewChild()` must be a direct field initializer for the compiler to
+    // register the query, so the refs live here and feed the controller.
+    private readonly showCategoriesButton = viewChild('showCategoriesButton', {
+        read: ElementRef<HTMLElement>,
+    });
     private readonly restoreButton = viewChild('restoreButton', {
         read: ElementRef<HTMLElement>,
     });
-    readonly canOpenCategoriesPopover = computed(
-        () =>
-            this.categoriesPopover !== null &&
-            this.liveSidebarStateService.areCategoriesHidden() &&
-            !!this.selectedCategoryId()
-    );
+    // Nested panel levels, category dropdown bridge and focus handoff; the
+    // template binds to it directly. Search-only rails (no selected
+    // category) keep their plain heading.
+    readonly livePanels = createLivePanelsController({
+        hasSelectedCategory: computed(() => !!this.selectedCategoryId()),
+        showCategoriesButton: this.showCategoriesButton,
+        restoreButton: this.restoreButton,
+    });
+    readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
             this.activeCatchupProgram() ?? this.currentEpgItem()
@@ -417,27 +407,6 @@ export class LiveStreamLayoutComponent
     favorites = new Map<number, boolean>();
 
     constructor() {
-        // Every level change inerts or removes the button the user activated
-        // and drops focus to <body>; hand it to the affordance that replaces
-        // it once this template has rendered (see the helper's contract).
-        // Watched through the EFFECTIVE level: on the live root the rail
-        // stays visible at `categories-hidden`, and it is the first category
-        // selection that folds it — a fold without a state change.
-        handoffFocusOnLiveSidebarChange(
-            computed(() =>
-                this.liveSidebarStateService.isCollapsed()
-                    ? 'collapsed'
-                    : this.canOpenCategoriesPopover()
-                      ? 'categories-hidden'
-                      : 'expanded'
-            ),
-            (next) =>
-                next === 'collapsed'
-                    ? this.restoreButton()?.nativeElement
-                    : next === 'categories-hidden'
-                      ? this.showCategoriesButton()?.nativeElement
-                      : null
-        );
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());
@@ -647,25 +616,6 @@ export class LiveStreamLayoutComponent
         persistLiveEpgPanelState(state);
     }
 
-    /** `Cmd/Ctrl+B` and the floating restore handle. */
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
-    }
-
-    /** The channels header chevron: player only. */
-    collapsePanels(): void {
-        this.liveSidebarStateService.collapse();
-    }
-
-    showCategories(): void {
-        this.categoriesPopover?.close();
-        this.liveSidebarStateService.showCategories();
-    }
-
-    openCategoriesPopover(origin: HTMLElement): void {
-        this.categoriesPopover?.open(origin);
-    }
-
     @HostListener('document:keydown', ['$event'])
     handleSidebarShortcut(event: KeyboardEvent): void {
         if (
@@ -678,7 +628,7 @@ export class LiveStreamLayoutComponent
             !this.hostElement.nativeElement.closest('[inert]')
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanels.toggleSidebar();
         }
     }
 

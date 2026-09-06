@@ -1741,7 +1741,9 @@ channels header turns its title into a category dropdown that opens the same
 `LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
 `WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
 closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
-the live layouts inject it optionally. `Cmd/Ctrl+B` and the floating restore
+the live layouts reach it through `createLivePanelsController()` (level
+flags, dropdown bridge and focus handoff in one shared object; the token is
+optional). `Cmd/Ctrl+B` and the floating restore
 handle return to the level the user collapsed from; a stored `collapsed`
 restores as `categories-hidden` so the channel list is always back after a
 relaunch (#1458). Folded rails carry `inert`, and

@@ -13,7 +13,7 @@
         storageKey="live-channels-sidebar-width"
     >
         <div class="sidebar-header">
-            @if (canOpenCategoriesPopover()) {
+            @if (livePanels.canOpenCategoriesPopover()) {
                 <!-- The categories rail is folded: the title becomes the way
                      back to it (a dropdown of the same list) so switching
                      categories stays one click away. -->
@@ -25,7 +25,7 @@
                     data-test-id="live-show-categories"
                     [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
                     [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
-                    (click)="showCategories()"
+                    (click)="livePanels.showCategories()"
                 >
                     <mat-icon>chevron_right</mat-icon>
                 </button>
@@ -37,7 +37,7 @@
                     aria-haspopup="dialog"
                     aria-expanded="false"
                     [attr.aria-label]="'LAYOUT.CHOOSE_CATEGORY' | translate"
-                    (click)="openCategoriesPopover(categoryDropdown)"
+                    (click)="livePanels.openCategoriesPopover(categoryDropdown)"
                 >
                     <span class="category-title">
                         {{ selectedCategoryInfo()?.name ?? 'All Items' }}
@@ -89,7 +89,7 @@
                 type="button"
                 [attr.aria-label]="'LAYOUT.HIDE_PANELS' | translate"
                 [matTooltip]="'LAYOUT.HIDE_PANELS_TOOLTIP' | translate"
-                (click)="collapsePanels()"
+                (click)="livePanels.collapsePanels()"
             >
                 <mat-icon>chevron_left</mat-icon>
             </button>
@@ -141,7 +141,7 @@
             class="sidebar-restore"
             [attr.aria-label]="'LAYOUT.SHOW_PANELS' | translate"
             [matTooltip]="'LAYOUT.SHOW_PANELS_TOOLTIP' | translate"
-            (click)="toggleSidebar()"
+            (click)="livePanels.toggleSidebar()"
         >
             <mat-icon>chevron_right</mat-icon>
         </button>
