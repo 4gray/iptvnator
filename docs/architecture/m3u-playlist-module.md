@@ -703,7 +703,7 @@ comparison; applying both doubles the shift.
   header's range and progress) receives the offset as the `offsetMinutes`
   input from each host; `app-channel-list-item`, the dashboard time range and
   the recording detail shift their labels the same way. The programme dialog
-  and the multi-EPG overlay are opened imperatively, so they read
+  and the programme guide are opened imperatively, so they read
   `SettingsStore.resolvedEpgOffsetMinutes` themselves.
 - **Clock form** — every "currently airing" decision, so the row picked as
   "now" is the one the UI renders as "now": the batched
@@ -1068,7 +1068,7 @@ class EpgService {
 - EPG sidebar
 - Collapsible inline EPG panel for internal players, persisted through the
   shared `live-epg-panel-state` preference
-- Multi-EPG modal view
+- Programme guide (multi-channel grid) in guide mode — see "Programme guide" below
 - Channel info overlay
 - External player support (MPV, VLC) in Electron
 - M3U archive/catch-up playback for supported replay schemes
@@ -1109,6 +1109,64 @@ class EpgService {
 - Catch-up activation is never silent: if the replay URL cannot be resolved
   for a programme the user clicked, both hosts surface a
   `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
+
+### Programme guide
+
+`app-epg-guide` (`libs/ui/epg/src/lib/epg-guide/`) is a host-agnostic
+multi-channel grid. It reads everything through the `EPG_GUIDE_SOURCE`
+injection token (`epg-guide-source.ts`): the scope-resolved channel list
+(`EpgGuideChannel { id, number, name, logoUrl, epgKey }`), the available scopes
+(all / group / favorites), `loadPrograms(window)` and `loadCoverage(window)`
+for a provider-clock time window, the active channel and `activate(id)`. An
+optional `searchPrograms(query)` returns `EpgGuideSearchHit { channelId,
+program }`, where `channelId` is `null` when the host cannot say which row a
+hit belongs to. The M3U adapter is `M3uEpgGuideSourceService`
+(`libs/playlist/m3u/feature-player/src/lib/epg-guide/`): channels come from
+NgRx, `epgKey` uses the `tvg.id → tvg.name → name` chain, and the two bridge
+reads `EPG_GET_PROGRAMS_FOR_CHANNELS` / `EPG_GET_PROGRAM_COVERAGE` resolve keys
+in the main process (manual mappings first, then the metadata lookup shared
+with the sidebar) and return programmes keyed by the requested key. Queries
+are unscoped, like the timeline.
+
+Guide mode is host layout, not an overlay: `VideoPlayerComponent.guideOpen`
+hides the sidebar and the timeline, renders the guide, and CSS reflows the
+untouched `app-web-player-view` into a 128 px docked strip
+(`.content-container.is-guide`) beside `app-epg-guide-now-playing`; the strip
+collapses to one line (`epg-guide:dock-collapsed`). Nothing remounts, so
+playback and native-view Embedded MPV bounds survive. Entry points: the
+workspace header action (`m3u-epg-guide`), the command palette, the Guide
+button in the timeline toolbar (`EpgTimelineComponent.openGuide`) and the `G`
+key on the player page. Player fullscreen, radio, recognised movies and the
+PWA close or withhold it. Inside the guide: single click on a row or an
+"on now" card switches the channel and keeps the guide open, double-click or
+Enter switches and closes, other cards open the programme dialog; ↑/↓ ←/→
+navigate, I details, N now, PgUp/PgDn day, Esc close — the keyboard controller
+ignores keys on any element matching its interactive-target selector
+(inputs, buttons, menu/option items, links, editable content) unless that
+element carries `data-epg-guide-grid`, which the guide's own channel cells and
+programme cards set so their `role="button"` does not shadow the grid's own
+keys; a real control nested inside one (the catch-up button) still wins.
+Density (`epg-guide:density`, comfortable 60 px / compact 44 px), zoom
+(`epg-guide:zoom`, 120–480 px per hour, default 240) and the "Only with EPG"
+toggle (`epg-guide:only-with-epg`) persist in localStorage; coverage is loaded
+for the whole scope so the toggle never hides rows as they scroll in. The
+guide reads the EPG display offset itself: the day axis is display time, the
+request window is converted with `epgProviderClockMs`.
+
+**Backend contract**: `EpgGuideQueryService`
+(`apps/electron-backend/src/app/events/epg-guide-query.service.ts`) answers
+both IPCs from one `guideWindowCondition()` predicate — when the request
+carries `sourceUrls` (portal hosts only; the M3U host never does), a row
+qualifies if it belongs to one of those sources OR carries no source at all
+(legacy pre-per-source-tracking data), never if it belongs to a *different*
+source. Both reads cap the requested channel-key batch
+(`EPG_GUIDE_MAX_CHANNELS_PER_REQUEST` = 100 for programmes,
+`EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST` = 2000 for the cheaper coverage
+probe) and respond with exactly the trimmed, de-duplicated, cap-respecting
+requested keys: a key cut by the cap is absent from the answer, never present
+with an empty list, so a caller can tell "queried, nothing found" apart from
+"not queried at all". An invalid window (bad instants, `fromMs >= toMs`, no
+usable keys) returns `{}`/`[]` rather than throwing.
 
 ### External Player Request Headers
 

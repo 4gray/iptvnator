@@ -266,8 +266,7 @@ The Electron window hides the native title bar on all desktop platforms
 
 The controls are mounted once in `app-root` (not inside the workspace
 header) as a `position: fixed` top-right overlay so they stay clickable
-above full-window content such as the multi-EPG cdk overlay and Material
-dialog backdrops — the same behavior as the macOS traffic lights. Because
+above full-window content such as Material dialog backdrops — the same behavior as the macOS traffic lights. Because
 CDK overlays render as popovers in the browser top layer (above any
 z-index), the component host is itself a `popover="manual"` element: it
 enters the top layer on init and re-enters it (hide + show) whenever
@@ -402,8 +401,8 @@ Layout integration:
    `AppComponent`, same mechanism as `dark-theme`) — body-level so rules
    also reach cdk-overlay content rendered outside `app-root`.
 2. `apps/web/src/styles.scss` reserves `padding-right: 150px` in
-   top-aligned drag regions (`.workspace-header`, multi-EPG
-   `#epg-navigation`) for the 3 × 46px button strip.
+   the top-aligned drag region (`.workspace-header`) for the 3 × 46px
+   button strip.
 3. Button colors follow the theme via CSS variables (`--app-on-surface`,
    `--app-hover-overlay`); the close button uses the Windows-style red
    hover (`#e81123`). No theme IPC is involved.

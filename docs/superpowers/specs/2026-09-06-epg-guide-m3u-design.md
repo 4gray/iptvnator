@@ -164,8 +164,14 @@ Location: `libs/ui/epg/src/lib/epg-guide/`. Every production file stays under
   per-channel status `idle | loading | loaded`, coverage per day, reset on
   scope or source change. Batches are capped at 100 channels per IPC.
 - `epg-guide-keyboard.controller` — ↑/↓ channel, ←/→ programme, Enter play,
-  I details, N now, PgUp/PgDn day, Esc close. Ignores events from inputs and
-  while a dialog is open.
+  I details, N now, PgUp/PgDn day, Esc close. Ignores events whose target
+  matches its interactive-element selector (inputs, buttons, menu/option
+  items, links, editable content) and while a dialog is open. The guide's own
+  channel cells and programme cards carry `role="button"` for assistive tech,
+  which would otherwise match that selector too — they opt back in with
+  `data-epg-guide-grid` so the controller still owns their keys; a real
+  control nested inside one (the catch-up button) is the closest match and
+  still wins over the grid attribute.
 - `epg-guide-now-playing.component` — the right part of the docked player
   strip: channel, programme title, description, progress, Close (Esc) and
   Collapse. Rendered by the host beside the player, because the strip itself
@@ -198,12 +204,12 @@ token set; card radius is 8 px (timeline uses 11 px on 96 px cards).
   initial scope follows `activeView()` and the sidebar's selected group.
   `epgKey` uses the `stream-resolver` chain `tvg.id → tvg.name → name`; radio
   and movie entries are excluded. `loadPrograms`/`loadCoverage` call the new
-  bridge methods with the playlist's `sourceUrls`, as
-  `EpgService.getCurrentProgramsForChannels` does, so playlist-scoped EPG wins.
-  `activate` dispatches `ChannelActions.setActiveChannel`; `activeChannelId`
-  mirrors `activeChannel()`. `searchPrograms` uses `EPG_SEARCH_PROGRAMS` and
-  filters results to the scope's resolved channel ids. `catchUp` is not wired
-  in this sub-project.
+  bridge methods unscoped (every imported EPG source), exactly like the
+  timeline's `getChannelPrograms`; `sourceUrls` stays in the IPC contract for
+  portal hosts. `activate` dispatches `ChannelActions.setActiveChannel`;
+  `activeChannelId` mirrors `activeChannel()`. `searchPrograms` uses
+  `EPG_SEARCH_PROGRAMS` unfiltered (result click opens the programme dialog,
+  as the previous overlay did). `catchUp` is not wired in this sub-project.
 - Entry points, all toggling the same signal:
   1. Workspace header action (`m3u-epg-guide`, icon `grid_view`, label
      "Programme guide"), highlighted while open.
@@ -236,6 +242,18 @@ lines).
   `string[]` of requested ids with at least one programme in the window. Same
   resolution, then `SELECT DISTINCT channel_id … WHERE start < to AND stop >
   from`. 2000 keys cost one resolution and one query, not 2000.
+- Both responses key exactly the trimmed, de-duplicated, cap-respecting
+  requested ids — never the raw request. An id cut by the per-request cap
+  (100 for programmes, 2000 for coverage) is absent from the answer, never
+  present with an empty list, so a caller can tell "queried, nothing found"
+  apart from "not queried at all"; an invalid window (bad instants,
+  `fromMs >= toMs`, no usable ids) returns `{}`/`[]`.
+- When a request carries `sourceUrls`, `guideWindowCondition()` folds the
+  source scoping into the same query instead of a second scoped/unscoped
+  pass: a row qualifies if it belongs to one of the requested sources OR
+  carries no source at all (legacy rows predating per-source EPG tracking),
+  never if it belongs to a *different* source. The M3U host never sets
+  `sourceUrls`, so this only matters for portal hosts.
 - Bridge: `getEpgProgramsForChannels` and `getEpgProgramCoverage` in
   `ElectronBridgeApi`, `main.preload.ts`, `EpgRuntimeBridgeService`;
   capability `supportsEpgGuide` in `RuntimeCapabilitiesService` replaces

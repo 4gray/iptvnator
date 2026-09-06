@@ -113,8 +113,8 @@ The self-hosted build is the browser PWA, not the Electron desktop app. Keep
 these limitations explicit in UI, troubleshooting, and release notes:
 
 - EPG/XMLTV is not supported in the PWA yet. Do not render live EPG panels,
-  multi-EPG shortcuts, or EPG-fetching flows in browser/PWA mode, and do not use
-  EPG as the readiness signal for Docker.
+  programme-guide entry points, or EPG-fetching flows in browser/PWA mode, and
+  do not use EPG as the readiness signal for Docker.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
   metadata uses `PlaylistsService` with IndexedDB; Xtream favorites, recently
   viewed items, playback positions, and cached collection snapshots use
