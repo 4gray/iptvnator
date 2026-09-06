@@ -21,7 +21,12 @@ import { createM3uChannelPlaybackRequest } from '../video-player/m3u-channel-pla
 export interface M3uEpgGuideInputs {
     /** Guide-eligible channels (host excludes radio and recognised movies). */
     channels: Signal<Channel[]>;
-    favoriteIds: Signal<string[]>;
+    /**
+     * Keys of the playlist's favorites as the store persists them: the
+     * channel URL (`FavoritesActions.updateFavorites`), with the channel id
+     * accepted as a legacy fallback for rows saved before URL keys.
+     */
+    favoriteKeys: Signal<string[]>;
     activeChannel: Signal<Channel | null>;
 }
 
@@ -90,8 +95,11 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         const scope = this.scope();
         const channels = this.allChannels();
         if (scope === SCOPE_FAVORITES) {
-            const favorites = new Set(this.inputs()?.favoriteIds() ?? []);
-            return channels.filter((channel) => favorites.has(channel.id));
+            const favorites = new Set(this.inputs()?.favoriteKeys() ?? []);
+            return channels.filter(
+                (channel) =>
+                    favorites.has(channel.url) || favorites.has(channel.id)
+            );
         }
         if (scope.startsWith(GROUP_PREFIX)) {
             const title = scope.slice(GROUP_PREFIX.length);

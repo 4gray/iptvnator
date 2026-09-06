@@ -43,7 +43,7 @@ function program(channel: string): EpgProgram {
 
 describe('M3uEpgGuideSourceService', () => {
     const channels = signal<Channel[]>([]);
-    const favoriteIds = signal<string[]>([]);
+    const favoriteKeys = signal<string[]>([]);
     const activeChannel = signal<Channel | null>(null);
     const dispatch = jest.fn();
     const getProgramsForChannels = jest.fn();
@@ -65,7 +65,7 @@ describe('M3uEpgGuideSourceService', () => {
             makeChannel('b', { name: 'Beta', group: 'Sports' }),
             makeChannel('c', { name: '   ', group: 'Sports' }),
         ]);
-        favoriteIds.set(['b']);
+        favoriteKeys.set(['https://example.com/b.m3u8']);
         activeChannel.set(channels()[0]);
         TestBed.configureTestingModule({
             providers: [
@@ -95,7 +95,7 @@ describe('M3uEpgGuideSourceService', () => {
             ],
         });
         service = TestBed.inject(M3uEpgGuideSourceService);
-        service.bind({ channels, favoriteIds, activeChannel });
+        service.bind({ channels, favoriteKeys, activeChannel });
     });
 
     it('offers all / groups / favorites scopes and lists channels in playlist order', () => {
@@ -116,6 +116,9 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.channels()[0].number).toBe(1);
         service.setScope('favorites');
         expect(service.channels().map((channel) => channel.id)).toEqual(['b']);
+        // Legacy rows saved before URL keys are still matched by channel id.
+        favoriteKeys.set(['c']);
+        expect(service.channels().map((channel) => channel.id)).toEqual(['c']);
     });
 
     it('derives the EPG key from tvg-id, then name, and null for blank names', () => {
@@ -184,7 +187,7 @@ describe('M3uEpgGuideSourceService', () => {
         );
         service.bind({
             channels: sportsOnlyChannels,
-            favoriteIds,
+            favoriteKeys,
             activeChannel: newsActiveChannel,
         });
 

@@ -719,7 +719,7 @@ export class VideoPlayerComponent
     constructor() {
         this.guideSource.bind({
             channels: this.guideChannels,
-            favoriteIds: this.store.selectSignal(selectFavorites),
+            favoriteKeys: this.store.selectSignal(selectFavorites),
             // `selectActive` is `Channel | undefined`; the contract is
             // nullable, so normalize rather than widen the shared type.
             activeChannel: computed(() => this.activeChannel() ?? null),

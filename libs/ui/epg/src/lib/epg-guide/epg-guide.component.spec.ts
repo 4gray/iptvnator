@@ -124,13 +124,20 @@ describe('EpgGuideComponent', () => {
         await settle(fixture);
         const close = jest.fn();
         component.close.subscribe(close);
+        activate.mockImplementation((id: string) => activeChannelId.set(id));
         component.activateRow(component.rows()[2]);
         expect(activate).toHaveBeenCalledWith('c');
         expect(close).not.toHaveBeenCalled();
+        // click, click, dblclick: the second click and the commit must not
+        // restart the stream that is already playing.
+        component.activateRow(component.rows()[2]);
         component.commitRow(component.rows()[2]);
+        expect(activate).toHaveBeenCalledTimes(1);
         expect(close).toHaveBeenCalledTimes(1);
+        // Enter plays the active row ('c' by now): it is already playing, so
+        // only the close fires.
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
-        expect(activate).toHaveBeenLastCalledWith('a');
+        expect(activate).toHaveBeenCalledTimes(1);
         expect(close).toHaveBeenCalledTimes(2);
     });
 
@@ -163,7 +170,7 @@ describe('EpgGuideComponent', () => {
     it('opens the programme dialog for a non-live card and activates on "live"', async () => {
         await settle(fixture);
         dialogOpen.mockReturnValueOnce(of('live'));
-        const row = component.rows()[0];
+        const row = component.rows()[2];
         const item = {
             kind: 'block' as const,
             key: 'k',
@@ -185,12 +192,12 @@ describe('EpgGuideComponent', () => {
         component.openDetails(row, item);
         expect(dialogOpen).toHaveBeenCalledWith(
             expect.objectContaining({
-                channelName: 'Channel a',
+                channelName: 'Channel c',
                 primaryAction: null,
                 archiveUnavailableNote: true,
             })
         );
-        expect(activate).toHaveBeenCalledWith('a');
+        expect(activate).toHaveBeenCalledWith('c');
     });
 
     it('closes on Escape and steps days with PageUp/PageDown', async () => {

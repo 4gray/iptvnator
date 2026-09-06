@@ -352,8 +352,13 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
             .subscribe();
     }
 
+    /**
+     * A double-click arrives as click, click, dblclick, and the store restarts
+     * playback on every `activate`, so the row that is already playing is
+     * left alone; `commitRow` then only closes.
+     */
     activateRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel) {
+        if (!channel || channel.id === this.activeChannelId()) {
             return;
         }
         this.source.activate(channel.id);
