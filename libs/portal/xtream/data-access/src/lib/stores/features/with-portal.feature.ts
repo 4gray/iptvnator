@@ -193,10 +193,12 @@ export function withPortal() {
                                 },
                             });
                         }
-                        if (
-                            serverTimezone &&
-                            serverTimezone !== playlist.serverTimezone
-                        ) {
+                        // Always offered to storage, never gated on the
+                        // in-memory value: after a transient write failure
+                        // the store already carries the clock, and only the
+                        // row-level check inside the transform knows whether
+                        // the row does too.
+                        if (serverTimezone) {
                             await rememberServerTimezone(
                                 playlist.id,
                                 credentials,

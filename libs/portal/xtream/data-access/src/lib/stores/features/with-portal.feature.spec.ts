@@ -174,14 +174,36 @@ describe('withPortal', () => {
             expect(storedPlaylist.serverTimezone).toBe('UTC+03:00');
         });
 
-        it('does not rewrite the row when it already carries the value', async () => {
+        it('offers the value to storage every time but writes nothing when the row already carries it', async () => {
             storedPlaylist = { ...storedPlaylist, serverTimezone: 'UTC' };
             store.setCurrentPlaylist({ ...PLAYLIST, serverTimezone: 'UTC' });
             respondWith({ timezone: 'UTC' });
 
             await store.checkPortalStatus();
 
-            expect(transformPlaylistMeta).not.toHaveBeenCalled();
+            expect(transformPlaylistMeta).toHaveBeenCalledTimes(1);
+            const [, transform] = transformPlaylistMeta.mock.calls[0];
+            expect(transform(storedPlaylist)).toBeNull();
+        });
+
+        it('retries the write on the next check after a transient storage failure', async () => {
+            transformPlaylistMeta.mockImplementationOnce(() => {
+                throw new Error('storage unavailable');
+            });
+            respondWith({ timezone: 'Europe/London' });
+
+            await store.checkPortalStatus();
+            expect(store.currentPlaylist()?.serverTimezone).toBe(
+                'Europe/London'
+            );
+            expect(storedPlaylist.serverTimezone).toBeUndefined();
+
+            // The store already carries the clock, so only the row-level
+            // check may decide that the row still lacks it.
+            await store.checkPortalStatus();
+
+            expect(transformPlaylistMeta).toHaveBeenCalledTimes(2);
+            expect(storedPlaylist.serverTimezone).toBe('Europe/London');
         });
 
         it('keeps the previously known timezone when the response carries no usable clock', async () => {
