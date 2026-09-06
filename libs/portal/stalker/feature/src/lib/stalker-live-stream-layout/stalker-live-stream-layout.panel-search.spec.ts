@@ -57,7 +57,7 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         selectedItvId: signal<string | undefined>(undefined),
         selectedItem: signal(null),
         itvChannels,
-        radioChannels: signal([]),
+        radioChannels: signal<typeof channels>([]),
         searchPhrase,
         hasMoreChannels,
         page,
@@ -97,7 +97,10 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         itvFullListActive.set(false);
         itvSelectedCategoryFromCache.set(false);
         store.selectedCategoryId.set('all');
+        store.selectedContentType.set('itv');
+        store.radioChannels.set([]);
         store.itvFullChannelList.set([]);
+        store.itvFullListLoading.set(false);
         store.setPage.mockClear();
         await TestBed.configureTestingModule({
             imports: [
@@ -155,6 +158,91 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it('searches the complete selected category in both independent fields', () => {
+        const category = Array.from({ length: 250 }, (_, index) => ({
+            ...channels[0],
+            id: `selected-${index}`,
+            name: `Shared ${index}`,
+            o_name: `Shared ${index}`,
+        }));
+        const foreign = {
+            ...channels[0],
+            id: 'foreign',
+            name: 'Shared foreign',
+            o_name: 'Shared foreign',
+        };
+        itvFullListActive.set(true);
+        itvSelectedCategoryFromCache.set(true);
+        itvChannels.set(category);
+        store.itvFullChannelList.set([...category, foreign]);
+        searchPhrase.set('shared');
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toEqual(category);
+        expect(component.visibleChannels()).toHaveLength(100);
+        const panelTerm = signal('shared 249');
+        expect(component.channelsForList(panelTerm)).toEqual([category[249]]);
+        expect(searchPhrase()).toBe('shared');
+        searchPhrase.set('shared 248');
+        expect(component.filteredChannels()).toEqual([category[248]]);
+        expect(component.channelsForList(panelTerm)).toEqual([category[249]]);
+
+        store.selectedCategoryId.set('next');
+        itvChannels.set([foreign]);
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toEqual([]);
+        expect(component.channelsForList(panelTerm)).toEqual([]);
+        searchPhrase.set('');
+        panelTerm.set('');
+        expect(component.channelsForList()).toEqual([foreign]);
+        expect(component.channelsForList(panelTerm)).toEqual([foreign]);
+        expect(store.resolveItvPlayback).not.toHaveBeenCalled();
+
+        store.selectedCategoryId.set(null);
+        searchPhrase.set('shared');
+        panelTerm.set('shared');
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toHaveLength(251);
+        expect(component.channelsForList(panelTerm)).toHaveLength(100);
+    });
+
+    it('searches paged All Items while the full cache is still loading', () => {
+        store.selectedCategoryId.set('*');
+        store.itvFullListLoading.set(true);
+        searchPhrase.set('one');
+        fixture.detectChanges();
+        expect(component.showItvAllItems()).toBe(false);
+        expect(component.filteredChannels()).toEqual([channels[0]]);
+        expect(component.channelsForList(signal('two'))).toEqual([channels[1]]);
+    });
+
+    it('does not relabel retained category rows as the initial All Items grid', () => {
+        // No selected category has no provider-page request. The unselected
+        // grid waits for the public cache, even if a prior category's rows
+        // are still present before the store's reset effect settles.
+        store.selectedCategoryId.set(null);
+        store.itvFullListLoading.set(true);
+        searchPhrase.set('one');
+        fixture.detectChanges();
+        expect(component.showItvAllItems()).toBe(true);
+        expect(component.filteredChannels()).toEqual([]);
+        expect(component.channelsForList(signal('two'))).toEqual([]);
+        store.itvFullChannelList.set(channels);
+        expect(component.filteredChannels()).toEqual([channels[0]]);
+        expect(component.channelsForList(signal('two'))).toEqual([channels[1]]);
+    });
+
+    it('does not search the ITV cache after switching to radio', () => {
+        itvFullListActive.set(true);
+        store.itvFullChannelList.set(channels);
+        store.selectedContentType.set('radio');
+        store.radioChannels.set([channels[1]]);
+        searchPhrase.set('one');
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toEqual([]);
+        searchPhrase.set('two');
+        expect(component.filteredChannels()).toEqual([channels[1]]);
+    });
 
     it('keeps requesting pages while an empty panel search cannot scroll', async () => {
         // A term with no match on the loaded page renders nothing the user
@@ -304,16 +392,14 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         expect(container.classList.contains('app-scrollbar')).toBe(true);
     });
 
-    it('leaves the sidebar alone while its own search is active', async () => {
-        // Only the panel copy fills itself during a sidebar search; the
-        // sidebar has never paged automatically then, and this fixture
-        // renders the sidebar copy only.
+    it('pages the sidebar when its search cannot fill the viewport', async () => {
+        // A short ITV result cannot scroll but later category pages may match.
         hasMoreChannels.set(true);
         searchPhrase.set('one');
         fixture.detectChanges();
         await settle();
 
-        expect(store.setPage).not.toHaveBeenCalled();
+        expect(store.setPage).toHaveBeenCalledWith(1);
     });
 
     it('pauses automatic paging while the panel is closed and resumes on reopen', async () => {

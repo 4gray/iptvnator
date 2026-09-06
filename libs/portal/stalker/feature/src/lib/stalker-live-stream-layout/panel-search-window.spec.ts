@@ -158,6 +158,10 @@ describe('shouldAutoFillStampedList', () => {
         expect(shouldAutoFillStampedList(false, true)).toBe(false);
     });
 
+    it('fills an ITV sidebar search to reach matches on later pages', () => {
+        expect(shouldAutoFillStampedList(false, true, true)).toBe(true);
+    });
+
     it('always lets the fullscreen panel fill itself', () => {
         // The sidebar's search term is not the panel's concern: the panel's
         // own term is what may need the next page.

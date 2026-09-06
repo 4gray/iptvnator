@@ -240,6 +240,16 @@ preventing destination failures from penalizing the initial endpoint. Contracts:
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
 
+## Stalker Live Search
+
+ITV sidebar and fullscreen searches independently filter the complete selected
+category; only All Items searches the whole public catalog. Cached categories
+search before windowing; missing/censored genres keep provider pagination,
+including automatic continuation for short or empty search results. ITV search
+never narrows shared provider pages or resets their index. Category changes
+reset list windows and retain playback/active EPG. Contract:
+`docs/architecture/stalker-portal.md` (Full ITV Channel List Cache).
+
 ## Channel and Detail Keyboard Scrolling
 
 Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection

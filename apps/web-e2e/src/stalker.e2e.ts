@@ -1,5 +1,9 @@
 import { type APIRequestContext, type Page } from '@playwright/test';
 import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
+import {
+    verifyStalkerCategorySearch,
+    verifyUncachedStalkerSearch,
+} from './stalker-category-search.fixture';
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { expect, test } from './fixtures';
 import {
@@ -189,7 +193,9 @@ async function resetMockServer(
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-            const response = await request.post(`${MOCK_SERVER}/reset?${query}`);
+            const response = await request.post(
+                `${MOCK_SERVER}/reset?${query}`
+            );
             if (response.ok()) {
                 return;
             }
@@ -701,7 +707,7 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
 
     await categories.nth(1).click();
 
-    const channels = page.locator('[data-test-id="channel-item"]');
+    const channels = page.locator('#live-channels [data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
 
     // Regression for "search only finds the first 14 loaded items": once the
@@ -711,6 +717,7 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
         timeout: 20_000,
     });
     await expect.poll(() => allChannelsRequests.length).toBeGreaterThan(0);
+    const firstCategoryNames = await channels.locator('.channel-name').allTextContents();
 
     // Regression: switching to another category once the full list is cached
     // must serve that category from the cache, not get stuck on an empty
@@ -733,6 +740,10 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
         timeout: 20_000,
     });
 
+    // Counts are identical across categories; wait for the actual category
+    // rows before choosing a search term, or it may come from the previous one.
+    await expect(channels.locator('.channel-name')).toHaveText(firstCategoryNames);
+
     // Search a channel from deep in the list (beyond the first 14 items).
     const deepChannelName = (
         await channels.nth(30).locator('.channel-name').textContent()
@@ -751,6 +762,7 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
     ).toBeVisible({ timeout: 10_000 });
     // The "loaded only" degraded-search hint must be gone in full-list mode.
     await expect(page.locator('.search-chip--status')).toHaveCount(0);
+    await verifyStalkerCategorySearch(page);
 });
 
 test('@stalker ITV censored category pages from the portal and hides its badge', async ({
@@ -792,6 +804,7 @@ test('@stalker ITV censored category pages from the portal and hides its badge',
     const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => adultListRequests.length).toBeGreaterThan(0);
+    await verifyUncachedStalkerSearch(page, MOCK_SERVER);
 });
 
 test('@stalker ITV falls back to page crawling on portals without get_all_channels', async ({
@@ -1183,9 +1196,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
     await expect(menuTrigger).toBeVisible();
     await menuTrigger.click();
-    const seriesToggle = page.locator(
-        '[data-test-id="toggle-series-watched"]'
-    );
+    const seriesToggle = page.locator('[data-test-id="toggle-series-watched"]');
     await expect(seriesToggle).toBeVisible();
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
