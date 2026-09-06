@@ -2,12 +2,11 @@ import { AsyncPipe } from '@angular/common';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Overlay } from '@angular/cdk/overlay';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import {
     selectActive,
     selectActiveEpgProgram,
@@ -168,8 +167,13 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
                 },
                 { provide: Store, useValue: storeMock },
                 {
-                    provide: Overlay,
-                    useValue: { position: jest.fn(), create: jest.fn() },
+                    // The component provides `M3uEpgGuideSourceService`,
+                    // which resolves its scope labels through this service.
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                    },
                 },
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {

@@ -394,3 +394,8 @@
         }
     }
 }
+
+.header-shortcut.is-active {
+    background: var(--app-selection-surface);
+    color: var(--app-selection-color);
+}

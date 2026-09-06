@@ -6,6 +6,8 @@ export interface WorkspaceHeaderAction {
     icon: string;
     tooltipKey: string;
     ariaLabelKey: string;
+    /** Pressed/highlighted state for toggling actions (e.g. the guide). */
+    active?: () => boolean;
     run: () => void;
     palette?: WorkspaceHeaderCommandMetadata;
 }

@@ -1,56 +1,62 @@
-<div
-    class="sidebar"
-    [class.sidebar-collapsed]="isSidebarCollapsed()"
-    appResizable
-    [minWidth]="sidebarMinWidth"
-    [maxWidth]="sidebarMaxWidth"
-    [defaultWidth]="sidebarWidth()"
-    [style.width.px]="sidebarWidth()"
-    [storageKey]="sidebarStorageKey()"
-    (widthChange)="onSidebarWidthChange($event)"
-    (resizeEnd)="onSidebarResizeEnd($event)"
->
-    @if (activeView() !== 'groups' && activeView() !== 'all') {
-        <button
-            mat-icon-button
-            type="button"
-            class="sidebar-collapse-toggle"
-            [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-            [attr.aria-pressed]="isSidebarCollapsed()"
-            (click)="toggleSidebar()"
-        >
-            <mat-icon>chevron_left</mat-icon>
-        </button>
-    }
-    @defer {
-        <app-sidebar
-            [channels]="(channels$ | async)!"
-            [channelsLoading]="channelsLoading()"
-            [showPlaylistHeader]="!isWorkspaceLayout"
-            [activeView]="activeView()"
-            [sidebarWidth]="sidebarWidth()"
-            (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
-            (sidebarWidthRequestEnded)="
-                onGroupedSidebarWidthRequestEnded($event)
-            "
-            (sidebarToggleRequested)="toggleSidebar()"
-        />
-    } @loading {
-        <app-channel-list-loading-state
-            [view]="activeView()"
-            [showEpg]="supportsEpg"
-        />
-    } @placeholder {
-        <app-channel-list-loading-state
-            [view]="activeView()"
-            [showEpg]="supportsEpg"
-        />
-    }
-</div>
+@if (!guideOpen()) {
+    <div
+        class="sidebar"
+        [class.sidebar-collapsed]="isSidebarCollapsed()"
+        appResizable
+        [minWidth]="sidebarMinWidth"
+        [maxWidth]="sidebarMaxWidth"
+        [defaultWidth]="sidebarWidth()"
+        [style.width.px]="sidebarWidth()"
+        [storageKey]="sidebarStorageKey()"
+        (widthChange)="onSidebarWidthChange($event)"
+        (resizeEnd)="onSidebarResizeEnd($event)"
+    >
+        @if (activeView() !== 'groups' && activeView() !== 'all') {
+            <button
+                mat-icon-button
+                type="button"
+                class="sidebar-collapse-toggle"
+                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
+                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
+                [attr.aria-pressed]="isSidebarCollapsed()"
+                (click)="toggleSidebar()"
+            >
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+        }
+        @defer {
+            <app-sidebar
+                [channels]="(channels$ | async)!"
+                [channelsLoading]="channelsLoading()"
+                [showPlaylistHeader]="!isWorkspaceLayout"
+                [activeView]="activeView()"
+                [sidebarWidth]="sidebarWidth()"
+                (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
+                (sidebarWidthRequestEnded)="
+                    onGroupedSidebarWidthRequestEnded($event)
+                "
+                (sidebarToggleRequested)="toggleSidebar()"
+            />
+        } @loading {
+            <app-channel-list-loading-state
+                [view]="activeView()"
+                [showEpg]="supportsEpg"
+            />
+        } @placeholder {
+            <app-channel-list-loading-state
+                [view]="activeView()"
+                [showEpg]="supportsEpg"
+            />
+        }
+    </div>
+}
 
-<div class="content-container">
-    @if (isSidebarCollapsed()) {
+<div
+    class="content-container"
+    [class.is-guide]="guideOpen()"
+    [class.is-guide-collapsed]="guideOpen() && guideDockCollapsed()"
+>
+    @if (isSidebarCollapsed() && !guideOpen()) {
         <button
             mat-icon-button
             type="button"
@@ -110,10 +116,36 @@
                             (recordingStopped)="onRecordingStopped($event)"
                         />
                     }
+                    @if (guideOpen()) {
+                        <app-epg-guide-now-playing
+                            class="guide-dock__info"
+                            [channelName]="timelineChannelName()"
+                            [program]="guideNowPlayingProgram()"
+                            [offsetMinutes]="epgOffsetMinutes()"
+                            [collapsed]="guideDockCollapsed()"
+                            (closeRequested)="closeGuide()"
+                            (collapsedChange)="setGuideDockCollapsed($event)"
+                        />
+                    }
                 </div>
             }
 
-            @if (supportsEpg && activeChannel.radio !== 'true') {
+            @if (guideOpen() && !shouldShowInlinePlayer(activeChannel)) {
+                <div class="video-player guide-dock--external">
+                    <app-epg-guide-now-playing
+                        [channelName]="timelineChannelName()"
+                        [program]="guideNowPlayingProgram()"
+                        [offsetMinutes]="epgOffsetMinutes()"
+                        [collapsed]="true"
+                        (closeRequested)="closeGuide()"
+                        (collapsedChange)="setGuideDockCollapsed($event)"
+                    />
+                </div>
+            }
+
+            @if (guideOpen()) {
+                <app-epg-guide class="epg-guide-host" (close)="closeGuide()" />
+            } @else if (supportsEpg && activeChannel.radio !== 'true') {
                 @let canCollapseEpgPanel =
                     shouldShowInlinePlayer(activeChannel);
                 <div
@@ -181,6 +213,7 @@
                                     liveEpgPanelSummaryLabelKey()
                                 "
                                 [emptyReason]="liveEpgEmptyReason()"
+                                [guideAvailable]="canOpenGuide()"
                                 (programActivated)="
                                     onTimelineProgramActivated($event)
                                 "
@@ -192,6 +225,7 @@
                                     onLiveEpgPanelCollapsedChange($event)
                                 "
                                 (openEpgSettings)="openEpgSettings()"
+                                (openGuide)="openGuide()"
                             />
                         }
                     </div>

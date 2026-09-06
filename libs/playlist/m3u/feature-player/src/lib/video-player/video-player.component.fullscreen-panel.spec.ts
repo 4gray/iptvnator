@@ -3,7 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { BehaviorSubject, of } from 'rxjs';
+import { TranslateService } from '@ngx-translate/core';
+import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import {
     ChannelActions,
     selectActive,
@@ -29,7 +30,6 @@ import {
     PlaylistMeta,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { Overlay } from '@angular/cdk/overlay';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -159,8 +159,13 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                 },
                 { provide: Store, useValue: storeMock },
                 {
-                    provide: Overlay,
-                    useValue: { position: jest.fn(), create: jest.fn() },
+                    // The component provides `M3uEpgGuideSourceService`,
+                    // which resolves its scope labels through this service.
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                    },
                 },
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {

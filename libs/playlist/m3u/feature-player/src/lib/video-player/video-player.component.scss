@@ -145,3 +145,55 @@
         height: 50vh;
     }
 }
+
+// ─── Guide mode ─────────────────────────────────────────────────────────────
+// The player keeps its DOM position and is only re-flowed into a docked strip;
+// no remount, so playback (and native-view Embedded MPV bounds) survive.
+.content-container.is-guide {
+    .video-player {
+        flex: 0 0 auto;
+        height: 128px;
+        display: flex;
+        align-items: stretch;
+        gap: 18px;
+        padding: 14px 18px;
+        box-sizing: border-box;
+        background: var(--app-widget-bg);
+        border-bottom: 1px solid var(--app-separator);
+
+        > app-web-player-view {
+            flex: 0 0 auto;
+            height: 100%;
+            aspect-ratio: 16 / 9;
+            border-radius: 9px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        > app-epg-guide-now-playing {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    .guide-dock--external {
+        height: 48px;
+        padding: 6px 18px;
+    }
+
+    .epg-guide-host {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &.is-guide-collapsed .video-player {
+        height: 48px;
+        padding: 6px 18px;
+
+        > app-web-player-view {
+            display: none;
+        }
+    }
+}

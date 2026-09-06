@@ -877,7 +877,7 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
-    it('includes M3U navigation, playlist actions, and Multi-EPG on playlist routes', () => {
+    it('includes M3U navigation, playlist actions, and the programme guide on playlist routes', () => {
         const headerContext = TestBed.inject(WorkspaceHeaderContextService);
 
         activePlaylistSignal.set({
@@ -889,14 +889,14 @@ describe('WorkspaceShellFacade', () => {
         });
         facade.currentUrl.set('/workspace/playlists/pl-m3u/groups');
         headerContext.setAction({
-            id: 'm3u-multi-epg',
-            icon: 'view_list',
-            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            id: 'm3u-epg-guide',
+            icon: 'grid_view',
+            tooltipKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            ariaLabelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
             palette: {
-                labelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+                labelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
                 descriptionKey:
-                    'WORKSPACE.SHELL.COMMANDS.OPEN_MULTI_EPG_DESCRIPTION',
+                    'WORKSPACE.SHELL.COMMANDS.OPEN_EPG_GUIDE_DESCRIPTION',
                 keywords: ['epg', 'guide', 'schedule'],
                 priority: 10,
             },
@@ -907,7 +907,7 @@ describe('WorkspaceShellFacade', () => {
 
         expect(commands.map((command) => command.id)).toEqual(
             expect.arrayContaining([
-                'm3u-multi-epg',
+                'm3u-epg-guide',
                 'go-to-all',
                 'go-to-favorites',
                 'go-to-recent',
@@ -915,7 +915,7 @@ describe('WorkspaceShellFacade', () => {
             ])
         );
         expect(
-            commands.find((command) => command.id === 'm3u-multi-epg')?.group
+            commands.find((command) => command.id === 'm3u-epg-guide')?.group
         ).toBe('view');
         expect(commands.some((command) => command.id === 'account-info')).toBe(
             false

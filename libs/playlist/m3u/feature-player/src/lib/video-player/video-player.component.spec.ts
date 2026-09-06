@@ -1,30 +1,14 @@
 import { AsyncPipe } from '@angular/common';
-import {
-    Component,
-    Directive,
-    NO_ERRORS_SCHEMA,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { BehaviorSubject, of } from 'rxjs';
-import {
-    ChannelActions,
-    EpgActions,
-    selectActive,
-    selectActiveEpgProgram,
-    selectActivePlaybackUrl,
-    selectChannels,
-    selectChannelsLoading,
-    selectCurrentEpgProgram,
-} from '@iptvnator/m3u-state';
+import { EMPTY, of } from 'rxjs';
+import { ChannelActions, EpgActions } from '@iptvnator/m3u-state';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -42,17 +26,50 @@ import {
     Channel,
     EpgProgram,
     ExternalPlayerSession,
-    RecordingStartMetadata,
-    RecordingStoppedEvent,
     ResolvedPortalPlayback,
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { Overlay } from '@angular/cdk/overlay';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
-import { StubEpgTimelineComponent } from './video-player.spec-stubs';
+import {
+    activeChannel,
+    activeEpgProgram,
+    activePlaybackUrl,
+    channels,
+    channels$,
+    activeChannel$,
+    channelsLoading,
+    currentEpgProgram,
+    currentEpgProgram$,
+    dataServiceMock,
+    epgPrograms$,
+    epgServiceMock,
+    epgUrlSetting,
+    epgViewMode,
+    externalSession,
+    player,
+    playlistId,
+    playlistsServiceMock,
+    routerMock,
+    sampleChannel,
+    showCaptions,
+    storeMock,
+    stripCountryPrefix,
+    syncStoreState,
+} from './video-player.spec-harness';
+import {
+    StubAudioPlayerComponent,
+    StubChannelListLoadingStateComponent,
+    StubEpgGuideComponent,
+    StubEpgGuideNowPlayingComponent,
+    StubEpgTimelineComponent,
+    StubPortalEmptyStateComponent,
+    StubResizableDirective,
+    StubSidebarComponent,
+    StubWebPlayerViewComponent,
+} from './video-player.spec-stubs';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -62,223 +79,17 @@ jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 
-@Component({
-    selector: 'app-channel-list-loading-state',
-    standalone: true,
-    template: '',
-})
-class StubChannelListLoadingStateComponent {
-    readonly view = input<string | null>(null);
-    readonly showEpg = input(true);
-}
-
-@Component({
-    selector: 'app-sidebar',
-    standalone: true,
-    template: '',
-})
-class StubSidebarComponent {
-    readonly channels = input<Channel[]>([]);
-    readonly channelsLoading = input(false);
-    readonly showPlaylistHeader = input(false);
-    readonly activeView = input('');
-    readonly sidebarWidth = input(0);
-    readonly sidebarWidthRequested = output<number>();
-    readonly sidebarWidthRequestEnded = output<number>();
-    readonly sidebarToggleRequested = output<void>();
-}
-
-@Component({
-    selector: 'app-portal-empty-state',
-    standalone: true,
-    template: '<div class="stub-empty-state">{{ message() }}</div>',
-})
-class StubPortalEmptyStateComponent {
-    readonly icon = input('');
-    readonly message = input('');
-}
-
-@Component({
-    selector: 'app-audio-player',
-    standalone: true,
-    template: '',
-})
-class StubAudioPlayerComponent {
-    readonly url = input('');
-    readonly icon = input('');
-    readonly channelName = input('');
-    readonly channelLogo = input('');
-    readonly volume = input<number | null>(null);
-    readonly volumeChange = output<number>();
-}
-
-@Component({
-    selector: 'app-web-player-view',
-    standalone: true,
-    template: '',
-})
-class StubWebPlayerViewComponent {
-    readonly playbackSessionKey = input.required<string>();
-    readonly streamUrl = input('');
-    readonly title = input('');
-    readonly playback = input<unknown>(null);
-    readonly playerOverride = input<VideoPlayer | null>(null);
-    readonly volume = input(1);
-    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
-    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
-    readonly recordingStopped = output<RecordingStoppedEvent>();
-}
-
-@Directive({
-    selector: '[appResizable]',
-    standalone: true,
-})
-class StubResizableDirective {
-    readonly minWidth = input(0);
-    readonly maxWidth = input(0);
-    readonly defaultWidth = input(0);
-    readonly storageKey = input('');
-    readonly widthChange = output<number>();
-    readonly resizeEnd = output<number>();
-}
-
 describe('VideoPlayerComponent', () => {
     let VideoPlayerComponent: typeof import('./video-player.component').VideoPlayerComponent;
     let fixture: ComponentFixture<VideoPlayerComponentInstance>;
     let component: VideoPlayerComponentInstance;
     let headerContext: WorkspaceHeaderContextService;
 
-    const playlistId = signal('playlist-1');
-    const activeChannel = signal<Channel | null>(null);
-    const activePlaybackUrl = signal<string | null>(null);
-    const channels = signal<Channel[]>([]);
-    const channelsLoading = signal(false);
-    const currentEpgProgram = signal<EpgProgram | null>(null);
-    const activeEpgProgram = signal<EpgProgram | null>(null);
-
-    const channels$ = new BehaviorSubject<Channel[]>([]);
-    const activeChannel$ = new BehaviorSubject<Channel | null>(null);
-    const currentEpgProgram$ = new BehaviorSubject<EpgProgram | null>(null);
-    const epgPrograms$ = new BehaviorSubject<EpgProgram[]>([]);
-    const epgServiceMock = {
-        currentEpgPrograms$: epgPrograms$.asObservable(),
-        getChannelMetadataForChannels: () => of(new Map()),
-    };
-
-    const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
-    const showCaptions = signal(false);
-    const stripCountryPrefix = signal(false);
-    const epgViewMode = signal<'timeline' | 'list'>('timeline');
-    const epgUrlSetting = signal<string[]>([]);
-    const externalSession = signal<ExternalPlayerSession | null>(null);
     const originalElectron = window.electron;
-
-    const overlayRef = {
-        attach: jest.fn().mockReturnValue({ instance: {} }),
-        backdropClick: jest.fn().mockReturnValue(of(undefined)),
-        dispose: jest.fn(),
-    };
-    const positionStrategy = {
-        centerHorizontally: jest.fn().mockReturnThis(),
-        centerVertically: jest.fn().mockReturnThis(),
-    };
-    const overlayMock = {
-        position: jest.fn().mockReturnValue({
-            global: jest.fn().mockReturnValue(positionStrategy),
-        }),
-        create: jest.fn().mockReturnValue(overlayRef),
-    };
-
-    const storeMock = {
-        dispatch: jest.fn(),
-        selectSignal: jest.fn((selector: unknown) => {
-            switch (selector) {
-                case selectActive:
-                    return activeChannel;
-                case selectActivePlaybackUrl:
-                    return activePlaybackUrl;
-                case selectChannels:
-                    return channels;
-                case selectChannelsLoading:
-                    return channelsLoading;
-                case selectCurrentEpgProgram:
-                    return currentEpgProgram;
-                case selectActiveEpgProgram:
-                    return activeEpgProgram;
-                default:
-                    return signal(null);
-            }
-        }),
-        select: jest.fn((selector: unknown) => {
-            switch (selector) {
-                case selectChannels:
-                    return channels$.asObservable();
-                case selectActive:
-                    return activeChannel$.asObservable();
-                case selectCurrentEpgProgram:
-                    return currentEpgProgram$.asObservable();
-                default:
-                    return of(null);
-            }
-        }),
-    };
-
-    const routerMock = {
-        url: '/workspace/playlists/playlist-1/all',
-        navigate: jest.fn(),
-        currentNavigation: jest.fn().mockReturnValue(null),
-    };
-
-    const playlistsServiceMock = {
-        getPlaylist: jest.fn(() =>
-            of({
-                playlist: {
-                    items: channels(),
-                },
-                favorites: [],
-            })
-        ),
-        getPlaylistWithGlobalFavorites: jest.fn(() =>
-            of({
-                playlist: {
-                    items: [],
-                },
-                favorites: [],
-            })
-        ),
-        addM3uRecentlyViewed: jest.fn(() =>
-            of({
-                recentlyViewed: [],
-            })
-        ),
-    };
-    const dataServiceMock = {
-        sendIpcEvent: jest.fn(),
-    };
-
-    const sampleChannel: Channel = {
-        id: 'channel-1',
-        url: 'http://localhost/live.m3u8',
-        name: 'Sample TV',
-        epgParams: '',
-        radio: 'false',
-        tvg: {
-            id: 'sample-tvg-id',
-            logo: 'http://localhost/logo.png',
-            name: 'Sample TV',
-        },
-    } as Channel;
 
     beforeAll(async () => {
         ({ VideoPlayerComponent } = await import('./video-player.component'));
     });
-
-    function syncStoreState(channel: Channel | null): void {
-        activeChannel.set(channel);
-        activeChannel$.next(channel);
-        channels.set(channel ? [channel] : []);
-        channels$.next(channel ? [channel] : []);
-    }
 
     beforeEach(async () => {
         window.electron = {
@@ -286,7 +97,9 @@ describe('VideoPlayerComponent', () => {
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
-        } as typeof window.electron;
+            getEpgProgramsForChannels: jest.fn().mockResolvedValue({}),
+            getEpgProgramCoverage: jest.fn().mockResolvedValue([]),
+        } as unknown as typeof window.electron;
 
         syncStoreState(null);
         playlistId.set('playlist-1');
@@ -302,9 +115,6 @@ describe('VideoPlayerComponent', () => {
         externalSession.set(null);
         currentEpgProgram$.next(null);
         epgPrograms$.next([]);
-        overlayMock.create.mockClear();
-        overlayRef.attach.mockClear();
-        overlayRef.dispose.mockClear();
         routerMock.currentNavigation.mockReturnValue(null);
         routerMock.navigate.mockClear();
         storeMock.dispatch.mockClear();
@@ -334,8 +144,13 @@ describe('VideoPlayerComponent', () => {
                     useValue: storeMock,
                 },
                 {
-                    provide: Overlay,
-                    useValue: overlayMock,
+                    // The guide source service reads labels through
+                    // `instant` and re-computes them on `onLangChange`.
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                    },
                 },
                 {
                     provide: DataService,
@@ -354,8 +169,7 @@ describe('VideoPlayerComponent', () => {
                         // remote-control bridge method must be present.
                         get supportsRemoteControl() {
                             const bridge = window.electron as
-                                | Record<string, unknown>
-                                | undefined;
+                                Record<string, unknown> | undefined;
                             return [
                                 'updateRemoteControlStatus',
                                 'onChannelChange',
@@ -417,6 +231,8 @@ describe('VideoPlayerComponent', () => {
                         AsyncPipe,
                         StubAudioPlayerComponent,
                         StubChannelListLoadingStateComponent,
+                        StubEpgGuideComponent,
+                        StubEpgGuideNowPlayingComponent,
                         StubEpgTimelineComponent,
                         StubPortalEmptyStateComponent,
                         StubResizableDirective,
@@ -442,18 +258,146 @@ describe('VideoPlayerComponent', () => {
         window.electron = originalElectron;
     });
 
-    it('registers and clears the workspace multi-EPG header shortcut', () => {
+    it('registers and clears the workspace guide header shortcut', () => {
         fixture.detectChanges();
 
         expect(headerContext.action()).toEqual(
             expect.objectContaining({
-                id: 'm3u-multi-epg',
-                icon: 'view_list',
+                id: 'm3u-epg-guide',
+                icon: 'grid_view',
             })
         );
 
         fixture.destroy();
         expect(headerContext.action()).toBeNull();
+    });
+
+    it('opens the guide in place of sidebar and timeline without remounting the player', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        const playerBefore = fixture.nativeElement.querySelector(
+            'app-web-player-view'
+        );
+        expect(playerBefore).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.sidebar')).not.toBeNull();
+
+        component.openGuide();
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-epg-guide')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-guide-now-playing')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.sidebar')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.content-container').classList
+        ).toContain('is-guide');
+        expect(fixture.nativeElement.querySelector('app-web-player-view')).toBe(
+            playerBefore
+        );
+        expect(headerContext.action()?.active?.()).toBe(true);
+
+        component.closeGuide();
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('app-epg-guide')).toBeNull();
+        // The sidebar list itself sits behind an `@defer`, so the assertion
+        // targets the container the guide mode actually removes.
+        expect(fixture.nativeElement.querySelector('.sidebar')).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('app-web-player-view')).toBe(
+            playerBefore
+        );
+    });
+
+    it('toggles the guide with G, ignores typing, and lets the guide own other keys', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'g', bubbles: true })
+        );
+        fixture.detectChanges();
+        expect(component.guideOpen()).toBe(true);
+
+        storeMock.dispatch.mockClear();
+        const pageDown = new KeyboardEvent('keydown', {
+            key: 'PageDown',
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(pageDown);
+        expect(pageDown.defaultPrevented).toBe(false);
+        expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: expect.stringContaining('setActiveChannel'),
+            })
+        );
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'G', bubbles: true })
+        );
+        expect(component.guideOpen()).toBe(false);
+
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+        input.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'g', bubbles: true })
+        );
+        expect(component.guideOpen()).toBe(false);
+        input.remove();
+    });
+
+    it('closes the guide when the live player enters fullscreen or the channel turns to radio', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        component.openGuide();
+        fixture.detectChanges();
+
+        const playerView = fixture.nativeElement.querySelector(
+            'app-web-player-view'
+        ) as HTMLElement;
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => playerView,
+        });
+        document.dispatchEvent(new Event('fullscreenchange'));
+        expect(component.guideOpen()).toBe(false);
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => null,
+        });
+
+        component.openGuide();
+        expect(component.guideOpen()).toBe(true);
+        syncStoreState({ ...sampleChannel, radio: 'true' } as Channel);
+        fixture.detectChanges();
+        expect(component.guideOpen()).toBe(false);
+    });
+
+    it('remembers the collapsed dock strip', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        component.openGuide();
+        component.setGuideDockCollapsed(true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.content-container').classList
+        ).toContain('is-guide-collapsed');
+        expect(localStorage.getItem('epg-guide:dock-collapsed')).toBe('1');
+        localStorage.removeItem('epg-guide:dock-collapsed');
     });
 
     it('strips country prefixes from the timeline and player titles when enabled', () => {
@@ -516,7 +460,7 @@ describe('VideoPlayerComponent', () => {
         epgViewMode.set('timeline'); // restore for sibling tests
     });
 
-    it('hides EPG controls and the multi-EPG header action in browser/PWA playback', () => {
+    it('hides EPG controls and the guide header action in browser/PWA playback', () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;
 
@@ -1220,13 +1164,15 @@ describe('VideoPlayerComponent', () => {
         );
     });
 
-    it('reuses the registered header shortcut callback to open multi EPG', () => {
+    it('reuses the registered header shortcut callback to toggle the guide', () => {
+        syncStoreState(sampleChannel);
         fixture.detectChanges();
 
         headerContext.action()?.run();
+        expect(component.guideOpen()).toBe(true);
 
-        expect(overlayMock.create).toHaveBeenCalledTimes(1);
-        expect(overlayRef.attach).toHaveBeenCalledTimes(1);
+        headerContext.action()?.run();
+        expect(component.guideOpen()).toBe(false);
     });
 
     it('switches channels by number through a playback request', () => {
