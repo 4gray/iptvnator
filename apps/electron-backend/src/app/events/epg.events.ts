@@ -2,11 +2,13 @@ import { reconcileEpgSources } from './epg-source-settings.service';
 import { ipcMain } from 'electron';
 import {
     ElectronBridgeCurrentProgramsOptions,
+    ElectronBridgeEpgGuideWindow,
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import { epgQueryService } from './epg-query.service';
+import { epgGuideQueryService } from './epg-guide-query.service';
 import { epgWorkerService } from './epg-worker.service';
 import { checkEpgFreshness, handleFetchEpg } from './epg-fetch.service';
 import type { EpgFetchResult, EpgFreshnessResult } from './epg-fetch.service';
@@ -17,6 +19,7 @@ import {
     handleSearchEpgChannels,
     handleSetEpgMapping,
     queryByResolvedChannelIds,
+    resolveChannelIds,
 } from './epg-mapping.service';
 
 /**
@@ -98,9 +101,16 @@ export default class EpgEvents {
         );
 
         ipcMain.handle(
-            'EPG_GET_CHANNELS_BY_RANGE',
-            async (_event, args: { skip: number; limit: number }) => {
-                return this.handleGetChannelsByRange(args.skip, args.limit);
+            'EPG_GET_PROGRAMS_FOR_CHANNELS',
+            async (_event, args: ElectronBridgeEpgGuideWindow) => {
+                return this.handleGetGuidePrograms(args);
+            }
+        );
+
+        ipcMain.handle(
+            'EPG_GET_PROGRAM_COVERAGE',
+            async (_event, args: ElectronBridgeEpgGuideWindow) => {
+                return this.handleGetGuideCoverage(args);
             }
         );
 
@@ -249,18 +259,39 @@ export default class EpgEvents {
         );
     }
 
-    private static async handleGetChannelsByRange(
-        skip: number,
-        limit: number
-    ): Promise<
-        Array<{
-            id: string;
-            displayName: string;
-            iconUrl: string | null;
-            programs: EpgProgram[];
-        }>
-    > {
-        return epgQueryService.getChannelsByRange(skip, limit);
+    /**
+     * Guide reads take playlist channel keys. Manual mappings are applied
+     * here, before the query, and the answer is keyed back by the requested
+     * key so the renderer never sees a mapped id.
+     */
+    private static async handleGetGuidePrograms(
+        args: ElectronBridgeEpgGuideWindow
+    ): Promise<Record<string, EpgProgram[]>> {
+        const requested = Array.isArray(args?.channelIds) ? args.channelIds : [];
+        const mapping = await resolveChannelIds(requested);
+        const resolvedIds = requested.map((id) => mapping.get(id) ?? id);
+        const programs = await epgGuideQueryService.getProgramsForChannels({
+            ...args,
+            channelIds: resolvedIds,
+        });
+        return Object.fromEntries(
+            requested.map((id) => [id, programs[mapping.get(id) ?? id] ?? []])
+        );
+    }
+
+    private static async handleGetGuideCoverage(
+        args: ElectronBridgeEpgGuideWindow
+    ): Promise<string[]> {
+        const requested = Array.isArray(args?.channelIds) ? args.channelIds : [];
+        const mapping = await resolveChannelIds(requested);
+        const resolvedIds = requested.map((id) => mapping.get(id) ?? id);
+        const covered = new Set(
+            await epgGuideQueryService.getProgramCoverage({
+                ...args,
+                channelIds: resolvedIds,
+            })
+        );
+        return requested.filter((id) => covered.has(mapping.get(id) ?? id));
     }
 
     static async clearEpgData(): Promise<void> {

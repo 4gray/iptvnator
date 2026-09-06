@@ -514,10 +514,16 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [],
     },
     {
-        method: 'getEpgChannelsByRange',
-        args: [10, 20],
-        channel: 'EPG_GET_CHANNELS_BY_RANGE',
-        forwardedArgs: [{ skip: 10, limit: 20 }],
+        method: 'getEpgProgramsForChannels',
+        args: [{ channelIds, fromMs: 1_000, toMs: 2_000 }],
+        channel: 'EPG_GET_PROGRAMS_FOR_CHANNELS',
+        forwardedArgs: [{ channelIds, fromMs: 1_000, toMs: 2_000 }],
+    },
+    {
+        method: 'getEpgProgramCoverage',
+        args: [{ channelIds, fromMs: 1_000, toMs: 2_000 }],
+        channel: 'EPG_GET_PROGRAM_COVERAGE',
+        forwardedArgs: [{ channelIds, fromMs: 1_000, toMs: 2_000 }],
     },
     {
         method: 'forceFetchEpg',

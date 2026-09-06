@@ -97,7 +97,7 @@ export class RuntimeCapabilitiesService {
             this.supportsEpgProgramLookup &&
             this.supportsEpgSourceFreshness &&
             this.supportsEpgDataManagement &&
-            this.supportsEpgChannelBrowser &&
+            this.supportsEpgGuide &&
             this.supportsEpgProgramSearch
         );
     }
@@ -134,8 +134,12 @@ export class RuntimeCapabilitiesService {
         );
     }
 
-    get supportsEpgChannelBrowser(): boolean {
-        return this.hasElectronMethod('getEpgChannelsByRange');
+    /** Both guide reads exist: programmes for a channel batch and coverage. */
+    get supportsEpgGuide(): boolean {
+        return (
+            this.hasElectronMethod('getEpgProgramsForChannels') &&
+            this.hasElectronMethod('getEpgProgramCoverage')
+        );
     }
 
     get supportsEpgProgramSearch(): boolean {

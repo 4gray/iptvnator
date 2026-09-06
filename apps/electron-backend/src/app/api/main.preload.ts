@@ -37,6 +37,7 @@ import type {
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
     ElectronBridgeCurrentProgramsOptions,
+    ElectronBridgeEpgGuideWindow,
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
@@ -672,8 +673,10 @@ const electronApi: ElectronBridgeApi = {
     ) =>
         ipcRenderer.invoke('EPG_GET_CHANNEL_METADATA', { channelIds, options }),
     getEpgChannels: () => ipcRenderer.invoke('EPG_GET_CHANNELS'),
-    getEpgChannelsByRange: (skip: number, limit: number) =>
-        ipcRenderer.invoke('EPG_GET_CHANNELS_BY_RANGE', { skip, limit }),
+    getEpgProgramsForChannels: (window: ElectronBridgeEpgGuideWindow) =>
+        ipcRenderer.invoke('EPG_GET_PROGRAMS_FOR_CHANNELS', window),
+    getEpgProgramCoverage: (window: ElectronBridgeEpgGuideWindow) =>
+        ipcRenderer.invoke('EPG_GET_PROGRAM_COVERAGE', window),
     forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),

@@ -379,6 +379,15 @@ export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgL
     nowMs?: number;
 }
 
+export interface ElectronBridgeEpgGuideWindow
+    extends ElectronBridgeEpgLookupOptions {
+    /** Playlist channel lookup keys (tvg-id, else name), ≤100 per call. */
+    channelIds: string[];
+    /** Provider-clock window bounds in epoch ms. */
+    fromMs: number;
+    toMs: number;
+}
+
 export interface ElectronBridgeEpgProgressStats {
     totalChannels: number;
     totalPrograms: number;
@@ -404,11 +413,6 @@ export interface ElectronBridgeEpgChannelListResult {
     channels: ElectronBridgeEpgChannelSummary[];
     /** Always empty for this endpoint; retained for wire-format compatibility. */
     programs: [];
-}
-
-export interface ElectronBridgeEpgChannelWithPrograms extends ElectronBridgeEpgChannelSummary {
-    iconUrl: string | null;
-    programs: EpgProgram[];
 }
 
 export interface ElectronBridgeDbOperationEvent {
@@ -803,10 +807,12 @@ export interface ElectronBridgeApi {
         options?: ElectronBridgeEpgLookupOptions
     ) => Promise<Record<string, EpgChannelMetadata | null>>;
     getEpgChannels: () => Promise<ElectronBridgeEpgChannelListResult>;
-    getEpgChannelsByRange: (
-        skip: number,
-        limit: number
-    ) => Promise<ElectronBridgeEpgChannelWithPrograms[]>;
+    getEpgProgramsForChannels: (
+        window: ElectronBridgeEpgGuideWindow
+    ) => Promise<Record<string, EpgProgram[]>>;
+    getEpgProgramCoverage: (
+        window: ElectronBridgeEpgGuideWindow
+    ) => Promise<string[]>;
     forceFetchEpg: (
         url: string,
         options?: ElectronBridgeTrustOptions

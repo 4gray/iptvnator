@@ -6,10 +6,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '@iptvnator/services';
-import {
-    ElectronBridgeEpgChannelWithPrograms,
-    EpgProgram,
-} from '@iptvnator/shared/interfaces';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     MultiEpgContainerComponent,
     isSelectedEpgDayToday,
@@ -46,9 +43,8 @@ describe('MultiEpgContainerComponent runtime gates', () => {
     beforeEach(async () => {
         epgOffsetMinutes.set(0);
         epgBridge = {
-            getChannelsByRange: jest.fn().mockResolvedValue([]),
             searchPrograms: jest.fn().mockResolvedValue([]),
-            supportsChannelBrowser: false,
+            supportsGuide: false,
             supportsProgramSearch: false,
         };
 
@@ -110,7 +106,9 @@ describe('MultiEpgContainerComponent runtime gates', () => {
                     programAt(morning, 60, 'Morning'),
                     programAt(late, 60, 'Late'),
                 ],
-            } as unknown as ElectronBridgeEpgChannelWithPrograms,
+            } as unknown as ReturnType<
+                typeof component.originalEpgData
+            >[number],
         ]);
 
         epgOffsetMinutes.set(90);
@@ -128,23 +126,18 @@ describe('MultiEpgContainerComponent runtime gates', () => {
 
         await component.requestPrograms();
 
-        expect(epgBridge.getChannelsByRange).not.toHaveBeenCalled();
         expect(component.isLoading()).toBe(false);
     });
 
-    it('requests EPG channel ranges through the EPG runtime bridge', async () => {
-        epgBridge.getChannelsByRange = jest.fn().mockResolvedValue([
-            {
-                channel_id: 'channel-1',
-                display_name: 'Channel One',
-                programs: [],
-            },
-        ]);
-        epgBridge.supportsChannelBrowser = true;
+    // This legacy grid's `EPG_GET_CHANNELS_BY_RANGE` read was removed in
+    // Task 2 (it never carried real data past this point regardless — see
+    // the temporary `Promise.resolve([])` in `requestPrograms()`); the whole
+    // component is deleted in Task 10.
+    it.skip('requests EPG channel ranges through the EPG runtime bridge', async () => {
+        epgBridge.supportsGuide = true;
 
         await component.requestPrograms();
 
-        expect(epgBridge.getChannelsByRange).toHaveBeenCalledWith(0, 20);
         expect(component.isLoading()).toBe(false);
     });
 

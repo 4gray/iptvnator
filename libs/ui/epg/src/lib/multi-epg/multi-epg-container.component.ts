@@ -25,7 +25,6 @@ import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { Observable, Subscription, startWith } from 'rxjs';
 import {
     Channel,
-    ElectronBridgeEpgChannelWithPrograms,
     EpgChannel,
     epgDisplayTimeMs,
     EpgProgram,
@@ -36,7 +35,15 @@ import { getProgramTimeMs } from '../epg-program.utils';
 import { EpgItemDescriptionComponent } from '../epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
-type MultiEpgChannel = ElectronBridgeEpgChannelWithPrograms;
+// TODO(Task 10): this legacy multi-EPG view is being replaced by the
+// host-agnostic `app-epg-guide` grid; `EPG_GET_CHANNELS_BY_RANGE` is gone,
+// so this component is temporarily patched to keep typecheck green.
+interface MultiEpgChannel {
+    id: string;
+    displayName: string;
+    iconUrl: string | null;
+    programs: EpgProgram[];
+}
 
 interface EnrichedProgram extends EpgProgram {
     startDate: Date;
@@ -271,7 +278,7 @@ export class MultiEpgContainerComponent
     }
 
     async requestPrograms(): Promise<void> {
-        if (!this.epgBridge.supportsChannelBrowser) {
+        if (!this.epgBridge.supportsGuide) {
             console.warn('Multi-EPG not available in this runtime');
             return;
         }
@@ -283,9 +290,8 @@ export class MultiEpgContainerComponent
         this.isLoading.set(true);
 
         try {
-            const response = await this.epgBridge.getChannelsByRange(
-                this.channelsLowerRange,
-                this.visibleChannels
+            const response = await Promise.resolve(
+                [] as MultiEpgChannel[]
             );
 
             if (response && Array.isArray(response)) {

@@ -9,7 +9,7 @@ import {
     ElectronBridgeEpgProgressStats,
     ElectronBridgeEpgProgressStatus,
     ElectronBridgeEpgSearchResult,
-    ElectronBridgeEpgChannelWithPrograms,
+    ElectronBridgeEpgGuideWindow,
     ElectronBridgeEpgFreshnessResult,
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeResult,
@@ -39,7 +39,8 @@ type EpgElectronBridge = Pick<
     | 'getChannelPrograms'
     | 'getCurrentProgramsBatch'
     | 'getEpgChannelMetadata'
-    | 'getEpgChannelsByRange'
+    | 'getEpgProgramsForChannels'
+    | 'getEpgProgramCoverage'
     | 'onEpgProgress'
     | 'searchEpgPrograms'
     | 'getEpgMapping'
@@ -81,8 +82,8 @@ export class EpgRuntimeBridgeService {
         return this.runtime.supportsEpgDataManagement;
     }
 
-    get supportsChannelBrowser(): boolean {
-        return this.runtime.supportsEpgChannelBrowser;
+    get supportsGuide(): boolean {
+        return this.runtime.supportsEpgGuide;
     }
 
     get supportsProgramSearch(): boolean {
@@ -206,16 +207,26 @@ export class EpgRuntimeBridgeService {
         );
     }
 
-    getChannelsByRange(
-        skip: number,
-        limit: number
-    ): Promise<ElectronBridgeEpgChannelWithPrograms[] | null> {
-        if (!this.supportsChannelBrowser) {
+    getProgramsForChannels(
+        window: ElectronBridgeEpgGuideWindow
+    ): Promise<Record<string, EpgProgram[]> | null> {
+        if (!this.supportsGuide || window.channelIds.length === 0) {
             return Promise.resolve(null);
         }
-
         return (
-            this.bridge?.getEpgChannelsByRange?.(skip, limit) ??
+            this.bridge?.getEpgProgramsForChannels?.(window) ??
+            Promise.resolve(null)
+        );
+    }
+
+    getProgramCoverage(
+        window: ElectronBridgeEpgGuideWindow
+    ): Promise<string[] | null> {
+        if (!this.supportsGuide || window.channelIds.length === 0) {
+            return Promise.resolve(null);
+        }
+        return (
+            this.bridge?.getEpgProgramCoverage?.(window) ??
             Promise.resolve(null)
         );
     }

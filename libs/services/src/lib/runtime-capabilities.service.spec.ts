@@ -53,7 +53,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgChannelMetadata).toBe(false);
         expect(service.supportsEpgSourceFreshness).toBe(false);
         expect(service.supportsEpgDataManagement).toBe(false);
-        expect(service.supportsEpgChannelBrowser).toBe(false);
+        expect(service.supportsEpgGuide).toBe(false);
         expect(service.supportsEpgProgramSearch).toBe(false);
     });
 
@@ -145,7 +145,8 @@ describe('RuntimeCapabilitiesService', () => {
             forceFetchEpg: jest.fn(),
             clearEpgData: jest.fn(),
             clearEpgDataForSource: jest.fn(),
-            getEpgChannelsByRange: jest.fn(),
+            getEpgProgramsForChannels: jest.fn(),
+            getEpgProgramCoverage: jest.fn(),
             searchEpgPrograms: jest.fn(),
         };
 
@@ -179,7 +180,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgChannelMetadata).toBe(true);
         expect(service.supportsEpgSourceFreshness).toBe(true);
         expect(service.supportsEpgDataManagement).toBe(true);
-        expect(service.supportsEpgChannelBrowser).toBe(true);
+        expect(service.supportsEpgGuide).toBe(true);
         expect(service.supportsEpgProgramSearch).toBe(true);
     });
 
@@ -216,7 +217,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgChannelMetadata).toBe(false);
         expect(service.supportsEpgSourceFreshness).toBe(false);
         expect(service.supportsEpgDataManagement).toBe(false);
-        expect(service.supportsEpgChannelBrowser).toBe(false);
+        expect(service.supportsEpgGuide).toBe(false);
         expect(service.supportsEpgProgramSearch).toBe(false);
     });
 
@@ -343,7 +344,8 @@ describe('RuntimeCapabilitiesService', () => {
             forceFetchEpg: jest.fn(),
             clearEpgData: jest.fn(),
             clearEpgDataForSource: jest.fn(),
-            getEpgChannelsByRange: jest.fn(),
+            getEpgProgramsForChannels: jest.fn(),
+            getEpgProgramCoverage: jest.fn(),
             searchEpgPrograms: jest.fn(),
         };
 
@@ -359,7 +361,8 @@ describe('RuntimeCapabilitiesService', () => {
             forceFetchEpg: jest.fn(),
             clearEpgData: jest.fn(),
             clearEpgDataForSource: jest.fn(),
-            getEpgChannelsByRange: jest.fn(),
+            getEpgProgramsForChannels: jest.fn(),
+            getEpgProgramCoverage: jest.fn(),
             searchEpgPrograms: jest.fn(),
         };
 
@@ -373,7 +376,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgChannelMetadata).toBe(false);
         expect(service.supportsEpgSourceFreshness).toBe(true);
         expect(service.supportsEpgDataManagement).toBe(true);
-        expect(service.supportsEpgChannelBrowser).toBe(true);
+        expect(service.supportsEpgGuide).toBe(true);
         expect(service.supportsEpgProgramSearch).toBe(true);
 
         testWindow.electron = {
@@ -385,8 +388,18 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgImport).toBe(false);
         expect(service.supportsEpgProgramLookup).toBe(false);
         expect(service.supportsEpgDataManagement).toBe(false);
-        expect(service.supportsEpgChannelBrowser).toBe(false);
+        expect(service.supportsEpgGuide).toBe(false);
         expect(service.supportsEpgProgramSearch).toBe(false);
+    });
+
+    it('does not report guide support with only one of the two guide reads', () => {
+        testWindow.electron = {
+            getEpgProgramsForChannels: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.supportsEpgGuide).toBe(false);
     });
 
     it('requires the complete downloads preload surface', () => {
