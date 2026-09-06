@@ -1,8 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { PlaylistsService } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
 import { signalStore } from '@ngrx/signals';
-import { of } from 'rxjs';
 import {
     XTREAM_DATA_SOURCE,
     XtreamPlaylistData,
@@ -25,6 +22,12 @@ const PLAYLIST: XtreamPlaylistData = {
     username: 'user',
 };
 
+const PLAYLIST_CONNECTION = {
+    serverUrl: PLAYLIST.serverUrl,
+    username: PLAYLIST.username,
+    password: PLAYLIST.password,
+};
+
 // 2026-09-06 19:30:00 UTC
 const SERVER_EPOCH = 1_788_723_000;
 
@@ -35,34 +38,13 @@ describe('withPortal', () => {
     let apiService: {
         getAccountInfo: jest.Mock;
     };
-    let storedPlaylist: Playlist;
-    let transformPlaylistMeta: jest.Mock;
+    let rememberServerTimezone: jest.Mock;
 
     beforeEach(() => {
         apiService = {
             getAccountInfo: jest.fn(),
         };
-        storedPlaylist = {
-            _id: PLAYLIST.id,
-            title: PLAYLIST.name,
-            serverUrl: PLAYLIST.serverUrl,
-            username: PLAYLIST.username,
-            password: PLAYLIST.password,
-        } as Playlist;
-        // Mirrors the real service: the transform receives the stored row
-        // and `null` means "nothing to write".
-        transformPlaylistMeta = jest.fn(
-            (
-                _playlistId: string,
-                transform: (current: Playlist) => Playlist | null
-            ) => {
-                const next = transform(storedPlaylist);
-                if (next) {
-                    storedPlaylist = next;
-                }
-                return of(next);
-            }
-        );
+        rememberServerTimezone = jest.fn().mockResolvedValue(undefined);
 
         TestBed.configureTestingModule({
             providers: [
@@ -75,11 +57,8 @@ describe('withPortal', () => {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: {
                         getPlaylist: jest.fn(),
+                        rememberServerTimezone,
                     },
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: { transformPlaylistMeta },
                 },
             ],
         });
@@ -146,7 +125,7 @@ describe('withPortal', () => {
     });
 
     describe('server timezone (issue #1562)', () => {
-        it('keeps the learned IANA timezone in the store AND on the stored row', async () => {
+        it('keeps the learned IANA timezone in the store AND hands it to the data source for the stored row', async () => {
             respondWith({ timezone: 'Europe/London' });
 
             await store.checkPortalStatus();
@@ -154,11 +133,11 @@ describe('withPortal', () => {
             expect(store.currentPlaylist()?.serverTimezone).toBe(
                 'Europe/London'
             );
-            expect(transformPlaylistMeta).toHaveBeenCalledWith(
+            expect(rememberServerTimezone).toHaveBeenCalledWith(
                 PLAYLIST.id,
-                expect.any(Function)
+                PLAYLIST_CONNECTION,
+                'Europe/London'
             );
-            expect(storedPlaylist.serverTimezone).toBe('Europe/London');
         });
 
         it('derives a fixed offset from the panel clock when the timezone name is unusable', async () => {
@@ -171,39 +150,26 @@ describe('withPortal', () => {
             await store.checkPortalStatus();
 
             expect(store.currentPlaylist()?.serverTimezone).toBe('UTC+03:00');
-            expect(storedPlaylist.serverTimezone).toBe('UTC+03:00');
+            expect(rememberServerTimezone).toHaveBeenCalledWith(
+                PLAYLIST.id,
+                PLAYLIST_CONNECTION,
+                'UTC+03:00'
+            );
         });
 
-        it('offers the value to storage every time but writes nothing when the row already carries it', async () => {
-            storedPlaylist = { ...storedPlaylist, serverTimezone: 'UTC' };
+        it('offers the value to the data source even when the store already carries it', async () => {
+            // The store cannot know whether the ROW has it (a transient
+            // write failure leaves them apart); the data source decides.
             store.setCurrentPlaylist({ ...PLAYLIST, serverTimezone: 'UTC' });
             respondWith({ timezone: 'UTC' });
 
             await store.checkPortalStatus();
 
-            expect(transformPlaylistMeta).toHaveBeenCalledTimes(1);
-            const [, transform] = transformPlaylistMeta.mock.calls[0];
-            expect(transform(storedPlaylist)).toBeNull();
-        });
-
-        it('retries the write on the next check after a transient storage failure', async () => {
-            transformPlaylistMeta.mockImplementationOnce(() => {
-                throw new Error('storage unavailable');
-            });
-            respondWith({ timezone: 'Europe/London' });
-
-            await store.checkPortalStatus();
-            expect(store.currentPlaylist()?.serverTimezone).toBe(
-                'Europe/London'
+            expect(rememberServerTimezone).toHaveBeenCalledWith(
+                PLAYLIST.id,
+                PLAYLIST_CONNECTION,
+                'UTC'
             );
-            expect(storedPlaylist.serverTimezone).toBeUndefined();
-
-            // The store already carries the clock, so only the row-level
-            // check may decide that the row still lacks it.
-            await store.checkPortalStatus();
-
-            expect(transformPlaylistMeta).toHaveBeenCalledTimes(2);
-            expect(storedPlaylist.serverTimezone).toBe('Europe/London');
         });
 
         it('keeps the previously known timezone when the response carries no usable clock', async () => {
@@ -218,10 +184,10 @@ describe('withPortal', () => {
             expect(store.currentPlaylist()?.serverTimezone).toBe(
                 'Europe/London'
             );
-            expect(transformPlaylistMeta).not.toHaveBeenCalled();
+            expect(rememberServerTimezone).not.toHaveBeenCalled();
         });
 
-        it('persists a late answer under the playlist that asked, never onto the one selected meanwhile', async () => {
+        it('hands a late answer to the data source under the playlist and connection that asked, never the one selected meanwhile', async () => {
             const other: XtreamPlaylistData = {
                 ...PLAYLIST,
                 id: 'playlist-2',
@@ -247,11 +213,11 @@ describe('withPortal', () => {
             await expect(pending).resolves.toBe('unavailable');
             expect(store.currentPlaylist()).toEqual(other);
             expect(store.portalStatus()).toBe('unavailable');
-            expect(transformPlaylistMeta).toHaveBeenCalledWith(
+            expect(rememberServerTimezone).toHaveBeenCalledWith(
                 PLAYLIST.id,
-                expect.any(Function)
+                PLAYLIST_CONNECTION,
+                'Europe/London'
             );
-            expect(storedPlaylist.serverTimezone).toBe('Europe/London');
         });
 
         it('does not patch the store with a late answer when the playlist was edited in place meanwhile', async () => {
@@ -269,11 +235,6 @@ describe('withPortal', () => {
                 serverUrl: 'https://moved.example.com',
             };
             store.setCurrentPlaylist(moved);
-            storedPlaylist = {
-                ...storedPlaylist,
-                serverUrl: moved.serverUrl,
-                serverTimezone: undefined,
-            };
             answer({
                 user_info: { auth: 1, exp_date: '0', status: 'Active' },
                 server_info: { timezone: 'Europe/London' },
@@ -282,33 +243,13 @@ describe('withPortal', () => {
             await expect(pending).resolves.toBe('unavailable');
             expect(store.currentPlaylist()).toEqual(moved);
             expect(store.portalStatus()).toBe('unavailable');
-            expect(storedPlaylist.serverTimezone).toBeUndefined();
-        });
-
-        it('does not persist a late answer onto a row whose connection was edited meanwhile', async () => {
-            let answer!: (value: unknown) => void;
-            apiService.getAccountInfo.mockReturnValue(
-                new Promise((resolve) => {
-                    answer = resolve;
-                })
+            // The row-level guard belongs to the data source, which only
+            // ever sees the ORIGINAL connection the answer came from.
+            expect(rememberServerTimezone).toHaveBeenCalledWith(
+                PLAYLIST.id,
+                PLAYLIST_CONNECTION,
+                'Europe/London'
             );
-
-            const pending = store.checkPortalStatus();
-            // The edit flow moved the source (and dropped the old clock)
-            // while the old panel's answer was still on the wire.
-            storedPlaylist = {
-                ...storedPlaylist,
-                serverUrl: 'https://moved.example.com',
-                serverTimezone: undefined,
-            };
-            answer({
-                user_info: { auth: 1, exp_date: '0', status: 'Active' },
-                server_info: { timezone: 'Europe/London' },
-            });
-
-            await expect(pending).resolves.toBe('active');
-            expect(transformPlaylistMeta).toHaveBeenCalledTimes(1);
-            expect(storedPlaylist.serverTimezone).toBeUndefined();
         });
 
         it('does not mark a playlist selected meanwhile unavailable for the earlier playlist’s failure', async () => {
@@ -333,16 +274,20 @@ describe('withPortal', () => {
             expect(store.portalStatus()).toBe('active');
         });
 
-        it('still reports the portal status when persisting the timezone fails', async () => {
-            transformPlaylistMeta.mockImplementation(() => {
-                throw new Error('storage unavailable');
-            });
+        it('still reports the portal status and retries on the next check when the data source rejects', async () => {
+            rememberServerTimezone.mockRejectedValueOnce(
+                new Error('storage unavailable')
+            );
             respondWith({ timezone: 'Europe/London' });
 
             await expect(store.checkPortalStatus()).resolves.toBe('active');
             expect(store.currentPlaylist()?.serverTimezone).toBe(
                 'Europe/London'
             );
+
+            await store.checkPortalStatus();
+
+            expect(rememberServerTimezone).toHaveBeenCalledTimes(2);
         });
     });
 });

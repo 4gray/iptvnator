@@ -896,6 +896,16 @@ export interface ElectronBridgeApi {
     dbGetPlaylist: (
         playlistId: string
     ) => Promise<ElectronBridgePlaylistRow | null>;
+    /**
+     * Records the panel clock learned from account info as one conditional
+     * UPDATE on the row payload; a no-op unless the row still points at the
+     * given connection (issue #1562).
+     */
+    dbSetPlaylistServerTimezone: (
+        playlistId: string,
+        connection: { serverUrl: string; username: string; password: string },
+        serverTimezone: string
+    ) => Promise<{ updated: boolean }>;
     dbUpsertAppPlaylist: (
         playlist: Playlist,
         /**

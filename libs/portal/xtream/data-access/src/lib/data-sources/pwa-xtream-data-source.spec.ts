@@ -15,6 +15,7 @@ describe('PwaXtreamDataSource', () => {
     };
     let playlistsService: {
         getPlaylistById: jest.Mock;
+        transformPlaylistMeta: jest.Mock;
     };
 
     const credentials: XtreamCredentials = {
@@ -31,6 +32,7 @@ describe('PwaXtreamDataSource', () => {
         };
         playlistsService = {
             getPlaylistById: jest.fn(() => of(undefined)),
+            transformPlaylistMeta: jest.fn(() => of(null)),
         };
 
         TestBed.configureTestingModule({
@@ -107,6 +109,49 @@ describe('PwaXtreamDataSource', () => {
             expect.objectContaining({
                 password: credentials.password,
             })
+        );
+    });
+
+    it('persists the panel timezone through one IndexedDB transform guarded by the request connection (issue #1562)', async () => {
+        const credentials = {
+            serverUrl: 'http://panel.example:8080',
+            username: 'user',
+            password: 'pass',
+        };
+        const row = {
+            _id: 'playlist-1',
+            title: 'Xtream',
+            ...credentials,
+        };
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream',
+            type: 'xtream',
+            ...credentials,
+        });
+        playlistsService.transformPlaylistMeta.mockImplementation(
+            (_id: string, transform: (current: unknown) => unknown) =>
+                of(transform(row))
+        );
+
+        await dataSource.rememberServerTimezone(
+            'playlist-1',
+            credentials,
+            'UTC+03:00'
+        );
+
+        const [, transform] = playlistsService.transformPlaylistMeta.mock
+            .calls[0] as [string, (current: unknown) => unknown];
+        // The row still points at the panel → written, with the clock.
+        expect(transform(row)).toEqual({ ...row, serverTimezone: 'UTC+03:00' });
+        // Already carrying it, or moved to another panel → no write.
+        expect(transform({ ...row, serverTimezone: 'UTC+03:00' })).toBeNull();
+        expect(
+            transform({ ...row, serverUrl: 'http://moved.example:8080' })
+        ).toBeNull();
+        // The localStorage copy follows the successful write.
+        await expect(dataSource.getPlaylist('playlist-1')).resolves.toEqual(
+            expect.objectContaining({ serverTimezone: 'UTC+03:00' })
         );
     });
 

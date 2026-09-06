@@ -107,6 +107,25 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         });
     }
 
+    async rememberServerTimezone(
+        playlistId: string,
+        credentials: XtreamCredentials,
+        serverTimezone: string
+    ): Promise<void> {
+        // One conditional UPDATE in the worker (`DB_SET_PLAYLIST_SERVER_TIMEZONE`):
+        // the row-level connection match and the no-op-when-equal check
+        // happen inside the statement, never as a read here.
+        await this.dbService.setXtreamPlaylistServerTimezone(
+            playlistId,
+            {
+                serverUrl: credentials.serverUrl,
+                username: credentials.username,
+                password: credentials.password,
+            },
+            serverTimezone
+        );
+    }
+
     async deletePlaylist(playlistId: string): Promise<void> {
         await this.dbService.deletePlaylist(playlistId);
     }
@@ -336,9 +355,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             await this.dbService.saveXtreamContent(
                 playlistId,
                 remoteData as
-                    | XtreamLiveStream[]
-                    | XtreamVodStream[]
-                    | XtreamSerieItem[],
+                    XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[],
                 type,
                 onProgress,
                 options

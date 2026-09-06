@@ -15,12 +15,10 @@ import {
 } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { PlaylistsService } from '@iptvnator/services';
 import {
     resolveXtreamPortalStatus,
     resolveXtreamServerTimezone,
 } from '@iptvnator/shared/interfaces';
-import { firstValueFrom } from 'rxjs';
 
 /**
  * Portal state for managing playlist and portal status
@@ -56,7 +54,6 @@ export function withPortal() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const dataSource = inject(XTREAM_DATA_SOURCE);
-            const playlistsService = inject(PlaylistsService);
 
             /**
              * Whether a playlist (the store's current one, or the stored
@@ -82,12 +79,10 @@ export function withPortal() {
              * The Favorites / Recent catch-up resolver reads the STORED
              * playlist row, not this store, so a timezone learned here has
              * to reach storage or that path keeps rendering programme
-             * start times in the viewer's clock (issue #1562). The write
-             * lands only on a row that still points at the panel the answer
-             * came from — an edit that moved the source during the request
-             * keeps the clock the edit flow dropped — is skipped when the
-             * row already carries the value, and never fails the status
-             * check that learned it.
+             * start times in the viewer's clock (issue #1562). The data
+             * source applies it atomically against the row's current
+             * connection (see `IXtreamDataSource.rememberServerTimezone`);
+             * a failed write never fails the status check that learned it.
              */
             const rememberServerTimezone = async (
                 playlistId: string,
@@ -95,15 +90,10 @@ export function withPortal() {
                 serverTimezone: string
             ): Promise<void> => {
                 try {
-                    await firstValueFrom(
-                        playlistsService.transformPlaylistMeta(
-                            playlistId,
-                            (playlist) =>
-                                !answersFor(playlist, credentials) ||
-                                playlist.serverTimezone === serverTimezone
-                                    ? null
-                                    : { ...playlist, serverTimezone }
-                        )
+                    await dataSource.rememberServerTimezone(
+                        playlistId,
+                        credentials,
+                        serverTimezone
                     );
                 } catch (error) {
                     logger.error(

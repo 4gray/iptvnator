@@ -277,16 +277,32 @@ timezone is learned by `withPortal.checkPortalStatus()` and normalized by
 - with neither, nothing is stored and the URL falls back to the viewer's
   clock, the only remaining guess.
 
-The value is persisted on the playlist row (`Playlist.serverTimezone`, via
-`PlaylistsService.transformPlaylistMeta` — a no-op write when the row already
-carries it) because the two catch-up entry points read different sources:
-the Live TV layout uses the store's `currentPlaylist`, while the Favorites /
-Recent resolver (`StreamResolverService.resolveXtreamCatchupUrl`) reads the
-stored row through `dbGetAppPlaylist` / IndexedDB. Electron's
-`DB_GET_PLAYLIST` projects the persisted value from the row payload so the
-store is seeded with it before, or without, the account-info check. The
-same timezone lets `XtreamApiService` read timestamp-less EPG `start`/`end`
-strings in the clock the panel wrote them in
-(`parseXtreamServerLocalDateTime`); `start_timestamp` still wins whenever it
-is present. Formatting uses `hourCycle: 'h23'`, so server midnight renders
-as `00`, never `24`.
+The value is persisted on the playlist row (`Playlist.serverTimezone`)
+because the two catch-up entry points read different sources: the Live TV
+layout uses the store's `currentPlaylist`, while the Favorites / Recent
+resolver (`StreamResolverService.resolveXtreamCatchupUrl`) reads the stored
+row through `dbGetAppPlaylist` / IndexedDB. The write goes through
+`IXtreamDataSource.rememberServerTimezone` and is atomic against the row's
+CURRENT connection in both runtimes — Electron: one conditional UPDATE
+(`DB_SET_PLAYLIST_SERVER_TIMEZONE` → `setPlaylistServerTimezone`,
+`json_set(payload, '$.serverTimezone', …)` only while `serverUrl`/`username`/
+`password` still match the request and the payload does not already carry
+the value; a malformed payload is never rewritten); PWA:
+`PlaylistsService.transformPlaylistMeta`, whose read and write share one
+IndexedDB readwrite cursor transaction. No read precedes the write, because
+the database worker interleaves requests and the Xtream edit dialog saves
+through `DB_UPDATE_PLAYLIST` outside `PlaylistsService`'s queue: a
+read-modify-write could hand a concurrent upsert's newer payload back to the
+past or undo an edit that landed in between. The store offers the resolved
+value on every check (a transient write failure is retried by the next one),
+patches its own state only while the selected playlist is still the panel the
+answer came from (`answersFor`: id + connection), and returns the store's
+verdict about the current selection when it is not. An update that moves
+`serverUrl` (`mergePlaylistMeta`, `DB_UPDATE_PLAYLIST`) drops the clock until
+the next account-info check. Electron's `DB_GET_PLAYLIST` projects the
+persisted value from the row payload so the store is seeded with it before,
+or without, the account-info check. The same timezone lets
+`XtreamApiService` read timestamp-less EPG `start`/`end` strings in the
+clock the panel wrote them in (`parseXtreamServerLocalDateTime`);
+`start_timestamp` still wins whenever it is present. Formatting uses
+`hourCycle: 'h23'`, so server midnight renders as `00`, never `24`.

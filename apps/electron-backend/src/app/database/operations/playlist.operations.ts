@@ -629,6 +629,55 @@ function serverTimezoneInvalidation(nextServerUrl: string) {
     END`;
 }
 
+export interface PlaylistConnectionIdentity {
+    serverUrl: string;
+    username: string;
+    password: string;
+}
+
+/**
+ * Records the panel clock a successful account-info check learned
+ * (`serverTimezone`, payload-only) as ONE conditional UPDATE: the row must
+ * still point at the panel the answer came from (`DB_UPDATE_PLAYLIST` may
+ * have moved it meanwhile), a payload already carrying the value is left
+ * untouched, and a malformed payload is never rewritten. No read precedes
+ * the write, so it can neither hand a concurrent upsert's newer payload
+ * back to the past nor undo an edit that landed in between (issue #1562).
+ */
+export async function setPlaylistServerTimezone(
+    db: AppDatabase,
+    playlistId: string,
+    connection: PlaylistConnectionIdentity,
+    serverTimezone: string
+): Promise<{ updated: boolean }> {
+    const result = await db
+        .update(schema.playlists)
+        .set({
+            payload: sql`CASE
+                WHEN ${schema.playlists.payload} IS NULL
+                THEN json_object('serverTimezone', ${serverTimezone})
+                ELSE json_set(${schema.playlists.payload}, '$.serverTimezone', ${serverTimezone})
+            END`,
+        })
+        .where(
+            // CASE, not AND: SQLite may reorder AND terms, and json_extract
+            // raises on a malformed payload unless json_valid ran first.
+            sql`${schema.playlists.id} = ${playlistId}
+                AND ${schema.playlists.serverUrl} IS ${connection.serverUrl}
+                AND ${schema.playlists.username} IS ${connection.username}
+                AND ${schema.playlists.password} IS ${connection.password}
+                AND CASE
+                    WHEN ${schema.playlists.payload} IS NULL THEN 1
+                    WHEN json_valid(${schema.playlists.payload})
+                    THEN json_extract(${schema.playlists.payload}, '$.serverTimezone') IS NOT ${serverTimezone}
+                    ELSE 0
+                END`
+        )
+        .run();
+
+    return { updated: result.changes > 0 };
+}
+
 interface PlaylistDeletionCollection {
     readonly categoryIds: number[];
     /** Content rows per category, the unit the delete is batched by. */

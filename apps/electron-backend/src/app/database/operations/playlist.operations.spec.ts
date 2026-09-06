@@ -43,7 +43,7 @@ function runPlaylistUpdateScenario(scenario: string): unknown {
         const { default: Database } = await import('better-sqlite3');
         const { drizzle } = await import('drizzle-orm/better-sqlite3');
         const schema = await import('@iptvnator/shared/database/schema');
-        const { updatePlaylist } = await import(${JSON.stringify(operationsUrl)});
+        const { updatePlaylist, setPlaylistServerTimezone } = await import(${JSON.stringify(operationsUrl)});
         const { __databaseConnectionTestHooks } = await import(${JSON.stringify(connectionUrl)});
         const sqlite = new Database(':memory:');
         const statements = [
@@ -218,6 +218,58 @@ describe('playlist.operations', () => {
                     serverTimezone: 'UTC',
                 }),
             },
+        });
+    });
+
+    it('records the learned panel timezone with one conditional UPDATE guarded by the row connection (issue #1562)', () => {
+        const result = runPlaylistUpdateScenario(`
+            const conn = { serverUrl: 'http://panel.example', username: 'u', password: 'p' };
+            const seed = (id, serverUrl, payload) => sqlite.prepare(
+                'INSERT INTO playlists (id, name, serverUrl, username, password, type, payload) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            ).run(id, id, serverUrl, 'u', 'p', 'xtream', payload);
+            seed('fresh', conn.serverUrl, JSON.stringify({ _id: 'fresh', favorites: ['1'] }));
+            seed('same', conn.serverUrl, JSON.stringify({ _id: 'same', serverTimezone: 'Europe/London' }));
+            seed('moved', 'http://other.example', JSON.stringify({ _id: 'moved' }));
+            seed('legacy', conn.serverUrl, null);
+            seed('broken', conn.serverUrl, 'not json');
+            const results = {
+                fresh: await setPlaylistServerTimezone(db, 'fresh', conn, 'Europe/London'),
+                same: await setPlaylistServerTimezone(db, 'same', conn, 'Europe/London'),
+                moved: await setPlaylistServerTimezone(db, 'moved', conn, 'Europe/London'),
+                legacy: await setPlaylistServerTimezone(db, 'legacy', conn, 'UTC+03:00'),
+                broken: await setPlaylistServerTimezone(db, 'broken', conn, 'Europe/London'),
+                missing: await setPlaylistServerTimezone(db, 'missing', conn, 'Europe/London'),
+            };
+            const rows = Object.fromEntries(
+                sqlite.prepare('SELECT id, payload FROM playlists').all().map((row) => [row.id, row.payload])
+            );
+            process.stdout.write(JSON.stringify({ results, rows }));
+        `) as {
+            results: Record<string, { updated: boolean }>;
+            rows: Record<string, string | null>;
+        };
+
+        expect(result.results).toEqual({
+            fresh: { updated: true },
+            same: { updated: false },
+            moved: { updated: false },
+            legacy: { updated: true },
+            broken: { updated: false },
+            missing: { updated: false },
+        });
+        expect(result.rows).toEqual({
+            fresh: JSON.stringify({
+                _id: 'fresh',
+                favorites: ['1'],
+                serverTimezone: 'Europe/London',
+            }),
+            same: JSON.stringify({
+                _id: 'same',
+                serverTimezone: 'Europe/London',
+            }),
+            moved: JSON.stringify({ _id: 'moved' }),
+            legacy: JSON.stringify({ serverTimezone: 'UTC+03:00' }),
+            broken: 'not json',
         });
     });
 
