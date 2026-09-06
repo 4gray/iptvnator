@@ -156,6 +156,8 @@ describe('StalkerLiveNavigation', () => {
     });
 
     it('does not append another provider search after a fullscreen capture', () => {
+        store.selectedContentType.set('radio');
+        TestBed.tick();
         store.searchPhrase.set('1');
         navigation.prepare(first, signal(''))();
         store.searchPhrase.set('3');

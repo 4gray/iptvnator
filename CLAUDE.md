@@ -1692,6 +1692,19 @@ invalidation prevent late results from restoring removed programmes. Provider
 EPG is independent. See `docs/architecture/m3u-playlist-module.md`
 ("XMLTV source lifecycle").
 
+## Web Backend Provider Redirects
+
+All four provider proxy routes use `ValidatedHttpClient`: automatic redirects
+are disabled, the initial URL and at most five redirect hops pass full URL/DNS
+validation, and fresh agents pin each connection to that hop's validated IPs.
+Host/SNI and TLS verification remain intact; outbound environment proxies are
+disabled. Private-network opt-in applies to the chain. Cross-origin redirects
+strip session headers; original query params are not replayed. One portal
+admission owns the entire chain and final body, with explicit redirect evidence
+preventing destination failures from penalizing the initial endpoint. Contracts:
+`docs/architecture/pwa-self-hosted.md` and
+`docs/architecture/host-connectivity-guard.md`.
+
 ## Portal Connectivity Preference
 
 - Half-open trial slots follow the complete request lifetime with no elapsed-time
@@ -1721,6 +1734,16 @@ and extends only loaded pages of the original scope. The conditional channel
 header action clears search, returns to the accessible playing category and
 focuses its row without changing playback. Contract:
 `docs/architecture/remote-control.md` (Live channel return and playback order).
+
+## Stalker Live Search
+
+ITV sidebar and fullscreen searches independently filter the complete selected
+category; only All Items searches the whole public catalog. Cached categories
+search before windowing; missing/censored genres keep provider pagination,
+including automatic continuation for short or empty search results. ITV search
+never narrows shared provider pages or resets their index. Category changes
+reset list windows and retain playback/active EPG. Contract:
+`docs/architecture/stalker-portal.md` (Full ITV Channel List Cache).
 
 ## Channel and Detail Keyboard Scrolling
 

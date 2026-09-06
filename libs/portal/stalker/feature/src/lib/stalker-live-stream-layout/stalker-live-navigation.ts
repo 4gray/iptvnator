@@ -306,7 +306,9 @@ export class StalkerLiveNavigation {
         return JSON.stringify([
             this.options.store.selectedCategoryId(),
             panelTerm ? 'panel' : 'sidebar',
-            this.options.store.searchPhrase(),
+            this.options.store.selectedContentType() === 'radio'
+                ? this.options.store.searchPhrase()
+                : '',
             panelTerm?.() ?? this.options.store.searchPhrase(),
         ]);
     }

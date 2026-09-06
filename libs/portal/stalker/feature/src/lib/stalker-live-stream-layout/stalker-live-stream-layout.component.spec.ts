@@ -729,7 +729,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         }
     });
 
-    it('searches the whole portal (all categories) in full-list mode, not just the current category', () => {
+    it('excludes other categories from full-list search', () => {
         // The current category (itvChannels) has only 'Alpha TV'/'Beta TV', but
         // the portal's full list contains a News channel in another genre.
         itvFullListActive.set(true);
@@ -748,13 +748,13 @@ describe('StalkerLiveStreamLayoutComponent', () => {
 
         expect(
             component.filteredChannels().map((channel) => channel.name)
-        ).toEqual(['CNN International']);
+        ).toEqual([]);
     });
 
     it('includes paged censored-category channels in full-list search results', () => {
         // The adult category's channels come from the legacy paged flow and
         // are intentionally absent from the full-list cache — searching for a
-        // currently visible channel must still find it (merged source).
+        // currently visible channel must still find it within this category.
         itvFullListActive.set(true);
         itvSelectedCategoryFromCache.set(false);
         itvChannels.set([
@@ -774,15 +774,15 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             component.filteredChannels().map((channel) => channel.name)
         ).toEqual(['Erox HD']);
 
-        // And the cached portal-wide channels remain searchable too.
+        // A cache hit in another category must not leak into this category.
         searchPhrase.set('alpha');
         fixture.detectChanges();
         expect(
             component.filteredChannels().map((channel) => channel.name)
-        ).toEqual(['Alpha TV']);
+        ).toEqual([]);
     });
 
-    it('grows the render window to include a channel selected beyond it (remote/numeric nav)', async () => {
+    it.each([true, false])('grows the render window for remote/numeric selection (cached=%s)', async (cached) => {
         const full = Array.from({ length: 250 }, (_, index) => ({
             id: `ch-${index}`,
             cmd: `ffrt4://itv/${index}`,
@@ -791,9 +791,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             logo: '',
         }));
         itvFullListActive.set(true);
-        itvSelectedCategoryFromCache.set(true);
+        itvSelectedCategoryFromCache.set(cached);
         itvChannels.set(full);
-        itvFullChannelList.set(full);
+        itvFullChannelList.set(cached ? full : []);
+        searchPhrase.set('channel');
         fixture.detectChanges();
 
         expect(component.visibleChannels()).toHaveLength(100);
