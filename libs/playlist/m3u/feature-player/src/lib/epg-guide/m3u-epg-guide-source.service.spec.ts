@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { Subject } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { ChannelActions } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -49,12 +50,16 @@ describe('M3uEpgGuideSourceService', () => {
     const getProgramCoverage = jest.fn();
     const searchPrograms = jest.fn();
     let service: M3uEpgGuideSourceService;
+    let translateStub: { instant: (key: string) => string };
+    let onLangChange: Subject<{ lang: string }>;
 
     beforeEach(() => {
         dispatch.mockReset();
         getProgramsForChannels.mockReset();
         getProgramCoverage.mockReset();
         searchPrograms.mockReset();
+        onLangChange = new Subject<{ lang: string }>();
+        translateStub = { instant: (key: string) => key };
         channels.set([
             makeChannel('a', { tvgId: 'a.tv', group: 'News' }),
             makeChannel('b', { name: 'Beta', group: 'Sports' }),
@@ -80,7 +85,12 @@ describe('M3uEpgGuideSourceService', () => {
                 },
                 {
                     provide: TranslateService,
-                    useValue: { instant: (key: string) => key },
+                    useValue: {
+                        get instant() {
+                            return translateStub.instant;
+                        },
+                        onLangChange,
+                    },
                 },
             ],
         });
@@ -163,6 +173,33 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.scopeId()).toBe('group:News');
         service.applyInitialScope('all');
         expect(service.scopeId()).toBe('all');
+    });
+
+    it("falls back to the all scope when the active channel's group has no eligible channels", () => {
+        const sportsOnlyChannels = signal<Channel[]>([
+            makeChannel('b', { name: 'Beta', group: 'Sports' }),
+        ]);
+        const newsActiveChannel = signal<Channel | null>(
+            makeChannel('a', { tvgId: 'a.tv', group: 'News' })
+        );
+        service.bind({
+            channels: sportsOnlyChannels,
+            favoriteIds,
+            activeChannel: newsActiveChannel,
+        });
+
+        service.applyInitialScope('groups');
+
+        expect(service.scopeId()).toBe('all');
+    });
+
+    it('re-labels scopes when the active language changes', () => {
+        expect(service.scopes()[0].label).toBe('CHANNELS.ALL_CHANNELS');
+
+        translateStub.instant = (key: string) => `${key}!`;
+        onLangChange.next({ lang: 'de' });
+
+        expect(service.scopes()[0].label).toBe('CHANNELS.ALL_CHANNELS!');
     });
 
     it('forwards programme search to the bridge', async () => {

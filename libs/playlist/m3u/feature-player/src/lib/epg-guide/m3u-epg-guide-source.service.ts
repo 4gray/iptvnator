@@ -1,6 +1,8 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -43,6 +45,10 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
 
     private readonly inputs = signal<M3uEpgGuideInputs | null>(null);
     private readonly scope = signal(SCOPE_ALL);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     readonly scopeId = this.scope.asReadonly();
 
@@ -51,6 +57,7 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     );
 
     readonly scopes = computed<EpgGuideScope[]>(() => {
+        this.languageTick();
         const groups: string[] = [];
         const seen = new Set<string>();
         for (const channel of this.allChannels()) {
@@ -123,8 +130,15 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         const activeGroup = this.inputs()
             ?.activeChannel()
             ?.group?.title?.trim();
-        if (view === 'groups' && activeGroup) {
-            this.scope.set(`${GROUP_PREFIX}${activeGroup}`);
+        const groupScopeId = activeGroup
+            ? `${GROUP_PREFIX}${activeGroup}`
+            : null;
+        if (
+            view === 'groups' &&
+            groupScopeId &&
+            this.scopes().some((scope) => scope.id === groupScopeId)
+        ) {
+            this.scope.set(groupScopeId);
             return;
         }
         this.scope.set(SCOPE_ALL);
@@ -178,6 +192,10 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         return covered;
     }
 
+    /**
+     * Looks up the channel in the current scope because the guide only ever
+     * passes back ids it rendered from `channels()`.
+     */
     activate(channelId: string): void {
         const channel = this.scopedChannels().find(
             (candidate) => candidate.id === channelId
