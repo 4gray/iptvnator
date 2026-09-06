@@ -183,7 +183,9 @@ test.describe('Electron Remote Control', () => {
                     .first();
                 await expect(media).toBeAttached();
                 const originalMedia = await media.elementHandle();
-                const originalSource = await media.getAttribute('src');
+                const originalSource = await media.evaluate(
+                    (element: HTMLMediaElement) => element.src
+                );
                 const reveal = page.getByRole('button', {
                     name: 'Show playing channel',
                     exact: true,
@@ -227,7 +229,7 @@ test.describe('Electron Remote Control', () => {
                         originalMedia
                     )
                 ).toBe(true);
-                expect(await media.getAttribute('src')).toBe(originalSource);
+                await expect(media).toHaveJSProperty('src', originalSource);
                 await waitForRemoteStatus(
                     request,
                     remotePort,
