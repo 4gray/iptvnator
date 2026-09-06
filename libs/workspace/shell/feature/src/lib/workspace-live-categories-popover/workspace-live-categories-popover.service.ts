@@ -1,6 +1,9 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { DestroyRef, inject, Injectable, Injector } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationStart, Router } from '@angular/router';
+import { filter } from 'rxjs';
 import { LiveCategoriesPopover } from '@iptvnator/portal/shared/util';
 import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-categories-popover.component';
 
@@ -13,7 +16,11 @@ import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-catego
  * it (toggle), opening from another origin moves it. The transparent backdrop
  * and Escape close it, and so does any category selection or the footer's
  * "show categories panel" action, which the component reports through
- * `closed`.
+ * `closed`. Any router navigation closes it too: the shell (and so this
+ * service) outlives the child route that owns the trigger, and browser
+ * Back/Forward or a global shortcut route would otherwise leave the panel
+ * floating over the destination page, re-rendered for the new route's
+ * context.
  */
 @Injectable()
 export class WorkspaceLiveCategoriesPopoverService
@@ -26,6 +33,12 @@ export class WorkspaceLiveCategoriesPopoverService
 
     constructor() {
         inject(DestroyRef).onDestroy(() => this.close());
+        inject(Router)
+            .events.pipe(
+                filter((event) => event instanceof NavigationStart),
+                takeUntilDestroyed()
+            )
+            .subscribe(() => this.close());
     }
 
     open(origin: HTMLElement): void {

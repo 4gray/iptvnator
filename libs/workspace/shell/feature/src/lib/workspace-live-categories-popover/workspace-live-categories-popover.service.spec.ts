@@ -8,8 +8,10 @@ import {
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { NavigationEnd, NavigationStart, Router } from '@angular/router';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MockPipe } from 'ng-mocks';
+import { Subject, of } from 'rxjs';
 import {
     LIVE_SIDEBAR_STATE_STORAGE_KEY,
     LiveLayoutSidebarStateService,
@@ -38,6 +40,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     let service: WorkspaceLiveCategoriesPopoverService;
     let sidebarState: LiveLayoutSidebarStateService;
     let origin: HTMLButtonElement;
+    let routerEvents: Subject<unknown>;
 
     // Portal-attached views render on the next application tick; no fixture
     // drives change detection here.
@@ -54,10 +57,15 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
 
     beforeEach(async () => {
         localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        routerEvents = new Subject();
         await TestBed.configureTestingModule({
             imports: [OverlayModule, NoopAnimationsModule],
             providers: [
                 WorkspaceLiveCategoriesPopoverService,
+                {
+                    provide: Router,
+                    useValue: { events: routerEvents.asObservable() },
+                },
                 {
                     provide: WorkspaceShellRouteStateService,
                     useValue: {
@@ -84,8 +92,15 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
             ],
         })
             .overrideComponent(WorkspaceLiveCategoriesPopoverComponent, {
-                remove: { imports: [WorkspaceContextPanelComponent] },
-                add: { imports: [StubWorkspaceContextPanelComponent] },
+                remove: {
+                    imports: [WorkspaceContextPanelComponent, TranslatePipe],
+                },
+                add: {
+                    imports: [
+                        StubWorkspaceContextPanelComponent,
+                        MockPipe(TranslatePipe, (value: string) => value),
+                    ],
+                },
             })
             .compileComponents();
 
@@ -159,6 +174,49 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
 
         expect(pane()).toBeNull();
         expect(sidebarState.state()).toBe('categories-hidden');
+    });
+
+    it('is a labelled modal dialog that traps and takes focus on open', async () => {
+        // JSDOM lays nothing out, so the CDK interactivity checker sees every
+        // element as invisible and never focuses one; give them geometry.
+        const geometry = jest
+            .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+            .mockReturnValue(10);
+        try {
+            open();
+            // CdkTrapFocus captures focus once the zone settles.
+            await new Promise((resolve) => setTimeout(resolve));
+
+            const host = pane()?.querySelector(
+                'app-workspace-live-categories-popover'
+            );
+            expect(host?.getAttribute('role')).toBe('dialog');
+            expect(host?.getAttribute('aria-modal')).toBe('true');
+            expect(host?.getAttribute('aria-label')).toBe(
+                'LAYOUT.CHOOSE_CATEGORY'
+            );
+            expect(
+                pane()?.querySelectorAll('.cdk-focus-trap-anchor').length
+            ).toBe(2);
+            expect(host?.contains(document.activeElement)).toBe(true);
+
+            service.close();
+
+            expect(document.activeElement).toBe(origin);
+        } finally {
+            geometry.mockRestore();
+        }
+    });
+
+    it('closes when a navigation starts, so it cannot float over the next route', () => {
+        open();
+
+        routerEvents.next(new NavigationEnd(1, '/a', '/a'));
+        expect(pane()).not.toBeNull();
+
+        routerEvents.next(new NavigationStart(2, '/b'));
+
+        expect(pane()).toBeNull();
     });
 
     it('closes on Escape', () => {

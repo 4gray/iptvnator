@@ -308,8 +308,12 @@ remain local when the meaning is explicit.
       `WorkspaceLiveCategoriesPopoverComponent`, which stamps the context
       panel with `presentation="popover"`) and the live layouts inject it
       optionally — without a provider the header keeps its plain title.
-      Backdrop, Escape, the footer and any category selection
-      (`categorySelected` output) close it; focus returns to the trigger.
+      Backdrop, Escape, the footer, any category selection
+      (`categorySelected` output) and any router `NavigationStart` close it
+      (the shell outlives the child route that owns the trigger); focus
+      returns to the trigger. The popover host is a `role="dialog"` with
+      `aria-modal` and a `CdkTrapFocus` host directive that captures focus
+      on open, matching the trigger's `aria-haspopup="dialog"`.
     - The `chevron_left` in the channels header → level 3 (`collapse()`).
     - While collapsed, a floating `chevron_right` mini-fab at the left edge of
       `.content-container` and `Cmd/Ctrl+B` (`toggle()`) return to the level
