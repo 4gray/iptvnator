@@ -47,7 +47,7 @@
                             searchHitStartMs(hit)
                                 | date: 'EEE d MMM HH:mm' : '' : currentLocale()
                         }}
-                        · {{ hit.program.channel }}
+                        · {{ hit.channelName ?? hit.program.channel }}
                     </span>
                 </button>
             } @empty {

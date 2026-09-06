@@ -292,18 +292,24 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     async searchPrograms(query: string): Promise<EpgGuideSearchHit[]> {
         const programs =
             (await this.epgBridge.searchPrograms(query, SEARCH_LIMIT)) ?? [];
-        const byKey = new Map<string, string>();
+        const byKey = new Map<string, EpgGuideChannel>();
         for (const channel of this.channels()) {
             // Duplicate rows share an EPG key; jump to the first, like
             // `activeChannelId`.
             if (channel.epgKey !== null && !byKey.has(channel.epgKey)) {
-                byKey.set(channel.epgKey, channel.id);
+                byKey.set(channel.epgKey, channel);
             }
         }
-        return programs.map((program) => ({
-            channelId: byKey.get(program.channel) ?? null,
-            program,
-        }));
+        return programs.map((program) => {
+            const row = byKey.get(program.channel);
+            return {
+                channelId: row?.id ?? null,
+                // The playlist's own name when the row is known, else the
+                // XMLTV display name the search joined in; never the raw id.
+                channelName: row?.name ?? program.channelName ?? null,
+                program,
+            };
+        });
     }
 
     private keyedChannels(

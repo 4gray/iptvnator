@@ -339,7 +339,14 @@ describe('M3uEpgGuideSourceService', () => {
         searchPrograms.mockResolvedValue([program('a.tv'), program('x')]);
         const hits = await service.searchPrograms('news');
         expect(hits.map((hit) => hit.channelId)).toEqual(['0:a', null]);
+        expect(hits.map((hit) => hit.channelName)).toEqual(['Channel a', null]);
         expect(hits[1].program.title).toBe('x show');
+        searchPrograms.mockResolvedValue([
+            { ...program('x'), channelName: 'XMLTV Name' },
+        ]);
+        expect((await service.searchPrograms('x'))[0].channelName).toBe(
+            'XMLTV Name'
+        );
         expect(searchPrograms).toHaveBeenCalledWith('news', 20);
     });
 });

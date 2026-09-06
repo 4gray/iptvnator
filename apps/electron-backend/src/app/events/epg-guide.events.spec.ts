@@ -3,6 +3,7 @@ import type EpgEventsType from './epg.events';
 const getProgramsForChannels = jest.fn();
 const getProgramCoverage = jest.fn();
 const resolveChannelIds = jest.fn();
+const resolveChannelIdsStrict = jest.fn();
 const ipcHandlers = new Map<
     string,
     (event: unknown, args: unknown) => Promise<unknown>
@@ -25,13 +26,14 @@ jest.mock('./epg-guide-query.service', () => ({
     epgGuideQueryService: {
         getProgramsForChannels: (...args: unknown[]) =>
             getProgramsForChannels(...args),
-        getProgramCoverage: (...args: unknown[]) =>
-            getProgramCoverage(...args),
+        getProgramCoverage: (...args: unknown[]) => getProgramCoverage(...args),
     },
 }));
 
 jest.mock('./epg-mapping.service', () => ({
     resolveChannelIds: (...args: unknown[]) => resolveChannelIds(...args),
+    resolveChannelIdsStrict: (...args: unknown[]) =>
+        resolveChannelIdsStrict(...args),
     queryByResolvedChannelIds: jest.fn(),
     handleGetEpgMapping: jest.fn(),
     handleGetEpgMappingsBatch: jest.fn(),
@@ -71,6 +73,7 @@ describe('EPG guide IPC handlers', () => {
             (mock) => mock.mockReset()
         );
         resolveChannelIds.mockResolvedValue(new Map());
+        resolveChannelIdsStrict.mockResolvedValue(new Map());
 
         ({ default: EpgEvents } = await import('./epg.events'));
 
@@ -97,9 +100,7 @@ describe('EPG guide IPC handlers', () => {
     }
 
     it('applies a manual mapping before querying and keys the answer back by the requested key', async () => {
-        resolveChannelIds.mockResolvedValue(
-            new Map([['m3u-key', 'xmltv.id']])
-        );
+        resolveChannelIds.mockResolvedValue(new Map([['m3u-key', 'xmltv.id']]));
         getProgramsForChannels.mockResolvedValue({ 'xmltv.id': [program] });
 
         const result = await invoke('EPG_GET_PROGRAMS_FOR_CHANNELS', {
@@ -159,6 +160,26 @@ describe('EPG guide IPC handlers', () => {
         });
 
         expect(result).toEqual({});
+    });
+
+    it('rejects coverage when the manual-mapping lookup fails, but still answers programmes', async () => {
+        resolveChannelIdsStrict.mockRejectedValue(new Error('mapping db down'));
+        getProgramsForChannels.mockResolvedValue({ a: [] });
+
+        await expect(
+            invoke('EPG_GET_PROGRAM_COVERAGE', {
+                channelIds: ['a'],
+                fromMs: 0,
+                toMs: 1,
+            })
+        ).rejects.toThrow('mapping db down');
+        await expect(
+            invoke('EPG_GET_PROGRAMS_FOR_CHANNELS', {
+                channelIds: ['a'],
+                fromMs: 0,
+                toMs: 1,
+            })
+        ).resolves.toEqual({ a: [] });
     });
 
     it('de-duplicates requested coverage keys and keeps only the covered ones', async () => {

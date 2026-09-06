@@ -20,6 +20,7 @@ import {
     handleSetEpgMapping,
     queryByResolvedChannelIds,
     resolveChannelIds,
+    resolveChannelIdsStrict,
 } from './epg-mapping.service';
 
 /**
@@ -312,7 +313,9 @@ export default class EpgEvents {
         const requested = Array.isArray(args?.channelIds)
             ? args.channelIds
             : [];
-        const mapping = await resolveChannelIds(requested);
+        // Strict on purpose: a mapping lookup failure must reject (coverage
+        // unknown), not report mapped channels as unmapped and uncovered.
+        const mapping = await resolveChannelIdsStrict(requested);
         const resolvedIds = requested.map((id) => mapping.get(id) ?? id);
         const covered = new Set(
             await epgGuideQueryService.getProgramCoverage({

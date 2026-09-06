@@ -48,6 +48,8 @@ export interface EpgGuideCatchUp {
  */
 export interface EpgGuideSearchHit {
     channelId: string | null;
+    /** Display name for the hit's channel: the playlist row's when resolved, else the guide source's own (e.g. the XMLTV display name). */
+    channelName?: string | null;
     program: EpgProgram;
 }
 

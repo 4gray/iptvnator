@@ -88,7 +88,10 @@ export class EpgGuideDialogController {
                           channelName: channel.name,
                           channelLogo: channel.logoUrl,
                       }
-                    : { ...hit.program }
+                    : {
+                          ...hit.program,
+                          channelName: hit.channelName ?? null,
+                      }
             )
             .subscribe();
     }

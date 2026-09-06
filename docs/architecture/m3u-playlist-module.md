@@ -1147,9 +1147,14 @@ without that both copies lit up as playing and activating either one played
 the first, and suffixing only the repeats was not enough because a real
 channel id can itself look like a generated suffix (ids `x`, `x`, `x#1`
 produced `x#1` twice). Ids move with the scope and the channel list, so only
-ids the guide was just handed may be passed back. The active channel marks the
-FIRST row carrying its id (`null` when it is outside the scope), and
-`activate(rowId)` resolves the row back to its own channel. Opening the
+ids the guide was just handed may be passed back. The active channel is
+resolved to a row in three steps, because the store spreads the selected
+channel (identity is gone) and copies can share an id: the row whose channel
+matches the playing one field for field (every field except the
+reducer-rewritten `epgParams`, key order ignored — `isSameChannelEntry`),
+else the first same-id row with the same stream url, else the first same-id
+row; `null` when the channel is outside the scope. `activate(rowId)`
+resolves the row back to its own channel object. Opening the
 guide mirrors the sidebar view (`applyInitialScope`): favorites stays
 favorites, and the groups view opens on the group the sidebar's rail is
 SHOWING — forwarded from `GroupsViewComponent.selectedGroupChange` through the
