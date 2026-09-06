@@ -1588,8 +1588,10 @@ import {
     EpgGuideWindow,
 } from './epg-guide-source';
 
-/** Channels per `loadPrograms`/`loadCoverage` call (the bridge caps at 100). */
+/** Channels per `loadPrograms` call (the programme IPC caps at 100 keys). */
 export const EPG_GUIDE_LOAD_CHUNK = 100;
+/** Channels per `loadCoverage` call (the coverage IPC caps at 2000 keys). */
+export const EPG_GUIDE_COVERAGE_CHUNK = 1000;
 
 export type EpgGuideRowStatus = 'idle' | 'loading' | 'loaded' | 'none';
 
@@ -1704,8 +1706,8 @@ export class EpgGuideProgramsService {
             .channels()
             .filter((channel) => channel.epgKey !== null);
         const chunks: EpgGuideChannel[][] = [];
-        for (let start = 0; start < keyed.length; start += EPG_GUIDE_LOAD_CHUNK) {
-            chunks.push(keyed.slice(start, start + EPG_GUIDE_LOAD_CHUNK));
+        for (let start = 0; start < keyed.length; start += EPG_GUIDE_COVERAGE_CHUNK) {
+            chunks.push(keyed.slice(start, start + EPG_GUIDE_COVERAGE_CHUNK));
         }
         Promise.all(
             chunks.map((channels) =>
