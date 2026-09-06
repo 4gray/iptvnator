@@ -214,36 +214,12 @@ export class StalkerLiveStreamLayoutComponent
             !this.isRadioMode() &&
             this.stalkerStore.itvSelectedCategoryFromCache()
     );
-    /**
-     * The rows a search term is matched against: the current category, or in
-     * full-list mode the WHOLE portal's channel list (every category) merged
-     * with the currently loaded channels, because a censored (adult) category
-     * is paged from the portal and its channels are intentionally absent from
-     * the full-list cache.
+    /** The store supplies the complete category when cached, accumulated pages otherwise.
+     * Only All Items has portal-wide scope. Both search fields share this source.
      */
-    private readonly searchableChannels = computed(() => {
-        const source = this.channels();
-        if (!this.isFullListMode()) {
-            return source;
-        }
-
-        const merged = new Map<string, StalkerItvChannel>();
-        for (const channel of source) {
-            merged.set(normalizeStalkerEntityId(channel.id), channel);
-        }
-        for (const channel of this.stalkerStore.itvFullChannelList()) {
-            const id = normalizeStalkerEntityId(channel.id);
-            if (!merged.has(id)) {
-                merged.set(id, channel);
-            }
-        }
-        return [...merged.values()];
-    });
-    /**
-     * Channels matching the search phrase. Without a term, the current
-     * category; with one, `searchableChannels` filtered, so search behaves
-     * like "search all channels" whenever the full list is cached.
-     */
+    private readonly searchableChannels = computed(() =>
+        this.showItvAllItems() ? this.itvFullChannelList() : this.channels()
+    );
     readonly filteredChannels = computed(() => {
         const term = this.searchTerm();
         if (!term) {
@@ -291,7 +267,7 @@ export class StalkerLiveStreamLayoutComponent
         computation: () => FULL_LIST_RENDER_CHUNK,
     });
     readonly visibleChannels = computed(() =>
-        this.isCategoryFromCache()
+        this.isCategoryFromCache() || Boolean(this.searchTerm())
             ? this.filteredChannels().slice(0, this.renderLimit())
             : this.filteredChannels()
     );
@@ -323,10 +299,10 @@ export class StalkerLiveStreamLayoutComponent
             : this.stalkerStore.hasMoreChannels()
     );
     readonly totalChannelCount = computed(() => this.filteredChannels().length);
-    readonly hasMoreItems = computed(() =>
-        this.isCategoryFromCache()
-            ? this.visibleChannels().length < this.filteredChannels().length
-            : this.stalkerStore.hasMoreChannels()
+    readonly hasMoreItems = computed(
+        () =>
+            this.visibleChannels().length < this.filteredChannels().length ||
+            (!this.isCategoryFromCache() && this.stalkerStore.hasMoreChannels())
     );
     readonly isLoadingMore = signal(false);
     /**
@@ -648,6 +624,8 @@ export class StalkerLiveStreamLayoutComponent
         effect(() => {
             const contentType = this.stalkerStore.selectedContentType();
             this.stalkerStore.selectedCategoryId();
+            this.panelSearch.clear();
+            this.isLoadingMore.set(false);
             untracked(() => {
                 if (contentType === 'radio') {
                     this.stalkerStore.setRadioChannels([]);
@@ -1105,17 +1083,20 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     loadMore() {
-        if (this.isCategoryFromCache()) {
-            // Extends the render window over the in-memory list — no request.
-            if (this.hasMoreItems()) {
-                this.growRenderWindow();
-            }
+        if (this.visibleChannels().length < this.filteredChannels().length) {
+            this.growRenderWindow();
             return;
         }
+        if (this.isCategoryFromCache()) return;
+        this.loadNextChannelPage();
+    }
 
+    private loadNextChannelPage(): void {
         // Legacy portal pagination — also used for censored (adult) genres
         // that are absent from the full-list cache.
-        if (this.isLoadingMore() || !this.hasMoreItems()) return;
+        if (this.isLoadingMore() || !this.stalkerStore.hasMoreChannels())
+            return;
+        if (this.stalkerStore.isPaginatedContentLoading()) return;
         this.isLoadingMore.set(true);
         const nextPage = this.stalkerStore.page() + 1;
         this.stalkerStore.setPage(nextPage);
@@ -1132,7 +1113,7 @@ export class StalkerLiveStreamLayoutComponent
             this.growRenderWindow();
             return;
         }
-        this.loadMore();
+        this.loadNextChannelPage();
     }
 
     private growRenderWindow(): void {
@@ -1551,7 +1532,8 @@ export class StalkerLiveStreamLayoutComponent
             if (
                 !shouldAutoFillStampedList(
                     isPanelContainer,
-                    sidebarSearchActive
+                    sidebarSearchActive,
+                    !this.isRadioMode()
                 )
             ) {
                 continue;
@@ -1566,8 +1548,8 @@ export class StalkerLiveStreamLayoutComponent
      * panel's copy, while searching with its own term, scrolls through its
      * own windowed matches, not the sidebar's rows: it grows that window
      * first and only pages the portal once the window covers every loaded
-     * match — and never in full-list mode, where its search already sees
-     * the whole catalog and a page would only widen the sidebar's window.
+     * match. Cached categories (and All Items) already expose their complete
+     * source and never request provider pages from the panel.
      */
     private driveStampedList(container: HTMLElement, nearEnd: boolean) {
         // A closed panel stays mounted to preserve search and scroll, but
@@ -1587,7 +1569,10 @@ export class StalkerLiveStreamLayoutComponent
             this.panelSearch.loadMore();
             return;
         }
-        if (isPanelSearch && this.isCategoryFromCache()) return;
+        if (isPanelSearch) {
+            if (!this.panelUsesCachedRows()) this.loadNextChannelPage();
+            return;
+        }
         if (isPanelContainer && !isPanelSearch) {
             // The blank panel shows the category, not the sidebar's filtered
             // rows, so its continuation is judged against the category too.

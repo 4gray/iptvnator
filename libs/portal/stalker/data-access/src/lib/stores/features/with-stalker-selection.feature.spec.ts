@@ -57,6 +57,15 @@ describe('withStalkerSelection', () => {
         expect(store.page()).toBe(0);
     });
 
+    it('preserves ITV pages when a local search changes or clears', () => {
+        store.setSelectedContentType('itv');
+        store.setPage(2);
+        store.setSearchPhrase('shared');
+        expect(store.page()).toBe(2);
+        store.setSearchPhrase('');
+        expect(store.page()).toBe(2);
+    });
+
     it('synchronizes entity ids when the selected item changes', () => {
         store.setSelectedItem({
             id: '55',

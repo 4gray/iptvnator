@@ -172,6 +172,42 @@ describe('withStalkerContent failure states', () => {
         store = TestBed.inject(TestContentStore);
     });
 
+    it('keeps ITV pages unfiltered while independent local searches change', async () => {
+        const pending =
+            createDeferred<ReturnType<typeof createContentResponse>>();
+        dataService.sendIpcEvent.mockImplementation(
+            (_event, request: { params: { action: string } }) =>
+                request.params.action === 'get_genres'
+                    ? Promise.resolve({ js: [] })
+                    : pending.promise
+        );
+        store.setSelectedContentType('itv');
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'Five' },
+        ]);
+        store.setSelectedCategory('5');
+        store.setCurrentPlaylist(PLAYLIST);
+        patchState(store, { searchPhrase: 'sidebar' });
+        await flushResources();
+        const orderedCalls = () =>
+            dataService.sendIpcEvent.mock.calls.filter(
+                (call) =>
+                    (call[1] as { params: { action: string } }).params
+                        .action === 'get_ordered_list'
+            );
+        await waitForCondition(() => orderedCalls().length > 0);
+        expect(
+            (orderedCalls()[0][1] as { params: { search?: string } }).params
+                .search
+        ).toBeUndefined();
+        patchState(store, { searchPhrase: 'changed' });
+        await flushResources();
+        pending.resolve(createContentResponse('Panel match'));
+        await waitForCondition(() => store.itvChannels().length > 0);
+        expect(orderedCalls()).toHaveLength(1);
+        expect(store.itvChannels()[0].name).toBe('Panel match');
+    });
+
     it('normalizes category failures into empty arrays and explicit error state', async () => {
         dataService.sendIpcEvent.mockRejectedValue(
             new Error('get_genres failed')
@@ -895,6 +931,85 @@ describe('withStalkerContent full ITV channel list cache', () => {
             'News Two',
         ]);
         expect(store.hasMoreChannels()).toBe(false);
+    });
+
+    it('keeps censored pagination after a delayed cache replays the current page', async () => {
+        setup(null);
+        dataService.sendIpcEvent.mockImplementation(
+            (_event, payload: { params: { p: number } }) =>
+                Promise.resolve({
+                    js: {
+                        data: [
+                            {
+                                id: String(payload.params.p),
+                                name: `Hidden ${payload.params.p}`,
+                            },
+                        ],
+                        total_items: 3,
+                    },
+                })
+        );
+        enterItvCategory('1099');
+        await waitForCondition(() => store.itvChannels().length === 1);
+        store.setPage(1);
+        await waitForCondition(() => store.itvChannels().length === 2);
+        itvCache.setChannels(CACHED_CHANNELS);
+        await waitForCondition(
+            () => dataService.sendIpcEvent.mock.calls.length === 3
+        );
+        await flushResources();
+        expect(store.itvChannels().map((row) => row.name)).toEqual([
+            'Hidden 1',
+            'Hidden 2',
+        ]);
+        expect(store.hasMoreChannels()).toBe(true);
+        store.setPage(2);
+        await waitForCondition(() => store.itvChannels().length === 3);
+        expect(store.hasMoreChannels()).toBe(false);
+    });
+
+    it.each(['empty', 'repeated'])(
+        'stops uncached search pagination on an %s page',
+        async (ending) => {
+            setup(CACHED_CHANNELS);
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { data: [{ id: 'one', name: 'Hidden' }], total_items: 99 },
+            });
+            enterItvCategory('1099');
+            await waitForCondition(() => store.itvChannels().length === 1);
+            if (ending === 'empty')
+                dataService.sendIpcEvent.mockResolvedValue({
+                    js: { data: [], total_items: 99 },
+                });
+            store.setPage(1);
+            await waitForCondition(() => !store.hasMoreChannels());
+            expect(store.itvChannels()).toHaveLength(1);
+        }
+    );
+
+    it('rejects an abandoned category response even after navigating back to it', async () => {
+        setup(null);
+        const old = createDeferred<unknown>();
+        dataService.sendIpcEvent.mockReturnValueOnce(old.promise);
+        enterItvCategory('5');
+        await waitForCondition(
+            () => dataService.sendIpcEvent.mock.calls.length === 1
+        );
+        dataService.sendIpcEvent.mockResolvedValue(
+            createContentResponse('Current')
+        );
+        store.setSelectedCategory('9');
+        await waitForCondition(
+            () => store.itvChannels()[0]?.name === 'Current'
+        );
+        store.setSelectedCategory('5');
+        await waitForCondition(
+            () => dataService.sendIpcEvent.mock.calls.length === 3
+        );
+        await flushResources();
+        old.resolve(createContentResponse('Abandoned'));
+        await flushResources();
+        expect(store.itvChannels()[0].name).toBe('Current');
     });
 
     it('kicks off a background full-list load and swaps it in once ready', async () => {

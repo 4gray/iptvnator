@@ -94,7 +94,11 @@ export function withStalkerSelection() {
                     return;
                 }
 
-                patchState(store, { searchPhrase: phrase, page: 0 });
+                // ITV search is local to each surface; keep the shared catalog pages.
+                patchState(store, {
+                    searchPhrase: phrase,
+                    ...(store.selectedContentType() === 'itv' ? {} : { page: 0 }),
+                });
             },
             setSelectedItem(selectedItem: StalkerVodSource | null | undefined) {
                 const selectedIdRaw =
