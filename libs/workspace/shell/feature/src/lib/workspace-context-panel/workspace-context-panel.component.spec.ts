@@ -551,26 +551,23 @@ describe('WorkspaceContextPanelComponent', () => {
             expect(hideButton()).toBeNull();
         });
 
-        it('picks focus up on the chevron, or the first header action without one, when asked and focus was lost', () => {
+        it('names the chevron as focus target, the first header action without one, and nothing while categories are absent', () => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedCategoryId.set(1);
             fixture.detectChanges();
-            (document.activeElement as HTMLElement | null)?.blur();
-
-            fixture.componentInstance.focusIfFocusLost();
-            expect(document.activeElement).toBe(hideButton());
+            expect(fixture.componentInstance.focusTarget()).toBe(hideButton());
 
             // Live root: no chevron, the search action stands in.
             xtreamSelectedCategoryId.set(null);
             fixture.detectChanges();
-            (document.activeElement as HTMLElement | null)?.blur();
-
-            fixture.componentInstance.focusIfFocusLost();
-            expect(document.activeElement).toBe(
-                fixture.nativeElement.querySelector(
-                    '.context-header__action'
-                )
+            expect(fixture.componentInstance.focusTarget()).toBe(
+                fixture.nativeElement.querySelector('.context-header__action')
             );
+
+            // Nothing loaded yet: no control at all, the caller falls back.
+            xtreamCategories.set([]);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.focusTarget()).toBeNull();
         });
 
         it('withholds the chevron while no category is selected (live root has no channels rail)', () => {

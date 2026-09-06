@@ -3,6 +3,7 @@ import {
     Component,
     computed,
     effect,
+    ElementRef,
     inject,
     input,
     viewChild,
@@ -11,6 +12,7 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
+    focusIfFocusLost,
     LiveLayoutSidebarStateService,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
@@ -113,9 +115,12 @@ export class WorkspaceShellContextSidebarComponent {
     // By template ref, not class token, so a spec's stand-in panel is found
     // the same way the real one is.
     private readonly contextPanel =
-        viewChild<Pick<WorkspaceContextPanelComponent, 'focusIfFocusLost'>>(
+        viewChild<Pick<WorkspaceContextPanelComponent, 'focusTarget'>>(
             'contextPanel'
         );
+    private readonly routePanel = viewChild('routePanel', {
+        read: ElementRef<HTMLElement>,
+    });
 
     constructor() {
         // Unfolding the rail removes the control the user activated (the
@@ -123,7 +128,10 @@ export class WorkspaceShellContextSidebarComponent {
         // so focus drops to <body>; the rail picks it up once rendered. This
         // watches the rail's ACTUAL fold state rather than the raw level:
         // on the live root the rail stays visible at `categories-hidden`,
-        // and only `collapsed` ↔ visible is a real transition there.
+        // and only `collapsed` ↔ visible is a real transition there. The
+        // panel names its control; with none rendered (categories loading,
+        // a failed load) the `tabindex="-1"` aside itself takes focus, so a
+        // keyboard user always lands inside the rail.
         // Seeded on the first run: the required inputs are not readable in
         // the constructor yet.
         let wasCollapsed: boolean | null = null;
@@ -133,7 +141,10 @@ export class WorkspaceShellContextSidebarComponent {
             wasCollapsed = collapsed;
             if (unfolded) {
                 queueMicrotask(() =>
-                    this.contextPanel()?.focusIfFocusLost()
+                    focusIfFocusLost(
+                        this.contextPanel()?.focusTarget() ??
+                            this.routePanel()?.nativeElement
+                    )
                 );
             }
         });

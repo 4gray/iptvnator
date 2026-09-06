@@ -23,7 +23,6 @@ import {
     asStalkerPortalError,
 } from '@iptvnator/portal/stalker/data-access';
 import {
-    focusIfFocusLost,
     LiveLayoutSidebarStateService,
     PortalCategorySortMode,
     persistPortalCategorySortMode,
@@ -377,16 +376,18 @@ export class WorkspaceContextPanelComponent {
     }
 
     /**
-     * Called by the shell sidebar once this rail has unfolded: the button the
-     * user activated to bring it back (the layout's show-categories button
-     * or the floating restore handle) is gone, so focus is picked up here —
-     * on the hide chevron when it is offered, else on the first header
-     * action — and only if focus was actually lost.
+     * The control the shell sidebar hands focus to once this rail has
+     * unfolded (the button the user activated to bring it back is gone by
+     * then): the hide chevron when it is offered, else the first header
+     * action. `null` while neither is rendered — categories still loading,
+     * or a failed Stalker load — and the sidebar falls back to the rail
+     * itself.
      */
-    focusIfFocusLost(): void {
-        focusIfFocusLost(
+    focusTarget(): HTMLElement | null {
+        return (
             this.hideCategoriesButton()?.nativeElement ??
-                this.firstHeaderAction()?.nativeElement
+            this.firstHeaderAction()?.nativeElement ??
+            null
         );
     }
 

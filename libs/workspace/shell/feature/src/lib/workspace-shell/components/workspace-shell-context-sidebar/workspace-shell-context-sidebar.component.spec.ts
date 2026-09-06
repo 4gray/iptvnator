@@ -29,7 +29,7 @@ class MockResizableDirective {
 class MockWorkspaceContextPanelComponent {
     readonly context = input.required<unknown>();
     readonly section = input.required<string>();
-    readonly focusIfFocusLost = jest.fn();
+    readonly focusTarget = jest.fn<HTMLElement | null, []>(() => null);
 }
 
 @Component({
@@ -260,6 +260,8 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 By.directive(MockWorkspaceContextPanelComponent)
             ).componentInstance as MockWorkspaceContextPanelComponent;
 
+            (document.activeElement as HTMLElement | null)?.blur();
+
             // Root at categories-hidden: the rail is visible, no transition.
             liveSidebarService.collapse();
             fixture.detectChanges();
@@ -267,7 +269,24 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.detectChanges();
             await new Promise((resolve) => queueMicrotask(resolve));
 
-            expect(panel.focusIfFocusLost).toHaveBeenCalledTimes(1);
+            // The panel offered no control (categories not loaded), so the
+            // rail itself takes focus.
+            expect(panel.focusTarget).toHaveBeenCalledTimes(1);
+            expect(document.activeElement).toBe(
+                fixture.nativeElement.querySelector('aside.context-panel--route')
+            );
+
+            const control = document.createElement('button');
+            fixture.nativeElement.appendChild(control);
+            panel.focusTarget.mockReturnValue(control);
+            (document.activeElement as HTMLElement | null)?.blur();
+            liveSidebarService.collapse();
+            fixture.detectChanges();
+            liveSidebarService.expand();
+            fixture.detectChanges();
+            await new Promise((resolve) => queueMicrotask(resolve));
+
+            expect(document.activeElement).toBe(control);
         });
 
         it('also collapses on the Stalker itv section', () => {
