@@ -52,6 +52,7 @@ import {
     validateReleaseSlug,
 } from './screenshot-guards.mjs';
 import * as driver from './capture-app-driver';
+import { CAPTURE_DOWNLOAD_FOLDER_NAME } from './capture-fixtures';
 import {
     applyTheme,
     discardUnsavedSettings,
@@ -191,6 +192,10 @@ async function main(): Promise<void> {
         await installRequestRecorder(app, networkPolicy());
 
         page = await driver.findMainWindow(app);
+        await driver.installDownloadFolderDialogStub(
+            app,
+            path.join(dataDir, CAPTURE_DOWNLOAD_FOLDER_NAME)
+        );
 
         // G3, second layer: page-level deny-by-default, which also blocks.
         await page.route('**/*', async (route) => {

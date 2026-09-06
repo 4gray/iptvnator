@@ -52,6 +52,8 @@ export const KNOWN_ACTIONS = [
     'open-stalker-live',
     'open-add-playlist-m3u-url',
     'open-settings-epg',
+    'open-downloads-manager',
+    'open-downloads-offline-movie',
 ];
 
 /**

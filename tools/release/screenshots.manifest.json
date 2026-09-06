@@ -107,6 +107,30 @@
             "setup": [
                 "open-settings-epg"
             ]
+        },
+        {
+            "slug": "guide-downloads-movie-detail",
+            "title": "Movie details with the download action",
+            "group": "guides",
+            "setup": [
+                "open-xtream-vod=Action & Mystery"
+            ]
+        },
+        {
+            "slug": "guide-downloads-manager",
+            "title": "Download manager: queue and offline library",
+            "group": "guides",
+            "setup": [
+                "open-downloads-manager"
+            ]
+        },
+        {
+            "slug": "guide-downloads-offline-movie",
+            "title": "Offline movie detail",
+            "group": "guides",
+            "setup": [
+                "open-downloads-offline-movie"
+            ]
         }
     ]
 }

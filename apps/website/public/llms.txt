@@ -18,6 +18,7 @@
 - Guide, Xtream Codes setup: https://4gray.github.io/iptvnator/blog/xtream-codes-setup-guide/
 - Guide, Stalker/Ministra portal setup: https://4gray.github.io/iptvnator/blog/stalker-portal-setup-guide/
 - Guide, M3U playlist and EPG setup: https://4gray.github.io/iptvnator/blog/m3u-playlist-epg-setup-guide/
+- Guide, offline viewing with the download manager (desktop): https://4gray.github.io/iptvnator/blog/offline-downloads-guide/
 - Features overview: https://4gray.github.io/iptvnator/features/
 - Feature, M3U playlist player: https://4gray.github.io/iptvnator/features/m3u-player/
 - Feature, Xtream Codes player: https://4gray.github.io/iptvnator/features/xtream-codes-player/

@@ -35,6 +35,14 @@ const GUIDES = [
       'blog/guides/screenshots/guide-epg-settings-dark.png',
     ],
   },
+  {
+    slug: 'offline-downloads-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-downloads-movie-detail-dark.png',
+      'blog/guides/screenshots/guide-downloads-manager-dark.png',
+      'blog/guides/screenshots/guide-downloads-offline-movie-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');

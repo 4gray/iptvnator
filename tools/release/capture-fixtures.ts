@@ -29,6 +29,13 @@ export const XTREAM_FIXTURE_CREDENTIALS = {
     password: 'marketing',
 } as const;
 
+/**
+ * Download folder the guide shots authorize inside the isolated data dir. The
+ * capture stubs Electron's folder dialog to return it, so no download ever
+ * lands in the real OS Downloads folder and no personal path reaches a frame.
+ */
+export const CAPTURE_DOWNLOAD_FOLDER_NAME = 'IPTVnator downloads';
+
 /** Fictional playlist and guide addresses typed into forms for the M3U guide shots; never fetched. */
 export const M3U_FIXTURE_PLAYLIST_URL = `${XTREAM_MOCK_ORIGIN}/demo/channels.m3u8`;
 export const M3U_FIXTURE_PLAYLIST_TITLE = 'Fictional TV playlist';

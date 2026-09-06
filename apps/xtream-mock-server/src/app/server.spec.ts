@@ -147,6 +147,46 @@ describe('Xtream mock server factory', () => {
         }
     });
 
+    it('serves marketing movies and episodes from local bytes so download screenshots stay hermetic', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const movie = await fetch(
+                `${running.origin}/movie/marketing/marketing/62000.mp4`,
+                { redirect: 'manual' }
+            );
+            const episode = await fetch(
+                `${running.origin}/series/marketing/marketing/80000.mkv`,
+                { redirect: 'manual' }
+            );
+            const ordinaryMovie = await fetch(
+                `${running.origin}/movie/user1/pass1/62000.mp4`,
+                { redirect: 'manual' }
+            );
+
+            for (const local of [movie, episode]) {
+                expect(local.status).toBe(200);
+                expect(local.headers.get('content-type')).toContain(
+                    'video/mp4'
+                );
+                expect(
+                    Number(local.headers.get('content-length'))
+                ).toBeGreaterThan(1024 * 1024);
+                await local.body?.cancel();
+            }
+            // Movies must finish quickly while episodes stay slow enough to
+            // keep a progress row in frame.
+            expect(
+                Number(movie.headers.get('content-length'))
+            ).toBeGreaterThan(Number(episode.headers.get('content-length')));
+
+            expect(ordinaryMovie.status).toBe(302);
+        } finally {
+            await running.close();
+        }
+    });
+
     it('serves the download queue series fixture locally without changing ordinary series redirects', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })

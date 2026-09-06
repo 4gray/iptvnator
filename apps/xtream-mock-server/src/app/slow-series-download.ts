@@ -12,6 +12,23 @@ export const DEFAULT_SLOW_SERIES_DOWNLOAD_OPTIONS: SlowSeriesDownloadOptions = {
     totalBytes: 8 * 1024 * 1024,
 };
 
+/**
+ * `local-media` fixture: a movie finishes in well under a second so the
+ * library shows a completed card, while an episode trickles for ~20 s so the
+ * queue still shows a live progress row when the screenshot is taken.
+ */
+export const LOCAL_MEDIA_MOVIE_DOWNLOAD_OPTIONS: SlowSeriesDownloadOptions = {
+    chunkSize: 2 * 1024 * 1024,
+    intervalMs: 2,
+    totalBytes: 96 * 1024 * 1024,
+};
+
+export const LOCAL_MEDIA_EPISODE_DOWNLOAD_OPTIONS: SlowSeriesDownloadOptions = {
+    chunkSize: 256 * 1024,
+    intervalMs: 100,
+    totalBytes: 48 * 1024 * 1024,
+};
+
 export function streamSlowSeriesDownload(
     request: Request,
     response: Response,

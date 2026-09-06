@@ -6,7 +6,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
     _electron as electron,
@@ -240,6 +240,26 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /* ------------------------------------------------------------------ */
 /* Launch and readiness                                                */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Replaces Electron's native folder picker with one that answers `folder`
+ * (created here) — the same trick `downloads.e2e.ts` uses. The downloads
+ * page's "Change Folder" button then authorizes a folder inside the isolated
+ * data dir, so guide shots never write into the real OS Downloads folder.
+ */
+export async function installDownloadFolderDialogStub(
+    app: ElectronApplication,
+    folder: string
+): Promise<void> {
+    mkdirSync(folder, { recursive: true });
+    await app.evaluate(({ dialog }, target) => {
+        dialog.showOpenDialog = async () =>
+            ({
+                canceled: false,
+                filePaths: [target],
+            }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
+    }, folder);
+}
 
 export async function launchApp(
     electronMainPath: string,

@@ -80,9 +80,17 @@ skip shows up in your output.
 ## Guides
 
 Evergreen how-to posts live in the blog collection next to release notes
-(`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx` and
-`m3u-playlist-epg-setup-guide.mdx` in `apps/website/src/content/blog/`).
-Two conventions set them apart:
+(`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx`,
+`m3u-playlist-epg-setup-guide.mdx` and `offline-downloads-guide.mdx` in
+`apps/website/src/content/blog/`). Three conventions set them apart:
+
+- **`ContentDisclaimer`.** Every guide opens with
+  `src/components/blog/ContentDisclaimer.astro` right after its intro: the
+  `general` variant states that IPTVnator ships no content, the `offline`
+  variant (downloads, recordings) adds what the feature is for and that keeping
+  a copy is governed by the provider's terms and local law. Reuse it instead of
+  rewriting the notice per post, and keep the surrounding prose to "content you
+  already stream", never "download from your provider".
 
 - **`faq` frontmatter.** An optional list of `{ q, a }` entries. `BlogPost.astro`
   renders it as an accordion after the body and emits a `FAQPage` JSON-LD block
@@ -92,6 +100,13 @@ Two conventions set them apart:
   `apps/website/public/blog/guides/screenshots/<slug>-<theme>.png`; the shots are
   declared in `tools/release/screenshots.manifest.json` with `"group": "guides"`
   and never appear in a release run.
+  The download-manager shots need real transfers, so the Xtream mock's
+  `marketing` scenario serves movies and episodes from generated local bytes
+  (`downloadStreamFixture: 'local-media'`) instead of redirecting to the public
+  HLS stub, and the capture stubs Electron's folder dialog so "Change Folder"
+  authorizes a folder inside the isolated data dir rather than the real OS
+  Downloads folder (`installDownloadFolderDialogStub` in
+  `tools/release/capture-app-driver.ts`).
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence

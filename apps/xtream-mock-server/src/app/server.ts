@@ -15,8 +15,12 @@ import {
     XtreamPerformanceController,
 } from './performance-control.js';
 import { dispatchAction } from './routes/dispatch.js';
-import { getScenario } from './scenarios.js';
-import { streamSlowSeriesDownload } from './slow-series-download.js';
+import { getScenario, type ScenarioConfig } from './scenarios.js';
+import {
+    LOCAL_MEDIA_EPISODE_DOWNLOAD_OPTIONS,
+    LOCAL_MEDIA_MOVIE_DOWNLOAD_OPTIONS,
+    streamSlowSeriesDownload,
+} from './slow-series-download.js';
 
 export { createXtreamMockServerShutdown } from './server-lifecycle.js';
 
@@ -255,20 +259,44 @@ function installStreamRoutes(
         }
         response.redirect(HLS_STUB);
     };
+    const movieResponse = (request: Request, response: Response) => {
+        if (isPerformanceMediaRequest(request, controlEnabled)) {
+            response.status(410).json({ error: 'performance-media-disabled' });
+            return;
+        }
+        if (downloadStreamFixtureOf(request) === 'local-media') {
+            streamSlowSeriesDownload(
+                request,
+                response,
+                LOCAL_MEDIA_MOVIE_DOWNLOAD_OPTIONS
+            );
+            return;
+        }
+        response.redirect(HLS_STUB);
+    };
     const seriesResponse = (request: Request, response: Response) => {
         if (isPerformanceMediaRequest(request, controlEnabled)) {
             response.status(410).json({ error: 'performance-media-disabled' });
             return;
         }
-        if (isSlowSeriesDownloadRequest(request)) {
+        const fixture = downloadStreamFixtureOf(request);
+        if (fixture === 'slow-series') {
             streamSlowSeriesDownload(request, response);
+            return;
+        }
+        if (fixture === 'local-media') {
+            streamSlowSeriesDownload(
+                request,
+                response,
+                LOCAL_MEDIA_EPISODE_DOWNLOAD_OPTIONS
+            );
             return;
         }
         response.redirect(HLS_STUB);
     };
     app.get('/live/:username/:password/:streamId.m3u8', streamResponse);
     app.get('/live/:username/:password/:streamId.ts', streamResponse);
-    app.get('/movie/:username/:password/:streamId.:ext', streamResponse);
+    app.get('/movie/:username/:password/:streamId.:ext', movieResponse);
     app.get('/series/:username/:password/:streamId.:ext', seriesResponse);
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
@@ -277,12 +305,12 @@ function installStreamRoutes(
     app.all('/streaming/timeshift.php', streamResponse);
 }
 
-function isSlowSeriesDownloadRequest(request: Request): boolean {
+function downloadStreamFixtureOf(
+    request: Request
+): ScenarioConfig['downloadStreamFixture'] {
     const username = String(request.params['username'] ?? '');
     const password = String(request.params['password'] ?? '');
-    return (
-        getScenario(username, password).downloadStreamFixture === 'slow-series'
-    );
+    return getScenario(username, password).downloadStreamFixture;
 }
 
 function isPerformanceMediaRequest(

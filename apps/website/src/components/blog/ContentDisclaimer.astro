@@ -1,0 +1,38 @@
+---
+import Alert from './Alert.astro';
+
+/**
+ * The standard "player, not a service" notice for guides. `general` is the
+ * short form; `offline` is for posts about downloads and recordings, where the
+ * reader also needs to hear what the feature is for and that the legality of
+ * keeping a copy depends on their provider's terms and their jurisdiction.
+ */
+interface Props {
+  variant?: 'general' | 'offline';
+}
+
+const { variant = 'general' } = Astro.props;
+---
+
+{variant === 'offline' ? (
+  <Alert type="info" title="What offline copies are for">
+    <p>
+      IPTVnator is a player. It ships without channels, playlists or subscriptions and does not
+      provide, host or sell any content. The download manager saves a local copy of something you
+      already stream, for personal offline viewing on this device: on a train, on a plane, on a
+      connection that keeps dropping. It does not bypass DRM and cannot reach anything your account
+      cannot already play.
+    </p>
+    <p class="!mt-2">
+      Whether keeping a copy is allowed depends on your provider's terms and on the law where you
+      live. Check both before you rely on it. The screenshots below come from the project's own mock
+      servers with fictional titles.
+    </p>
+  </Alert>
+) : (
+  <Alert type="info" title="IPTVnator is a player, not a service">
+    It ships without channels, playlists or subscriptions and does not provide, host or sell any
+    content. Everything shown here comes from the project's own mock servers with fictional data.
+    Use it only with sources you have the right to access.
+  </Alert>
+)}
