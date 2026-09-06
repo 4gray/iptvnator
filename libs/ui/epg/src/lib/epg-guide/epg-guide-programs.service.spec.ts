@@ -33,7 +33,10 @@ async function flush(): Promise<void> {
 
 describe('EpgGuideProgramsService', () => {
     const channels = signal<EpgGuideChannel[]>([]);
-    const loadPrograms = jest.fn<Promise<Map<string, EpgProgram[]>>, [unknown]>();
+    const loadPrograms = jest.fn<
+        Promise<Map<string, EpgProgram[]>>,
+        [unknown]
+    >();
     const loadCoverage = jest.fn<Promise<Set<string>>, [unknown]>();
     let service: EpgGuideProgramsService;
 
@@ -70,7 +73,9 @@ describe('EpgGuideProgramsService', () => {
         service.ensureLoaded(channels());
         await flush();
         expect(service.statusFor('c')).toBe('none');
-        const requested = loadPrograms.mock.calls[0][0] as { channels: EpgGuideChannel[] };
+        const requested = loadPrograms.mock.calls[0][0] as {
+            channels: EpgGuideChannel[];
+        };
         expect(requested.channels.map((item) => item.id)).toEqual(['a', 'b']);
     });
 
@@ -80,8 +85,12 @@ describe('EpgGuideProgramsService', () => {
         );
         channels.set(many);
         loadPrograms.mockImplementation(async (window) => {
-            const { channels: requested } = window as { channels: EpgGuideChannel[] };
-            return new Map(requested.map((item) => [item.id, [programFor(item.id)]]));
+            const { channels: requested } = window as {
+                channels: EpgGuideChannel[];
+            };
+            return new Map(
+                requested.map((item) => [item.id, [programFor(item.id)]])
+            );
         });
         service.setWindow(1_000, 2_000);
         service.ensureLoaded(many);

@@ -207,6 +207,54 @@ describe('EpgGuideComponent', () => {
         ).toBeTruthy();
     });
 
+    it('ignores guide keys aimed at a toolbar control', async () => {
+        await settle(fixture);
+        const close = jest.fn();
+        component.close.subscribe(close);
+        activate.mockClear();
+        const button: HTMLButtonElement = fixture.debugElement.query(
+            By.css('app-epg-guide-toolbar button')
+        ).nativeElement;
+        const event = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            cancelable: true,
+        });
+        Object.defineProperty(event, 'target', { value: button });
+
+        component.onKeydown(event);
+
+        expect(activate).not.toHaveBeenCalled();
+        expect(close).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('opens a search hit with its own channel and focuses that row', async () => {
+        await settle(fixture);
+        // Revealing the row scrolls the CDK viewport; jsdom has no scrollTo.
+        const viewportEl: HTMLElement = fixture.debugElement.query(
+            By.css('cdk-virtual-scroll-viewport')
+        ).nativeElement;
+        viewportEl.scrollTo = jest.fn() as unknown as HTMLElement['scrollTo'];
+
+        component.openSearchResult({
+            channelId: 'c',
+            program: nowProgram('c'),
+        });
+        expect(dialogOpen).toHaveBeenCalledWith(
+            expect.objectContaining({ channelName: 'Channel c' })
+        );
+        expect(component.focus()).toEqual({ row: 2, block: null });
+
+        dialogOpen.mockClear();
+        component.openSearchResult({
+            channelId: null,
+            program: nowProgram('x'),
+        });
+        expect(dialogOpen).toHaveBeenCalledWith(
+            expect.not.objectContaining({ channelName: expect.anything() })
+        );
+    });
+
     it('clears the channel filter on Escape inside the toolbar field, then lets Escape through', async () => {
         await settle(fixture);
         component.setFilter('channel c');

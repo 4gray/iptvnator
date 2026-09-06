@@ -28,6 +28,8 @@ export interface EpgGuideViewportHost {
     blocksFor(row: number): TimelineRenderBlock[];
     activeRow(): number;
     ensureLoaded(channels: readonly EpgGuideChannel[]): void;
+    /** Reports the viewport's horizontal offset; drives the ruler and now-line. */
+    setScrollLeft(left: number): void;
 }
 
 /**
@@ -41,7 +43,12 @@ export class EpgGuideViewportController {
 
     constructor(private readonly host: EpgGuideViewportHost) {}
 
-    /** Reload as the viewport renders new rows, until the host is destroyed. */
+    /**
+     * Reload as the viewport renders new rows, mirror its horizontal offset and
+     * re-measure it when the host resizes — all until the host is destroyed.
+     * `elementScrolled()` runs outside the zone, and the signal write it feeds
+     * schedules change detection itself, so scrolling costs no zone churn.
+     */
     watch(viewport: CdkVirtualScrollViewport, destroyRef: DestroyRef): void {
         viewport.renderedRangeStream
             .pipe(takeUntilDestroyed(destroyRef))
@@ -49,6 +56,30 @@ export class EpgGuideViewportController {
                 this.renderedRange = range;
                 this.loadRenderedRange();
             });
+        const element = viewport.elementRef.nativeElement;
+        viewport
+            .elementScrolled()
+            .pipe(takeUntilDestroyed(destroyRef))
+            .subscribe(() => this.host.setScrollLeft(element.scrollLeft));
+        this.observeSize(viewport, element, destroyRef);
+    }
+
+    /**
+     * The CDK only re-measures on window resize, so a viewport that changes
+     * size with its container (a drawer opening, a split pane) keeps a stale
+     * height and renders the wrong range. `ResizeObserver` is absent in jsdom.
+     */
+    private observeSize(
+        viewport: CdkVirtualScrollViewport,
+        element: HTMLElement,
+        destroyRef: DestroyRef
+    ): void {
+        if (typeof ResizeObserver === 'undefined') {
+            return;
+        }
+        const observer = new ResizeObserver(() => viewport.checkViewportSize());
+        observer.observe(element);
+        destroyRef.onDestroy(() => observer.disconnect());
     }
 
     /**

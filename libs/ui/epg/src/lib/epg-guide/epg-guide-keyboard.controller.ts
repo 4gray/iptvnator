@@ -21,13 +21,35 @@ export interface EpgGuideKeyboardHost {
     close(): void;
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
+/**
+ * Controls the guide must not steal keys from: form fields, buttons, menu and
+ * listbox items, links and editable content — anywhere the browser or a
+ * Material overlay already gives the key a meaning.
+ */
+const INTERACTIVE_SELECTOR =
+    'input, textarea, select, button, [role="button"], [role="menuitem"],' +
+    ' [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"],' +
+    ' a[href], [contenteditable=""], [contenteditable="true"]';
+
+/**
+ * The guide's own grid surfaces (channel cells and programme cards) carry
+ * `role="button"` for assistive technology, so they match the selector above
+ * even though the guide owns their keys. They opt back in with
+ * `data-epg-guide-grid`; a real control nested inside one (the catch-up
+ * button) is the closest match and still wins.
+ */
+const GUIDE_GRID_ATTRIBUTE = 'data-epg-guide-grid';
+
+function isForeignInteractiveTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) {
         return false;
     }
+    if (target.isContentEditable) {
+        return true;
+    }
+    const interactive = target.closest(INTERACTIVE_SELECTOR);
     return (
-        target.isContentEditable ||
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+        interactive !== null && !interactive.hasAttribute(GUIDE_GRID_ATTRIBUTE)
     );
 }
 
@@ -52,7 +74,7 @@ export class EpgGuideKeyboardController {
             event.metaKey ||
             event.ctrlKey ||
             event.altKey ||
-            isEditableTarget(event.target) ||
+            isForeignInteractiveTarget(event.target) ||
             this.host.isBlocked()
         ) {
             return false;
@@ -124,7 +146,8 @@ export class EpgGuideKeyboardController {
             this.focus.set({ row, block: null });
             return true;
         }
-        const current = this.focus()?.row === row ? this.focus()?.block ?? null : null;
+        const current =
+            this.focus()?.row === row ? (this.focus()?.block ?? null) : null;
         const start = current ?? (delta > 0 ? -1 : blocks);
         this.focus.set({ row, block: clamp(start + delta, 0, blocks - 1) });
         return true;

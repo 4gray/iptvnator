@@ -23,11 +23,11 @@
     (searchQueryChange)="onSearchQueryChange($event)"
 />
 
-@if (searchEnabled && searchQuery().trim().length >= 2) {
+@if (searchPanelVisible()) {
     <div class="epg-guide__search-results" role="listbox">
         @for (
             hit of searchResults();
-            track hit.program.channel + hit.program.start
+            track hit.program.channel + hit.program.start + $index
         ) {
             <button
                 type="button"
@@ -78,8 +78,11 @@
                         {{ tick.ms | date: 'HH:mm' }}
                     </div>
                 }
-                @if (nowLeftPx(); as nowX) {
-                    <div class="epg-guide__now-badge" [style.left.px]="nowX">
+                @if (nowLeftPx() !== null) {
+                    <div
+                        class="epg-guide__now-badge"
+                        [style.left.px]="nowLeftPx()"
+                    >
                         {{ nowMs() | date: 'HH:mm' }}
                     </div>
                 }
@@ -93,7 +96,6 @@
         [itemSize]="rowHeightPx()"
         [minBufferPx]="rowHeightPx() * 6"
         [maxBufferPx]="rowHeightPx() * 12"
-        (scroll)="onViewportScroll($event)"
     >
         <app-epg-guide-row
             *cdkVirtualFor="
@@ -136,12 +138,15 @@
         }
     </cdk-virtual-scroll-viewport>
 
-    @if (nowLeftPx(); as nowX) {
-        <div
-            class="epg-guide__now-line"
-            [style.left.px]="channelColumnPx + nowX - scrollLeft()"
-        ></div>
-    }
+    <!-- Clipped to the lane so the line never paints over the sticky column. -->
+    <div class="epg-guide__now-clip">
+        @if (nowLineLeftPx() !== null) {
+            <div
+                class="epg-guide__now-line"
+                [style.left.px]="nowLineLeftPx()"
+            ></div>
+        }
+    </div>
 </div>
 
 <div class="epg-guide__keys" aria-hidden="true">

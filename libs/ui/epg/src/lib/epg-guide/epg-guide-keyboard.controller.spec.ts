@@ -83,12 +83,52 @@ describe('EpgGuideKeyboardController', () => {
 
     it('ignores typing, modifier chords, blocked state and unknown keys', () => {
         const input = document.createElement('input');
-        expect(controller.handle(key('ArrowDown', { target: input }))).toBe(false);
-        expect(controller.handle(key('ArrowDown', { ctrlKey: true }))).toBe(false);
+        expect(controller.handle(key('ArrowDown', { target: input }))).toBe(
+            false
+        );
+        expect(controller.handle(key('ArrowDown', { ctrlKey: true }))).toBe(
+            false
+        );
         host.isBlocked.mockReturnValue(true);
         expect(controller.handle(key('Escape'))).toBe(false);
         host.isBlocked.mockReturnValue(false);
         expect(controller.handle(key('x'))).toBe(false);
         expect(host.close).not.toHaveBeenCalled();
+    });
+
+    it('ignores keys aimed at a control the guide does not own', () => {
+        const button = document.createElement('button');
+        expect(controller.handle(key('Enter', { target: button }))).toBe(false);
+        expect(host.play).not.toHaveBeenCalled();
+
+        const icon = document.createElement('mat-icon');
+        button.appendChild(icon);
+        expect(controller.handle(key('Enter', { target: icon }))).toBe(false);
+        expect(host.play).not.toHaveBeenCalled();
+    });
+
+    it('still handles keys on its own grid surfaces', () => {
+        const card = document.createElement('div');
+        card.setAttribute('role', 'button');
+        card.setAttribute('data-epg-guide-grid', '');
+        expect(controller.handle(key('Enter', { target: card }))).toBe(true);
+        expect(host.play).toHaveBeenCalledWith(2);
+
+        const label = document.createElement('span');
+        card.appendChild(label);
+        expect(controller.handle(key('ArrowDown', { target: label }))).toBe(
+            true
+        );
+        expect(controller.focus()).toEqual({ row: 3, block: null });
+    });
+
+    it('leaves the catch-up button inside a card to the button', () => {
+        const card = document.createElement('div');
+        card.setAttribute('role', 'button');
+        card.setAttribute('data-epg-guide-grid', '');
+        const watch = document.createElement('button');
+        card.appendChild(watch);
+        expect(controller.handle(key('Enter', { target: watch }))).toBe(false);
+        expect(host.play).not.toHaveBeenCalled();
     });
 });

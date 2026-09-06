@@ -131,6 +131,7 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
     readonly searchEnabled = this.search.enabled;
     readonly searchQuery = this.search.query;
     readonly searchResults = this.search.results;
+    readonly searchPanelVisible = this.search.panelVisible;
     readonly catchUpAvailable = this.source.catchUp !== undefined;
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
@@ -146,6 +147,20 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
     readonly nowLeftPx = computed(() =>
         guideNowLeftPx(this.axis(), this.nowMs(), this.zoom())
     );
+    /**
+     * The now-line's x inside the scrolling lane, or `null` when it is not on
+     * the selected day or has scrolled behind the sticky channel column — the
+     * clip layer starts at the column's right edge, so a negative offset would
+     * otherwise be painted under it.
+     */
+    readonly nowLineLeftPx = computed(() => {
+        const nowX = this.nowLeftPx();
+        if (nowX === null) {
+            return null;
+        }
+        const left = nowX - this.scrollLeft();
+        return left >= 0 ? left : null;
+    });
     readonly rowHeightPx = computed(
         () => EPG_GUIDE_ROW_HEIGHT_PX[this.density()]
     );
@@ -190,6 +205,7 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         blocksFor: (row) => this.blocksFor(row),
         activeRow: () => this.activeRowIndex(),
         ensureLoaded: (channels) => this.programsService.ensureLoaded(channels),
+        setScrollLeft: (left) => this.scrollLeft.set(left),
     });
 
     private minuteTimer?: number;
@@ -198,11 +214,13 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         effect(() => {
             const axis = this.axis();
             const offset = this.offsetMinutes();
-            this.programsService.setWindow(
-                epgProviderClockMs(axis.startMs, offset),
-                epgProviderClockMs(axis.endMs, offset)
-            );
-            untracked(() => this.viewportController.loadRenderedRange());
+            untracked(() => {
+                this.programsService.setWindow(
+                    epgProviderClockMs(axis.startMs, offset),
+                    epgProviderClockMs(axis.endMs, offset)
+                );
+                this.viewportController.loadRenderedRange();
+            });
         });
         effect(() => {
             this.rows();
@@ -264,10 +282,6 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         return focused?.row === row ? focused.block : null;
     }
 
-    onViewportScroll(event: Event): void {
-        this.scrollLeft.set((event.target as HTMLElement).scrollLeft);
-    }
-
     stepDay(direction: EpgDateNavigationDirection): void {
         this.dayKey.set(shiftEpgDateKey(this.dayKey(), direction));
         this.focus.set(null);
@@ -305,8 +319,32 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         this.search.setQuery(query);
     }
 
+    /**
+     * Open a search hit. When the host resolved the hit's row, focus and reveal
+     * it and label the dialog with that channel; an unresolved hit still opens,
+     * just without a channel.
+     */
     openSearchResult(hit: EpgGuideSearchHit): void {
-        this.programmeDialog.open({ ...hit.program }).subscribe();
+        const rowIndex =
+            hit.channelId === null
+                ? -1
+                : this.rows().findIndex((row) => row.id === hit.channelId);
+        const channel = rowIndex < 0 ? null : this.rows()[rowIndex];
+        if (channel) {
+            this.focus.set({ row: rowIndex, block: null });
+            this.viewportController.revealFocus(this.focus());
+        }
+        this.programmeDialog
+            .open(
+                channel
+                    ? {
+                          ...hit.program,
+                          channelName: channel.name,
+                          channelLogo: channel.logoUrl,
+                      }
+                    : { ...hit.program }
+            )
+            .subscribe();
     }
 
     activateRow(channel: EpgGuideChannel | undefined): void {

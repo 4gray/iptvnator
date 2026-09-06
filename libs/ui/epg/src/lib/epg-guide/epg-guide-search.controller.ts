@@ -1,9 +1,10 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { EpgGuideSearchHit } from './epg-guide-source';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MAX_RESULTS = 20;
-const SEARCH_MIN_LENGTH = 2;
+/** Shortest query that runs a search — and shows the results panel. */
+export const EPG_GUIDE_SEARCH_MIN_LENGTH = 2;
 
 /**
  * Debounced programme search for the guide toolbar. The host's
@@ -15,6 +16,12 @@ export class EpgGuideSearchController {
     readonly query = signal('');
     readonly results = signal<EpgGuideSearchHit[]>([]);
     readonly enabled: boolean;
+    /** True while the query is long enough for the results panel to show. */
+    readonly panelVisible = computed(
+        () =>
+            this.enabled &&
+            this.query().trim().length >= EPG_GUIDE_SEARCH_MIN_LENGTH
+    );
 
     private timer?: number;
 
@@ -30,19 +37,29 @@ export class EpgGuideSearchController {
         this.query.set(query);
         window.clearTimeout(this.timer);
         const term = query.trim();
-        if (term.length < SEARCH_MIN_LENGTH || !this.search) {
+        if (term.length < EPG_GUIDE_SEARCH_MIN_LENGTH || !this.search) {
             this.results.set([]);
             return;
         }
         this.timer = window.setTimeout(async () => {
-            const hits = await this.search?.(term).catch(() => []);
+            // The host's search may throw synchronously (before it ever
+            // returns a promise), which `.catch()` alone would not contain.
+            const hits = await this.runSearch(term);
             if (this.query() === query) {
-                this.results.set((hits ?? []).slice(0, SEARCH_MAX_RESULTS));
+                this.results.set(hits.slice(0, SEARCH_MAX_RESULTS));
             }
         }, SEARCH_DEBOUNCE_MS);
     }
 
     destroy(): void {
         window.clearTimeout(this.timer);
+    }
+
+    private async runSearch(term: string): Promise<EpgGuideSearchHit[]> {
+        try {
+            return (await this.search?.(term)) ?? [];
+        } catch {
+            return [];
+        }
     }
 }

@@ -1,5 +1,11 @@
 @use '../epg-theme' as *;
 
+// Ruler strip height; the now-line clip layer starts below it.
+$ruler-height: 34px;
+// Matches `.guide-toolbar`'s min-height in epg-guide-toolbar.component.scss —
+// the search results panel hangs directly under the toolbar.
+$toolbar-height: 52px;
+
 :host {
     display: flex;
     flex-direction: column;
@@ -20,7 +26,7 @@
 
 .epg-guide__ruler {
     display: flex;
-    height: 34px;
+    height: $ruler-height;
     flex: 0 0 auto;
     border-bottom: 1px solid $line-strong;
     background: var(--app-content-bg);
@@ -76,7 +82,7 @@
     top: 6px;
     transform: translateX(-50%);
     background: $accent-live;
-    color: #1a0d0d;
+    color: $on-live;
     font: 600 10.5px $font-mono;
     padding: 3px 7px;
     border-radius: 5px;
@@ -88,21 +94,26 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
+}
 
-    ::ng-deep .cdk-virtual-scroll-content-wrapper {
-        min-width: 100%;
-    }
+.epg-guide__now-clip {
+    position: absolute;
+    left: var(--epg-guide-channel-col);
+    right: 0;
+    top: $ruler-height;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 3;
 }
 
 .epg-guide__now-line {
     position: absolute;
-    top: 34px;
+    top: 0;
     bottom: 0;
     width: 2px;
     background: $accent-live;
     box-shadow: 0 0 10px color-mix(in srgb, $accent-live 60%, transparent);
-    pointer-events: none;
-    z-index: 3;
 }
 
 .epg-guide__no-rows {
@@ -145,7 +156,7 @@
 
 .epg-guide__search-results {
     position: absolute;
-    top: 52px;
+    top: $toolbar-height;
     right: 18px;
     width: 420px;
     max-height: 50vh;
@@ -154,7 +165,8 @@
     background: $surface-1;
     border: 1px solid $line-strong;
     border-radius: 10px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 16px 40px
+        color-mix(in srgb, var(--app-on-surface) 25%, transparent);
     padding: 6px;
     display: flex;
     flex-direction: column;

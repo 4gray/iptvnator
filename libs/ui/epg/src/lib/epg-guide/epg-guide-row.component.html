@@ -2,6 +2,7 @@
     class="epg-guide-row__channel"
     role="button"
     tabindex="-1"
+    data-epg-guide-grid
     [attr.aria-label]="channel().name"
     [attr.aria-pressed]="active()"
     (click)="channelActivated.emit()"
@@ -58,6 +59,7 @@
             class="epg-guide-row__block"
             role="button"
             tabindex="-1"
+            data-epg-guide-grid
             [attr.data-tier]="item.tier"
             [class.is-past]="item.block.when === 'past'"
             [class.is-now]="item.block.when === 'now'"

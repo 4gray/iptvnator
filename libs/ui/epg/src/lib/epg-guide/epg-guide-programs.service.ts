@@ -24,7 +24,9 @@ const debugEpgGuidePrograms = createDevLogger('EpgGuideProgramsService');
 
 /** A channel is only ever requested when it carries a real, non-blank key. */
 function hasEpgKey(channel: EpgGuideChannel): boolean {
-    return typeof channel.epgKey === 'string' && channel.epgKey.trim().length > 0;
+    return (
+        typeof channel.epgKey === 'string' && channel.epgKey.trim().length > 0
+    );
 }
 
 /**
@@ -38,9 +40,9 @@ function hasEpgKey(channel: EpgGuideChannel): boolean {
 export class EpgGuideProgramsService {
     private readonly source = inject(EPG_GUIDE_SOURCE);
 
-    private readonly programs = signal<ReadonlyMap<string, readonly EpgProgram[]>>(
-        new Map()
-    );
+    private readonly programs = signal<
+        ReadonlyMap<string, readonly EpgProgram[]>
+    >(new Map());
     private readonly statuses = signal<ReadonlyMap<string, EpgGuideRowStatus>>(
         new Map()
     );
@@ -106,14 +108,19 @@ export class EpgGuideProgramsService {
             return;
         }
         const pending = channels.filter(
-            (channel) => this.statusFor(channel.id) === 'idle' && hasEpgKey(channel)
+            (channel) =>
+                this.statusFor(channel.id) === 'idle' && hasEpgKey(channel)
         );
         if (pending.length === 0) {
             return;
         }
         this.patchStatuses(pending.map((channel) => [channel.id, 'loading']));
         const generation = this.generation;
-        for (let start = 0; start < pending.length; start += EPG_GUIDE_LOAD_CHUNK) {
+        for (
+            let start = 0;
+            start < pending.length;
+            start += EPG_GUIDE_LOAD_CHUNK
+        ) {
             const chunk = pending.slice(start, start + EPG_GUIDE_LOAD_CHUNK);
             this.loadChunk({ channels: chunk, ...range }, generation);
         }
@@ -155,7 +162,11 @@ export class EpgGuideProgramsService {
         const generation = this.generation;
         const keyed = this.source.channels().filter(hasEpgKey);
         const chunks: EpgGuideChannel[][] = [];
-        for (let start = 0; start < keyed.length; start += EPG_GUIDE_COVERAGE_CHUNK) {
+        for (
+            let start = 0;
+            start < keyed.length;
+            start += EPG_GUIDE_COVERAGE_CHUNK
+        ) {
             chunks.push(keyed.slice(start, start + EPG_GUIDE_COVERAGE_CHUNK));
         }
         Promise.all(
