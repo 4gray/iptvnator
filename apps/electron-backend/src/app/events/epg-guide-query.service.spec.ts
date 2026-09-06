@@ -422,15 +422,18 @@ describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
 });
 
 describe('EpgGuideQueryService', () => {
-    const getChannelMetadata = jest.fn();
+    const resolveChannelMetadata = jest.fn();
     let service: EpgGuideQueryService;
 
     beforeEach(() => {
         getDatabase.mockReset();
-        getChannelMetadata.mockReset();
+        resolveChannelMetadata.mockReset();
         (epgLogger.log as jest.Mock).mockReset();
         (epgLogger.error as jest.Mock).mockReset();
-        service = new EpgGuideQueryService({ getChannelMetadata }, '[Test]');
+        service = new EpgGuideQueryService(
+            { resolveChannelMetadata },
+            '[Test]'
+        );
     });
 
     it('returns an empty object (no per-key placeholders) for an invalid window', async () => {
@@ -440,11 +443,30 @@ describe('EpgGuideQueryService', () => {
             toMs: FROM,
         });
         expect(result).toEqual({});
-        expect(getChannelMetadata).not.toHaveBeenCalled();
+        expect(resolveChannelMetadata).not.toHaveBeenCalled();
+    });
+
+    it('rejects coverage when the channel lookup itself fails', async () => {
+        resolveChannelMetadata.mockRejectedValue(new Error('lookup down'));
+        await expect(
+            service.getProgramCoverage({
+                channelIds: ['a'],
+                fromMs: FROM,
+                toMs: TO,
+            })
+        ).rejects.toThrow('lookup down');
+        // Programmes keep the documented fail-soft answer.
+        await expect(
+            service.getProgramsForChannels({
+                channelIds: ['a'],
+                fromMs: FROM,
+                toMs: TO,
+            })
+        ).resolves.toEqual({ a: [] });
     });
 
     it('rethrows a coverage failure after logging it', async () => {
-        getChannelMetadata.mockResolvedValue({
+        resolveChannelMetadata.mockResolvedValue({
             a: { id: 'a', displayName: 'A', iconUrl: null },
         });
         getDatabase.mockRejectedValue(new Error('locked'));
@@ -458,7 +480,7 @@ describe('EpgGuideQueryService', () => {
     });
 
     it('resolves keys through channel metadata and maps rows back onto every requested key', async () => {
-        getChannelMetadata.mockResolvedValue({
+        resolveChannelMetadata.mockResolvedValue({
             'ZDF HD': { id: 'zdf.de', displayName: 'ZDF HD', iconUrl: null },
             'zdf.de': { id: 'zdf.de', displayName: 'ZDF HD', iconUrl: null },
             unknown: null,
@@ -490,7 +512,7 @@ describe('EpgGuideQueryService', () => {
             toMs: TO,
         });
 
-        expect(getChannelMetadata).toHaveBeenCalledWith(
+        expect(resolveChannelMetadata).toHaveBeenCalledWith(
             ['ZDF HD', 'zdf.de', 'unknown'],
             {}
         );
@@ -511,7 +533,7 @@ describe('EpgGuideQueryService', () => {
     });
 
     it('scopes the programme rows to the requested source URLs plus legacy (unsourced) rows', async () => {
-        getChannelMetadata.mockResolvedValue({
+        resolveChannelMetadata.mockResolvedValue({
             a: { id: 'a', displayName: 'A', iconUrl: null },
         });
         const whereCalls: unknown[] = [];
@@ -526,7 +548,7 @@ describe('EpgGuideQueryService', () => {
             sourceUrls: ['https://guide.example.com/epg.xml'],
         });
 
-        expect(getChannelMetadata).toHaveBeenCalledWith(['a'], {
+        expect(resolveChannelMetadata).toHaveBeenCalledWith(['a'], {
             sourceUrls: ['https://guide.example.com/epg.xml'],
         });
         const condition = flattenSql(whereCalls[0]).toLowerCase();
@@ -535,7 +557,7 @@ describe('EpgGuideQueryService', () => {
     });
 
     it('fails soft when the database throws', async () => {
-        getChannelMetadata.mockResolvedValue({
+        resolveChannelMetadata.mockResolvedValue({
             a: { id: 'a', displayName: 'A', iconUrl: null },
         });
         getDatabase.mockRejectedValue(new Error('locked'));
@@ -550,7 +572,7 @@ describe('EpgGuideQueryService', () => {
     });
 
     it('keeps a provider key named __proto__ as an own response property', async () => {
-        getChannelMetadata.mockResolvedValue({
+        resolveChannelMetadata.mockResolvedValue({
             __proto__: { id: 'proto.tv', displayName: 'Proto', iconUrl: null },
         });
         getDatabase.mockResolvedValue({
@@ -581,7 +603,7 @@ describe('EpgGuideQueryService', () => {
 
     it('drops channel keys cut by the per-request cap from the result entirely', async () => {
         const ids = Array.from({ length: 101 }, (_, index) => `ch-${index}`);
-        getChannelMetadata.mockResolvedValue({});
+        resolveChannelMetadata.mockResolvedValue({});
 
         const result = await service.getProgramsForChannels({
             channelIds: ids,
@@ -602,7 +624,7 @@ describe('EpgGuideQueryService', () => {
     });
 
     it('reports coverage for the requested keys whose channel has a programme in the window', async () => {
-        getChannelMetadata.mockResolvedValue({
+        resolveChannelMetadata.mockResolvedValue({
             'ZDF HD': { id: 'zdf.de', displayName: 'ZDF HD', iconUrl: null },
             ARTE: { id: 'arte.de', displayName: 'ARTE', iconUrl: null },
             none: null,
@@ -627,7 +649,7 @@ describe('EpgGuideQueryService', () => {
 
     it('does not drop any of 150 requested keys under the larger coverage cap', async () => {
         const ids = Array.from({ length: 150 }, (_, index) => `ch-${index}`);
-        getChannelMetadata.mockResolvedValue({});
+        resolveChannelMetadata.mockResolvedValue({});
 
         await service.getProgramCoverage({
             channelIds: ids,
@@ -635,7 +657,7 @@ describe('EpgGuideQueryService', () => {
             toMs: TO,
         });
 
-        expect(getChannelMetadata).toHaveBeenCalledWith(ids, {});
+        expect(resolveChannelMetadata).toHaveBeenCalledWith(ids, {});
     });
 
     it('logs the coverage-specific truncation message when the coverage cap drops keys', async () => {
@@ -643,7 +665,7 @@ describe('EpgGuideQueryService', () => {
             { length: EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST + 1 },
             (_, index) => `ch-${index}`
         );
-        getChannelMetadata.mockResolvedValue({});
+        resolveChannelMetadata.mockResolvedValue({});
 
         await service.getProgramCoverage({
             channelIds: ids,

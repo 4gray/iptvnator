@@ -190,6 +190,19 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.activeChannelId()).toBe('0:dup');
     });
 
+    it('marks the copy whose playback headers match when everything else is equal', () => {
+        const plain = makeChannel('dup');
+        const withUa = {
+            ...makeChannel('dup'),
+            http: { referrer: '', 'user-agent': 'VLC/3', origin: '' },
+        };
+        channels.set([plain, withUa]);
+        activeChannel.set({ ...withUa, epgParams: '' });
+        expect(service.activeChannelId()).toBe('1:dup');
+        activeChannel.set({ ...plain, epgParams: '' });
+        expect(service.activeChannelId()).toBe('0:dup');
+    });
+
     it('propagates a coverage failure so the guide keeps coverage unknown', async () => {
         getProgramCoverage.mockRejectedValue(new Error('bridge down'));
         await expect(

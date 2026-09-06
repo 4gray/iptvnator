@@ -344,52 +344,62 @@ export class EpgQueryService {
         }
     }
 
+    /**
+     * Resolve channel lookup keys to XMLTV channel metadata. Throws on a
+     * database failure so callers that must tell "no match" apart from "could
+     * not look up" (the guide's coverage read) can fail open.
+     */
+    async resolveChannelMetadata(
+        channelIds: string[],
+        options: { sourceUrls?: string[] } = {}
+    ): Promise<Record<string, EpgChannelMetadata | null>> {
+        const normalizedChannelIds =
+            this.normalizeChannelLookupKeys(channelIds);
+
+        if (normalizedChannelIds.length === 0) {
+            return {};
+        }
+
+        const db = await getDatabase();
+        const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
+        let candidates = await this.selectChannelMetadataCandidates(
+            db,
+            normalizedChannelIds,
+            sourceUrls
+        );
+        if (sourceUrls.length > 0) {
+            const missingChannelIds = normalizedChannelIds.filter(
+                (channelId) =>
+                    !this.resolveChannelMetadataCandidate(channelId, candidates)
+            );
+            if (missingChannelIds.length > 0) {
+                candidates = [
+                    ...candidates,
+                    ...(await this.selectChannelMetadataCandidates(
+                        db,
+                        missingChannelIds,
+                        sourceUrls,
+                        { legacyOnly: true }
+                    )),
+                ];
+            }
+        }
+
+        return Object.fromEntries(
+            normalizedChannelIds.map((channelId) => [
+                channelId,
+                this.resolveChannelMetadataCandidate(channelId, candidates),
+            ])
+        );
+    }
+
+    /** Fail-soft variant of `resolveChannelMetadata`: a failure logs and answers `{}`. */
     async getChannelMetadata(
         channelIds: string[],
         options: { sourceUrls?: string[] } = {}
     ): Promise<Record<string, EpgChannelMetadata | null>> {
         try {
-            const normalizedChannelIds =
-                this.normalizeChannelLookupKeys(channelIds);
-
-            if (normalizedChannelIds.length === 0) {
-                return {};
-            }
-
-            const db = await getDatabase();
-            const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
-            let candidates = await this.selectChannelMetadataCandidates(
-                db,
-                normalizedChannelIds,
-                sourceUrls
-            );
-            if (sourceUrls.length > 0) {
-                const missingChannelIds = normalizedChannelIds.filter(
-                    (channelId) =>
-                        !this.resolveChannelMetadataCandidate(
-                            channelId,
-                            candidates
-                        )
-                );
-                if (missingChannelIds.length > 0) {
-                    candidates = [
-                        ...candidates,
-                        ...(await this.selectChannelMetadataCandidates(
-                            db,
-                            missingChannelIds,
-                            sourceUrls,
-                            { legacyOnly: true }
-                        )),
-                    ];
-                }
-            }
-
-            return Object.fromEntries(
-                normalizedChannelIds.map((channelId) => [
-                    channelId,
-                    this.resolveChannelMetadataCandidate(channelId, candidates),
-                ])
-            );
+            return await this.resolveChannelMetadata(channelIds, options);
         } catch (error) {
             epgLogger.error(
                 this.loggerLabel,

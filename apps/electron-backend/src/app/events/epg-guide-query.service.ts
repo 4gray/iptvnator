@@ -38,7 +38,8 @@ export type {
     NormalizedGuideWindow,
 } from './epg-guide-window.util';
 
-type ChannelResolver = Pick<EpgQueryService, 'getChannelMetadata'>;
+/** The strict resolver: a lookup failure rejects instead of answering `{}`. */
+type ChannelResolver = Pick<EpgQueryService, 'resolveChannelMetadata'>;
 
 /**
  * Overlap test in SQLite `datetime()` so provider-local offsets in the
@@ -252,7 +253,7 @@ export class EpgGuideQueryService {
     private async resolveChannelIds(
         window: NormalizedGuideWindow
     ): Promise<Map<string, string>> {
-        const metadata = await this.resolver.getChannelMetadata(
+        const metadata = await this.resolver.resolveChannelMetadata(
             window.channelIds,
             window.sourceUrls.length > 0
                 ? { sourceUrls: window.sourceUrls }

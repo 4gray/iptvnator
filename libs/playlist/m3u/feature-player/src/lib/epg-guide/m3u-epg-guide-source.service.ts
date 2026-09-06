@@ -17,6 +17,7 @@ import {
     EpgGuideWindow,
 } from '@iptvnator/ui/epg';
 import { createM3uChannelPlaybackRequest } from '../video-player/m3u-channel-playback-actions';
+import { isSameChannelEntry } from './channel-entry-identity.util';
 
 export interface M3uEpgGuideInputs {
     /** Guide-eligible channels (host excludes radio and recognised movies). */
@@ -173,12 +174,7 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
             (row) => row.channel.id === active.id
         );
         const match =
-            sameId.find(
-                (row) =>
-                    row.channel.url === active.url &&
-                    row.channel.group?.title === active.group?.title &&
-                    row.channel.name === active.name
-            ) ??
+            sameId.find((row) => isSameChannelEntry(row.channel, active)) ??
             sameId.find((row) => row.channel.url === active.url) ??
             sameId[0];
         return match?.rowId ?? null;
