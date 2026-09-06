@@ -513,12 +513,43 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
         timeout: 20_000,
     });
 
-    await page.getByRole('button', { name: 'Hide channels list' }).click();
+    // Level 2: only the categories rail folds; the channels header turns
+    // its title into a category dropdown that opens the same rail as a
+    // popover, whose footer brings the rail back.
+    await page
+        .getByRole('button', { name: 'Hide categories', exact: true })
+        .click();
+    const categoryDropdown = page.locator(
+        '[data-test-id="live-category-dropdown"]'
+    );
+    // The folded rail is 0px wide and inert; its rows keep their own boxes,
+    // so the rail's attribute is the reliable signal.
+    const categoriesRail = page.locator('aside.context-panel--route');
+    await expect(categoryDropdown).toBeVisible();
+    await expect(categoriesRail).toHaveAttribute('inert', '');
+    await categoryDropdown.click();
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Show categories panel' })
+        .click();
+    await expect(categoryDropdown).toBeHidden();
+    await expect(categoriesRail).not.toHaveAttribute('inert');
+    await expect(categories.nth(1)).toBeVisible();
+
+    // Level 3: both rails fold; the floating handle restores them.
+    await page
+        .getByRole('button', { name: 'Hide categories and channels' })
+        .click();
     const restoreButton = page.getByRole('button', {
-        name: 'Show channels list',
+        name: 'Show categories and channels',
     });
     await expect(restoreButton).toBeVisible();
+    await expect(categoriesRail).toHaveAttribute('inert', '');
+    await expect(page.locator('.sidebar')).toHaveAttribute('inert', '');
     await restoreButton.click();
+    await expect(restoreButton).toBeHidden();
+    await expect(categoriesRail).not.toHaveAttribute('inert');
+    await expect(page.locator('.sidebar')).not.toHaveAttribute('inert');
     await expect(stations.first()).toBeVisible();
 
     await expect(page.locator('app-epg-timeline')).toHaveCount(0);
