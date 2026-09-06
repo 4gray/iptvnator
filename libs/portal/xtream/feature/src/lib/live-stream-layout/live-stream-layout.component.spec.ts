@@ -40,10 +40,7 @@ import {
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import {
-    ChannelListHiddenStateComponent,
-    GridListComponent,
-} from '@iptvnator/portal/shared/ui';
+import { GridListComponent } from '@iptvnator/portal/shared/ui';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
@@ -134,15 +131,6 @@ class StubEpgTimelineComponent {
     standalone: true,
 })
 class StubResizableDirective {}
-
-@Component({
-    selector: 'app-channel-list-hidden-state',
-    standalone: true,
-    template: '',
-})
-class StubChannelListHiddenStateComponent {
-    readonly restore = output<void>();
-}
 
 describe('LiveStreamLayoutComponent', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
@@ -328,7 +316,6 @@ describe('LiveStreamLayoutComponent', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
-                        ChannelListHiddenStateComponent,
                         EpgListViewComponent,
                         EpgTimelineComponent,
                         GridListComponent,
@@ -340,7 +327,6 @@ describe('LiveStreamLayoutComponent', () => {
                 },
                 add: {
                     imports: [
-                        StubChannelListHiddenStateComponent,
                         StubEpgTimelineComponent,
                         StubGridListComponent,
                         StubPortalChannelsListComponent,
@@ -1152,6 +1138,10 @@ describe('LiveStreamLayoutComponent', () => {
         );
     });
 
+    // Collapsing with a selected category and no stream renders the real
+    // `app-channel-list-hidden-state` (its TranslatePipe needs a
+    // TranslateService); this spec is at the max-lines budget, so that branch
+    // is covered by video-player-sidebar.spec.ts and the Electron E2E instead.
     it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
         selectedCategoryId.set(null);
         TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'collapsed');

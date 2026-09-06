@@ -232,7 +232,7 @@ export class XtreamLiveChannelNavigationService {
                 return;
             this.store.setCategorySearchTerm('');
             this.store.setSelectedCategory(categoryId);
-            this.sidebar.setState('expanded');
+            this.sidebar.setState('portal', 'expanded');
             this.pendingReveal.set({
                 channelId: target.xtream_id,
                 categoryId,

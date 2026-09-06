@@ -209,7 +209,7 @@ describe('StalkerLiveNavigation', () => {
         );
         expect(store.selectedCategoryId()).toBe('news');
         expect(store.searchPhrase()).toBe('');
-        expect(sidebar.setState).toHaveBeenCalledWith('expanded');
+        expect(sidebar.setState).toHaveBeenCalledWith('portal', 'expanded');
         expect(revealRow).toHaveBeenCalledWith('1');
         expect(play).not.toHaveBeenCalled();
         expect(navigation.canReveal()).toBe(false);
