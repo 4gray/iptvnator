@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "Mostrar lista de canais",
         "TOGGLE_SIDEBAR_TOOLTIP": "Alternar lista de canais (⌘/Ctrl+B)",
         "CHANNELS_LIST_HIDDEN": "A lista de canais está oculta",
-        "CHANNELS_LIST_HIDDEN_HINT": "Volte a mostrá-la com o botão abaixo ou pressione ⌘/Ctrl+B."
+        "CHANNELS_LIST_HIDDEN_HINT": "Volte a mostrá-la com o botão abaixo ou pressione ⌘/Ctrl+B.",
+        "HIDE_CATEGORIES": "Ocultar categorias",
+        "SHOW_CATEGORIES": "Mostrar categorias",
+        "SHOW_CATEGORIES_PANEL": "Mostrar painel de categorias",
+        "CHOOSE_CATEGORY": "Escolher categoria",
+        "HIDE_PANELS": "Ocultar categorias e canais",
+        "HIDE_PANELS_TOOLTIP": "Ocultar painéis (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Mostrar categorias e canais",
+        "SHOW_PANELS_TOOLTIP": "Mostrar painéis (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Mostrar canal em reprodução",

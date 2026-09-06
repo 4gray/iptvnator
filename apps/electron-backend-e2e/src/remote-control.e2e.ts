@@ -82,6 +82,13 @@ test.describe('Electron Remote Control', () => {
                     .getByTestId('channel-item');
                 await expect(rows.nth(2)).toBeVisible();
                 if (provider === 'xtream') {
+                    // Read the order before sorting: the menu closes before the
+                    // virtual list re-renders, and reading the titles too early
+                    // captured the server order while the click below landed
+                    // on the re-sorted first row (flaky on slow runners).
+                    const serverOrder = await rows
+                        .locator('.channel-name')
+                        .allTextContents();
                     await page
                         .getByRole('button', {
                             name: 'Sort channels',
@@ -91,6 +98,11 @@ test.describe('Electron Remote Control', () => {
                     await page
                         .getByRole('menuitem', { name: 'Name Z-A' })
                         .click();
+                    await expect
+                        .poll(() =>
+                            rows.locator('.channel-name').allTextContents()
+                        )
+                        .not.toEqual(serverOrder);
                 }
                 const titles = await rows
                     .locator('.channel-name')
@@ -448,15 +460,24 @@ async function waitForRemoteStatus(
 ): Promise<RemoteControlStatus> {
     let latestStatus: RemoteControlStatus | null = null;
 
-    await expect
-        .poll(
-            async () => {
-                latestStatus = await getRemoteStatus(request, port);
-                return latestStatus ? predicate(latestStatus) : false;
-            },
-            { timeout: 20000 }
-        )
-        .toBe(true);
+    try {
+        await expect
+            .poll(
+                async () => {
+                    latestStatus = await getRemoteStatus(request, port);
+                    return latestStatus ? predicate(latestStatus) : false;
+                },
+                { timeout: 20000 }
+            )
+            .toBe(true);
+    } catch (error) {
+        // The predicate alone says nothing about how far the status got;
+        // surface the last payload so a CI failure is diagnosable.
+        throw new Error(
+            `Remote status never matched. Last status: ${JSON.stringify(latestStatus)}`,
+            { cause: error }
+        );
+    }
 
     return latestStatus as RemoteControlStatus;
 }

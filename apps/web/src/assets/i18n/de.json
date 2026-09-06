@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "Senderliste einblenden",
         "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)",
         "CHANNELS_LIST_HIDDEN": "Die Senderliste ist ausgeblendet",
-        "CHANNELS_LIST_HIDDEN_HINT": "Blenden Sie sie über die Schaltfläche unten oder mit ⌘/Strg+B wieder ein."
+        "CHANNELS_LIST_HIDDEN_HINT": "Blenden Sie sie über die Schaltfläche unten oder mit ⌘/Strg+B wieder ein.",
+        "HIDE_CATEGORIES": "Kategorien ausblenden",
+        "SHOW_CATEGORIES": "Kategorien einblenden",
+        "SHOW_CATEGORIES_PANEL": "Kategorien-Panel einblenden",
+        "CHOOSE_CATEGORY": "Kategorie auswählen",
+        "HIDE_PANELS": "Kategorien und Sender ausblenden",
+        "HIDE_PANELS_TOOLTIP": "Panels ausblenden (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Kategorien und Sender einblenden",
+        "SHOW_PANELS_TOOLTIP": "Panels einblenden (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Laufenden Sender anzeigen",

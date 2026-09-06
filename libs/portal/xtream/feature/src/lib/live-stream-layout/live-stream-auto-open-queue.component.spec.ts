@@ -109,7 +109,10 @@ describe('Xtream live auto-open playback queue', () => {
                     provide: FavoritesService,
                     useValue: { getFavorites: () => of([]) },
                 },
-                { provide: XtreamUrlService, useValue: {} },
+                {
+                    provide: XtreamUrlService,
+                    useValue: { constructAutoLiveTsUrl: () => undefined },
+                },
                 {
                     provide: PORTAL_PLAYER,
                     useValue: { isEmbeddedPlayer: () => true },

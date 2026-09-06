@@ -75,6 +75,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    createLivePanelsController,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     createLogger,
@@ -488,8 +489,26 @@ export class StalkerLiveStreamLayoutComponent
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
-    readonly isSidebarCollapsed =
-        this.liveSidebarStateService.isCollapsedFor('portal');
+    // `viewChild()` must be a direct field initializer for the compiler to
+    // register the query, so the refs live here and feed the controller.
+    private readonly showCategoriesButton = viewChild('showCategoriesButton', {
+        read: ElementRef<HTMLElement>,
+    });
+    private readonly restoreButton = viewChild('restoreButton', {
+        read: ElementRef<HTMLElement>,
+    });
+    // Nested panel levels, category dropdown bridge and focus handoff; the
+    // template binds to it directly. The sidebar only renders with a
+    // selected category, and the fold rule keys on the same selection.
+    readonly livePanels = createLivePanelsController({
+        surface: 'portal',
+        hasSelectedCategory: computed(
+            () => !!this.stalkerStore.selectedCategoryId()
+        ),
+        showCategoriesButton: this.showCategoriesButton,
+        restoreButton: this.restoreButton,
+    });
+    readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
     );
@@ -1159,10 +1178,6 @@ export class StalkerLiveStreamLayoutComponent
         persistLiveEpgPanelState(state);
     }
 
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle('portal');
-    }
-
     handleRadioChannelSwitch(direction: 'next' | 'previous'): void {
         this.handleAdjacentChannelChange(direction === 'next' ? 'down' : 'up');
     }
@@ -1179,7 +1194,7 @@ export class StalkerLiveStreamLayoutComponent
             !this.hostElement.nativeElement.closest('[inert]')
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanels.toggleSidebar();
         }
     }
 

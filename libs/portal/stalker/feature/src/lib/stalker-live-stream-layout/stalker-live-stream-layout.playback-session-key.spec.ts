@@ -140,6 +140,8 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                     provide: LiveLayoutSidebarStateService,
                     useValue: {
                         isCollapsedFor: () => signal(false),
+                        areCategoriesHiddenFor: () => signal(false),
+                        stateOf: () => signal('expanded'),
                         toggle: jest.fn(),
                     },
                 },

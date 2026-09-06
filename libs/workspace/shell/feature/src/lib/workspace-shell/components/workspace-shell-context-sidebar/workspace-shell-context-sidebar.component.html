@@ -31,10 +31,12 @@
     @if (context(); as context) {
         @if (section(); as section) {
             <aside
+                #routePanel
                 tabindex="-1"
                 cdkFocusInitial
                 class="context-panel context-panel--route"
                 [class.context-panel--collapsed]="isContextPanelCollapsed()"
+                [attr.inert]="isContextPanelInert() ? '' : null"
                 appResizable
                 [minWidth]="240"
                 [maxWidth]="560"
@@ -42,6 +44,7 @@
                 storageKey="sidebar-width"
             >
                 <app-workspace-context-panel
+                    #contextPanel
                     [context]="context"
                     [section]="section"
                 />

@@ -28,7 +28,6 @@ interface WorkspaceCategoryViewItem {
     styleUrl: './workspace-context-category-view.component.scss',
 })
 export class WorkspaceContextCategoryViewComponent {
-    readonly focusLiveChannels = focusLiveChannels;
 
     readonly items = input<ReadonlyArray<WorkspaceCategoryViewItem>>([]);
     readonly selectedCategoryId = input<string | number | null | undefined>();
@@ -43,6 +42,24 @@ export class WorkspaceContextCategoryViewComponent {
     readonly omitMissingCounts = input(false);
     readonly interactionEnabled = input(true);
     readonly statusText = input('');
+    /**
+     * The in-flow shell rail takes part in the live-TV column keyboard
+     * contract: it is `#portal-categories` (ArrowLeft from the channels pane
+     * lands on the selected category) and ArrowRight on that category hands
+     * focus to `#live-channels`. The same view stamped into the categories
+     * popover must opt out: the dialog's focus trap would bounce that
+     * handoff back into the dialog, and a second `#portal-categories` would
+     * shadow the folded rail's.
+     */
+    readonly columnHandoff = input(true);
+
+    onCategoryKeydown(event: KeyboardEvent): void {
+        // A method, not an inline `&&`: an event binding whose expression
+        // evaluates to `false` makes Angular call preventDefault().
+        if (this.columnHandoff()) {
+            focusLiveChannels(event);
+        }
+    }
 
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 

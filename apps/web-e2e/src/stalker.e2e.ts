@@ -513,22 +513,50 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
         timeout: 20_000,
     });
 
-    // The rail's own chevron hides the list; the workspace header carries a
-    // second toggle with the same accessible name, so scope to the rail.
+    // Level 2: only the categories rail folds; the channels header turns
+    // its title into a category dropdown that opens the same rail as a
+    // popover, whose footer brings the rail back.
     await page
-        .locator('.sidebar')
-        .getByRole('button', { name: 'Hide channels list' })
+        .getByRole('button', { name: 'Hide categories', exact: true })
         .click();
-    const restoreButton = page.locator('.sidebar-restore');
+    const categoryDropdown = page.locator(
+        '[data-test-id="live-category-dropdown"]'
+    );
+    // The folded rail is 0px wide and inert; its rows keep their own boxes,
+    // so the rail's attribute is the reliable signal.
+    const categoriesRail = page.locator('aside.context-panel--route');
+    await expect(categoryDropdown).toBeVisible();
+    await expect(categoriesRail).toHaveAttribute('inert', '');
+    await categoryDropdown.click();
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Show categories panel' })
+        .click();
+    await expect(categoryDropdown).toBeHidden();
+    await expect(categoriesRail).not.toHaveAttribute('inert');
+    await expect(categories.nth(1)).toBeVisible();
+
+    // Level 3: both rails fold; the floating handle restores them.
+    await page
+        .getByRole('button', { name: 'Hide categories and channels' })
+        .click();
+    const restoreButton = page.getByRole('button', {
+        name: 'Show categories and channels',
+    });
     await expect(restoreButton).toBeVisible();
-    await expect(
-        page.locator('app-workspace-shell-header .header-sidebar-toggle')
-    ).toHaveAttribute('aria-pressed', 'false');
+    await expect(categoriesRail).toHaveAttribute('inert', '');
+    await expect(page.locator('.sidebar')).toHaveAttribute('inert', '');
+    // The workspace header carries a second toggle that mirrors the state.
+    const headerToggle = page.locator(
+        'app-workspace-shell-header .header-sidebar-toggle'
+    );
+    await expect(headerToggle).toHaveAttribute('aria-pressed', 'false');
     await restoreButton.click();
+    await expect(restoreButton).toBeHidden();
+    await expect(headerToggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(categoriesRail).not.toHaveAttribute('inert');
+    await expect(page.locator('.sidebar')).not.toHaveAttribute('inert');
     await expect(stations.first()).toBeVisible();
-    await expect(
-        page.locator('app-workspace-shell-header .header-sidebar-toggle')
-    ).toHaveAttribute('aria-pressed', 'true');
 
     await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgRequests).toHaveLength(0);

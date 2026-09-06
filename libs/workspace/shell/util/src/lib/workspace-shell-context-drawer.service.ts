@@ -67,6 +67,14 @@ export class WorkspaceShellContextDrawerService {
         this.openState.update((open) => !open);
     }
 
+    /**
+     * Opens the drawer. Only meaningful at phone widths; on wider viewports
+     * the panel is in flow and the styles ignore this state.
+     */
+    open(): void {
+        this.openState.set(true);
+    }
+
     close(): void {
         this.openState.set(false);
     }

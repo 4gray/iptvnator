@@ -143,6 +143,8 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
                     provide: LiveLayoutSidebarStateService,
                     useValue: {
                         isCollapsedFor: () => signal(false),
+                        areCategoriesHiddenFor: () => signal(false),
+                        stateOf: () => signal('expanded'),
                         toggle: jest.fn(),
                     },
                 },

@@ -30,7 +30,7 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
-    LiveLayoutSidebarStateService,
+    createLivePanelsController,
     PORTAL_PLAYER,
     PortalChannelSortMode,
     getPortalChannelSortModeLabel,
@@ -149,9 +149,6 @@ export class LiveStreamLayoutComponent
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
-    );
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -322,8 +319,24 @@ export class LiveStreamLayoutComponent
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
-    readonly isSidebarCollapsed =
-        this.liveSidebarStateService.isCollapsedFor('portal');
+    // `viewChild()` must be a direct field initializer for the compiler to
+    // register the query, so the refs live here and feed the controller.
+    private readonly showCategoriesButton = viewChild('showCategoriesButton', {
+        read: ElementRef<HTMLElement>,
+    });
+    private readonly restoreButton = viewChild('restoreButton', {
+        read: ElementRef<HTMLElement>,
+    });
+    // Nested panel levels, category dropdown bridge and focus handoff; the
+    // template binds to it directly. Search-only rails (no selected
+    // category) keep their plain heading.
+    readonly livePanels = createLivePanelsController({
+        surface: 'portal',
+        hasSelectedCategory: computed(() => !!this.selectedCategoryId()),
+        showCategoriesButton: this.showCategoriesButton,
+        restoreButton: this.restoreButton,
+    });
+    readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
             this.activeCatchupProgram() ?? this.currentEpgItem()
@@ -361,8 +374,11 @@ export class LiveStreamLayoutComponent
         if (!categoryId) return null;
 
         const categories = this.categories();
+        // Provider categories carry string ids ("101") while the selection
+        // is numeric; a strict comparison missed every one and the header
+        // fell back to "Channels", which the category dropdown cannot afford.
         const category = categories?.find(
-            (c) => (c.category_id ?? c.id) === categoryId
+            (c) => String(c.category_id ?? c.id) === String(categoryId)
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
@@ -625,10 +641,6 @@ export class LiveStreamLayoutComponent
         persistLiveEpgPanelState(state);
     }
 
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle('portal');
-    }
-
     @HostListener('document:keydown', ['$event'])
     handleSidebarShortcut(event: KeyboardEvent): void {
         if (
@@ -641,7 +653,7 @@ export class LiveStreamLayoutComponent
             !this.hostElement.nativeElement.closest('[inert]')
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanels.toggleSidebar();
         }
     }
 
