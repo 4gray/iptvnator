@@ -1153,41 +1153,6 @@ describe('LiveStreamLayoutComponent', () => {
     // `app-channel-list-hidden-state` (its TranslatePipe needs a
     // TranslateService); this spec is at the max-lines budget, so that branch
     // is covered by video-player-sidebar.spec.ts and the Electron E2E instead.
-    it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
-        selectedCategoryId.set(null);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'collapsed');
-        fixture.detectChanges();
-
-        expect(
-            fixture.nativeElement.querySelector('.sidebar-restore')
-        ).not.toBeNull();
-    });
-
-    it('hides the floating restore button when the sidebar is expanded', () => {
-        selectedCategoryId.set(1);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
-        fixture.detectChanges();
-
-        expect(
-            fixture.nativeElement.querySelector('.sidebar-restore')
-        ).toBeNull();
-    });
-
-    it('persists the channels sidebar width under a dedicated storage key', () => {
-        // The shell context panel (category sidebar) is visible at the same
-        // time as this sidebar and persists its width under the shared
-        // "sidebar-width" key. Reusing that key here makes the two panels
-        // overwrite each other's stored width across reloads.
-        selectedCategoryId.set(1);
-        fixture.detectChanges();
-
-        const sidebar: HTMLElement =
-            fixture.nativeElement.querySelector('.sidebar');
-        expect(sidebar.getAttribute('storageKey')).toBe(
-            'live-channels-sidebar-width'
-        );
-    });
-
     describe('auto-open from Ctrl+F search navigation state', () => {
         const searchChannel = {
             xtream_id: 202,

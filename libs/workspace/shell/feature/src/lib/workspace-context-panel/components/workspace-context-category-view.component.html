@@ -1,5 +1,8 @@
 @if (items().length > 0) {
-    <div class="nav-list" id="portal-categories">
+    <div
+        class="nav-list"
+        [attr.id]="columnHandoff() ? 'portal-categories' : null"
+    >
         @if (statusText()) {
             <div class="context-inline-status">
                 {{ statusText() }}
@@ -9,7 +12,7 @@
             <button
                 type="button"
                 class="nav-item category-item"
-                (keydown)="focusLiveChannels($event)"
+                (keydown)="onCategoryKeydown($event)"
                 [attr.data-category-id]="
                     $any(item).category_id ?? $any(item).xtream_id ?? item.id
                 "

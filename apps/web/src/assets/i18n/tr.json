@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "Kanal listesini göster",
         "TOGGLE_SIDEBAR_TOOLTIP": "Kanal listesini aç/kapat (⌘/Ctrl+B)",
         "CHANNELS_LIST_HIDDEN": "Kanal listesi gizli",
-        "CHANNELS_LIST_HIDDEN_HINT": "Aşağıdaki düğmeyle geri getirin veya ⌘/Ctrl+B tuşlarına basın."
+        "CHANNELS_LIST_HIDDEN_HINT": "Aşağıdaki düğmeyle geri getirin veya ⌘/Ctrl+B tuşlarına basın.",
+        "HIDE_CATEGORIES": "Kategorileri gizle",
+        "SHOW_CATEGORIES": "Kategorileri göster",
+        "SHOW_CATEGORIES_PANEL": "Kategoriler panelini göster",
+        "CHOOSE_CATEGORY": "Kategori seç",
+        "HIDE_PANELS": "Kategorileri ve kanalları gizle",
+        "HIDE_PANELS_TOOLTIP": "Panelleri gizle (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Kategorileri ve kanalları göster",
+        "SHOW_PANELS_TOOLTIP": "Panelleri göster (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Oynatılan kanalı göster",

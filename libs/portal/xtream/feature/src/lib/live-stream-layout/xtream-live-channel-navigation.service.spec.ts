@@ -74,7 +74,7 @@ describe('XtreamLiveChannelNavigationService', () => {
         queryParamMap: unknown;
     };
     const navigate = jest.fn();
-    const sidebar = { setState: jest.fn() };
+    const sidebar = { setState: jest.fn(), expand: jest.fn() };
 
     beforeEach(() => {
         currentPlaylist.set({ id: 'source-1' });
@@ -187,7 +187,7 @@ describe('XtreamLiveChannelNavigationService', () => {
             );
             expect(selectedCategoryId()).toBe(10);
             expect(categorySearchTerm()).toBe('');
-            expect(sidebar.setState).toHaveBeenCalledWith('portal', 'expanded');
+            expect(sidebar.expand).toHaveBeenCalledWith('portal');
             expect(service.revealRequest()).toEqual(
                 expect.objectContaining({ channelId: 1 })
             );
@@ -277,6 +277,7 @@ describe('XtreamLiveChannelNavigationService', () => {
         await reveal;
         expect(store.setSelectedCategory).not.toHaveBeenCalled();
         expect(sidebar.setState).not.toHaveBeenCalled();
+        expect(sidebar.expand).not.toHaveBeenCalled();
         expect(service.revealRequest()).toBeNull();
     });
 });

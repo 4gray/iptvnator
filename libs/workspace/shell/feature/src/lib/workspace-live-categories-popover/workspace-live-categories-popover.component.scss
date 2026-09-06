@@ -1,0 +1,61 @@
+// Height-capped by the overlay to the space below the anchor: the embedded
+// panel's own list scrolls, header and footer stay put.
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
+    width: 300px;
+    padding: 8px 6px 6px;
+    border-radius: 14px;
+    // Widget surface, one step above the channels rail it floats over, plus a
+    // hairline so the two do not merge where their edges meet.
+    background: var(--app-widget-bg, var(--mat-sys-surface-container));
+    outline: 1px solid var(--mat-sys-outline-variant);
+    box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.5);
+    color: var(--mat-sys-on-surface);
+}
+
+.popover-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.popover-footer {
+    flex: none;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.popover-footer__action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--mat-sys-primary);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+
+    &:hover {
+        background: var(--app-hover-overlay, rgba(255, 255, 255, 0.08));
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: -2px;
+    }
+}

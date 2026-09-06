@@ -15,6 +15,7 @@ import {
     XtreamContentLoadState,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
 
 const translations: Record<string, string> = {
@@ -116,6 +117,7 @@ describe('WorkspaceContextPanelComponent', () => {
     const dialog = {
         open: jest.fn(),
     };
+    const drawerOpen = signal(false);
 
     beforeEach(async () => {
         localStorage.removeItem(WORKSPACE_CATEGORY_SORT_STORAGE_KEY);
@@ -142,6 +144,7 @@ describe('WorkspaceContextPanelComponent', () => {
         ]);
         router.navigate.mockClear();
         dialog.open.mockClear();
+        drawerOpen.set(false);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceContextPanelComponent, NoopAnimationsModule],
@@ -179,7 +182,7 @@ describe('WorkspaceContextPanelComponent', () => {
                     // Root-provided in production; stubbed because the spec's
                     // Router mock has no `events` stream for the real service.
                     provide: WorkspaceShellContextDrawerService,
-                    useValue: { close: jest.fn(), isOpen: () => false },
+                    useValue: { close: jest.fn(), isOpen: drawerOpen },
                 },
             ],
         }).compileComponents();
@@ -204,9 +207,9 @@ describe('WorkspaceContextPanelComponent', () => {
         const status = fixture.nativeElement.querySelector(
             '.context-inline-status'
         ) as HTMLElement | null;
-        const manageButton = Array.from(
-            fixture.nativeElement.querySelectorAll('.context-header__action')
-        ).at(-1) as HTMLButtonElement | undefined;
+        const manageButton = fixture.nativeElement.querySelector(
+            '[data-test-id="context-manage-categories"]'
+        ) as HTMLButtonElement | null;
 
         expect(countPlaceholders).toHaveLength(2);
         expect(categoryButtons.every((button) => button.disabled)).toBe(true);
@@ -261,9 +264,9 @@ describe('WorkspaceContextPanelComponent', () => {
         const categoryButtons = Array.from(
             fixture.nativeElement.querySelectorAll('.category-item')
         ) as HTMLButtonElement[];
-        const manageButton = Array.from(
-            fixture.nativeElement.querySelectorAll('.context-header__action')
-        ).at(-1) as HTMLButtonElement | undefined;
+        const manageButton = fixture.nativeElement.querySelector(
+            '[data-test-id="context-manage-categories"]'
+        ) as HTMLButtonElement | null;
 
         expect(countTexts).toEqual(['3', '0']);
         expect(categoryButtons.every((button) => !button.disabled)).toBe(true);
@@ -491,6 +494,189 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.category-item .item-count')
         ).toBeNull();
+    });
+
+    describe('folded categories rail', () => {
+        let liveSidebarService: LiveLayoutSidebarStateService;
+
+        beforeEach(() => {
+            liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
+            liveSidebarService.setState('portal', 'expanded');
+        });
+
+        afterEach(() => {
+            liveSidebarService.setState('portal', 'expanded');
+        });
+
+        function hideButton(): HTMLButtonElement | null {
+            return fixture.nativeElement.querySelector(
+                '[data-test-id="context-hide-categories"]'
+            );
+        }
+
+        it('offers the hide-categories chevron on live sections of the sidebar and folds the rail', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+
+            const button = hideButton();
+            expect(button).not.toBeNull();
+            expect(button?.getAttribute('aria-label')).toBe(
+                'LAYOUT.HIDE_CATEGORIES'
+            );
+
+            button?.click();
+
+            expect(liveSidebarService.stateOf('portal')()).toBe('categories-hidden');
+        });
+
+        it('offers it for Stalker itv and radio too', () => {
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'radio');
+            stalkerStore.selectedCategoryId.set('12');
+            fixture.detectChanges();
+
+            expect(hideButton()).not.toBeNull();
+        });
+
+        it('withholds the chevron inside the open phone drawer, whose stylesheet ignores the folded state', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            drawerOpen.set(true);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('names the chevron as focus target, the first header action without one, and nothing while categories are absent', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.focusTarget()).toBe(hideButton());
+
+            // Live root: no chevron, the search action stands in.
+            xtreamSelectedCategoryId.set(null);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.focusTarget()).toBe(
+                fixture.nativeElement.querySelector('.context-header__action')
+            );
+
+            // Nothing loaded yet: no control at all, the caller falls back.
+            xtreamCategories.set([]);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.focusTarget()).toBeNull();
+        });
+
+        it('withholds the chevron while no category is selected (live root has no channels rail)', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(null);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('keeps VOD and series rails without the chevron', () => {
+            fixture.componentRef.setInput('section', 'vod');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('renders no chevron in the popover presentation, whose footer restores the rail instead', () => {
+            fixture.componentRef.setInput('section', 'live');
+            fixture.componentRef.setInput('presentation', 'popover');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('shares the category sort with a second (popover) instance of the panel', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+            fixture.componentInstance.setCategorySortMode('name-desc');
+
+            const popover = TestBed.createComponent(
+                WorkspaceContextPanelComponent
+            );
+            popover.componentRef.setInput('context', {
+                provider: 'xtreams',
+                playlistId: 'playlist-1',
+            });
+            popover.componentRef.setInput('section', 'live');
+            popover.componentRef.setInput('presentation', 'popover');
+            popover.detectChanges();
+            expect(popover.componentInstance.categorySortMode()).toBe(
+                'name-desc'
+            );
+
+            popover.componentInstance.setCategorySortMode('name-asc');
+            expect(fixture.componentInstance.categorySortMode()).toBe(
+                'name-asc'
+            );
+            popover.destroy();
+        });
+
+        it('keeps the live-TV column keyboard contract out of the popover', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            xtreamSelectedTypeContentState.set('ready');
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('#portal-categories')
+            ).not.toBeNull();
+
+            fixture.componentRef.setInput('presentation', 'popover');
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('#portal-categories')
+            ).toBeNull();
+
+            // ArrowRight on the selected category must not reach the
+            // background channels pane from inside the dialog.
+            const pane = document.createElement('div');
+            pane.id = 'live-channels';
+            pane.tabIndex = -1;
+            document.body.appendChild(pane);
+            pane.checkVisibility = () => true;
+            try {
+                const selected = fixture.nativeElement.querySelector(
+                    '.category-item[aria-current="true"]'
+                ) as HTMLButtonElement;
+                selected.focus();
+                const event = new KeyboardEvent('keydown', {
+                    key: 'ArrowRight',
+                    bubbles: true,
+                    cancelable: true,
+                });
+                selected.dispatchEvent(event);
+
+                expect(event.defaultPrevented).toBe(false);
+                expect(document.activeElement).toBe(selected);
+            } finally {
+                pane.remove();
+            }
+        });
+
+        it('reports a category selection so a popover host can close', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedTypeContentState.set('ready');
+            fixture.detectChanges();
+            const selected = jest.fn();
+            fixture.componentInstance.categorySelected.subscribe(selected);
+
+            const categoryButtons = Array.from(
+                fixture.nativeElement.querySelectorAll('.category-item')
+            ) as HTMLButtonElement[];
+            categoryButtons[1]?.click();
+
+            expect(selected).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('preserves the active xtream live item when switching live categories', () => {

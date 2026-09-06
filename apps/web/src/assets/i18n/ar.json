@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "إظهار قائمة القنوات",
         "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)",
         "CHANNELS_LIST_HIDDEN": "قائمة القنوات مخفية",
-        "CHANNELS_LIST_HIDDEN_HINT": "أعدها باستخدام الزر أدناه أو اضغط ⌘/Ctrl+B."
+        "CHANNELS_LIST_HIDDEN_HINT": "أعدها باستخدام الزر أدناه أو اضغط ⌘/Ctrl+B.",
+        "HIDE_CATEGORIES": "إخفاء الفئات",
+        "SHOW_CATEGORIES": "إظهار الفئات",
+        "SHOW_CATEGORIES_PANEL": "إظهار لوحة الفئات",
+        "CHOOSE_CATEGORY": "اختيار الفئة",
+        "HIDE_PANELS": "إخفاء الفئات والقنوات",
+        "HIDE_PANELS_TOOLTIP": "إخفاء اللوحات (⌘/Ctrl+B)",
+        "SHOW_PANELS": "إظهار الفئات والقنوات",
+        "SHOW_PANELS_TOOLTIP": "إظهار اللوحات (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "إظهار القناة قيد التشغيل",

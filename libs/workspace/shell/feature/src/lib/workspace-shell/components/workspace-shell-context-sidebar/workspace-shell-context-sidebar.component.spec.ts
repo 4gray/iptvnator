@@ -1,13 +1,12 @@
-import {
-    Component,
-    Directive,
-    input,
-} from '@angular/core';
+import { Component, Directive, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
@@ -30,6 +29,7 @@ class MockResizableDirective {
 class MockWorkspaceContextPanelComponent {
     readonly context = input.required<unknown>();
     readonly section = input.required<string>();
+    readonly focusTarget = jest.fn<HTMLElement | null, []>(() => null);
 }
 
 @Component({
@@ -56,16 +56,30 @@ class MockWorkspaceSourcesFiltersPanelComponent {}
 describe('WorkspaceShellContextSidebarComponent', () => {
     let fixture: ComponentFixture<WorkspaceShellContextSidebarComponent>;
     let liveSidebarService: LiveLayoutSidebarStateService;
+    const xtreamSelectedCategoryId = signal<number | null>(1);
+    const stalkerSelectedCategoryId = signal<string | null>('7');
+    const drawerOpen = signal(false);
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state:portal');
+        xtreamSelectedCategoryId.set(1);
+        stalkerSelectedCategoryId.set('7');
+        drawerOpen.set(false);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
             providers: [
                 {
                     provide: WorkspaceShellContextDrawerService,
-                    useValue: { close: jest.fn() },
+                    useValue: { close: jest.fn(), isOpen: drawerOpen },
+                },
+                {
+                    provide: XtreamStore,
+                    useValue: { selectedCategoryId: xtreamSelectedCategoryId },
+                },
+                {
+                    provide: StalkerStore,
+                    useValue: { selectedCategoryId: stalkerSelectedCategoryId },
                 },
                 {
                     provide: TranslateService,
@@ -179,6 +193,100 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 true
             );
+        });
+
+        it('folds the categories rail on the first level already (categories-hidden)', () => {
+            setupLiveCategory('live');
+
+            liveSidebarService.setState('portal', 'categories-hidden');
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
+            );
+        });
+
+        it('keeps the rail on the live root (no selected category) at categories-hidden, since no channels rail exists to host the way back', () => {
+            xtreamSelectedCategoryId.set(null);
+            setupLiveCategory('live');
+
+            liveSidebarService.setState('portal', 'categories-hidden');
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                false
+            );
+
+            // Player-only still folds it: the floating restore handle lives
+            // in the content area and stays reachable there.
+            liveSidebarService.setState('portal', 'collapsed');
+            fixture.detectChanges();
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
+            );
+        });
+
+        it('takes the folded rail out of the focus order with inert, except inside the open phone drawer', () => {
+            setupLiveCategory('live');
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+
+            liveSidebarService.setState('portal', 'categories-hidden');
+            fixture.detectChanges();
+            expect(aside.hasAttribute('inert')).toBe(true);
+
+            drawerOpen.set(true);
+            fixture.detectChanges();
+            expect(aside.hasAttribute('inert')).toBe(false);
+
+            drawerOpen.set(false);
+            liveSidebarService.setState('portal', 'expanded');
+            fixture.detectChanges();
+            expect(aside.hasAttribute('inert')).toBe(false);
+        });
+
+        it('hands focus to the panel whenever the rail actually unfolds, including from player-only on the live root', async () => {
+            xtreamSelectedCategoryId.set(null);
+            liveSidebarService.setState('portal', 'categories-hidden');
+            setupLiveCategory('live');
+            const panel = fixture.debugElement.query(
+                By.directive(MockWorkspaceContextPanelComponent)
+            ).componentInstance as MockWorkspaceContextPanelComponent;
+
+            (document.activeElement as HTMLElement | null)?.blur();
+
+            // Root at categories-hidden: the rail is visible, no transition.
+            liveSidebarService.collapse('portal');
+            fixture.detectChanges();
+            liveSidebarService.expand('portal');
+            fixture.detectChanges();
+            await new Promise((resolve) => queueMicrotask(resolve));
+
+            // The panel offered no control (categories not loaded), so the
+            // rail itself takes focus.
+            expect(panel.focusTarget).toHaveBeenCalledTimes(1);
+            expect(document.activeElement).toBe(
+                fixture.nativeElement.querySelector('aside.context-panel--route')
+            );
+
+            const control = document.createElement('button');
+            fixture.nativeElement.appendChild(control);
+            panel.focusTarget.mockReturnValue(control);
+            (document.activeElement as HTMLElement | null)?.blur();
+            liveSidebarService.collapse('portal');
+            fixture.detectChanges();
+            liveSidebarService.expand('portal');
+            fixture.detectChanges();
+            await new Promise((resolve) => queueMicrotask(resolve));
+
+            expect(document.activeElement).toBe(control);
         });
 
         it('also collapses on the Stalker itv section', () => {

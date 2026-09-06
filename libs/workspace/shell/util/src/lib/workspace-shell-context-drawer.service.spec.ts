@@ -21,6 +21,18 @@ describe('WorkspaceShellContextDrawerService', () => {
         service = TestBed.inject(WorkspaceShellContextDrawerService);
     });
 
+
+    it('opens on demand and stays open until closed', () => {
+        const service = TestBed.inject(WorkspaceShellContextDrawerService);
+
+        service.open();
+        expect(service.isOpen()).toBe(true);
+        service.open();
+        expect(service.isOpen()).toBe(true);
+        service.close();
+        expect(service.isOpen()).toBe(false);
+    });
+
     it('starts closed', () => {
         expect(service.isOpen()).toBe(false);
     });

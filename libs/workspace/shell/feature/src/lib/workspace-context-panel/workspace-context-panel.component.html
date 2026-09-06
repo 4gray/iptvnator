@@ -5,6 +5,7 @@
             <div class="context-header__actions">
                 @if (canSearchCategories()) {
                     <button
+                        #firstHeaderAction
                         type="button"
                         mat-icon-button
                         class="context-header__action"
@@ -64,6 +65,7 @@
                         type="button"
                         mat-icon-button
                         class="context-header__action"
+                        data-test-id="context-manage-categories"
                         (click)="openManageCategories()"
                         [disabled]="!canManageXtreamCategories()"
                         [matTooltip]="
@@ -74,6 +76,22 @@
                         "
                     >
                         <mat-icon>tune</mat-icon>
+                    </button>
+                }
+                @if (canHideCategories()) {
+                    <button
+                        #hideCategoriesButton
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action"
+                        data-test-id="context-hide-categories"
+                        (click)="hideCategories()"
+                        [matTooltip]="'LAYOUT.HIDE_CATEGORIES' | translate"
+                        [attr.aria-label]="
+                            'LAYOUT.HIDE_CATEGORIES' | translate
+                        "
+                    >
+                        <mat-icon>chevron_left</mat-icon>
                     </button>
                 }
             </div>
@@ -130,6 +148,7 @@
             </div>
         } @else {
             <app-workspace-context-category-view
+                [columnHandoff]="presentation() === 'sidebar'"
                 [items]="filteredXtreamCategories()"
                 [selectedCategoryId]="xtreamSelectedCategoryId()"
                 [itemCounts]="xtreamCategoryItemCounts()"
@@ -162,6 +181,7 @@
             />
         } @else {
             <app-workspace-context-category-view
+                [columnHandoff]="presentation() === 'sidebar'"
                 [items]="filteredStalkerCategories()"
                 [selectedCategoryId]="$any(stalkerSelectedCategoryId())"
                 [itemCounts]="stalkerCategoryItemCounts()"

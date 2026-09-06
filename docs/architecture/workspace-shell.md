@@ -146,6 +146,12 @@ default. The panel header exposes a sort menu next to category search with
 synthetic "all categories" entries stay pinned before sorted provider
 categories.
 
+On live sections the category panel can be folded away independently of the
+channels list; the folded panel is reachable as a popover from the channels
+header through the `LIVE_CATEGORIES_POPOVER` token the shell provides. The
+three nested levels, their affordances and persistence are specified in
+`iptvnator-ui-guidelines.md` ("Collapsible Live Sidebar").
+
 A category click in a LIVE section (Xtream `live`, Stalker `itv` and `radio`)
 changes only the selected category: the live layouts gate their player on the
 store's selected item, so the handler must not clear it — the channel the user
