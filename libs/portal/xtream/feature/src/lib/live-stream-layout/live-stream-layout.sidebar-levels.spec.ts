@@ -83,7 +83,11 @@ class StubResizableDirective {}
 describe('LiveStreamLayoutComponent sidebar levels', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
     let service: LiveLayoutSidebarStateService;
-    const categoriesPopover = { open: jest.fn(), close: jest.fn() };
+    const categoriesPopover = {
+        open: jest.fn(),
+        close: jest.fn(),
+        showCategoriesPanel: jest.fn(),
+    };
     const selectedCategoryId = signal<number | null>(1);
     const emptyList = signal<unknown[]>([]);
     const xtreamStore = {
@@ -120,6 +124,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         categoriesPopover.open.mockClear();
         categoriesPopover.close.mockClear();
+        categoriesPopover.showCategoriesPanel.mockClear();
         selectedCategoryId.set(1);
 
         await TestBed.configureTestingModule({
@@ -255,7 +260,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         expect(categoriesPopover.open).toHaveBeenCalledWith(dropdown);
     });
 
-    it('restores the rail from the show-categories button and closes any open popover', () => {
+    it('asks the shell to restore the rail from the show-categories button', () => {
         service.hideCategories('portal');
         fixture.detectChanges();
 
@@ -263,8 +268,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
             '[data-test-id="live-show-categories"]'
         )?.click();
 
-        expect(categoriesPopover.close).toHaveBeenCalledTimes(1);
-        expect(service.stateOf('portal')()).toBe('expanded');
+        expect(categoriesPopover.showCategoriesPanel).toHaveBeenCalledTimes(1);
     });
 
     it('collapses both rails from the header chevron and comes back to the same level', () => {

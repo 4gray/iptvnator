@@ -15,6 +15,7 @@ import {
     LiveCategoriesPopover,
     LiveLayoutSidebarStateService,
 } from '@iptvnator/portal/shared/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-categories-popover.component';
 
 /**
@@ -40,6 +41,8 @@ export class WorkspaceLiveCategoriesPopoverService
 {
     private readonly overlay = inject(Overlay);
     private readonly injector = inject(Injector);
+    private readonly sidebarState = inject(LiveLayoutSidebarStateService);
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
     private overlayRef: OverlayRef | null = null;
     private origin: HTMLElement | null = null;
 
@@ -53,7 +56,7 @@ export class WorkspaceLiveCategoriesPopoverService
             .subscribe(() => this.close());
         // Seeded by the effect's first run, not at construction: the state
         // may move between the two before anything is open.
-        const sidebarState = inject(LiveLayoutSidebarStateService).stateOf('portal');
+        const sidebarState = this.sidebarState.stateOf('portal');
         let previous: string | null = null;
         effect(() => {
             const next = sidebarState();
@@ -123,6 +126,16 @@ export class WorkspaceLiveCategoriesPopoverService
         origin.setAttribute('aria-expanded', 'true');
     }
 
+    showCategoriesPanel(): void {
+        this.close();
+        this.sidebarState.showCategories('portal');
+        // At phone widths the rail renders as the off-canvas context drawer,
+        // whose open state the fold level does not drive.
+        if (isPhoneViewport()) {
+            this.contextDrawer.open();
+        }
+    }
+
     close(): void {
         const overlayRef = this.overlayRef;
         const origin = this.origin;
@@ -143,4 +156,13 @@ export class WorkspaceLiveCategoriesPopoverService
             origin.focus();
         }
     }
+}
+
+/** Same breakpoint as the shell's phone drawer styles (≤640px). */
+function isPhoneViewport(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(max-width: 640px)').matches
+    );
 }

@@ -19,6 +19,13 @@ export interface LiveCategoriesPopover {
     open(origin: HTMLElement): void;
     /** Closes the popover if it is open. */
     close(): void;
+    /**
+     * Brings the categories rail back (level 1) the way the current viewport
+     * shows it: on desktop the in-flow rail unfolds; at phone widths the rail
+     * is the shell's off-canvas drawer, whose open state is separate from
+     * the fold level, so the drawer is opened as well. Closes the popover.
+     */
+    showCategoriesPanel(): void;
 }
 
 export const LIVE_CATEGORIES_POPOVER = new InjectionToken<LiveCategoriesPopover>(

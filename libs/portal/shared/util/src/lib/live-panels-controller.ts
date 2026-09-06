@@ -94,8 +94,12 @@ export class LivePanelsController {
         this.sidebarState.collapse(this.options.surface);
     }
 
+    /** Level 1. The shell knows whether the rail is a phone drawer. */
     showCategories(): void {
-        this.categoriesPopover?.close();
+        if (this.categoriesPopover) {
+            this.categoriesPopover.showCategoriesPanel();
+            return;
+        }
         this.sidebarState.showCategories(this.options.surface);
     }
 

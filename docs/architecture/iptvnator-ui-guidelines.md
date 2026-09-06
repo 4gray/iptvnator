@@ -300,7 +300,11 @@ remain local when the meaning is explicit.
       sections only) → level 2 (`hideCategories('portal')`).
     - A `chevron_right` at the start of the channels header
       (`data-test-id="live-show-categories"`) and the popover footer's
-      "Show categories panel" → level 1 (`showCategories('portal')`).
+      "Show categories panel" → level 1, through the shell's
+      `LiveCategoriesPopover.showCategoriesPanel()`: it sets
+      `showCategories('portal')` and, at phone widths where the rail is the
+      off-canvas context drawer whose open state the level does not drive,
+      also opens that drawer (`WorkspaceShellContextDrawerService.open()`).
     - The category dropdown (`data-test-id="live-category-dropdown"`) opens
       `LIVE_CATEGORIES_POPOVER` anchored below itself. The token lives in
       `@iptvnator/portal/shared/util`; the workspace shell provides it

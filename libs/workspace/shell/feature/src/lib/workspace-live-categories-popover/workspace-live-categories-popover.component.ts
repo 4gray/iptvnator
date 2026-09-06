@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
 import { WorkspaceContextPanelComponent } from '../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceShellRouteStateService } from '../workspace-shell/services/workspace-shell-route-state.service';
 
@@ -40,7 +40,8 @@ import { WorkspaceShellRouteStateService } from '../workspace-shell/services/wor
 })
 export class WorkspaceLiveCategoriesPopoverComponent {
     private readonly routeState = inject(WorkspaceShellRouteStateService);
-    private readonly liveSidebarState = inject(LiveLayoutSidebarStateService);
+    // The shell-provided popover bridge that hosts this component.
+    private readonly popover = inject(LIVE_CATEGORIES_POPOVER);
     readonly dialogLabel = inject(TranslateService).instant(
         'LAYOUT.CHOOSE_CATEGORY'
     );
@@ -64,7 +65,8 @@ export class WorkspaceLiveCategoriesPopoverComponent {
     }
 
     showCategoriesPanel(): void {
-        this.liveSidebarState.showCategories('portal');
-        this.closed.emit();
+        // Restores the rail (and opens the phone drawer where the rail is
+        // one); the service closes this popover as part of it.
+        this.popover.showCategoriesPanel();
     }
 }

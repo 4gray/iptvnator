@@ -13,9 +13,11 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { Subject, of } from 'rxjs';
 import {
+    LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { WorkspaceContextPanelComponent } from '../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceShellRouteStateService } from '../workspace-shell/services/workspace-shell-route-state.service';
 import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-categories-popover.component';
@@ -41,6 +43,8 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     let sidebarState: LiveLayoutSidebarStateService;
     let origin: HTMLButtonElement;
     let routerEvents: Subject<unknown>;
+    const drawer = { open: jest.fn(), close: jest.fn(), isOpen: () => false };
+    let phoneViewport = false;
 
     // Portal-attached views render on the next application tick; no fixture
     // drives change detection here.
@@ -58,10 +62,27 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     beforeEach(async () => {
         localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         routerEvents = new Subject();
+        drawer.open.mockClear();
+        phoneViewport = false;
+        Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            writable: true,
+            value: (query: string) => ({
+                matches: query.includes('640') && phoneViewport,
+                media: query,
+                addEventListener: jest.fn(),
+                removeEventListener: jest.fn(),
+            }),
+        });
         await TestBed.configureTestingModule({
             imports: [OverlayModule, NoopAnimationsModule],
             providers: [
                 WorkspaceLiveCategoriesPopoverService,
+                {
+                    provide: LIVE_CATEGORIES_POPOVER,
+                    useExisting: WorkspaceLiveCategoriesPopoverService,
+                },
+                { provide: WorkspaceShellContextDrawerService, useValue: drawer },
                 {
                     provide: Router,
                     useValue: { events: routerEvents.asObservable() },
@@ -148,6 +169,18 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
 
         expect(sidebarState.stateOf('portal')()).toBe('expanded');
         expect(pane()).toBeNull();
+        expect(drawer.open).not.toHaveBeenCalled();
+    });
+
+    it('opens the phone context drawer as well, since the rail is that drawer there', () => {
+        phoneViewport = true;
+        open();
+
+        service.showCategoriesPanel();
+
+        expect(sidebarState.stateOf('portal')()).toBe('expanded');
+        expect(pane()).toBeNull();
+        expect(drawer.open).toHaveBeenCalledTimes(1);
     });
 
     it('closes after a category selection', () => {

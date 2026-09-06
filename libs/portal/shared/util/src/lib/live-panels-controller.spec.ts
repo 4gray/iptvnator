@@ -6,7 +6,11 @@ import { LiveLayoutSidebarStateService } from './live-layout-sidebar-state.servi
 import { liveSidebarStateStorageKey } from './live-sidebar-state';
 
 describe('LivePanelsController', () => {
-    const popover = { open: jest.fn(), close: jest.fn() };
+    const popover = {
+        open: jest.fn(),
+        close: jest.fn(),
+        showCategoriesPanel: jest.fn(),
+    };
     const hasSelectedCategory = signal(true);
     let showButton: HTMLButtonElement;
     let restoreButton: HTMLButtonElement;
@@ -36,6 +40,7 @@ describe('LivePanelsController', () => {
         localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         popover.open.mockClear();
         popover.close.mockClear();
+        popover.showCategoriesPanel.mockClear();
         hasSelectedCategory.set(true);
         showButton = document.createElement('button');
         restoreButton = document.createElement('button');
@@ -92,8 +97,10 @@ describe('LivePanelsController', () => {
 
         state.hideCategories('portal');
         controller.showCategories();
-        expect(popover.close).toHaveBeenCalledTimes(1);
-        expect(state.stateOf('portal')()).toBe('expanded');
+        // The shell restores the rail (and opens the phone drawer if the
+        // rail is one); the controller only delegates.
+        expect(popover.showCategoriesPanel).toHaveBeenCalledTimes(1);
+        expect(state.stateOf('portal')()).toBe('categories-hidden');
     });
 
     it('hands focus across level changes, including a fold by category selection', async () => {
