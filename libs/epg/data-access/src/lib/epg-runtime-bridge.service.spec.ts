@@ -173,15 +173,15 @@ describe('EpgRuntimeBridgeService', () => {
         } as unknown as typeof window.electron;
         runtimeCapabilities.supportsEpgGuide = true;
 
-        const window_ = { channelIds: ['a'], fromMs: 1, toMs: 2 };
-        await expect(service.getProgramsForChannels(window_)).resolves.toEqual(
-            { a: [] }
-        );
-        await expect(service.getProgramCoverage(window_)).resolves.toEqual([
+        const guideWindow = { channelIds: ['a'], fromMs: 1, toMs: 2 };
+        await expect(
+            service.getProgramsForChannels(guideWindow)
+        ).resolves.toEqual({ a: [] });
+        await expect(service.getProgramCoverage(guideWindow)).resolves.toEqual([
             'a',
         ]);
-        expect(getEpgProgramsForChannels).toHaveBeenCalledWith(window_);
-        expect(getEpgProgramCoverage).toHaveBeenCalledWith(window_);
+        expect(getEpgProgramsForChannels).toHaveBeenCalledWith(guideWindow);
+        expect(getEpgProgramCoverage).toHaveBeenCalledWith(guideWindow);
     });
 
     it('answers null for guide reads without runtime support or channels', async () => {

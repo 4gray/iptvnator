@@ -260,29 +260,57 @@ export default class EpgEvents {
     }
 
     /**
+     * The guide query service keys its answer by the TRIMMED, deduplicated,
+     * cap-respecting form of the channel ids it was given
+     * (`normalizeGuideWindow`). Handlers must resolve the same trimmed key
+     * to look up that answer, or a padded request id (`" CNN "`) would never
+     * find its entry even though the service queried it successfully.
+     */
+    private static resolvedGuideKey(
+        mapping: Map<string, string>,
+        id: unknown
+    ): string {
+        return typeof id === 'string' ? (mapping.get(id) ?? id).trim() : '';
+    }
+
+    /**
      * Guide reads take playlist channel keys. Manual mappings are applied
      * here, before the query, and the answer is keyed back by the requested
-     * key so the renderer never sees a mapped id.
+     * key so the renderer never sees a mapped id. A key the service did not
+     * answer for (cut by its per-request cap) stays absent from the result
+     * rather than being filled with `[]`, so callers can tell "queried,
+     * nothing found" apart from "not queried at all".
      */
     private static async handleGetGuidePrograms(
         args: ElectronBridgeEpgGuideWindow
     ): Promise<Record<string, EpgProgram[]>> {
-        const requested = Array.isArray(args?.channelIds) ? args.channelIds : [];
+        const requested = Array.isArray(args?.channelIds)
+            ? args.channelIds
+            : [];
         const mapping = await resolveChannelIds(requested);
         const resolvedIds = requested.map((id) => mapping.get(id) ?? id);
         const programs = await epgGuideQueryService.getProgramsForChannels({
             ...args,
             channelIds: resolvedIds,
         });
-        return Object.fromEntries(
-            requested.map((id) => [id, programs[mapping.get(id) ?? id] ?? []])
-        );
+        const answer: Record<string, EpgProgram[]> = {};
+        for (const id of requested) {
+            const key = this.resolvedGuideKey(mapping, id);
+            if (Object.prototype.hasOwnProperty.call(programs, key)) {
+                // Copy so two requested ids resolving to one target never
+                // share an array reference.
+                answer[String(id)] = [...programs[key]];
+            }
+        }
+        return answer;
     }
 
     private static async handleGetGuideCoverage(
         args: ElectronBridgeEpgGuideWindow
     ): Promise<string[]> {
-        const requested = Array.isArray(args?.channelIds) ? args.channelIds : [];
+        const requested = Array.isArray(args?.channelIds)
+            ? args.channelIds
+            : [];
         const mapping = await resolveChannelIds(requested);
         const resolvedIds = requested.map((id) => mapping.get(id) ?? id);
         const covered = new Set(
@@ -291,7 +319,18 @@ export default class EpgEvents {
                 channelIds: resolvedIds,
             })
         );
-        return requested.filter((id) => covered.has(mapping.get(id) ?? id));
+        const seen = new Set<string>();
+        const answer: string[] = [];
+        for (const id of requested) {
+            if (seen.has(id)) {
+                continue;
+            }
+            seen.add(id);
+            if (covered.has(this.resolvedGuideKey(mapping, id))) {
+                answer.push(id);
+            }
+        }
+        return answer;
     }
 
     static async clearEpgData(): Promise<void> {

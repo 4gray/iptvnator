@@ -379,9 +379,12 @@ export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgL
     nowMs?: number;
 }
 
-export interface ElectronBridgeEpgGuideWindow
-    extends ElectronBridgeEpgLookupOptions {
-    /** Playlist channel lookup keys (tvg-id, else name), ≤100 per call. */
+export interface ElectronBridgeEpgGuideWindow extends ElectronBridgeEpgLookupOptions {
+    /**
+     * Playlist channel lookup keys (tvg-id, else name), ≤100 keys for
+     * programmes, ≤2000 for coverage; larger batches are truncated and the
+     * cut keys are absent from the answer.
+     */
     channelIds: string[];
     /** Provider-clock window bounds in epoch ms. */
     fromMs: number;
