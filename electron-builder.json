@@ -54,6 +54,7 @@
     "extraMetadata": {
         "name": "iptvnator",
         "productName": "IPTVnator",
+        "desktopName": "iptvnator",
         "main": "electron-backend/main.js"
     },
     "extraResources": ["dist/apps/electron-backend/workers"],
@@ -81,11 +82,6 @@
         "category": "Video",
         "executableName": "iptvnator",
         "executableArgs": ["--ozone-platform=x11"],
-        "desktop": {
-            "entry": {
-                "StartupWMClass": "iptvnator"
-            }
-        },
         "target": [
             {
                 "target": "AppImage",
@@ -114,6 +110,15 @@
         ],
         "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
         "icon": "apps/web/src/assets/icons"
+    },
+    "appImage": {
+        "desktop": {
+            "entry": {
+                "X-AppImage-Name": "IPTVnator",
+                "X-AppImage-Homepage": "https://github.com/4gray/iptvnator",
+                "X-AppImage-UpdateURL": "https://github.com/4gray/iptvnator"
+            }
+        }
     },
     "flatpak": {
         "branch": "stable",
