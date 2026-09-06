@@ -46,7 +46,7 @@ export function installLiveFormatFixture(app: Express): void {
                 readFileSync(
                     join(
                         process.cwd(),
-                        'apps/web-e2e/src/fixtures/playback/live.mpegts'
+                        'apps/xtream-mock-server/src/fixtures/live.mpegts'
                     )
                 )
             );
