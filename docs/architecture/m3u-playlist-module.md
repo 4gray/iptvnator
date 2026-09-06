@@ -1048,7 +1048,7 @@ class EpgService {
 | `EpgTimelineComponent`        | Horizontal timeline for one channel  |
 | `EpgListViewComponent`        | Vertical single-day list alternative |
 | `EpgItemDescriptionComponent` | Program details dialog               |
-| `MultiEpgContainerComponent`  | Grid view of all channels' schedules |
+| `EpgGuideComponent`           | Multi-channel programme guide grid fed by `EPG_GUIDE_SOURCE` (rows: `EpgGuideRowComponent`, toolbar: `EpgGuideToolbarComponent`, docked strip: `EpgGuideNowPlayingComponent`) |
 
 ## Video Player
 

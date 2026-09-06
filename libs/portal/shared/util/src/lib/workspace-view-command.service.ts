@@ -5,6 +5,13 @@ import {
 } from './workspace-header-context.service';
 import { WorkspaceCommandContribution } from './workspace-view-command.types';
 
+/** A palette flag may be a value or a getter; `undefined` means "not set". */
+function resolveCommandFlag(
+    flag: boolean | (() => boolean | undefined) | undefined
+): boolean | undefined {
+    return typeof flag === 'function' ? flag() : flag;
+}
+
 interface RegisteredWorkspaceCommand {
     token: symbol;
     command: WorkspaceCommandContribution;
@@ -64,7 +71,9 @@ export class WorkspaceViewCommandService {
             // The header action's own gate wins: a disabled button must not
             // leave a runnable command behind in the palette.
             enabled: action.disabled
-                ? () => !action.disabled?.()
+                ? () =>
+                      !action.disabled?.() &&
+                      (resolveCommandFlag(palette?.enabled) ?? true)
                 : palette?.enabled,
             run: () => action.run(),
         };

@@ -46,7 +46,9 @@ anyway.
 
 The guide becomes `app-epg-guide` in `libs/ui/epg`, ignorant of playlists and
 portals. A host provides `EPG_GUIDE_SOURCE`. The M3U host keeps a `guideOpen`
-signal; while it is on, the template drops the sidebar and the timeline,
+signal; while it is on, the template hides the sidebar (it stays mounted,
+`inert`, because destroying the channel list resets the active channel) and
+drops the timeline,
 renders the guide, and CSS reflows the player container into a docked strip
 on top. The player component keeps its DOM position, so nothing remounts and
 native-view Embedded MPV syncs bounds like on any resize. This is the same
@@ -186,7 +188,8 @@ token set; card radius is 8 px (timeline uses 11 px on 96 px cards).
 
 - `VideoPlayerComponent` gains `guideOpen` and `guideDockCollapsed` signals
   (the latter persisted under `epg-guide:dock-collapsed`). While
-  `guideOpen()` is true the sidebar and the `.epg` block are not rendered;
+  `guideOpen()` is true the sidebar is hidden (`sidebar--guide-hidden` +
+  `inert`, still mounted) and the `.epg` block is not rendered;
   `<app-epg-guide>` takes their place; `.content-container` gets `is-guide`
   and CSS turns `.video-player` into a 128 px strip (16:9 video on the left,
   `app-epg-guide-now-playing` beside it; 48 px single line when collapsed).

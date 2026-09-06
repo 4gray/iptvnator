@@ -97,6 +97,11 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly close = output<void>();
+    /**
+     * Fired after `source.activate()` for hosts that want to observe a
+     * switch made from the guide (analytics, remote-control status); the M3U
+     * host reacts through the store instead and leaves it unbound.
+     */
     readonly channelActivated = output<string>();
 
     readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
