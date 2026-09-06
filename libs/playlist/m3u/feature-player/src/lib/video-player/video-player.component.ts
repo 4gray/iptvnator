@@ -1239,11 +1239,39 @@ export class VideoPlayerComponent
     }
 
     openGuide(): void {
-        if (!this.canOpenGuide() || this.guideOpen()) {
+        if (!this.canOpenGuide() || this.guideOpen() || this.isGuideBlocked()) {
             return;
         }
         this.guideSource.applyInitialScope(this.activeView());
         this.guideOpen.set(true);
+    }
+
+    /**
+     * The guide mounts in the page flow, so anything painting over the page
+     * would hide it while it still swallowed the keyboard: a fullscreen
+     * element (the live player's own, which has the fullscreen channel panel
+     * instead — see {@link onFullscreenChange} — or any other) and an open
+     * CDK dialog. Gated here rather than in the key handler alone so the
+     * header action and the command palette are covered too.
+     */
+    private isGuideBlocked(): boolean {
+        return (
+            !!document.fullscreenElement ||
+            !!document.querySelector('.cdk-overlay-container [role="dialog"]')
+        );
+    }
+
+    /** Whether the event was raised inside a menu, dialog or CDK overlay. */
+    private isInsideOverlaySurface(event: KeyboardEvent): boolean {
+        return event
+            .composedPath()
+            .some(
+                (target) =>
+                    target instanceof Element &&
+                    target.matches(
+                        '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
+                    )
+            );
     }
 
     closeGuide(): void {
@@ -1301,8 +1329,14 @@ export class VideoPlayerComponent
             return;
         }
         if (isGuideKey && this.canOpenGuide()) {
-            event.preventDefault();
-            this.openGuide();
+            // A G from a focused control inside a dialog or menu belongs to
+            // that surface, not to the page behind it.
+            if (!this.isInsideOverlaySurface(event)) {
+                this.openGuide();
+            }
+            if (this.guideOpen()) {
+                event.preventDefault();
+            }
             return;
         }
         if (
@@ -1320,15 +1354,7 @@ export class VideoPlayerComponent
         // the one way to change channels from the keyboard in fullscreen.
         if (event.key === 'PageUp' || event.key === 'PageDown') {
             if (
-                event
-                    .composedPath()
-                    .some(
-                        (target) =>
-                            target instanceof Element &&
-                            target.matches(
-                                '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
-                            )
-                    ) ||
+                this.isInsideOverlaySurface(event) ||
                 isInsideScrollableRegion(
                     event.target,
                     this.hostElement.nativeElement

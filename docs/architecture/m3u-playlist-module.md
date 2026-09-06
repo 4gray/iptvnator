@@ -1140,11 +1140,16 @@ are unscoped, like the timeline.
 
 Row ids are not channel ids: `createChannel` falls back to the stream URL for
 an entry without an explicit id, so one stream listed in two groups yields two
-channels sharing an id. The adapter numbers repeats within the scope (`<id>`,
-`<id>#1`, …) — the guide keys its programme, coverage and selection maps by
-row id, so without that both copies lit up as playing and activating either
-one played the first. The active channel marks the FIRST row carrying its id,
-and `activate(rowId)` resolves the row back to its own channel. Opening the
+channels sharing an id. The adapter therefore builds SCOPE-LOCAL row ids by
+prefixing every row with its position in the scope (`<index>:<channel id>`) —
+the guide keys its programme, coverage and selection maps by row id, so
+without that both copies lit up as playing and activating either one played
+the first, and suffixing only the repeats was not enough because a real
+channel id can itself look like a generated suffix (ids `x`, `x`, `x#1`
+produced `x#1` twice). Ids move with the scope and the channel list, so only
+ids the guide was just handed may be passed back. The active channel marks the
+FIRST row carrying its id (`null` when it is outside the scope), and
+`activate(rowId)` resolves the row back to its own channel. Opening the
 guide mirrors the sidebar view (`applyInitialScope`): favorites stays
 favorites, and the groups view opens on the group the sidebar's rail is
 SHOWING — forwarded from `GroupsViewComponent.selectedGroupChange` through the
@@ -1170,7 +1175,12 @@ toolbar (`EpgTimelineComponent.openGuide`) and the `G` key on the player page.
 The header action reports `disabled` whenever the guide cannot open, which
 greys out the header button and disables its palette command instead of
 offering a no-op. Player fullscreen, radio, recognised movies, switching to
-another playlist and the PWA close or withhold it. Inside the guide: single click on a row or an
+another playlist and the PWA close or withhold it. `openGuide()` itself also
+refuses while ANY element is fullscreen or a CDK dialog is open — the guide
+mounts in the page flow, so it would be painted over and still swallow the
+keyboard — and the `G` key additionally ignores a press raised inside a
+`.cdk-overlay-pane`, `[role="menu"]` or `[role="dialog"]`, the same surfaces
+the PageUp/PageDown zapping yields to. Inside the guide: single click on a row or an
 "on now" card switches the channel and keeps the guide open, double-click or
 Enter switches and closes, other cards open the programme dialog; ↑/↓ ←/→
 navigate, I details, N now, PgUp/PgDn day, Esc close — the keyboard controller

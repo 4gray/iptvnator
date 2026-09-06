@@ -111,16 +111,22 @@ describe('M3uEpgGuideSourceService', () => {
             1, 2, 3,
         ]);
         service.setScope('group:Sports');
+        // Row ids are scope-local: the position inside the scope, then the
+        // channel id.
         expect(service.channels().map((channel) => channel.id)).toEqual([
-            'b',
-            'c',
+            '0:b',
+            '1:c',
         ]);
         expect(service.channels()[0].number).toBe(1);
         service.setScope('favorites');
-        expect(service.channels().map((channel) => channel.id)).toEqual(['b']);
+        expect(service.channels().map((channel) => channel.id)).toEqual([
+            '0:b',
+        ]);
         // Legacy rows saved before URL keys are still matched by channel id.
         favoriteKeys.set(['c']);
-        expect(service.channels().map((channel) => channel.id)).toEqual(['c']);
+        expect(service.channels().map((channel) => channel.id)).toEqual([
+            '0:c',
+        ]);
     });
 
     it('derives the EPG key from tvg-id, then name, and null for blank names', () => {
@@ -142,12 +148,12 @@ describe('M3uEpgGuideSourceService', () => {
             fromMs: 1,
             toMs: 2,
         });
-        expect(programs.get('a')?.[0].title).toBe('a.tv show');
-        expect(programs.get('b')).toEqual([]);
-        expect(programs.has('c')).toBe(false);
+        expect(programs.get('0:a')?.[0].title).toBe('a.tv show');
+        expect(programs.get('1:b')).toEqual([]);
+        expect(programs.has('2:c')).toBe(false);
 
         const covered = await service.loadCoverage(window);
-        expect(covered).toEqual(new Set(['a']));
+        expect(covered).toEqual(new Set(['0:a']));
     });
 
     it('answers empty results when the bridge is unavailable', async () => {
@@ -159,8 +165,8 @@ describe('M3uEpgGuideSourceService', () => {
     });
 
     it('mirrors the active channel and dispatches playback on activate', () => {
-        expect(service.activeChannelId()).toBe('a');
-        service.activate('b');
+        expect(service.activeChannelId()).toBe('0:a');
+        service.activate('1:b');
         expect(dispatch).toHaveBeenCalledWith(
             ChannelActions.setActiveChannel({
                 channel: channels()[1],
@@ -173,10 +179,13 @@ describe('M3uEpgGuideSourceService', () => {
 
     it('keeps duplicate channel ids apart and activates the row that was clicked', () => {
         // `createChannel` falls back to the URL as the id, so one stream
-        // listed twice yields two channels sharing an id.
+        // listed twice yields two channels sharing an id. A real id can also
+        // look like a generated suffix (`x#1`), so suffixing the repeats made
+        // the third row collide with the second; the position prefix cannot.
         const duplicated = signal<Channel[]>([
-            makeChannel('dup', { name: 'First copy', group: 'News' }),
-            makeChannel('dup', { name: 'Second copy', group: 'News' }),
+            makeChannel('x', { name: 'First copy', group: 'News' }),
+            makeChannel('x', { name: 'Second copy', group: 'News' }),
+            makeChannel('x#1', { name: 'Hashed id', group: 'News' }),
         ]);
         service.bind({
             channels: duplicated,
@@ -186,15 +195,23 @@ describe('M3uEpgGuideSourceService', () => {
         });
 
         const rowIds = service.channels().map((channel) => channel.id);
-        expect(rowIds).toEqual(['dup', 'dup#1']);
+        expect(rowIds).toEqual(['0:x', '1:x', '2:x#1']);
+        expect(new Set(rowIds).size).toBe(3);
         // The playing channel marks the first of the two rows.
-        expect(service.activeChannelId()).toBe('dup');
+        expect(service.activeChannelId()).toBe('0:x');
 
-        service.activate('dup#1');
-
-        expect(dispatch).toHaveBeenCalledWith(
+        service.activate('1:x');
+        expect(dispatch).toHaveBeenLastCalledWith(
             ChannelActions.setActiveChannel({
                 channel: duplicated()[1],
+                startPlayback: true,
+            })
+        );
+
+        service.activate('2:x#1');
+        expect(dispatch).toHaveBeenLastCalledWith(
+            ChannelActions.setActiveChannel({
+                channel: duplicated()[2],
                 startPlayback: true,
             })
         );
@@ -256,7 +273,7 @@ describe('M3uEpgGuideSourceService', () => {
     it('forwards programme search to the bridge', async () => {
         searchPrograms.mockResolvedValue([program('a.tv'), program('x')]);
         const hits = await service.searchPrograms('news');
-        expect(hits.map((hit) => hit.channelId)).toEqual(['a', null]);
+        expect(hits.map((hit) => hit.channelId)).toEqual(['0:a', null]);
         expect(hits[1].program.title).toBe('x show');
         expect(searchPrograms).toHaveBeenCalledWith('news', 20);
     });

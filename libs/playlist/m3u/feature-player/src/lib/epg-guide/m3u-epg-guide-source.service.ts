@@ -122,28 +122,28 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
      * explicit id, so one stream listed in two groups — or simply repeated —
      * yields two channels sharing an id. The guide keys its programme, status
      * and selection maps by row id, so duplicates used to collide: both rows
-     * lit up as playing and activating either one played the first. The first
-     * occurrence keeps the channel id (nothing changes for a playlist without
-     * duplicates) and every later one is suffixed.
+     * lit up as playing and activating either one played the first.
+     * Every row is therefore prefixed with its position in the scope: two rows
+     * always differ in that leading integer, so no channel id can collide with
+     * another row (suffixing only the repeats did not hold — a playlist whose
+     * ids are `x`, `x` and `x#1` produced `x#1` twice). Ids are SCOPE-LOCAL:
+     * they change with the scope and the channel list, and only ids the guide
+     * was just handed in `channels()` may be passed back.
      */
     private readonly scopedRows = computed<
         Array<{ rowId: string; channel: Channel }>
-    >(() => {
-        const occurrences = new Map<string, number>();
-        return this.scopedChannels().map((channel) => {
-            const seen = occurrences.get(channel.id) ?? 0;
-            occurrences.set(channel.id, seen + 1);
-            return {
-                rowId: seen === 0 ? channel.id : `${channel.id}#${seen}`,
-                channel,
-            };
-        });
-    });
+    >(() =>
+        this.scopedChannels().map((channel, index) => ({
+            rowId: `${index}:${channel.id}`,
+            channel,
+        }))
+    );
 
     private readonly channelsByRowId = computed(
         () => new Map(this.scopedRows().map((row) => [row.rowId, row.channel]))
     );
 
+    /** `EpgGuideChannel.id` is the scope-local row id, not `Channel.id`. */
     readonly channels = computed<EpgGuideChannel[]>(() => {
         const strip = this.settingsStore.stripCountryPrefix?.();
         return this.scopedRows().map(({ rowId, channel }, index) => ({
@@ -156,8 +156,10 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     });
 
     /**
-     * The first row carrying the active channel's id — duplicates are
-     * indistinguishable from here, so the guide marks the first of them.
+     * The row id of the first row carrying the active channel's id —
+     * duplicates are indistinguishable from here, so the guide marks the first
+     * of them. `null` when the playing channel is outside the current scope:
+     * row ids are scope-local, so there is nothing to point at.
      */
     readonly activeChannelId = computed(() => {
         const active = this.inputs()?.activeChannel();
@@ -166,7 +168,7 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         }
         return (
             this.scopedRows().find((row) => row.channel.id === active.id)
-                ?.rowId ?? active.id
+                ?.rowId ?? null
         );
     });
 
