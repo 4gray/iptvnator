@@ -837,6 +837,7 @@
             "ZOOM_DAY": "1日表示",
             "ZOOM_HOURS": "時間単位",
             "ZOOM_DETAIL": "詳細",
+            "ZOOM_TOOLTIP": "ズーム: {{level}} · ⌘/Ctrl + スクロールで微調整",
             "GROUP_SHORT": "短い番組",
             "GROUP_EXPAND": "表示 ›"
         }

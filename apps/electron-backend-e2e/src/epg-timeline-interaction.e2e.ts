@@ -78,25 +78,60 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
             .first();
         await expect(nowBlock).toBeVisible();
 
-        // Zooming re-renders the ribbon: block widths grow with px/minute.
-        const zoomInput = timeline.locator(
-            '.epg-timeline__zoom input[type="range"]'
+        // The zoom button cycles hours → detail → day; block widths follow
+        // px/minute, so "detail" must render the same block wider than "day".
+        const zoomButton = timeline.locator('.epg-timeline__zoom');
+        await expect(zoomButton).toBeVisible();
+        await expect(zoomButton).toHaveAttribute('data-zoom-level', 'hours');
+
+        const blockWidth = async () =>
+            (await nowBlock.boundingBox())?.width ?? 0;
+
+        await zoomButton.click();
+        await expect(zoomButton).toHaveAttribute('data-zoom-level', 'detail');
+        const detailZoomWidth = await blockWidth();
+
+        await zoomButton.click();
+        await expect(zoomButton).toHaveAttribute('data-zoom-level', 'day');
+        const dayZoomWidth = await blockWidth();
+        expect(detailZoomWidth).toBeGreaterThan(dayZoomWidth);
+
+        // Ctrl + wheel over the ribbon fine-tunes the zoom (and must not
+        // trigger Chromium's page zoom, which would scale the whole window).
+        const ribbon = timeline.locator('.epg-timeline__ribbon');
+        await ribbon.hover({ position: { x: 200, y: 40 } });
+        const pageZoomBefore = await app.mainWindow.evaluate(
+            () => window.devicePixelRatio
         );
-        await expect(zoomInput).toBeVisible();
+        await app.mainWindow.keyboard.down('Control');
+        await app.mainWindow.mouse.wheel(0, -300);
+        await app.mainWindow.keyboard.up('Control');
+        await expect
+            .poll(blockWidth, { timeout: 5000 })
+            .toBeGreaterThan(dayZoomWidth);
+        // Chromium page zoom scales devicePixelRatio; the ribbon must have
+        // swallowed the gesture instead.
+        expect(
+            await app.mainWindow.evaluate(() => window.devicePixelRatio)
+        ).toBe(pageZoomBefore);
 
-        const blockWidthAt = async (zoom: 'min' | 'max') => {
-            await zoomInput.evaluate((element, target) => {
-                const input = element as HTMLInputElement;
-                input.value = target === 'min' ? input.min : input.max;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-            }, zoom);
-            const box = await nowBlock.boundingBox();
-            return box?.width ?? 0;
+        // The contrast checks below read the block's time line, which the
+        // narrower tiers hide, so settle on the "detail" preset. The
+        // wheel-tuned scale may sit in any band (Chromium scales the delivered
+        // delta), so cycle from wherever it landed rather than assuming a
+        // fixed number of clicks.
+        const clicksToDetail: Record<string, number> = {
+            detail: 0,
+            day: 2,
+            hours: 1,
         };
-
-        const minZoomWidth = await blockWidthAt('min');
-        const maxZoomWidth = await blockWidthAt('max');
-        expect(maxZoomWidth).toBeGreaterThan(minZoomWidth);
+        const landedLevel =
+            (await zoomButton.getAttribute('data-zoom-level')) ?? '';
+        expect(Object.keys(clicksToDetail)).toContain(landedLevel);
+        for (let i = 0; i < clicksToDetail[landedLevel]; i += 1) {
+            await zoomButton.click();
+        }
+        await expect(zoomButton).toHaveAttribute('data-zoom-level', 'detail');
 
         for (const theme of ['light', 'dark', 'light'] as const) {
             await applyTheme(app.mainWindow, theme);

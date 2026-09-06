@@ -837,6 +837,7 @@
             "ZOOM_DAY": "نظرة عامة على اليوم",
             "ZOOM_HOURS": "حسب الساعة",
             "ZOOM_DETAIL": "تفصيلي",
+            "ZOOM_TOOLTIP": "التكبير: {{level}} · ⌘/Ctrl + التمرير للضبط الدقيق",
             "GROUP_SHORT": "برامج قصيرة",
             "GROUP_EXPAND": "عرض ›"
         }

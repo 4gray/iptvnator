@@ -837,6 +837,7 @@
             "ZOOM_DAY": "Обзор дня",
             "ZOOM_HOURS": "По часам",
             "ZOOM_DETAIL": "Детально",
+            "ZOOM_TOOLTIP": "Масштаб: {{level}} · ⌘/Ctrl + колесо для точной настройки",
             "GROUP_SHORT": "короткие передачи",
             "GROUP_EXPAND": "показать ›"
         }

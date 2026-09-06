@@ -40,7 +40,9 @@ describe('EpgTimelineComponent', () => {
             providers: [
                 {
                     provide: MatDialog,
-                    useValue: { open: () => ({ afterClosed: () => of(undefined) }) },
+                    useValue: {
+                        open: () => ({ afterClosed: () => of(undefined) }),
+                    },
                 },
                 {
                     provide: TranslateService,
@@ -223,6 +225,60 @@ describe('EpgTimelineComponent', () => {
         expect(component.scale()).toBe(component.zoomMin);
         // render items still produced after zooming
         expect(component.renderItems().length).toBe(before);
+    });
+
+    it('cycles the zoom button through day → hours → detail → day', () => {
+        setInputs({ programs: [programAt(-60, 120, 'Wide')] });
+        expect(component.zoomLevel()).toBe('hours'); // default scale
+
+        component.cycleZoom();
+        expect(component.zoomLevel()).toBe('detail');
+        expect(component.zoomIcon()).toBe('zoom_in');
+
+        component.cycleZoom();
+        expect(component.zoomLevel()).toBe('day');
+        expect(component.zoomIcon()).toBe('zoom_out');
+
+        component.cycleZoom();
+        expect(component.zoomLevel()).toBe('hours');
+        expect(component.zoomLabelKey()).toBe('EPG.TIMELINE.ZOOM_HOURS');
+    });
+
+    it('snaps a wheel-tuned scale to the next preset band when cycling', () => {
+        setInputs({ programs: [programAt(-60, 120, 'Wide')] });
+        component.onZoom(2.6); // still "hours" band, but off-preset
+        expect(component.zoomLevel()).toBe('hours');
+        component.cycleZoom();
+        expect(component.zoomLevel()).toBe('detail');
+        expect(component.scale()).toBe(3.4);
+    });
+
+    function wheel(init: WheelEventInit): WheelEvent {
+        return new WheelEvent('wheel', { cancelable: true, ...init });
+    }
+
+    it('zooms the ribbon with Ctrl/⌘ + wheel and blocks page zoom', () => {
+        setInputs({ programs: [programAt(-60, 120, 'Wide')] });
+        const before = component.scale();
+
+        const zoomIn = wheel({ deltaY: -100, ctrlKey: true });
+        component.onRibbonWheel(zoomIn);
+        expect(zoomIn.defaultPrevented).toBe(true);
+        expect(component.scale()).toBeGreaterThan(before);
+
+        const zoomOut = wheel({ deltaY: 300, metaKey: true });
+        component.onRibbonWheel(zoomOut);
+        expect(component.scale()).toBeLessThan(before);
+        expect(component.scale()).toBeGreaterThanOrEqual(component.zoomMin);
+    });
+
+    it('leaves a plain wheel to native scrolling', () => {
+        setInputs({ programs: [programAt(-60, 120, 'Wide')] });
+        const before = component.scale();
+        const plain = wheel({ deltaY: -100 });
+        component.onRibbonWheel(plain);
+        expect(plain.defaultPrevented).toBe(false);
+        expect(component.scale()).toBe(before);
     });
 
     it('expands a group chip by zooming in', () => {
