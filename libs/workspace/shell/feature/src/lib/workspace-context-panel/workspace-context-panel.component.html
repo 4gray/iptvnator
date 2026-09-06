@@ -148,6 +148,7 @@
             </div>
         } @else {
             <app-workspace-context-category-view
+                [columnHandoff]="presentation() === 'sidebar'"
                 [items]="filteredXtreamCategories()"
                 [selectedCategoryId]="xtreamSelectedCategoryId()"
                 [itemCounts]="xtreamCategoryItemCounts()"
@@ -180,6 +181,7 @@
             />
         } @else {
             <app-workspace-context-category-view
+                [columnHandoff]="presentation() === 'sidebar'"
                 [items]="filteredStalkerCategories()"
                 [selectedCategoryId]="$any(stalkerSelectedCategoryId())"
                 [itemCounts]="stalkerCategoryItemCounts()"

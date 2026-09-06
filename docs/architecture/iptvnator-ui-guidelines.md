@@ -308,7 +308,11 @@ remain local when the meaning is explicit.
       `WorkspaceLiveCategoriesPopoverComponent`, which stamps the context
       panel with `presentation="popover"`) and the live layouts inject it
       optionally — without a provider the header keeps its plain title.
-      Backdrop, Escape, the footer, any category selection
+      The stamped panel opts out of the live-TV column keyboard contract
+      (`columnHandoff=false`: no `#portal-categories` id, no ArrowRight
+      handoff to `#live-channels`), since the dialog's focus trap would
+      bounce that handoff back inside and a second id would shadow the
+      folded rail's. Backdrop, Escape, the footer, any category selection
       (`categorySelected` output) and any router `NavigationStart` close it
       (the shell outlives the child route that owns the trigger); focus
       returns to the trigger. The popover host is a `role="dialog"` with

@@ -595,6 +595,47 @@ describe('WorkspaceContextPanelComponent', () => {
             expect(hideButton()).toBeNull();
         });
 
+        it('keeps the live-TV column keyboard contract out of the popover', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            xtreamSelectedTypeContentState.set('ready');
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('#portal-categories')
+            ).not.toBeNull();
+
+            fixture.componentRef.setInput('presentation', 'popover');
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector('#portal-categories')
+            ).toBeNull();
+
+            // ArrowRight on the selected category must not reach the
+            // background channels pane from inside the dialog.
+            const pane = document.createElement('div');
+            pane.id = 'live-channels';
+            pane.tabIndex = -1;
+            document.body.appendChild(pane);
+            pane.checkVisibility = () => true;
+            try {
+                const selected = fixture.nativeElement.querySelector(
+                    '.category-item[aria-current="true"]'
+                ) as HTMLButtonElement;
+                selected.focus();
+                const event = new KeyboardEvent('keydown', {
+                    key: 'ArrowRight',
+                    bubbles: true,
+                    cancelable: true,
+                });
+                selected.dispatchEvent(event);
+
+                expect(event.defaultPrevented).toBe(false);
+                expect(document.activeElement).toBe(selected);
+            } finally {
+                pane.remove();
+            }
+        });
+
         it('reports a category selection so a popover host can close', () => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedTypeContentState.set('ready');
