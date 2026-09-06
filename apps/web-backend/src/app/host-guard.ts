@@ -13,9 +13,9 @@
  * see `@iptvnator/shared/host-health`) fast-fails the rest once a host has
  * refused to answer twice in a row.
  *
- * On the axios timeout semantics: with the default (follow-redirects)
- * transport, `timeout` is NOT a wall-clock deadline for the whole response. It
- * bounds the time to response headers, and then continues as the socket's
+ * On the axios timeout semantics: with axios 1.20's native HTTP
+ * transport (`maxRedirects: 0`), each hop's `timeout` is NOT a wall-clock
+ * deadline for the whole response. It bounds the time to response headers, and then continues as the socket's
  * inactivity timeout for the body. A large XMLTV or M3U download that keeps
  * delivering bytes is therefore never cut off mid-transfer — only a stalled one
  * is, which is exactly the case these numbers are meant to catch.
@@ -29,6 +29,7 @@ import {
     portalEndpointKeyOf,
 } from '@iptvnator/shared/host-health';
 import { buildHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
+import { ProviderRequestError } from './provider-request-error';
 import type { NormalizedProviderError } from './provider-error';
 
 /**
@@ -176,8 +177,8 @@ export function resetProviderHost(
  * `countFailures: false` is for requests exempt from the guard (endpoint
  * discovery). Their failures are expected and must not count — but the report
  * must still happen, because an error that carries an HTTP response proves the
- * endpoint answered. This route sets no `validateStatus`, so axios rejects every
- * non-2xx WITH `error.response`; dropping those instead of reporting them is
+ * endpoint answered. The redirect wrapper accepts 3xx, but axios still rejects
+ * other non-2xx WITH `error.response`; dropping those instead of reporting them is
  * what would let the breaker open in the middle of discovery.
  */
 export function reportProviderRequestFailure(
@@ -190,6 +191,13 @@ export function reportProviderRequestFailure(
         return;
     }
 
+    if (error instanceof ProviderRequestError) {
+        if (error.initialResponded) {
+            guard.reportSuccess(token);
+            return;
+        }
+        error = error.cause;
+    }
     const countFailures = options.countFailures ?? true;
     switch (classifyHostRequestFailure(error)) {
         case 'host-level':

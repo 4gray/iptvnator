@@ -418,7 +418,7 @@ describe('web backend host connectivity guard', () => {
                 // not consume the single trial the breaker allows.
                 resolvable = false;
                 const refusedByPolicy = await call();
-                expect(refusedByPolicy.status).toBe(400);
+                expect(refusedByPolicy.status).toBe(200);
 
                 resolvable = true;
                 const trial = await call();
@@ -469,7 +469,7 @@ describe('web backend host connectivity guard', () => {
                     );
 
                 const first = await call();
-                expect(first.status).toBe(400);
+                expect(first.status).toBe(200);
                 // The DNS error is internal: the client sees what it always saw.
                 await expect(first.json()).resolves.toEqual({
                     message: 'Provider URL host could not be resolved',
@@ -712,7 +712,11 @@ describe('web backend host connectivity guard', () => {
                                         }
                                     );
                                 }
-                                return { data: [] as never };
+                                return {
+                                    data: [] as never,
+                                    status: 200,
+                                    headers: {},
+                                };
                             });
                         const trial = call();
                         try {

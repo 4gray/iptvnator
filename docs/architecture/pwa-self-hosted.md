@@ -139,6 +139,57 @@ before any outbound request:
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` explicitly enables trusted
   local/LAN targets for development, mock servers, or private deployments
 
+### Provider redirects and connection policy
+
+`ValidatedHttpClient` applies the registration URL policy again before every
+outbound request on `/xtream`, `/stalker`, `/parse`, and `/parse-xml`, including
+the initial request. Axios automatic redirects are disabled (`maxRedirects: 0`);
+301, 302, 303, 307 and 308 are followed manually, with at most five redirects.
+Relative `Location` values resolve against the URL actually sent, including its
+query. Missing/malformed locations, repeated URLs (ignoring fragments), and an
+exhausted redirect budget fail without dispatching another request. Intermediate
+bodies are destroyed at headers; malformed or endless redirect bodies do not
+block following an otherwise valid location. Final bodies retain a native socket
+inactivity timer: axios stream mode stops its own timeout handling at headers,
+so `provider-response.ts` keeps that timer active until consumption finishes.
+A body failure preserves received HTTP status evidence; cancellation remains
+inconclusive before any redirect.
+
+Every DNS answer must be a valid permitted IP. Mixed public/private answers
+fail closed. The strict policy rejects private/reserved IPv4, IPv4-mapped private
+IPv6, and IPv6 outside global unicast `2000::/3`, plus protocol-assignment,
+documentation and 6to4 ranges within it. These deliberately conservative ranges
+follow the [IANA IPv6 address space](https://www.iana.org/assignments/ipv6-address-space/)
+and [special-purpose registry](https://www.iana.org/assignments/iana-ipv6-special-registry/).
+The LAN opt-in applies to the whole
+chain; it still requires HTTP(S), no URL userinfo and concrete DNS addresses.
+
+Fresh HTTP/HTTPS agents pin socket lookup to the exact validated IPv4/IPv6
+answer set for that hop. No second DNS query or pooled connection may substitute
+an unvalidated address. The original hostname remains in the URL for Host, TLS
+SNI and certificate hostname checks. Axios proxies and Node environment proxies
+are disabled for these requests so a proxy cannot independently resolve the
+origin. Deployments that require an outbound HTTP proxy must use a different
+network arrangement; setting `HTTP_PROXY`/`HTTPS_PROXY` does not route provider
+requests through it. This guarantee concerns address selection in the Node
+transport, not routing/NAT performed outside the process. Private-network
+opt-in intentionally relaxes address restrictions.
+
+Original axios `params` are applied only to the initial request. Subsequent
+queries come from `Location` resolution, without appending the original
+credentials again. Authorization, Cookie, Proxy-Authorization and Stalker SN
+headers are retained only on the same origin; changes of host, port or scheme
+(including HTTPS downgrades) strip them for the rest of the chain. User-Agent
+and other non-secret protocol headers survive. Providers can explicitly put
+query values in `Location`; the backend does not rewrite provider-issued URLs.
+
+Policy errors contain fixed messages/statuses without URLs, DNS exceptions or
+transport objects. Portal routes keep HTTP 200 with a `{ message, status }`
+error envelope; playlist/XMLTV routes use the actual error status. Registration
+continues to use real HTTP error statuses. See
+[host connectivity guard](host-connectivity-guard.md) for chain ownership and
+failure attribution.
+
 Do not disable TLS certificate validation in the backend proxy. For private
 certificate authorities, configure Node with `NODE_EXTRA_CA_CERTS`.
 

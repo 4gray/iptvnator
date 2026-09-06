@@ -207,6 +207,19 @@ invalidation prevent late results from restoring removed programmes. Provider
 EPG is independent. See `docs/architecture/m3u-playlist-module.md`
 ("XMLTV source lifecycle").
 
+## Web Backend Provider Redirects
+
+All four provider proxy routes use `ValidatedHttpClient`: automatic redirects
+are disabled, the initial URL and at most five redirect hops pass full URL/DNS
+validation, and fresh agents pin each connection to that hop's validated IPs.
+Host/SNI and TLS verification remain intact; outbound environment proxies are
+disabled. Private-network opt-in applies to the chain. Cross-origin redirects
+strip session headers; original query params are not replayed. One portal
+admission owns the entire chain and final body, with explicit redirect evidence
+preventing destination failures from penalizing the initial endpoint. Contracts:
+`docs/architecture/pwa-self-hosted.md` and
+`docs/architecture/host-connectivity-guard.md`.
+
 ## Portal Connectivity Preference
 
 - Half-open trial slots follow the complete request lifetime with no elapsed-time

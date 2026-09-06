@@ -47,11 +47,15 @@ so a silent host hung on OS-level TCP timeouts. Both runtimes now use the same
 budgets: Xtream 30 s, Stalker 15 s (30 s for `create_link`, which mints a stream
 URL before answering), playlist and XMLTV downloads 30 s.
 
-Those numbers are safe for large downloads. On axios' default
-(follow-redirects) transport `timeout` is **not** a wall-clock deadline for the
+Those numbers are safe for large downloads. On axios 1.20's native HTTP
+transport (`maxRedirects: 0`) each hop's `timeout` is **not** a wall-clock deadline for the
 whole response: it bounds the time to response headers and then continues as the
 socket's inactivity timeout for the body. A multi-megabyte XMLTV file that keeps
-delivering bytes is never cut off mid-transfer — only a stalled one is.
+delivering bytes is never cut off mid-transfer — only a stalled one is. The web
+backend explicitly restores socket inactivity handling while reading the final
+stream response, because axios stream mode stops its timeout handler at headers.
+Truncated, malformed and timed-out final bodies retain their received response
+status for reachability classification; cancellation retains its own semantics.
 
 ### Scope: portal calls only
 
@@ -124,33 +128,25 @@ Merely declining to count it would leave an earlier direct failure standing, and
 a single later timeout would then fast-fail an endpoint that answered in between.
 Every caller passes the URL it asked for as the baseline.
 
-**Where the failed hop is found depends on the transport, and both are in play.**
+**Web backend records redirect evidence explicitly.** Its `ValidatedHttpClient`
+disables automatic redirects and holds one admission for the entire chain.
+`ProviderRequestError.initialResponded` becomes true only after receiving an
+actual redirect response. A later transport or DNS failure, URL policy refusal,
+invalid location, cycle or exhausted budget therefore clears the initial
+endpoint's failure streak when the chain settles. This also handles redirects
+that change only the query. It does not release the half-open slot early: the
+route retains ownership through validation, all hops and the final body, and
+releases in `finally` even when reporting throws. Before any redirect, initial
+DNS failures carry their internal resolver cause into normal classification;
+policy refusals remain inconclusive. Error bodies never serialize that cause.
 
-| | Electron | Web backend |
-| --- | --- | --- |
-| Redirects | followed hop by hop (`maxRedirects: 0`), each its own request | followed inside one request by follow-redirects |
-| Failed hop is in | `error.config.url` | `error.request._currentUrl` |
-
-`failedRequestUrlOf` reads `_currentUrl` first and falls back to `config.url`,
-which is correct for both: a per-hop request exposes no `_currentUrl`, and on the
-following transport `config` is built once and keeps the URL we asked for — so
-reading `config.url` there would compare a URL with itself, find no redirect, and
-charge a dead destination to the provider that answered. Anything added here must
-work on both, because the same helper serves both.
-
-**The comparison is origin + path, not the whole URL.** A same-origin redirect
-(`/player_api.php` → `/slow/player_api.php`) proves the endpoint answered just as
-much as a cross-origin one, and charging it would fast-fail every OTHER call to a
-portal that answers — so the path has to be part of it. The query must NOT be:
-the web backend passes Xtream credentials through axios' `params`, so the sent
-URL always carries a query the baseline does not, and comparing whole URLs made
-every ordinary failure look like a redirect and stopped the breaker from ever
-opening. What that gives up is a redirect that changes nothing but the query,
-which is then counted as an ordinary failure — the safe direction.
-
-It requires positive evidence — anything unparseable or unknown counts the
-failure as usual, because guessing "redirect" here would stop the guard from ever
-tripping — and a failure that names no URL at all is still counted.
+**Electron retains URL-based attribution.** `failedRequestUrlOf` reads
+`error.request._currentUrl` first (for a following transport) and falls back to
+`error.config.url` (for a native per-hop transport). The comparison is origin +
+path, not the query: axios `params` can append credentials absent from the
+caller's baseline. Unknown/unparseable URLs conservatively count as ordinary
+failures, and query-only redirects cannot be distinguished by this fallback.
+The shared helper and Electron behavior are unchanged by the web-backend fix.
 
 Known gap: the failing hop is not guarded either (it has no token of its own),
 so a permanently broken redirect chain keeps costing a full timeout.
