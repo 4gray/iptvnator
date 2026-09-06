@@ -322,7 +322,10 @@ remain local when the meaning is explicit.
       `<select>`, or content-editable elements via the shared
       `isTypingInInput` helper.
 - Collapsed state is owned by `LiveLayoutSidebarStateService`
-  (`providedIn: 'root'`). Consumers read a derived flag, never the raw state:
+  (`providedIn: 'root'`), for M3U and the unified live tab too — a consumer
+  writing the storage key on its own would overwrite the portals'
+  `categories-hidden` preference with `expanded` on restore. Consumers read
+  a derived flag, never the raw state:
   the categories rail folds on `areCategoriesHidden`, the channels rail on
   `isCollapsed`. Persistence delegates to the `live-sidebar-state` helpers so
   the localStorage key stays unchanged; missing/invalid values restore to

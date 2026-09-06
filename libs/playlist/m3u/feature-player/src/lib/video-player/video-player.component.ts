@@ -83,14 +83,12 @@ import {
     isTypingInInput,
     isWorkspaceLayoutRoute,
     LiveEpgPanelState,
-    LiveSidebarState,
+    LiveLayoutSidebarStateService,
     persistLiveEpgPanelState,
-    persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
     isLiveExternalPlayerSession,
     REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
-    restoreLiveSidebarState,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
@@ -481,12 +479,14 @@ export class VideoPlayerComponent
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
-    readonly liveSidebarState = signal<LiveSidebarState>(
-        restoreLiveSidebarState()
+    // The shared live-panel state: M3U has no categories rail, so only the
+    // `collapsed` level applies here, but toggling through the shared service
+    // keeps the portals' `categories-hidden` preference intact instead of
+    // overwriting it with `expanded` on restore.
+    private readonly liveSidebarStateService = inject(
+        LiveLayoutSidebarStateService
     );
-    readonly isSidebarCollapsed = computed(
-        () => this.liveSidebarState() === 'collapsed'
-    );
+    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
 
     /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
@@ -1007,11 +1007,7 @@ export class VideoPlayerComponent
     }
 
     toggleSidebar(): void {
-        const next: LiveSidebarState = this.isSidebarCollapsed()
-            ? 'expanded'
-            : 'collapsed';
-        this.liveSidebarState.set(next);
-        persistLiveSidebarState(next);
+        this.liveSidebarStateService.toggle();
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {

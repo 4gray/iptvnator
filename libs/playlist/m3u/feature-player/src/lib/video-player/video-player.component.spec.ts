@@ -30,6 +30,8 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
+    LIVE_SIDEBAR_STATE_STORAGE_KEY,
+    LiveLayoutSidebarStateService,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -292,6 +294,7 @@ describe('VideoPlayerComponent', () => {
         playlistId.set('playlist-1');
         localStorage.removeItem('m3u-sidebar-width');
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
         stripCountryPrefix.set(false);
@@ -440,6 +443,26 @@ describe('VideoPlayerComponent', () => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
+    });
+
+    it('toggles the sidebar through the shared live-panel state and keeps the portals\' hidden-categories preference', () => {
+        const sidebarState = TestBed.inject(LiveLayoutSidebarStateService);
+        sidebarState.hideCategories();
+        fixture.detectChanges();
+        // M3U has no categories rail: `categories-hidden` reads as expanded.
+        expect(component.isSidebarCollapsed()).toBe(false);
+
+        component.toggleSidebar();
+        expect(component.isSidebarCollapsed()).toBe(true);
+        expect(sidebarState.state()).toBe('collapsed');
+
+        component.toggleSidebar();
+        expect(component.isSidebarCollapsed()).toBe(false);
+        expect(sidebarState.state()).toBe('categories-hidden');
+        expect(localStorage.getItem(LIVE_SIDEBAR_STATE_STORAGE_KEY)).toBe(
+            'categories-hidden'
+        );
+        sidebarState.setState('expanded');
     });
 
     it('registers and clears the workspace multi-EPG header shortcut', () => {
