@@ -321,6 +321,46 @@ describe('XtreamApiService', () => {
         ]);
     });
 
+    it('reads timestamp-less epg date strings in the server timezone the credentials carry (issue #1562)', async () => {
+        // A panel at UTC+3 wrote 22:30 for 19:30 UTC; the viewer's clock
+        // must not enter the conversion.
+        const listing = {
+            id: 'current',
+            epg_id: 'channel-101.mock',
+            title: Buffer.from('Current Show').toString('base64'),
+            description: '',
+            start: '2026-09-06 22:30:00',
+            end: '2026-09-06 23:00:00',
+            channel_id: 'channel-101.mock',
+        };
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: { epg_listings: [listing] },
+        });
+
+        const shortItems = await service.getShortEpg(
+            { ...credentials, serverTimezone: 'UTC+03:00' },
+            101,
+            4
+        );
+        const fullItems = await service.getFullEpg(
+            { ...credentials, serverTimezone: 'Europe/Moscow' },
+            101
+        );
+
+        expect(shortItems[0]).toEqual(
+            expect.objectContaining({
+                start: '2026-09-06T19:30:00.000Z',
+                stop: '2026-09-06T20:00:00.000Z',
+            })
+        );
+        expect(fullItems[0]).toEqual(
+            expect.objectContaining({
+                start: '2026-09-06T19:30:00.000Z',
+                stop: '2026-09-06T20:00:00.000Z',
+            })
+        );
+    });
+
     it('normalizes short and full epg items consistently for the same timestamps', async () => {
         const startTimestamp = Math.floor(
             Date.parse('2026-04-05T05:30:00.000Z') / 1000

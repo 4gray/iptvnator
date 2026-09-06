@@ -69,6 +69,7 @@ import {
     getAppState,
     getPlaylist,
     setAppState,
+    setPlaylistServerTimezone,
     type AppPlaylistGetPhaseCapture,
     type AppPlaylistUpsertPhaseCapture,
     updatePlaylist,
@@ -733,6 +734,24 @@ async function executeRequest(
         case 'DB_GET_PLAYLIST': {
             const payload = message.payload as { playlistId: string };
             return getPlaylist(db, payload.playlistId);
+        }
+
+        case 'DB_SET_PLAYLIST_SERVER_TIMEZONE': {
+            const payload = message.payload as {
+                playlistId: string;
+                connection: {
+                    serverUrl: string;
+                    username: string;
+                    password: string;
+                };
+                serverTimezone: string;
+            };
+            return setPlaylistServerTimezone(
+                db,
+                payload.playlistId,
+                payload.connection,
+                payload.serverTimezone
+            );
         }
 
         case 'DB_UPDATE_PLAYLIST': {

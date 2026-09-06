@@ -256,3 +256,58 @@ favorites and recently-viewed DB projections and mapped onto
 tab can gate the timeline's archive window. `tv_archive_duration` is
 interpreted as **days** everywhere, matching
 `live-stream-layout.controlledArchiveDays` (issue #1138).
+
+### Start time is the panel's clock, not the viewer's
+
+The `{start}` segment (`Y-m-d:H-M`) is read by the panel with `strtotime()`
+in ITS OWN timezone — the one it reports as `server_info.timezone` in the
+account-info response — never the viewer's local clock (issue #1562). The
+timezone is learned by `withPortal.checkPortalStatus()` and normalized by
+`resolveXtreamServerTimezone()` (`libs/shared/interfaces/src/lib/xtream-server-timezone.util.ts`):
+
+- a timezone name the runtime's ICU resolves (`Europe/London`) is kept as is;
+- otherwise (`UTC+3`, a typo, an unknown alias) the offset is derived from
+  the clock pair the same response carries — `time_now` read as a naive UTC
+  wall clock minus `timestamp_now`, snapped to 15 minutes — and stored as
+  `UTC±HH:MM`. This is a snapshot without DST rules: for such a panel,
+  programmes on the far side of a DST switch are off by an hour until the
+  next account-info check refreshes the offset. Xtream Codes reports PHP
+  timezone identifiers (IANA names), so the snapshot only serves
+  non-standard servers, where the alternative was the viewer's clock;
+- with neither, nothing is stored and the URL falls back to the viewer's
+  clock, the only remaining guess.
+
+The value is persisted on the playlist row (`Playlist.serverTimezone`)
+because the two catch-up entry points read different sources: the Live TV
+layout uses the store's `currentPlaylist`, while the Favorites / Recent
+resolver (`StreamResolverService.resolveXtreamCatchupUrl`) reads the stored
+row through `dbGetAppPlaylist` / IndexedDB. The write goes through
+`IXtreamDataSource.rememberServerTimezone` and is atomic against the row's
+CURRENT connection in both runtimes — Electron: one conditional UPDATE
+(`DB_SET_PLAYLIST_SERVER_TIMEZONE` → `setPlaylistServerTimezone`,
+`json_set(payload, '$.serverTimezone', …)` only while `serverUrl`/`username`/
+`password` still match the request and the payload does not already carry
+the value; a malformed payload is never rewritten); PWA:
+`PlaylistsService.transformPlaylistMeta`, whose read and write share one
+IndexedDB readwrite cursor transaction. No read precedes the write, because
+the database worker interleaves requests and the Xtream edit dialog saves
+through `DB_UPDATE_PLAYLIST` outside `PlaylistsService`'s queue: a
+read-modify-write could hand a concurrent upsert's newer payload back to the
+past or undo an edit that landed in between. The reverse ordering is covered
+on the upsert side: `DB_UPSERT_APP_PLAYLIST(S)` (`playlistConflictUpdate`)
+carries the STORED clock into a snapshot that has none while the row still
+points at the same connection, so a favorites, recent-items or metadata write
+built from a pre-clock snapshot cannot strip it; a snapshot carrying its own
+clock, or moving the source, wins as is. The store offers the resolved
+value on every check (a transient write failure is retried by the next one),
+patches its own state only while the selected playlist is still the panel the
+answer came from (`answersFor`: id + connection), and returns the store's
+verdict about the current selection when it is not. An update that moves
+`serverUrl` (`mergePlaylistMeta`, `DB_UPDATE_PLAYLIST`) drops the clock until
+the next account-info check. Electron's `DB_GET_PLAYLIST` projects the
+persisted value from the row payload so the store is seeded with it before,
+or without, the account-info check. The same timezone lets
+`XtreamApiService` read timestamp-less EPG `start`/`end` strings in the
+clock the panel wrote them in (`parseXtreamServerLocalDateTime`);
+`start_timestamp` still wins whenever it is present. Formatting uses
+`hourCycle: 'h23'`, so server midnight renders as `00`, never `24`.

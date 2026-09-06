@@ -70,6 +70,31 @@ describe('ElectronXtreamDataSource (delegation)', () => {
             });
         });
 
+        it('persists the panel timezone through the conditional worker UPDATE with the request connection (issue #1562)', async () => {
+            await harness.dataSource.rememberServerTimezone(
+                playlistId,
+                {
+                    serverUrl: 'http://portal.example',
+                    username: 'demo',
+                    password: 'secret',
+                    allowedOutputFormats: ['ts'],
+                },
+                'Europe/London'
+            );
+
+            expect(
+                harness.dbService.setXtreamPlaylistServerTimezone
+            ).toHaveBeenCalledWith(
+                playlistId,
+                {
+                    serverUrl: 'http://portal.example',
+                    username: 'demo',
+                    password: 'secret',
+                },
+                'Europe/London'
+            );
+        });
+
         it('deletes playlists via the DB and propagates failures', async () => {
             await harness.dataSource.deletePlaylist(playlistId);
             expect(harness.dbService.deletePlaylist).toHaveBeenCalledWith(

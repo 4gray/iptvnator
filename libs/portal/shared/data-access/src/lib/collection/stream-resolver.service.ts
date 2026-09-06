@@ -1122,6 +1122,7 @@ export class StreamResolverService {
             serverUrl: string;
             username: string;
             password: string;
+            serverTimezone?: string;
         },
         streamId: number,
         limit: number,

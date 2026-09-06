@@ -805,6 +805,26 @@ MPV/VLC and Embedded MPV retain manual TS; Video.js segment retry cycles without
 a terminal diagnostic also need manual TS. Contract and full support matrix:
 `docs/architecture/xtream-portal-compatibility.md` (Initial Auto HLS failure).
 
+#### Xtream Catch-Up Server Timezone
+
+The `{Y-m-d:H-M}` segment of a timeshift URL is read by the panel in ITS
+timezone (`server_info.timezone`), never the viewer's (issue #1562).
+`withPortal.checkPortalStatus()` normalizes it with
+`resolveXtreamServerTimezone()` (`libs/shared/interfaces`, an ICU-resolvable
+name, else a `UTC±HH:MM` derived from the `time_now`/`timestamp_now` clock
+pair) and persists it on the playlist row through
+`IXtreamDataSource.rememberServerTimezone` — Electron: one conditional
+`json_set` UPDATE (`DB_SET_PLAYLIST_SERVER_TIMEZONE`) guarded by the row's
+current connection; PWA: `PlaylistsService.transformPlaylistMeta` — because
+the Favorites / Recent resolver reads the STORED row, not the store, and the
+worker interleaves requests, so no read may precede the write.
+`DB_GET_PLAYLIST` projects it back from the row payload, and a server URL
+change drops it until the next account-info check. The same value converts
+timestamp-less EPG
+`start`/`end` strings. Contract:
+`docs/architecture/xtream-portal-compatibility.md` ("Start time is the
+panel's clock, not the viewer's").
+
 #### M3U URL User-Agent
 
 - The URL import form accepts an optional User-Agent and stores it as

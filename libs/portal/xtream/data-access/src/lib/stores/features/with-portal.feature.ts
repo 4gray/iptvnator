@@ -15,7 +15,10 @@ import {
 } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { resolveXtreamPortalStatus } from '@iptvnator/shared/interfaces';
+import {
+    resolveXtreamPortalStatus,
+    resolveXtreamServerTimezone,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Portal state for managing playlist and portal status
@@ -51,6 +54,54 @@ export function withPortal() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const dataSource = inject(XTREAM_DATA_SOURCE);
+
+            /**
+             * Whether a playlist (the store's current one, or the stored
+             * row) still points at the panel an account-info answer came
+             * from. The playlist id alone is not enough: an in-place edit
+             * keeps the id while moving the source, and an answer already on
+             * the wire for the OLD panel must not describe the new one.
+             */
+            const answersFor = (
+                candidate: {
+                    serverUrl?: string;
+                    username?: string;
+                    password?: string;
+                } | null,
+                credentials: XtreamCredentials
+            ): boolean =>
+                !!candidate &&
+                candidate.serverUrl === credentials.serverUrl &&
+                candidate.username === credentials.username &&
+                candidate.password === credentials.password;
+
+            /**
+             * The Favorites / Recent catch-up resolver reads the STORED
+             * playlist row, not this store, so a timezone learned here has
+             * to reach storage or that path keeps rendering programme
+             * start times in the viewer's clock (issue #1562). The data
+             * source applies it atomically against the row's current
+             * connection (see `IXtreamDataSource.rememberServerTimezone`);
+             * a failed write never fails the status check that learned it.
+             */
+            const rememberServerTimezone = async (
+                playlistId: string,
+                credentials: XtreamCredentials,
+                serverTimezone: string
+            ): Promise<void> => {
+                try {
+                    await dataSource.rememberServerTimezone(
+                        playlistId,
+                        credentials,
+                        serverTimezone
+                    );
+                } catch (error) {
+                    logger.error(
+                        'Failed to persist the portal timezone',
+                        error
+                    );
+                }
+            };
 
             return {
                 /**
@@ -118,18 +169,32 @@ export function withPortal() {
                             await apiService.getAccountInfo(credentials);
                         const portalStatus =
                             resolveXtreamPortalStatus(response);
-                        const serverTimezone =
-                            response?.server_info?.timezone ?? undefined;
+                        // A response without a usable clock keeps whatever
+                        // the row already knows; only a learned value
+                        // replaces it.
+                        const serverTimezone = resolveXtreamServerTimezone(
+                            response?.server_info
+                        );
                         const allowedOutputFormats = response?.user_info
                             ?.allowed_output_formats?.length
                             ? response.user_info.allowed_output_formats
                                   .map((format) => format.trim())
                                   .filter(Boolean)
                             : undefined;
-                        patchState(store, { portalStatus });
+                        // The answer belongs to the panel whose credentials
+                        // were sent: its timezone is offered to THAT row
+                        // regardless, while the store is patched only if the
+                        // selected playlist is still that panel — neither a
+                        // source switch nor an in-place edit during the
+                        // request may hand the old panel's status or clock
+                        // to the new one.
                         const current = store.currentPlaylist();
-                        if (current) {
+                        const describesCurrent =
+                            current?.id === playlist.id &&
+                            answersFor(current, credentials);
+                        if (describesCurrent) {
                             patchState(store, {
+                                portalStatus,
                                 currentPlaylist: {
                                     ...current,
                                     allowedOutputFormats,
@@ -139,11 +204,36 @@ export function withPortal() {
                                 },
                             });
                         }
-                        return portalStatus;
+                        // Always offered to storage, never gated on the
+                        // in-memory value: after a transient write failure
+                        // the store already carries the clock, and only the
+                        // row-level check inside the transform knows whether
+                        // the row does too.
+                        if (serverTimezone) {
+                            await rememberServerTimezone(
+                                playlist.id,
+                                credentials,
+                                serverTimezone
+                            );
+                        }
+                        // Callers gate content initialization on this value
+                        // for whatever is selected NOW; an answer about
+                        // another panel must not unblock it.
+                        return describesCurrent
+                            ? portalStatus
+                            : store.portalStatus();
                     } catch (error) {
                         logger.error('Error checking portal status', error);
-                        patchState(store, { portalStatus: 'unavailable' });
-                        return 'unavailable';
+                        const current = store.currentPlaylist();
+                        if (
+                            current?.id === playlist.id &&
+                            answersFor(current, credentials)
+                        ) {
+                            patchState(store, { portalStatus: 'unavailable' });
+                        }
+                        // The old panel's failure says nothing about a
+                        // playlist selected or edited meanwhile.
+                        return store.portalStatus();
                     }
                 },
 
