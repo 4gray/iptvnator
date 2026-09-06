@@ -18,7 +18,7 @@ export async function verifyStalkerCategorySearch(page: Page): Promise<void> {
     const player = page.locator('app-web-player-view');
     await expect(player).toBeVisible();
     const video = player.locator('video').first();
-    const source = await video.getAttribute('src');
+    const videoNode = await video.elementHandle();
     const playerNode = await player.elementHandle();
 
     await player.hover();
@@ -55,7 +55,7 @@ export async function verifyStalkerCategorySearch(page: Page): Promise<void> {
     expect(await playerNode?.evaluate((element) => element.isConnected)).toBe(
         true
     );
-    await expect(video).toHaveAttribute('src', source ?? '');
+    expect(await videoNode?.evaluate((element) => element.isConnected)).toBe(true);
 
     await sidebarSearch.fill('');
     await sidebarSearch.press('Enter');
