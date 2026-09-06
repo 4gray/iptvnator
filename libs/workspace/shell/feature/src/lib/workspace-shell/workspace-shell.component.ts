@@ -28,7 +28,9 @@ import { WorkspaceShellRouteStateService } from './services/workspace-shell-rout
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
+import { WorkspaceLiveCategoriesPopoverService } from '../workspace-live-categories-popover/workspace-live-categories-popover.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-workspace-shell',
@@ -55,6 +57,12 @@ import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/u
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
         WorkspaceKeyboardShortcutsService,
+        // The live layouts inside the router outlet open the folded categories
+        // rail through this token; see `LiveCategoriesPopover`.
+        {
+            provide: LIVE_CATEGORIES_POPOVER,
+            useClass: WorkspaceLiveCategoriesPopoverService,
+        },
     ],
 })
 export class WorkspaceShellComponent {

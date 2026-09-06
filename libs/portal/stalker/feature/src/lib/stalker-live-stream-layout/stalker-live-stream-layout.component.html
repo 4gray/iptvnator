@@ -4,6 +4,7 @@
     <div
         class="sidebar"
         [class.sidebar-collapsed]="isSidebarCollapsed()"
+        [attr.inert]="isSidebarCollapsed() ? '' : null"
         appResizable
         [minWidth]="250"
         [maxWidth]="600"
@@ -11,22 +12,62 @@
         storageKey="live-channels-sidebar-width"
     >
         <div class="sidebar-header category-content-header">
-            <div class="category-meta">
-                <h2 class="category-title">
-                    {{ selectedCategoryTitle() }}
-                </h2>
-                @if (totalChannelCount() > 0) {
-                    <span class="category-subtitle"
-                        >{{ totalChannelCount() }}
-                        {{
-                            (totalChannelCount() === 1
-                                ? 'PORTALS.ITEM'
-                                : 'PORTALS.ITEMS'
-                            ) | translate
-                        }}</span
+            @if (livePanels.canOpenCategoriesPopover()) {
+                <!-- The categories rail is folded: the title becomes the way
+                     back to it (a dropdown of the same list) so switching
+                     categories stays one click away. -->
+                <button
+                    #showCategoriesButton
+                    mat-icon-button
+                    type="button"
+                    class="sidebar-show-categories"
+                    data-test-id="live-show-categories"
+                    [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                    [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                    (click)="livePanels.showCategories()"
+                >
+                    <mat-icon>chevron_right</mat-icon>
+                </button>
+                <button
+                    #categoryDropdown
+                    type="button"
+                    class="category-dropdown"
+                    data-test-id="live-category-dropdown"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    [attr.aria-label]="'LAYOUT.CHOOSE_CATEGORY' | translate"
+                    (click)="livePanels.openCategoriesPopover(categoryDropdown)"
+                >
+                    <span class="category-title">
+                        {{ selectedCategoryTitle() }}
+                    </span>
+                    @if (totalChannelCount() > 0) {
+                        <span class="category-count">{{
+                            totalChannelCount()
+                        }}</span>
+                    }
+                    <mat-icon class="category-dropdown__caret"
+                        >expand_more</mat-icon
                     >
-                }
-            </div>
+                </button>
+            } @else {
+                <div class="category-meta">
+                    <h2 class="category-title">
+                        {{ selectedCategoryTitle() }}
+                    </h2>
+                    @if (totalChannelCount() > 0) {
+                        <span class="category-subtitle"
+                            >{{ totalChannelCount() }}
+                            {{
+                                (totalChannelCount() === 1
+                                    ? 'PORTALS.ITEM'
+                                    : 'PORTALS.ITEMS'
+                                ) | translate
+                            }}</span
+                        >
+                    }
+                </div>
+            }
             @if (navigation.canReveal()) {
                 <button
                     mat-icon-button
@@ -57,10 +98,9 @@
             <button
                 mat-icon-button
                 type="button"
-                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-                [attr.aria-pressed]="isSidebarCollapsed()"
-                (click)="toggleSidebar()"
+                [attr.aria-label]="'LAYOUT.HIDE_PANELS' | translate"
+                [matTooltip]="'LAYOUT.HIDE_PANELS_TOOLTIP' | translate"
+                (click)="livePanels.collapsePanels()"
             >
                 <mat-icon>chevron_left</mat-icon>
             </button>
@@ -73,13 +113,13 @@
 <div class="content-container">
     @if (isSidebarCollapsed()) {
         <button
+            #restoreButton
             mat-icon-button
             type="button"
             class="sidebar-restore"
-            [attr.aria-label]="'LAYOUT.SHOW_CHANNELS_LIST' | translate"
-            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-            [attr.aria-pressed]="isSidebarCollapsed()"
-            (click)="toggleSidebar()"
+            [attr.aria-label]="'LAYOUT.SHOW_PANELS' | translate"
+            [matTooltip]="'LAYOUT.SHOW_PANELS_TOOLTIP' | translate"
+            (click)="livePanels.toggleSidebar()"
         >
             <mat-icon>chevron_right</mat-icon>
         </button>
@@ -143,7 +183,7 @@
             </div>
         }
     } @else if (isSidebarCollapsed()) {
-        <app-channel-list-hidden-state (restore)="toggleSidebar()" />
+        <app-channel-list-hidden-state (restore)="livePanels.toggleSidebar()" />
     } @else {
         <app-portal-empty-state
             icon="live_tv"

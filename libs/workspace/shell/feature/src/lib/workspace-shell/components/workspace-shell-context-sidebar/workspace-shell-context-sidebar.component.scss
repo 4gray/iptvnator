@@ -31,8 +31,11 @@
 .context-panel--collapsed {
     width: 0 !important;
     min-width: 0 !important;
-    padding-left: 0;
-    padding-right: 0;
+    // !important: the `--route` / `--sources` variants set their padding
+    // later in the cascade at equal specificity, and 22px of padding left a
+    // visible empty strip beside the channels rail while "collapsed".
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     border-right-color: transparent;
 
     .resize-handle {

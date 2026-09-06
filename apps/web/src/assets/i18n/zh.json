@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "显示频道列表",
         "TOGGLE_SIDEBAR_TOOLTIP": "切换频道列表 (⌘/Ctrl+B)",
         "CHANNELS_LIST_HIDDEN": "频道列表已隐藏",
-        "CHANNELS_LIST_HIDDEN_HINT": "点击下方按钮或按 ⌘/Ctrl+B 重新显示。"
+        "CHANNELS_LIST_HIDDEN_HINT": "点击下方按钮或按 ⌘/Ctrl+B 重新显示。",
+        "HIDE_CATEGORIES": "隐藏分类",
+        "SHOW_CATEGORIES": "显示分类",
+        "SHOW_CATEGORIES_PANEL": "显示分类面板",
+        "CHOOSE_CATEGORY": "选择分类",
+        "HIDE_PANELS": "隐藏分类和频道",
+        "HIDE_PANELS_TOOLTIP": "隐藏面板 (⌘/Ctrl+B)",
+        "SHOW_PANELS": "显示分类和频道",
+        "SHOW_PANELS_TOOLTIP": "显示面板 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "显示正在播放的频道",

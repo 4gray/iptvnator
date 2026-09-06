@@ -111,9 +111,7 @@ describe('Xtream live auto-open playback queue', () => {
                 },
                 {
                     provide: XtreamUrlService,
-                    useValue: {
-                        constructAutoLiveTsUrl: jest.fn(() => undefined),
-                    },
+                    useValue: { constructAutoLiveTsUrl: () => undefined },
                 },
                 {
                     provide: PORTAL_PLAYER,

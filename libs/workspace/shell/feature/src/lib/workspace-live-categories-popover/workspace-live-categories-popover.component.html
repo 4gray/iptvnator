@@ -1,0 +1,22 @@
+@if (context(); as context) {
+    @if (section(); as section) {
+        <app-workspace-context-panel
+            class="popover-panel"
+            presentation="popover"
+            [context]="context"
+            [section]="section"
+            (categorySelected)="onCategorySelected()"
+        />
+    }
+}
+<div class="popover-footer">
+    <button
+        type="button"
+        class="popover-footer__action"
+        data-test-id="live-categories-popover-show-panel"
+        (click)="showCategoriesPanel()"
+    >
+        <mat-icon>chevron_right</mat-icon>
+        <span>{{ 'LAYOUT.SHOW_CATEGORIES_PANEL' | translate }}</span>
+    </button>
+</div>

@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    output,
     signal,
     viewChild,
     ElementRef,
@@ -22,9 +23,9 @@ import {
     asStalkerPortalError,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    LiveLayoutSidebarStateService,
     PortalCategorySortMode,
-    persistPortalCategorySortMode,
-    restorePortalCategorySortMode,
+    PortalCategorySortStateService,
     sortPortalCategoryItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -80,9 +81,49 @@ export class WorkspaceContextPanelComponent {
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
         optional: true,
     });
+    private readonly liveSidebarState = inject(LiveLayoutSidebarStateService);
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
+    /**
+     * `sidebar` is the in-flow shell rail and offers the "hide categories"
+     * chevron on live sections; `popover` is the same panel stamped into the
+     * live categories dropdown while that rail is folded, where the chevron
+     * would be meaningless (the popover's own footer restores the rail).
+     */
+    readonly presentation = input<'sidebar' | 'popover'>('sidebar');
+    /** A category was picked; the popover host closes on it. */
+    readonly categorySelected = output<void>();
+
+    readonly isLiveSection = computed(() => {
+        const section = this.section();
+        return (
+            (this.context().provider === 'xtreams' && section === 'live') ||
+            (this.context().provider === 'stalker' &&
+                (section === 'itv' || section === 'radio'))
+        );
+    });
+    // Only while a category is selected: that is when the live layout
+    // renders the channels rail whose header offers the way back. Not in the
+    // open phone drawer either: its stylesheet ignores the folded state, so
+    // the tap would change nothing visible while persisting a preference
+    // that only bites once the window is wide again.
+    readonly canHideCategories = computed(
+        () =>
+            this.presentation() === 'sidebar' &&
+            this.isLiveSection() &&
+            !this.contextDrawer?.isOpen() &&
+            (this.context().provider === 'xtreams'
+                ? this.xtreamSelectedCategoryId() !== null
+                : !!this.stalkerSelectedCategoryId())
+    );
+    private readonly hideCategoriesButton = viewChild(
+        'hideCategoriesButton',
+        { read: ElementRef<HTMLElement> }
+    );
+    private readonly firstHeaderAction = viewChild('firstHeaderAction', {
+        read: ElementRef<HTMLElement>,
+    });
 
     readonly isXtreamCategories = computed(
         () =>
@@ -212,9 +253,9 @@ export class WorkspaceContextPanelComponent {
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
     readonly isSearchOpen = signal(false);
     readonly categorySearchTerm = signal('');
-    readonly categorySortMode = signal<PortalCategorySortMode>(
-        restorePortalCategorySortMode()
-    );
+    // Shared with the popover copy of this panel; see the service's note.
+    private readonly categorySort = inject(PortalCategorySortStateService);
+    readonly categorySortMode = this.categorySort.mode;
     readonly categorySortLabelKey = computed(() =>
         this.getCategorySortLabelKey(this.categorySortMode())
     );
@@ -333,6 +374,22 @@ export class WorkspaceContextPanelComponent {
         });
     }
 
+    /**
+     * The control the shell sidebar hands focus to once this rail has
+     * unfolded (the button the user activated to bring it back is gone by
+     * then): the hide chevron when it is offered, else the first header
+     * action. `null` while neither is rendered — categories still loading,
+     * or a failed Stalker load — and the sidebar falls back to the rail
+     * itself.
+     */
+    focusTarget(): HTMLElement | null {
+        return (
+            this.hideCategoriesButton()?.nativeElement ??
+            this.firstHeaderAction()?.nativeElement ??
+            null
+        );
+    }
+
     toggleCategorySearch(): void {
         const opening = !this.isSearchOpen();
         this.isSearchOpen.set(opening);
@@ -352,8 +409,7 @@ export class WorkspaceContextPanelComponent {
     }
 
     setCategorySortMode(mode: PortalCategorySortMode): void {
-        this.categorySortMode.set(mode);
-        persistPortalCategorySortMode(mode);
+        this.categorySort.setMode(mode);
     }
 
     openManageCategories(): void {
@@ -398,6 +454,10 @@ export class WorkspaceContextPanelComponent {
         );
     }
 
+    hideCategories(): void {
+        this.liveSidebarState.hideCategories('portal');
+    }
+
     onXtreamCategoryClicked(category: XtreamCategoryLike): void {
         if (!this.isXtreamCategoryInteractionEnabled()) {
             return;
@@ -415,6 +475,7 @@ export class WorkspaceContextPanelComponent {
         }
         const categoryId = numericCategoryId;
         this.contextDrawer?.close();
+        this.categorySelected.emit();
 
         if (section === 'live') {
             this.xtreamStore.setSelectedCategory(categoryId);
@@ -456,6 +517,7 @@ export class WorkspaceContextPanelComponent {
         const categoryId = String(item.category_id ?? '*');
 
         this.contextDrawer?.close();
+        this.categorySelected.emit();
         this.stalkerStore.setSelectedCategory(categoryId);
         this.stalkerStore.setPage(0);
 

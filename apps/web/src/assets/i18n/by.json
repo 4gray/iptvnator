@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "Паказаць спіс каналаў",
         "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)",
         "CHANNELS_LIST_HIDDEN": "Спіс каналаў схаваны",
-        "CHANNELS_LIST_HIDDEN_HINT": "Вярніце яго кнопкай ніжэй або націсніце ⌘/Ctrl+B."
+        "CHANNELS_LIST_HIDDEN_HINT": "Вярніце яго кнопкай ніжэй або націсніце ⌘/Ctrl+B.",
+        "HIDE_CATEGORIES": "Схаваць катэгорыі",
+        "SHOW_CATEGORIES": "Паказаць катэгорыі",
+        "SHOW_CATEGORIES_PANEL": "Паказаць панэль катэгорый",
+        "CHOOSE_CATEGORY": "Выбраць катэгорыю",
+        "HIDE_PANELS": "Схаваць катэгорыі і каналы",
+        "HIDE_PANELS_TOOLTIP": "Схаваць панэлі (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Паказаць катэгорыі і каналы",
+        "SHOW_PANELS_TOOLTIP": "Паказаць панэлі (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Паказаць бягучы канал",

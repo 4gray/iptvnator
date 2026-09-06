@@ -20,6 +20,7 @@ describe('live sidebar state', () => {
 
     it('accepts only known sidebar states', () => {
         expect(isLiveSidebarState('expanded')).toBe(true);
+        expect(isLiveSidebarState('categories-hidden')).toBe(true);
         expect(isLiveSidebarState('collapsed')).toBe(true);
         expect(isLiveSidebarState('hidden')).toBe(false);
         expect(isLiveSidebarState(null)).toBe(false);

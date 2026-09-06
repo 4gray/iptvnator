@@ -77,5 +77,58 @@
             padding: 2px 8px;
             border-radius: 999px;
         }
+
+        // Shown while the shell's categories rail is folded: the way back to
+        // the rail, in the same spot the rail's own chevron folded it from.
+        .sidebar-show-categories {
+            flex-shrink: 0;
+            margin-left: -6px;
+        }
+
+        // The category title as a dropdown trigger (categories rail folded).
+        // Same type as the static heading so folding the rail does not move
+        // the title; the caret is the only added ink.
+        .category-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            height: 32px;
+            padding: 0 4px 0 8px;
+            margin-left: -8px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            cursor: pointer;
+            text-align: left;
+            app-region: no-drag;
+
+            .category-title {
+                flex: 0 1 auto;
+                min-width: 0;
+            }
+
+            &__caret {
+                flex-shrink: 0;
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+                color: var(--mat-sys-on-surface-variant);
+            }
+
+            &:hover,
+            &[aria-expanded='true'] {
+                background: var(--app-hover-overlay, rgba(255, 255, 255, 0.08));
+                border-color: var(--app-separator);
+            }
+
+            &:focus-visible {
+                outline: 2px solid var(--mat-sys-primary);
+                outline-offset: -2px;
+            }
+        }
     }
 }

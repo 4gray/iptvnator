@@ -3,7 +3,20 @@ import type {
     PortalRailSection,
 } from './navigation/portal-rail-links';
 
-export type LiveSidebarState = 'expanded' | 'collapsed';
+/**
+ * Live-TV panel visibility, nested from the outside in:
+ *
+ * - `expanded`: categories rail + channels rail + player.
+ * - `categories-hidden`: channels rail + player. The categories rail is
+ *   folded away but stays one click off through the channels header's
+ *   category dropdown. Surfaces without a categories rail (`m3u`,
+ *   `collection`) treat it exactly like `expanded`.
+ * - `collapsed`: player only ("theater").
+ *
+ * There is deliberately no "channels hidden, categories visible" state: a
+ * category click has to bring the channels back anyway.
+ */
+export type LiveSidebarState = 'expanded' | 'categories-hidden' | 'collapsed';
 
 /**
  * Collapsible live-channel rails. Each surface remembers its own state:
@@ -38,7 +51,11 @@ export function liveSidebarStateStorageKey(
 }
 
 export function isLiveSidebarState(value: unknown): value is LiveSidebarState {
-    return value === 'expanded' || value === 'collapsed';
+    return (
+        value === 'expanded' ||
+        value === 'categories-hidden' ||
+        value === 'collapsed'
+    );
 }
 
 export function restoreLiveSidebarState(

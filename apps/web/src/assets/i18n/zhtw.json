@@ -676,7 +676,15 @@
         "SHOW_CHANNELS_LIST": "顯示頻道列表",
         "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)",
         "CHANNELS_LIST_HIDDEN": "頻道列表已隱藏",
-        "CHANNELS_LIST_HIDDEN_HINT": "點選下方按鈕或按 ⌘/Ctrl+B 重新顯示。"
+        "CHANNELS_LIST_HIDDEN_HINT": "點選下方按鈕或按 ⌘/Ctrl+B 重新顯示。",
+        "HIDE_CATEGORIES": "隱藏類別",
+        "SHOW_CATEGORIES": "顯示類別",
+        "SHOW_CATEGORIES_PANEL": "顯示類別面板",
+        "CHOOSE_CATEGORY": "選擇類別",
+        "HIDE_PANELS": "隱藏類別和頻道",
+        "HIDE_PANELS_TOOLTIP": "隱藏面板 (⌘/Ctrl+B)",
+        "SHOW_PANELS": "顯示類別和頻道",
+        "SHOW_PANELS_TOOLTIP": "顯示面板 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "顯示正在播放的頻道",
