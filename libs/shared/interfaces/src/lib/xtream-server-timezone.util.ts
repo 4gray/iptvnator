@@ -1,5 +1,5 @@
 /**
- * Xtream server clock helpers.
+ * Xtream server clock policy.
  *
  * An Xtream panel interprets every wall-clock string it exchanges with a
  * client in ITS OWN timezone: the `start` / `end` strings of
@@ -15,8 +15,26 @@
  * conversion helpers below accept either form, so a panel whose timezone
  * name the runtime cannot resolve (`UTC+3`, a typo, an unknown alias) still
  * gets its catch-up requests and EPG strings converted correctly instead of
- * silently falling back to the viewer's local clock (issue #1562).
+ * silently falling back to the viewer's local clock (issue #1562). The
+ * zone-agnostic primitives live in `xtream-server-clock.util.ts`.
  */
+
+import {
+    formatFixedOffsetTimeZone,
+    isSupportedTimeZoneName,
+    MINUTE_MS,
+    padTwo,
+    parseFixedOffsetTimeZone,
+    parseNaiveUtcMs,
+    wallClockPartsAt,
+    zoneOffsetMinutesAt,
+} from './xtream-server-clock.util';
+
+export {
+    formatFixedOffsetTimeZone,
+    isSupportedTimeZoneName,
+    parseFixedOffsetTimeZone,
+} from './xtream-server-clock.util';
 
 export interface XtreamServerClockInfo {
     timezone?: string | null;
@@ -24,60 +42,10 @@ export interface XtreamServerClockInfo {
     timestamp_now?: number | string | null;
 }
 
-/** Stored form for a panel whose timezone name is unusable: `UTC`, `UTC+03:00`, `UTC-03:30`. */
-const FIXED_OFFSET_TIMEZONE_PATTERN = /^UTC(?:([+-])(\d{2}):(\d{2}))?$/;
-const SERVER_LOCAL_DATE_TIME_PATTERN =
-    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
 /** Real-world UTC offsets span -12:00 … +14:00. */
 const MAX_UTC_OFFSET_MINUTES = 14 * 60;
 /** Offsets are multiples of 15 min; snapping absorbs second-level clock skew. */
 const OFFSET_GRANULARITY_MINUTES = 15;
-const MINUTE_MS = 60_000;
-
-const timeZoneSupportCache = new Map<string, boolean>();
-
-/**
- * Whether the runtime can format dates in the named zone. `Intl` accepts
- * IANA names and a few aliases (`UTC`, `GMT`, `Etc/GMT+3`) and throws a
- * `RangeError` for anything else (`UTC+3`, an empty string, garbage).
- */
-export function isSupportedTimeZoneName(name: string): boolean {
-    const cached = timeZoneSupportCache.get(name);
-    if (cached !== undefined) {
-        return cached;
-    }
-    let supported = false;
-    try {
-        new Intl.DateTimeFormat('en-US', { timeZone: name });
-        supported = true;
-    } catch {
-        supported = false;
-    }
-    timeZoneSupportCache.set(name, supported);
-    return supported;
-}
-
-/** Parses the stored `UTC±HH:MM` form; `null` for anything else. */
-export function parseFixedOffsetTimeZone(value: string): number | null {
-    const match = FIXED_OFFSET_TIMEZONE_PATTERN.exec(value);
-    if (!match) {
-        return null;
-    }
-    if (!match[1]) {
-        return 0;
-    }
-    const minutes = Number(match[2]) * 60 + Number(match[3]);
-    return match[1] === '-' ? -minutes : minutes;
-}
-
-export function formatFixedOffsetTimeZone(offsetMinutes: number): string {
-    if (offsetMinutes === 0) {
-        return 'UTC';
-    }
-    const sign = offsetMinutes < 0 ? '-' : '+';
-    const absolute = Math.abs(offsetMinutes);
-    return `UTC${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
-}
 
 /**
  * The server's UTC offset in minutes derived from its own clock report:
@@ -145,7 +113,7 @@ export function formatXtreamCatchupStart(
     serverTimezone: string | null | undefined
 ): string {
     const parts = wallClockPartsAt(timestampSeconds * 1000, serverTimezone);
-    return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}:${pad(parts.hour)}-${pad(parts.minute)}`;
+    return `${parts.year}-${padTwo(parts.month)}-${padTwo(parts.day)}:${padTwo(parts.hour)}-${padTwo(parts.minute)}`;
 }
 
 /**
@@ -179,140 +147,4 @@ export function parseXtreamServerLocalDateTime(
         naiveUtcMs -
         zoneOffsetMinutesAt(firstGuessMs, serverTimezone) * MINUTE_MS;
     return Math.floor(resolvedMs / 1000);
-}
-
-interface WallClockParts {
-    year: number;
-    month: number;
-    day: number;
-    hour: number;
-    minute: number;
-    second: number;
-}
-
-function wallClockPartsAt(
-    instantMs: number,
-    serverTimezone: string | null | undefined
-): WallClockParts {
-    if (serverTimezone) {
-        const fixedOffset = parseFixedOffsetTimeZone(serverTimezone);
-        if (fixedOffset !== null) {
-            return utcParts(new Date(instantMs + fixedOffset * MINUTE_MS));
-        }
-        if (isSupportedTimeZoneName(serverTimezone)) {
-            return zoneParts(instantMs, serverTimezone);
-        }
-    }
-    const date = new Date(instantMs);
-    return {
-        year: date.getFullYear(),
-        month: date.getMonth() + 1,
-        day: date.getDate(),
-        hour: date.getHours(),
-        minute: date.getMinutes(),
-        second: date.getSeconds(),
-    };
-}
-
-function zoneParts(instantMs: number, timeZone: string): WallClockParts {
-    // `hourCycle: 'h23'` — the `hour12: false` spelling still yields "24"
-    // for midnight in some ICU/locale combinations. The option is typed
-    // from es2020.intl while the web app compiles against an es2018 lib,
-    // hence the assertion; every supported runtime honours it.
-    const options = {
-        timeZone,
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hourCycle: 'h23',
-    } as Intl.DateTimeFormatOptions;
-    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(
-        new Date(instantMs)
-    );
-    const read = (type: Intl.DateTimeFormatPartTypes) =>
-        Number(parts.find((part) => part.type === type)?.value ?? 0);
-    return {
-        year: read('year'),
-        month: read('month'),
-        day: read('day'),
-        hour: read('hour') % 24,
-        minute: read('minute'),
-        second: read('second'),
-    };
-}
-
-function zoneOffsetMinutesAt(instantMs: number, timeZone: string): number {
-    const parts = zoneParts(instantMs, timeZone);
-    const asUtcMs = Date.UTC(
-        parts.year,
-        parts.month - 1,
-        parts.day,
-        parts.hour,
-        parts.minute,
-        parts.second
-    );
-    return Math.round((asUtcMs - instantMs) / MINUTE_MS);
-}
-
-function utcParts(date: Date): WallClockParts {
-    return {
-        year: date.getUTCFullYear(),
-        month: date.getUTCMonth() + 1,
-        day: date.getUTCDate(),
-        hour: date.getUTCHours(),
-        minute: date.getUTCMinutes(),
-        second: date.getUTCSeconds(),
-    };
-}
-
-/** `YYYY-MM-DD HH:mm[:ss]` read as if it were UTC; `null` when malformed. */
-function parseNaiveUtcMs(value: string | null | undefined): number | null {
-    const match = SERVER_LOCAL_DATE_TIME_PATTERN.exec(
-        String(value ?? '').trim()
-    );
-    if (!match) {
-        return null;
-    }
-    const [, year, month, day, hour, minute, second = '0'] = match;
-    const fields = [
-        Number(year),
-        Number(month) - 1,
-        Number(day),
-        Number(hour),
-        Number(minute),
-        Number(second),
-    ];
-    const ms = Date.UTC(
-        fields[0],
-        fields[1],
-        fields[2],
-        fields[3],
-        fields[4],
-        fields[5]
-    );
-    if (!Number.isFinite(ms)) {
-        return null;
-    }
-    // `Date.UTC` rolls out-of-range fields over (`2026-13-01 25:00` becomes
-    // a real instant in 2027); only a string that reads back unchanged is a
-    // date the panel actually wrote.
-    const date = new Date(ms);
-    const readBack = [
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate(),
-        date.getUTCHours(),
-        date.getUTCMinutes(),
-        date.getUTCSeconds(),
-    ];
-    return fields.every((field, index) => field === readBack[index])
-        ? ms
-        : null;
-}
-
-function pad(value: number): string {
-    return String(value).padStart(2, '0');
 }
