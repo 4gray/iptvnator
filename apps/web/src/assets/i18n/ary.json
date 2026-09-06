@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "حل عرض Multi-EPG"
+        "OPEN_EPG_GUIDE": "دليل البرامج"
     },
     "EPG": {
         "NEXT_DAY": "اليوم التالي",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "تشغيل الأرشيف",
         "COLLAPSE_PANEL": "طوي لوحة EPG",
         "EXPAND_PANEL": "وسع لوحة EPG",
+        "GUIDE": {
+            "TITLE": "دليل البرامج",
+            "CLOSE": "سد الدليل",
+            "CHANNEL": "قناة",
+            "TODAY": "اليوم",
+            "NOW": "دابا",
+            "JUMP_NOW": "نقز لدابا",
+            "SCOPE": "القنوات اللي بانين",
+            "ONLY_WITH_EPG": "فقط مع EPG",
+            "ONLY_WITH_EPG_HINT": "خبّي القنوات اللي ما عندهاش بيانات البرامج",
+            "DENSITY_COMFORTABLE": "صفوف مريحة",
+            "DENSITY_COMPACT": "صفوف مضغوطة",
+            "ZOOM": "تكبير",
+            "FILTER_CHANNELS": "فلتر القنوات…",
+            "SEARCH_PROGRAMMES": "بحث في البرامج…",
+            "NO_RESULTS": "ما لقيناش برامج",
+            "NO_PROGRAMME_INFO": "ما كايناش معلومات على البرنامج",
+            "NO_PROGRAMME_INFO_LONG": "ما كايناش معلومات على البرنامج ديال هاد القناة",
+            "PLAYING": "كيتشغل",
+            "NO_CHANNELS": "ما كاين حتى قناة كتطابق “{{query}}”",
+            "CLEAR_FILTER": "مسح الفلتر",
+            "COLLAPSE_PLAYER": "صغّر المشغل",
+            "EXPAND_PLAYER": "كبّر المشغل",
+            "KEYS": {
+                "CHANNEL": "قناة",
+                "PROGRAMME": "برنامج",
+                "PLAY": "شغّل",
+                "DETAILS": "التفاصيل",
+                "NOW": "دابا",
+                "DAY": "النهار",
+                "CLOSE": "سد"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "دليل",
+            "OPEN_GUIDE": "حل دليل البرامج",
             "TODAY": "اليوم",
             "NOW": "دابا",
             "JUMP_NOW": "نقز لدابا",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "وري تفاصيل حساب سيرفر Xtream",
                 "OPEN_VIEW_DESCRIPTION": "وجه ل{{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "مسح جميع عناصر {{type}} الظاهرة في هاد العرض",
-                "OPEN_MULTI_EPG_DESCRIPTION": "حل عرض EPG متعدد القنوات",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "حل دليل البرامج ديال قائمة التشغيل هاد",
                 "GO_TO_VOD_LABEL": "الأفلام",
                 "GO_TO_VOD_DESCRIPTION": "اقفز لقسم الأفلام",
                 "GO_TO_LIVE_LABEL": "البث المباشر",

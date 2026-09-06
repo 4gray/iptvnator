@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Apri vista Multi-EPG"
+        "OPEN_EPG_GUIDE": "Guida programmi"
     },
     "EPG": {
         "NEXT_DAY": "Giorno successivo",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "Riproduzione archivio",
         "COLLAPSE_PANEL": "Comprimi pannello EPG",
         "EXPAND_PANEL": "Espandi pannello EPG",
+        "GUIDE": {
+            "TITLE": "Guida programmi",
+            "CLOSE": "Chiudi guida",
+            "CHANNEL": "Canale",
+            "TODAY": "Oggi",
+            "NOW": "Ora",
+            "JUMP_NOW": "Vai a ora",
+            "SCOPE": "Canali mostrati",
+            "ONLY_WITH_EPG": "Solo con EPG",
+            "ONLY_WITH_EPG_HINT": "Nascondi i canali senza dati di programmazione",
+            "DENSITY_COMFORTABLE": "Righe comode",
+            "DENSITY_COMPACT": "Righe compatte",
+            "ZOOM": "Zoom",
+            "FILTER_CHANNELS": "Filtra canali…",
+            "SEARCH_PROGRAMMES": "Cerca programmi…",
+            "NO_RESULTS": "Nessun programma trovato",
+            "NO_PROGRAMME_INFO": "Nessuna informazione sul programma",
+            "NO_PROGRAMME_INFO_LONG": "Nessuna informazione sul programma per questo canale",
+            "PLAYING": "In riproduzione",
+            "NO_CHANNELS": "Nessun canale corrisponde a “{{query}}”",
+            "CLEAR_FILTER": "Cancella filtro",
+            "COLLAPSE_PLAYER": "Comprimi player",
+            "EXPAND_PLAYER": "Espandi player",
+            "KEYS": {
+                "CHANNEL": "canale",
+                "PROGRAMME": "programma",
+                "PLAY": "riproduzione",
+                "DETAILS": "dettagli",
+                "NOW": "ora",
+                "DAY": "giorno",
+                "CLOSE": "chiudi"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "Guida",
+            "OPEN_GUIDE": "Apri la guida programmi",
             "TODAY": "Oggi",
             "NOW": "Ora",
             "JUMP_NOW": "Vai a ora",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Mostra i dettagli account del server Xtream",
                 "OPEN_VIEW_DESCRIPTION": "Vai a {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Cancella tutti gli elementi {{type}} visibili in questa vista",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Apri la vista EPG multi-canale",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Apri la guida programmi per questa playlist",
                 "GO_TO_VOD_LABEL": "Film",
                 "GO_TO_VOD_DESCRIPTION": "Vai alla sezione film",
                 "GO_TO_LIVE_LABEL": "TV in diretta",

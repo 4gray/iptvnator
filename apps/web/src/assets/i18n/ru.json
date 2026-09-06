@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Открыть вид Multi-EPG"
+        "OPEN_EPG_GUIDE": "Программа передач"
     },
     "EPG": {
         "NEXT_DAY": "Следующий день",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "Архивная запись",
         "COLLAPSE_PANEL": "Свернуть панель EPG",
         "EXPAND_PANEL": "Развернуть панель EPG",
+        "GUIDE": {
+            "TITLE": "Программа передач",
+            "CLOSE": "Закрыть программу передач",
+            "CHANNEL": "Канал",
+            "TODAY": "Сегодня",
+            "NOW": "Сейчас",
+            "JUMP_NOW": "Перейти к текущему",
+            "SCOPE": "Отображаемые каналы",
+            "ONLY_WITH_EPG": "Только с EPG",
+            "ONLY_WITH_EPG_HINT": "Скрыть каналы без данных о программе",
+            "DENSITY_COMFORTABLE": "Комфортные строки",
+            "DENSITY_COMPACT": "Компактные строки",
+            "ZOOM": "Масштаб",
+            "FILTER_CHANNELS": "Фильтровать каналы…",
+            "SEARCH_PROGRAMMES": "Поиск передач…",
+            "NO_RESULTS": "Программы не найдены",
+            "NO_PROGRAMME_INFO": "Нет информации о программе",
+            "NO_PROGRAMME_INFO_LONG": "Нет информации о программе для этого канала",
+            "PLAYING": "Играет",
+            "NO_CHANNELS": "Нет каналов, соответствующих «{{query}}»",
+            "CLEAR_FILTER": "Очистить фильтр",
+            "COLLAPSE_PLAYER": "Свернуть плеер",
+            "EXPAND_PLAYER": "Развернуть плеер",
+            "KEYS": {
+                "CHANNEL": "канал",
+                "PROGRAMME": "программа",
+                "PLAY": "воспроизвести",
+                "DETAILS": "подробности",
+                "NOW": "сейчас",
+                "DAY": "день",
+                "CLOSE": "закрыть"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "Гид",
+            "OPEN_GUIDE": "Открыть программу передач",
             "TODAY": "Сегодня",
             "NOW": "Сейчас",
             "JUMP_NOW": "Перейти к текущему",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Показать данные аккаунта Xtream",
                 "OPEN_VIEW_DESCRIPTION": "Перейти к разделу {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Очистить все видимые элементы «{{type}}» в этом представлении",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Открыть представление Multi-EPG",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Открыть программу передач для этого плейлиста",
                 "GO_TO_VOD_LABEL": "Фильмы",
                 "GO_TO_VOD_DESCRIPTION": "Перейти к разделу фильмов",
                 "GO_TO_LIVE_LABEL": "Прямой эфир",

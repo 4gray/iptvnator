@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "開啟多 EPG 視圖"
+        "OPEN_EPG_GUIDE": "節目表"
     },
     "EPG": {
         "NEXT_DAY": "下一天",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "回看播放",
         "COLLAPSE_PANEL": "收合 EPG 面板",
         "EXPAND_PANEL": "展開 EPG 面板",
+        "GUIDE": {
+            "TITLE": "節目表",
+            "CLOSE": "關閉節目表",
+            "CHANNEL": "頻道",
+            "TODAY": "今天",
+            "NOW": "現在",
+            "JUMP_NOW": "跳至現在",
+            "SCOPE": "顯示的頻道",
+            "ONLY_WITH_EPG": "僅含 EPG",
+            "ONLY_WITH_EPG_HINT": "隱藏沒有節目資料的頻道",
+            "DENSITY_COMFORTABLE": "舒適列距",
+            "DENSITY_COMPACT": "緊湊列距",
+            "ZOOM": "縮放",
+            "FILTER_CHANNELS": "篩選頻道…",
+            "SEARCH_PROGRAMMES": "搜尋節目…",
+            "NO_RESULTS": "找不到節目",
+            "NO_PROGRAMME_INFO": "沒有節目資訊",
+            "NO_PROGRAMME_INFO_LONG": "此頻道沒有節目資訊",
+            "PLAYING": "播放中",
+            "NO_CHANNELS": "沒有頻道符合「{{query}}」",
+            "CLEAR_FILTER": "清除篩選",
+            "COLLAPSE_PLAYER": "收合播放器",
+            "EXPAND_PLAYER": "展開播放器",
+            "KEYS": {
+                "CHANNEL": "頻道",
+                "PROGRAMME": "節目",
+                "PLAY": "播放",
+                "DETAILS": "詳情",
+                "NOW": "現在",
+                "DAY": "日期",
+                "CLOSE": "關閉"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "節目表",
+            "OPEN_GUIDE": "開啟節目表",
             "TODAY": "今天",
             "NOW": "現在",
             "JUMP_NOW": "跳至現在",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "顯示 Xtream 伺服器帳戶詳細資訊",
                 "OPEN_VIEW_DESCRIPTION": "前往 {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "清除此畫面中所有可見的{{type}}項目",
-                "OPEN_MULTI_EPG_DESCRIPTION": "開啟多頻道 EPG 視圖",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "開啟此播放清單的節目表",
                 "GO_TO_VOD_LABEL": "電影",
                 "GO_TO_VOD_DESCRIPTION": "跳至電影區段",
                 "GO_TO_LIVE_LABEL": "直播電視",

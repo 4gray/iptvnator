@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "マルチ EPG ビューを開く"
+        "OPEN_EPG_GUIDE": "番組表"
     },
     "EPG": {
         "NEXT_DAY": "翌日",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "アーカイブ再生",
         "COLLAPSE_PANEL": "EPG パネルを折りたたむ",
         "EXPAND_PANEL": "EPG パネルを展開",
+        "GUIDE": {
+            "TITLE": "番組表",
+            "CLOSE": "番組表を閉じる",
+            "CHANNEL": "チャンネル",
+            "TODAY": "今日",
+            "NOW": "現在",
+            "JUMP_NOW": "現在へ移動",
+            "SCOPE": "表示するチャンネル",
+            "ONLY_WITH_EPG": "EPGのみ",
+            "ONLY_WITH_EPG_HINT": "番組データがないチャンネルを非表示にする",
+            "DENSITY_COMFORTABLE": "ゆったり表示",
+            "DENSITY_COMPACT": "コンパクト表示",
+            "ZOOM": "ズーム",
+            "FILTER_CHANNELS": "チャンネルをフィルター…",
+            "SEARCH_PROGRAMMES": "番組を検索…",
+            "NO_RESULTS": "番組が見つかりません",
+            "NO_PROGRAMME_INFO": "番組情報がありません",
+            "NO_PROGRAMME_INFO_LONG": "このチャンネルの番組情報がありません",
+            "PLAYING": "再生中",
+            "NO_CHANNELS": "「{{query}}」に一致するチャンネルはありません",
+            "CLEAR_FILTER": "フィルターをクリア",
+            "COLLAPSE_PLAYER": "プレーヤーを折りたたむ",
+            "EXPAND_PLAYER": "プレーヤーを展開",
+            "KEYS": {
+                "CHANNEL": "チャンネル",
+                "PROGRAMME": "番組",
+                "PLAY": "再生",
+                "DETAILS": "詳細",
+                "NOW": "現在",
+                "DAY": "日",
+                "CLOSE": "閉じる"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "番組表",
+            "OPEN_GUIDE": "番組表を開く",
             "TODAY": "今日",
             "NOW": "現在",
             "JUMP_NOW": "現在へ移動",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Xtreamサーバーのアカウント詳細を表示",
                 "OPEN_VIEW_DESCRIPTION": "{{view}}に移動",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "このビューに表示中の{{type}}項目をすべてクリア",
-                "OPEN_MULTI_EPG_DESCRIPTION": "マルチチャンネルEPGビューを開く",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "このプレイリストの番組表を開く",
                 "GO_TO_VOD_LABEL": "映画",
                 "GO_TO_VOD_DESCRIPTION": "映画セクションに移動",
                 "GO_TO_LIVE_LABEL": "ライブTV",

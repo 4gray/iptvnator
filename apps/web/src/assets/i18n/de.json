@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Multi-EPG-Ansicht öffnen"
+        "OPEN_EPG_GUIDE": "Programmführer"
     },
     "EPG": {
         "NEXT_DAY": "Zum nächsten Tag",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "Archivwiedergabe",
         "COLLAPSE_PANEL": "EPG-Panel einklappen",
         "EXPAND_PANEL": "EPG-Panel ausklappen",
+        "GUIDE": {
+            "TITLE": "Programmführer",
+            "CLOSE": "Programmführer schließen",
+            "CHANNEL": "Sender",
+            "TODAY": "Heute",
+            "NOW": "Jetzt",
+            "JUMP_NOW": "Zu jetzt springen",
+            "SCOPE": "Angezeigte Sender",
+            "ONLY_WITH_EPG": "Nur mit EPG",
+            "ONLY_WITH_EPG_HINT": "Sender ohne Programmdaten ausblenden",
+            "DENSITY_COMFORTABLE": "Komfortable Zeilen",
+            "DENSITY_COMPACT": "Kompakte Zeilen",
+            "ZOOM": "Zoom",
+            "FILTER_CHANNELS": "Sender filtern…",
+            "SEARCH_PROGRAMMES": "Sendungen durchsuchen…",
+            "NO_RESULTS": "Keine Sendungen gefunden",
+            "NO_PROGRAMME_INFO": "Keine Programminformationen",
+            "NO_PROGRAMME_INFO_LONG": "Keine Programminformationen für diesen Sender",
+            "PLAYING": "Läuft",
+            "NO_CHANNELS": "Keine Sender stimmen mit „{{query}}“ überein",
+            "CLEAR_FILTER": "Filter zurücksetzen",
+            "COLLAPSE_PLAYER": "Player einklappen",
+            "EXPAND_PLAYER": "Player ausklappen",
+            "KEYS": {
+                "CHANNEL": "Kanal",
+                "PROGRAMME": "Programm",
+                "PLAY": "Wiedergabe",
+                "DETAILS": "Details",
+                "NOW": "jetzt",
+                "DAY": "Tag",
+                "CLOSE": "schließen"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "Guide",
+            "OPEN_GUIDE": "Programmführer öffnen",
             "TODAY": "Heute",
             "NOW": "Jetzt",
             "JUMP_NOW": "Zu jetzt springen",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Xtream-Server-Kontodaten anzeigen",
                 "OPEN_VIEW_DESCRIPTION": "Zu {{view}} wechseln",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Alle sichtbaren {{type}}-Einträge in dieser Ansicht löschen",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Die Multi-EPG-Ansicht öffnen",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Programmführer für diese Playlist öffnen",
                 "GO_TO_VOD_LABEL": "Filme",
                 "GO_TO_VOD_DESCRIPTION": "Zum Filmbereich wechseln",
                 "GO_TO_LIVE_LABEL": "Live-TV",

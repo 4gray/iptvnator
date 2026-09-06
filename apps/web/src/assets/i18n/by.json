@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Адкрыць прагляд Multi-EPG"
+        "OPEN_EPG_GUIDE": "Праграма перадач"
     },
     "EPG": {
         "NEXT_DAY": "Наступны дзень",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "Прайграванне архіва",
         "COLLAPSE_PANEL": "Згарнуць панэль EPG",
         "EXPAND_PANEL": "Разгарнуць панэль EPG",
+        "GUIDE": {
+            "TITLE": "Праграма перадач",
+            "CLOSE": "Закрыць праграму перадач",
+            "CHANNEL": "Канал",
+            "TODAY": "Сёння",
+            "NOW": "Цяпер",
+            "JUMP_NOW": "Перайсці да цяперашняга",
+            "SCOPE": "Паказаныя каналы",
+            "ONLY_WITH_EPG": "Толькі з EPG",
+            "ONLY_WITH_EPG_HINT": "Схаваць каналы без даных праграмы",
+            "DENSITY_COMFORTABLE": "Зручныя радкі",
+            "DENSITY_COMPACT": "Кампактныя радкі",
+            "ZOOM": "Маштаб",
+            "FILTER_CHANNELS": "Фільтраваць каналы…",
+            "SEARCH_PROGRAMMES": "Пошук перадач…",
+            "NO_RESULTS": "Праграмы не знойдзены",
+            "NO_PROGRAMME_INFO": "Няма інфармацыі аб праграме",
+            "NO_PROGRAMME_INFO_LONG": "Няма інфармацыі аб праграме для гэтага канала",
+            "PLAYING": "Прайграецца",
+            "NO_CHANNELS": "Няма каналаў, якія адпавядаюць «{{query}}»",
+            "CLEAR_FILTER": "Ачысціць фільтр",
+            "COLLAPSE_PLAYER": "Згарнуць плэер",
+            "EXPAND_PLAYER": "Разгарнуць плэер",
+            "KEYS": {
+                "CHANNEL": "канал",
+                "PROGRAMME": "праграма",
+                "PLAY": "прайграць",
+                "DETAILS": "падрабязнасці",
+                "NOW": "цяпер",
+                "DAY": "дзень",
+                "CLOSE": "закрыць"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "Праграма",
+            "OPEN_GUIDE": "Адкрыць праграму перадач",
             "TODAY": "Сёння",
             "NOW": "Цяпер",
             "JUMP_NOW": "Перайсці да цяперашняга",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Паказаць дэталі ўліковага запісу сервера Xtream",
                 "OPEN_VIEW_DESCRIPTION": "Перайсці да {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Ачысціць усе бачныя элементы тыпу {{type}} у гэтым выглядзе",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Адкрыць выгляд мульты-EPG",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Адкрыць праграму перадач для гэтага плэйліста",
                 "GO_TO_VOD_LABEL": "Фільмы",
                 "GO_TO_VOD_DESCRIPTION": "Перайсці да раздзела фільмаў",
                 "GO_TO_LIVE_LABEL": "Прамы эфір",

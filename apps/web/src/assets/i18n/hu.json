@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Többcsatornás EPG-nézet megnyitása"
+        "OPEN_EPG_GUIDE": "Műsorújság"
     },
     "EPG": {
         "NEXT_DAY": "Következő nap",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "Műsor visszanézése",
         "COLLAPSE_PANEL": "EPG-panel összecsukása",
         "EXPAND_PANEL": "EPG-panel kibontása",
+        "GUIDE": {
+            "TITLE": "Műsorújság",
+            "CLOSE": "Műsorújság bezárása",
+            "CHANNEL": "Csatorna",
+            "TODAY": "Ma",
+            "NOW": "Most",
+            "JUMP_NOW": "Ugrás a jelenhez",
+            "SCOPE": "Megjelenített csatornák",
+            "ONLY_WITH_EPG": "Csak EPG-vel",
+            "ONLY_WITH_EPG_HINT": "A műsoradatok nélküli csatornák elrejtése",
+            "DENSITY_COMFORTABLE": "Kényelmes sorok",
+            "DENSITY_COMPACT": "Kompakt sorok",
+            "ZOOM": "Nagyítás",
+            "FILTER_CHANNELS": "Csatornák szűrése…",
+            "SEARCH_PROGRAMMES": "Műsorok keresése…",
+            "NO_RESULTS": "Nem található műsor",
+            "NO_PROGRAMME_INFO": "Nincs műsorinformáció",
+            "NO_PROGRAMME_INFO_LONG": "Nincs műsorinformáció ehhez a csatornához",
+            "PLAYING": "Lejátszás alatt",
+            "NO_CHANNELS": "Nincs „{{query}}”-nak megfelelő csatorna",
+            "CLEAR_FILTER": "Szűrő törlése",
+            "COLLAPSE_PLAYER": "Lejátszó összecsukása",
+            "EXPAND_PLAYER": "Lejátszó kibontása",
+            "KEYS": {
+                "CHANNEL": "csatorna",
+                "PROGRAMME": "műsor",
+                "PLAY": "lejátszás",
+                "DETAILS": "részletek",
+                "NOW": "most",
+                "DAY": "nap",
+                "CLOSE": "bezárás"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "Műsorújság",
+            "OPEN_GUIDE": "Műsorújság megnyitása",
             "TODAY": "Ma",
             "NOW": "Most",
             "JUMP_NOW": "Ugrás a jelenhez",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Az Xtream-kiszolgálóhoz tartozó fiókadatok megjelenítése",
                 "OPEN_VIEW_DESCRIPTION": "Nézet megnyitása: {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "A nézetben látható elemek törlése – {{type}}",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Többcsatornás EPG-nézet megnyitása",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Műsorújság megnyitása ehhez a lejátszási listához",
                 "GO_TO_VOD_LABEL": "Filmek",
                 "GO_TO_VOD_DESCRIPTION": "Ugrás a filmekhez",
                 "GO_TO_LIVE_LABEL": "Élő tévéadás",
