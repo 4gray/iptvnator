@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Attiva/disattiva elenco canali (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Mostra il canale in riproduzione",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carica o seleziona un'altra playlist",
         "ALL_CHANNELS": "Tutti i canali",
         "GROUPS": "Gruppi",

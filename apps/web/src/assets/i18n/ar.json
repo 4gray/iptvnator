@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "إظهار القناة قيد التشغيل",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "تحميل أو اختيار قائمة أخرى",
         "ALL_CHANNELS": "جميع القنوات",
         "GROUPS": "المجموعات",

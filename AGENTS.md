@@ -227,6 +227,16 @@ EPG is independent. See `docs/architecture/m3u-playlist-module.md`
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
 
+## Live Channel Return
+
+Xtream and Stalker (including radio) capture displayed playback order on explicit
+selection. Remote up/down, numbers and status use that queue while browsing
+categories or search. Stalker commits after successful current URL resolution
+and extends only loaded pages of the original scope. The conditional channel
+header action clears search, returns to the accessible playing category and
+focuses its row without changing playback. Contract:
+`docs/architecture/remote-control.md` (Live channel return and playback order).
+
 ## Channel and Detail Keyboard Scrolling
 
 Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection

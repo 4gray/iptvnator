@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Huidige zender tonen",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",
         "ALL_CHANNELS": "Alle kanalen",
         "GROUPS": "Groepen",

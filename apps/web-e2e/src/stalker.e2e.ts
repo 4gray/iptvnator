@@ -189,7 +189,9 @@ async function resetMockServer(
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-            const response = await request.post(`${MOCK_SERVER}/reset?${query}`);
+            const response = await request.post(
+                `${MOCK_SERVER}/reset?${query}`
+            );
             if (response.ok()) {
                 return;
             }
@@ -498,6 +500,12 @@ test('@stalker ITV playback survives a category switch', async ({ page }) => {
     const player = page.locator('app-web-player-view');
     await expect(player).toBeVisible({ timeout: 20_000 });
 
+    const media = await player.locator('video').first().elementHandle();
+    expect(media).not.toBeNull();
+    const activeName = await channels
+        .first()
+        .locator('.channel-name')
+        .textContent();
     await categories.nth(2).click();
 
     // The sidebar re-filters to the new category (proves the click landed and
@@ -508,6 +516,21 @@ test('@stalker ITV playback survives a category switch', async ({ page }) => {
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
     // …while the channel picked from the previous category keeps playing.
     await expect(player).toBeVisible();
+    const reveal = page.getByRole('button', {
+        name: 'Show playing channel',
+        exact: true,
+    });
+    await reveal.click();
+    await expect(sidebarTitle).toHaveText(firstCategoryTitle);
+    await expect(scrollPane).toBeFocused();
+    await expect(sidebar.locator('.active')).toContainText(activeName ?? '');
+    expect(
+        await media?.evaluate(
+            (video) =>
+                video === document.querySelector('app-web-player-view video')
+        )
+    ).toBe(true);
+    await expect(reveal).toHaveCount(0);
 });
 
 test('@stalker radio — stations use the inline audio player without EPG', async ({
@@ -1183,9 +1206,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
     await expect(menuTrigger).toBeVisible();
     await menuTrigger.click();
-    const seriesToggle = page.locator(
-        '[data-test-id="toggle-series-watched"]'
-    );
+    const seriesToggle = page.locator('[data-test-id="toggle-series-watched"]');
     await expect(seriesToggle).toBeVisible();
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`

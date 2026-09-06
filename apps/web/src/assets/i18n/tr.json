@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Kanal listesini aç/kapat (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Oynatılan kanalı göster",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Dosya yükle veya başka bir oynatma listesi seçin",
         "ALL_CHANNELS": "Tüm kanallar",
         "GROUPS": "Gruplar",

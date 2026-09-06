@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Показать текущий канал",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
