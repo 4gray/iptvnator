@@ -1,31 +1,76 @@
-import { computed, Injectable, signal } from '@angular/core';
 import {
+    computed,
+    Injectable,
+    Signal,
+    signal,
+    WritableSignal,
+} from '@angular/core';
+import {
+    forgetLegacyLiveSidebarState,
     LiveSidebarState,
+    LiveSidebarSurface,
+    liveSidebarStateStorageKey,
     persistLiveSidebarState,
     restoreLiveSidebarState,
 } from './live-sidebar-state';
 
+function bySurface<T>(
+    create: (surface: LiveSidebarSurface) => T
+): Record<LiveSidebarSurface, T> {
+    return {
+        m3u: create('m3u'),
+        portal: create('portal'),
+        collection: create('collection'),
+    };
+}
+
 /**
- * Shared collapse state for the live-TV sidebar across the workspace shell
- * categories rail (Xtream/Stalker), the inline channels rail, and the
- * unified-collection live tab. A single signal keeps all surfaces in sync
- * within a session; localStorage persistence is delegated to the existing
- * `live-sidebar-state` helpers so the storage key stays unchanged.
+ * Single owner of the live-TV sidebar collapse state. Every surface that
+ * renders a collapsible channel rail — the M3U player, the Xtream/Stalker
+ * live layouts together with the workspace shell categories rail, the
+ * unified favorites/recent live tab, and the workspace header toggle — reads
+ * and writes through this service, so a toggle in one place is reflected
+ * everywhere the same surface is rendered within the session.
+ *
+ * State is kept per surface (`live-sidebar-state:<surface>` in
+ * localStorage). The pre-split shared key is forgotten on construction.
  */
 @Injectable({ providedIn: 'root' })
 export class LiveLayoutSidebarStateService {
-    private readonly _state = signal<LiveSidebarState>(
-        restoreLiveSidebarState()
-    );
-    readonly state = this._state.asReadonly();
-    readonly isCollapsed = computed(() => this._state() === 'collapsed');
+    private readonly states: Record<
+        LiveSidebarSurface,
+        WritableSignal<LiveSidebarState>
+    >;
+    private readonly collapsed: Record<LiveSidebarSurface, Signal<boolean>>;
 
-    toggle(): void {
-        this.setState(this.isCollapsed() ? 'expanded' : 'collapsed');
+    constructor() {
+        forgetLegacyLiveSidebarState();
+        this.states = bySurface((surface) =>
+            signal(restoreLiveSidebarState(liveSidebarStateStorageKey(surface)))
+        );
+        this.collapsed = bySurface((surface) =>
+            computed(() => this.states[surface]() === 'collapsed')
+        );
     }
 
-    setState(state: LiveSidebarState): void {
-        this._state.set(state);
-        persistLiveSidebarState(state);
+    stateOf(surface: LiveSidebarSurface): Signal<LiveSidebarState> {
+        return this.states[surface].asReadonly();
+    }
+
+    /** Stable per-surface signal; safe to assign to a component field. */
+    isCollapsedFor(surface: LiveSidebarSurface): Signal<boolean> {
+        return this.collapsed[surface];
+    }
+
+    toggle(surface: LiveSidebarSurface): void {
+        this.setState(
+            surface,
+            this.collapsed[surface]() ? 'expanded' : 'collapsed'
+        );
+    }
+
+    setState(surface: LiveSidebarSurface, state: LiveSidebarState): void {
+        this.states[surface].set(state);
+        persistLiveSidebarState(state, liveSidebarStateStorageKey(surface));
     }
 }

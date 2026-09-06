@@ -7,6 +7,8 @@ import {
     contentChild,
     DestroyRef,
     effect,
+    ElementRef,
+    HostListener,
     inject,
     linkedSignal,
     input,
@@ -38,6 +40,7 @@ import {
     getOpenLiveCollectionItemState,
     getUnifiedCollectionNavigation,
     isWorkspaceLayoutRoute,
+    isTypingInInput,
     LiveLayoutSidebarStateService,
     OPEN_COLLECTION_DETAIL_STATE_KEY,
     OPEN_LIVE_COLLECTION_ITEM_STATE_KEY,
@@ -96,6 +99,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly scopeService = inject(ScopeToggleService);
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
     private readonly recentData = inject(UnifiedRecentDataService);
@@ -276,7 +280,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             this.selectedContentType() === 'live' &&
             this.hasLive()
     );
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('collection');
     readonly showSidebarToggle = computed(
         () => this.selectedContentType() === 'live' && this.hasLive()
     );
@@ -469,7 +474,30 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+        this.liveSidebarStateService.toggle('collection');
+    }
+
+    /**
+     * Cmd/Ctrl+B mirrors the routed live layouts (M3U, Xtream, Stalker): the
+     * hidden-list state advertises the shortcut, so the collection live tab
+     * must honour it too. Only while that tab, and therefore the rail, is on
+     * screen; the movies/series grids have nothing to hide.
+     */
+    @HostListener('document:keydown', ['$event'])
+    handleSidebarShortcut(event: KeyboardEvent): void {
+        if (
+            this.showSidebarToggle() &&
+            (event.metaKey || event.ctrlKey) &&
+            event.key.toLowerCase() === 'b' &&
+            !isTypingInInput(event) &&
+            // Behind the workspace's phone context drawer the route content
+            // is inert; this document-level listener still fires, so it
+            // opts out itself instead of toggling an obscured rail.
+            !this.hostElement.nativeElement.closest('[inert]')
+        ) {
+            event.preventDefault();
+            this.toggleSidebar();
+        }
     }
 
     setFavSortMode(mode: FavoritesChannelSortMode): void {

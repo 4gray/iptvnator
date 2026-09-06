@@ -43,3 +43,15 @@ export interface WorkspaceHeaderBulkAction {
     ariaLabel: string;
     disabled: boolean;
 }
+
+/**
+ * Header toggle for the live-channel rail of the current route. It exists in
+ * both rail states so the control never moves: inside the rail the chevron
+ * disappears together with the rail it hides.
+ */
+export interface WorkspaceHeaderSidebarToggle {
+    /** True while the rail is visible; drives `aria-pressed`. */
+    expanded: boolean;
+    tooltip: string;
+    ariaLabel: string;
+}

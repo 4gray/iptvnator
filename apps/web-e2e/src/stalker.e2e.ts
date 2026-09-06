@@ -513,13 +513,22 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
         timeout: 20_000,
     });
 
-    await page.getByRole('button', { name: 'Hide channels list' }).click();
-    const restoreButton = page.getByRole('button', {
-        name: 'Show channels list',
-    });
+    // The rail's own chevron hides the list; the workspace header carries a
+    // second toggle with the same accessible name, so scope to the rail.
+    await page
+        .locator('.sidebar')
+        .getByRole('button', { name: 'Hide channels list' })
+        .click();
+    const restoreButton = page.locator('.sidebar-restore');
     await expect(restoreButton).toBeVisible();
+    await expect(
+        page.locator('app-workspace-shell-header .header-sidebar-toggle')
+    ).toHaveAttribute('aria-pressed', 'false');
     await restoreButton.click();
     await expect(stations.first()).toBeVisible();
+    await expect(
+        page.locator('app-workspace-shell-header .header-sidebar-toggle')
+    ).toHaveAttribute('aria-pressed', 'true');
 
     await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgRequests).toHaveLength(0);

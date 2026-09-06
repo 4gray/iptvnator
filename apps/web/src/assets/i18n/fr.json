@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Masquer la liste des chaînes",
         "SHOW_CHANNELS_LIST": "Afficher la liste des chaînes",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Basculer la liste des chaînes (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Basculer la liste des chaînes (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "La liste des chaînes est masquée",
+        "CHANNELS_LIST_HIDDEN_HINT": "Réaffichez-la avec le bouton ci-dessous ou appuyez sur ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Afficher la chaîne en cours",

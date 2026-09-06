@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Ukryj listę kanałów",
         "SHOW_CHANNELS_LIST": "Pokaż listę kanałów",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Przełącz listę kanałów (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Przełącz listę kanałów (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Lista kanałów jest ukryta",
+        "CHANNELS_LIST_HIDDEN_HINT": "Przywróć ją przyciskiem poniżej lub naciśnij ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Pokaż odtwarzany kanał",

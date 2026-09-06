@@ -84,7 +84,10 @@ import {
     REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
 } from '@iptvnator/portal/shared/util';
-import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import {
+    ChannelListHiddenStateComponent,
+    PortalEmptyStateComponent,
+} from '@iptvnator/portal/shared/ui';
 import {
     ACTIVE_EPG_FALLBACK_SIZE,
     StalkerFavoriteItem,
@@ -152,6 +155,7 @@ import { StalkerLiveNavigation } from './stalker-live-navigation';
         MatProgressSpinnerModule,
         MatTooltipModule,
         NgTemplateOutlet,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         StalkerItvAllItemsComponent,
@@ -484,7 +488,8 @@ export class StalkerLiveStreamLayoutComponent
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('portal');
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
     );
@@ -1155,7 +1160,7 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+        this.liveSidebarStateService.toggle('portal');
     }
 
     handleRadioChannelSwitch(direction: 'next' | 'previous'): void {

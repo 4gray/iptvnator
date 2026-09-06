@@ -187,7 +187,7 @@ describe('XtreamLiveChannelNavigationService', () => {
             );
             expect(selectedCategoryId()).toBe(10);
             expect(categorySearchTerm()).toBe('');
-            expect(sidebar.setState).toHaveBeenCalledWith('expanded');
+            expect(sidebar.setState).toHaveBeenCalledWith('portal', 'expanded');
             expect(service.revealRequest()).toEqual(
                 expect.objectContaining({ channelId: 1 })
             );

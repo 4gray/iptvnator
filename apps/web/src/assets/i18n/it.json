@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Nascondi elenco canali",
         "SHOW_CHANNELS_LIST": "Mostra elenco canali",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Attiva/disattiva elenco canali (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Attiva/disattiva elenco canali (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "L'elenco canali è nascosto",
+        "CHANNELS_LIST_HIDDEN_HINT": "Mostralo di nuovo con il pulsante qui sotto o premi ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Mostra il canale in riproduzione",

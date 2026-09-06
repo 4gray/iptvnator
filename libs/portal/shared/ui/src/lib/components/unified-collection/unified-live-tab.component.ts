@@ -58,6 +58,7 @@ import {
     toLiveEpgPanelSummary,
 } from './unified-live-epg-summary.util';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
+import { ChannelListHiddenStateComponent } from '../channel-list-hidden-state/channel-list-hidden-state.component';
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 import {
     AudioPlayerComponent,
@@ -100,6 +101,7 @@ import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-ses
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
@@ -130,6 +132,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly itemPlayed = output<UnifiedCollectionItem>();
     readonly autoOpenHandled = output<void>();
     readonly isSidebarCollapsed = input(false);
+    /** The rail is owned by the page header toggle; ask it to expand. */
+    readonly restoreSidebarRequested = output<void>();
 
     private readonly streamResolver = inject(StreamResolverService);
     private readonly recentData = inject(UnifiedRecentDataService);

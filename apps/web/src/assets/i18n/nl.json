@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Zenderlijst verbergen",
         "SHOW_CHANNELS_LIST": "Zenderlijst tonen",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "De zenderlijst is verborgen",
+        "CHANNELS_LIST_HIDDEN_HINT": "Toon de lijst opnieuw met de knop hieronder of druk op ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Huidige zender tonen",

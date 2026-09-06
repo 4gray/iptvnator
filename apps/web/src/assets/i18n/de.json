@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Senderliste ausblenden",
         "SHOW_CHANNELS_LIST": "Senderliste einblenden",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)",
+        "CHANNELS_LIST_HIDDEN": "Die Senderliste ist ausgeblendet",
+        "CHANNELS_LIST_HIDDEN_HINT": "Blenden Sie sie über die Schaltfläche unten oder mit ⌘/Strg+B wieder ein."
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Laufenden Sender anzeigen",

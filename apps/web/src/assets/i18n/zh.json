@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "隐藏频道列表",
         "SHOW_CHANNELS_LIST": "显示频道列表",
-        "TOGGLE_SIDEBAR_TOOLTIP": "切换频道列表 (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "切换频道列表 (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "频道列表已隐藏",
+        "CHANNELS_LIST_HIDDEN_HINT": "点击下方按钮或按 ⌘/Ctrl+B 重新显示。"
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "显示正在播放的频道",

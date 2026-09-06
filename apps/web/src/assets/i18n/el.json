@@ -674,7 +674,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Απόκρυψη λίστας καναλιών",
         "SHOW_CHANNELS_LIST": "Εμφάνιση λίστας καναλιών",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Εναλλαγή λίστας καναλιών (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Εναλλαγή λίστας καναλιών (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Η λίστα καναλιών είναι κρυφή",
+        "CHANNELS_LIST_HIDDEN_HINT": "Επαναφέρετέ την με το παρακάτω κουμπί ή πατήστε ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "SHOW_PLAYING_CHANNEL": "Εμφάνιση του καναλιού που παίζει",
