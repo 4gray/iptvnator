@@ -399,6 +399,7 @@ sometimes only respond to that misspelled action.
 | `series:series`           | 2002  | live:3, vod:4, series:15   | 30        | active         |
 | `minimal:minimal`         | 3003  | 2 each                     | 5         | active         |
 | `epg:epg`                 | 6006  | live:2, vod:1, series:1    | 3         | active         |
+| `tzoffset:tzoffset`       | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
 | `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
 | `expired:expired`         | 4004  | 4 each                     | 10        | Expired        |

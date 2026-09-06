@@ -755,6 +755,9 @@ export class PlaylistsService {
             ...(updatedPlaylist.portalUrl != null
                 ? { portalUrl: updatedPlaylist.portalUrl }
                 : {}),
+            ...(updatedPlaylist.serverTimezone != null
+                ? { serverTimezone: updatedPlaylist.serverTimezone }
+                : {}),
             ...(updatedPlaylist.isFullStalkerPortal !== undefined
                 ? {
                       isFullStalkerPortal: updatedPlaylist.isFullStalkerPortal,

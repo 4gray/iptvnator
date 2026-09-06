@@ -1,6 +1,7 @@
 import {
     getAppPlaylistFavoriteChannels,
     getAppPlaylistMetas,
+    getPlaylist,
     parseAppPlaylist,
 } from './playlist.operations';
 import type { AppDatabase } from '../database.types';
@@ -54,6 +55,43 @@ describe('playlist.operations', () => {
                 updateDate: new Date('2026-04-03T11:15:00.000Z').getTime(),
             })
         );
+    });
+
+    it('projects the persisted server timezone from the payload onto DB_GET_PLAYLIST rows', async () => {
+        const row = {
+            id: 'playlist-1',
+            name: 'Xtream Source',
+            serverUrl: 'http://localhost:8080',
+            username: 'demo',
+            password: 'secret',
+            type: 'xtream',
+            payload: JSON.stringify({
+                _id: 'playlist-1',
+                title: 'Xtream Source',
+                serverTimezone: 'Europe/London',
+            }),
+        };
+        const { db } = createPlaylistFavoriteChannelsDbMock(row);
+
+        await expect(getPlaylist(db, 'playlist-1')).resolves.toEqual({
+            ...row,
+            serverTimezone: 'Europe/London',
+        });
+    });
+
+    it('returns DB_GET_PLAYLIST rows untouched when the payload carries no server timezone', async () => {
+        const row = {
+            id: 'playlist-1',
+            name: 'Xtream Source',
+            type: 'xtream',
+            payload: JSON.stringify({ _id: 'playlist-1', serverTimezone: ' ' }),
+        };
+        const { db } = createPlaylistFavoriteChannelsDbMock(row);
+
+        await expect(getPlaylist(db, 'playlist-1')).resolves.toBe(row);
+        await expect(
+            getPlaylist(createPlaylistFavoriteChannelsDbMock(null).db, 'gone')
+        ).resolves.toBeNull();
     });
 
     it('loads app playlist metadata without selecting the large payload column', async () => {

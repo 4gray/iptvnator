@@ -15,7 +15,12 @@ import {
 } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { resolveXtreamPortalStatus } from '@iptvnator/shared/interfaces';
+import { PlaylistsService } from '@iptvnator/services';
+import {
+    resolveXtreamPortalStatus,
+    resolveXtreamServerTimezone,
+} from '@iptvnator/shared/interfaces';
+import { firstValueFrom } from 'rxjs';
 
 /**
  * Portal state for managing playlist and portal status
@@ -51,6 +56,37 @@ export function withPortal() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            const playlistsService = inject(PlaylistsService);
+
+            /**
+             * The Favorites / Recent catch-up resolver reads the STORED
+             * playlist row, not this store, so a timezone learned here has
+             * to reach storage or that path keeps rendering programme
+             * start times in the viewer's clock (issue #1562). The write is
+             * skipped when the row already carries the value and never
+             * fails the status check that learned it.
+             */
+            const rememberServerTimezone = async (
+                playlistId: string,
+                serverTimezone: string
+            ): Promise<void> => {
+                try {
+                    await firstValueFrom(
+                        playlistsService.transformPlaylistMeta(
+                            playlistId,
+                            (playlist) =>
+                                playlist.serverTimezone === serverTimezone
+                                    ? null
+                                    : { ...playlist, serverTimezone }
+                        )
+                    );
+                } catch (error) {
+                    logger.error(
+                        'Failed to persist the portal timezone',
+                        error
+                    );
+                }
+            };
 
             return {
                 /**
@@ -118,8 +154,12 @@ export function withPortal() {
                             await apiService.getAccountInfo(credentials);
                         const portalStatus =
                             resolveXtreamPortalStatus(response);
-                        const serverTimezone =
-                            response?.server_info?.timezone ?? undefined;
+                        // A response without a usable clock keeps whatever
+                        // the row already knows; only a learned value
+                        // replaces it.
+                        const serverTimezone = resolveXtreamServerTimezone(
+                            response?.server_info
+                        );
                         const allowedOutputFormats = response?.user_info
                             ?.allowed_output_formats?.length
                             ? response.user_info.allowed_output_formats
@@ -138,6 +178,15 @@ export function withPortal() {
                                         : {}),
                                 },
                             });
+                            if (
+                                serverTimezone &&
+                                serverTimezone !== current.serverTimezone
+                            ) {
+                                await rememberServerTimezone(
+                                    current.id,
+                                    serverTimezone
+                                );
+                            }
                         }
                         return portalStatus;
                     } catch (error) {

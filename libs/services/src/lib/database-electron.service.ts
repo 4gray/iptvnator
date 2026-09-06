@@ -57,6 +57,8 @@ export interface XtreamPlaylist {
     username: string;
     password: string;
     type: string;
+    /** Projected from the row payload by `DB_GET_PLAYLIST` (issue #1562). */
+    serverTimezone?: string;
 }
 
 type XtreamDatabasePlaylistUpdate = {

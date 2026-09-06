@@ -563,14 +563,28 @@ export async function getAppPlaylistFavoriteChannels(
     return resolved.sort((a, b) => a.favoriteIndex - b.favoriteIndex);
 }
 
+/**
+ * The raw row plus the fields the Xtream store needs from the JSON payload:
+ * `serverTimezone` has no column, and the store seeds `currentPlaylist`
+ * from this read before (or without) the account-info check that learns
+ * it (issue #1562).
+ */
 export async function getPlaylist(db: AppDatabase, playlistId: string) {
     const result = await db
         .select()
         .from(schema.playlists)
         .where(eq(schema.playlists.id, playlistId))
         .limit(1);
+    const row = result[0];
+    if (!row) {
+        return null;
+    }
 
-    return result[0] || null;
+    const serverTimezone = getStringValue(
+        parseJsonValue<Record<string, unknown> | null>(row.payload, null)
+            ?.serverTimezone
+    );
+    return serverTimezone ? { ...row, serverTimezone } : row;
 }
 
 export async function updatePlaylist(

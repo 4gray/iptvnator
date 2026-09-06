@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    formatXtreamCatchupStart,
     normalizeXtreamServerUrl,
     StreamFormat,
     XtreamSerieEpisode,
@@ -517,32 +518,17 @@ export class XtreamUrlService {
         return allowedFormats[0];
     }
 
+    /**
+     * The panel reads the start segment with `strtotime()` in its own
+     * timezone, so the epoch is rendered in the timezone the account info
+     * reported (IANA name or clock-derived `UTC±HH:MM`,
+     * `xtream-server-timezone.util.ts`). Without one, the viewer's local
+     * clock is the only remaining guess.
+     */
     private formatCatchupStartTime(
         timestamp: number,
         timezone?: string
     ): string {
-        const date = new Date(timestamp * 1000);
-
-        if (timezone) {
-            try {
-                const parts = new Intl.DateTimeFormat('en-CA', {
-                    timeZone: timezone,
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                }).formatToParts(date);
-                const get = (type: Intl.DateTimeFormatPartTypes) =>
-                    parts.find((p) => p.type === type)?.value ?? '00';
-                return `${get('year')}-${get('month')}-${get('day')}:${get('hour')}-${get('minute')}`;
-            } catch {
-                // Invalid timezone string — fall through to local-time formatting
-            }
-        }
-
-        const pad = (value: number) => String(value).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}:${pad(date.getHours())}-${pad(date.getMinutes())}`;
+        return formatXtreamCatchupStart(timestamp, timezone);
     }
 }

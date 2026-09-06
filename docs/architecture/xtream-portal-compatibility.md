@@ -256,3 +256,33 @@ favorites and recently-viewed DB projections and mapped onto
 tab can gate the timeline's archive window. `tv_archive_duration` is
 interpreted as **days** everywhere, matching
 `live-stream-layout.controlledArchiveDays` (issue #1138).
+
+### Start time is the panel's clock, not the viewer's
+
+The `{start}` segment (`Y-m-d:H-M`) is read by the panel with `strtotime()`
+in ITS OWN timezone — the one it reports as `server_info.timezone` in the
+account-info response — never the viewer's local clock (issue #1562). The
+timezone is learned by `withPortal.checkPortalStatus()` and normalized by
+`resolveXtreamServerTimezone()` (`libs/shared/interfaces/src/lib/xtream-server-timezone.util.ts`):
+
+- a timezone name the runtime's ICU resolves (`Europe/London`) is kept as is;
+- otherwise (`UTC+3`, a typo, an unknown alias) the offset is derived from
+  the clock pair the same response carries — `time_now` read as a naive UTC
+  wall clock minus `timestamp_now`, snapped to 15 minutes — and stored as
+  `UTC±HH:MM`;
+- with neither, nothing is stored and the URL falls back to the viewer's
+  clock, the only remaining guess.
+
+The value is persisted on the playlist row (`Playlist.serverTimezone`, via
+`PlaylistsService.transformPlaylistMeta` — a no-op write when the row already
+carries it) because the two catch-up entry points read different sources:
+the Live TV layout uses the store's `currentPlaylist`, while the Favorites /
+Recent resolver (`StreamResolverService.resolveXtreamCatchupUrl`) reads the
+stored row through `dbGetAppPlaylist` / IndexedDB. Electron's
+`DB_GET_PLAYLIST` projects the persisted value from the row payload so the
+store is seeded with it before, or without, the account-info check. The
+same timezone lets `XtreamApiService` read timestamp-less EPG `start`/`end`
+strings in the clock the panel wrote them in
+(`parseXtreamServerLocalDateTime`); `start_timestamp` still wins whenever it
+is present. Formatting uses `hourCycle: 'h23'`, so server midnight renders
+as `00`, never `24`.
