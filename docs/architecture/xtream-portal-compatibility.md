@@ -293,7 +293,12 @@ IndexedDB readwrite cursor transaction. No read precedes the write, because
 the database worker interleaves requests and the Xtream edit dialog saves
 through `DB_UPDATE_PLAYLIST` outside `PlaylistsService`'s queue: a
 read-modify-write could hand a concurrent upsert's newer payload back to the
-past or undo an edit that landed in between. The store offers the resolved
+past or undo an edit that landed in between. The reverse ordering is covered
+on the upsert side: `DB_UPSERT_APP_PLAYLIST(S)` (`playlistConflictUpdate`)
+carries the STORED clock into a snapshot that has none while the row still
+points at the same connection, so a favorites, recent-items or metadata write
+built from a pre-clock snapshot cannot strip it; a snapshot carrying its own
+clock, or moving the source, wins as is. The store offers the resolved
 value on every check (a transient write failure is retried by the next one),
 patches its own state only while the selected playlist is still the panel the
 answer came from (`answersFor`: id + connection), and returns the store's

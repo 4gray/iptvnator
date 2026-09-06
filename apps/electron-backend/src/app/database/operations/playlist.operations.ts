@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, type SQL } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import {
@@ -235,6 +235,48 @@ export function buildPlaylistRow(
     };
 }
 
+/**
+ * The `DO UPDATE` half of an app-playlist upsert. A full upsert is built
+ * from a snapshot the caller read earlier; when that snapshot carries no
+ * panel clock while the stored row does — `setPlaylistServerTimezone`
+ * landed in between — the stored clock is carried over as long as the row
+ * still points at the same panel, so a favorites, recent-items or metadata
+ * write cannot hand a clockless payload back to the past (issue #1562).
+ * A snapshot that carries its own clock, or moves the source, wins as is.
+ * Nested CASE, not AND: SQLite may reorder AND terms, and the json_*
+ * readers raise on a malformed payload unless json_valid ran first.
+ */
+type PlaylistConflictUpdate = {
+    [K in keyof schema.NewPlaylist]?: schema.NewPlaylist[K] | SQL;
+};
+
+function playlistConflictUpdate(
+    row: schema.NewPlaylist,
+    playlist: Record<string, unknown>
+): PlaylistConflictUpdate {
+    if (getStringValue(playlist.serverTimezone)) {
+        return row;
+    }
+    const stored = schema.playlists;
+    const payload = sql`CASE
+        WHEN json_valid(${stored.payload})
+        THEN CASE
+            WHEN json_type(${stored.payload}, '$.serverTimezone') = 'text'
+                AND ${stored.serverUrl} IS excluded.${sql.raw(stored.serverUrl.name)}
+                AND ${stored.username} IS excluded.${sql.raw(stored.username.name)}
+                AND ${stored.password} IS excluded.${sql.raw(stored.password.name)}
+            THEN json_set(
+                excluded.${sql.raw(stored.payload.name)},
+                '$.serverTimezone',
+                json_extract(${stored.payload}, '$.serverTimezone')
+            )
+            ELSE excluded.${sql.raw(stored.payload.name)}
+        END
+        ELSE excluded.${sql.raw(stored.payload.name)}
+    END`;
+    return { ...row, payload };
+}
+
 function getPlaylistItemCount(
     playlist: Record<string, unknown>
 ): number | undefined {
@@ -371,10 +413,13 @@ export async function upsertAppPlaylist(
     }
 
     const write = async () => {
-        await db.insert(schema.playlists).values(row).onConflictDoUpdate({
-            target: schema.playlists.id,
-            set: row,
-        });
+        await db
+            .insert(schema.playlists)
+            .values(row)
+            .onConflictDoUpdate({
+                target: schema.playlists.id,
+                set: playlistConflictUpdate(row, playlist),
+            });
     };
     if (capturePhase) {
         await capturePhase.captureAsync(
@@ -400,20 +445,27 @@ export async function upsertAppPlaylists(
     }
 
     const rows = playlists
-        .map((playlist) => buildPlaylistRow(playlist))
-        .filter((row): row is NonNullable<typeof row> => row !== null);
+        .map((playlist) => ({ playlist, row: buildPlaylistRow(playlist) }))
+        .filter(
+            (
+                entry
+            ): entry is {
+                playlist: Record<string, unknown>;
+                row: NonNullable<typeof entry.row>;
+            } => entry.row !== null
+        );
 
     if (rows.length === 0) {
         return { success: true, count: 0 };
     }
 
     await db.transaction((tx) => {
-        for (const row of rows) {
+        for (const { playlist, row } of rows) {
             tx.insert(schema.playlists)
                 .values(row)
                 .onConflictDoUpdate({
                     target: schema.playlists.id,
-                    set: row,
+                    set: playlistConflictUpdate(row, playlist),
                 })
                 .run();
         }

@@ -43,7 +43,7 @@ function runPlaylistUpdateScenario(scenario: string): unknown {
         const { default: Database } = await import('better-sqlite3');
         const { drizzle } = await import('drizzle-orm/better-sqlite3');
         const schema = await import('@iptvnator/shared/database/schema');
-        const { updatePlaylist, setPlaylistServerTimezone } = await import(${JSON.stringify(operationsUrl)});
+        const { updatePlaylist, setPlaylistServerTimezone, upsertAppPlaylist, upsertAppPlaylists } = await import(${JSON.stringify(operationsUrl)});
         const { __databaseConnectionTestHooks } = await import(${JSON.stringify(connectionUrl)});
         const sqlite = new Database(':memory:');
         const statements = [
@@ -271,6 +271,46 @@ describe('playlist.operations', () => {
             legacy: JSON.stringify({ serverTimezone: 'UTC+03:00' }),
             broken: 'not json',
         });
+    });
+
+    it('keeps the stored panel timezone when a clockless full upsert lands after it on the same connection (issue #1562)', () => {
+        const result = runPlaylistUpdateScenario(`
+            const conn = { serverUrl: 'http://panel.example', username: 'u', password: 'p' };
+            const stale = (id, extra = {}) => ({ _id: id, title: id, ...conn, type: 'xtream', favorites: ['1'], ...extra });
+            for (const id of ['kept', 'moved', 'own-clock', 'batch']) {
+                await upsertAppPlaylist(db, stale(id));
+                await setPlaylistServerTimezone(db, id, conn, 'Europe/London');
+            }
+            // Snapshots read BEFORE the clock landed, written after it.
+            await upsertAppPlaylist(db, stale('kept', { favorites: ['1', '2'] }));
+            await upsertAppPlaylist(db, stale('moved', { serverUrl: 'http://other.example' }));
+            await upsertAppPlaylist(db, stale('own-clock', { serverTimezone: 'UTC+03:00' }));
+            await upsertAppPlaylists(db, [stale('batch', { favorites: ['9'] })]);
+            const rows = Object.fromEntries(
+                sqlite.prepare('SELECT id, serverUrl, payload FROM playlists').all()
+                    .map((row) => [row.id, { serverUrl: row.serverUrl, payload: JSON.parse(row.payload) }])
+            );
+            process.stdout.write(JSON.stringify(rows));
+        `) as Record<
+            string,
+            { serverUrl: string; payload: Record<string, unknown> }
+        >;
+
+        expect(result['kept'].payload).toEqual(
+            expect.objectContaining({
+                favorites: ['1', '2'],
+                serverTimezone: 'Europe/London',
+            })
+        );
+        expect(result['batch'].payload).toEqual(
+            expect.objectContaining({
+                favorites: ['9'],
+                serverTimezone: 'Europe/London',
+            })
+        );
+        expect(result['own-clock'].payload.serverTimezone).toBe('UTC+03:00');
+        expect(result['moved'].serverUrl).toBe('http://other.example');
+        expect(result['moved'].payload).not.toHaveProperty('serverTimezone');
     });
 
     it('loads app playlist metadata without selecting the large payload column', async () => {
