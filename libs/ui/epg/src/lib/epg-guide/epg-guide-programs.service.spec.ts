@@ -59,6 +59,9 @@ describe('EpgGuideProgramsService', () => {
             ],
         });
         service = TestBed.inject(EpgGuideProgramsService);
+        // Consume the constructor effect's first run (a no-op by design) so
+        // each test starts from a clean, predictable call count.
+        TestBed.flushEffects();
     });
 
     it('reports "none" for channels without an EPG key and never requests them', async () => {
@@ -135,10 +138,56 @@ describe('EpgGuideProgramsService', () => {
         service.ensureLoaded(channels());
         await flush();
         expect(service.programsFor('a')).toHaveLength(1);
+        const callsBefore = loadCoverage.mock.calls.length;
         channels.set([channel('a'), channel('z')]);
         TestBed.flushEffects();
         await flush();
         expect(service.statusFor('a')).toBe('idle');
-        expect(loadCoverage).toHaveBeenCalledTimes(2);
+        expect(loadCoverage.mock.calls.length).toBe(callsBefore + 1);
+        const requested = loadCoverage.mock.calls[callsBefore][0] as {
+            channels: EpgGuideChannel[];
+        };
+        const requestedIds = requested.channels.map((item) => item.id);
+        expect(requestedIds).toContain('z');
+        expect(requestedIds).not.toContain('b');
+    });
+
+    it('does not re-invalidate or drop an in-flight load when the effect flushes again with unchanged channels', async () => {
+        loadPrograms.mockResolvedValue(new Map([['a', [programFor('a')]]]));
+        service.setWindow(1_000, 2_000);
+        service.ensureLoaded(channels());
+        TestBed.flushEffects();
+        await flush();
+        expect(loadCoverage).toHaveBeenCalledTimes(1);
+        expect(service.programsFor('a')).toHaveLength(1);
+    });
+
+    it('leaves coverage unknown when a coverage chunk rejects', async () => {
+        loadCoverage.mockRejectedValue(new Error('coverage down'));
+        service.setWindow(1_000, 2_000);
+        await flush();
+        expect(service.coverageLoaded()).toBe(false);
+        expect(service.isCovered('b')).toBe(true);
+    });
+
+    it('treats an empty-string epgKey the same as null', async () => {
+        channels.set([channel('a'), channel('empty', '')]);
+        loadPrograms.mockResolvedValue(new Map());
+        service.setWindow(1_000, 2_000);
+        service.ensureLoaded(channels());
+        await flush();
+        expect(service.statusFor('empty')).toBe('none');
+        const requestedPrograms = loadPrograms.mock.calls[0][0] as {
+            channels: EpgGuideChannel[];
+        };
+        expect(requestedPrograms.channels.map((item) => item.id)).not.toContain(
+            'empty'
+        );
+        const requestedCoverage = loadCoverage.mock.calls[0][0] as {
+            channels: EpgGuideChannel[];
+        };
+        expect(requestedCoverage.channels.map((item) => item.id)).not.toContain(
+            'empty'
+        );
     });
 });
