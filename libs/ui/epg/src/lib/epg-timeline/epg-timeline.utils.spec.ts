@@ -9,12 +9,16 @@ import {
     dayKeyAtOffset,
     hasProgramsForDateKey,
     nearestDateKeyWithPrograms,
+    nextTimelineZoomScale,
+    TIMELINE_GROUP_EXPAND_ZOOM,
     TIMELINE_MINUTE_MS,
     TIMELINE_MIN_BLOCK_WIDTH_PX,
+    TIMELINE_ZOOM_LEVELS,
     TimelineRenderBlock,
     TimelineRenderGroup,
     tierFor,
     timelineTickStepForScale,
+    timelineZoomLevelForScale,
 } from './epg-timeline.utils';
 
 function localIso(
@@ -66,15 +70,15 @@ describe('epg-timeline.utils', () => {
 
     describe('classifyTimelineWhen', () => {
         it('classifies past, now and future relative to now', () => {
-            expect(classifyTimelineWhen(NOW - 7200000, NOW - 3600000, NOW)).toBe(
-                'past'
-            );
+            expect(
+                classifyTimelineWhen(NOW - 7200000, NOW - 3600000, NOW)
+            ).toBe('past');
             expect(classifyTimelineWhen(NOW - 60000, NOW + 60000, NOW)).toBe(
                 'now'
             );
-            expect(classifyTimelineWhen(NOW + 3600000, NOW + 7200000, NOW)).toBe(
-                'future'
-            );
+            expect(
+                classifyTimelineWhen(NOW + 3600000, NOW + 7200000, NOW)
+            ).toBe('future');
         });
     });
 
@@ -91,18 +95,30 @@ describe('epg-timeline.utils', () => {
             const block = blocks[0];
             expect(block.when).toBe('now');
             expect(block.durationMin).toBe(120);
-            const expectedOffset = (block.startMs - axis.startMs) / TIMELINE_MINUTE_MS;
+            const expectedOffset =
+                (block.startMs - axis.startMs) / TIMELINE_MINUTE_MS;
             expect(block.offsetMin).toBeCloseTo(expectedOffset, 5);
         });
 
         it('sorts blocks chronologically', () => {
             const programs = [
-                program(localIso(2026, 6, 28, 18), localIso(2026, 6, 28, 19), 'late'),
-                program(localIso(2026, 6, 28, 8), localIso(2026, 6, 28, 9), 'early'),
+                program(
+                    localIso(2026, 6, 28, 18),
+                    localIso(2026, 6, 28, 19),
+                    'late'
+                ),
+                program(
+                    localIso(2026, 6, 28, 8),
+                    localIso(2026, 6, 28, 9),
+                    'early'
+                ),
             ];
             const axis = buildTimelineAxis(programs, NOW);
             const blocks = buildTimelineBlocks(programs, axis, NOW);
-            expect(blocks.map((b) => b.program.title)).toEqual(['early', 'late']);
+            expect(blocks.map((b) => b.program.title)).toEqual([
+                'early',
+                'late',
+            ]);
         });
     });
 
@@ -167,7 +183,8 @@ describe('epg-timeline.utils', () => {
                 [program(localIso(2026, 6, 28, 10), localIso(2026, 6, 28, 11))],
                 NOW
             );
-            const offsetForNoon = (12 * 60 * TIMELINE_MINUTE_MS) / TIMELINE_MINUTE_MS;
+            const offsetForNoon =
+                (12 * 60 * TIMELINE_MINUTE_MS) / TIMELINE_MINUTE_MS;
             expect(dayKeyAtOffset(axis, offsetForNoon)).toBe('2026-06-28');
         });
 
@@ -177,7 +194,9 @@ describe('epg-timeline.utils', () => {
                 program(localIso(2026, 6, 30, 10), localIso(2026, 6, 30, 11)),
             ];
             // Jun 30 10:00 (~1d22h away) is closer to Jun 28 12:00 than Jun 25.
-            expect(nearestDateKeyWithPrograms(programs, NOW)).toBe('2026-06-30');
+            expect(nearestDateKeyWithPrograms(programs, NOW)).toBe(
+                '2026-06-30'
+            );
         });
 
         it('keys, positions and picks days in display time when an offset is set', () => {
@@ -189,8 +208,12 @@ describe('epg-timeline.utils', () => {
                     'Late'
                 ),
             ];
-            expect(hasProgramsForDateKey(programs, '2026-06-29', 60)).toBe(false);
-            expect(hasProgramsForDateKey(programs, '2026-06-30', 60)).toBe(true);
+            expect(hasProgramsForDateKey(programs, '2026-06-29', 60)).toBe(
+                false
+            );
+            expect(hasProgramsForDateKey(programs, '2026-06-30', 60)).toBe(
+                true
+            );
             expect(nearestDateKeyWithPrograms(programs, NOW, 60)).toBe(
                 '2026-06-30'
             );
@@ -202,6 +225,35 @@ describe('epg-timeline.utils', () => {
             );
             // The block still carries the raw programme for catch-up.
             expect(block.program).toBe(programs[0]);
+        });
+    });
+
+    describe('zoom presets', () => {
+        it('maps every preset scale back to its own level', () => {
+            for (const { level, scale } of TIMELINE_ZOOM_LEVELS) {
+                expect(timelineZoomLevelForScale(scale)).toBe(level);
+            }
+        });
+
+        it('classifies off-preset scales by band', () => {
+            expect(timelineZoomLevelForScale(0.8)).toBe('day');
+            expect(timelineZoomLevelForScale(1.29)).toBe('day');
+            expect(timelineZoomLevelForScale(1.3)).toBe('hours');
+            expect(timelineZoomLevelForScale(2.99)).toBe('hours');
+            expect(timelineZoomLevelForScale(3)).toBe('detail');
+            expect(timelineZoomLevelForScale(6)).toBe('detail');
+        });
+
+        it('cycles to the next preset and wraps from detail to day', () => {
+            expect(nextTimelineZoomScale(1)).toBe(1.75);
+            expect(nextTimelineZoomScale(1.75)).toBe(3.4);
+            expect(nextTimelineZoomScale(3.4)).toBe(1);
+            // an expanded group chip sits on the detail preset, so the cycle
+            // continues from there instead of re-entering "detail"
+            expect(nextTimelineZoomScale(TIMELINE_GROUP_EXPAND_ZOOM)).toBe(1);
+            // wheel-tuned values snap to the band's successor
+            expect(nextTimelineZoomScale(2.6)).toBe(3.4);
+            expect(nextTimelineZoomScale(5)).toBe(1);
         });
     });
 
@@ -220,11 +272,19 @@ describe('epg-timeline.utils', () => {
             expect(timelineTickStepForScale(6)).toBe(15);
         });
 
-        function blocksFor(durations: number[]): ReturnType<typeof buildTimelineBlocks> {
+        function blocksFor(
+            durations: number[]
+        ): ReturnType<typeof buildTimelineBlocks> {
             let startMin = 6 * 60; // 06:00
             const programs = durations.map((dur) => {
                 const p = program(
-                    localIso(2026, 6, 28, Math.floor(startMin / 60), startMin % 60),
+                    localIso(
+                        2026,
+                        6,
+                        28,
+                        Math.floor(startMin / 60),
+                        startMin % 60
+                    ),
                     localIso(
                         2026,
                         6,
@@ -278,7 +338,10 @@ describe('epg-timeline.utils', () => {
                 eh: number,
                 em: number
             ): ReturnType<typeof program> =>
-                program(localIso(2026, 6, 28, sh, sm), localIso(2026, 6, 28, eh, em));
+                program(
+                    localIso(2026, 6, 28, sh, sm),
+                    localIso(2026, 6, 28, eh, em)
+                );
             const programs = [
                 mk(11, 38, 11, 43),
                 mk(11, 43, 11, 48),

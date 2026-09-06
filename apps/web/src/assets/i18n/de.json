@@ -836,6 +836,7 @@
             "ZOOM_DAY": "Tagesübersicht",
             "ZOOM_HOURS": "Stundenweise",
             "ZOOM_DETAIL": "Detailliert",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · Strg + Scrollen zum Feinabstimmen",
             "GROUP_SHORT": "kurze Sendungen",
             "GROUP_EXPAND": "anzeigen ›"
         }

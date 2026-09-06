@@ -836,6 +836,7 @@
             "ZOOM_DAY": "Day overview",
             "ZOOM_HOURS": "By hour",
             "ZOOM_DETAIL": "Detailed",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · Ctrl + scroll to fine-tune",
             "GROUP_SHORT": "short progs",
             "GROUP_EXPAND": "show ›"
         }

@@ -836,6 +836,7 @@
             "ZOOM_DAY": "Επισκόπηση ημέρας",
             "ZOOM_HOURS": "Ανά ώρα",
             "ZOOM_DETAIL": "Λεπτομερής",
+            "ZOOM_TOOLTIP": "Ζουμ: {{level}} · Ctrl + κύλιση για λεπτομερή ρύθμιση",
             "GROUP_SHORT": "σύντ. προγρ.",
             "GROUP_EXPAND": "εμφάνιση ›"
         }

@@ -836,6 +836,7 @@
             "ZOOM_DAY": "Panoramica giorno",
             "ZOOM_HOURS": "Per ora",
             "ZOOM_DETAIL": "Dettagliato",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · Ctrl + rotella per regolare",
             "GROUP_SHORT": "prog. brevi",
             "GROUP_EXPAND": "mostra ›"
         }

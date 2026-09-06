@@ -836,6 +836,7 @@
             "ZOOM_DAY": "Dagoverzicht",
             "ZOOM_HOURS": "Per uur",
             "ZOOM_DETAIL": "Gedetailleerd",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · Ctrl + scrollen om fijn af te stellen",
             "GROUP_SHORT": "korte progr.",
             "GROUP_EXPAND": "toon ›"
         }
