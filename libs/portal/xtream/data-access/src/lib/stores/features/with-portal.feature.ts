@@ -199,10 +199,10 @@ export function withPortal() {
                         // request may hand the old panel's status or clock
                         // to the new one.
                         const current = store.currentPlaylist();
-                        if (
+                        const describesCurrent =
                             current?.id === playlist.id &&
-                            answersFor(current, credentials)
-                        ) {
+                            answersFor(current, credentials);
+                        if (describesCurrent) {
                             patchState(store, {
                                 portalStatus,
                                 currentPlaylist: {
@@ -226,7 +226,12 @@ export function withPortal() {
                                 serverTimezone
                             );
                         }
-                        return portalStatus;
+                        // Callers gate content initialization on this value
+                        // for whatever is selected NOW; an answer about
+                        // another panel must not unblock it.
+                        return describesCurrent
+                            ? portalStatus
+                            : store.portalStatus();
                     } catch (error) {
                         logger.error('Error checking portal status', error);
                         const current = store.currentPlaylist();
@@ -236,7 +241,9 @@ export function withPortal() {
                         ) {
                             patchState(store, { portalStatus: 'unavailable' });
                         }
-                        return 'unavailable';
+                        // The old panel's failure says nothing about a
+                        // playlist selected or edited meanwhile.
+                        return store.portalStatus();
                     }
                 },
 

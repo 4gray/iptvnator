@@ -242,7 +242,9 @@ describe('withPortal', () => {
                 server_info: { timezone: 'Europe/London' },
             });
 
-            await expect(pending).resolves.toBe('active');
+            // The answer describes A; callers gating content init on the
+            // result get the store's verdict about B instead.
+            await expect(pending).resolves.toBe('unavailable');
             expect(store.currentPlaylist()).toEqual(other);
             expect(store.portalStatus()).toBe('unavailable');
             expect(transformPlaylistMeta).toHaveBeenCalledWith(
@@ -277,7 +279,7 @@ describe('withPortal', () => {
                 server_info: { timezone: 'Europe/London' },
             });
 
-            await expect(pending).resolves.toBe('active');
+            await expect(pending).resolves.toBe('unavailable');
             expect(store.currentPlaylist()).toEqual(moved);
             expect(store.portalStatus()).toBe('unavailable');
             expect(storedPlaylist.serverTimezone).toBeUndefined();
@@ -326,7 +328,8 @@ describe('withPortal', () => {
 
             fail(new Error('panel down'));
 
-            await expect(pending).resolves.toBe('unavailable');
+            // A's failure says nothing about B, so the caller gets B's verdict.
+            await expect(pending).resolves.toBe('active');
             expect(store.portalStatus()).toBe('active');
         });
 
