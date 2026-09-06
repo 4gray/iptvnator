@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "إخفاء قائمة القنوات",
         "SHOW_CHANNELS_LIST": "إظهار قائمة القنوات",
         "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "قائمة القنوات مخفية",
+        "CHANNELS_LIST_HIDDEN_HINT": "أعدها باستخدام الزر أدناه أو اضغط ⌘/Ctrl+B.",
         "HIDE_CATEGORIES": "إخفاء الفئات",
         "SHOW_CATEGORIES": "إظهار الفئات",
         "SHOW_CATEGORIES_PANEL": "إظهار لوحة الفئات",

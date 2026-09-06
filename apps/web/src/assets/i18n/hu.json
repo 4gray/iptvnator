@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "Csatornalista elrejtése",
         "SHOW_CHANNELS_LIST": "Csatornalista megjelenítése",
         "TOGGLE_SIDEBAR_TOOLTIP": "Csatornalista megjelenítése vagy elrejtése (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "A csatornalista el van rejtve",
+        "CHANNELS_LIST_HIDDEN_HINT": "Az alábbi gombbal vagy a ⌘/Ctrl+B billentyűkkel jelenítheti meg újra.",
         "HIDE_CATEGORIES": "Kategóriák elrejtése",
         "SHOW_CATEGORIES": "Kategóriák megjelenítése",
         "SHOW_CATEGORIES_PANEL": "Kategóriapanel megjelenítése",

@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "隐藏频道列表",
         "SHOW_CHANNELS_LIST": "显示频道列表",
         "TOGGLE_SIDEBAR_TOOLTIP": "切换频道列表 (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "频道列表已隐藏",
+        "CHANNELS_LIST_HIDDEN_HINT": "点击下方按钮或按 ⌘/Ctrl+B 重新显示。",
         "HIDE_CATEGORIES": "隐藏分类",
         "SHOW_CATEGORIES": "显示分类",
         "SHOW_CATEGORIES_PANEL": "显示分类面板",

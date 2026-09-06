@@ -53,7 +53,7 @@ export class WorkspaceLiveCategoriesPopoverService
             .subscribe(() => this.close());
         // Seeded by the effect's first run, not at construction: the state
         // may move between the two before anything is open.
-        const sidebarState = inject(LiveLayoutSidebarStateService).state;
+        const sidebarState = inject(LiveLayoutSidebarStateService).stateOf('portal');
         let previous: string | null = null;
         effect(() => {
             const next = sidebarState();

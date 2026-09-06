@@ -209,6 +209,12 @@
     }
 }
 
+// The rail is visible most of the time, so the toggle stays neutral then and
+// only tints once the rail is hidden: the exception is what deserves the cue.
+.header-sidebar-toggle--collapsed {
+    color: var(--mat-sys-primary);
+}
+
 .header-actions--leading {
     margin-left: -4px;
 }
@@ -390,6 +396,13 @@
         margin-left: 0;
 
         .shortcuts-trigger {
+            display: none;
+        }
+
+        // At the phone breakpoint the live rail is a bottom drawer with its
+        // own toggle, and the header has no room left for another permanent
+        // icon: it already holds the drawer toggle, switcher, search and Add.
+        .header-sidebar-toggle {
             display: none;
         }
     }

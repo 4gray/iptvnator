@@ -277,7 +277,7 @@ remain local when the meaning is explicit.
        popover, so switching categories stays one click away.
     3. `collapsed` — player + EPG only ("theater").
 - There is deliberately no "channels hidden, categories visible" state: a
-  category click has to bring the channels back anyway. Layouts without a
+  category click has to bring the channels back anyway. Surfaces without a
   categories rail (M3U, the unified-collection live tab) treat level 2 like
   level 1 — and so does the live ROOT (no selected category, Xtream `/live`
   "All Items", Stalker's all-items grid): there is no channels rail to host
@@ -297,49 +297,84 @@ remain local when the meaning is explicit.
 - Affordances, each in the panel it acts on:
     - A `chevron_left` in the categories rail header
       (`WorkspaceContextPanelComponent`, `presentation="sidebar"`, live
-      sections only) → level 2 (`hideCategories()`).
+      sections only) → level 2 (`hideCategories('portal')`).
     - A `chevron_right` at the start of the channels header
       (`data-test-id="live-show-categories"`) and the popover footer's
-      "Show categories panel" → level 1 (`showCategories()`).
+      "Show categories panel" → level 1 (`showCategories('portal')`).
     - The category dropdown (`data-test-id="live-category-dropdown"`) opens
       `LIVE_CATEGORIES_POPOVER` anchored below itself. The token lives in
       `@iptvnator/portal/shared/util`; the workspace shell provides it
       (`WorkspaceLiveCategoriesPopoverService`, CDK overlay hosting
       `WorkspaceLiveCategoriesPopoverComponent`, which stamps the context
-      panel with `presentation="popover"`) and the live layouts inject it
-      optionally — without a provider the header keeps its plain title.
-      The stamped panel opts out of the live-TV column keyboard contract
+      panel with `presentation="popover"`) and the live layouts reach it
+      through their `LivePanelsController` (`createLivePanelsController()`
+      in a field initializer: level flags, the popover bridge and the focus
+      handoff in one shared object, so the layout components carry none of
+      it; without a provider the header keeps its plain title). The stamped
+      panel opts out of the live-TV column keyboard contract
       (`columnHandoff=false`: no `#portal-categories` id, no ArrowRight
       handoff to `#live-channels`), since the dialog's focus trap would
       bounce that handoff back inside and a second id would shadow the
-      folded rail's. Backdrop, Escape, the footer, any category selection
-      (`categorySelected` output), any router `NavigationStart` and any
-      live-panel level change (`Cmd/Ctrl+B` reaches the layout through the
-      dialog) close it
-      (the shell outlives the child route that owns the trigger); focus
-      returns to the trigger. The popover host is a `role="dialog"` with
-      `aria-modal` and a `CdkTrapFocus` host directive that captures focus
-      on open, matching the trigger's `aria-haspopup="dialog"`.
-    - The `chevron_left` in the channels header → level 3 (`collapse()`).
+      folded rail's; the category sort preference is shared through
+      `PortalCategorySortStateService`, so a sort picked in the popover
+      survives into the restored rail. Backdrop, Escape, the footer, any
+      category selection (`categorySelected` output), any router
+      `NavigationStart` and any live-panel level change (`Cmd/Ctrl+B`
+      reaches the layout through the dialog) close it; focus returns to the
+      trigger. The popover host is a `role="dialog"` with `aria-modal` and a
+      `CdkTrapFocus` host directive that captures focus on open, matching
+      the trigger's `aria-haspopup="dialog"`.
+    - The `chevron_left` in the channels header → level 3
+      (`collapse('portal')`).
     - While collapsed, a floating `chevron_right` mini-fab at the left edge of
-      `.content-container` and `Cmd/Ctrl+B` (`toggle()`) return to the level
-      the user collapsed from, not always to level 1. The shortcut handler
-      ignores events that originate inside `<input>`, `<textarea>`,
-      `<select>`, or content-editable elements via the shared
-      `isTypingInInput` helper.
+      `.content-container`, the workspace header toggle and `Cmd/Ctrl+B`
+      (`toggle(surface)`) return to the level the user collapsed from, not
+      always to level 1. The shortcut handler ignores events that originate
+      inside `<input>`, `<textarea>`, `<select>`, or content-editable
+      elements via the shared `isTypingInInput` helper. "Show playing
+      channel" (`XtreamLiveChannelNavigationService`, `StalkerLiveNavigation`)
+      uses `expand('portal')` for the same reason: revealing the row must not
+      unfold a deliberately hidden categories rail.
 - Collapsed state is owned by `LiveLayoutSidebarStateService`
-  (`providedIn: 'root'`), for M3U and the unified live tab too — a consumer
-  writing the storage key on its own would overwrite the portals'
-  `categories-hidden` preference with `expanded` on restore. Consumers read
-  a derived flag, never the raw state:
-  the categories rail folds on `areCategoriesHidden`, the channels rail on
-  `isCollapsed`. Persistence delegates to the `live-sidebar-state` helpers so
-  the localStorage key stays unchanged; missing/invalid values restore to
-  expanded. `collapsed` is a moment mode and never restores: a stored
-  `collapsed` comes back as `categories-hidden`, so a fresh launch always
-  shows the channels list (#1458 reported the previous "all my channels
-  disappeared" confusion). A hidden categories rail is a stable preference
-  and restores as stored.
+  (`providedIn: 'root'`) in `@iptvnator/portal/shared/util` and kept **per
+  surface** (`LiveSidebarSurface`): `m3u` (the M3U player), `portal` (Xtream
+  and Stalker live layouts plus the shell categories rail) and `collection`
+  (the unified favorites/recent live tab). Every participant injects the
+  service and reads a derived, stable per-surface signal, never the raw
+  state: the categories rail folds on `areCategoriesHiddenFor(surface)`, the
+  channels rail on `isCollapsedFor(surface)`; actions are `toggle`,
+  `collapse`, `expand`, `hideCategories`, `showCategories` and `setState`,
+  all per surface. Nothing reads localStorage directly. Persistence lives
+  under `live-sidebar-state:<surface>` and every level is restored as
+  stored; the level `toggle()` comes back to is session-only. Hiding the
+  list is a per-context choice: it must not follow the user from a portal to
+  an M3U playlist, nor from the desktop rail to the phone bottom drawer of
+  another surface. The pre-split shared key `live-sidebar-state` is forgotten
+  on service construction and never read — a stored `collapsed` there hid
+  every channel list in the app behind a 32px chevron and survived restart,
+  "Remove all playlists" and re-import (issue #1458).
+- The control never moves. Inside the rail a `mat-icon-button` with
+  `chevron_left` hides it; while collapsed a floating `chevron_right` mini-fab
+  sits at the left edge of `.content-container`. Because both of those live
+  in the thing they hide, the workspace header additionally renders
+  `view_sidebar` (`headerSidebarToggle`, `WorkspaceShellHeaderService`) on
+  every route that renders its own rail — M3U `all`/`groups`, Xtream `live`,
+  Stalker `itv`/`radio` (`resolveRouteLiveSidebarSurface`). It stays in place
+  in both states, uses `aria-pressed` (pressed = rail visible) and tints
+  primary only while the rail is hidden, since the hidden state is the
+  exception that deserves the cue. Collection pages are deliberately excluded:
+  only the page knows whether its live tab, and therefore the rail, is on
+  screen, so its own header toggle beside the content switch stays the owner.
+  At the phone breakpoint (≤640px) the header toggle is hidden: the rail is a
+  bottom drawer there with its own toggle and the header has no spare width.
+- While the rail is collapsed and nothing is playing, every live host renders
+  `app-channel-list-hidden-state` (`@iptvnator/portal/shared/ui`) instead of
+  the "select a channel" empty state: a title that says the list is hidden, a
+  one-line hint naming the shortcut, and a full-size "Show channels list"
+  stroked button wired to the same toggle. The generic
+  `app-portal-empty-state` grew optional `hint`, `actionLabel`, `actionIcon`
+  inputs and an `action` output for this; the action keeps full opacity while
+  icon and copy stay muted, because it is the way out of the state.
 - A folded rail is 0px wide but still rendered, so it also carries `inert`
   (`isContextPanelInert` on the shell rail, `isSidebarCollapsed` on the
   Xtream/Stalker channels rail) to leave the Tab order and the accessibility
@@ -349,21 +384,18 @@ remain local when the meaning is explicit.
   Every level change removes or inerts the very button the user activated,
   so focus drops to `<body>`; the side that gains the replacement affordance
   picks it up after its next render via `focusIfFocusLost()`
-  (`@iptvnator/portal/shared/util`): the layouts own a
-  `LivePanelsController` (`createLivePanelsController()` in a field
-  initializer; it bundles the level flags, the popover bridge and the
-  handoff, so the layout components carry none of it) which installs
-  `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level (on the live
-  root the first category selection folds the rail with no state change)
-  and focuses the floating restore handle at player-only or the
-  show-categories button while the rail is folded,
-  and the shell sidebar, watching the rail's ACTUAL fold state (on the live
-  root the rail stays visible at level 2, so only player-only ↔ visible is a
-  transition there), focuses the control the context panel names
-  (`focusTarget()`: its hide chevron, or its first header action when the
-  chevron is withheld) and, while none is rendered (categories loading, a
-  failed load), the `tabindex="-1"` aside itself — only on transitions, and
-  never when another control still owns focus.
+  (`@iptvnator/portal/shared/util`): the layouts' `LivePanelsController`
+  installs `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level (on
+  the live root the first category selection folds the rail with no state
+  change) and focuses the floating restore handle at player-only or the
+  show-categories button while the rail is folded, and the shell sidebar,
+  watching the rail's ACTUAL fold state (on the live root the rail stays
+  visible at level 2, so only player-only ↔ visible is a transition there),
+  focuses the control the context panel names (`focusTarget()`: its hide
+  chevron, or its first header action when the chevron is withheld) and,
+  while none is rendered (categories loading, a failed load), the
+  `tabindex="-1"` aside itself — only on transitions, and never when another
+  control still owns focus.
 - The CSS class `.sidebar-collapsed` (channels rail) and
   `.context-panel--collapsed` (workspace shell categories rail) both override
   the inline width set by the `appResizable` directive with

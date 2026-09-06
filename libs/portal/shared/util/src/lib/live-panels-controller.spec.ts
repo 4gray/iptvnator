@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { createLivePanelsController } from './live-panels-controller';
 import { LIVE_CATEGORIES_POPOVER } from './live-categories-popover.token';
 import { LiveLayoutSidebarStateService } from './live-layout-sidebar-state.service';
-import { LIVE_SIDEBAR_STATE_STORAGE_KEY } from './live-sidebar-state';
+import { liveSidebarStateStorageKey } from './live-sidebar-state';
 
 describe('LivePanelsController', () => {
     const popover = { open: jest.fn(), close: jest.fn() };
@@ -19,6 +19,7 @@ describe('LivePanelsController', () => {
         });
         return TestBed.runInInjectionContext(() =>
             createLivePanelsController({
+                surface: 'portal',
                 hasSelectedCategory,
                 showCategoriesButton: signal(new ElementRef(showButton)),
                 restoreButton: signal(new ElementRef(restoreButton)),
@@ -32,7 +33,7 @@ describe('LivePanelsController', () => {
     }
 
     beforeEach(() => {
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         popover.open.mockClear();
         popover.close.mockClear();
         hasSelectedCategory.set(true);
@@ -44,8 +45,8 @@ describe('LivePanelsController', () => {
     afterEach(() => {
         showButton.remove();
         restoreButton.remove();
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
     });
 
     it('offers the dropdown only with a provider, a folded rail and a selected category', () => {
@@ -53,7 +54,7 @@ describe('LivePanelsController', () => {
         const state = TestBed.inject(LiveLayoutSidebarStateService);
         expect(controller.canOpenCategoriesPopover()).toBe(false);
 
-        state.hideCategories();
+        state.hideCategories('portal');
         expect(controller.canOpenCategoriesPopover()).toBe(true);
         expect(controller.effectiveLevel()).toBe('categories-hidden');
 
@@ -61,18 +62,18 @@ describe('LivePanelsController', () => {
         expect(controller.canOpenCategoriesPopover()).toBe(false);
         expect(controller.effectiveLevel()).toBe('expanded');
 
-        state.collapse();
+        state.collapse('portal');
         expect(controller.effectiveLevel()).toBe('collapsed');
     });
 
     it('keeps the plain heading without a popover provider', () => {
         const controller = create(false);
-        TestBed.inject(LiveLayoutSidebarStateService).hideCategories();
+        TestBed.inject(LiveLayoutSidebarStateService).hideCategories('portal');
 
         expect(controller.canOpenCategoriesPopover()).toBe(false);
         controller.openCategoriesPopover(showButton);
         controller.showCategories();
-        expect(TestBed.inject(LiveLayoutSidebarStateService).state()).toBe(
+        expect(TestBed.inject(LiveLayoutSidebarStateService).stateOf('portal')()).toBe(
             'expanded'
         );
     });
@@ -85,21 +86,21 @@ describe('LivePanelsController', () => {
         expect(popover.open).toHaveBeenCalledWith(showButton);
 
         controller.collapsePanels();
-        expect(state.state()).toBe('collapsed');
+        expect(state.stateOf('portal')()).toBe('collapsed');
         controller.toggleSidebar();
-        expect(state.state()).toBe('expanded');
+        expect(state.stateOf('portal')()).toBe('expanded');
 
-        state.hideCategories();
+        state.hideCategories('portal');
         controller.showCategories();
         expect(popover.close).toHaveBeenCalledTimes(1);
-        expect(state.state()).toBe('expanded');
+        expect(state.stateOf('portal')()).toBe('expanded');
     });
 
     it('hands focus across level changes, including a fold by category selection', async () => {
         const controller = create();
         const state = TestBed.inject(LiveLayoutSidebarStateService);
         hasSelectedCategory.set(false);
-        state.hideCategories();
+        state.hideCategories('portal');
         await settle();
         (document.activeElement as HTMLElement | null)?.blur();
 

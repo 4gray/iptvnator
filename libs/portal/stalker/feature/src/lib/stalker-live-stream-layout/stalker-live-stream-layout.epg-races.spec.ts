@@ -166,9 +166,9 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 {
                     provide: LiveLayoutSidebarStateService,
                     useValue: {
-                        isCollapsed: signal(false),
-                        areCategoriesHidden: signal(false),
-                        state: signal('expanded'),
+                        isCollapsedFor: () => signal(false),
+                        areCategoriesHiddenFor: () => signal(false),
+                        stateOf: () => signal('expanded'),
                         toggle: jest.fn(),
                     },
                 },

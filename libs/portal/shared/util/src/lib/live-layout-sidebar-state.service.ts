@@ -1,87 +1,136 @@
-import { computed, Injectable, signal } from '@angular/core';
 import {
+    computed,
+    Injectable,
+    Signal,
+    signal,
+    WritableSignal,
+} from '@angular/core';
+import {
+    forgetLegacyLiveSidebarState,
     LiveSidebarState,
+    LiveSidebarSurface,
+    liveSidebarStateStorageKey,
     persistLiveSidebarState,
     restoreLiveSidebarState,
 } from './live-sidebar-state';
 
+function bySurface<T>(
+    create: (surface: LiveSidebarSurface) => T
+): Record<LiveSidebarSurface, T> {
+    return {
+        m3u: create('m3u'),
+        portal: create('portal'),
+        collection: create('collection'),
+    };
+}
+
 /**
- * Shared visibility state for the live-TV panels across the workspace shell
- * categories rail (Xtream/Stalker), the inline channels rail, and the
- * unified-collection live tab. A single signal keeps all surfaces in sync
- * within a session; localStorage persistence is delegated to the existing
- * `live-sidebar-state` helpers so the storage key stays unchanged.
+ * Single owner of the live-TV sidebar collapse state. Every surface that
+ * renders a collapsible channel rail — the M3U player, the Xtream/Stalker
+ * live layouts together with the workspace shell categories rail, the
+ * unified favorites/recent live tab, and the workspace header toggle — reads
+ * and writes through this service, so a toggle in one place is reflected
+ * everywhere the same surface is rendered within the session.
  *
- * The three states nest (see `LiveSidebarState`). Consumers read one of two
+ * State is kept per surface (`live-sidebar-state:<surface>` in
+ * localStorage). The pre-split shared key is forgotten on construction.
+ *
+ * The three levels nest (see `LiveSidebarState`). Consumers read one of two
  * derived flags rather than the raw state: the categories rail folds on
- * `areCategoriesHidden`, the channels rail only on `isCollapsed`.
+ * `areCategoriesHiddenFor(surface)`, the channels rail only on
+ * `isCollapsedFor(surface)`.
  */
 @Injectable({ providedIn: 'root' })
 export class LiveLayoutSidebarStateService {
-    private readonly _state = signal<LiveSidebarState>(
-        restoreLiveSidebarState()
-    );
+    private readonly states: Record<
+        LiveSidebarSurface,
+        WritableSignal<LiveSidebarState>
+    >;
+    private readonly collapsed: Record<LiveSidebarSurface, Signal<boolean>>;
+    private readonly categoriesHidden: Record<
+        LiveSidebarSurface,
+        Signal<boolean>
+    >;
     /**
-     * The level to come back to when leaving `collapsed`. Session-only on
-     * purpose: after a restart the stored value already carries the answer,
-     * since `collapsed` never restores.
+     * The level to come back to when leaving `collapsed`, per surface.
+     * Session-only on purpose: a restart restores the stored level itself.
      */
-    private restoreTarget: Exclude<LiveSidebarState, 'collapsed'> =
-        'expanded';
-
-    readonly state = this._state.asReadonly();
+    private readonly restoreTargets: Record<
+        LiveSidebarSurface,
+        Exclude<LiveSidebarState, 'collapsed'>
+    >;
 
     constructor() {
-        // A stored `collapsed` restores one level up; write that back so the
-        // stored value and the live state agree from the first read on.
-        persistLiveSidebarState(this._state());
+        forgetLegacyLiveSidebarState();
+        this.states = bySurface((surface) =>
+            signal(restoreLiveSidebarState(liveSidebarStateStorageKey(surface)))
+        );
+        this.collapsed = bySurface((surface) =>
+            computed(() => this.states[surface]() === 'collapsed')
+        );
+        this.categoriesHidden = bySurface((surface) =>
+            computed(() => this.states[surface]() !== 'expanded')
+        );
+        // A restored `categories-hidden` is what Cmd/Ctrl+B comes back to.
+        this.restoreTargets = bySurface((surface) => {
+            const restored = this.states[surface]();
+            return restored === 'collapsed' ? 'expanded' : restored;
+        });
     }
-    /** Player only: both rails are folded away. */
-    readonly isCollapsed = computed(() => this._state() === 'collapsed');
-    /** The categories rail is folded (`categories-hidden` or `collapsed`). */
-    readonly areCategoriesHidden = computed(
-        () => this._state() !== 'expanded'
-    );
+
+    stateOf(surface: LiveSidebarSurface): Signal<LiveSidebarState> {
+        return this.states[surface].asReadonly();
+    }
+
+    /** Stable per-surface signal; safe to assign to a component field. */
+    isCollapsedFor(surface: LiveSidebarSurface): Signal<boolean> {
+        return this.collapsed[surface];
+    }
 
     /**
-     * `Cmd/Ctrl+B` and the floating restore handle: leave `collapsed` for
-     * the level the user collapsed from, otherwise collapse everything.
+     * The categories rail is folded (`categories-hidden` or `collapsed`).
+     * Stable per-surface signal.
      */
-    toggle(): void {
-        if (this.isCollapsed()) {
-            this.expand();
+    areCategoriesHiddenFor(surface: LiveSidebarSurface): Signal<boolean> {
+        return this.categoriesHidden[surface];
+    }
+
+    /**
+     * `Cmd/Ctrl+B`, the header toggle and the floating restore handle: leave
+     * `collapsed` for the level the user collapsed from, otherwise collapse
+     * everything.
+     */
+    toggle(surface: LiveSidebarSurface): void {
+        if (this.collapsed[surface]()) {
+            this.expand(surface);
         } else {
-            this.collapse();
+            this.collapse(surface);
         }
     }
 
     /** Player only. Remembers the current level for `expand()`. */
-    collapse(): void {
-        const current = this._state();
-        if (current !== 'collapsed') {
-            this.restoreTarget = current;
-        }
-        this.setState('collapsed');
+    collapse(surface: LiveSidebarSurface): void {
+        this.setState(surface, 'collapsed');
     }
 
     /** Leaves `collapsed` for the level it was entered from. */
-    expand(): void {
-        this.setState(this.restoreTarget);
+    expand(surface: LiveSidebarSurface): void {
+        this.setState(surface, this.restoreTargets[surface]);
     }
 
-    hideCategories(): void {
-        this.setState('categories-hidden');
+    hideCategories(surface: LiveSidebarSurface): void {
+        this.setState(surface, 'categories-hidden');
     }
 
-    showCategories(): void {
-        this.setState('expanded');
+    showCategories(surface: LiveSidebarSurface): void {
+        this.setState(surface, 'expanded');
     }
 
-    setState(state: LiveSidebarState): void {
+    setState(surface: LiveSidebarSurface, state: LiveSidebarState): void {
         if (state !== 'collapsed') {
-            this.restoreTarget = state;
+            this.restoreTargets[surface] = state;
         }
-        this._state.set(state);
-        persistLiveSidebarState(state);
+        this.states[surface].set(state);
+        persistLiveSidebarState(state, liveSidebarStateStorageKey(surface));
     }
 }

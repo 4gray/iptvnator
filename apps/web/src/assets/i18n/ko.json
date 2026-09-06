@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "채널 목록 숨기기",
         "SHOW_CHANNELS_LIST": "채널 목록 표시",
         "TOGGLE_SIDEBAR_TOOLTIP": "채널 목록 전환 (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "채널 목록이 숨겨져 있습니다",
+        "CHANNELS_LIST_HIDDEN_HINT": "아래 버튼을 누르거나 ⌘/Ctrl+B를 눌러 다시 표시하세요.",
         "HIDE_CATEGORIES": "카테고리 숨기기",
         "SHOW_CATEGORIES": "카테고리 표시",
         "SHOW_CATEGORIES_PANEL": "카테고리 패널 표시",

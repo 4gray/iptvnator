@@ -64,7 +64,7 @@ export class WorkspaceLiveCategoriesPopoverComponent {
     }
 
     showCategoriesPanel(): void {
-        this.liveSidebarState.showCategories();
+        this.liveSidebarState.showCategories('portal');
         this.closed.emit();
     }
 }

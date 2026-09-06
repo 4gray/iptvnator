@@ -91,7 +91,10 @@ import {
     restoreLiveEpgPanelState,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
-import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import {
+    ChannelListHiddenStateComponent,
+    PortalEmptyStateComponent,
+} from '@iptvnator/portal/shared/ui';
 import {
     AudioPlayerComponent,
     FULLSCREEN_CHANNEL_PANEL,
@@ -198,6 +201,7 @@ function isInsideScrollableRegion(
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         SidebarComponent,
@@ -230,6 +234,9 @@ export class VideoPlayerComponent
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
+    private readonly liveSidebarStateService = inject(
+        LiveLayoutSidebarStateService
+    );
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceHeaderContext = inject(
@@ -479,14 +486,9 @@ export class VideoPlayerComponent
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
-    // The shared live-panel state: M3U has no categories rail, so only the
-    // `collapsed` level applies here, but toggling through the shared service
-    // keeps the portals' `categories-hidden` preference intact instead of
-    // overwriting it with `expanded` on restore.
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
-    );
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    /** Shared with the workspace header toggle; persisted per surface. */
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('m3u');
 
     /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
@@ -1007,7 +1009,7 @@ export class VideoPlayerComponent
     }
 
     toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+        this.liveSidebarStateService.toggle('m3u');
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {

@@ -13,8 +13,8 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { Subject, of } from 'rxjs';
 import {
-    LIVE_SIDEBAR_STATE_STORAGE_KEY,
     LiveLayoutSidebarStateService,
+    liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
 import { WorkspaceContextPanelComponent } from '../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceShellRouteStateService } from '../workspace-shell/services/workspace-shell-route-state.service';
@@ -56,7 +56,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     }
 
     beforeEach(async () => {
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         routerEvents = new Subject();
         await TestBed.configureTestingModule({
             imports: [OverlayModule, NoopAnimationsModule],
@@ -106,7 +106,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
 
         service = TestBed.inject(WorkspaceLiveCategoriesPopoverService);
         sidebarState = TestBed.inject(LiveLayoutSidebarStateService);
-        sidebarState.hideCategories();
+        sidebarState.hideCategories('portal');
         origin = document.createElement('button');
         document.body.appendChild(origin);
     });
@@ -114,8 +114,8 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     afterEach(() => {
         service.close();
         origin.remove();
-        sidebarState.setState('expanded');
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        sidebarState.setState('portal', 'expanded');
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
     });
 
     it('opens the categories panel in popover presentation under the origin', () => {
@@ -146,7 +146,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
             ) as HTMLButtonElement
         ).click();
 
-        expect(sidebarState.state()).toBe('expanded');
+        expect(sidebarState.stateOf('portal')()).toBe('expanded');
         expect(pane()).toBeNull();
     });
 
@@ -160,7 +160,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         ).click();
 
         expect(pane()).toBeNull();
-        expect(sidebarState.state()).toBe('categories-hidden');
+        expect(sidebarState.stateOf('portal')()).toBe('categories-hidden');
     });
 
     it('closes on backdrop click and leaves the rail folded', () => {
@@ -173,7 +173,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         backdrop.click();
 
         expect(pane()).toBeNull();
-        expect(sidebarState.state()).toBe('categories-hidden');
+        expect(sidebarState.stateOf('portal')()).toBe('categories-hidden');
     });
 
     it('is a labelled modal dialog that traps and takes focus on open', async () => {
@@ -222,7 +222,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
     it('closes on any live-panel level change, e.g. Cmd/Ctrl+B reaching the layout through the dialog', () => {
         open();
 
-        sidebarState.collapse();
+        sidebarState.collapse('portal');
         TestBed.inject(ApplicationRef).tick();
 
         expect(pane()).toBeNull();

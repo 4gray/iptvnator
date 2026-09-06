@@ -25,8 +25,7 @@ import {
 import {
     LiveLayoutSidebarStateService,
     PortalCategorySortMode,
-    persistPortalCategorySortMode,
-    restorePortalCategorySortMode,
+    PortalCategorySortStateService,
     sortPortalCategoryItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -254,9 +253,9 @@ export class WorkspaceContextPanelComponent {
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
     readonly isSearchOpen = signal(false);
     readonly categorySearchTerm = signal('');
-    readonly categorySortMode = signal<PortalCategorySortMode>(
-        restorePortalCategorySortMode()
-    );
+    // Shared with the popover copy of this panel; see the service's note.
+    private readonly categorySort = inject(PortalCategorySortStateService);
+    readonly categorySortMode = this.categorySort.mode;
     readonly categorySortLabelKey = computed(() =>
         this.getCategorySortLabelKey(this.categorySortMode())
     );
@@ -410,8 +409,7 @@ export class WorkspaceContextPanelComponent {
     }
 
     setCategorySortMode(mode: PortalCategorySortMode): void {
-        this.categorySortMode.set(mode);
-        persistPortalCategorySortMode(mode);
+        this.categorySort.setMode(mode);
     }
 
     openManageCategories(): void {
@@ -457,7 +455,7 @@ export class WorkspaceContextPanelComponent {
     }
 
     hideCategories(): void {
-        this.liveSidebarState.hideCategories();
+        this.liveSidebarState.hideCategories('portal');
     }
 
     onXtreamCategoryClicked(category: XtreamCategoryLike): void {

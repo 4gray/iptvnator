@@ -1,98 +1,153 @@
 import { TestBed } from '@angular/core/testing';
 import { LiveLayoutSidebarStateService } from './live-layout-sidebar-state.service';
-import { LIVE_SIDEBAR_STATE_STORAGE_KEY } from './live-sidebar-state';
+import {
+    LEGACY_LIVE_SIDEBAR_STATE_STORAGE_KEY,
+    LIVE_SIDEBAR_SURFACES,
+    liveSidebarStateStorageKey,
+} from './live-sidebar-state';
 
 describe('LiveLayoutSidebarStateService', () => {
+    function clearStorage(): void {
+        localStorage.removeItem(LEGACY_LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        for (const surface of LIVE_SIDEBAR_SURFACES) {
+            localStorage.removeItem(liveSidebarStateStorageKey(surface));
+        }
+    }
+
     function createService(): LiveLayoutSidebarStateService {
         TestBed.resetTestingModule();
         return TestBed.inject(LiveLayoutSidebarStateService);
     }
 
-    afterEach(() => {
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
-    });
+    beforeEach(clearStorage);
+    afterEach(clearStorage);
 
-    it('starts expanded with nothing stored', () => {
+    it('starts every surface expanded', () => {
         const service = createService();
 
-        expect(service.state()).toBe('expanded');
-        expect(service.isCollapsed()).toBe(false);
-        expect(service.areCategoriesHidden()).toBe(false);
+        for (const surface of LIVE_SIDEBAR_SURFACES) {
+            expect(service.stateOf(surface)()).toBe('expanded');
+            expect(service.isCollapsedFor(surface)()).toBe(false);
+        }
+    });
+
+    it('keeps surfaces independent: collapsing the M3U rail leaves portals and collections alone', () => {
+        const service = createService();
+
+        service.toggle('m3u');
+
+        expect(service.isCollapsedFor('m3u')()).toBe(true);
+        expect(service.isCollapsedFor('portal')()).toBe(false);
+        expect(service.isCollapsedFor('collection')()).toBe(false);
+        expect(localStorage.getItem(liveSidebarStateStorageKey('m3u'))).toBe(
+            'collapsed'
+        );
+        expect(
+            localStorage.getItem(liveSidebarStateStorageKey('portal'))
+        ).toBeNull();
+    });
+
+    it('returns the same signal instance per surface so components can hold it', () => {
+        const service = createService();
+
+        expect(service.isCollapsedFor('portal')).toBe(
+            service.isCollapsedFor('portal')
+        );
+        expect(service.isCollapsedFor('portal')).not.toBe(
+            service.isCollapsedFor('collection')
+        );
+    });
+
+    it('restores each surface from its own storage key', () => {
+        localStorage.setItem(liveSidebarStateStorageKey('portal'), 'collapsed');
+
+        const service = createService();
+
+        expect(service.isCollapsedFor('portal')()).toBe(true);
+        expect(service.isCollapsedFor('m3u')()).toBe(false);
+
+        service.setState('portal', 'expanded');
+
+        expect(localStorage.getItem(liveSidebarStateStorageKey('portal'))).toBe(
+            'expanded'
+        );
     });
 
     it('folds only the categories rail on hideCategories', () => {
         const service = createService();
 
-        service.hideCategories();
+        service.hideCategories('portal');
 
-        expect(service.state()).toBe('categories-hidden');
-        expect(service.areCategoriesHidden()).toBe(true);
-        expect(service.isCollapsed()).toBe(false);
-        expect(localStorage.getItem(LIVE_SIDEBAR_STATE_STORAGE_KEY)).toBe(
-            'categories-hidden'
-        );
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
+        expect(service.areCategoriesHiddenFor('portal')()).toBe(true);
+        expect(service.isCollapsedFor('portal')()).toBe(false);
+        expect(service.areCategoriesHiddenFor('m3u')()).toBe(false);
+        expect(
+            localStorage.getItem(liveSidebarStateStorageKey('portal'))
+        ).toBe('categories-hidden');
 
-        service.showCategories();
+        service.showCategories('portal');
 
-        expect(service.state()).toBe('expanded');
+        expect(service.stateOf('portal')()).toBe('expanded');
     });
 
     it('collapse folds both rails and expand returns to the level it was entered from', () => {
         const service = createService();
-        service.hideCategories();
+        service.hideCategories('portal');
 
-        service.collapse();
+        service.collapse('portal');
 
-        expect(service.isCollapsed()).toBe(true);
-        expect(service.areCategoriesHidden()).toBe(true);
+        expect(service.isCollapsedFor('portal')()).toBe(true);
+        expect(service.areCategoriesHiddenFor('portal')()).toBe(true);
 
-        service.expand();
+        service.collapse('portal');
+        service.expand('portal');
 
-        expect(service.state()).toBe('categories-hidden');
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
     });
 
     it('toggle leaves collapsed for the previous level and otherwise collapses', () => {
         const service = createService();
 
-        service.toggle();
-        expect(service.state()).toBe('collapsed');
+        service.toggle('portal');
+        expect(service.stateOf('portal')()).toBe('collapsed');
+        service.toggle('portal');
+        expect(service.stateOf('portal')()).toBe('expanded');
 
-        service.toggle();
-        expect(service.state()).toBe('expanded');
-
-        service.hideCategories();
-        service.toggle();
-        expect(service.state()).toBe('collapsed');
-
-        service.toggle();
-        expect(service.state()).toBe('categories-hidden');
+        service.hideCategories('portal');
+        service.toggle('portal');
+        expect(service.stateOf('portal')()).toBe('collapsed');
+        service.toggle('portal');
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
     });
 
-    it('does not let a repeated collapse forget the level to come back to', () => {
-        const service = createService();
-        service.hideCategories();
-
-        service.collapse();
-        service.collapse();
-        service.expand();
-
-        expect(service.state()).toBe('categories-hidden');
-    });
-
-    it('restores a hidden categories rail across construction and never restores collapsed', () => {
-        localStorage.setItem(LIVE_SIDEBAR_STATE_STORAGE_KEY, 'categories-hidden');
-        expect(createService().state()).toBe('categories-hidden');
-
-        localStorage.setItem(LIVE_SIDEBAR_STATE_STORAGE_KEY, 'collapsed');
-        const service = createService();
-        expect(service.state()).toBe('categories-hidden');
-        expect(localStorage.getItem(LIVE_SIDEBAR_STATE_STORAGE_KEY)).toBe(
+    it('restores a hidden categories rail from its surface key and comes back to it after a toggle', () => {
+        localStorage.setItem(
+            liveSidebarStateStorageKey('portal'),
             'categories-hidden'
         );
 
-        // The stored level is the one Cmd/Ctrl+B comes back to.
-        service.toggle();
-        service.toggle();
-        expect(service.state()).toBe('categories-hidden');
+        const service = createService();
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
+
+        service.toggle('portal');
+        service.toggle('portal');
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
+    });
+
+    it('ignores and removes the legacy shared key instead of inheriting it', () => {
+        localStorage.setItem(
+            LEGACY_LIVE_SIDEBAR_STATE_STORAGE_KEY,
+            'collapsed'
+        );
+
+        const service = createService();
+
+        for (const surface of LIVE_SIDEBAR_SURFACES) {
+            expect(service.isCollapsedFor(surface)()).toBe(false);
+        }
+        expect(
+            localStorage.getItem(LEGACY_LIVE_SIDEBAR_STATE_STORAGE_KEY)
+        ).toBeNull();
     });
 });

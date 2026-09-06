@@ -26,6 +26,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     GridListComponent,
     InfiniteScrollDirective,
+    ChannelListHiddenStateComponent,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
@@ -127,6 +128,7 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         GridListComponent,
         InfiniteScrollDirective,
         PortalChannelsListComponent,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
@@ -329,6 +331,7 @@ export class LiveStreamLayoutComponent
     // template binds to it directly. Search-only rails (no selected
     // category) keep their plain heading.
     readonly livePanels = createLivePanelsController({
+        surface: 'portal',
         hasSelectedCategory: computed(() => !!this.selectedCategoryId()),
         showCategoriesButton: this.showCategoriesButton,
         restoreButton: this.restoreButton,

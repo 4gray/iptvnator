@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "Απόκρυψη λίστας καναλιών",
         "SHOW_CHANNELS_LIST": "Εμφάνιση λίστας καναλιών",
         "TOGGLE_SIDEBAR_TOOLTIP": "Εναλλαγή λίστας καναλιών (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Η λίστα καναλιών είναι κρυφή",
+        "CHANNELS_LIST_HIDDEN_HINT": "Επαναφέρετέ την με το παρακάτω κουμπί ή πατήστε ⌘/Ctrl+B.",
         "HIDE_CATEGORIES": "Απόκρυψη κατηγοριών",
         "SHOW_CATEGORIES": "Εμφάνιση κατηγοριών",
         "SHOW_CATEGORIES_PANEL": "Εμφάνιση πίνακα κατηγοριών",

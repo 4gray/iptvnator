@@ -266,11 +266,13 @@ Portal live layouts (Xtream `live`, Stalker `itv`/`radio`) fold their panels
 from the outside in, in three nested levels owned by `LiveSidebarState`
 (`@iptvnator/portal/shared/util`): `expanded` (categories rail + channels rail
 + player), `categories-hidden` (channels rail + player) and `collapsed`
-(player only). `LiveLayoutSidebarStateService` is the single source of truth;
-the shell context sidebar folds the categories rail on `areCategoriesHidden`
-(at level 2 only while the portal store has a selected category — the live
-root has no channels header to host the way back — and always at level 3),
-the channels rail folds on `isCollapsed`. While the rail is folded the
+(player only). `LiveLayoutSidebarStateService` is the single source of truth, per
+surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
+shell context sidebar folds the categories rail on
+`areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
+a selected category — the live root has no channels header to host the way
+back — and always at level 3), the channels rail folds on
+`isCollapsedFor('portal')`. While the rail is folded the
 channels header turns its title into a category dropdown that opens the same
 `WorkspaceContextPanelComponent` as a CDK popover through the
 `LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
@@ -278,10 +280,10 @@ channels header turns its title into a category dropdown that opens the same
 closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
 the live layouts reach it through `createLivePanelsController()` (level
 flags, dropdown bridge and focus handoff in one shared object; the token is
-optional). `Cmd/Ctrl+B` and the floating restore
-handle return to the level the user collapsed from; a stored `collapsed`
-restores as `categories-hidden` so the channel list is always back after a
-relaunch (#1458). Folded rails carry `inert`, and
+optional). `Cmd/Ctrl+B`, the header toggle and the
+floating restore handle return to the level the user collapsed from (the
+target is session-only; every level is restored as stored per surface).
+Folded rails carry `inert`, and
 `handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
 replacement affordance only when the activated button was removed or inerted.
 M3U and the unified live tab have no categories rail and treat level 2 like

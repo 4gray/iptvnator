@@ -61,7 +61,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
     const drawerOpen = signal(false);
 
     beforeEach(async () => {
-        localStorage.removeItem('live-sidebar-state');
+        localStorage.removeItem('live-sidebar-state:portal');
         xtreamSelectedCategoryId.set(1);
         stalkerSelectedCategoryId.set('7');
         drawerOpen.set(false);
@@ -113,7 +113,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
         fixture = TestBed.createComponent(WorkspaceShellContextSidebarComponent);
         liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
-        liveSidebarService.setState('expanded');
+        liveSidebarService.setState('portal', 'expanded');
     });
 
     it('closes the phone drawer from its always-available close button', () => {
@@ -184,7 +184,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('collapses the categories rail when the shared service is collapsed on a live route', () => {
             setupLiveCategory('live');
 
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -198,7 +198,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('folds the categories rail on the first level already (categories-hidden)', () => {
             setupLiveCategory('live');
 
-            liveSidebarService.setState('categories-hidden');
+            liveSidebarService.setState('portal', 'categories-hidden');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -213,7 +213,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             xtreamSelectedCategoryId.set(null);
             setupLiveCategory('live');
 
-            liveSidebarService.setState('categories-hidden');
+            liveSidebarService.setState('portal', 'categories-hidden');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -225,7 +225,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
             // Player-only still folds it: the floating restore handle lives
             // in the content area and stays reachable there.
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 true
@@ -238,7 +238,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 'aside.context-panel--route'
             );
 
-            liveSidebarService.setState('categories-hidden');
+            liveSidebarService.setState('portal', 'categories-hidden');
             fixture.detectChanges();
             expect(aside.hasAttribute('inert')).toBe(true);
 
@@ -247,14 +247,14 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             expect(aside.hasAttribute('inert')).toBe(false);
 
             drawerOpen.set(false);
-            liveSidebarService.setState('expanded');
+            liveSidebarService.setState('portal', 'expanded');
             fixture.detectChanges();
             expect(aside.hasAttribute('inert')).toBe(false);
         });
 
         it('hands focus to the panel whenever the rail actually unfolds, including from player-only on the live root', async () => {
             xtreamSelectedCategoryId.set(null);
-            liveSidebarService.setState('categories-hidden');
+            liveSidebarService.setState('portal', 'categories-hidden');
             setupLiveCategory('live');
             const panel = fixture.debugElement.query(
                 By.directive(MockWorkspaceContextPanelComponent)
@@ -263,9 +263,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             (document.activeElement as HTMLElement | null)?.blur();
 
             // Root at categories-hidden: the rail is visible, no transition.
-            liveSidebarService.collapse();
+            liveSidebarService.collapse('portal');
             fixture.detectChanges();
-            liveSidebarService.expand();
+            liveSidebarService.expand('portal');
             fixture.detectChanges();
             await new Promise((resolve) => queueMicrotask(resolve));
 
@@ -280,9 +280,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.nativeElement.appendChild(control);
             panel.focusTarget.mockReturnValue(control);
             (document.activeElement as HTMLElement | null)?.blur();
-            liveSidebarService.collapse();
+            liveSidebarService.collapse('portal');
             fixture.detectChanges();
-            liveSidebarService.expand();
+            liveSidebarService.expand('portal');
             fixture.detectChanges();
             await new Promise((resolve) => queueMicrotask(resolve));
 
@@ -292,7 +292,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('also collapses on the Stalker itv section', () => {
             setupLiveCategory('itv');
 
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -306,7 +306,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('does not collapse the categories rail on non-live sections', () => {
             setupLiveCategory('vod');
 
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(

@@ -546,8 +546,14 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
     await expect(restoreButton).toBeVisible();
     await expect(categoriesRail).toHaveAttribute('inert', '');
     await expect(page.locator('.sidebar')).toHaveAttribute('inert', '');
+    // The workspace header carries a second toggle that mirrors the state.
+    const headerToggle = page.locator(
+        'app-workspace-shell-header .header-sidebar-toggle'
+    );
+    await expect(headerToggle).toHaveAttribute('aria-pressed', 'false');
     await restoreButton.click();
     await expect(restoreButton).toBeHidden();
+    await expect(headerToggle).toHaveAttribute('aria-pressed', 'true');
     await expect(categoriesRail).not.toHaveAttribute('inert');
     await expect(page.locator('.sidebar')).not.toHaveAttribute('inert');
     await expect(stations.first()).toBeVisible();

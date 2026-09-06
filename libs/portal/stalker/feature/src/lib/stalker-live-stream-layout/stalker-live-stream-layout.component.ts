@@ -85,7 +85,10 @@ import {
     REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
 } from '@iptvnator/portal/shared/util';
-import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import {
+    ChannelListHiddenStateComponent,
+    PortalEmptyStateComponent,
+} from '@iptvnator/portal/shared/ui';
 import {
     ACTIVE_EPG_FALLBACK_SIZE,
     StalkerFavoriteItem,
@@ -153,6 +156,7 @@ import { StalkerLiveNavigation } from './stalker-live-navigation';
         MatProgressSpinnerModule,
         MatTooltipModule,
         NgTemplateOutlet,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         StalkerItvAllItemsComponent,
@@ -497,6 +501,7 @@ export class StalkerLiveStreamLayoutComponent
     // template binds to it directly. The sidebar only renders with a
     // selected category, and the fold rule keys on the same selection.
     readonly livePanels = createLivePanelsController({
+        surface: 'portal',
         hasSelectedCategory: computed(
             () => !!this.stalkerStore.selectedCategoryId()
         ),

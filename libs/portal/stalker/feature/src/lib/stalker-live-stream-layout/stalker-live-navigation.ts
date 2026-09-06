@@ -266,7 +266,7 @@ export class StalkerLiveNavigation {
         this.options.store.setSearchPhrase('');
         this.options.store.setSelectedCategory(category);
         this.options.store.setPage(0);
-        this.options.sidebar.setState('expanded');
+        this.options.sidebar.expand('portal');
         this.revealed.set({ owner, category, item: active });
         this.pendingReveal.set({
             owner,

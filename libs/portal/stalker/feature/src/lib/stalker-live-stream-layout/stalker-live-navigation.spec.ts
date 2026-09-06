@@ -47,7 +47,7 @@ describe('StalkerLiveNavigation', () => {
         parseUrl: jest.fn(() => ({ queryParams: { q: 'sport', keep: '1' } })),
         navigateByUrl: jest.fn().mockResolvedValue(true),
     };
-    const sidebar = { setState: jest.fn() };
+    const sidebar = { setState: jest.fn(), expand: jest.fn() };
     const play = jest.fn();
     const revealRow = jest.fn(() => true);
 
@@ -209,7 +209,7 @@ describe('StalkerLiveNavigation', () => {
         );
         expect(store.selectedCategoryId()).toBe('news');
         expect(store.searchPhrase()).toBe('');
-        expect(sidebar.setState).toHaveBeenCalledWith('expanded');
+        expect(sidebar.expand).toHaveBeenCalledWith('portal');
         expect(revealRow).toHaveBeenCalledWith('1');
         expect(play).not.toHaveBeenCalled();
         expect(navigation.canReveal()).toBe(false);

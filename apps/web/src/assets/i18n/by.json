@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "Схаваць спіс каналаў",
         "SHOW_CHANNELS_LIST": "Паказаць спіс каналаў",
         "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Спіс каналаў схаваны",
+        "CHANNELS_LIST_HIDDEN_HINT": "Вярніце яго кнопкай ніжэй або націсніце ⌘/Ctrl+B.",
         "HIDE_CATEGORIES": "Схаваць катэгорыі",
         "SHOW_CATEGORIES": "Паказаць катэгорыі",
         "SHOW_CATEGORIES_PANEL": "Паказаць панэль катэгорый",

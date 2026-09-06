@@ -675,6 +675,8 @@
         "HIDE_CHANNELS_LIST": "Nascondi elenco canali",
         "SHOW_CHANNELS_LIST": "Mostra elenco canali",
         "TOGGLE_SIDEBAR_TOOLTIP": "Attiva/disattiva elenco canali (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "L'elenco canali è nascosto",
+        "CHANNELS_LIST_HIDDEN_HINT": "Mostralo di nuovo con il pulsante qui sotto o premi ⌘/Ctrl+B.",
         "HIDE_CATEGORIES": "Nascondi categorie",
         "SHOW_CATEGORIES": "Mostra categorie",
         "SHOW_CATEGORIES_PANEL": "Mostra il pannello delle categorie",

@@ -8,9 +8,11 @@ import {
 import { handoffFocusOnLiveSidebarChange } from './focus-handoff';
 import { LIVE_CATEGORIES_POPOVER } from './live-categories-popover.token';
 import { LiveLayoutSidebarStateService } from './live-layout-sidebar-state.service';
-import { LiveSidebarState } from './live-sidebar-state';
+import { LiveSidebarState, LiveSidebarSurface } from './live-sidebar-state';
 
 export interface LivePanelsControllerOptions {
+    /** The surface whose per-surface state this layout renders. */
+    readonly surface: LiveSidebarSurface;
     /**
      * A live category is selected, so the layout renders a channels rail
      * whose header can host the category dropdown and the show-categories
@@ -41,7 +43,7 @@ export class LivePanelsController {
     });
 
     /** Player only: the channels rail is folded (and `inert`). */
-    readonly isSidebarCollapsed = this.sidebarState.isCollapsed;
+    readonly isSidebarCollapsed: Signal<boolean>;
     /** The header shows the category dropdown and show-categories button. */
     readonly canOpenCategoriesPopover: Signal<boolean>;
     /**
@@ -53,14 +55,18 @@ export class LivePanelsController {
     readonly effectiveLevel: Signal<LiveSidebarState>;
 
     constructor(private readonly options: LivePanelsControllerOptions) {
+        const surface = options.surface;
+        this.isSidebarCollapsed = this.sidebarState.isCollapsedFor(surface);
+        const categoriesHidden =
+            this.sidebarState.areCategoriesHiddenFor(surface);
         this.canOpenCategoriesPopover = computed(
             () =>
                 this.categoriesPopover !== null &&
-                this.sidebarState.areCategoriesHidden() &&
+                categoriesHidden() &&
                 this.options.hasSelectedCategory()
         );
         this.effectiveLevel = computed(() =>
-            this.sidebarState.isCollapsed()
+            this.isSidebarCollapsed()
                 ? 'collapsed'
                 : this.canOpenCategoriesPopover()
                   ? 'categories-hidden'
@@ -80,17 +86,17 @@ export class LivePanelsController {
 
     /** `Cmd/Ctrl+B` and the floating restore handle. */
     toggleSidebar(): void {
-        this.sidebarState.toggle();
+        this.sidebarState.toggle(this.options.surface);
     }
 
     /** The channels header chevron: player only. */
     collapsePanels(): void {
-        this.sidebarState.collapse();
+        this.sidebarState.collapse(this.options.surface);
     }
 
     showCategories(): void {
         this.categoriesPopover?.close();
-        this.sidebarState.showCategories();
+        this.sidebarState.showCategories(this.options.surface);
     }
 
     openCategoriesPopover(origin: HTMLElement): void {

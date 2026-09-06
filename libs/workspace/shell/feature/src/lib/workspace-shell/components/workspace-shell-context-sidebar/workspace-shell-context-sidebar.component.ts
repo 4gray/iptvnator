@@ -97,8 +97,10 @@ export class WorkspaceShellContextSidebarComponent {
     readonly isContextPanelCollapsed = computed(
         () =>
             this.isLiveCategoryRoute() &&
-            (this.liveSidebarStateService.isCollapsed() ||
-                (this.liveSidebarStateService.areCategoriesHidden() &&
+            (this.liveSidebarStateService.isCollapsedFor('portal')() ||
+                (this.liveSidebarStateService.areCategoriesHiddenFor(
+                    'portal'
+                )() &&
                     this.hasLiveCategorySelection()))
     );
     /**

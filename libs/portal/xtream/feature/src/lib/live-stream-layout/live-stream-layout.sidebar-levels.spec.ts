@@ -7,12 +7,15 @@ import { MockPipe } from 'ng-mocks';
 import { Subject, of } from 'rxjs';
 import {
     LIVE_CATEGORIES_POPOVER,
-    LIVE_SIDEBAR_STATE_STORAGE_KEY,
     LiveLayoutSidebarStateService,
+    liveSidebarStateStorageKey,
     PORTAL_PLAYER,
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
-import { GridListComponent } from '@iptvnator/portal/shared/ui';
+import {
+    ChannelListHiddenStateComponent,
+    GridListComponent,
+} from '@iptvnator/portal/shared/ui';
 import {
     FavoritesService,
     XtreamStore,
@@ -46,6 +49,15 @@ class StubPortalChannelsListComponent {
     readonly filteredChannels = signal<unknown[]>([]);
     readonly playClicked = output<unknown>();
     readonly playbackRequested = output<unknown>();
+}
+
+@Component({
+    selector: 'app-channel-list-hidden-state',
+    standalone: true,
+    template: '<div data-test-id="hidden-state-stub"></div>',
+})
+class StubChannelListHiddenStateComponent {
+    readonly restore = output<void>();
 }
 
 @Component({ selector: 'app-grid-list', standalone: true, template: '' })
@@ -105,7 +117,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     }
 
     beforeEach(async () => {
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         categoriesPopover.open.mockClear();
         categoriesPopover.close.mockClear();
         selectedCategoryId.set(1);
@@ -171,6 +183,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
+                        ChannelListHiddenStateComponent,
                         EpgListViewComponent,
                         EpgTimelineComponent,
                         GridListComponent,
@@ -182,6 +195,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                 },
                 add: {
                     imports: [
+                        StubChannelListHiddenStateComponent,
                         StubGridListComponent,
                         StubPassiveComponent,
                         StubPortalChannelsListComponent,
@@ -194,13 +208,13 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
 
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         service = TestBed.inject(LiveLayoutSidebarStateService);
-        service.setState('expanded');
+        service.setState('portal', 'expanded');
     });
 
     afterEach(() => {
-        service.setState('expanded');
+        service.setState('portal', 'expanded');
         fixture.destroy();
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
     });
 
     it('keeps the plain category heading while the rail is expanded', () => {
@@ -213,7 +227,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
 
     it('keeps the plain heading for a search-only rail with no selected category', () => {
         selectedCategoryId.set(null);
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
 
         // No category and no search term: the layout renders no rail at all.
@@ -222,7 +236,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     });
 
     it('turns the heading into a category dropdown that opens the shell popover', () => {
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
 
         const dropdown = query<HTMLButtonElement>(
@@ -242,7 +256,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     });
 
     it('restores the rail from the show-categories button and closes any open popover', () => {
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
 
         query<HTMLButtonElement>(
@@ -250,11 +264,11 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         )?.click();
 
         expect(categoriesPopover.close).toHaveBeenCalledTimes(1);
-        expect(service.state()).toBe('expanded');
+        expect(service.stateOf('portal')()).toBe('expanded');
     });
 
     it('collapses both rails from the header chevron and comes back to the same level', () => {
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
 
         query<HTMLButtonElement>(
@@ -262,21 +276,21 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         )?.click();
         fixture.detectChanges();
 
-        expect(service.state()).toBe('collapsed');
+        expect(service.stateOf('portal')()).toBe('collapsed');
         expect(query('.sidebar')?.classList).toContain('sidebar-collapsed');
         const restore = query<HTMLButtonElement>('.sidebar-restore');
         expect(restore?.getAttribute('aria-label')).toBe('LAYOUT.SHOW_PANELS');
 
         restore?.click();
 
-        expect(service.state()).toBe('categories-hidden');
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
     });
 
     it('picks focus up on the show-categories button when the rail folds and focus was lost', async () => {
         fixture.detectChanges();
         (document.activeElement as HTMLElement | null)?.blur();
 
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
         await new Promise((resolve) => queueMicrotask(resolve));
 
@@ -292,7 +306,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         );
         sort?.focus();
 
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
         await new Promise((resolve) => queueMicrotask(resolve));
 
@@ -300,17 +314,17 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     });
 
     it('hands focus to the floating restore handle at player-only and back to show-categories on expand', async () => {
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
         (document.activeElement as HTMLElement | null)?.blur();
 
-        service.collapse();
+        service.collapse('portal');
         fixture.detectChanges();
         await new Promise((resolve) => queueMicrotask(resolve));
         expect(document.activeElement).toBe(query('.sidebar-restore'));
 
         // The handle is removed with the expand, so focus is lost again.
-        service.expand();
+        service.expand('portal');
         fixture.detectChanges();
         await new Promise((resolve) => queueMicrotask(resolve));
         expect(document.activeElement).toBe(
@@ -320,7 +334,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
 
     it('hands focus to show-categories when the first category selection folds the rail on the live root', async () => {
         selectedCategoryId.set(null);
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
         (document.activeElement as HTMLElement | null)?.blur();
 
@@ -336,12 +350,12 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
 
     it('shows the floating restore button at player-only even without a selected category, and hides it when expanded', () => {
         selectedCategoryId.set(null);
-        service.collapse();
+        service.collapse('portal');
         fixture.detectChanges();
         expect(query('.sidebar-restore')).not.toBeNull();
 
         selectedCategoryId.set(1);
-        service.expand();
+        service.expand('portal');
         fixture.detectChanges();
         expect(query('.sidebar-restore')).toBeNull();
     });
@@ -359,29 +373,29 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     });
 
     it('marks the folded channels rail inert at player-only', () => {
-        service.collapse();
+        service.collapse('portal');
         fixture.detectChanges();
 
         expect(query('.sidebar')?.hasAttribute('inert')).toBe(true);
 
-        service.expand();
+        service.expand('portal');
         fixture.detectChanges();
 
         expect(query('.sidebar')?.hasAttribute('inert')).toBe(false);
     });
 
     it('answers Cmd/Ctrl+B with the same nested toggle', () => {
-        service.hideCategories();
+        service.hideCategories('portal');
         fixture.detectChanges();
 
         document.dispatchEvent(
             new KeyboardEvent('keydown', { key: 'b', ctrlKey: true })
         );
-        expect(service.state()).toBe('collapsed');
+        expect(service.stateOf('portal')()).toBe('collapsed');
 
         document.dispatchEvent(
             new KeyboardEvent('keydown', { key: 'b', metaKey: true })
         );
-        expect(service.state()).toBe('categories-hidden');
+        expect(service.stateOf('portal')()).toBe('categories-hidden');
     });
 });

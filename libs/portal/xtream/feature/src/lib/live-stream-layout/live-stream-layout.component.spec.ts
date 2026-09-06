@@ -13,7 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
-    LIVE_SIDEBAR_STATE_STORAGE_KEY,
+    liveSidebarStateStorageKey,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     ResizableDirective,
@@ -222,7 +222,7 @@ describe('LiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline');
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         settingsStore.openStreamOnDoubleClick.set(false);
 
         window.electron = {
@@ -345,16 +345,16 @@ describe('LiveStreamLayoutComponent', () => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;
 
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
     });
 
     afterEach(() => {
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
         fixture.destroy();
         jest.useRealTimers();
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         window.electron = originalElectron;
     });
 
@@ -1149,6 +1149,10 @@ describe('LiveStreamLayoutComponent', () => {
         );
     });
 
+    // Collapsing with a selected category and no stream renders the real
+    // `app-channel-list-hidden-state` (its TranslatePipe needs a
+    // TranslateService); this spec is at the max-lines budget, so that branch
+    // is covered by video-player-sidebar.spec.ts and the Electron E2E instead.
     describe('auto-open from Ctrl+F search navigation state', () => {
         const searchChannel = {
             xtream_id: 202,

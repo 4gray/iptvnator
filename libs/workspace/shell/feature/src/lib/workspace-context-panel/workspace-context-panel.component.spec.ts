@@ -501,11 +501,11 @@ describe('WorkspaceContextPanelComponent', () => {
 
         beforeEach(() => {
             liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
-            liveSidebarService.setState('expanded');
+            liveSidebarService.setState('portal', 'expanded');
         });
 
         afterEach(() => {
-            liveSidebarService.setState('expanded');
+            liveSidebarService.setState('portal', 'expanded');
         });
 
         function hideButton(): HTMLButtonElement | null {
@@ -527,7 +527,7 @@ describe('WorkspaceContextPanelComponent', () => {
 
             button?.click();
 
-            expect(liveSidebarService.state()).toBe('categories-hidden');
+            expect(liveSidebarService.stateOf('portal')()).toBe('categories-hidden');
         });
 
         it('offers it for Stalker itv and radio too', () => {
@@ -593,6 +593,33 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.detectChanges();
 
             expect(hideButton()).toBeNull();
+        });
+
+        it('shares the category sort with a second (popover) instance of the panel', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+            fixture.componentInstance.setCategorySortMode('name-desc');
+
+            const popover = TestBed.createComponent(
+                WorkspaceContextPanelComponent
+            );
+            popover.componentRef.setInput('context', {
+                provider: 'xtreams',
+                playlistId: 'playlist-1',
+            });
+            popover.componentRef.setInput('section', 'live');
+            popover.componentRef.setInput('presentation', 'popover');
+            popover.detectChanges();
+            expect(popover.componentInstance.categorySortMode()).toBe(
+                'name-desc'
+            );
+
+            popover.componentInstance.setCategorySortMode('name-asc');
+            expect(fixture.componentInstance.categorySortMode()).toBe(
+                'name-asc'
+            );
+            popover.destroy();
         });
 
         it('keeps the live-TV column keyboard contract out of the popover', () => {
