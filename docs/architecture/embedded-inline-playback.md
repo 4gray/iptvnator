@@ -494,7 +494,7 @@ Video.js HTTP error is `network-error` and shows its status. Because an HTTP
 status is server/network evidence rather than decoding evidence, external
 decoding is not presented as a likely fix.
 
-Video.js `8.23.9`, the default web player, runs HTTP streaming through bundled
+Video.js `8.24.0`, the default web player, runs HTTP streaming through bundled
 VHS `3.17.5`. Its terminal `Player#error` crosses a separate allowlisted
 boundary built only from the public Video.js `MediaError` code/status,
 `metadata.errorType`, and the documented `player.tech().vhs` runtime property.
@@ -841,7 +841,12 @@ original headers or credentials required to reconstruct a safe launch request.
 
 No recommendation mutates `Settings.player` or another persisted setting.
 Recovery recommendations never auto-switch a player or source and do not
-replace the separate source-owner auto-failover feature. Attempts, overrides,
+replace the separate source-owner auto-failover feature. The narrow Xtream
+live Auto format contract is separate: a source owner may supply one advertised
+TS transport to the same web player on an initial terminal HTTP failure. It
+never chooses another engine, and its pending callback waits for the old
+transport's render teardown. See [Initial Auto HLS failure](./xtream-portal-compatibility.md#initial-auto-hls-failure)
+for eligibility, session ownership and the external/Embedded MPV/VHS limits. Attempts, overrides,
 resume handoff, and diagnostics are session-local: there is no persistent
 history, cross-session learning, correlation, or telemetry.
 

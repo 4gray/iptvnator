@@ -358,7 +358,7 @@
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "On wide windows, dock the series player to the left and show the upcoming episodes beside it.",
         "FULLSCREEN_CHANNEL_PANEL": "Channel list in fullscreen",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Rest the mouse on the left edge or press C while in fullscreen to slide in the channel list and switch channels without leaving fullscreen.",
-        "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
+        "STREAM_FORMAT_DESCRIPTION": "Auto prefers HLS. If live playback fails in MPV, VLC or Embedded MPV, stop the player, select ts, save and reopen the channel. Web players can try advertised TS once after an initial HLS HTTP failure.",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
         "COVER_SIZE": "Cover size",

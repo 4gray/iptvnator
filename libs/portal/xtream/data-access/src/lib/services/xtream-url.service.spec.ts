@@ -120,6 +120,48 @@ describe('XtreamUrlService', () => {
         expect(url).toBe('http://demo.example/live/demo/secret/101.ts');
     });
 
+    it('builds an Auto TS alternative with encoded credentials and the provider subpath', () => {
+        streamFormat.set(StreamFormat.AutoStreamFormat);
+        expect(
+            service.constructAutoLiveTsUrl(
+                {
+                    serverUrl:
+                        'https://demo.example/panel/player_api.php?token=unused',
+                    username: 'a/b',
+                    password: 'x?y#z',
+                    allowedOutputFormats: [' M3U8 ', ' TS '],
+                },
+                101
+            )
+        ).toBe('https://demo.example/panel/live/a%2Fb/x%3Fy%23z/101.ts');
+    });
+
+    it.each([undefined, [], ['m3u8'], ['rtmp'], ['ts']])(
+        'does not guess an HLS-to-TS alternative for %j',
+        (allowedOutputFormats) => {
+            streamFormat.set(StreamFormat.AutoStreamFormat);
+            expect(
+                service.constructAutoLiveTsUrl(
+                    { ...credentials, allowedOutputFormats },
+                    101
+                )
+            ).toBeUndefined();
+        }
+    );
+
+    it.each([StreamFormat.TsStreamFormat, StreamFormat.M3u8StreamFormat])(
+        'respects manual %s even with both formats advertised',
+        (format) => {
+            streamFormat.set(format);
+            expect(
+                service.constructAutoLiveTsUrl(
+                    { ...credentials, allowedOutputFormats: ['m3u8', 'ts'] },
+                    101
+                )
+            ).toBeUndefined();
+        }
+    );
+
     it('constructs a VOD URL from catalog fields when metadata is empty', () => {
         const vodItem = {
             info: [],

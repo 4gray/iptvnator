@@ -1,8 +1,8 @@
 import {
     Component,
     ElementRef,
+    Injector,
     OnDestroy,
-    type Signal,
     ViewEncapsulation,
     computed,
     effect,
@@ -25,7 +25,6 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type Channel,
-    type EmbeddedMpvSupport,
     type RecordingStartMetadata,
     type RecordingStoppedEvent,
     type ResolvedPortalPlayback,
@@ -57,6 +56,8 @@ import {
 } from './web-player-application-ownership';
 import { createWebPlayerApplicationState } from './web-player-application-state';
 import { resolveWebPlayerMediaTitle } from './web-player-playback-state';
+import { createChannelPanelAvailability } from './web-player-channel-panel-state';
+import { WebPlayerLiveAutoFormat } from './web-player-live-auto-format';
 import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
     isPlaybackExternallyTransferable,
@@ -64,11 +65,6 @@ import {
     toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
-
-/** What the view needs from a rendered Embedded MPV player: its engine. */
-interface EmbeddedMpvEngineReporter {
-    readonly support: Signal<EmbeddedMpvSupport | null>;
-}
 
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
@@ -113,34 +109,11 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly fullscreenSurface: HTMLElement = inject(ElementRef<HTMLElement>)
         .nativeElement;
     private readonly embeddedMpvPlayer =
-        viewChild<EmbeddedMpvEngineReporter>('embeddedMpvPlayer');
-    /**
-     * The fullscreen channel panel is DOM content over the video. Embedded
-     * MPV's native-view engine paints a platform view above the page, where
-     * no DOM layer can show, so the panel exists only while the rendered
-     * engine is a web player or Embedded MPV's frame-copy canvas. Fails
-     * closed until frame-copy has been confirmed. Retain that confirmation
-     * while a replacement component probes support, so channel changes do
-     * not reset the panel. A confirmed native/unsupported result revokes it.
-     */
-    readonly channelPanelAvailable = linkedSignal<
-        { embedded: boolean; support: EmbeddedMpvSupport | null },
-        boolean
-    >({
-        source: () => ({
-            embedded: this.renderedApplications().some(
-                (application) => application.embeddedMpv
-            ),
-            support: this.embeddedMpvPlayer()?.support() ?? null,
-        }),
-        computation: ({ embedded, support }, previous) => {
-            if (!embedded) return true;
-            if (support === null) {
-                return previous?.source.embedded ? previous.value : false;
-            }
-            return support.supported && support.engine === 'frame-copy';
-        },
-    });
+        viewChild<EmbeddedMpvPlayerComponent>('embeddedMpvPlayer');
+    readonly channelPanelAvailable = createChannelPanelAvailability(
+        () => this.renderedApplications().some((app) => app.embeddedMpv),
+        () => this.embeddedMpvPlayer()?.support() ?? null
+    );
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
@@ -223,8 +196,17 @@ export class WebPlayerViewComponent implements OnDestroy {
         const temporary = this.recoverySession.temporaryPlayerOverride();
         return temporary ? toVideoPlayer(temporary) : this.renderablePlayer();
     });
-    private readonly applicationState = createWebPlayerApplicationState({
+    private readonly liveAutoFormat = new WebPlayerLiveAutoFormat({
         playback: this.playback,
+        sessionKey: this.playbackSessionKey,
+        player: this.selectedPlayer,
+        intent: this.reloadToken,
+        autoEnabled: () =>
+            (this.settingsStore.streamFormat?.() ?? 'auto') === 'auto',
+        injector: inject(Injector),
+    });
+    private readonly applicationState = createWebPlayerApplicationState({
+        playback: this.liveAutoFormat.playback,
         streamUrl: this.streamUrl,
         title: this.title,
         startTime: this.startTime,
@@ -243,7 +225,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         externalRecovery: this.externalRecovery,
         applicationHandoff: this.applicationHandoff,
         playbackSessionKey: this.playbackSessionKey,
-        playback: this.playback,
+        playback: this.liveAutoFormat.playback,
         streamUrl: this.streamUrl,
         startTime: this.startTime,
         selectedPlayer: this.selectedPlayer,
@@ -255,6 +237,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         alternativeSourceCount: () => this.alternativeSources().length,
         managedExternalPlayersAvailable: () =>
             this.runtime.supportsManagedExternalPlayers,
+        tryAutoLiveFormat: (issue) => this.liveAutoFormat.tryFallback(issue),
         emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
         emitExternalFallbackRequested: (request) =>
             this.externalFallbackRequested.emit(request),
@@ -284,6 +267,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly renderedApplications = computed<
         readonly PlaybackApplicationOwnership[]
     >(() => {
+        if (this.liveAutoFormat.pending()) return [];
         const binding = this.activeBinding();
         const embeddedMpv =
             this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
@@ -311,6 +295,7 @@ export class WebPlayerViewComponent implements OnDestroy {
             // Session sync may clear a temporary player override. Run it before
             // tracking intent so that reset is folded into this application.
             this.recovery.syncSession();
+            if (this.liveAutoFormat.pending()) return;
             void this.recovery.diagnosticIntentToken();
             const sourceRevision = this.playbackSourceRevisionToken();
             untracked(() =>
@@ -349,6 +334,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.liveAutoFormat.destroy();
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
     }
@@ -358,6 +344,18 @@ export class WebPlayerViewComponent implements OnDestroy {
         binding: PlaybackBinding
     ): void {
         this.recovery.handlePlaybackIssue(issue, binding);
+    }
+
+    handlePlaybackStarted(binding: PlaybackBinding): void {
+        this.recovery.syncSession();
+        if (
+            this.applicationHandoff.owns(
+                binding,
+                this.playbackApplicationToken()
+            ) &&
+            !this.liveAutoFormat.pending()
+        )
+            this.liveAutoFormat.started();
     }
 
     handleTimeUpdate(
