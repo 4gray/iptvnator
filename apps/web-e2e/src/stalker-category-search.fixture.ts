@@ -56,7 +56,9 @@ export async function verifyStalkerCategorySearch(page: Page): Promise<void> {
     expect(await playerNode?.evaluate((element) => element.isConnected)).toBe(
         true
     );
-    expect(await videoNode?.evaluate((element) => element.isConnected)).toBe(true);
+    expect(await videoNode?.evaluate((element) => element.isConnected)).toBe(
+        true
+    );
 
     await sidebarSearch.fill('');
     await sidebarSearch.press('Enter');
@@ -143,4 +145,72 @@ async function verifyStalkerPanelCategory(
     await expect(panel.locator('.channel-name')).toHaveText([names[30]]);
     await expect(search).toHaveValue(names[0].trim());
     await page.evaluate(() => document.exitFullscreen());
+}
+
+/** A category change and return retain the exact live media element (#1520). */
+export async function verifyStalkerPlaybackCategoryReturn(
+    page: Page
+): Promise<void> {
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const sidebar = page.locator('app-stalker-live-stream-layout .sidebar');
+    const sidebarTitle = sidebar.locator('.category-title');
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    const scrollPane = sidebar.locator('#live-channels');
+    await categories.nth(1).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(scrollPane).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(categories.nth(1)).toBeFocused();
+    const firstCategoryTitle = (await sidebarTitle.textContent())?.trim() ?? '';
+    expect(firstCategoryTitle).not.toBe('');
+
+    await channels.first().click();
+    await expect(scrollPane).toBeFocused();
+    await page.keyboard.press('PageDown');
+    await expect
+        .poll(() => scrollPane.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    const player = page.locator('app-web-player-view');
+    await expect(player).toBeVisible({ timeout: 20_000 });
+
+    const media = await player.locator('video').first().elementHandle();
+    expect(media).not.toBeNull();
+    const activeName = await channels
+        .first()
+        .locator('.channel-name')
+        .textContent();
+    await categories.nth(2).click();
+
+    // The sidebar re-filters to the new category (proves the click landed and
+    // change detection ran)…
+    await expect(sidebarTitle).not.toHaveText(firstCategoryTitle, {
+        timeout: 20_000,
+    });
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    // …while the channel picked from the previous category keeps playing.
+    await expect(player).toBeVisible();
+    const reveal = page.getByRole('button', {
+        name: 'Show playing channel',
+        exact: true,
+    });
+    await reveal.click();
+    await expect(sidebarTitle).toHaveText(firstCategoryTitle);
+    await expect(scrollPane).toBeFocused();
+    await expect(sidebar.locator('.active')).toContainText(activeName ?? '');
+    expect(
+        await media?.evaluate(
+            (video) =>
+                video === document.querySelector('app-web-player-view video')
+        )
+    ).toBe(true);
+    await expect(reveal).toHaveCount(0);
 }

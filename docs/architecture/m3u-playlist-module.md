@@ -836,12 +836,22 @@ activation, and the details dialog behave identically to the timeline.
   (**vertical title**, no time) → `micro` (just a marker); (C) a **hover/focus
   popover** revealing the full title + time + description for any non-`wide`
   block (it flips above the block when the panel is near the screen bottom);
-  (D) a px-per-minute **zoom** slider (tick density adapts via
-  `timelineTickStepForScale`); and (E) **grouping** of ≥4 consecutive short
+  (D) a px-per-minute **zoom** (tick density adapts via
+  `timelineTickStepForScale`): the toolbar's icon-only zoom button cycles
+  three presets — day overview (`1`) → by hour (`1.75`, the default) →
+  detailed (`3.4`, the scale a group chip expands to) — snapping a
+  wheel-tuned scale to its band's successor (`TIMELINE_ZOOM_LEVELS`,
+  `nextTimelineZoomScale`), while Ctrl/⌘ + wheel (and trackpad pinch) over
+  the ribbon zooms continuously around the cursor within
+  `TIMELINE_ZOOM_MIN..MAX` and `preventDefault`s so Chromium never page-zooms
+  the same gesture; the current level lives in the tooltip/`aria-label` and
+  a `data-zoom-level` attribute; and (E) **grouping** of ≥4 consecutive short
   (<10 min) programmes into one dashed "N short" chip when zoomed out
   (`scale < TIMELINE_GROUP_ZOOM_MAX`), expanded by clicking it. The ribbon
   canvas lives in the child `app-epg-timeline-track`; the parent owns the
-  scroller, toolbar (incl. the zoom slider) and state.
+  scroller, toolbar (icon-only "Now" + zoom buttons, both labelled through
+  tooltip + `aria-label`, so the channel/programme heading takes every pixel
+  the fixed-width controls leave) and state.
 - **Panel height & titles.** Block titles wrap onto as many lines as the card
   height allows and are clipped (not single-line ellipsis); the foot ("ON NOW"
   tag / "Watch") stays pinned at the bottom. With an inline player the guide is
@@ -1517,7 +1527,6 @@ metadata with no remaining source provenance cannot be selectively reconstructed
 resolve another retained source sharing that channel ID. Legacy programmes with
 unknown (`NULL`) ownership are conservatively left alone; the existing database
 initialization backfill handles rows whose channel still identifies their owner.
-
 
 Renderer reconciliation fences lookups before its first asynchronous step.
 Imports wait for serialized reconciliation (including playlist migration), then

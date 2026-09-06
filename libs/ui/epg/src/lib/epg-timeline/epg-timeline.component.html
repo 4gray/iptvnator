@@ -103,39 +103,36 @@
                 @if (guideAvailable()) {
                     <button
                         type="button"
-                        class="epg-timeline__guide"
+                        class="epg-timeline__iconbtn epg-timeline__guide"
                         (click)="openGuide.emit()"
                         [matTooltip]="'EPG.TIMELINE.OPEN_GUIDE' | translate"
+                        [attr.aria-label]="'EPG.TIMELINE.OPEN_GUIDE' | translate"
                     >
                         <mat-icon>grid_view</mat-icon>
-                        {{ 'EPG.TIMELINE.GUIDE' | translate }}
                     </button>
                 }
                 <button
                     type="button"
-                    class="epg-timeline__jump"
+                    class="epg-timeline__iconbtn epg-timeline__jump"
                     (click)="jumpToNow()"
                     [matTooltip]="'EPG.TIMELINE.JUMP_NOW' | translate"
+                    [attr.aria-label]="'EPG.TIMELINE.JUMP_NOW' | translate"
                 >
                     <mat-icon>my_location</mat-icon>
-                    {{ 'EPG.TIMELINE.NOW' | translate }}
                 </button>
-                <label
-                    class="epg-timeline__zoom"
-                    [matTooltip]="zoomLabelKey() | translate"
+                @let zoomTooltip =
+                    'EPG.TIMELINE.ZOOM_TOOLTIP'
+                        | translate: { level: (zoomLabelKey() | translate) };
+                <button
+                    type="button"
+                    class="epg-timeline__iconbtn epg-timeline__zoom"
+                    [attr.data-zoom-level]="zoomLevel()"
+                    (click)="cycleZoom()"
+                    [matTooltip]="zoomTooltip"
+                    [attr.aria-label]="zoomTooltip"
                 >
-                    <mat-icon>zoom_in</mat-icon>
-                    <input
-                        #zoomInput
-                        type="range"
-                        [min]="zoomMin"
-                        [max]="zoomMax"
-                        [step]="zoomStep"
-                        [value]="scale()"
-                        (input)="onZoom(zoomInput.valueAsNumber)"
-                        [attr.aria-label]="'EPG.TIMELINE.ZOOM' | translate"
-                    />
-                </label>
+                    <mat-icon>{{ zoomIcon() }}</mat-icon>
+                </button>
             }
             @if (showDateStepper()) {
                 <div class="epg-timeline__stepper">
@@ -205,6 +202,7 @@
                     #ribbon
                     class="epg-timeline__ribbon app-scrollbar"
                     (scroll)="onRibbonScroll()"
+                    (wheel)="onRibbonWheel($event)"
                 >
                     <app-epg-timeline-track
                         [items]="renderItems()"

@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Csatornalista elrejtése",
         "SHOW_CHANNELS_LIST": "Csatornalista megjelenítése",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Csatornalista megjelenítése vagy elrejtése (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Csatornalista megjelenítése vagy elrejtése (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "A csatornalista el van rejtve",
+        "CHANNELS_LIST_HIDDEN_HINT": "Az alábbi gombbal vagy a ⌘/Ctrl+B billentyűkkel jelenítheti meg újra."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Lejátszott csatorna megjelenítése",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Másik lejátszási lista feltöltése vagy kiválasztása",
         "ALL_CHANNELS": "Összes csatorna",
         "GROUPS": "Csoportok",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "Műsorújság",
             "OPEN_GUIDE": "Műsorújság megnyitása",
             "TODAY": "Ma",
             "NOW": "Most",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "Napi áttekintés",
             "ZOOM_HOURS": "Óránként",
             "ZOOM_DETAIL": "Részletes",
+            "ZOOM_TOOLTIP": "Nagyítás: {{level}} · ⌘/Ctrl + görgetés a finomhangoláshoz",
             "GROUP_SHORT": "rövid műsorok",
             "GROUP_EXPAND": "megjelenítés ›"
         }

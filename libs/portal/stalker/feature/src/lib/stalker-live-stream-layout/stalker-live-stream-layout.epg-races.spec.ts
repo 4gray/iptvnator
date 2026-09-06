@@ -165,7 +165,10 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 },
                 {
                     provide: LiveLayoutSidebarStateService,
-                    useValue: { isCollapsed: signal(false), toggle: jest.fn() },
+                    useValue: {
+                        isCollapsedFor: () => signal(false),
+                        toggle: jest.fn(),
+                    },
                 },
                 { provide: EpgRuntimeBridgeService, useValue: {} },
                 { provide: MatDialog, useValue: { open: jest.fn() } },

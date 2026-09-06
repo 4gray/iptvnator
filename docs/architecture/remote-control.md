@@ -126,6 +126,36 @@ publishes it when the active channel is cleared IN PLACE (e.g. quitting an
 external MPV/VLC session dispatches `resetActiveChannel` while the route
 stays mounted).
 
+## Live channel return and playback order
+
+Xtream and Stalker live views keep a component-owned playback queue through
+`LiveChannelPlaybackQueue` in `portal-shared-data-access`. Explicit selection
+captures the actual displayed order, including search/sort and a fullscreen
+panel's own filter. Remote up/down, numeric selection and the published channel
+number use that queue while category or search browsing remains independent.
+Xtream history handoffs from global search or Recently Added capture the
+eligible destination category in the selected channel sort order; an unrelated
+previous category/query does not define that queue. Explicit All Items clicks
+still capture their displayed list. Same-channel replay and remote selection preserve it. Source/type changes and
+view destruction discard it; ITV and radio never share an owner.
+
+Stalker captures before asynchronous URL resolution and commits only the winning
+successful request. Paged lists extend the queue only as more rows arrive for
+the original category and search scope. They do not fetch a global catalog for
+remote navigation. Xtream excludes removed streams and hidden or removed
+categories from eligible queue entries.
+
+A conditional **Show playing channel** icon in the channel header appears when
+the playing channel is absent from the browsed results and its category remains
+accessible. It clears `q` and the store query, returns to that category, expands
+the sidebar, then scrolls and focuses the playing row. It never starts playback
+or changes the playback/session/catchup identity. A collapsed sidebar first uses
+its existing restore action. Removed categories are not recreated or unhidden.
+Stalker reuses the already-resolved playing item as a temporary normal row when
+it lies beyond loaded provider pages. This row is deduplicated once it arrives
+in provider results and discarded on browsing or playback changes; returning
+never crawls the catalog. Raw provider rows alone extend the playback queue.
+
 ## Shared helpers
 
 - File: `libs/portal/shared/util/src/lib/remote-channel-navigation.ts`
@@ -184,10 +214,10 @@ Implemented behavior:
     - `onRemoteControlCommand` for number select
 - Up/down:
     - Uses selected live item `selectedItem().xtream_id`
-    - Navigates inside `selectItemsFromSelectedCategory()`
+    - Navigates inside the captured eligible playback queue
     - Calls `playLive(nextItem, true)` so remote actions explicitly start playback
 - Number select:
-    - Maps number to item in current category list
+    - Maps number to item in the same captured eligible queue
     - Calls `playLive(channel, true)` so remote actions explicitly start playback
 - Publishes status via effect:
     - `portal: 'xtream'`
@@ -207,10 +237,10 @@ Implemented behavior:
     - `onRemoteControlCommand` for number select
 - Up/down:
     - Uses `selectedItem().id`
-    - Navigates inside `itvChannels()`
+    - Navigates inside the captured ITV/radio playback queue
     - Calls `playChannel(nextItem, true)` so remote actions explicitly start playback
 - Number select:
-    - Maps number into `itvChannels()`
+    - Maps number into the same captured playback queue
     - Calls `playChannel(channel, true)` so remote actions explicitly start playback
 - Publishes status via effect:
     - `portal: 'stalker'`

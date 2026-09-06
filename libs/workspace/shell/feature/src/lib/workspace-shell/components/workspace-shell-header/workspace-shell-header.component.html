@@ -115,6 +115,22 @@
             <mat-icon>add</mat-icon>
         </button>
         @if (!isSettingsRoute()) {
+            @if (headerSidebarToggle(); as sidebarToggle) {
+                <button
+                    type="button"
+                    class="header-shortcut header-sidebar-toggle"
+                    [class.header-sidebar-toggle--collapsed]="
+                        !sidebarToggle.expanded
+                    "
+                    mat-icon-button
+                    (click)="onHeaderSidebarToggleRequested()"
+                    [matTooltip]="sidebarToggle.tooltip"
+                    [attr.aria-label]="sidebarToggle.ariaLabel"
+                    [attr.aria-pressed]="sidebarToggle.expanded"
+                >
+                    <mat-icon>view_sidebar</mat-icon>
+                </button>
+            }
             @if (headerShortcut(); as action) {
                 <button
                     type="button"

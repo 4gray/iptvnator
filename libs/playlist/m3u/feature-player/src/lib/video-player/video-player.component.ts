@@ -84,17 +84,18 @@ import {
     isTypingInInput,
     isWorkspaceLayoutRoute,
     LiveEpgPanelState,
-    LiveSidebarState,
+    LiveLayoutSidebarStateService,
     persistLiveEpgPanelState,
-    persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
     isLiveExternalPlayerSession,
     REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
-    restoreLiveSidebarState,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
-import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import {
+    ChannelListHiddenStateComponent,
+    PortalEmptyStateComponent,
+} from '@iptvnator/portal/shared/ui';
 import {
     AudioPlayerComponent,
     FULLSCREEN_CHANNEL_PANEL,
@@ -204,6 +205,7 @@ function isInsideScrollableRegion(
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         SidebarComponent,
@@ -237,6 +239,9 @@ export class VideoPlayerComponent
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
+    private readonly liveSidebarStateService = inject(
+        LiveLayoutSidebarStateService
+    );
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceHeaderContext = inject(
@@ -523,12 +528,9 @@ export class VideoPlayerComponent
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
-    readonly liveSidebarState = signal<LiveSidebarState>(
-        restoreLiveSidebarState()
-    );
-    readonly isSidebarCollapsed = computed(
-        () => this.liveSidebarState() === 'collapsed'
-    );
+    /** Shared with the workspace header toggle; persisted per surface. */
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('m3u');
 
     /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
@@ -1075,11 +1077,7 @@ export class VideoPlayerComponent
     }
 
     toggleSidebar(): void {
-        const next: LiveSidebarState = this.isSidebarCollapsed()
-            ? 'expanded'
-            : 'collapsed';
-        this.liveSidebarState.set(next);
-        persistLiveSidebarState(next);
+        this.liveSidebarStateService.toggle('m3u');
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {

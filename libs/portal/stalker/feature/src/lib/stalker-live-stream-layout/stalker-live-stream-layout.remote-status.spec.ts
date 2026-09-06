@@ -27,12 +27,37 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
     const originalElectron = window.electron;
 
     const itvChannels = signal([
-        { id: '10001', cmd: 'ffrt4://itv/1', name: 'Alpha TV', o_name: 'Alpha TV', logo: 'a.png' },
-        { id: '10002', cmd: 'ffrt4://itv/2', name: 'Beta TV', o_name: 'Beta TV', logo: 'b.png' },
+        {
+            id: '10001',
+            cmd: 'ffrt4://itv/1',
+            name: 'Alpha TV',
+            o_name: 'Alpha TV',
+            logo: 'a.png',
+        },
+        {
+            id: '10002',
+            cmd: 'ffrt4://itv/2',
+            name: 'Beta TV',
+            o_name: 'Beta TV',
+            logo: 'b.png',
+        },
     ]);
+    const originalItvChannels = itvChannels();
     const radioChannels = signal([
-        { id: 'radio-1', cmd: 'ifm https://s/jazz.mp3', name: 'Jazz FM', o_name: 'Jazz FM', logo: 'j.png' },
-        { id: 'radio-2', cmd: 'ifm https://s/news.mp3', name: 'News Radio', o_name: 'News Radio', logo: 'n.png' },
+        {
+            id: 'radio-1',
+            cmd: 'ifm https://s/jazz.mp3',
+            name: 'Jazz FM',
+            o_name: 'Jazz FM',
+            logo: 'j.png',
+        },
+        {
+            id: 'radio-2',
+            cmd: 'ifm https://s/news.mp3',
+            name: 'News Radio',
+            o_name: 'News Radio',
+            logo: 'n.png',
+        },
     ]);
     const selectedItem = signal<{
         id: string;
@@ -93,8 +118,35 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
 
     const updateRemoteControlStatus = jest.fn();
 
+    it('keeps remote order and number when browsing excludes the playing channel', async () => {
+        const original = itvChannels();
+        stalkerStore.setSelectedItem.mockImplementation((item) =>
+            selectedItem.set(item)
+        );
+        fixture.detectChanges();
+        await fixture.componentInstance.playChannel(original[0]);
+        fixture.detectChanges();
+        stalkerStore.selectedCategoryId.set('sports');
+        itvChannels.set([{ ...original[0], id: '90001', name: 'Sports TV' }]);
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ channelNumber: 1 })
+        );
+        const host = fixture.componentInstance as unknown as {
+            handleRemoteChannelChange(direction: 'down'): void;
+        };
+        host.handleRemoteChannelChange('down');
+        await fixture.whenStable();
+        expect(selectedItem()?.id).toBe(original[1].id);
+        itvChannels.set(original);
+        stalkerStore.selectedCategoryId.set('1001');
+    });
+
     beforeEach(async () => {
         updateRemoteControlStatus.mockClear();
+        itvChannels.set(originalItvChannels);
+        stalkerStore.selectedCategoryId.set('1001');
+        stalkerStore.setSelectedItem.mockReset();
         window.electron = {
             platform: 'darwin',
             setUserAgent: jest.fn().mockResolvedValue(true),
@@ -128,8 +180,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                         // remote-control bridge method must be present.
                         get supportsRemoteControl() {
                             const bridge = window.electron as
-                                | Record<string, unknown>
-                                | undefined;
+                                Record<string, unknown> | undefined;
                             return [
                                 'updateRemoteControlStatus',
                                 'onChannelChange',

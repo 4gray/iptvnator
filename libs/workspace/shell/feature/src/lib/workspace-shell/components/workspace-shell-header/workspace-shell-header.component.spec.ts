@@ -158,6 +158,71 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(requested).toHaveBeenCalledTimes(1);
     });
 
+    it('does not render the live rail toggle when the route has no rail', () => {
+        expect(
+            fixture.nativeElement.querySelector('.header-sidebar-toggle')
+        ).toBeNull();
+    });
+
+    it('renders the live rail toggle in both rail states and emits toggle requests', () => {
+        const requested = jest.fn();
+        component.headerSidebarToggleRequested.subscribe(requested);
+        fixture.componentRef.setInput('headerSidebarToggle', {
+            expanded: true,
+            tooltip: 'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP',
+            ariaLabel: 'LAYOUT.HIDE_CHANNELS_LIST',
+        });
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '.header-sidebar-toggle'
+        );
+        expect(button.getAttribute('aria-pressed')).toBe('true');
+        expect(button.getAttribute('aria-label')).toBe(
+            'LAYOUT.HIDE_CHANNELS_LIST'
+        );
+        expect(button.classList).not.toContain(
+            'header-sidebar-toggle--collapsed'
+        );
+
+        button.click();
+        expect(requested).toHaveBeenCalledTimes(1);
+
+        // The control stays in place once the rail is hidden; only its
+        // pressed state, label and tint change.
+        fixture.componentRef.setInput('headerSidebarToggle', {
+            expanded: false,
+            tooltip: 'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP',
+            ariaLabel: 'LAYOUT.SHOW_CHANNELS_LIST',
+        });
+        fixture.detectChanges();
+
+        const collapsedButton: HTMLButtonElement =
+            fixture.nativeElement.querySelector('.header-sidebar-toggle');
+        expect(collapsedButton).toBe(button);
+        expect(collapsedButton.getAttribute('aria-pressed')).toBe('false');
+        expect(collapsedButton.getAttribute('aria-label')).toBe(
+            'LAYOUT.SHOW_CHANNELS_LIST'
+        );
+        expect(collapsedButton.classList).toContain(
+            'header-sidebar-toggle--collapsed'
+        );
+    });
+
+    it('hides the live rail toggle on the settings route', () => {
+        fixture.componentRef.setInput('headerSidebarToggle', {
+            expanded: true,
+            tooltip: 'tooltip',
+            ariaLabel: 'aria',
+        });
+        fixture.componentRef.setInput('isSettingsRoute', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.header-sidebar-toggle')
+        ).toBeNull();
+    });
+
     it('renders scope and status chips when search metadata is provided', () => {
         fixture.componentRef.setInput('searchScopeLabel', 'Movies / All Items');
         fixture.componentRef.setInput(

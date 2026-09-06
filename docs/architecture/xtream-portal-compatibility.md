@@ -129,6 +129,58 @@ Manual `ts` and `m3u8` settings remain supported; when a manual setting is not
 allowed by the portal, URL construction falls back to the first
 provider-allowed format.
 
+### Initial Auto HLS failure
+
+The routed Xtream Live TV host attaches `ResolvedPortalPlayback.liveAutoTsUrl`
+only when the current user preference is Auto and the current account explicitly
+advertises both HLS and TS. `XtreamUrlService.constructAutoLiveTsUrl` uses the
+same credential encoding and provider-subpath URL builder as the initial URL;
+no URL string replacement, manifest preflight, stream download, or API probe is
+introduced. Unknown/empty formats and manual HLS/TS have no alternative.
+
+`WebPlayerLiveAutoFormat` may consume that alternative once per mounted logical
+live session, in the same selected web player, after an owned terminal network
+diagnostic with HTTP 4xx/5xx, before the native video element reports `playing`.
+A successful manifest is not playback. HLS key/media/unknown-stage failures,
+DRM payloads, content-info VOD/episodes, and catch-up are excluded. Generic
+network failures, status zero, cancellation, timeouts without an HTTP response,
+and decode errors keep the normal explicit recovery surface.
+
+The old application is first removed from the render tree. The next render
+callback starts TS only after the web engine's synchronous loader teardown and
+only while source, logical session and user intent still match. The TS payload
+keeps the original headers, title and playback metadata; Electron applies them
+through its existing scoped header handoff. HTTP-media requests retain the
+existing transport/trust rules and do not feed new evidence or admission into
+the separate portal-API host-connectivity guard. Recovery recommendations still
+require a user action and never auto-switch engines. No settings or playlist
+cache is changed. A TS failure displays normal recovery actions; Retry repeats
+TS without rearming the automatic attempt. Changing the actual logical channel
+or playlist, or mounting a new host, creates a new session; same-session metadata
+or provider-source refresh does not rearm it. Same-channel replay and metadata
+refresh preserve the chosen TS while the candidate URLs, headers and mode stay
+the same; an actual transport/provider change discards that selection. This deliberately avoids a sticky
+playlist preference and reevaluates advertised formats on the next channel.
+
+| Player/path                              | Initial Auto failure support                                                                                                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTML5 / ArtPlayer, hls.js                | One advertised TS attempt after terminal HLS manifest/level/segment HTTP failure; waits for the engine's own bounded retries                                                                               |
+| Video.js / VHS                           | Only an observable terminal HTTP diagnostic can trigger an attempt. A sole HLS rendition's failing segment can remain in VHS retry/exclusion cycles without such a diagnostic; use manual TS for that case |
+| External MPV / VLC                       | Manual TS only. Process launch/exit and best-effort playing telemetry do not reliably identify the initial HLS media HTTP failure                                                                          |
+| Embedded MPV                             | Manual TS only; no equivalent structured HTTP diagnostic                                                                                                                                                   |
+| Unified Favorites/Recent live resolution | Manual TS; it does not own fresh session account-format evidence                                                                                                                                           |
+
+For manual recovery, stop the current player, choose **Settings > Playback >
+Stream Format > ts**, save, and reopen the channel. This keeps the chosen player
+and avoids a second uncorrelated external process. The settings description
+explains this route. This is partial playback coverage of #1513, not a claim
+that all external-player and VHS scenarios automatically recover.
+
+Synthetic regression media lives in the mock's `live-fallback:live-fallback`
+account: HLS manifest 200 plus segment 403, manifest 403, a playable local
+H.264/AAC TS alternative, a failing TS alternative, and a delayed HLS segment.
+Tests assert actual video progress and the number of concrete TS requests.
+
 If stored Xtream playback credentials contain an invalid server URL or blank
 username/password, stream URL construction returns an empty URL instead of
 throwing during playback.

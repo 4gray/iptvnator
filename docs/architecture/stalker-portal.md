@@ -1274,9 +1274,10 @@ The Stalker live route and radio route intentionally share
   in flight belong to the selection and survive the switch. Only a section
   change (`itv` ↔ `radio`, where the route session clears the selection)
   invalidates that request and drops the fallback. A playing channel outside
-  the newly selected category simply has no highlighted row, and remote
-  channel up/down finds no neighbour until a channel from the visible list is
-  played.
+  the newly selected category can be revealed with **Show playing channel**
+  in the channel header. Remote up/down, numeric selection and status retain
+  the captured playback order while browsing. See the
+  [queue and reveal contract](./remote-control.md#live-channel-return-and-playback-order).
 
 ## Full ITV Channel List Cache
 

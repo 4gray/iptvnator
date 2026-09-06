@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Zenderlijst verbergen",
         "SHOW_CHANNELS_LIST": "Zenderlijst tonen",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "De zenderlijst is verborgen",
+        "CHANNELS_LIST_HIDDEN_HINT": "Toon de lijst opnieuw met de knop hieronder of druk op ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Huidige zender tonen",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",
         "ALL_CHANNELS": "Alle kanalen",
         "GROUPS": "Groepen",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "Gids",
             "OPEN_GUIDE": "Programmagids openen",
             "TODAY": "Vandaag",
             "NOW": "Nu",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "Dagoverzicht",
             "ZOOM_HOURS": "Per uur",
             "ZOOM_DETAIL": "Gedetailleerd",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · ⌘/Ctrl + scrollen om fijn af te stellen",
             "GROUP_SHORT": "korte progr.",
             "GROUP_EXPAND": "toon ›"
         }

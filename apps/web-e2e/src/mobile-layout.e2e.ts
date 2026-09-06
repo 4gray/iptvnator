@@ -134,9 +134,7 @@ test.describe('portrait phone 375x812', () => {
         // sections; now the list scrolls and ends above the footer.
         const listBox = await boxOf(panel.locator('.settings-sections-list'));
         const footerBox = await boxOf(footer);
-        expect(listBox.y + listBox.height).toBeLessThanOrEqual(
-            footerBox.y + 1
-        );
+        expect(listBox.y + listBox.height).toBeLessThanOrEqual(footerBox.y + 1);
 
         // Tapping the backdrop (right of the drawer) closes it.
         await page
@@ -216,7 +214,16 @@ test.describe('xtream portal routes on a phone', () => {
         const sidebar = page.locator('app-live-stream-layout .sidebar');
         await expect(sidebar).toBeVisible();
 
+        // The workspace header carries the live rail toggle at desktop
+        // width only; on the phone the rail is a bottom drawer with its own
+        // toggle and the header has no room for another permanent icon.
+        const headerRailToggle = page.locator(
+            'app-workspace-shell-header .header-sidebar-toggle'
+        );
+        await expect(headerRailToggle).toBeVisible();
+
         await page.setViewportSize(LANDSCAPE_PHONE);
+        await expect(headerRailToggle).toBeHidden();
 
         // The sidebar stacks at full width above the player.
         await expect

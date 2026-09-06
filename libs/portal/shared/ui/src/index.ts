@@ -8,6 +8,7 @@ export * from './lib/components/grid-list/grid-list.component';
 export * from './lib/components/playlist-error-view/playlist-error-view.component';
 export { ProgressCapsuleComponent } from '@iptvnator/ui/components';
 export * from './lib/components/portal-empty-state/portal-empty-state.component';
+export * from './lib/components/channel-list-hidden-state/channel-list-hidden-state.component';
 export * from './lib/components/search-form/search-form.component';
 export * from './lib/components/search-layout/search-layout.component';
 export { WatchedBadgeComponent } from '@iptvnator/ui/components';

@@ -504,6 +504,8 @@ The M3U playlist module handles traditional M3U/M3U8 playlists with support for 
 
 The live EPG panel is a horizontal **timeline ribbon** under the player (`app-epg-timeline`, `libs/ui/epg/src/lib/epg-timeline/`), not a right-side drawer (reworked in PR #1102). See `docs/architecture/m3u-playlist-module.md` for the timeline's controllers and scroll behavior.
 
+**Collapsible live channel rail** (M3U player, Xtream/Stalker live layouts, unified favorites/recent live tab): collapse state is owned by `LiveLayoutSidebarStateService` (`@iptvnator/portal/shared/util`) and kept per surface (`m3u` / `portal` / `collection`, localStorage `live-sidebar-state:<surface>`); the pre-split shared key `live-sidebar-state` is forgotten on startup and never read (issue #1458: one stored `collapsed` hid every channel list in the app behind a 32px chevron and survived restart, "Remove all playlists" and re-import). The workspace header renders a `view_sidebar` toggle on every route that renders its own rail (`resolveRouteLiveSidebarSurface`) so the control exists in both states, and a collapsed rail with nothing playing shows `app-channel-list-hidden-state` (title + hint + "Show channels list" button) instead of "select a channel". Contract: "Collapsible Live Sidebar" in `docs/architecture/iptvnator-ui-guidelines.md`.
+
 **Radio Channel Layout** (when `channel.radio === 'true'`):
 
 ```
@@ -781,6 +783,18 @@ Save persists the complete draft, Close discards it, and refresh restores hidden
 categories by provider ID and type. See `docs/architecture/category-management.md`.
 
 ### Key Features
+
+#### Xtream Live Auto Format
+
+The routed Xtream live host supplies `liveAutoTsUrl` only for Auto with explicit
+HLS+TS account evidence, using the canonical URL builder and original headers.
+The same web player may try TS once after an owned initial terminal HTTP failure,
+before `playing`; the old transport unmounts before the guarded render callback
+starts TS. No player preference or playlist cache changes. Manual formats,
+unknown formats, DRM, VOD/catch-up and stale sessions are excluded. External
+MPV/VLC and Embedded MPV retain manual TS; Video.js segment retry cycles without
+a terminal diagnostic also need manual TS. Contract and full support matrix:
+`docs/architecture/xtream-portal-compatibility.md` (Initial Auto HLS failure).
 
 #### M3U URL User-Agent
 
@@ -1725,6 +1739,16 @@ preventing destination failures from penalizing the initial endpoint. Contracts:
 - Both account-info dialogs explain guard refusals with localized paused-request
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
+
+## Live Channel Return
+
+Xtream and Stalker (including radio) capture displayed playback order on explicit
+selection. Remote up/down, numbers and status use that queue while browsing
+categories or search. Stalker commits after successful current URL resolution
+and extends only loaded pages of the original scope. The conditional channel
+header action clears search, returns to the accessible playing category and
+focuses its row without changing playback. Contract:
+`docs/architecture/remote-control.md` (Live channel return and playback order).
 
 ## Stalker Live Search
 

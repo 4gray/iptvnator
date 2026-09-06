@@ -10,6 +10,8 @@ import {
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/ui';
 import {
+    LiveLayoutSidebarStateService,
+    resolveRouteLiveSidebarSurface,
     WorkspaceHeaderAction,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
@@ -30,6 +32,7 @@ import {
     CLEAR_RECENTLY_VIEWED_ARIA,
     CLEAR_RECENTLY_VIEWED_TOOLTIP,
     WorkspaceHeaderBulkAction,
+    WorkspaceHeaderSidebarToggle,
 } from './helpers/workspace-shell-constants';
 import { bumpRefreshQueryParam } from './helpers/workspace-shell-route-utils';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
@@ -48,6 +51,7 @@ export class WorkspaceShellHeaderService {
     private readonly playlistRefreshAction = inject(
         PlaylistRefreshActionService
     );
+    private readonly liveSidebar = inject(LiveLayoutSidebarStateService);
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -75,6 +79,38 @@ export class WorkspaceShellHeaderService {
 
         return action;
     });
+    /**
+     * The live rail of the current route, when the route renders one itself.
+     * The header toggle needs a rail that exists in both states; collection
+     * pages keep their own toggle beside the live/movies/series switch.
+     */
+    private readonly liveSidebarSurface = computed(() =>
+        resolveRouteLiveSidebarSurface(
+            this.routeState.currentContext()?.provider,
+            this.routeState.currentSection()
+        )
+    );
+    readonly headerSidebarToggle = computed<WorkspaceHeaderSidebarToggle | null>(
+        () => {
+            this.languageTick();
+
+            const surface = this.liveSidebarSurface();
+            if (!surface) {
+                return null;
+            }
+
+            const collapsed = this.liveSidebar.isCollapsedFor(surface)();
+            return {
+                expanded: !collapsed,
+                tooltip: this.translateText('LAYOUT.TOGGLE_SIDEBAR_TOOLTIP'),
+                ariaLabel: this.translateText(
+                    collapsed
+                        ? 'LAYOUT.SHOW_CHANNELS_LIST'
+                        : 'LAYOUT.HIDE_CHANNELS_LIST'
+                ),
+            };
+        }
+    );
     readonly canOpenPlaylistInfo = computed(() =>
         Boolean(this.routeState.activePlaylist())
     );
@@ -216,6 +252,13 @@ export class WorkspaceShellHeaderService {
                 this.router,
                 this.routeState.currentUrl()
             );
+        }
+    }
+
+    toggleLiveSidebar(): void {
+        const surface = this.liveSidebarSurface();
+        if (surface) {
+            this.liveSidebar.toggle(surface);
         }
     }
 

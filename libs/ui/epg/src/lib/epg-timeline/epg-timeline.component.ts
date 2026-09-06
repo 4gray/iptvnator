@@ -44,6 +44,7 @@ import {
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
 import { TimelineScrollController } from './epg-timeline-scroll.controller';
+import { TimelineZoomController } from './epg-timeline-zoom.controller';
 import { EpgTimelineTrackComponent } from './epg-timeline-track.component';
 import {
     buildTimelineAxis,
@@ -59,10 +60,10 @@ import {
     TIMELINE_MINUTE_MS,
     TIMELINE_ZOOM_MAX,
     TIMELINE_ZOOM_MIN,
-    TIMELINE_ZOOM_STEP,
     TimelineBlock,
     TimelineRenderGroup,
     timelineTickStepForScale,
+    timelineZoomLevelForScale,
 } from './epg-timeline.utils';
 
 type RenderState = 'loading' | 'ribbon' | EpgTimelineEmptyReason;
@@ -118,7 +119,6 @@ export class EpgTimelineComponent {
     readonly scale = signal(TIMELINE_DEFAULT_SCALE);
     readonly zoomMin = TIMELINE_ZOOM_MIN;
     readonly zoomMax = TIMELINE_ZOOM_MAX;
-    readonly zoomStep = TIMELINE_ZOOM_STEP;
     readonly skeletonWidths = [120, 170, 150, 200, 140, 180];
 
     private readonly nowMs = signal(Date.now());
@@ -128,6 +128,13 @@ export class EpgTimelineComponent {
     private readonly viewDayKey = linkedSignal(() => {
         const key = this.selectedDate()?.trim();
         return key ? key : getTodayEpgDateKey();
+    });
+
+    /** Zoom button + Ctrl/⌘ wheel, anchored so a ribbon minute stays put. */
+    private readonly zoom = new TimelineZoomController({
+        ribbon: () => this.ribbon()?.nativeElement,
+        scale: () => this.scale(),
+        setScale: (scale) => this.scale.set(scale),
     });
 
     /** Ribbon scrolling + channel-select auto-focus, extracted from the view. */
@@ -199,12 +206,23 @@ export class EpgTimelineComponent {
             ((this.nowMs() - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale()
         );
     });
+    readonly zoomLevel = computed(() =>
+        timelineZoomLevelForScale(this.scale())
+    );
     readonly zoomLabelKey = computed(() => {
-        const scale = this.scale();
-        if (scale < TIMELINE_GROUP_ZOOM_MAX) return 'EPG.TIMELINE.ZOOM_DAY';
-        if (scale < 3) return 'EPG.TIMELINE.ZOOM_HOURS';
-        return 'EPG.TIMELINE.ZOOM_DETAIL';
+        switch (this.zoomLevel()) {
+            case 'day':
+                return 'EPG.TIMELINE.ZOOM_DAY';
+            case 'hours':
+                return 'EPG.TIMELINE.ZOOM_HOURS';
+            default:
+                return 'EPG.TIMELINE.ZOOM_DETAIL';
+        }
     });
+    /** `zoom_out` reads as "overview"; both finer bands share `zoom_in`. */
+    readonly zoomIcon = computed(() =>
+        this.zoomLevel() === 'day' ? 'zoom_out' : 'zoom_in'
+    );
     readonly nowLabel = computed(() => formatClockTime(this.nowMs()));
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
@@ -304,24 +322,19 @@ export class EpgTimelineComponent {
         this.collapsedChange.emit(!this.collapsed());
     }
 
+    /** Clamp + apply a scale, keeping the viewport centre stable. */
     onZoom(value: number): void {
-        const requested = Number(value);
-        const next = Number.isFinite(requested)
-            ? Math.min(this.zoomMax, Math.max(this.zoomMin, requested))
-            : this.scale();
-        // Keep the viewport centre stable across a zoom change.
-        const scroller = this.ribbon()?.nativeElement;
-        const prev = this.scale();
-        const centreMin = scroller
-            ? (scroller.scrollLeft + scroller.clientWidth / 2) / prev
-            : null;
-        this.scale.set(next);
-        if (scroller && centreMin !== null) {
-            requestAnimationFrame(() => {
-                scroller.scrollLeft =
-                    centreMin * next - scroller.clientWidth / 2;
-            });
-        }
+        this.zoom.zoomTo(value);
+    }
+
+    /** Toolbar zoom button: next preset (day → hours → detail → day). */
+    cycleZoom(): void {
+        this.zoom.cycle();
+    }
+
+    /** Ctrl/⌘ + wheel over the ribbon zooms around the cursor. */
+    onRibbonWheel(event: WheelEvent): void {
+        this.zoom.onWheel(event);
     }
 
     onGroupExpand(group: TimelineRenderGroup): void {

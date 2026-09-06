@@ -33,6 +33,27 @@
     opacity: 0.6;
 }
 
+.empty-state-hint {
+    margin: 8px 0 0;
+    max-width: 36ch;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    text-wrap: balance;
+    opacity: 0.55;
+}
+
+// The action is the one element here that must not fade into the backdrop:
+// it is the way out of the state, so it keeps full opacity and a real
+// hit target while the icon and copy stay muted.
+.empty-state-action {
+    margin-top: 20px;
+    min-height: 40px;
+
+    mat-icon {
+        margin-right: 6px;
+    }
+}
+
 @keyframes portal-empty-state-fade-in {
     from {
         opacity: 0;

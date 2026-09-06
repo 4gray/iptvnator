@@ -358,7 +358,7 @@
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "On wide windows, dock the series player to the left and show the upcoming episodes beside it.",
         "FULLSCREEN_CHANNEL_PANEL": "Channel list in fullscreen",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Rest the mouse on the left edge or press C while in fullscreen to slide in the channel list and switch channels without leaving fullscreen.",
-        "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
+        "STREAM_FORMAT_DESCRIPTION": "Auto prefers HLS. If live playback fails in MPV, VLC or Embedded MPV, stop the player, select ts, save and reopen the channel. Web players can try advertised TS once after an initial HLS HTTP failure.",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
         "COVER_SIZE": "Cover size",
@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Hide channels list",
         "SHOW_CHANNELS_LIST": "Show channels list",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Toggle channels list (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Toggle channels list (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "The channels list is hidden",
+        "CHANNELS_LIST_HIDDEN_HINT": "Bring it back with the button below or press ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Show playing channel",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",
         "ALL_CHANNELS": "All channels",
         "GROUPS": "Groups",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "Guide",
             "OPEN_GUIDE": "Open the programme guide",
             "TODAY": "Today",
             "NOW": "Now",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "Day overview",
             "ZOOM_HOURS": "By hour",
             "ZOOM_DETAIL": "Detailed",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · ⌘/Ctrl + scroll to fine-tune",
             "GROUP_SHORT": "short progs",
             "GROUP_EXPAND": "show ›"
         }

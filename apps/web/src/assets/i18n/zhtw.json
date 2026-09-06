@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "隱藏頻道列表",
         "SHOW_CHANNELS_LIST": "顯示頻道列表",
-        "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "頻道列表已隱藏",
+        "CHANNELS_LIST_HIDDEN_HINT": "點選下方按鈕或按 ⌘/Ctrl+B 重新顯示。"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "顯示正在播放的頻道",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",
         "ALL_CHANNELS": "所有頻道",
         "GROUPS": "群組",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "節目表",
             "OPEN_GUIDE": "開啟節目表",
             "TODAY": "今天",
             "NOW": "現在",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "日總覽",
             "ZOOM_HOURS": "依小時",
             "ZOOM_DETAIL": "詳細",
+            "ZOOM_TOOLTIP": "縮放：{{level}} · ⌘/Ctrl + 滾輪微調",
             "GROUP_SHORT": "短節目",
             "GROUP_EXPAND": "顯示 ›"
         }

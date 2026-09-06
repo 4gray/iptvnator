@@ -90,6 +90,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
+    readonly playbackStarted = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
@@ -103,6 +104,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         releasePictureInPicture: !this.sharedControls,
         clearPlaybackIssue: () => this.playbackIssue.emit(null),
         emitPlaybackEnded: () => this.playbackEnded.emit(),
+        emitPlaybackStarted: () => this.playbackStarted.emit(),
     });
     private readonly mpegTsSession = new VjsMpegTsSession({
         player: () => this.player,
@@ -146,7 +148,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             vjsOptions,
             this.handlePlayerReady
         ) as unknown as VideoJsPlayer;
-        this.bindPlayerEvents();
+        this.bindPlayerEvents(true);
         initializeVjsPlugins(this.player);
         if (!this.sharedControls) {
             this.legacyShortcuts = attachVjsLegacyShortcuts({
@@ -220,7 +222,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.mpegTsSession.destroy();
         this.videoSession.destroy();
         if (this.player) {
-            this.unbindPlayerEvents();
+            this.bindPlayerEvents(false);
             this.player.dispose();
         }
     }
@@ -410,21 +412,18 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.legacyTracks.bind();
     }
 
-    private bindPlayerEvents(): void {
-        this.player.on('loadedmetadata', this.handleLoadedMetadata);
-        this.player.on('error', this.handleVideoJsError);
-        this.player.on('volumechange', this.handleVolumeChange);
-        this.player.on('timeupdate', this.handleTimeUpdate);
-        this.player.on('pause', this.handlePauseForReset);
-        this.player.on('playerreset', this.handlePlayerReset);
-    }
-
-    private unbindPlayerEvents(): void {
-        this.player.off('loadedmetadata', this.handleLoadedMetadata);
-        this.player.off('error', this.handleVideoJsError);
-        this.player.off('volumechange', this.handleVolumeChange);
-        this.player.off('timeupdate', this.handleTimeUpdate);
-        this.player.off('pause', this.handlePauseForReset);
-        this.player.off('playerreset', this.handlePlayerReset);
+    private bindPlayerEvents(bind: boolean): void {
+        const events = {
+            loadedmetadata: this.handleLoadedMetadata,
+            error: this.handleVideoJsError,
+            volumechange: this.handleVolumeChange,
+            timeupdate: this.handleTimeUpdate,
+            pause: this.handlePauseForReset,
+            playerreset: this.handlePlayerReset,
+        };
+        for (const [event, listener] of Object.entries(events)) {
+            if (bind) this.player.on(event, listener);
+            else this.player.off(event, listener);
+        }
     }
 }

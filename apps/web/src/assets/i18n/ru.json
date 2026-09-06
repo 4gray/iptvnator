@@ -358,7 +358,7 @@
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "В широких окнах закреплять плеер сериала слева и показывать следующие серии рядом с ним.",
         "FULLSCREEN_CHANNEL_PANEL": "Список каналов в полноэкранном режиме",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Подведите мышь к левому краю или нажмите C в полноэкранном режиме, чтобы выдвинуть список каналов и переключить канал, не выходя из полноэкранного режима.",
-        "STREAM_FORMAT_DESCRIPTION": "Выбрать формат потока по умолчанию (Xtream)",
+        "STREAM_FORMAT_DESCRIPTION": "Auto предпочитает HLS. При сбое в MPV, VLC или Embedded MPV остановите плеер, выберите ts, сохраните настройки и снова откройте канал. Веб-плееры могут один раз попробовать заявленный TS после первоначальной HTTP-ошибки HLS.",
         "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
         "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
         "COVER_SIZE": "Размер обложки",
@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Скрыть список каналов",
         "SHOW_CHANNELS_LIST": "Показать список каналов",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Список каналов скрыт",
+        "CHANNELS_LIST_HIDDEN_HINT": "Верните его кнопкой ниже или нажмите ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Показать текущий канал",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "Гид",
             "OPEN_GUIDE": "Открыть программу передач",
             "TODAY": "Сегодня",
             "NOW": "Сейчас",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "Обзор дня",
             "ZOOM_HOURS": "По часам",
             "ZOOM_DETAIL": "Детально",
+            "ZOOM_TOOLTIP": "Масштаб: {{level}} · ⌘/Ctrl + колесо для точной настройки",
             "GROUP_SHORT": "короткие передачи",
             "GROUP_EXPAND": "показать ›"
         }

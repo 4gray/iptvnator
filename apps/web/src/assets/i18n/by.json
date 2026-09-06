@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Схаваць спіс каналаў",
         "SHOW_CHANNELS_LIST": "Паказаць спіс каналаў",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Спіс каналаў схаваны",
+        "CHANNELS_LIST_HIDDEN_HINT": "Вярніце яго кнопкай ніжэй або націсніце ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Паказаць бягучы канал",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузіць або выбраць іншы плэйліст",
         "ALL_CHANNELS": "Усе каналы",
         "GROUPS": "Групы",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "Праграма",
             "OPEN_GUIDE": "Адкрыць праграму перадач",
             "TODAY": "Сёння",
             "NOW": "Цяпер",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "Агляд дня",
             "ZOOM_HOURS": "Па гадзінах",
             "ZOOM_DETAIL": "Падрабязна",
+            "ZOOM_TOOLTIP": "Маштаб: {{level}} · ⌘/Ctrl + кола для дакладнай наладкі",
             "GROUP_SHORT": "кароткія перадачы",
             "GROUP_EXPAND": "паказаць ›"
         }

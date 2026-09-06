@@ -421,6 +421,41 @@ describe('PortalChannelsListComponent', () => {
         expect(scrollToIndex).toHaveBeenCalledWith(15, 'smooth');
     });
 
+    it('explicitly reveals and focuses an unchanged selected channel after browsing away', () => {
+        const requestFrame = jest
+            .spyOn(window, 'requestAnimationFrame')
+            .mockReturnValue(100000);
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(
+            Array.from({ length: 20 }, (_, index) => ({
+                xtream_id: index + 1,
+                title: `Channel ${index + 1}`,
+            }))
+        );
+        selectedItem.set({ xtream_id: 16 });
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport();
+        if (!viewport) throw new Error('Expected channel viewport');
+        const scroll = jest.spyOn(viewport, 'scrollToIndex');
+        const focus = jest.spyOn(viewport.elementRef.nativeElement, 'focus');
+        fixture.componentRef.setInput('revealRequest', {
+            channelId: 16,
+            sequence: 1,
+        });
+        fixture.detectChanges();
+        expect(scroll).not.toHaveBeenCalled();
+        const frame =
+            requestFrame.mock.calls[requestFrame.mock.calls.length - 1]?.[0];
+        frame?.(0);
+        requestFrame.mockRestore();
+        expect(scroll).toHaveBeenCalledWith(15, 'auto');
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        scroll.mockClear();
+        selectedChannels.set([...selectedChannels()]);
+        fixture.detectChanges();
+        expect(scroll).not.toHaveBeenCalled();
+    });
+
     it('does not start smooth alignment when a selected row is already visible', () => {
         selectedTypeContentLoading.set(false);
         selectedChannels.set(

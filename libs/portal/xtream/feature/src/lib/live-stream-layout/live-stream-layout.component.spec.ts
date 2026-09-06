@@ -13,7 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
-    LIVE_SIDEBAR_STATE_STORAGE_KEY,
+    liveSidebarStateStorageKey,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     ResizableDirective,
@@ -57,6 +57,8 @@ class StubPortalChannelsListComponent {
     readonly sortMode = input<'server' | 'name-asc' | 'name-desc'>('server');
     readonly channelsOverride = input<unknown[] | null>(null);
     readonly searchTermInput = input('');
+    readonly revealRequest = input<unknown>(null);
+    readonly filteredChannels = signal<unknown[]>([]);
     readonly playClicked = output<unknown>();
     readonly playbackRequested = output<unknown>();
 }
@@ -194,6 +196,7 @@ describe('LiveStreamLayoutComponent', () => {
         getFavorites: jest.fn().mockReturnValue(of([])),
     };
     const xtreamUrlService = {
+        constructAutoLiveTsUrl: jest.fn(() => undefined),
         resolveCatchupUrl: jest
             .fn()
             .mockResolvedValue('https://example.com/timeshift.ts'),
@@ -219,7 +222,7 @@ describe('LiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline');
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         settingsStore.openStreamOnDoubleClick.set(false);
 
         window.electron = {
@@ -342,17 +345,27 @@ describe('LiveStreamLayoutComponent', () => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;
 
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
     });
 
     afterEach(() => {
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
         fixture.destroy();
         jest.useRealTimers();
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         window.electron = originalElectron;
+    });
+
+    it('retires committed live playback when the playlist owner changes', () => {
+        fixture.detectChanges();
+        component.playLive({ xtream_id: 10000, title: 'Synthetic' });
+        expect(component.activePlayback()).not.toBeNull();
+        currentPlaylist.set({ ...playlist, id: 'other-playlist' });
+        fixture.detectChanges();
+        expect(component.activePlayback()).toBeNull();
+        expect(component.playbackSessionKey()).toBe('');
     });
 
     it('renders the controlled epg list for electron playback', () => {
@@ -545,9 +558,7 @@ describe('LiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('.category-subtitle')
                 .textContent
         ).toContain('3 channels');
-        expect(
-            fixture.nativeElement.querySelector('mat-paginator')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
         expect(
             fixture.debugElement.query(
                 By.directive(StubPortalChannelsListComponent)
@@ -1027,9 +1038,29 @@ describe('LiveStreamLayoutComponent', () => {
         expect(epgTimeline.componentInstance.activeProgram()).toBeNull();
     });
 
+    it('keeps remote order after browsing another category and changing sort', () => {
+        const first = { ...sampleChannel, category_id: '1', name: 'Zulu' };
+        const next = { ...first, xtream_id: 102, name: 'Alpha' };
+        liveStreams.set([first, next]);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
+            first,
+            next,
+        ]);
+        selectedItem.set(first);
+        component.playLive(first);
+        xtreamStore.setSelectedCategory.mockClear();
+        selectedCategoryId.set(2);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([]);
+        component.setLiveChannelSortMode('name-desc');
+        component['handleRemoteChannelChange']('down');
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
+    });
+
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {
         const nextChannel = {
             ...sampleChannel,
+            category_id: '1',
             xtream_id: 102,
             name: 'Channel 102',
         };
@@ -1041,6 +1072,9 @@ describe('LiveStreamLayoutComponent', () => {
             nextChannel,
         ]);
 
+        liveStreams.set([{ ...sampleChannel, category_id: '1' }, nextChannel]);
+        component.playLive(sampleChannel);
+        xtreamStore.openPlayer.mockClear();
         (
             component as unknown as {
                 handleRemoteChannelChange(direction: 'up' | 'down'): void;
@@ -1115,9 +1149,13 @@ describe('LiveStreamLayoutComponent', () => {
         );
     });
 
+    // Collapsing with a selected category and no stream renders the real
+    // `app-channel-list-hidden-state` (its TranslatePipe needs a
+    // TranslateService); this spec is at the max-lines budget, so that branch
+    // is covered by video-player-sidebar.spec.ts and the Electron E2E instead.
     it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
         selectedCategoryId.set(null);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('collapsed');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'collapsed');
         fixture.detectChanges();
 
         expect(
@@ -1127,7 +1165,7 @@ describe('LiveStreamLayoutComponent', () => {
 
     it('hides the floating restore button when the sidebar is expanded', () => {
         selectedCategoryId.set(1);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
         fixture.detectChanges();
 
         expect(

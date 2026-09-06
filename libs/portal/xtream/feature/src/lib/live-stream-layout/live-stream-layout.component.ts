@@ -26,6 +26,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     GridListComponent,
     InfiniteScrollDirective,
+    ChannelListHiddenStateComponent,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
@@ -94,20 +95,12 @@ import {
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
-const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
+import {
+    XtreamLiveChannelNavigationService,
+    type XtreamLiveChannelItem,
+} from './xtream-live-channel-navigation.service';
 
-interface XtreamLiveChannelItem {
-    readonly added?: string;
-    readonly category_id?: string | number;
-    readonly last_modified?: string;
-    readonly name?: string;
-    readonly poster_url?: string;
-    readonly stream_icon?: string;
-    readonly title?: string;
-    readonly tv_archive?: number | null;
-    readonly tv_archive_duration?: number | string | null;
-    readonly xtream_id: number;
-}
+const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 @Component({
     selector: 'app-live-stream-layout',
@@ -115,6 +108,7 @@ interface XtreamLiveChannelItem {
     styleUrls: ['./live-stream-layout.component.scss'],
     providers: [
         LiveStreamAutoOpenStateService,
+        XtreamLiveChannelNavigationService,
         // The fullscreen channel panel inside the player renders this
         // category's channel list (see the `fullscreenChannelPanel` template).
         {
@@ -134,6 +128,7 @@ interface XtreamLiveChannelItem {
         GridListComponent,
         InfiniteScrollDirective,
         PortalChannelsListComponent,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
@@ -167,12 +162,12 @@ export class LiveStreamLayoutComponent
         this.xtreamStore.selectedTypeContentLoading;
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
+    readonly channelNavigation = inject(XtreamLiveChannelNavigationService);
+    readonly liveChannelSortMode = this.channelNavigation.sortMode;
 
-    private readonly fullscreenChannelPanelTemplate =
-        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
-            'fullscreenChannelPanel'
-        );
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
     /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
     readonly panelTemplate = computed(() =>
         this.settingsStore.fullscreenChannelPanel?.() === false
@@ -327,7 +322,8 @@ export class LiveStreamLayoutComponent
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('portal');
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
             this.activeCatchupProgram() ?? this.currentEpgItem()
@@ -379,6 +375,7 @@ export class LiveStreamLayoutComponent
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private playbackRequestId = 0;
+    private activePlaylistId: string | null = null;
 
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
@@ -398,6 +395,16 @@ export class LiveStreamLayoutComponent
     favorites = new Map<number, boolean>();
 
     constructor() {
+        effect(() => {
+            const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
+            if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
+                this.playbackRequestId += 1;
+                this.activePlaylistId = null;
+                this.activePlayback.set(null);
+                this.activeLiveItemId.set(null);
+                this.activeCatchupProgram.set(null);
+            }
+        });
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());
@@ -444,7 +451,11 @@ export class LiveStreamLayoutComponent
                 return;
             }
 
-            this.playLive(item);
+            this.playLive(
+                item,
+                undefined,
+                this.channelNavigation.channelsForAutoOpen(item)
+            );
             // Ensure selectedItem is set so EPG loading and remote-control
             // status reflect the channel (constructStreamUrl also does this
             // internally, but an explicit call makes the intent clear and
@@ -537,18 +548,32 @@ export class LiveStreamLayoutComponent
 
     playLive(
         item: XtreamLiveChannelItem,
-        startPlayback = !this.settingsStore.openStreamOnDoubleClick()
+        startPlayback = !this.settingsStore.openStreamOnDoubleClick(),
+        displayedChannels?: readonly XtreamLiveChannelItem[],
+        remote = false
     ) {
         this.playbackRequestId += 1;
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.channelNavigation.capture(item, displayedChannels, remote);
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
         // store no-op.
-        this.selectLiveItemCategory(item);
+        if (!remote) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
+        const playlist = this.xtreamStore.currentPlaylist();
+        this.activePlaylistId = playlist?.id ?? null;
         this.activePlayback.set({
             streamUrl,
+            liveAutoTsUrl: playlist
+                ? this.xtreamUrlService.constructAutoLiveTsUrl(
+                      playlist,
+                      item.xtream_id
+                  )
+                : undefined,
+            userAgent: playlist?.userAgent,
+            referer: playlist?.referrer,
+            origin: playlist?.origin,
             title: item.title ?? item.name ?? '',
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
@@ -587,7 +612,11 @@ export class LiveStreamLayoutComponent
     }
 
     onLiveRootItemClick(item: unknown): void {
-        this.playLive(item as XtreamLiveChannelItem);
+        this.playLive(
+            item as XtreamLiveChannelItem,
+            undefined,
+            this.liveRootItems() as unknown as XtreamLiveChannelItem[]
+        );
     }
 
     onLiveEpgPanelCollapsedChange(collapsed: boolean): void {
@@ -597,7 +626,7 @@ export class LiveStreamLayoutComponent
     }
 
     toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+        this.liveSidebarStateService.toggle('portal');
     }
 
     @HostListener('document:keydown', ['$event'])
@@ -664,7 +693,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        this.playLive(nextItem, true);
+        this.playLive(nextItem, true, undefined, true);
     }
 
     private handleRemoteControlCommand(command: {
@@ -685,7 +714,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        this.playLive(channel, true);
+        this.playLive(channel, true, undefined, true);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -702,7 +731,7 @@ export class LiveStreamLayoutComponent
     }
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {
-        return this.xtreamStore.selectItemsFromSelectedCategory() as XtreamLiveChannelItem[];
+        return [...this.channelNavigation.remoteChannels()];
     }
 
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
@@ -757,6 +786,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        this.activePlaylistId = playlist.id;
         this.activeCatchupProgram.set(program);
         this.activePlayback.set({
             streamUrl: catchupUrl,

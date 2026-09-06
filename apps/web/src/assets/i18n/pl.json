@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Ukryj listę kanałów",
         "SHOW_CHANNELS_LIST": "Pokaż listę kanałów",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Przełącz listę kanałów (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Przełącz listę kanałów (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Lista kanałów jest ukryta",
+        "CHANNELS_LIST_HIDDEN_HINT": "Przywróć ją przyciskiem poniżej lub naciśnij ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Pokaż odtwarzany kanał",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Prześlij lub wybierz inną listę odtwarzania",
         "ALL_CHANNELS": "Wszystkie kanały",
         "GROUPS": "Grupy",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "Przewodnik",
             "OPEN_GUIDE": "Otwórz przewodnik po programach",
             "TODAY": "Dzisiaj",
             "NOW": "Teraz",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "Przegląd dnia",
             "ZOOM_HOURS": "Co godzinę",
             "ZOOM_DETAIL": "Szczegółowo",
+            "ZOOM_TOOLTIP": "Powiększenie: {{level}} · ⌘/Ctrl + kółko, aby dostroić",
             "GROUP_SHORT": "krótkie progr.",
             "GROUP_EXPAND": "pokaż ›"
         }

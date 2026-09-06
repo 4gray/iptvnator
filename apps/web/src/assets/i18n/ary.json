@@ -674,9 +674,12 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "إخفاء قائمة القنوات",
         "SHOW_CHANNELS_LIST": "إظهار قائمة القنوات",
-        "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "قائمة القنوات مخبية",
+        "CHANNELS_LIST_HIDDEN_HINT": "رجّعها بالزر اللي تحت ولا ضغط على ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "بيّن القناة اللي خدامة",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "رفع ولا اختار قائمة تشغيل أخرى",
         "ALL_CHANNELS": "جميع القنوات",
         "GROUPS": "المجموعات",
@@ -837,7 +840,6 @@
             }
         },
         "TIMELINE": {
-            "GUIDE": "دليل",
             "OPEN_GUIDE": "حل دليل البرامج",
             "TODAY": "اليوم",
             "NOW": "دابا",
@@ -871,6 +873,7 @@
             "ZOOM_DAY": "نظرة عامة على النهار",
             "ZOOM_HOURS": "بالساعة",
             "ZOOM_DETAIL": "مفصّل",
+            "ZOOM_TOOLTIP": "التكبير: {{level}} · ⌘/Ctrl + التمرير باش تضبط",
             "GROUP_SHORT": "برامج قصيرة",
             "GROUP_EXPAND": "وري ›"
         }

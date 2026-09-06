@@ -240,6 +240,16 @@ preventing destination failures from penalizing the initial endpoint. Contracts:
   copy and Retry now; Stalker preserves cached account data on a failed refresh.
   Contract: `docs/architecture/host-connectivity-guard.md`.
 
+## Live Channel Return
+
+Xtream and Stalker (including radio) capture displayed playback order on explicit
+selection. Remote up/down, numbers and status use that queue while browsing
+categories or search. Stalker commits after successful current URL resolution
+and extends only loaded pages of the original scope. The conditional channel
+header action clears search, returns to the accessible playing category and
+focuses its row without changing playback. Contract:
+`docs/architecture/remote-control.md` (Live channel return and playback order).
+
 ## Stalker Live Search
 
 ITV sidebar and fullscreen searches independently filter the complete selected
@@ -261,6 +271,18 @@ beside the resize handle. `PortalDetailShellComponent` owns a visible native
 scrollbar and guarded initial page focus. Contracts:
 `docs/architecture/iptvnator-ui-guidelines.md` and
 `docs/architecture/portal-detail-navigation.md`.
+
+## Xtream Live Auto Format
+
+The routed Xtream live host supplies `liveAutoTsUrl` only for Auto with explicit
+HLS+TS account evidence, using the canonical URL builder and original headers.
+The same web player may try TS once after an owned initial terminal HTTP failure,
+before `playing`; the old transport unmounts before the guarded render callback
+starts TS. No player preference or playlist cache changes. Manual formats,
+unknown formats, DRM, VOD/catch-up and stale sessions are excluded. External
+MPV/VLC and Embedded MPV retain manual TS; Video.js segment retry cycles without
+a terminal diagnostic also need manual TS. Contract and full support matrix:
+`docs/architecture/xtream-portal-compatibility.md` (Initial Auto HLS failure).
 
 ## Radio / Audio Player
 

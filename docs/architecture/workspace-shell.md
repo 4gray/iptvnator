@@ -154,6 +154,11 @@ is watching keeps playing while the sidebar re-filters (Xtream: #936; Stalker:
 series category clicks do drop the open detail (`setSelectedItem(null)` /
 `clearSelectedItem()`) because they navigate to a list route.
 
+The channel header offers **Show playing channel** when browsing excludes the
+active channel. It returns to that category and focuses the row without
+restarting playback; remote commands retain captured playback order. See the
+[queue and reveal contract](./remote-control.md#live-channel-return-and-playback-order).
+
 ## Search And Navigation Rules
 
 Search is shell-owned and route-aware:

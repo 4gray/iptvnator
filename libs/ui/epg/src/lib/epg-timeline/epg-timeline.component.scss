@@ -53,8 +53,10 @@
     padding: 4px 6px;
     border-radius: 7px;
     font: inherit;
+    /* Shrinks only when the toolbar overflows: the channel + programme title
+       take every pixel the fixed-width controls leave (no hard width cap). */
+    flex: 0 1 auto;
     min-width: 0;
-    max-width: 60%;
 
     &:hover {
         background: $surface-2;
@@ -161,35 +163,44 @@
     }
 }
 
-.epg-timeline__jump,
-.epg-timeline__guide {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
+/* icon-only toolbar buttons: "Now" + zoom level (label lives in the tooltip
+   and aria-label, so the channel/programme title keeps the toolbar width) */
+.epg-timeline__iconbtn {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
     height: 34px;
-    padding: 0 13px;
+    padding: 0;
     border-radius: 999px;
     background: $surface-2;
     border: 1px solid $line-strong;
     color: $text-secondary;
-    font: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
     cursor: pointer;
     flex: 0 0 auto;
 
     mat-icon {
-        font-size: 14px;
-        width: 14px;
-        height: 14px;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
     }
 
     &:hover {
         color: $text-primary;
         border-color: $accent-blue;
     }
+
+    &:focus-visible {
+        outline: 2px solid $accent-blue;
+        outline-offset: 1px;
+    }
 }
 
+.epg-timeline__zoom[data-zoom-level='detail'] {
+    color: $accent-text;
+}
+
+/* the Guide button opens the multi-channel grid; accent so it reads as the
+   way "out" of the single-channel ribbon */
 .epg-timeline__guide {
     color: $accent-text;
     border-color: $accent-blue;
@@ -342,32 +353,6 @@
         height: 16px;
         color: $accent-text;
         flex: 0 0 auto;
-    }
-}
-
-/* ── zoom slider ── */
-.epg-timeline__zoom {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    background: $surface-2;
-    border: 1px solid $line;
-    color: $text-tertiary;
-    flex: 0 0 auto;
-
-    mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-    }
-
-    input[type='range'] {
-        width: 96px;
-        accent-color: $accent-text;
-        cursor: pointer;
     }
 }
 
