@@ -1,7 +1,11 @@
 import { InjectionToken, Signal } from '@angular/core';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 
-/** One row of the guide. `id` is host-stable (M3U: `Channel.id`). */
+/**
+ * One row of the guide. `id` is the host's ROW id, unique within the current
+ * scope (M3U: `<index>:<Channel.id>`, since playlist ids can repeat); it is
+ * only ever handed back to the same host (`activate`, search hits).
+ */
 export interface EpgGuideChannel {
     id: string;
     /** 1-based position inside the current scope; shown in the channel cell. */
