@@ -196,6 +196,20 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         marketingFixture: true,
         downloadStreamFixture: 'local-media',
     },
+    'marketing2:marketing2': {
+        name: 'marketing-demo-b',
+        description:
+            'Second copy of the marketing catalog — a "backup subscription" for alternative-source screenshots',
+        seed: 8020,
+        categoryCount: { live: 4, vod: 4, series: 4 },
+        itemsPerCategory: 6,
+        seasonsPerSeries: 3,
+        episodesPerSeason: 6,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        marketingFixture: true,
+        downloadStreamFixture: 'local-media',
+    },
     'expired:expired': {
         name: 'expired',
         description: 'Expired account — tests subscription expiry UI flow',

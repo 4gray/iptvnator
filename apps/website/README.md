@@ -81,7 +81,8 @@ skip shows up in your output.
 
 Evergreen how-to posts live in the blog collection next to release notes
 (`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx`,
-`m3u-playlist-epg-setup-guide.mdx` and `offline-downloads-guide.mdx` in
+`m3u-playlist-epg-setup-guide.mdx`, `offline-downloads-guide.mdx` and
+`alternative-sources-guide.mdx` in
 `apps/website/src/content/blog/`). Three conventions set them apart:
 
 - **`ContentDisclaimer`.** Every guide opens with
@@ -107,6 +108,10 @@ Evergreen how-to posts live in the blog collection next to release notes
   authorizes a folder inside the isolated data dir rather than the real OS
   Downloads folder (`installDownloadFolderDialogStub` in
   `tools/release/capture-app-driver.ts`).
+  The alternative-sources shots seed a second Xtream source from the mock's
+  `marketing2` scenario (identical catalog, "Fictional Xtream Backup"), which is
+  what makes the Sources chip appear; like the Stalker portal it is added only
+  for shots that walk into it, because it adds a card to the dashboard.
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence

@@ -23,6 +23,8 @@ import {
     XTREAM_FIXTURE_CREDENTIALS,
     XTREAM_FIXTURE_TITLE,
     XTREAM_MOCK_ORIGIN,
+    XTREAM_SECONDARY_FIXTURE_CREDENTIALS,
+    XTREAM_SECONDARY_FIXTURE_TITLE,
 } from './capture-fixtures';
 import {
     clickDialogOption,
@@ -322,6 +324,12 @@ export async function waitForAppReady(page: Page): Promise<void> {
 export interface SeedOptions {
     /** Also add the Stalker marketing portal (guide shots only: it changes the dashboard). */
     stalker?: boolean;
+    /**
+     * Also add the second marketing Xtream source (guide shots only). Its
+     * catalog is identical to the first, which is what makes the movie detail
+     * show a Sources chip.
+     */
+    secondaryXtream?: boolean;
 }
 
 export async function seedDemoData(
@@ -329,10 +337,34 @@ export async function seedDemoData(
     m3uPath: string,
     options: SeedOptions = {}
 ): Promise<void> {
-    await addXtreamPortal(page);
+    await addXtreamPortal(page, {
+        title: XTREAM_FIXTURE_TITLE,
+        credentials: XTREAM_FIXTURE_CREDENTIALS,
+        provider: 'xtreams',
+    });
     await addM3uPlaylist(page, m3uPath);
     if (options.stalker) {
         await addStalkerPortal(page);
+    }
+    if (options.secondaryXtream) {
+        await addXtreamPortal(page, {
+            title: XTREAM_SECONDARY_FIXTURE_TITLE,
+            credentials: XTREAM_SECONDARY_FIXTURE_CREDENTIALS,
+            provider: 'xtreams-secondary',
+        });
+        // Multi-source discovery reads the SQLite content table, which the
+        // desktop data source fills per category on first view. Open the
+        // category the guide shot walks into so its movies are cached before
+        // the primary portal's detail page looks for alternatives.
+        await page
+            .locator('app-workspace-context-panel .category-item')
+            .filter({ hasText: 'Action & Mystery' })
+            .first()
+            .click();
+        await page
+            .locator('.category-content-layout mat-card')
+            .first()
+            .waitFor({ state: 'visible', timeout: 30_000 });
     }
     await seedDashboardActivity(page);
 }
@@ -405,15 +437,24 @@ async function seedDashboardActivity(page: Page): Promise<void> {
     );
 }
 
-async function addXtreamPortal(page: Page): Promise<void> {
+interface XtreamPortalSeed {
+    title: string;
+    credentials: { readonly username: string; readonly password: string };
+    provider: PlaylistProvider;
+}
+
+async function addXtreamPortal(
+    page: Page,
+    seed: XtreamPortalSeed
+): Promise<void> {
     await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container').last();
 
     await clickDialogOption(dialog, /xtream credentials/i);
-    await dialog.locator('#title').fill(XTREAM_FIXTURE_TITLE);
+    await dialog.locator('#title').fill(seed.title);
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_ORIGIN);
-    await dialog.locator('#username').fill(XTREAM_FIXTURE_CREDENTIALS.username);
-    await dialog.locator('#password').fill(XTREAM_FIXTURE_CREDENTIALS.password);
+    await dialog.locator('#username').fill(seed.credentials.username);
+    await dialog.locator('#password').fill(seed.credentials.password);
     await dialog
         .getByRole('button', { name: /^(add|add playlist)$/i })
         .last()
@@ -422,7 +463,7 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await page.waitForURL(/\/workspace\/xtreams\/[^/]+\/vod/, {
         timeout: 45_000,
     });
-    registerPlaylistId('xtreams', idFromUrl(page.url(), 'xtreams'));
+    registerPlaylistId(seed.provider, idFromUrl(page.url(), 'xtreams'));
     await page
         .locator('.category-content-layout, app-content-card')
         .first()

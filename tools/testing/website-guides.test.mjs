@@ -43,6 +43,13 @@ const GUIDES = [
       'blog/guides/screenshots/guide-downloads-offline-movie-dark.png',
     ],
   },
+  {
+    slug: 'alternative-sources-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-sources-chip-dark.png',
+      'blog/guides/screenshots/guide-sources-menu-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');

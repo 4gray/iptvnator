@@ -21,7 +21,11 @@ import {
 } from './capture-fixtures';
 
 /** Route segment of each seeded source, as it appears in `/workspace/<provider>/<id>`. */
-export type PlaylistProvider = 'playlists' | 'xtreams' | 'stalker';
+export type PlaylistProvider =
+    | 'playlists'
+    | 'xtreams'
+    | 'xtreams-secondary'
+    | 'stalker';
 
 const playlistIds = new Map<PlaylistProvider, string>();
 
@@ -350,6 +354,31 @@ export async function runAction(
             await page.waitForTimeout(500);
             return;
         }
+        case 'open-xtream-vod-sources': {
+            await openXtreamVodWithSources(page, param ?? 'Action & Mystery');
+            return;
+        }
+        case 'open-xtream-vod-sources-menu': {
+            await openXtreamVodWithSources(page, param ?? 'Action & Mystery');
+            await page.locator('app-vod-sources-chip button').click();
+
+            const menu = page.locator('app-vod-sources-menu');
+
+            await menu.waitFor({ state: 'visible', timeout: 15_000 });
+            // "check all" probes every unchecked copy (one get_vod_info plus a
+            // HEAD against the mock) so the rows carry verdicts in the frame.
+            const checkAll = menu.locator('.sources-menu__check-all');
+
+            if (await checkAll.isVisible().catch(() => false)) {
+                await checkAll.click();
+                await checkAll
+                    .waitFor({ state: 'hidden', timeout: 30_000 })
+                    .catch(() => undefined);
+            }
+
+            await page.waitForTimeout(700);
+            return;
+        }
         case 'open-downloads-manager': {
             await prepareGuideDownloads(page);
             await openDownloadsPage(page);
@@ -450,6 +479,27 @@ async function goHome(page: Page): Promise<void> {
     await page.locator('a.brand[href$="/workspace/dashboard"]').first().click();
     await page.waitForURL(/\/workspace\/dashboard/, { timeout: 20_000 });
     await settleUi(page);
+}
+
+/* ------------------------------------------------------------------ */
+/* Alternative sources (guide shots)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opens a movie of the primary portal whose copy also exists in the secondary
+ * one (seeded with `secondaryXtream`), and waits for lazy discovery to render
+ * the Sources chip.
+ */
+async function openXtreamVodWithSources(
+    page: Page,
+    category: string
+): Promise<void> {
+    requireId('xtreams-secondary');
+    await runAction(page, 'open-xtream-vod', category);
+    await page
+        .locator('app-vod-sources-chip button')
+        .waitFor({ state: 'visible', timeout: 30_000 });
+    await page.waitForTimeout(500);
 }
 
 /* ------------------------------------------------------------------ */

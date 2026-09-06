@@ -54,6 +54,8 @@ export const KNOWN_ACTIONS = [
     'open-settings-epg',
     'open-downloads-manager',
     'open-downloads-offline-movie',
+    'open-xtream-vod-sources',
+    'open-xtream-vod-sources-menu',
 ];
 
 /**

@@ -147,6 +147,32 @@ describe('Xtream mock server factory', () => {
         }
     });
 
+    it('serves the marketing catalog twice so the second credential pair is an alternative source', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const titlesOf = async (username: string) => {
+                const response = await fetch(
+                    `${running.origin}/player_api.php?username=${username}&password=${username}&action=get_vod_streams`
+                );
+                const items = (await response.json()) as Array<{
+                    name: string;
+                    stream_id: number;
+                }>;
+                return items.map((item) => `${item.stream_id}:${item.name}`);
+            };
+
+            const primary = await titlesOf('marketing');
+            const secondary = await titlesOf('marketing2');
+
+            expect(primary.length).toBeGreaterThan(0);
+            expect(secondary).toEqual(primary);
+        } finally {
+            await running.close();
+        }
+    });
+
     it('serves marketing movies and episodes from local bytes so download screenshots stay hermetic', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })

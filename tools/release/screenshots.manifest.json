@@ -131,6 +131,22 @@
             "setup": [
                 "open-downloads-offline-movie"
             ]
+        },
+        {
+            "slug": "guide-sources-chip",
+            "title": "Movie details with the Sources chip",
+            "group": "guides",
+            "setup": [
+                "open-xtream-vod-sources=Action & Mystery"
+            ]
+        },
+        {
+            "slug": "guide-sources-menu",
+            "title": "Sources popover with checked copies",
+            "group": "guides",
+            "setup": [
+                "open-xtream-vod-sources-menu=Action & Mystery"
+            ]
         }
     ]
 }

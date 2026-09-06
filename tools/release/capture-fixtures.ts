@@ -30,6 +30,18 @@ export const XTREAM_FIXTURE_CREDENTIALS = {
 } as const;
 
 /**
+ * Second Xtream source for the alternative-sources guide: the mock's
+ * `marketing2` scenario serves the identical catalog, so every movie exists in
+ * both playlists and the detail page shows its Sources chip. Seeded only for
+ * shots that walk into it — it adds a card to the dashboard.
+ */
+export const XTREAM_SECONDARY_FIXTURE_TITLE = 'Fictional Xtream Backup';
+export const XTREAM_SECONDARY_FIXTURE_CREDENTIALS = {
+    username: 'marketing2',
+    password: 'marketing2',
+} as const;
+
+/**
  * Download folder the guide shots authorize inside the isolated data dir. The
  * capture stubs Electron's folder dialog to return it, so no download ever
  * lands in the real OS Downloads folder and no personal path reaches a frame.

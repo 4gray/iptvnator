@@ -166,6 +166,15 @@ async function main(): Promise<void> {
     const stalkerMockServer = needsStalker
         ? await driver.ensureStalkerMockServer(workspaceRoot)
         : undefined;
+    // Same rule for the second Xtream source: another card on the dashboard,
+    // wanted only by the alternative-sources guide shots.
+    const needsSecondaryXtream = shots.some((shot: { setup: string[] }) =>
+        shot.setup.some((step) =>
+            parseSetupStep(String(step)).action.startsWith(
+                'open-xtream-vod-sources'
+            )
+        )
+    );
     const dataDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-release-shots-'));
     let app: Awaited<ReturnType<typeof driver.launchApp>> | undefined;
     let page: Page | undefined;
@@ -227,6 +236,7 @@ async function main(): Promise<void> {
         await assertTmdbDisabled(page); // G5
         await driver.seedDemoData(page, driver.writeM3uFixture(dataDir), {
             stalker: needsStalker,
+            secondaryXtream: needsSecondaryXtream,
         });
 
         for (const theme of themes) {
