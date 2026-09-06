@@ -219,6 +219,28 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         expect(pane()).toBeNull();
     });
 
+    it('closes on any live-panel level change, e.g. Cmd/Ctrl+B reaching the layout through the dialog', () => {
+        open();
+
+        sidebarState.collapse();
+        TestBed.inject(ApplicationRef).tick();
+
+        expect(pane()).toBeNull();
+    });
+
+    it('does not hand focus back to a trigger inside a folded, inert rail', () => {
+        const rail = document.createElement('div');
+        rail.appendChild(origin);
+        document.body.appendChild(rail);
+        open();
+
+        rail.setAttribute('inert', '');
+        service.close();
+
+        expect(document.activeElement).not.toBe(origin);
+        rail.remove();
+    });
+
     it('closes on Escape', () => {
         open();
 

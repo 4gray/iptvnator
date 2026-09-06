@@ -313,7 +313,9 @@ remain local when the meaning is explicit.
       handoff to `#live-channels`), since the dialog's focus trap would
       bounce that handoff back inside and a second id would shadow the
       folded rail's. Backdrop, Escape, the footer, any category selection
-      (`categorySelected` output) and any router `NavigationStart` close it
+      (`categorySelected` output), any router `NavigationStart` and any
+      live-panel level change (`Cmd/Ctrl+B` reaches the layout through the
+      dialog) close it
       (the shell outlives the child route that owns the trigger); focus
       returns to the trigger. The popover host is a `role="dialog"` with
       `aria-modal` and a `CdkTrapFocus` host directive that captures focus
@@ -348,8 +350,10 @@ remain local when the meaning is explicit.
   so focus drops to `<body>`; the side that gains the replacement affordance
   picks it up after its next render via `focusIfFocusLost()`
   (`@iptvnator/portal/shared/util`): the layouts install
-  `handoffFocusOnLiveSidebarChange()` and focus the floating restore handle
-  at player-only or their show-categories button while the rail is folded,
+  `handoffFocusOnLiveSidebarChange()` over their EFFECTIVE level (on the
+  live root the first category selection folds the rail with no state
+  change) and focus the floating restore handle at player-only or their
+  show-categories button while the rail is folded,
   and the shell sidebar, watching the rail's ACTUAL fold state (on the live
   root the rail stays visible at level 2, so only player-only ↔ visible is a
   transition there), focuses the control the context panel names

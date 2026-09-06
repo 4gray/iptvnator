@@ -420,12 +420,21 @@ export class LiveStreamLayoutComponent
         // Every level change inerts or removes the button the user activated
         // and drops focus to <body>; hand it to the affordance that replaces
         // it once this template has rendered (see the helper's contract).
+        // Watched through the EFFECTIVE level: on the live root the rail
+        // stays visible at `categories-hidden`, and it is the first category
+        // selection that folds it — a fold without a state change.
         handoffFocusOnLiveSidebarChange(
-            this.liveSidebarStateService.state,
+            computed(() =>
+                this.liveSidebarStateService.isCollapsed()
+                    ? 'collapsed'
+                    : this.canOpenCategoriesPopover()
+                      ? 'categories-hidden'
+                      : 'expanded'
+            ),
             (next) =>
                 next === 'collapsed'
                     ? this.restoreButton()?.nativeElement
-                    : this.canOpenCategoriesPopover()
+                    : next === 'categories-hidden'
                       ? this.showCategoriesButton()?.nativeElement
                       : null
         );

@@ -1,10 +1,20 @@
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
-import { DestroyRef, inject, Injectable, Injector } from '@angular/core';
+import {
+    DestroyRef,
+    effect,
+    inject,
+    Injectable,
+    Injector,
+    untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationStart, Router } from '@angular/router';
 import { filter } from 'rxjs';
-import { LiveCategoriesPopover } from '@iptvnator/portal/shared/util';
+import {
+    LiveCategoriesPopover,
+    LiveLayoutSidebarStateService,
+} from '@iptvnator/portal/shared/util';
 import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-categories-popover.component';
 
 /**
@@ -20,7 +30,9 @@ import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-catego
  * service) outlives the child route that owns the trigger, and browser
  * Back/Forward or a global shortcut route would otherwise leave the panel
  * floating over the destination page, re-rendered for the new route's
- * context.
+ * context. So does any live-panel level change: `Cmd/Ctrl+B` reaches the
+ * layout's document-level handler through the dialog, and the trigger that
+ * owns this popover is then inside a folded, `inert` rail.
  */
 @Injectable()
 export class WorkspaceLiveCategoriesPopoverService
@@ -39,6 +51,18 @@ export class WorkspaceLiveCategoriesPopoverService
                 takeUntilDestroyed()
             )
             .subscribe(() => this.close());
+        // Seeded by the effect's first run, not at construction: the state
+        // may move between the two before anything is open.
+        const sidebarState = inject(LiveLayoutSidebarStateService).state;
+        let previous: string | null = null;
+        effect(() => {
+            const next = sidebarState();
+            const changed = previous !== null && next !== previous;
+            previous = next;
+            if (changed) {
+                untracked(() => this.close());
+            }
+        });
     }
 
     open(origin: HTMLElement): void {
@@ -107,8 +131,15 @@ export class WorkspaceLiveCategoriesPopoverService
         origin?.setAttribute('aria-expanded', 'false');
         overlayRef?.dispose();
         // Focus returns to the trigger that opened the popover so keyboard
-        // users continue where they acted instead of dropping to <body>.
-        if (origin && origin.isConnected && overlayRef) {
+        // users continue where they acted instead of dropping to <body> —
+        // unless that trigger sits in a rail that folded meanwhile; then the
+        // layout's own handoff picks focus up.
+        if (
+            origin &&
+            origin.isConnected &&
+            overlayRef &&
+            !origin.closest('[inert]')
+        ) {
             origin.focus();
         }
     }

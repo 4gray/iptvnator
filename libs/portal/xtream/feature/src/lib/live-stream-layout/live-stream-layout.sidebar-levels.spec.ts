@@ -318,6 +318,22 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         );
     });
 
+    it('hands focus to show-categories when the first category selection folds the rail on the live root', async () => {
+        selectedCategoryId.set(null);
+        service.hideCategories();
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        // The category button the user activated is inert now: focus lost.
+        selectedCategoryId.set(1);
+        fixture.detectChanges();
+        await new Promise((resolve) => queueMicrotask(resolve));
+
+        expect(document.activeElement).toBe(
+            query('[data-test-id="live-show-categories"]')
+        );
+    });
+
     it('marks the folded channels rail inert at player-only', () => {
         service.collapse();
         fixture.detectChanges();
