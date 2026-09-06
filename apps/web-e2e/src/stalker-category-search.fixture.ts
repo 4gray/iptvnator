@@ -14,7 +14,8 @@ export async function verifyStalkerCategorySearch(page: Page): Promise<void> {
     const firstNames = await sidebarRows
         .locator('.channel-name')
         .allTextContents();
-    await sidebarRows.first().click();
+    // All Items already started playback earlier in this workflow. Retain that
+    // settled selection; clicking again would introduce a pending replacement.
     const player = page.locator('app-web-player-view');
     await expect(player).toBeVisible();
     const video = player.locator('video').first();

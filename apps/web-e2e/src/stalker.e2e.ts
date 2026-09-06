@@ -707,7 +707,7 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
 
     await categories.nth(1).click();
 
-    const channels = page.locator('[data-test-id="channel-item"]');
+    const channels = page.locator('#live-channels [data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
 
     // Regression for "search only finds the first 14 loaded items": once the
@@ -717,6 +717,7 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
         timeout: 20_000,
     });
     await expect.poll(() => allChannelsRequests.length).toBeGreaterThan(0);
+    const firstCategoryNames = await channels.locator('.channel-name').allTextContents();
 
     // Regression: switching to another category once the full list is cached
     // must serve that category from the cache, not get stuck on an empty
@@ -738,6 +739,10 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
     await expect(page.locator('.category-subtitle')).toHaveText('40 items', {
         timeout: 20_000,
     });
+
+    // Counts are identical across categories; wait for the actual category
+    // rows before choosing a search term, or it may come from the previous one.
+    await expect(channels.locator('.channel-name')).toHaveText(firstCategoryNames);
 
     // Search a channel from deep in the list (beyond the first 14 items).
     const deepChannelName = (
