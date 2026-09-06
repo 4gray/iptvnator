@@ -1,4 +1,4 @@
-import { Directive, Component, input, output, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -25,9 +25,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     EpgListViewComponent,
-    EpgProgramActivationEvent,
     EpgTimelineComponent,
-    EpgTimelineSummary,
 } from '@iptvnator/ui/epg';
 import {
     type PlaybackFallbackRequest,
@@ -36,8 +34,6 @@ import {
 import {
     EpgItem,
     EpgProgram,
-    RecordingStartMetadata,
-    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
@@ -46,91 +42,15 @@ import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
+import {
+    StubEpgTimelineComponent,
+    StubGridListComponent,
+    StubPortalChannelsListComponent,
+    StubResizableDirective,
+    StubWebPlayerViewComponent,
+} from './live-stream-layout-stubs.spec-data';
+
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
-
-@Component({
-    selector: 'app-portal-channels-list',
-    standalone: true,
-    template: '<div data-test-id="portal-channels-list-stub"></div>',
-})
-class StubPortalChannelsListComponent {
-    readonly sortMode = input<'server' | 'name-asc' | 'name-desc'>('server');
-    readonly channelsOverride = input<unknown[] | null>(null);
-    readonly searchTermInput = input('');
-    readonly revealRequest = input<unknown>(null);
-    readonly filteredChannels = signal<unknown[]>([]);
-    readonly playClicked = output<unknown>();
-    readonly playbackRequested = output<unknown>();
-}
-
-@Component({
-    selector: 'app-grid-list',
-    standalone: true,
-    template: '<div data-test-id="grid-list-stub"></div>',
-})
-class StubGridListComponent {
-    readonly items = input<unknown[]>([]);
-    readonly isLoading = input(false);
-    readonly isAppending = input(false);
-    readonly appendError = input(false);
-    readonly searchTerm = input('');
-    readonly variant = input<'poster' | 'logo'>('poster');
-    readonly type = input<string>();
-    readonly itemClicked = output<unknown>();
-    readonly retryLoadMore = output<void>();
-}
-
-@Component({
-    selector: 'app-web-player-view',
-    standalone: true,
-    template: '',
-})
-class StubWebPlayerViewComponent {
-    readonly playbackSessionKey = input.required<string>();
-    readonly streamUrl = input('');
-    readonly title = input('');
-    readonly playback = input<unknown>(null);
-    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
-    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
-    readonly recordingStopped = output<RecordingStoppedEvent>();
-}
-
-// Matches both live-panel selectors so the host's timeline ↔ list swap can be
-// asserted by tag name; both branches share the identical contract.
-@Component({
-    selector: 'app-epg-timeline, app-epg-list-view',
-    standalone: true,
-    template: `
-        <div class="live-epg-panel-label">{{ summaryLabelKey() }}</div>
-        <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
-    `,
-})
-class StubEpgTimelineComponent {
-    readonly programs = input<EpgProgram[]>([]);
-    readonly channelName = input('');
-    readonly channelLogo = input('');
-    readonly sourceLabel = input('');
-    readonly archivePlaybackAvailable = input(false);
-    readonly archiveDays = input(0);
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly isLivePlayback = input(true);
-    readonly loading = input(false);
-    readonly selectedDate = input<string | null>(null);
-    readonly collapsed = input(false);
-    readonly summary = input<EpgTimelineSummary | null>(null);
-    readonly summaryLabelKey = input('');
-    readonly offsetMinutes = input(0);
-    readonly programActivated = output<EpgProgramActivationEvent>();
-    readonly returnToLive = output<void>();
-    readonly selectedDateChange = output<string>();
-    readonly collapsedChange = output<boolean>();
-}
-
-@Directive({
-    selector: '[appResizable]',
-    standalone: true,
-})
-class StubResizableDirective {}
 
 describe('LiveStreamLayoutComponent', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
