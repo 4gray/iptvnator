@@ -164,6 +164,33 @@ describe('M3uEpgGuideSourceService', () => {
         expect((await service.loadCoverage(window)).size).toBe(0);
     });
 
+    it('marks the duplicate whose stream url matches the playing channel', () => {
+        const first = makeChannel('dup');
+        const second = {
+            ...makeChannel('dup'),
+            url: 'https://example.com/second.m3u8',
+        };
+        channels.set([first, second]);
+        activeChannel.set(second);
+        expect(service.activeChannelId()).toBe('1:dup');
+        activeChannel.set({
+            ...makeChannel('dup'),
+            url: 'https://example.com/unknown.m3u8',
+        });
+        expect(service.activeChannelId()).toBe('0:dup');
+    });
+
+    it('propagates a coverage failure so the guide keeps coverage unknown', async () => {
+        getProgramCoverage.mockRejectedValue(new Error('bridge down'));
+        await expect(
+            service.loadCoverage({
+                channels: service.channels(),
+                fromMs: 1,
+                toMs: 2,
+            })
+        ).rejects.toThrow('bridge down');
+    });
+
     it('mirrors the active channel and dispatches playback on activate', () => {
         expect(service.activeChannelId()).toBe('0:a');
         service.activate('1:b');

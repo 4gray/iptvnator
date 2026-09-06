@@ -305,6 +305,7 @@ export default class EpgEvents {
         return answer;
     }
 
+    /** A thrown error rejects the renderer's `invoke`, which is the intended fail-open path for coverage. */
     private static async handleGetGuideCoverage(
         args: ElectronBridgeEpgGuideWindow
     ): Promise<string[]> {

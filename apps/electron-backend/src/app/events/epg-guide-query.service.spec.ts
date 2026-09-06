@@ -443,6 +443,20 @@ describe('EpgGuideQueryService', () => {
         expect(getChannelMetadata).not.toHaveBeenCalled();
     });
 
+    it('rethrows a coverage failure after logging it', async () => {
+        getChannelMetadata.mockResolvedValue({
+            a: { id: 'a', displayName: 'A', iconUrl: null },
+        });
+        getDatabase.mockRejectedValue(new Error('locked'));
+        await expect(
+            service.getProgramCoverage({
+                channelIds: ['a'],
+                fromMs: FROM,
+                toMs: TO,
+            })
+        ).rejects.toThrow('locked');
+    });
+
     it('resolves keys through channel metadata and maps rows back onto every requested key', async () => {
         getChannelMetadata.mockResolvedValue({
             'ZDF HD': { id: 'zdf.de', displayName: 'ZDF HD', iconUrl: null },

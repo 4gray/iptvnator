@@ -166,8 +166,15 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         if (!active) {
             return null;
         }
+        // Entries can share an id but not a stream: prefer the row whose
+        // url matches too, so selecting the second copy shows it active.
+        const rows = this.scopedRows();
+        const exact = rows.find(
+            (row) =>
+                row.channel.id === active.id && row.channel.url === active.url
+        );
         return (
-            this.scopedRows().find((row) => row.channel.id === active.id)
+            (exact ?? rows.find((row) => row.channel.id === active.id))
                 ?.rowId ?? null
         );
     });

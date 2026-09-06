@@ -207,7 +207,10 @@ export class EpgGuideQueryService {
                 'Error loading guide coverage:',
                 error
             );
-            return [];
+            // Unlike programmes, coverage must not fail soft: an empty answer
+            // reads as "no channel has EPG" and the "Only with EPG" toggle
+            // would hide every row. A rejection keeps coverage unknown.
+            throw error;
         }
     }
 

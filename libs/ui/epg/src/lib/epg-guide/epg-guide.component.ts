@@ -295,6 +295,8 @@ export class EpgGuideComponent implements OnDestroy {
     setScope(scopeId: string): void {
         this.source.setScope(scopeId);
         this.focus.set(null);
+        // Search hits carry scope-local row ids, so none may outlive the scope.
+        this.search.setQuery('');
     }
 
     setOnlyWithEpg(value: boolean): void {

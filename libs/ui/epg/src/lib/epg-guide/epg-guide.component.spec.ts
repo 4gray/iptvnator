@@ -217,6 +217,16 @@ describe('EpgGuideComponent', () => {
         expect(activate).toHaveBeenCalledWith('c');
     });
 
+    it('drops the programme search when the scope changes', async () => {
+        await settle(fixture);
+        component.onSearchQueryChange('news');
+        expect(component.searchQuery()).toBe('news');
+        component.setScope('all');
+        expect(component.searchQuery()).toBe('');
+        expect(component.searchResults()).toEqual([]);
+        expect(setScope).toHaveBeenCalledWith('all');
+    });
+
     it('closes on Escape and steps days with PageUp/PageDown', async () => {
         await settle(fixture);
         const close = jest.fn();
