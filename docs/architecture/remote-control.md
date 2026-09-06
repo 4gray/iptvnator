@@ -133,7 +133,10 @@ Xtream and Stalker live views keep a component-owned playback queue through
 captures the actual displayed order, including search/sort and a fullscreen
 panel's own filter. Remote up/down, numeric selection and the published channel
 number use that queue while category or search browsing remains independent.
-Same-channel replay and remote selection preserve it. Source/type changes and
+Xtream history handoffs from global search or Recently Added capture the
+eligible destination category in the selected channel sort order; an unrelated
+previous category/query does not define that queue. Explicit All Items clicks
+still capture their displayed list. Same-channel replay and remote selection preserve it. Source/type changes and
 view destruction discard it; ITV and radio never share an owner.
 
 Stalker captures before asynchronous URL resolution and commits only the winning

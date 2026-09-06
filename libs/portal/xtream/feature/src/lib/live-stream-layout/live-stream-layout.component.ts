@@ -437,7 +437,11 @@ export class LiveStreamLayoutComponent
                 return;
             }
 
-            this.playLive(item);
+            this.playLive(
+                item,
+                undefined,
+                this.channelNavigation.channelsForAutoOpen(item)
+            );
             // Ensure selectedItem is set so EPG loading and remote-control
             // status reflect the channel (constructStreamUrl also does this
             // internally, but an explicit call makes the intent clear and

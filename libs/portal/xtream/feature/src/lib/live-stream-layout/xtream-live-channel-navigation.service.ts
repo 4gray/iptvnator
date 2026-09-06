@@ -151,6 +151,20 @@ export class XtreamLiveChannelNavigationService {
         });
     }
 
+    /** History handoffs carry an item, not a browsed list or its old filter. */
+    channelsForAutoOpen(
+        item: XtreamLiveChannelItem
+    ): readonly XtreamLiveChannelItem[] {
+        return sortPortalChannelItems(
+            this.accessibleChannels().filter(
+                (channel) =>
+                    Number(channel.category_id) === Number(item.category_id)
+            ),
+            this.sortMode(),
+            (channel) => channel.title ?? channel.name
+        );
+    }
+
     capture(
         item: XtreamLiveChannelItem,
         items: readonly XtreamLiveChannelItem[] = this.displayedChannels(),

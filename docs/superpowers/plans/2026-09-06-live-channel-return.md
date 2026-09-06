@@ -46,7 +46,8 @@ Choose atomized existing web/Electron E2E targets after inspecting project disco
 
 ## Validation record
 
-- Shared data-access: 169 unit tests; Xtream: 442; Stalker: 349 — passed.
+- Stalker data-access after the category-search merge: 546 tests — passed.
+- Shared data-access: 169 unit tests; Xtream: 445; Stalker: 355 — passed.
 - Electron build and all three affected library lint targets — passed (existing warnings only).
 - Electron remote-control suite: 5/5, including both portals and Stalker radio;
   Chromium category-switch/reveal regression: 1/1 — passed.
@@ -57,3 +58,5 @@ Choose atomized existing web/Electron E2E targets after inspecting project disco
 - Release notes and diff whitespace validated. Tested UI in light/dark using
   synthetic mock portals. Platform-specific Windows/Linux packaged runs and
   Firefox/WebKit were not needed for the shared renderer/IPC-navigation change.
+
+- Synced with category-scoped Stalker search (#1552); added auto-open queue regressions for global search/Recently Added after Codex review.
