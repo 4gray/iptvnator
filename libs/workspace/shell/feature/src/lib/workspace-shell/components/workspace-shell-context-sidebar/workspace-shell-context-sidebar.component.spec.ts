@@ -1,5 +1,6 @@
 import { Component, Directive, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
@@ -28,6 +29,7 @@ class MockResizableDirective {
 class MockWorkspaceContextPanelComponent {
     readonly context = input.required<unknown>();
     readonly section = input.required<string>();
+    readonly focusIfFocusLost = jest.fn();
 }
 
 @Component({
@@ -248,6 +250,24 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             liveSidebarService.setState('expanded');
             fixture.detectChanges();
             expect(aside.hasAttribute('inert')).toBe(false);
+        });
+
+        it('hands focus to the panel whenever the rail actually unfolds, including from player-only on the live root', async () => {
+            xtreamSelectedCategoryId.set(null);
+            liveSidebarService.setState('categories-hidden');
+            setupLiveCategory('live');
+            const panel = fixture.debugElement.query(
+                By.directive(MockWorkspaceContextPanelComponent)
+            ).componentInstance as MockWorkspaceContextPanelComponent;
+
+            // Root at categories-hidden: the rail is visible, no transition.
+            liveSidebarService.collapse();
+            fixture.detectChanges();
+            liveSidebarService.expand();
+            fixture.detectChanges();
+            await new Promise((resolve) => queueMicrotask(resolve));
+
+            expect(panel.focusIfFocusLost).toHaveBeenCalledTimes(1);
         });
 
         it('also collapses on the Stalker itv section', () => {

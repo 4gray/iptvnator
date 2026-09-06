@@ -123,6 +123,9 @@ export class WorkspaceContextPanelComponent {
         'hideCategoriesButton',
         { read: ElementRef<HTMLElement> }
     );
+    private readonly firstHeaderAction = viewChild('firstHeaderAction', {
+        read: ElementRef<HTMLElement>,
+    });
 
     readonly isXtreamCategories = computed(
         () =>
@@ -371,24 +374,20 @@ export class WorkspaceContextPanelComponent {
                 });
             }
         });
+    }
 
-        // Restoring the rail removes the layout's "show categories" button
-        // the user just activated; pick focus up on the chevron it mirrors
-        // once this rail has rendered. Only on that transition, so a deep
-        // link or a mouse click never has its focus moved.
-        let wasHidden = this.liveSidebarState.areCategoriesHidden();
-        effect(() => {
-            const hidden = this.liveSidebarState.areCategoriesHidden();
-            const restored = wasHidden && !hidden;
-            wasHidden = hidden;
-            if (restored) {
-                queueMicrotask(() =>
-                    focusIfFocusLost(
-                        this.hideCategoriesButton()?.nativeElement
-                    )
-                );
-            }
-        });
+    /**
+     * Called by the shell sidebar once this rail has unfolded: the button the
+     * user activated to bring it back (the layout's show-categories button
+     * or the floating restore handle) is gone, so focus is picked up here —
+     * on the hide chevron when it is offered, else on the first header
+     * action — and only if focus was actually lost.
+     */
+    focusIfFocusLost(): void {
+        focusIfFocusLost(
+            this.hideCategoriesButton()?.nativeElement ??
+                this.firstHeaderAction()?.nativeElement
+        );
     }
 
     toggleCategorySearch(): void {

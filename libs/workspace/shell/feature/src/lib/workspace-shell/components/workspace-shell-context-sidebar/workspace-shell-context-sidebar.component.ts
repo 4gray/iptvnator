@@ -2,8 +2,10 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     input,
+    viewChild,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -107,6 +109,35 @@ export class WorkspaceShellContextSidebarComponent {
         () =>
             this.isContextPanelCollapsed() && !this.contextDrawer?.isOpen()
     );
+
+    // By template ref, not class token, so a spec's stand-in panel is found
+    // the same way the real one is.
+    private readonly contextPanel =
+        viewChild<Pick<WorkspaceContextPanelComponent, 'focusIfFocusLost'>>(
+            'contextPanel'
+        );
+
+    constructor() {
+        // Unfolding the rail removes the control the user activated (the
+        // layout's show-categories button or the floating restore handle),
+        // so focus drops to <body>; the rail picks it up once rendered. This
+        // watches the rail's ACTUAL fold state rather than the raw level:
+        // on the live root the rail stays visible at `categories-hidden`,
+        // and only `collapsed` ↔ visible is a real transition there.
+        // Seeded on the first run: the required inputs are not readable in
+        // the constructor yet.
+        let wasCollapsed: boolean | null = null;
+        effect(() => {
+            const collapsed = this.isContextPanelCollapsed();
+            const unfolded = wasCollapsed === true && !collapsed;
+            wasCollapsed = collapsed;
+            if (unfolded) {
+                queueMicrotask(() =>
+                    this.contextPanel()?.focusIfFocusLost()
+                );
+            }
+        });
+    }
 
     closeDrawer(): void {
         this.contextDrawer?.close();
