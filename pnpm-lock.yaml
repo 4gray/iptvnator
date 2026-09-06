@@ -218,8 +218,8 @@ importers:
         specifier: 21.2.19
         version: 21.2.19(@angular/compiler@21.2.19)(typescript@5.9.3)
       '@angular/language-service':
-        specifier: 21.2.19
-        version: 21.2.19
+        specifier: 22.1.4
+        version: 22.1.4
       '@angular/service-worker':
         specifier: 21.2.19
         version: 21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2)
@@ -781,9 +781,9 @@ packages:
       '@angular/platform-browser': 21.2.19
       rxjs: ^6.5.3 || ^7.4.0
 
-  '@angular/language-service@21.2.19':
-    resolution: {integrity: sha512-ockDnVB9drvrx1WXPd3n+0mDT0iBAMJsmjBDUijGTOCy4oc+iXPeC2Q+bpiRuM2+rtpo6Z939ZLgvNdh7KrRzQ==}
-    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+  '@angular/language-service@22.1.4':
+    resolution: {integrity: sha512-ptl9fz3VKeZjv44Baps0NIkt91lkhTOQBBruGePqaBbInfU3KQWJoHasYPCUNl8NpyKm+EtMLMf5w/xOIDjk+Q==}
+    engines: {node: ^22.22.3 || ^24.15.0 || >=26.0.0}
 
   '@angular/material@21.2.14':
     resolution: {integrity: sha512-fMQca8VRtei93JRRG9qQ+u08DCb0nga59Esoakq5yx3+A1NfdpFeUS1tBns56U04o8KAaIAwZK3NBqXz8ZKNqg==}
@@ -12097,7 +12097,7 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
 
-  '@angular/language-service@21.2.19': {}
+  '@angular/language-service@22.1.4': {}
 
   '@angular/material@21.2.14(e62c7210bef08c270f76f8032e5d0530)':
     dependencies:
