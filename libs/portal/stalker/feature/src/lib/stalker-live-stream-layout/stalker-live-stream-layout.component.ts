@@ -1020,13 +1020,13 @@ export class StalkerLiveStreamLayoutComponent
     }
 
     /**
-     * In full-list mode the rendered list is windowed to `renderLimit`. When a
+     * Cached categories and search results are windowed to `renderLimit`. When a
      * channel beyond that window is selected (remote channel-up/down, numeric
      * select), grow the window so the selection is actually in the DOM and can
      * be highlighted/scrolled to instead of drifting off-window.
      */
     private ensureChannelWithinRenderWindow(channelId: string): void {
-        if (!this.isCategoryFromCache()) {
+        if (this.visibleChannels().length === this.filteredChannels().length) {
             return;
         }
 

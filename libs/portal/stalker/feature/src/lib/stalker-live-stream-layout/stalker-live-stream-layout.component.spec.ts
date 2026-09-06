@@ -782,7 +782,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         ).toEqual([]);
     });
 
-    it('grows the render window to include a channel selected beyond it (remote/numeric nav)', async () => {
+    it.each([true, false])('grows the render window for remote/numeric selection (cached=%s)', async (cached) => {
         const full = Array.from({ length: 250 }, (_, index) => ({
             id: `ch-${index}`,
             cmd: `ffrt4://itv/${index}`,
@@ -791,9 +791,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             logo: '',
         }));
         itvFullListActive.set(true);
-        itvSelectedCategoryFromCache.set(true);
+        itvSelectedCategoryFromCache.set(cached);
         itvChannels.set(full);
-        itvFullChannelList.set(full);
+        itvFullChannelList.set(cached ? full : []);
+        searchPhrase.set('channel');
         fixture.detectChanges();
 
         expect(component.visibleChannels()).toHaveLength(100);
