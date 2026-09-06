@@ -764,7 +764,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "打开多频道 EPG 视图"
+        "OPEN_EPG_GUIDE": "节目指南"
     },
     "EPG": {
         "NEXT_DAY": "明天",
@@ -814,7 +814,41 @@
         "ARCHIVE_PLAYBACK": "回看播放",
         "COLLAPSE_PANEL": "收起 EPG 面板",
         "EXPAND_PANEL": "展开 EPG 面板",
+        "GUIDE": {
+            "TITLE": "节目指南",
+            "CLOSE": "关闭指南",
+            "CHANNEL": "频道",
+            "TODAY": "今天",
+            "NOW": "现在",
+            "JUMP_NOW": "跳转到现在",
+            "SCOPE": "显示的频道",
+            "ONLY_WITH_EPG": "仅含 EPG",
+            "ONLY_WITH_EPG_HINT": "隐藏没有节目数据的频道",
+            "DENSITY_COMFORTABLE": "舒适行距",
+            "DENSITY_COMPACT": "紧凑行距",
+            "ZOOM": "缩放",
+            "FILTER_CHANNELS": "筛选频道…",
+            "SEARCH_PROGRAMMES": "搜索节目…",
+            "NO_RESULTS": "未找到节目",
+            "NO_PROGRAMME_INFO": "没有节目信息",
+            "NO_PROGRAMME_INFO_LONG": "此频道没有节目信息",
+            "PLAYING": "正在播放",
+            "NO_CHANNELS": "没有频道匹配“{{query}}”",
+            "CLEAR_FILTER": "清除筛选",
+            "COLLAPSE_PLAYER": "收起播放器",
+            "EXPAND_PLAYER": "展开播放器",
+            "KEYS": {
+                "CHANNEL": "频道",
+                "PROGRAMME": "节目",
+                "PLAY": "播放",
+                "DETAILS": "详情",
+                "NOW": "现在",
+                "DAY": "日期",
+                "CLOSE": "关闭"
+            }
+        },
         "TIMELINE": {
+            "OPEN_GUIDE": "打开节目指南",
             "TODAY": "今天",
             "NOW": "现在",
             "JUMP_NOW": "跳转到现在",
@@ -1537,7 +1571,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "显示 Xtream 服务器的账户详情",
                 "OPEN_VIEW_DESCRIPTION": "跳转到 {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "清除此视图中所有可见的{{type}}项目",
-                "OPEN_MULTI_EPG_DESCRIPTION": "打开多频道 EPG 视图",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "打开此播放列表的节目指南",
                 "GO_TO_VOD_LABEL": "电影",
                 "GO_TO_VOD_DESCRIPTION": "跳转到电影区",
                 "GO_TO_LIVE_LABEL": "直播电视",

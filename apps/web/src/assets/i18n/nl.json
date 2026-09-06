@@ -764,7 +764,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Multi-EPG-weergave openen"
+        "OPEN_EPG_GUIDE": "Programmagids"
     },
     "EPG": {
         "NEXT_DAY": "Volgende dag",
@@ -814,7 +814,41 @@
         "ARCHIVE_PLAYBACK": "Archief afspelen",
         "COLLAPSE_PANEL": "EPG-paneel inklappen",
         "EXPAND_PANEL": "EPG-paneel uitklappen",
+        "GUIDE": {
+            "TITLE": "Programmagids",
+            "CLOSE": "Programmagids sluiten",
+            "CHANNEL": "Kanaal",
+            "TODAY": "Vandaag",
+            "NOW": "Nu",
+            "JUMP_NOW": "Ga naar nu",
+            "SCOPE": "Getoonde kanalen",
+            "ONLY_WITH_EPG": "Alleen met EPG",
+            "ONLY_WITH_EPG_HINT": "Verberg kanalen zonder programmagegevens",
+            "DENSITY_COMFORTABLE": "Comfortabele rijen",
+            "DENSITY_COMPACT": "Compacte rijen",
+            "ZOOM": "Zoom",
+            "FILTER_CHANNELS": "Kanalen filteren…",
+            "SEARCH_PROGRAMMES": "Programma's zoeken…",
+            "NO_RESULTS": "Geen programma's gevonden",
+            "NO_PROGRAMME_INFO": "Geen programma-informatie",
+            "NO_PROGRAMME_INFO_LONG": "Geen programma-informatie voor dit kanaal",
+            "PLAYING": "Speelt nu",
+            "NO_CHANNELS": "Geen kanalen komen overeen met “{{query}}”",
+            "CLEAR_FILTER": "Filter wissen",
+            "COLLAPSE_PLAYER": "Speler inklappen",
+            "EXPAND_PLAYER": "Speler uitklappen",
+            "KEYS": {
+                "CHANNEL": "kanaal",
+                "PROGRAMME": "programma",
+                "PLAY": "afspelen",
+                "DETAILS": "details",
+                "NOW": "nu",
+                "DAY": "dag",
+                "CLOSE": "sluiten"
+            }
+        },
         "TIMELINE": {
+            "OPEN_GUIDE": "Programmagids openen",
             "TODAY": "Vandaag",
             "NOW": "Nu",
             "JUMP_NOW": "Ga naar nu",
@@ -1537,7 +1571,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Toon Xtream-serveraccountdetails",
                 "OPEN_VIEW_DESCRIPTION": "Navigeer naar {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Wis alle zichtbare {{type}}-items in deze weergave",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Open de multi-kanaal EPG-weergave",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Programmagids voor deze afspeellijst openen",
                 "GO_TO_VOD_LABEL": "Films",
                 "GO_TO_VOD_DESCRIPTION": "Spring naar de filmsectie",
                 "GO_TO_LIVE_LABEL": "Live tv",

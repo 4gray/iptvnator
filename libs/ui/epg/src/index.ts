@@ -23,5 +23,8 @@ export {
 } from './lib/epg-timeline/epg-summary.util';
 export * from './lib/epg-progress-panel/epg-progress-panel.component';
 export * from './lib/epg-source-status/epg-source-status.component';
-export * from './lib/multi-epg/multi-epg-container.component';
-export * from './lib/multi-epg/overlay-ref.token';
+export * from './lib/epg-guide/epg-guide-source';
+export * from './lib/epg-guide/epg-guide-layout.util';
+export * from './lib/epg-guide/epg-guide-preferences';
+export * from './lib/epg-guide/epg-guide.component';
+export * from './lib/epg-guide/epg-guide-now-playing.component';

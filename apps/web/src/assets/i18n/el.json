@@ -764,7 +764,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Άνοιγμα προβολής Multi-EPG"
+        "OPEN_EPG_GUIDE": "Οδηγός προγράμματος"
     },
     "EPG": {
         "NEXT_DAY": "Επόμενη μέρα",
@@ -814,7 +814,41 @@
         "ARCHIVE_PLAYBACK": "Αναπαραγωγή αρχείου",
         "COLLAPSE_PANEL": "Σύμπτυξη πίνακα EPG",
         "EXPAND_PANEL": "Ανάπτυξη πίνακα EPG",
+        "GUIDE": {
+            "TITLE": "Οδηγός προγράμματος",
+            "CLOSE": "Κλείσιμο οδηγού",
+            "CHANNEL": "Κανάλι",
+            "TODAY": "Σήμερα",
+            "NOW": "Τώρα",
+            "JUMP_NOW": "Μετάβαση στο τώρα",
+            "SCOPE": "Εμφανιζόμενα κανάλια",
+            "ONLY_WITH_EPG": "Μόνο με EPG",
+            "ONLY_WITH_EPG_HINT": "Απόκρυψη καναλιών χωρίς δεδομένα προγράμματος",
+            "DENSITY_COMFORTABLE": "Άνετες γραμμές",
+            "DENSITY_COMPACT": "Συμπαγείς γραμμές",
+            "ZOOM": "Ζουμ",
+            "FILTER_CHANNELS": "Φιλτράρισμα καναλιών…",
+            "SEARCH_PROGRAMMES": "Αναζήτηση προγραμμάτων…",
+            "NO_RESULTS": "Δεν βρέθηκαν προγράμματα",
+            "NO_PROGRAMME_INFO": "Δεν υπάρχουν πληροφορίες προγράμματος",
+            "NO_PROGRAMME_INFO_LONG": "Δεν υπάρχουν πληροφορίες προγράμματος για αυτό το κανάλι",
+            "PLAYING": "Παίζει",
+            "NO_CHANNELS": "Κανένα κανάλι δεν ταιριάζει με «{{query}}»",
+            "CLEAR_FILTER": "Απαλοιφή φίλτρου",
+            "COLLAPSE_PLAYER": "Σύμπτυξη player",
+            "EXPAND_PLAYER": "Ανάπτυξη player",
+            "KEYS": {
+                "CHANNEL": "κανάλι",
+                "PROGRAMME": "πρόγραμμα",
+                "PLAY": "αναπαραγωγή",
+                "DETAILS": "λεπτομέρειες",
+                "NOW": "τώρα",
+                "DAY": "ημέρα",
+                "CLOSE": "κλείσιμο"
+            }
+        },
         "TIMELINE": {
+            "OPEN_GUIDE": "Άνοιγμα του οδηγού προγράμματος",
             "TODAY": "Σήμερα",
             "NOW": "Τώρα",
             "JUMP_NOW": "Μετάβαση στο τώρα",
@@ -1537,7 +1571,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Εμφάνιση στοιχείων λογαριασμού διακομιστή Xtream",
                 "OPEN_VIEW_DESCRIPTION": "Πλοήγηση στο {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Εκκαθάριση όλων των ορατών στοιχείων {{type}} σε αυτή την προβολή",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Άνοιγμα της προβολής EPG πολλαπλών καναλιών",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Άνοιγμα του οδηγού προγράμματος για αυτή τη λίστα αναπαραγωγής",
                 "GO_TO_VOD_LABEL": "Ταινίες",
                 "GO_TO_VOD_DESCRIPTION": "Μετάβαση στην ενότητα ταινιών",
                 "GO_TO_LIVE_LABEL": "Ζωντανή TV",

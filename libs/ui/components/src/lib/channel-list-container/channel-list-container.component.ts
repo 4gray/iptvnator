@@ -211,6 +211,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
     readonly sidebarToggleRequested = output<void>();
+    /** Groups view only: the group whose channels are currently listed. */
+    readonly selectedGroupChange = output<string | null>();
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,

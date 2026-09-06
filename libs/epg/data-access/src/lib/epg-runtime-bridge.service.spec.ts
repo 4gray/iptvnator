@@ -16,7 +16,7 @@ describe('EpgRuntimeBridgeService', () => {
             supportsEpgChannelMetadata: false,
             supportsEpgSourceFreshness: false,
             supportsEpgDataManagement: false,
-            supportsEpgChannelBrowser: false,
+            supportsEpgGuide: false,
             supportsEpgProgramSearch: false,
         };
 
@@ -122,7 +122,6 @@ describe('EpgRuntimeBridgeService', () => {
             freshUrls: ['https://example.com/epg.xml'],
             staleUrls: [],
         });
-        const getEpgChannelsByRange = jest.fn().mockResolvedValue([]);
         const searchEpgPrograms = jest.fn().mockResolvedValue([]);
         window.electron = {
             ...window.electron,
@@ -130,14 +129,12 @@ describe('EpgRuntimeBridgeService', () => {
             getCurrentProgramsBatch,
             getEpgChannelMetadata,
             checkEpgFreshness,
-            getEpgChannelsByRange,
             searchEpgPrograms,
         } as unknown as typeof window.electron;
         runtimeCapabilities.supportsEpgProgramLookup = true;
         runtimeCapabilities.supportsEpgCurrentProgramBatch = true;
         runtimeCapabilities.supportsEpgChannelMetadata = true;
         runtimeCapabilities.supportsEpgSourceFreshness = true;
-        runtimeCapabilities.supportsEpgChannelBrowser = true;
         runtimeCapabilities.supportsEpgProgramSearch = true;
 
         await service.getChannelPrograms('channel-1');
@@ -148,7 +145,6 @@ describe('EpgRuntimeBridgeService', () => {
             sourceUrls: ['https://playlist.example.com/guide.xml'],
         });
         await service.checkFreshness(['https://example.com/epg.xml'], 12);
-        await service.getChannelsByRange(0, 20);
         await service.searchPrograms('news', 20);
 
         expect(getChannelPrograms).toHaveBeenCalledWith('channel-1');
@@ -162,8 +158,45 @@ describe('EpgRuntimeBridgeService', () => {
             ['https://example.com/epg.xml'],
             12
         );
-        expect(getEpgChannelsByRange).toHaveBeenCalledWith(0, 20);
         expect(searchEpgPrograms).toHaveBeenCalledWith('news', 20);
+    });
+
+    it('forwards guide reads when the runtime supports them', async () => {
+        const getEpgProgramsForChannels = jest
+            .fn()
+            .mockResolvedValue({ a: [] });
+        const getEpgProgramCoverage = jest.fn().mockResolvedValue(['a']);
+        window.electron = {
+            ...window.electron,
+            getEpgProgramsForChannels,
+            getEpgProgramCoverage,
+        } as unknown as typeof window.electron;
+        runtimeCapabilities.supportsEpgGuide = true;
+
+        const guideWindow = { channelIds: ['a'], fromMs: 1, toMs: 2 };
+        await expect(
+            service.getProgramsForChannels(guideWindow)
+        ).resolves.toEqual({ a: [] });
+        await expect(service.getProgramCoverage(guideWindow)).resolves.toEqual([
+            'a',
+        ]);
+        expect(getEpgProgramsForChannels).toHaveBeenCalledWith(guideWindow);
+        expect(getEpgProgramCoverage).toHaveBeenCalledWith(guideWindow);
+    });
+
+    it('answers null for guide reads without runtime support or channels', async () => {
+        runtimeCapabilities.supportsEpgGuide = false;
+        await expect(
+            service.getProgramsForChannels({
+                channelIds: ['a'],
+                fromMs: 1,
+                toMs: 2,
+            })
+        ).resolves.toBeNull();
+        runtimeCapabilities.supportsEpgGuide = true;
+        await expect(
+            service.getProgramCoverage({ channelIds: [], fromMs: 1, toMs: 2 })
+        ).resolves.toBeNull();
     });
 
     it('subscribes to EPG progress only when progress events are supported', () => {

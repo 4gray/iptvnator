@@ -8,8 +8,9 @@ import {
     ElectronBridgeEpgProgress,
     ElectronBridgeEpgProgressStats,
     ElectronBridgeEpgProgressStatus,
+    ElectronBridgeEpgSearchProgram,
     ElectronBridgeEpgSearchResult,
-    ElectronBridgeEpgChannelWithPrograms,
+    ElectronBridgeEpgGuideWindow,
     ElectronBridgeEpgFreshnessResult,
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeResult,
@@ -39,7 +40,8 @@ type EpgElectronBridge = Pick<
     | 'getChannelPrograms'
     | 'getCurrentProgramsBatch'
     | 'getEpgChannelMetadata'
-    | 'getEpgChannelsByRange'
+    | 'getEpgProgramsForChannels'
+    | 'getEpgProgramCoverage'
     | 'onEpgProgress'
     | 'searchEpgPrograms'
     | 'getEpgMapping'
@@ -81,8 +83,8 @@ export class EpgRuntimeBridgeService {
         return this.runtime.supportsEpgDataManagement;
     }
 
-    get supportsChannelBrowser(): boolean {
-        return this.runtime.supportsEpgChannelBrowser;
+    get supportsGuide(): boolean {
+        return this.runtime.supportsEpgGuide;
     }
 
     get supportsProgramSearch(): boolean {
@@ -206,16 +208,26 @@ export class EpgRuntimeBridgeService {
         );
     }
 
-    getChannelsByRange(
-        skip: number,
-        limit: number
-    ): Promise<ElectronBridgeEpgChannelWithPrograms[] | null> {
-        if (!this.supportsChannelBrowser) {
+    getProgramsForChannels(
+        guideWindow: ElectronBridgeEpgGuideWindow
+    ): Promise<Record<string, EpgProgram[]> | null> {
+        if (!this.supportsGuide || guideWindow.channelIds.length === 0) {
             return Promise.resolve(null);
         }
-
         return (
-            this.bridge?.getEpgChannelsByRange?.(skip, limit) ??
+            this.bridge?.getEpgProgramsForChannels?.(guideWindow) ??
+            Promise.resolve(null)
+        );
+    }
+
+    getProgramCoverage(
+        guideWindow: ElectronBridgeEpgGuideWindow
+    ): Promise<string[] | null> {
+        if (!this.supportsGuide || guideWindow.channelIds.length === 0) {
+            return Promise.resolve(null);
+        }
+        return (
+            this.bridge?.getEpgProgramCoverage?.(guideWindow) ??
             Promise.resolve(null)
         );
     }
@@ -223,7 +235,7 @@ export class EpgRuntimeBridgeService {
     searchPrograms(
         searchTerm: string,
         limit?: number
-    ): Promise<EpgProgram[] | null> {
+    ): Promise<ElectronBridgeEpgSearchProgram[] | null> {
         if (!this.supportsProgramSearch) {
             return Promise.resolve(null);
         }
@@ -241,7 +253,9 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.getEpgMapping?.(channelKey) ?? Promise.resolve(null);
+        return (
+            this.bridge?.getEpgMapping?.(channelKey) ?? Promise.resolve(null)
+        );
     }
 
     getEpgMappingsBatch(
@@ -267,8 +281,11 @@ export class EpgRuntimeBridgeService {
         }
 
         return (
-            this.bridge?.setEpgMapping?.(channelKey, epgChannelId, playlistId) ??
-            Promise.resolve(null)
+            this.bridge?.setEpgMapping?.(
+                channelKey,
+                epgChannelId,
+                playlistId
+            ) ?? Promise.resolve(null)
         );
     }
 
@@ -277,7 +294,9 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.deleteEpgMapping?.(channelKey) ?? Promise.resolve(null);
+        return (
+            this.bridge?.deleteEpgMapping?.(channelKey) ?? Promise.resolve(null)
+        );
     }
 
     searchEpgChannels(

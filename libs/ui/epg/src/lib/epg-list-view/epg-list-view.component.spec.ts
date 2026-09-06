@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { EpgListViewComponent } from './epg-list-view.component';
 import { EpgListRow } from './epg-list-view.utils';
 
@@ -53,6 +53,9 @@ describe('EpgListViewComponent', () => {
                         currentLang: 'en',
                         defaultLang: 'en',
                         onLangChange: new BehaviorSubject(null),
+                        onTranslationChange: new BehaviorSubject(null),
+                        onDefaultLangChange: new BehaviorSubject(null),
+                        get: (key: string) => of(key),
                     },
                 },
             ],
@@ -243,5 +246,26 @@ describe('EpgListViewComponent', () => {
         expect(component.progress()).toBeGreaterThan(40);
         expect(component.progress()).toBeLessThan(60);
         expect(component.minutesLeft()).toBeGreaterThan(0);
+    });
+
+    it('offers the Guide action only when the host can open the guide, like the timeline', () => {
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.g-guide')).toBeNull();
+
+        fixture.componentRef.setInput('guideAvailable', true);
+        fixture.detectChanges();
+        const openGuide = jest.fn();
+        component.openGuide.subscribe(openGuide);
+        const button = fixture.nativeElement.querySelector(
+            '.g-guide'
+        ) as HTMLButtonElement | null;
+        expect(button).not.toBeNull();
+        button?.click();
+        expect(openGuide).toHaveBeenCalledTimes(1);
+
+        // The collapsed toolbar row only carries the inline summary.
+        fixture.componentRef.setInput('collapsed', true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.g-guide')).toBeNull();
     });
 });

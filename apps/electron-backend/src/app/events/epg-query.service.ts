@@ -1,13 +1,11 @@
 import { epgLogger } from '../util/epg-logger';
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
-import {
-    EpgChannelMetadata,
-    EpgProgram,
-} from '@iptvnator/shared/interfaces';
+import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
+import { isValidEpgProgram, toEpgProgramFromRow } from './epg-program-row.util';
 
-interface EpgProgramRow {
+interface EpgProgramSelectRow {
     id: number;
     channelId: string;
     start: string;
@@ -215,11 +213,12 @@ export class EpgQueryService {
 
             unmatchedIds = validIds.filter((id) => !(id in result));
             if (unmatchedIds.length > 0) {
-                const scopedCandidates = await this.selectChannelLookupCandidates(
-                    db,
-                    unmatchedIds,
-                    sourceUrls
-                );
+                const scopedCandidates =
+                    await this.selectChannelLookupCandidates(
+                        db,
+                        unmatchedIds,
+                        sourceUrls
+                    );
                 const unresolvedIds = unmatchedIds.filter(
                     (channelId) =>
                         !this.resolveChannelMetadataCandidate(
@@ -345,52 +344,62 @@ export class EpgQueryService {
         }
     }
 
+    /**
+     * Resolve channel lookup keys to XMLTV channel metadata. Throws on a
+     * database failure so callers that must tell "no match" apart from "could
+     * not look up" (the guide's coverage read) can fail open.
+     */
+    async resolveChannelMetadata(
+        channelIds: string[],
+        options: { sourceUrls?: string[] } = {}
+    ): Promise<Record<string, EpgChannelMetadata | null>> {
+        const normalizedChannelIds =
+            this.normalizeChannelLookupKeys(channelIds);
+
+        if (normalizedChannelIds.length === 0) {
+            return {};
+        }
+
+        const db = await getDatabase();
+        const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
+        let candidates = await this.selectChannelMetadataCandidates(
+            db,
+            normalizedChannelIds,
+            sourceUrls
+        );
+        if (sourceUrls.length > 0) {
+            const missingChannelIds = normalizedChannelIds.filter(
+                (channelId) =>
+                    !this.resolveChannelMetadataCandidate(channelId, candidates)
+            );
+            if (missingChannelIds.length > 0) {
+                candidates = [
+                    ...candidates,
+                    ...(await this.selectChannelMetadataCandidates(
+                        db,
+                        missingChannelIds,
+                        sourceUrls,
+                        { legacyOnly: true }
+                    )),
+                ];
+            }
+        }
+
+        return Object.fromEntries(
+            normalizedChannelIds.map((channelId) => [
+                channelId,
+                this.resolveChannelMetadataCandidate(channelId, candidates),
+            ])
+        );
+    }
+
+    /** Fail-soft variant of `resolveChannelMetadata`: a failure logs and answers `{}`. */
     async getChannelMetadata(
         channelIds: string[],
         options: { sourceUrls?: string[] } = {}
     ): Promise<Record<string, EpgChannelMetadata | null>> {
         try {
-            const normalizedChannelIds =
-                this.normalizeChannelLookupKeys(channelIds);
-
-            if (normalizedChannelIds.length === 0) {
-                return {};
-            }
-
-            const db = await getDatabase();
-            const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
-            let candidates = await this.selectChannelMetadataCandidates(
-                db,
-                normalizedChannelIds,
-                sourceUrls
-            );
-            if (sourceUrls.length > 0) {
-                const missingChannelIds = normalizedChannelIds.filter(
-                    (channelId) =>
-                        !this.resolveChannelMetadataCandidate(
-                            channelId,
-                            candidates
-                        )
-                );
-                if (missingChannelIds.length > 0) {
-                    candidates = [
-                        ...candidates,
-                        ...(await this.selectChannelMetadataCandidates(
-                            db,
-                            missingChannelIds,
-                            sourceUrls,
-                            { legacyOnly: true }
-                        )),
-                    ];
-                }
-            }
-
-            return Object.fromEntries(
-                normalizedChannelIds.map((channelId) => [
-                    channelId,
-                    this.resolveChannelMetadataCandidate(channelId, candidates),
-                ])
-            );
+            return await this.resolveChannelMetadata(channelIds, options);
         } catch (error) {
             epgLogger.error(
                 this.loggerLabel,
@@ -398,54 +407,6 @@ export class EpgQueryService {
                 error
             );
             return {};
-        }
-    }
-
-    async getChannelsByRange(
-        skip: number,
-        limit: number
-    ): Promise<
-        Array<{
-            id: string;
-            displayName: string;
-            iconUrl: string | null;
-            programs: EpgProgram[];
-        }>
-    > {
-        try {
-            const db = await getDatabase();
-            const channels = await db
-                .select({
-                    id: schema.epgChannels.id,
-                    displayName: schema.epgChannels.displayName,
-                    iconUrl: schema.epgChannels.iconUrl,
-                })
-                .from(schema.epgChannels)
-                .orderBy(schema.epgChannels.displayName)
-                .offset(skip)
-                .limit(limit);
-
-            return Promise.all(
-                channels.map(async (channel) => {
-                    const programs = await db
-                        .select()
-                        .from(schema.epgPrograms)
-                        .where(eq(schema.epgPrograms.channelId, channel.id))
-                        .orderBy(schema.epgPrograms.start);
-
-                    return {
-                        ...channel,
-                        programs: programs.map(this.transformDbRowToEpgProgram),
-                    };
-                })
-            );
-        } catch (error) {
-            epgLogger.error(
-                this.loggerLabel,
-                'Error getting channels by range:',
-                error
-            );
-            return [];
         }
     }
 
@@ -471,7 +432,7 @@ export class EpgQueryService {
 
     private assignCurrentProgramRows(
         result: Record<string, EpgProgram | null>,
-        rows: EpgProgramRow[]
+        rows: EpgProgramSelectRow[]
     ): Set<string> {
         const matchedChannelIds = new Set<string>();
         for (const row of rows) {
@@ -479,8 +440,8 @@ export class EpgQueryService {
                 continue;
             }
 
-            const program = this.transformDbRowToEpgProgram(row);
-            if (this.isValidEpgProgram(program)) {
+            const program = toEpgProgramFromRow(row);
+            if (isValidEpgProgram(program)) {
                 result[row.channelId] = program;
                 matchedChannelIds.add(row.channelId);
             }
@@ -509,12 +470,12 @@ export class EpgQueryService {
     private assignCandidateCurrentProgramRows(
         result: Record<string, EpgProgram | null>,
         candidateIdsByRequestedId: Map<string, string>,
-        rows: EpgProgramRow[]
+        rows: EpgProgramSelectRow[]
     ): Set<string> {
         const matchedCandidateIds = new Set<string>();
         for (const row of rows) {
-            const program = this.transformDbRowToEpgProgram(row);
-            if (!this.isValidEpgProgram(program)) {
+            const program = toEpgProgramFromRow(row);
+            if (!isValidEpgProgram(program)) {
                 continue;
             }
 
@@ -537,32 +498,34 @@ export class EpgQueryService {
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[]
-    ): Promise<EpgProgramRow[]> {
-        return db
-            .select()
-            .from(schema.epgPrograms)
-            .where(
-                this.withProgramSourceScope(
-                    eq(schema.epgPrograms.channelId, channelId),
-                    sourceUrls
+    ): Promise<EpgProgramSelectRow[]> {
+        return (
+            db
+                .select()
+                .from(schema.epgPrograms)
+                .where(
+                    this.withProgramSourceScope(
+                        eq(schema.epgPrograms.channelId, channelId),
+                        sourceUrls
+                    )
                 )
-            )
-            // Collapse identical slots from multiple sources in SQL so the
-            // 500-row cap counts distinct programmes, not duplicate rows.
-            .groupBy(
-                schema.epgPrograms.channelId,
-                schema.epgPrograms.start,
-                schema.epgPrograms.title
-            )
-            .orderBy(schema.epgPrograms.start)
-            .limit(500);
+                // Collapse identical slots from multiple sources in SQL so the
+                // 500-row cap counts distinct programmes, not duplicate rows.
+                .groupBy(
+                    schema.epgPrograms.channelId,
+                    schema.epgPrograms.start,
+                    schema.epgPrograms.title
+                )
+                .orderBy(schema.epgPrograms.start)
+                .limit(500)
+        );
     }
 
     private async selectLegacyChannelPrograms(
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[]
-    ): Promise<EpgProgramRow[]> {
+    ): Promise<EpgProgramSelectRow[]> {
         if (sourceUrls.length === 0) {
             return [];
         }
@@ -592,7 +555,7 @@ export class EpgQueryService {
         now: string,
         sourceUrls: string[],
         options: { legacyOnly?: boolean } = {}
-    ): Promise<EpgProgramRow[]> {
+    ): Promise<EpgProgramSelectRow[]> {
         if (channelIds.length === 0) {
             return [];
         }
@@ -600,23 +563,25 @@ export class EpgQueryService {
             return [];
         }
 
-        return db
-            .select()
-            .from(schema.epgPrograms)
-            .where(
-                this.withProgramSourceScope(
-                    and(
-                        inArray(schema.epgPrograms.channelId, channelIds),
-                        this.isAiringAt(now)
-                    ) as SQL,
-                    sourceUrls,
-                    options
+        return (
+            db
+                .select()
+                .from(schema.epgPrograms)
+                .where(
+                    this.withProgramSourceScope(
+                        and(
+                            inArray(schema.epgPrograms.channelId, channelIds),
+                            this.isAiringAt(now)
+                        ) as SQL,
+                        sourceUrls,
+                        options
+                    )
                 )
-            )
-            // One current row per channel so duplicate cross-source slots
-            // don't consume the per-channel cap and starve other channels.
-            .groupBy(schema.epgPrograms.channelId)
-            .limit(channelIds.length);
+                // One current row per channel so duplicate cross-source slots
+                // don't consume the per-channel cap and starve other channels.
+                .groupBy(schema.epgPrograms.channelId)
+                .limit(channelIds.length)
+        );
     }
 
     /**
@@ -701,9 +666,7 @@ export class EpgQueryService {
         return db
             .select()
             .from(schema.epgChannels)
-            .where(
-                this.withChannelSourceScope(condition, sourceUrls)
-            )
+            .where(this.withChannelSourceScope(condition, sourceUrls))
             .limit(1);
     }
 
@@ -725,11 +688,9 @@ export class EpgQueryService {
             .select()
             .from(schema.epgChannels)
             .where(
-                this.withChannelSourceScope(
-                    condition,
-                    sourceUrls,
-                    { legacyOnly: true }
-                )
+                this.withChannelSourceScope(condition, sourceUrls, {
+                    legacyOnly: true,
+                })
             )
             .limit(1);
     }
@@ -874,7 +835,9 @@ export class EpgQueryService {
     }
 
     private channelHasProgramsForSourceScope(sourceUrls: string[]): SQL {
-        const sourceUrlValues = sourceUrls.map((sourceUrl) => sql`${sourceUrl}`);
+        const sourceUrlValues = sourceUrls.map(
+            (sourceUrl) => sql`${sourceUrl}`
+        );
 
         return sql`EXISTS (
             SELECT 1
@@ -927,12 +890,12 @@ export class EpgQueryService {
      * `sourceUrls`) can return the same channel/start/title from two EPG
      * sources; keep the first so a programme is never shown twice.
      */
-    private toEpgPrograms(rows: EpgProgramRow[]): EpgProgram[] {
+    private toEpgPrograms(rows: EpgProgramSelectRow[]): EpgProgram[] {
         const seen = new Set<string>();
         const programs: EpgProgram[] = [];
         for (const row of rows) {
-            const program = this.transformDbRowToEpgProgram(row);
-            if (!this.isValidEpgProgram(program)) {
+            const program = toEpgProgramFromRow(row);
+            if (!isValidEpgProgram(program)) {
                 continue;
             }
             const key = `${program.channel}|${program.start}|${program.title}`;
@@ -943,29 +906,6 @@ export class EpgQueryService {
             programs.push(program);
         }
         return programs;
-    }
-
-    private transformDbRowToEpgProgram(row: EpgProgramRow): EpgProgram {
-        return {
-            start: row.start,
-            stop: row.stop,
-            channel: row.channelId,
-            title: row.title,
-            desc: row.description,
-            category: row.category,
-            iconUrl: row.iconUrl,
-            rating: row.rating,
-            episodeNum: row.episodeNum,
-        };
-    }
-
-    private isValidEpgProgram(program: EpgProgram): boolean {
-        return Boolean(
-            program.start &&
-            program.stop &&
-            !Number.isNaN(new Date(program.start).getTime()) &&
-            !Number.isNaN(new Date(program.stop).getTime())
-        );
     }
 
     private async getMapping(
@@ -979,9 +919,7 @@ export class EpgQueryService {
                     epgChannelId: schema.epgChannelMappings.epgChannelId,
                 })
                 .from(schema.epgChannelMappings)
-                .where(
-                    eq(schema.epgChannelMappings.channelKey, channelKey)
-                )
+                .where(eq(schema.epgChannelMappings.channelKey, channelKey))
                 .limit(1);
             if (rows.length > 0) {
                 return rows[0].epgChannelId;
@@ -1022,10 +960,7 @@ export class EpgQueryService {
                     )
                 )
                 .where(eq(schema.content.epgChannelId, channelKey))
-                .orderBy(
-                    schema.categories.playlistId,
-                    schema.content.xtreamId
-                )
+                .orderBy(schema.categories.playlistId, schema.content.xtreamId)
                 .limit(1);
             if (mapped.length > 0) {
                 return mapped[0].epgChannelId;

@@ -81,6 +81,34 @@ describe('ControlsShortcuts', () => {
         }
     });
 
+    it('ignores every shortcut while the host surface suspends player shortcuts', () => {
+        const suspendedRegion = document.createElement('div');
+        suspendedRegion.setAttribute('data-player-shortcuts-suspended', '');
+        const host = document.createElement('div');
+        suspendedRegion.appendChild(host);
+        document.body.appendChild(suspendedRegion);
+        (
+            handlers as unknown as { hostElement: () => HTMLElement }
+        ).hostElement = () => host;
+
+        try {
+            expect(dispatchKey(' ')).toBe(false);
+            expect(dispatchKey('ArrowUp')).toBe(false);
+            expect(dispatchKey('ArrowDown')).toBe(false);
+            expect(dispatchKey('f')).toBe(false);
+            expect(dispatchKey('m')).toBe(false);
+            dispatchKey('Escape');
+
+            expect(handlers.togglePaused).not.toHaveBeenCalled();
+            expect(handlers.adjustVolume).not.toHaveBeenCalled();
+            expect(handlers.toggleFullscreen).not.toHaveBeenCalled();
+            expect(handlers.toggleMute).not.toHaveBeenCalled();
+            expect(handlers.onEscape).not.toHaveBeenCalled();
+        } finally {
+            suspendedRegion.remove();
+        }
+    });
+
     it('handles shortcuts when the host is not inside an inert region', () => {
         const host = document.createElement('div');
         document.body.appendChild(host);

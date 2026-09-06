@@ -1,11 +1,8 @@
-import { Overlay, OverlayRef } from '@angular/cdk/overlay';
-import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
     ElementRef,
     HostListener,
-    Injector,
     OnDestroy,
     OnInit,
     TemplateRef,
@@ -38,14 +35,17 @@ import {
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
-    COMPONENT_OVERLAY_REF,
+    EPG_GUIDE_SOURCE,
     EpgDateNavigationDirection,
+    EpgGuideComponent,
+    EpgGuideNowPlayingComponent,
     EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
     EpgTimelineEmptyReason,
     getTodayEpgDateKey,
-    MultiEpgContainerComponent,
+    persistEpgGuideDockCollapsed,
+    restoreEpgGuideDockCollapsed,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
 import { EpgService } from '@iptvnator/epg/data-access';
@@ -63,6 +63,7 @@ import {
     selectChannels,
     selectChannelsLoading,
     selectCurrentEpgProgram,
+    selectFavorites,
 } from '@iptvnator/m3u-state';
 import {
     firstValueFrom,
@@ -136,11 +137,12 @@ import {
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.service';
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
-const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
+const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
 const M3U_GROUPS_SIDEBAR_STORAGE_KEY = 'm3u-groups-sidebar-width';
 const M3U_SIDEBAR_MIN_WIDTH = 200;
@@ -194,6 +196,8 @@ function isInsideScrollableRegion(
         AudioPlayerComponent,
         ChannelListLoadingStateComponent,
         CommonModule,
+        EpgGuideComponent,
+        EpgGuideNowPlayingComponent,
         EpgListViewComponent,
         EpgTimelineComponent,
         M3uFullscreenChannelListComponent,
@@ -215,6 +219,8 @@ function isInsideScrollableRegion(
             provide: FULLSCREEN_CHANNEL_PANEL,
             useExisting: forwardRef(() => VideoPlayerComponent),
         },
+        M3uEpgGuideSourceService,
+        { provide: EPG_GUIDE_SOURCE, useExisting: M3uEpgGuideSourceService },
     ],
     templateUrl: './video-player.component.html',
     styleUrl: './video-player.component.scss',
@@ -225,7 +231,6 @@ export class VideoPlayerComponent
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dataService = inject(DataService);
-    private readonly overlay = inject(Overlay);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
@@ -301,6 +306,49 @@ export class VideoPlayerComponent
      */
     readonly fullscreenPanelChannels = computed(() =>
         this.channels().filter((channel) => this.keepsInlinePlayer(channel))
+    );
+    private readonly guideSource = inject(M3uEpgGuideSourceService);
+    /** Guide mode: sidebar and timeline give way to the multi-channel grid. */
+    readonly guideOpen = signal(false);
+    readonly guideDockCollapsed = signal(restoreEpgGuideDockCollapsed());
+    /** Rows the guide may show: everything that keeps the live host mounted. */
+    readonly guideChannels = computed(() =>
+        this.channels().filter(
+            (channel) =>
+                channel.radio !== 'true' && !this.opensMovieDetail(channel)
+        )
+    );
+    /**
+     * Group the sidebar's groups view is showing, mirrored from its
+     * `selectedGroupChange` output. The guide opens on the group the user was
+     * browsing, which is not necessarily the playing channel's.
+     */
+    readonly selectedSidebarGroup = signal<string | null>(null);
+    readonly canOpenGuide = computed(() => {
+        const channel = this.activeChannel();
+        return (
+            this.supportsEpg &&
+            !!channel &&
+            channel.radio !== 'true' &&
+            !this.showMovieDetail()
+        );
+    });
+    /**
+     * Programme shown in the docked strip (catch-up selection wins). The
+     * live fallback is derived from the ACTIVE channel's own schedule and the
+     * 30 s clock, exactly like {@link recordingMetadata} — the NgRx
+     * `currentEpgProgram` keeps its last value across a channel switch and
+     * through EPG gaps, so reading it here left the strip advertising the
+     * previous channel's programme.
+     */
+    readonly guideNowPlayingProgram = computed<EpgProgram | null>(
+        () =>
+            this.activeEpgProgramOrNull() ??
+            findCurrentEpgProgram(
+                this.epgPrograms(),
+                epgProviderClockMs(this.epgNowMs(), this.epgOffsetMinutes())
+            ) ??
+            null
     );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
@@ -633,8 +681,6 @@ export class VideoPlayerComponent
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
-    /** EPG overlay reference */
-    private overlayRef!: OverlayRef;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private statusSubscription?: Subscription;
@@ -677,6 +723,36 @@ export class VideoPlayerComponent
     });
 
     constructor() {
+        this.guideSource.bind({
+            channels: this.guideChannels,
+            favoriteKeys: this.store.selectSignal(selectFavorites),
+            // `selectActive` is `Channel | undefined`; the contract is
+            // nullable, so normalize rather than widen the shared type.
+            activeChannel: computed(() => this.activeChannel() ?? null),
+            selectedGroup: this.selectedSidebarGroup.asReadonly(),
+            activePlaybackUrl: this.activePlaybackUrl,
+        });
+        // Radio, a recognised movie, or a lost channel takes the guide's host
+        // (and its player) away — close instead of leaving it stranded.
+        effect(() => {
+            if (!this.canOpenGuide()) {
+                untracked(() => this.closeGuide());
+            }
+        });
+
+        // Switching to another playlist keeps this component mounted, so an
+        // open guide would survive and show the new playlist's channels under
+        // the previous one's initial scope. Close it and let the user reopen.
+        let lastGuidePlaylistId = this.activePlaylistId();
+        effect(() => {
+            const playlistId = this.activePlaylistId();
+            if (playlistId === lastGuidePlaylistId) {
+                return;
+            }
+            lastGuidePlaylistId = playlistId;
+            untracked(() => this.closeGuide());
+        });
+
         // React to settings changes
         effect(() => {
             this.playerSettings = {
@@ -975,7 +1051,7 @@ export class VideoPlayerComponent
     }
 
     ngOnDestroy(): void {
-        this.workspaceHeaderContext.clearAction(M3U_MULTI_EPG_HEADER_ACTION_ID);
+        this.workspaceHeaderContext.clearAction(M3U_EPG_GUIDE_HEADER_ACTION_ID);
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.statusSubscription?.unsubscribe();
@@ -1159,57 +1235,73 @@ export class VideoPlayerComponent
         }
     }
 
-    /**
-     * Opens the overlay with multi EPG view
-     */
-    openMultiEpgView(): void {
-        if (!this.supportsEpg) {
+    onSidebarGroupSelected(group: string | null): void {
+        this.selectedSidebarGroup.set(group);
+    }
+
+    openGuide(): void {
+        if (!this.canOpenGuide() || this.guideOpen() || this.isGuideBlocked()) {
             return;
         }
+        this.guideSource.applyInitialScope(this.activeView());
+        this.guideOpen.set(true);
+    }
 
-        const positionStrategy = this.overlay
-            .position()
-            .global()
-            .centerHorizontally()
-            .centerVertically();
-
-        this.overlayRef = this.overlay.create({
-            hasBackdrop: true,
-            positionStrategy,
-            width: '100%',
-            height: '100%',
-        });
-
-        const injector = Injector.create({
-            providers: [
-                {
-                    provide: COMPONENT_OVERLAY_REF,
-                    useValue: this.overlayRef,
-                },
-            ],
-        });
-
-        const portal = new ComponentPortal(
-            MultiEpgContainerComponent,
-            null,
-            injector
+    /**
+     * The guide mounts in the page flow, so anything painting over the page
+     * would hide it while it still swallowed the keyboard: a fullscreen
+     * element (the live player's own, which has the fullscreen channel panel
+     * instead — see {@link onFullscreenChange} — or any other) and an open
+     * CDK dialog. Gated here rather than in the key handler alone so the
+     * header action and the command palette are covered too.
+     */
+    private isGuideBlocked(): boolean {
+        return (
+            !!document.fullscreenElement ||
+            !!document.querySelector('.cdk-overlay-container [role="dialog"]')
         );
+    }
 
-        const componentRef = this.overlayRef.attach(portal);
-        componentRef.instance.playlistChannels = this.store.select(
-            selectChannels
-        ) as Observable<Channel[]>;
+    /** Whether the event was raised inside a menu, dialog or CDK overlay. */
+    private isInsideOverlaySurface(event: KeyboardEvent): boolean {
+        return event
+            .composedPath()
+            .some(
+                (target) =>
+                    target instanceof Element &&
+                    target.matches(
+                        '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
+                    )
+            );
+    }
 
-        // Pass the active channel's tvg.id for highlighting
-        const currentChannel = this.activeChannel();
-        if (currentChannel) {
-            componentRef.instance.activeChannelId =
-                currentChannel.tvg?.id || null;
+    closeGuide(): void {
+        this.guideOpen.set(false);
+    }
+
+    toggleGuide(): void {
+        if (this.guideOpen()) {
+            this.closeGuide();
+        } else {
+            this.openGuide();
         }
+    }
 
-        this.overlayRef.backdropClick().subscribe(() => {
-            this.overlayRef.dispose();
-        });
+    setGuideDockCollapsed(collapsed: boolean): void {
+        this.guideDockCollapsed.set(collapsed);
+        persistEpgGuideDockCollapsed(collapsed);
+    }
+
+    /**
+     * The guide and the fullscreen channel panel are mutually exclusive: the
+     * fullscreen surface paints over the whole page, so a guide left open
+     * behind it would be invisible and still swallow keys on exit.
+     */
+    @HostListener('document:fullscreenchange')
+    onFullscreenChange(): void {
+        if (this.guideOpen() && this.isLivePlayerFullscreen()) {
+            this.closeGuide();
+        }
     }
 
     @HostListener('document:keydown', ['$event'])
@@ -1222,6 +1314,31 @@ export class VideoPlayerComponent
         // itself instead of switching channels or toggling the sidebar
         // behind the modal surface.
         if (this.hostElement.nativeElement.closest('[inert]')) {
+            return;
+        }
+        const isGuideKey =
+            event.key.toLowerCase() === 'g' &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.altKey;
+        if (this.guideOpen()) {
+            // The guide owns the keyboard while open; only G toggles it off,
+            // and never from a dialog or menu that owns the keystroke.
+            if (isGuideKey && !this.isInsideOverlaySurface(event)) {
+                event.preventDefault();
+                this.closeGuide();
+            }
+            return;
+        }
+        if (isGuideKey && this.canOpenGuide()) {
+            // A G from a focused control inside a dialog or menu belongs to
+            // that surface, not to the page behind it.
+            if (!this.isInsideOverlaySurface(event)) {
+                this.openGuide();
+            }
+            if (this.guideOpen()) {
+                event.preventDefault();
+            }
             return;
         }
         if (
@@ -1239,15 +1356,7 @@ export class VideoPlayerComponent
         // the one way to change channels from the keyboard in fullscreen.
         if (event.key === 'PageUp' || event.key === 'PageDown') {
             if (
-                event
-                    .composedPath()
-                    .some(
-                        (target) =>
-                            target instanceof Element &&
-                            target.matches(
-                                '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
-                            )
-                    ) ||
+                this.isInsideOverlaySurface(event) ||
                 isInsideScrollableRegion(
                     event.target,
                     this.hostElement.nativeElement
@@ -1556,18 +1665,22 @@ export class VideoPlayerComponent
         }
 
         this.workspaceHeaderContext.setAction({
-            id: M3U_MULTI_EPG_HEADER_ACTION_ID,
-            icon: 'view_list',
-            tooltipKey: 'TOP_MENU.OPEN_MULTI_EPG',
-            ariaLabelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+            id: M3U_EPG_GUIDE_HEADER_ACTION_ID,
+            icon: 'grid_view',
+            tooltipKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            ariaLabelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            active: () => this.guideOpen(),
+            // Nothing to dock (no channel, radio, a recognised movie): the
+            // header button and the palette command would both open nothing.
+            disabled: () => !this.canOpenGuide(),
             palette: {
-                labelKey: 'TOP_MENU.OPEN_MULTI_EPG',
+                labelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
                 descriptionKey:
-                    'WORKSPACE.SHELL.COMMANDS.OPEN_MULTI_EPG_DESCRIPTION',
+                    'WORKSPACE.SHELL.COMMANDS.OPEN_EPG_GUIDE_DESCRIPTION',
                 keywords: ['epg', 'guide', 'schedule'],
                 priority: 10,
             },
-            run: () => this.openMultiEpgView(),
+            run: () => this.toggleGuide(),
         });
     }
 }

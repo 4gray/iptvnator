@@ -240,7 +240,8 @@ export function createElectronStub(): typeof window.electron {
             .fn()
             .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
         getChannelPrograms: jest.fn().mockResolvedValue([]),
-        getEpgChannelsByRange: jest.fn().mockResolvedValue([]),
+        getEpgProgramsForChannels: jest.fn().mockResolvedValue({}),
+        getEpgProgramCoverage: jest.fn().mockResolvedValue([]),
         getLocalIpAddresses: jest.fn().mockResolvedValue([]),
         checkForAppUpdate: jest
             .fn()

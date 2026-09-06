@@ -764,7 +764,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Ouvrir la vue Multi-EPG"
+        "OPEN_EPG_GUIDE": "Guide des programmes"
     },
     "EPG": {
         "NEXT_DAY": "Jour suivant",
@@ -814,7 +814,41 @@
         "ARCHIVE_PLAYBACK": "Lecture archive",
         "COLLAPSE_PANEL": "Réduire le panneau EPG",
         "EXPAND_PANEL": "Développer le panneau EPG",
+        "GUIDE": {
+            "TITLE": "Guide des programmes",
+            "CLOSE": "Fermer le guide",
+            "CHANNEL": "Chaîne",
+            "TODAY": "Aujourd'hui",
+            "NOW": "Maintenant",
+            "JUMP_NOW": "Aller à maintenant",
+            "SCOPE": "Chaînes affichées",
+            "ONLY_WITH_EPG": "Uniquement avec EPG",
+            "ONLY_WITH_EPG_HINT": "Masquer les chaînes sans données de programme",
+            "DENSITY_COMFORTABLE": "Lignes confortables",
+            "DENSITY_COMPACT": "Lignes compactes",
+            "ZOOM": "Zoom",
+            "FILTER_CHANNELS": "Filtrer les chaînes…",
+            "SEARCH_PROGRAMMES": "Rechercher des programmes…",
+            "NO_RESULTS": "Aucun programme trouvé",
+            "NO_PROGRAMME_INFO": "Aucune information sur le programme",
+            "NO_PROGRAMME_INFO_LONG": "Aucune information sur le programme pour cette chaîne",
+            "PLAYING": "En lecture",
+            "NO_CHANNELS": "Aucune chaîne ne correspond à « {{query}} »",
+            "CLEAR_FILTER": "Effacer le filtre",
+            "COLLAPSE_PLAYER": "Réduire le lecteur",
+            "EXPAND_PLAYER": "Agrandir le lecteur",
+            "KEYS": {
+                "CHANNEL": "chaîne",
+                "PROGRAMME": "programme",
+                "PLAY": "lecture",
+                "DETAILS": "détails",
+                "NOW": "maintenant",
+                "DAY": "jour",
+                "CLOSE": "fermer"
+            }
+        },
         "TIMELINE": {
+            "OPEN_GUIDE": "Ouvrir le guide des programmes",
             "TODAY": "Aujourd'hui",
             "NOW": "Maintenant",
             "JUMP_NOW": "Aller à maintenant",
@@ -1537,7 +1571,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Afficher les détails du compte du serveur Xtream",
                 "OPEN_VIEW_DESCRIPTION": "Naviguer vers {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Effacer tous les éléments {{type}} visibles dans cette vue",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Ouvrir la vue EPG multi-chaînes",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Ouvrir le guide des programmes pour cette liste de lecture",
                 "GO_TO_VOD_LABEL": "Films",
                 "GO_TO_VOD_DESCRIPTION": "Aller à la section films",
                 "GO_TO_LIVE_LABEL": "TV en direct",

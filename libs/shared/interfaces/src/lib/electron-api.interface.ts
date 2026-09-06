@@ -357,6 +357,11 @@ export interface ElectronBridgeEpgMapping {
     playlistId: string | null;
 }
 
+/** A programme-search hit: the programme plus the XMLTV channel's display name. */
+export interface ElectronBridgeEpgSearchProgram extends EpgProgram {
+    channelName: string | null;
+}
+
 export interface ElectronBridgeEpgSearchResult {
     id: string;
     displayName: string;
@@ -377,6 +382,18 @@ export interface ElectronBridgeEpgLookupOptions {
  */
 export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgLookupOptions {
     nowMs?: number;
+}
+
+export interface ElectronBridgeEpgGuideWindow extends ElectronBridgeEpgLookupOptions {
+    /**
+     * Playlist channel lookup keys (tvg-id, else name), ≤100 keys for
+     * programmes, ≤2000 for coverage; larger batches are truncated and the
+     * cut keys are absent from the answer.
+     */
+    channelIds: string[];
+    /** Provider-clock window bounds in epoch ms. */
+    fromMs: number;
+    toMs: number;
 }
 
 export interface ElectronBridgeEpgProgressStats {
@@ -404,11 +421,6 @@ export interface ElectronBridgeEpgChannelListResult {
     channels: ElectronBridgeEpgChannelSummary[];
     /** Always empty for this endpoint; retained for wire-format compatibility. */
     programs: [];
-}
-
-export interface ElectronBridgeEpgChannelWithPrograms extends ElectronBridgeEpgChannelSummary {
-    iconUrl: string | null;
-    programs: EpgProgram[];
 }
 
 export interface ElectronBridgeDbOperationEvent {
@@ -803,10 +815,12 @@ export interface ElectronBridgeApi {
         options?: ElectronBridgeEpgLookupOptions
     ) => Promise<Record<string, EpgChannelMetadata | null>>;
     getEpgChannels: () => Promise<ElectronBridgeEpgChannelListResult>;
-    getEpgChannelsByRange: (
-        skip: number,
-        limit: number
-    ) => Promise<ElectronBridgeEpgChannelWithPrograms[]>;
+    getEpgProgramsForChannels: (
+        window: ElectronBridgeEpgGuideWindow
+    ) => Promise<Record<string, EpgProgram[]>>;
+    getEpgProgramCoverage: (
+        window: ElectronBridgeEpgGuideWindow
+    ) => Promise<string[]>;
     forceFetchEpg: (
         url: string,
         options?: ElectronBridgeTrustOptions
@@ -821,7 +835,7 @@ export interface ElectronBridgeApi {
     searchEpgPrograms: (
         searchTerm: string,
         limit?: number
-    ) => Promise<EpgProgram[]>;
+    ) => Promise<ElectronBridgeEpgSearchProgram[]>;
 
     // EPG channel mapping (manual user overrides)
     getEpgMapping: (

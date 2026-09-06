@@ -1,0 +1,116 @@
+@use '../epg-theme' as *;
+
+:host {
+    display: block;
+    min-width: 0;
+    height: 100%;
+}
+
+.now-playing {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    height: 100%;
+    min-width: 0;
+    color: $text-primary;
+}
+.now-playing__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.now-playing__eyebrow {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font: 500 10px $font-mono;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: $text-secondary;
+
+    .now-playing__on {
+        color: $live-text;
+    }
+    .now-playing__on::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: $accent-live;
+        margin-right: 5px;
+        vertical-align: 1px;
+    }
+}
+.now-playing__title {
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.now-playing__title--muted {
+    color: $text-tertiary;
+    font-weight: 400;
+}
+.now-playing__desc {
+    font-size: 12px;
+    color: $text-secondary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60ch;
+}
+.now-playing__progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font: 11px $font-mono;
+    color: $text-secondary;
+
+    i {
+        flex: 1;
+        max-width: 360px;
+        height: 4px;
+        border-radius: 2px;
+        background: $surface-3;
+        overflow: hidden;
+        display: block;
+    }
+    b {
+        display: block;
+        height: 100%;
+        background: $accent-blue;
+    }
+}
+.now-playing__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+.now-playing--collapsed {
+    gap: 12px;
+
+    .now-playing__body {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+    .now-playing__title {
+        font-size: 13px;
+    }
+    .now-playing__actions {
+        flex-direction: row;
+    }
+}
+kbd {
+    font: 10px $font-mono;
+    border: 1px solid $line-strong;
+    border-radius: 4px;
+    padding: 0 4px;
+    margin-left: 6px;
+    color: $text-secondary;
+}

@@ -29,8 +29,8 @@ import {
     PlaylistMeta,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { Overlay } from '@angular/cdk/overlay';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
+import { translateServiceProvider } from './video-player.spec-harness';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -158,10 +158,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     },
                 },
                 { provide: Store, useValue: storeMock },
-                {
-                    provide: Overlay,
-                    useValue: { position: jest.fn(), create: jest.fn() },
-                },
+                translateServiceProvider,
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {
                     provide: RuntimeCapabilitiesService,

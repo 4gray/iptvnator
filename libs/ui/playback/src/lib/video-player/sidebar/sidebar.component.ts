@@ -32,6 +32,8 @@ export class SidebarComponent {
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
     readonly sidebarToggleRequested = output<void>();
+    /** Groups view only: the group whose channels are currently listed. */
+    readonly selectedGroupChange = output<string | null>();
 
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly translate = inject(TranslateService);

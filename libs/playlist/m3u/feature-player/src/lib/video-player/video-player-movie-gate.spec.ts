@@ -2,7 +2,6 @@ import { AsyncPipe } from '@angular/common';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Overlay } from '@angular/cdk/overlay';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -33,6 +32,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
+import { translateServiceProvider } from './video-player.spec-harness';
 
 // The component's chain reaches video.js (ui/playback → VjsPlayer); the CJS
 // bundle breaks under the ESM jest environment, so it is mocked before the
@@ -167,10 +167,7 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
                     },
                 },
                 { provide: Store, useValue: storeMock },
-                {
-                    provide: Overlay,
-                    useValue: { position: jest.fn(), create: jest.fn() },
-                },
+                translateServiceProvider,
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {
                     provide: RuntimeCapabilitiesService,

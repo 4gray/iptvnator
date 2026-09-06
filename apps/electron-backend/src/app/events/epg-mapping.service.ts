@@ -34,12 +34,22 @@ export async function resolveChannelIds(
     channelIds: string[]
 ): Promise<Map<string, string>> {
     try {
-        const db = await getDatabase();
-        const mappings = await getEpgMappingsBatch(db, channelIds);
-        return mappings;
+        return await resolveChannelIdsStrict(channelIds);
     } catch {
         return new Map();
     }
+}
+
+/**
+ * Same lookup, but a database failure rejects. The guide's coverage read
+ * uses it: answering "unmapped" for a mapped channel would let the
+ * "Only with EPG" filter hide it, whereas a rejection keeps coverage unknown.
+ */
+export async function resolveChannelIdsStrict(
+    channelIds: string[]
+): Promise<Map<string, string>> {
+    const db = await getDatabase();
+    return getEpgMappingsBatch(db, channelIds);
 }
 
 /**

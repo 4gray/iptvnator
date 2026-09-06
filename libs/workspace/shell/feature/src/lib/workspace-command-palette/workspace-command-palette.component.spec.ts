@@ -41,11 +41,11 @@ describe('WorkspaceCommandPaletteComponent', () => {
                 run: () => undefined,
             },
             {
-                id: 'multi-epg',
-                label: 'Open Multi-EPG',
+                id: 'epg-guide',
+                label: 'Open programme guide',
                 description: '',
                 group: 'view',
-                icon: 'view_list',
+                icon: 'grid_view',
                 keywords: ['epg', 'guide'],
                 priority: 0,
                 visible: true,
@@ -126,7 +126,7 @@ describe('WorkspaceCommandPaletteComponent', () => {
         component.query.set('guide');
 
         expect(component.flatCommands().map((command) => command.id)).toEqual([
-            'multi-epg',
+            'epg-guide',
         ]);
     });
 
@@ -135,7 +135,7 @@ describe('WorkspaceCommandPaletteComponent', () => {
         fixture.detectChanges();
 
         expect(component.flatCommands().map((command) => command.id)).toEqual([
-            'multi-epg',
+            'epg-guide',
             'playlist-search',
             'global-search',
         ]);
@@ -158,7 +158,7 @@ describe('WorkspaceCommandPaletteComponent', () => {
         component.onCommandClick(command);
 
         expect(dialogRef.close).toHaveBeenCalledWith({
-            commandId: 'multi-epg',
+            commandId: 'epg-guide',
             query: '',
         });
     });

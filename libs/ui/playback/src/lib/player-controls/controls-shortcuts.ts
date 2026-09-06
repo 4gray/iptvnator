@@ -3,8 +3,11 @@ export interface ControlsShortcutHandlers {
     /**
      * The player's host element, used to opt out of global shortcuts while
      * an ancestor is `inert` (e.g. behind the workspace's phone context
-     * drawer): inert strips pointer and Tab access, but document-level
-     * keydown listeners still fire, so shortcuts must check it themselves.
+     * drawer) or marked `data-player-shortcuts-suspended` (a host surface
+     * that owns the keyboard itself, such as the programme guide with the
+     * player docked): both strip the player of keyboard ownership, but
+     * document-level keydown listeners still fire, so shortcuts must check
+     * it themselves.
      */
     hostElement?: () => HTMLElement | null;
     canTogglePaused: () => boolean;
@@ -86,10 +89,17 @@ export class ControlsShortcuts {
         }
 
         // A player inside an inert region is outside the interaction model
-        // entirely — a modal surface above it owns the keyboard. This also
-        // covers Escape: the modal decides what Escape means, not the
-        // obscured player.
-        if (handlers.hostElement?.()?.closest('[inert]')) {
+        // entirely — a modal surface above it owns the keyboard. The same
+        // applies to a host surface that marks its player container
+        // `data-player-shortcuts-suspended` (the programme guide docks the
+        // player but keeps the arrows, Space and F for itself). This also
+        // covers Escape: the surface above decides what Escape means, not
+        // the player it obscures or demotes.
+        if (
+            handlers
+                .hostElement?.()
+                ?.closest('[inert], [data-player-shortcuts-suspended]')
+        ) {
             return;
         }
 

@@ -764,7 +764,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "فتح عرض Multi-EPG"
+        "OPEN_EPG_GUIDE": "دليل البرامج"
     },
     "EPG": {
         "NEXT_DAY": "اليوم التالي",
@@ -814,7 +814,41 @@
         "ARCHIVE_PLAYBACK": "تشغيل الأرشيف",
         "COLLAPSE_PANEL": "طي لوحة EPG",
         "EXPAND_PANEL": "توسيع لوحة EPG",
+        "GUIDE": {
+            "TITLE": "دليل البرامج",
+            "CLOSE": "إغلاق الدليل",
+            "CHANNEL": "قناة",
+            "TODAY": "اليوم",
+            "NOW": "الآن",
+            "JUMP_NOW": "الانتقال إلى الآن",
+            "SCOPE": "القنوات المعروضة",
+            "ONLY_WITH_EPG": "فقط مع EPG",
+            "ONLY_WITH_EPG_HINT": "إخفاء القنوات التي لا تحتوي على بيانات برامج",
+            "DENSITY_COMFORTABLE": "صفوف مريحة",
+            "DENSITY_COMPACT": "صفوف مضغوطة",
+            "ZOOM": "تكبير",
+            "FILTER_CHANNELS": "تصفية القنوات…",
+            "SEARCH_PROGRAMMES": "بحث في البرامج…",
+            "NO_RESULTS": "لم يتم العثور على برامج",
+            "NO_PROGRAMME_INFO": "لا توجد معلومات عن البرنامج",
+            "NO_PROGRAMME_INFO_LONG": "لا توجد معلومات عن البرنامج لهذه القناة",
+            "PLAYING": "قيد التشغيل",
+            "NO_CHANNELS": "لا توجد قنوات تطابق “{{query}}”",
+            "CLEAR_FILTER": "مسح التصفية",
+            "COLLAPSE_PLAYER": "طي المشغل",
+            "EXPAND_PLAYER": "توسيع المشغل",
+            "KEYS": {
+                "CHANNEL": "قناة",
+                "PROGRAMME": "برنامج",
+                "PLAY": "تشغيل",
+                "DETAILS": "التفاصيل",
+                "NOW": "الآن",
+                "DAY": "اليوم",
+                "CLOSE": "إغلاق"
+            }
+        },
         "TIMELINE": {
+            "OPEN_GUIDE": "فتح دليل البرامج",
             "TODAY": "اليوم",
             "NOW": "الآن",
             "JUMP_NOW": "الانتقال إلى الآن",
@@ -1537,7 +1571,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "عرض تفاصيل حساب خادم Xtream",
                 "OPEN_VIEW_DESCRIPTION": "الانتقال إلى {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "مسح جميع عناصر {{type}} المرئية في هذا العرض",
-                "OPEN_MULTI_EPG_DESCRIPTION": "فتح عرض EPG متعدد القنوات",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "فتح دليل البرامج لقائمة التشغيل هذه",
                 "GO_TO_VOD_LABEL": "الأفلام",
                 "GO_TO_VOD_DESCRIPTION": "الانتقال إلى قسم الأفلام",
                 "GO_TO_LIVE_LABEL": "البث المباشر",

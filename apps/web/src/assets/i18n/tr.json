@@ -764,7 +764,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Multi-EPG görünümünü aç"
+        "OPEN_EPG_GUIDE": "Program rehberi"
     },
     "EPG": {
         "NEXT_DAY": "Sonraki gün",
@@ -814,7 +814,41 @@
         "ARCHIVE_PLAYBACK": "Arşiv oynatma",
         "COLLAPSE_PANEL": "EPG panelini daralt",
         "EXPAND_PANEL": "EPG panelini genişlet",
+        "GUIDE": {
+            "TITLE": "Program rehberi",
+            "CLOSE": "Rehberi kapat",
+            "CHANNEL": "Kanal",
+            "TODAY": "Bugün",
+            "NOW": "Şimdi",
+            "JUMP_NOW": "Şimdiye atla",
+            "SCOPE": "Gösterilen kanallar",
+            "ONLY_WITH_EPG": "Yalnızca EPG'li",
+            "ONLY_WITH_EPG_HINT": "Program verisi olmayan kanalları gizle",
+            "DENSITY_COMFORTABLE": "Rahat satırlar",
+            "DENSITY_COMPACT": "Sıkışık satırlar",
+            "ZOOM": "Yakınlaştırma",
+            "FILTER_CHANNELS": "Kanalları filtrele…",
+            "SEARCH_PROGRAMMES": "Programları ara…",
+            "NO_RESULTS": "Program bulunamadı",
+            "NO_PROGRAMME_INFO": "Program bilgisi yok",
+            "NO_PROGRAMME_INFO_LONG": "Bu kanal için program bilgisi yok",
+            "PLAYING": "Oynatılıyor",
+            "NO_CHANNELS": "“{{query}}” ile eşleşen kanal yok",
+            "CLEAR_FILTER": "Filtreyi temizle",
+            "COLLAPSE_PLAYER": "Oynatıcıyı daralt",
+            "EXPAND_PLAYER": "Oynatıcıyı genişlet",
+            "KEYS": {
+                "CHANNEL": "kanal",
+                "PROGRAMME": "program",
+                "PLAY": "oynat",
+                "DETAILS": "ayrıntılar",
+                "NOW": "şimdi",
+                "DAY": "gün",
+                "CLOSE": "kapat"
+            }
+        },
         "TIMELINE": {
+            "OPEN_GUIDE": "Program rehberini aç",
             "TODAY": "Bugün",
             "NOW": "Şimdi",
             "JUMP_NOW": "Şimdiye atla",
@@ -1537,7 +1571,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Xtream sunucu hesabı ayrıntılarını göster",
                 "OPEN_VIEW_DESCRIPTION": "{{view}} görünümüne git",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Bu görünümdeki görünür tüm {{type}} öğelerini temizle",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Çoklu kanal EPG görünümünü aç",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Bu oynatma listesi için program rehberini aç",
                 "GO_TO_VOD_LABEL": "Filmler",
                 "GO_TO_VOD_DESCRIPTION": "Filmler bölümüne atla",
                 "GO_TO_LIVE_LABEL": "Canlı TV",

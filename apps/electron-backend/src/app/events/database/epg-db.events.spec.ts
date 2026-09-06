@@ -76,13 +76,40 @@ describe('epg-db.events', () => {
     });
 
     it('searches programmes with a LIKE pattern built from the trimmed term', async () => {
-        const rows = [{ title: 'News', channel_name: 'NHK' }];
+        const rows = [
+            {
+                channel_id: 'nhk.jp',
+                start: '2026-09-06T16:00:00.000Z',
+                stop: '2026-09-06T16:30:00.000Z',
+                title: 'News',
+                description: 'Evening bulletin',
+                category: 'news',
+                icon_url: 'https://x/icon.png',
+                rating: null,
+                episode_num: 'S1E2',
+                channel_name: 'NHK',
+            },
+        ];
         const all = jest.fn().mockResolvedValue(rows);
         getDatabase.mockResolvedValue({ all });
 
+        // Raw snake_case columns become the public `EpgProgram` shape.
         await expect(
             getIpcMainHandler('EPG_DB_SEARCH_PROGRAMS')({}, '  news  ', 25)
-        ).resolves.toEqual(rows);
+        ).resolves.toEqual([
+            {
+                start: '2026-09-06T16:00:00.000Z',
+                stop: '2026-09-06T16:30:00.000Z',
+                channel: 'nhk.jp',
+                title: 'News',
+                desc: 'Evening bulletin',
+                category: 'news',
+                iconUrl: 'https://x/icon.png',
+                rating: null,
+                episodeNum: 'S1E2',
+                channelName: 'NHK',
+            },
+        ]);
 
         expect(all).toHaveBeenCalledTimes(1);
         const query = all.mock.calls[0][0] as {

@@ -718,7 +718,7 @@ test.describe('Electron EPG', () => {
 
 async function getEpgChannelCount(page: Page): Promise<number> {
     return page.evaluate(async () => {
-        const channels = await window.electron?.getEpgChannelsByRange?.(0, 20);
-        return Array.isArray(channels) ? channels.length : 0;
+        const result = await window.electron?.getEpgChannels?.();
+        return Array.isArray(result?.channels) ? result.channels.length : 0;
     });
 }

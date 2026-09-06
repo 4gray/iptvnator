@@ -9,7 +9,44 @@
 
 import { sql } from 'drizzle-orm';
 import { ipcMain } from 'electron';
+import type { ElectronBridgeEpgSearchProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../../database/connection';
+
+/** Raw `epg_programs` columns as `db.all` returns them, plus the joined channel name. */
+interface EpgSearchRow {
+    channel_id: string;
+    start: string;
+    stop: string;
+    title: string;
+    description: string | null;
+    category: string | null;
+    icon_url: string | null;
+    rating: string | null;
+    episode_num: string | null;
+    channel_name: string | null;
+}
+
+/**
+ * `db.all` hands back snake_case columns; the bridge promises the public
+ * `EpgProgram` shape (`channel`, `desc`, `iconUrl`, …), so map here or every
+ * consumer sees `program.channel === undefined`.
+ */
+export function toSearchProgram(
+    row: EpgSearchRow
+): ElectronBridgeEpgSearchProgram {
+    return {
+        start: row.start,
+        stop: row.stop,
+        channel: row.channel_id,
+        title: row.title,
+        desc: row.description,
+        category: row.category,
+        iconUrl: row.icon_url,
+        rating: row.rating,
+        episodeNum: row.episode_num,
+        channelName: row.channel_name ?? null,
+    };
+}
 
 const loggerLabel = '[EPG DB]';
 
@@ -35,7 +72,7 @@ ipcMain.handle(
 
             // JOIN with epg_channels to get channel display name
             // Include all programs (past and future) for catchup/archive feature
-            const results = await db.all(sql`
+            const results = (await db.all(sql`
                 SELECT
                     p.*,
                     c.display_name as channel_name
@@ -48,9 +85,9 @@ ipcMain.handle(
                 )
                 ORDER BY p.start
                 LIMIT ${limit}
-            `);
+            `)) as EpgSearchRow[];
 
-            return results;
+            return results.map(toSearchProgram);
         } catch (error) {
             console.error(loggerLabel, 'Error searching EPG programs:', error);
             throw error;

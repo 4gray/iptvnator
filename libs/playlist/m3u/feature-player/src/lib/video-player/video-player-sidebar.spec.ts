@@ -1,6 +1,10 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, NO_ERRORS_SCHEMA, output, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+    ComponentFixture,
+    DeferBlockState,
+    TestBed,
+} from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Overlay } from '@angular/cdk/overlay';
@@ -38,6 +42,8 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
+import { translateServiceProvider } from './video-player.spec-harness';
+import { StubSidebarComponent } from './video-player.spec-stubs';
 
 // The component's chain reaches video.js (ui/playback → VjsPlayer); the CJS
 // bundle breaks under the ESM jest environment, so it is mocked before the
@@ -62,10 +68,12 @@ class StubChannelListHiddenStateComponent {
  * The collapsible channels rail of the M3U player. Separate from
  * `video-player.component.spec.ts` only because that file sits at the
  * max-lines test budget; the harness here is the minimal subset needed to
- * render the rail and the content-area empty states.
+ * render the rail and the content-area empty states, plus the outputs the
+ * rail forwards to the host.
  */
 describe('VideoPlayerComponent — collapsible channels rail', () => {
     let VideoPlayerComponent: typeof import('./video-player.component').VideoPlayerComponent;
+    let M3uEpgGuideSourceService: typeof import('../epg-guide/m3u-epg-guide-source.service').M3uEpgGuideSourceService;
     let fixture: ComponentFixture<VideoPlayerComponentInstance>;
     let component: VideoPlayerComponentInstance;
     let sidebarState: LiveLayoutSidebarStateService;
@@ -77,6 +85,10 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
     const channelsLoading = signal(false);
     const currentEpgProgram = signal<EpgProgram | null>(null);
     const activeEpgProgram = signal<EpgProgram | null>(null);
+    const routeParams$ = new BehaviorSubject<Record<string, string>>({
+        id: 'playlist-1',
+        view: 'all',
+    });
     const channels$ = new BehaviorSubject<Channel[]>([]);
     const activeChannel$ = new BehaviorSubject<Channel | null>(null);
     const currentEpgProgram$ = new BehaviorSubject<EpgProgram | null>(null);
@@ -138,6 +150,8 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
 
     beforeAll(async () => {
         ({ VideoPlayerComponent } = await import('./video-player.component'));
+        ({ M3uEpgGuideSourceService } =
+            await import('../epg-guide/m3u-epg-guide-source.service'));
     });
 
     beforeEach(async () => {
@@ -146,6 +160,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         activeChannel$.next(null);
         channels.set([]);
         channels$.next([]);
+        routeParams$.next({ id: playlistId(), view: 'all' });
 
         await TestBed.configureTestingModule({
             imports: [VideoPlayerComponent],
@@ -153,7 +168,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        params: of({ id: playlistId(), view: 'all' }),
+                        params: routeParams$.asObservable(),
                         queryParams: of({}),
                         snapshot: {
                             data: { layout: 'workspace' },
@@ -170,6 +185,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                     },
                 },
                 { provide: Store, useValue: storeMock },
+                translateServiceProvider,
                 {
                     provide: Overlay,
                     useValue: { position: jest.fn(), create: jest.fn() },
@@ -248,6 +264,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                     imports: [
                         AsyncPipe,
                         StubChannelListHiddenStateComponent,
+                        StubSidebarComponent,
                         MockPipe(
                             TranslatePipe,
                             (value: string | null | undefined) => value ?? ''
@@ -348,5 +365,44 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         expect(query('.sidebar-restore')).not.toBeNull();
         expect(hiddenState()).toBeNull();
         expect(query('.video-player')).not.toBeNull();
+    });
+
+    it('opens the guide on the group the sidebar rail is showing', async () => {
+        // The user can browse to another group before pressing the guide
+        // shortcut; the playing channel's group is only the fallback.
+        const makeChannel = (id: string, group: string) =>
+            ({
+                id,
+                url: `http://localhost/${id}.m3u8`,
+                name: id,
+                epgParams: '',
+                radio: 'false',
+                group: { title: group },
+                tvg: { id: '', logo: '', name: id },
+            }) as Channel;
+        const newsChannel = makeChannel('news-1', 'News');
+        const sportsChannel = makeChannel('sports-1', 'Sports');
+        activeChannel.set(newsChannel);
+        activeChannel$.next(newsChannel);
+        channels.set([newsChannel, sportsChannel]);
+        channels$.next([newsChannel, sportsChannel]);
+        routeParams$.next({ id: playlistId(), view: 'groups' });
+        fixture.detectChanges();
+        // The rail sits behind an `@defer`; TestBed leaves such a block on its
+        // placeholder until the test renders it.
+        const [railBlock] = await fixture.getDeferBlocks();
+        await railBlock.render(DeferBlockState.Complete);
+
+        fixture.debugElement
+            .query(By.directive(StubSidebarComponent))
+            .componentInstance.selectedGroupChange.emit('Sports');
+        fixture.detectChanges();
+        component.openGuide();
+
+        const guideSource = fixture.debugElement.injector.get(
+            M3uEpgGuideSourceService
+        );
+        expect(component.guideOpen()).toBe(true);
+        expect(guideSource.scopeId()).toBe('group:Sports');
     });
 });

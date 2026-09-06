@@ -6,6 +6,14 @@ export interface WorkspaceHeaderAction {
     icon: string;
     tooltipKey: string;
     ariaLabelKey: string;
+    /** Pressed/highlighted state for toggling actions (e.g. the guide). */
+    active?: () => boolean;
+    /**
+     * Whether the action currently cannot run (e.g. the guide with no live
+     * channel to dock). Disables the header button and its palette command,
+     * so neither entry point promises something the host would refuse.
+     */
+    disabled?: () => boolean;
     run: () => void;
     palette?: WorkspaceHeaderCommandMetadata;
 }

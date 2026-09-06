@@ -199,6 +199,13 @@
     color: $accent-text;
 }
 
+/* the Guide button opens the multi-channel grid; accent so it reads as the
+   way "out" of the single-channel ribbon */
+.epg-timeline__guide {
+    color: $accent-text;
+    border-color: $accent-blue;
+}
+
 .epg-timeline__stepper {
     display: inline-flex;
     align-items: center;

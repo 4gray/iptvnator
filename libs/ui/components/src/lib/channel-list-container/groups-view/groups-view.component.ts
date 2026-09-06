@@ -167,6 +167,14 @@ export class GroupsViewComponent {
     /** Emits when the user clicks the inline collapse toggle in the groups header */
     readonly sidebarToggleRequested = output<void>();
 
+    /**
+     * The group currently shown in the channel pane, by title. Emitted for
+     * both manual clicks and the auto-selection below, so a host can follow
+     * what the user is looking at — the M3U player seeds the programme
+     * guide's initial scope from it.
+     */
+    readonly selectedGroupChange = output<string | null>();
+
     readonly isGroupSearchOpen = signal(false);
     readonly localGroupSearchTerm = signal('');
     readonly selectedGroupKey = signal<string | null>(null);
@@ -227,6 +235,13 @@ export class GroupsViewComponent {
             if (nextSelection !== currentSelection) {
                 this.selectedGroupKey.set(nextSelection);
             }
+        });
+
+        // A signal effect only re-runs when the value actually changes, so
+        // this emits once per selection — `selectGroup()` included, since it
+        // writes the same signal.
+        effect(() => {
+            this.selectedGroupChange.emit(this.selectedGroupKey());
         });
 
         effect(() => {

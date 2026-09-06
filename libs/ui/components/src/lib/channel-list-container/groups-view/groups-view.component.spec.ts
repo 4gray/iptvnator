@@ -362,6 +362,23 @@ describe('GroupsViewComponent', () => {
         expect(component.selectedGroupKey()).toBe('Movies');
     });
 
+    it('reports the shown group for auto-selection and manual clicks', () => {
+        const selected: Array<string | null> = [];
+        component.selectedGroupChange.subscribe((key) => selected.push(key));
+
+        setInputs({ activeChannelUrl: worldUpdate.url });
+        expect(selected).toEqual(['News']);
+
+        component.selectGroup('Movies');
+        fixture.detectChanges();
+        expect(selected).toEqual(['News', 'Movies']);
+
+        // Re-selecting the shown group is not a change.
+        component.selectGroup('Movies');
+        fixture.detectChanges();
+        expect(selected).toEqual(['News', 'Movies']);
+    });
+
     it('retains a visible manual selection and falls back to the first visible group', () => {
         component.selectGroup('Movies');
         fixture.detectChanges();

@@ -703,7 +703,7 @@ comparison; applying both doubles the shift.
   header's range and progress) receives the offset as the `offsetMinutes`
   input from each host; `app-channel-list-item`, the dashboard time range and
   the recording detail shift their labels the same way. The programme dialog
-  and the multi-EPG overlay are opened imperatively, so they read
+  and the programme guide are opened imperatively, so they read
   `SettingsStore.resolvedEpgOffsetMinutes` themselves.
 - **Clock form** — every "currently airing" decision, so the row picked as
   "now" is the one the UI renders as "now": the batched
@@ -764,7 +764,10 @@ matching `hasProgramsForDateKey`), sorts, and deduplicates via a pure
 `app-epg-list-view-row`; and delegates its own vertical auto-focus + sticky
 "now" strip to `EpgListScrollController` (`epg-list-scroll.controller.ts`). Render
 states, the collapsed inline summary, the date stepper, catch-up/timeshift
-activation, and the details dialog behave identically to the timeline.
+activation, and the details dialog behave identically to the timeline. Both
+views also carry the optional `guideAvailable` input and `openGuide` output:
+the M3U host binds them in both branches, so the programme guide's Guide
+action is reachable whichever view the setting selects.
 
 - **One channel, preloaded window.** The panel always shows a single channel.
   Each provider returns a multi-day window in roughly one call (M3U
@@ -1053,12 +1056,12 @@ class EpgService {
 
 ### EPG Components
 
-| Component                     | Purpose                              |
-| ----------------------------- | ------------------------------------ |
-| `EpgTimelineComponent`        | Horizontal timeline for one channel  |
-| `EpgListViewComponent`        | Vertical single-day list alternative |
-| `EpgItemDescriptionComponent` | Program details dialog               |
-| `MultiEpgContainerComponent`  | Grid view of all channels' schedules |
+| Component                     | Purpose                                                                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EpgTimelineComponent`        | Horizontal timeline for one channel                                                                                                                                           |
+| `EpgListViewComponent`        | Vertical single-day list alternative                                                                                                                                          |
+| `EpgItemDescriptionComponent` | Program details dialog                                                                                                                                                        |
+| `EpgGuideComponent`           | Multi-channel programme guide grid fed by `EPG_GUIDE_SOURCE` (rows: `EpgGuideRowComponent`, toolbar: `EpgGuideToolbarComponent`, docked strip: `EpgGuideNowPlayingComponent`) |
 
 ## Video Player
 
@@ -1078,7 +1081,7 @@ class EpgService {
 - EPG sidebar
 - Collapsible inline EPG panel for internal players, persisted through the
   shared `live-epg-panel-state` preference
-- Multi-EPG modal view
+- Programme guide (multi-channel grid) in guide mode — see "Programme guide" below
 - Channel info overlay
 - External player support (MPV, VLC) in Electron
 - M3U archive/catch-up playback for supported replay schemes
@@ -1119,6 +1122,104 @@ class EpgService {
 - Catch-up activation is never silent: if the replay URL cannot be resolved
   for a programme the user clicked, both hosts surface a
   `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
+
+### Programme guide
+
+`app-epg-guide` (`libs/ui/epg/src/lib/epg-guide/`) is a host-agnostic
+multi-channel grid. It reads everything through the `EPG_GUIDE_SOURCE`
+injection token (`epg-guide-source.ts`): the scope-resolved channel list
+(`EpgGuideChannel { id, number, name, logoUrl, epgKey }`), the available scopes
+(all / group / favorites), `loadPrograms(window)` and `loadCoverage(window)`
+for a provider-clock time window, the active channel and `activate(id)`. An
+optional `searchPrograms(query)` returns `EpgGuideSearchHit { channelId,
+program }`, where `channelId` is `null` when the host cannot say which row a
+hit belongs to. The M3U adapter is `M3uEpgGuideSourceService`
+(`libs/playlist/m3u/feature-player/src/lib/epg-guide/`): channels come from
+NgRx, `epgKey` uses the `tvg.id → tvg.name → name` chain, and the two bridge
+reads `EPG_GET_PROGRAMS_FOR_CHANNELS` / `EPG_GET_PROGRAM_COVERAGE` resolve keys
+in the main process (manual mappings first, then the metadata lookup shared
+with the sidebar) and return programmes keyed by the requested key. Queries
+are unscoped, like the timeline.
+
+Row ids are not channel ids: `createChannel` falls back to the stream URL for
+an entry without an explicit id, so one stream listed in two groups yields two
+channels sharing an id. The adapter therefore builds SCOPE-LOCAL row ids by
+prefixing every row with its position in the scope (`<index>:<channel id>`) —
+the guide keys its programme, coverage and selection maps by row id, so
+without that both copies lit up as playing and activating either one played
+the first, and suffixing only the repeats was not enough because a real
+channel id can itself look like a generated suffix (ids `x`, `x`, `x#1`
+produced `x#1` twice). Ids move with the scope and the channel list, so only
+ids the guide was just handed may be passed back. The active channel is
+resolved to a row in three steps, because the store spreads the selected
+channel (identity is gone) and copies can share an id: the row whose channel
+matches the playing one field for field (every field except the
+reducer-rewritten `epgParams`, key order ignored — `isSameChannelEntry`),
+else the first same-id row with the same stream url, else the first same-id
+row; `null` when the channel is outside the scope. `activate(rowId)`
+resolves the row back to its own channel object. Opening the
+guide mirrors the sidebar view (`applyInitialScope`): favorites stays
+favorites, and the groups view opens on the group the sidebar's rail is
+SHOWING — forwarded from `GroupsViewComponent.selectedGroupChange` through the
+channel list container and `app-sidebar` into
+`VideoPlayerComponent.selectedSidebarGroup` — because the user may have
+browsed away from the playing channel's group before opening the guide. The
+playing channel's group is the fallback, then `all`.
+
+Guide mode is host layout, not an overlay: `VideoPlayerComponent.guideOpen`
+hides the sidebar and the timeline, renders the guide, and CSS reflows the
+untouched `app-web-player-view` into a 128 px docked strip
+(`.content-container.is-guide`) beside `app-epg-guide-now-playing`; the strip
+collapses to one 48 px line (`epg-guide:dock-collapsed`), which is also the
+fixed height of the strip shown for an external MPV/VLC session — that one has
+no video to reveal, so it hides the Collapse toggle (`collapsible=false`) and
+writes no preference. Nothing remounts, so playback and native-view Embedded
+MPV bounds survive. While the guide is open the docked `.video-player` carries
+`data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
+legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own
+keyboard controller. Entry points: the workspace header action
+(`m3u-epg-guide`), the command palette, the Guide button in the EPG panel's
+toolbar (`openGuide` on both `EpgTimelineComponent` and `EpgListViewComponent`,
+so the action survives the list-view setting) and the `G` key on the player
+page.
+The header action reports `disabled` whenever the guide cannot open, which
+greys out the header button and disables its palette command instead of
+offering a no-op. Player fullscreen, radio, recognised movies, switching to
+another playlist and the PWA close or withhold it. `openGuide()` itself also
+refuses while ANY element is fullscreen or a CDK dialog is open — the guide
+mounts in the page flow, so it would be painted over and still swallow the
+keyboard — and the `G` key additionally ignores a press raised inside a
+`.cdk-overlay-pane`, `[role="menu"]` or `[role="dialog"]`, the same surfaces
+the PageUp/PageDown zapping yields to. Inside the guide: single click on a row or an
+"on now" card switches the channel and keeps the guide open, double-click or
+Enter switches and closes, other cards open the programme dialog; ↑/↓ ←/→
+navigate, I details, N now, PgUp/PgDn day, Esc close — the keyboard controller
+ignores keys on any element matching its interactive-target selector
+(inputs, buttons, menu/option items, links, editable content) unless that
+element carries `data-epg-guide-grid`, which the guide's own channel cells and
+programme cards set so their `role="button"` does not shadow the grid's own
+keys; a real control nested inside one (the catch-up button) still wins.
+Density (`epg-guide:density`, comfortable 60 px / compact 44 px), zoom
+(`epg-guide:zoom`, 120–480 px per hour, default 240) and the "Only with EPG"
+toggle (`epg-guide:only-with-epg`) persist in localStorage; coverage is loaded
+for the whole scope so the toggle never hides rows as they scroll in. The
+guide reads the EPG display offset itself: the day axis is display time, the
+request window is converted with `epgProviderClockMs`.
+
+**Backend contract**: `EpgGuideQueryService`
+(`apps/electron-backend/src/app/events/epg-guide-query.service.ts`) answers
+both IPCs from one `guideWindowCondition()` predicate — when the request
+carries `sourceUrls` (portal hosts only; the M3U host never does), a row
+qualifies if it belongs to one of those sources OR carries no source at all
+(legacy pre-per-source-tracking data), never if it belongs to a _different_
+source. Both reads cap the requested channel-key batch
+(`EPG_GUIDE_MAX_CHANNELS_PER_REQUEST` = 100 for programmes,
+`EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST` = 2000 for the cheaper coverage
+probe) and respond with exactly the trimmed, de-duplicated, cap-respecting
+requested keys: a key cut by the cap is absent from the answer, never present
+with an empty list, so a caller can tell "queried, nothing found" apart from
+"not queried at all". An invalid window (bad instants, `fromMs >= toMs`, no
+usable keys) returns `{}`/`[]` rather than throwing.
 
 ### External Player Request Headers
 

@@ -50,6 +50,9 @@ describe('EpgTimelineComponent', () => {
                         currentLang: 'en',
                         defaultLang: 'en',
                         onLangChange: new BehaviorSubject(null),
+                        onTranslationChange: new BehaviorSubject(null),
+                        onDefaultLangChange: new BehaviorSubject(null),
+                        get: (key: string) => of(key),
                     },
                 },
             ],
@@ -293,5 +296,24 @@ describe('EpgTimelineComponent', () => {
             stopMs: Date.now(),
         });
         expect(component.scale()).toBeGreaterThan(3);
+    });
+
+    it('shows a Guide button only when the host offers a guide and emits openGuide', () => {
+        setInputs({ programs: [programAt(0, 120, 'Now')] });
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('.epg-timeline__guide')
+        ).toBeNull();
+
+        const openGuide = jest.fn();
+        component.openGuide.subscribe(openGuide);
+        setInputs({ guideAvailable: true });
+        fixture.detectChanges();
+        const button = fixture.nativeElement.querySelector(
+            '.epg-timeline__guide'
+        ) as HTMLButtonElement;
+        expect(button).not.toBeNull();
+        button.click();
+        expect(openGuide).toHaveBeenCalledTimes(1);
     });
 });

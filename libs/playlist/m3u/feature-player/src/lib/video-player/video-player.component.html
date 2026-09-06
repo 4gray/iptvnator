@@ -1,6 +1,15 @@
+<!--
+    Guide mode HIDES this sidebar instead of removing it: destroying it would
+    destroy `app-channel-list-container`, whose `ngOnDestroy` dispatches
+    `resetActiveChannel()` — that clears the active channel the guide itself
+    needs, so the guide would close again the moment it opened. `inert` keeps
+    the hidden rail out of the tab order and away from assistive technology.
+-->
 <div
     class="sidebar"
     [class.sidebar-collapsed]="isSidebarCollapsed()"
+    [class.sidebar--guide-hidden]="guideOpen()"
+    [attr.inert]="guideOpen() ? '' : null"
     appResizable
     [minWidth]="sidebarMinWidth"
     [maxWidth]="sidebarMaxWidth"
@@ -35,6 +44,7 @@
                 onGroupedSidebarWidthRequestEnded($event)
             "
             (sidebarToggleRequested)="toggleSidebar()"
+            (selectedGroupChange)="onSidebarGroupSelected($event)"
         />
     } @loading {
         <app-channel-list-loading-state
@@ -49,8 +59,12 @@
     }
 </div>
 
-<div class="content-container">
-    @if (isSidebarCollapsed()) {
+<div
+    class="content-container"
+    [class.is-guide]="guideOpen()"
+    [class.is-guide-collapsed]="guideOpen() && guideDockCollapsed()"
+>
+    @if (isSidebarCollapsed() && !guideOpen()) {
         <button
             mat-icon-button
             type="button"
@@ -82,7 +96,12 @@
                 activeChannel.radio === 'true' ||
                 shouldShowInlinePlayer(activeChannel)
             ) {
-                <div class="video-player">
+                <div
+                    class="video-player"
+                    [attr.data-player-shortcuts-suspended]="
+                        guideOpen() ? '' : null
+                    "
+                >
                     @if (activeChannel.radio === 'true') {
                         <app-audio-player
                             [url]="activeChannel.url"
@@ -110,10 +129,35 @@
                             (recordingStopped)="onRecordingStopped($event)"
                         />
                     }
+                    @if (guideOpen()) {
+                        <app-epg-guide-now-playing
+                            [channelName]="timelineChannelName()"
+                            [program]="guideNowPlayingProgram()"
+                            [offsetMinutes]="epgOffsetMinutes()"
+                            [collapsed]="guideDockCollapsed()"
+                            (closeRequested)="closeGuide()"
+                            (collapsedChange)="setGuideDockCollapsed($event)"
+                        />
+                    }
                 </div>
             }
 
-            @if (supportsEpg && activeChannel.radio !== 'true') {
+            @if (guideOpen() && !shouldShowInlinePlayer(activeChannel)) {
+                <div class="video-player guide-dock--external">
+                    <app-epg-guide-now-playing
+                        [channelName]="timelineChannelName()"
+                        [program]="guideNowPlayingProgram()"
+                        [offsetMinutes]="epgOffsetMinutes()"
+                        [collapsed]="true"
+                        [collapsible]="false"
+                        (closeRequested)="closeGuide()"
+                    />
+                </div>
+            }
+
+            @if (guideOpen()) {
+                <app-epg-guide class="epg-guide-host" (close)="closeGuide()" />
+            } @else if (supportsEpg && activeChannel.radio !== 'true') {
                 @let canCollapseEpgPanel =
                     shouldShowInlinePlayer(activeChannel);
                 <div
@@ -147,6 +191,7 @@
                                     liveEpgPanelSummaryLabelKey()
                                 "
                                 [emptyReason]="liveEpgEmptyReason()"
+                                [guideAvailable]="canOpenGuide()"
                                 (programActivated)="
                                     onTimelineProgramActivated($event)
                                 "
@@ -158,6 +203,7 @@
                                     onLiveEpgPanelCollapsedChange($event)
                                 "
                                 (openEpgSettings)="openEpgSettings()"
+                                (openGuide)="openGuide()"
                             />
                         } @else {
                             <app-epg-timeline
@@ -181,6 +227,7 @@
                                     liveEpgPanelSummaryLabelKey()
                                 "
                                 [emptyReason]="liveEpgEmptyReason()"
+                                [guideAvailable]="canOpenGuide()"
                                 (programActivated)="
                                     onTimelineProgramActivated($event)
                                 "
@@ -192,6 +239,7 @@
                                     onLiveEpgPanelCollapsedChange($event)
                                 "
                                 (openEpgSettings)="openEpgSettings()"
+                                (openGuide)="openGuide()"
                             />
                         }
                     </div>

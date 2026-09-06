@@ -79,8 +79,8 @@ export class EpgItemDescriptionComponent {
         this.archiveUnavailableNote =
             this.dialogData.archiveUnavailableNote ?? false;
         // Opened imperatively from six surfaces (timeline, list, channel rows,
-        // the multi-EPG grid and its search), so the dialog reads the display
-        // offset itself instead of trusting every opener to forward it.
+        // the programme guide grid and its search), so the dialog reads the
+        // display offset itself instead of trusting every opener to forward it.
         const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
         this.startMs = getProgramTimeMs(
             this.epgProgram.start,
