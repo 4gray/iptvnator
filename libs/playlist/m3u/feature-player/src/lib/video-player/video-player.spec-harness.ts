@@ -134,3 +134,26 @@ export function syncStoreState(channel: Channel | null): void {
     channels.set(channel ? [channel] : []);
     channels$.next(channel ? [channel] : []);
 }
+
+/**
+ * Programme covering "now" on `channel`. The docked guide strip and the
+ * recording snapshot both derive the live programme from the active channel's
+ * own schedule, so their assertions need a window the clock falls inside.
+ */
+export function buildAiringProgram(
+    title: string,
+    channel = 'sample-tvg-id'
+): EpgProgram {
+    const startMs = Date.now() - 10 * 60_000;
+    const stopMs = startMs + 60 * 60_000;
+    return {
+        start: new Date(startMs).toISOString(),
+        stop: new Date(stopMs).toISOString(),
+        channel,
+        title,
+        desc: null,
+        category: null,
+        startTimestamp: Math.floor(startMs / 1000),
+        stopTimestamp: Math.floor(stopMs / 1000),
+    };
+}

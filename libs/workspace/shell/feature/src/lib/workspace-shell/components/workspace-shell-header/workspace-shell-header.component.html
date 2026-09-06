@@ -121,6 +121,7 @@
                     class="header-shortcut"
                     mat-icon-button
                     [class.is-active]="action.active?.() ?? false"
+                    [disabled]="action.disabled?.() ?? false"
                     [attr.aria-pressed]="action.active ? action.active() : null"
                     (click)="onHeaderShortcutRequested()"
                     [matTooltip]="action.tooltipKey | translate"

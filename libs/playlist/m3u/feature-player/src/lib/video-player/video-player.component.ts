@@ -322,9 +322,22 @@ export class VideoPlayerComponent
             !this.showMovieDetail()
         );
     });
-    /** Programme shown in the docked strip (catch-up selection wins). */
-    readonly guideNowPlayingProgram = computed(
-        () => this.activeEpgProgramOrNull() ?? this.epgProgram() ?? null
+    /**
+     * Programme shown in the docked strip (catch-up selection wins). The
+     * live fallback is derived from the ACTIVE channel's own schedule and the
+     * 30 s clock, exactly like {@link recordingMetadata} — the NgRx
+     * `currentEpgProgram` keeps its last value across a channel switch and
+     * through EPG gaps, so reading it here left the strip advertising the
+     * previous channel's programme.
+     */
+    readonly guideNowPlayingProgram = computed<EpgProgram | null>(
+        () =>
+            this.activeEpgProgramOrNull() ??
+            findCurrentEpgProgram(
+                this.epgPrograms(),
+                epgProviderClockMs(this.epgNowMs(), this.epgOffsetMinutes())
+            ) ??
+            null
     );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
@@ -715,6 +728,19 @@ export class VideoPlayerComponent
             if (!this.canOpenGuide()) {
                 untracked(() => this.closeGuide());
             }
+        });
+
+        // Switching to another playlist keeps this component mounted, so an
+        // open guide would survive and show the new playlist's channels under
+        // the previous one's initial scope. Close it and let the user reopen.
+        let lastGuidePlaylistId = this.activePlaylistId();
+        effect(() => {
+            const playlistId = this.activePlaylistId();
+            if (playlistId === lastGuidePlaylistId) {
+                return;
+            }
+            lastGuidePlaylistId = playlistId;
+            untracked(() => this.closeGuide());
         });
 
         // React to settings changes
@@ -1607,6 +1633,9 @@ export class VideoPlayerComponent
             tooltipKey: 'TOP_MENU.OPEN_EPG_GUIDE',
             ariaLabelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
             active: () => this.guideOpen(),
+            // Nothing to dock (no channel, radio, a recognised movie): the
+            // header button and the palette command would both open nothing.
+            disabled: () => !this.canOpenGuide(),
             palette: {
                 labelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
                 descriptionKey:

@@ -135,6 +135,7 @@ export class StubEpgGuideNowPlayingComponent {
     readonly program = input<EpgProgram | null>(null);
     readonly offsetMinutes = input(0);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
     readonly closeRequested = output<void>();
     readonly collapsedChange = output<boolean>();
 }

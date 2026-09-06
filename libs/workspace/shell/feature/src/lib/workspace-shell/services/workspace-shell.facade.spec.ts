@@ -922,6 +922,39 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
+    it('disables the programme guide command while the header action reports disabled', () => {
+        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
+
+        activePlaylistSignal.set({
+            _id: 'pl-m3u',
+            title: 'Playlist M3U',
+            count: 10,
+            importDate: '2026-04-22T10:00:00.000Z',
+            autoRefresh: false,
+        });
+        facade.currentUrl.set('/workspace/playlists/pl-m3u/groups');
+        const guideCommandEnabled = () =>
+            facade
+                .commandPaletteCommands()
+                .find((command) => command.id === 'm3u-epg-guide')?.enabled;
+        const registerGuideAction = (disabled: () => boolean) =>
+            headerContext.setAction({
+                id: 'm3u-epg-guide',
+                icon: 'grid_view',
+                tooltipKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+                ariaLabelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+                disabled,
+                palette: { labelKey: 'TOP_MENU.OPEN_EPG_GUIDE' },
+                run: jest.fn(),
+            });
+
+        registerGuideAction(() => true);
+        expect(guideCommandEnabled()).toBe(false);
+
+        registerGuideAction(() => false);
+        expect(guideCommandEnabled()).toBe(true);
+    });
+
     it('opens the Xtream account dialog with credentials and session counts for the active playlist', () => {
         activePlaylistSignal.set({
             _id: 'pl-xtream',

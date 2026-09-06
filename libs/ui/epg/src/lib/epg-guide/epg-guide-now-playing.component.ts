@@ -31,6 +31,13 @@ export class EpgGuideNowPlayingComponent implements OnInit, OnDestroy {
     readonly program = input<EpgProgram | null>(null);
     readonly offsetMinutes = input(0);
     readonly collapsed = input(false);
+    /**
+     * Whether the strip offers its Collapse/Expand toggle. False where the
+     * strip is already at its minimum — the external-player dock has no video
+     * to collapse away, so the button would only write a preference the user
+     * cannot see the effect of.
+     */
+    readonly collapsible = input(true);
 
     readonly closeRequested = output<void>();
     readonly collapsedChange = output<boolean>();

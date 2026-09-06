@@ -189,7 +189,7 @@ token set; card radius is 8 px (timeline uses 11 px on 96 px cards).
   `guideOpen()` is true the sidebar and the `.epg` block are not rendered;
   `<app-epg-guide>` takes their place; `.content-container` gets `is-guide`
   and CSS turns `.video-player` into a 128 px strip (16:9 video on the left,
-  `app-epg-guide-now-playing` beside it; 40 px single line when collapsed).
+  `app-epg-guide-now-playing` beside it; 48 px single line when collapsed).
   `app-web-player-view` keeps its DOM position, so HTML5/hls.js, Video.js,
   ArtPlayer and both Embedded MPV engines keep playing; native-view syncs
   bounds as on any resize.

@@ -36,18 +36,20 @@
         >
             {{ 'EPG.GUIDE.CLOSE' | translate }} <kbd>Esc</kbd>
         </button>
-        <button
-            type="button"
-            mat-button
-            (click)="collapsedChange.emit(!collapsed())"
-            [attr.aria-expanded]="!collapsed()"
-        >
-            {{
-                (collapsed()
-                    ? 'EPG.GUIDE.EXPAND_PLAYER'
-                    : 'EPG.GUIDE.COLLAPSE_PLAYER'
-                ) | translate
-            }}
-        </button>
+        @if (collapsible()) {
+            <button
+                type="button"
+                mat-button
+                (click)="collapsedChange.emit(!collapsed())"
+                [attr.aria-expanded]="!collapsed()"
+            >
+                {{
+                    (collapsed()
+                        ? 'EPG.GUIDE.EXPAND_PLAYER'
+                        : 'EPG.GUIDE.COLLAPSE_PLAYER'
+                    ) | translate
+                }}
+            </button>
+        }
     </div>
 </div>

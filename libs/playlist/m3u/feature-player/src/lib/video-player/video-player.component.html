@@ -88,7 +88,12 @@
                 activeChannel.radio === 'true' ||
                 shouldShowInlinePlayer(activeChannel)
             ) {
-                <div class="video-player">
+                <div
+                    class="video-player"
+                    [attr.data-player-shortcuts-suspended]="
+                        guideOpen() ? '' : null
+                    "
+                >
                     @if (activeChannel.radio === 'true') {
                         <app-audio-player
                             [url]="activeChannel.url"
@@ -118,7 +123,6 @@
                     }
                     @if (guideOpen()) {
                         <app-epg-guide-now-playing
-                            class="guide-dock__info"
                             [channelName]="timelineChannelName()"
                             [program]="guideNowPlayingProgram()"
                             [offsetMinutes]="epgOffsetMinutes()"
@@ -137,8 +141,8 @@
                         [program]="guideNowPlayingProgram()"
                         [offsetMinutes]="epgOffsetMinutes()"
                         [collapsed]="true"
+                        [collapsible]="false"
                         (closeRequested)="closeGuide()"
-                        (collapsedChange)="setGuideDockCollapsed($event)"
                     />
                 </div>
             }

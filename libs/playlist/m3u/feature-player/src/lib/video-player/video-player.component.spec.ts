@@ -36,6 +36,7 @@ import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './vid
 import {
     activeChannel,
     activeEpgProgram,
+    buildAiringProgram,
     activePlaybackUrl,
     channels,
     channels$,
@@ -398,6 +399,93 @@ describe('VideoPlayerComponent', () => {
         ).toContain('is-guide-collapsed');
         expect(localStorage.getItem('epg-guide:dock-collapsed')).toBe('1');
         localStorage.removeItem('epg-guide:dock-collapsed');
+    });
+
+    it('suspends the docked player shortcuts while the guide is open', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        const dock = fixture.nativeElement.querySelector(
+            '.video-player'
+        ) as HTMLElement;
+        expect(dock.hasAttribute('data-player-shortcuts-suspended')).toBe(
+            false
+        );
+
+        component.openGuide();
+        fixture.detectChanges();
+        expect(dock.hasAttribute('data-player-shortcuts-suspended')).toBe(true);
+
+        component.closeGuide();
+        fixture.detectChanges();
+        expect(dock.hasAttribute('data-player-shortcuts-suspended')).toBe(
+            false
+        );
+    });
+
+    it('derives the docked strip programme from the active channel schedule', () => {
+        // The NgRx `currentEpgProgram` retains the previous channel's value
+        // across a switch, so the strip must not read it.
+        currentEpgProgram.set(buildAiringProgram('Retained Show'));
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        epgPrograms$.next([buildAiringProgram('Sample Now')]);
+        fixture.detectChanges();
+        component.openGuide();
+        fixture.detectChanges();
+        const stripProgram = () =>
+            fixture.debugElement
+                .query(By.directive(StubEpgGuideNowPlayingComponent))
+                .componentInstance.program();
+
+        expect(stripProgram()).toEqual(
+            expect.objectContaining({ title: 'Sample Now' })
+        );
+
+        syncStoreState({
+            ...sampleChannel,
+            id: 'channel-2',
+            url: 'http://localhost/other.m3u8',
+            name: 'Other TV',
+            tvg: { id: 'other-tvg-id', name: 'Other TV', logo: '' },
+        } as Channel);
+        epgPrograms$.next([buildAiringProgram('Other Now', 'other-tvg-id')]);
+        fixture.detectChanges();
+
+        expect(stripProgram()).toEqual(
+            expect.objectContaining({ title: 'Other Now' })
+        );
+
+        epgPrograms$.next([]);
+        fixture.detectChanges();
+
+        expect(stripProgram()).toBeNull();
+    });
+
+    it('disables the guide header action while nothing can host the guide', () => {
+        syncStoreState(null);
+        fixture.detectChanges();
+
+        expect(headerContext.action()?.disabled?.()).toBe(true);
+
+        syncStoreState(sampleChannel);
+        fixture.detectChanges();
+
+        expect(headerContext.action()?.disabled?.()).toBe(false);
+    });
+
+    it('closes the guide when the active playlist changes', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        fixture.detectChanges();
+        component.openGuide();
+        fixture.detectChanges();
+        expect(component.guideOpen()).toBe(true);
+
+        playlistId.set('playlist-2');
+        fixture.detectChanges();
+
+        expect(component.guideOpen()).toBe(false);
     });
 
     it('strips country prefixes from the timeline and player titles when enabled', () => {

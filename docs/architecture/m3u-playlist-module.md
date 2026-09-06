@@ -1132,12 +1132,20 @@ Guide mode is host layout, not an overlay: `VideoPlayerComponent.guideOpen`
 hides the sidebar and the timeline, renders the guide, and CSS reflows the
 untouched `app-web-player-view` into a 128 px docked strip
 (`.content-container.is-guide`) beside `app-epg-guide-now-playing`; the strip
-collapses to one line (`epg-guide:dock-collapsed`). Nothing remounts, so
-playback and native-view Embedded MPV bounds survive. Entry points: the
-workspace header action (`m3u-epg-guide`), the command palette, the Guide
-button in the timeline toolbar (`EpgTimelineComponent.openGuide`) and the `G`
-key on the player page. Player fullscreen, radio, recognised movies and the
-PWA close or withhold it. Inside the guide: single click on a row or an
+collapses to one 48 px line (`epg-guide:dock-collapsed`), which is also the
+fixed height of the strip shown for an external MPV/VLC session — that one has
+no video to reveal, so it hides the Collapse toggle (`collapsible=false`) and
+writes no preference. Nothing remounts, so playback and native-view Embedded
+MPV bounds survive. While the guide is open the docked `.video-player` carries
+`data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
+legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own
+keyboard controller. Entry points: the workspace header action
+(`m3u-epg-guide`), the command palette, the Guide button in the timeline
+toolbar (`EpgTimelineComponent.openGuide`) and the `G` key on the player page.
+The header action reports `disabled` whenever the guide cannot open, which
+greys out the header button and disables its palette command instead of
+offering a no-op. Player fullscreen, radio, recognised movies, switching to
+another playlist and the PWA close or withhold it. Inside the guide: single click on a row or an
 "on now" card switches the channel and keeps the guide open, double-click or
 Enter switches and closes, other cards open the programme dialog; ↑/↓ ←/→
 navigate, I details, N now, PgUp/PgDn day, Esc close — the keyboard controller
