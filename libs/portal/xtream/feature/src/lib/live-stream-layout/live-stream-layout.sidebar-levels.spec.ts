@@ -297,6 +297,25 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         expect(document.activeElement).toBe(sort);
     });
 
+    it('hands focus to the floating restore handle at player-only and back to show-categories on expand', async () => {
+        service.hideCategories();
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        service.collapse();
+        fixture.detectChanges();
+        await new Promise((resolve) => queueMicrotask(resolve));
+        expect(document.activeElement).toBe(query('.sidebar-restore'));
+
+        // The handle is removed with the expand, so focus is lost again.
+        service.expand();
+        fixture.detectChanges();
+        await new Promise((resolve) => queueMicrotask(resolve));
+        expect(document.activeElement).toBe(
+            query('[data-test-id="live-show-categories"]')
+        );
+    });
+
     it('marks the folded channels rail inert at player-only', () => {
         service.collapse();
         fixture.detectChanges();

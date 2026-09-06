@@ -141,6 +141,7 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                     useValue: {
                         isCollapsed: signal(false),
                         areCategoriesHidden: signal(false),
+                        state: signal('expanded'),
                         toggle: jest.fn(),
                     },
                 },

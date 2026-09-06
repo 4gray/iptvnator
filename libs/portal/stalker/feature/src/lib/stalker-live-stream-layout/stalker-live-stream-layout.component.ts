@@ -74,7 +74,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
-    focusIfFocusLost,
+    handoffFocusOnLiveSidebarChange,
     LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
@@ -518,6 +518,9 @@ export class StalkerLiveStreamLayoutComponent
         'showCategoriesButton',
         { read: ElementRef<HTMLElement> }
     );
+    private readonly restoreButton = viewChild('restoreButton', {
+        read: ElementRef<HTMLElement>,
+    });
     readonly canOpenCategoriesPopover = computed(
         () =>
             this.categoriesPopover !== null &&
@@ -621,24 +624,18 @@ export class StalkerLiveStreamLayoutComponent
     private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
-        // Folding the categories rail makes the chevron the user activated
-        // `inert`, which drops focus to <body>; pick it up on the button that
-        // brings the rail back, once this header has rendered. Only on that
-        // transition, never on a plain category change.
-        let categoriesWereHidden =
-            this.liveSidebarStateService.areCategoriesHidden();
-        effect(() => {
-            const hidden = this.liveSidebarStateService.areCategoriesHidden();
-            const folded = !categoriesWereHidden && hidden;
-            categoriesWereHidden = hidden;
-            if (folded && untracked(() => this.canOpenCategoriesPopover())) {
-                queueMicrotask(() =>
-                    focusIfFocusLost(
-                        this.showCategoriesButton()?.nativeElement
-                    )
-                );
-            }
-        });
+        // Every level change inerts or removes the button the user activated
+        // and drops focus to <body>; hand it to the affordance that replaces
+        // it once this template has rendered (see the helper's contract).
+        handoffFocusOnLiveSidebarChange(
+            this.liveSidebarStateService.state,
+            (next) =>
+                next === 'collapsed'
+                    ? this.restoreButton()?.nativeElement
+                    : this.canOpenCategoriesPopover()
+                      ? this.showCategoriesButton()?.nativeElement
+                      : null
+        );
         this.epgClockTimer = setInterval(
             () => this.epgClockTick.update((tick) => tick + 1),
             30_000

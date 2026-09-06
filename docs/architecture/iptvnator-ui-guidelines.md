@@ -337,13 +337,14 @@ remain local when the meaning is explicit.
   tree; the shell rail skips `inert` while it renders as the open phone
   drawer, whose stylesheet ignores the folded state — and the rail's hide
   chevron is withheld there for the same reason (`canHideCategories`).
-  Folding removes or inerts the very button the user activated, so focus
-  drops to `<body>`; the side that gains the replacement affordance picks it
-  up after its next render via `focusIfFocusLost()`
-  (`@iptvnator/portal/shared/util`): the layouts focus their show-categories
-  button when the rail folds, the context panel focuses its hide chevron
-  when the rail is restored — only on those transitions, and never when
-  another control still owns focus.
+  Every level change removes or inerts the very button the user activated,
+  so focus drops to `<body>`; the side that gains the replacement affordance
+  picks it up after its next render via `focusIfFocusLost()`
+  (`@iptvnator/portal/shared/util`): the layouts install
+  `handoffFocusOnLiveSidebarChange()` and focus the floating restore handle
+  at player-only or their show-categories button while the rail is folded,
+  and the context panel focuses its hide chevron when the rail is restored
+  — only on transitions, and never when another control still owns focus.
 - The CSS class `.sidebar-collapsed` (channels rail) and
   `.context-panel--collapsed` (workspace shell categories rail) both override
   the inline width set by the `appResizable` directive with

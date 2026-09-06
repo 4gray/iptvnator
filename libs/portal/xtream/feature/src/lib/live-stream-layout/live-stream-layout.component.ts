@@ -13,7 +13,6 @@ import {
     OnDestroy,
     OnInit,
     signal,
-    untracked,
     viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -30,7 +29,7 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
-    focusIfFocusLost,
+    handoffFocusOnLiveSidebarChange,
     LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
@@ -343,6 +342,9 @@ export class LiveStreamLayoutComponent
         'showCategoriesButton',
         { read: ElementRef<HTMLElement> }
     );
+    private readonly restoreButton = viewChild('restoreButton', {
+        read: ElementRef<HTMLElement>,
+    });
     readonly canOpenCategoriesPopover = computed(
         () =>
             this.categoriesPopover !== null &&
@@ -422,24 +424,18 @@ export class LiveStreamLayoutComponent
     favorites = new Map<number, boolean>();
 
     constructor() {
-        // Folding the categories rail makes the chevron the user activated
-        // `inert`, which drops focus to <body>; pick it up on the button that
-        // brings the rail back, once this header has rendered. Only on that
-        // transition, never on a plain category change.
-        let categoriesWereHidden =
-            this.liveSidebarStateService.areCategoriesHidden();
-        effect(() => {
-            const hidden = this.liveSidebarStateService.areCategoriesHidden();
-            const folded = !categoriesWereHidden && hidden;
-            categoriesWereHidden = hidden;
-            if (folded && untracked(() => this.canOpenCategoriesPopover())) {
-                queueMicrotask(() =>
-                    focusIfFocusLost(
-                        this.showCategoriesButton()?.nativeElement
-                    )
-                );
-            }
-        });
+        // Every level change inerts or removes the button the user activated
+        // and drops focus to <body>; hand it to the affordance that replaces
+        // it once this template has rendered (see the helper's contract).
+        handoffFocusOnLiveSidebarChange(
+            this.liveSidebarStateService.state,
+            (next) =>
+                next === 'collapsed'
+                    ? this.restoreButton()?.nativeElement
+                    : this.canOpenCategoriesPopover()
+                      ? this.showCategoriesButton()?.nativeElement
+                      : null
+        );
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());

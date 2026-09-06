@@ -168,6 +168,7 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                     useValue: {
                         isCollapsed: signal(false),
                         areCategoriesHidden: signal(false),
+                        state: signal('expanded'),
                         toggle: jest.fn(),
                     },
                 },

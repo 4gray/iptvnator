@@ -1,3 +1,6 @@
+import { effect, Signal, untracked } from '@angular/core';
+import { LiveSidebarState } from './live-sidebar-state';
+
 /**
  * Moves focus to `element` only when the document has none to speak of:
  * the previously focused control was removed or made `inert`, so focus
@@ -20,4 +23,28 @@ export function focusIfFocusLost(
     if (focusLost) {
         element.focus();
     }
+}
+
+/**
+ * Installs the focus handoff for a live layout's panel toggles. Must run in
+ * an injection context (a component constructor). After every level change
+ * and the render it causes, `targetFor(next)` names the affordance that now
+ * stands in for the button the user activated — the floating restore handle
+ * at player-only, the show-categories button while the rail is folded, and
+ * nothing when the categories rail itself is back (its own component picks
+ * focus up then) — and focus moves there only if it was lost.
+ */
+export function handoffFocusOnLiveSidebarChange(
+    state: Signal<LiveSidebarState>,
+    targetFor: (next: LiveSidebarState) => HTMLElement | null | undefined
+): void {
+    let previous = untracked(state);
+    effect(() => {
+        const next = state();
+        if (next === previous) {
+            return;
+        }
+        previous = next;
+        queueMicrotask(() => focusIfFocusLost(untracked(() => targetFor(next))));
+    });
 }
