@@ -13,7 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
-    LIVE_SIDEBAR_STATE_STORAGE_KEY,
+    liveSidebarStateStorageKey,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     ResizableDirective,
@@ -40,7 +40,10 @@ import {
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { GridListComponent } from '@iptvnator/portal/shared/ui';
+import {
+    ChannelListHiddenStateComponent,
+    GridListComponent,
+} from '@iptvnator/portal/shared/ui';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
@@ -128,6 +131,15 @@ class StubEpgTimelineComponent {
     standalone: true,
 })
 class StubResizableDirective {}
+
+@Component({
+    selector: 'app-channel-list-hidden-state',
+    standalone: true,
+    template: '',
+})
+class StubChannelListHiddenStateComponent {
+    readonly restore = output<void>();
+}
 
 describe('LiveStreamLayoutComponent', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
@@ -217,7 +229,7 @@ describe('LiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline');
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         settingsStore.openStreamOnDoubleClick.set(false);
 
         window.electron = {
@@ -312,6 +324,7 @@ describe('LiveStreamLayoutComponent', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
+                        ChannelListHiddenStateComponent,
                         EpgListViewComponent,
                         EpgTimelineComponent,
                         GridListComponent,
@@ -323,6 +336,7 @@ describe('LiveStreamLayoutComponent', () => {
                 },
                 add: {
                     imports: [
+                        StubChannelListHiddenStateComponent,
                         StubEpgTimelineComponent,
                         StubGridListComponent,
                         StubPortalChannelsListComponent,
@@ -340,16 +354,16 @@ describe('LiveStreamLayoutComponent', () => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;
 
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
     });
 
     afterEach(() => {
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
         fixture.destroy();
         jest.useRealTimers();
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
-        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(liveSidebarStateStorageKey('portal'));
         window.electron = originalElectron;
     });
 
@@ -1115,7 +1129,7 @@ describe('LiveStreamLayoutComponent', () => {
 
     it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
         selectedCategoryId.set(null);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('collapsed');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'collapsed');
         fixture.detectChanges();
 
         expect(
@@ -1125,7 +1139,7 @@ describe('LiveStreamLayoutComponent', () => {
 
     it('hides the floating restore button when the sidebar is expanded', () => {
         selectedCategoryId.set(1);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
         fixture.detectChanges();
 
         expect(

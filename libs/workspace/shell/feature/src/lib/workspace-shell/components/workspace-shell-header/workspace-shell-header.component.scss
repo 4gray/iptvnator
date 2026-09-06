@@ -209,6 +209,12 @@
     }
 }
 
+// The rail is visible most of the time, so the toggle stays neutral then and
+// only tints once the rail is hidden: the exception is what deserves the cue.
+.header-sidebar-toggle--collapsed {
+    color: var(--mat-sys-primary);
+}
+
 .header-actions--leading {
     margin-left: -4px;
 }

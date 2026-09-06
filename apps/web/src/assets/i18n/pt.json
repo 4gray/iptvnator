@@ -645,7 +645,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Ocultar lista de canais",
         "SHOW_CHANNELS_LIST": "Mostrar lista de canais",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Alternar lista de canais (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Alternar lista de canais (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "A lista de canais está oculta",
+        "CHANNELS_LIST_HIDDEN_HINT": "Volte a mostrá-la com o botão abaixo ou pressione ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Enviar ou selecionar outra playlist",

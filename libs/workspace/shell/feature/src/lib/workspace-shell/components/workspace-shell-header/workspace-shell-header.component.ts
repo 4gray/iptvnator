@@ -14,7 +14,10 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { WorkspaceHeaderBulkAction } from '../../services/helpers/workspace-shell-constants';
+import {
+    WorkspaceHeaderBulkAction,
+    WorkspaceHeaderSidebarToggle,
+} from '../../services/helpers/workspace-shell-constants';
 
 @Component({
     selector: 'app-workspace-shell-header',
@@ -54,6 +57,9 @@ export class WorkspaceShellHeaderComponent {
     readonly searchStatusLabel = input('');
     readonly headerShortcut = input<WorkspaceHeaderAction | null>(null);
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
+    readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
+        null
+    );
     readonly canRefreshPlaylist = input(false);
     readonly isRefreshingPlaylist = input(false);
     readonly isElectron = input(false);
@@ -101,6 +107,7 @@ export class WorkspaceShellHeaderComponent {
     readonly addPlaylistRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
+    readonly headerSidebarToggleRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
@@ -165,6 +172,10 @@ export class WorkspaceShellHeaderComponent {
 
     onHeaderBulkActionRequested(): void {
         this.headerBulkActionRequested.emit();
+    }
+
+    onHeaderSidebarToggleRequested(): void {
+        this.headerSidebarToggleRequested.emit();
     }
 
     onRefreshPlaylistRequested(): void {

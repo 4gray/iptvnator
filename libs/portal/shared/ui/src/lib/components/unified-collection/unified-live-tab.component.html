@@ -146,6 +146,10 @@
                 </div>
             </div>
         }
+    } @else if (isSidebarCollapsed()) {
+        <app-channel-list-hidden-state
+            (restore)="restoreSidebarRequested.emit()"
+        />
     } @else {
         <app-portal-empty-state
             icon="live_tv"

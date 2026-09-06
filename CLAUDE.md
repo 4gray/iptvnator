@@ -482,6 +482,8 @@ The M3U playlist module handles traditional M3U/M3U8 playlists with support for 
 
 The live EPG panel is a horizontal **timeline ribbon** under the player (`app-epg-timeline`, `libs/ui/epg/src/lib/epg-timeline/`), not a right-side drawer (reworked in PR #1102). See `docs/architecture/m3u-playlist-module.md` for the timeline's controllers and scroll behavior.
 
+**Collapsible live channel rail** (M3U player, Xtream/Stalker live layouts, unified favorites/recent live tab): collapse state is owned by `LiveLayoutSidebarStateService` (`@iptvnator/portal/shared/util`) and kept per surface (`m3u` / `portal` / `collection`, localStorage `live-sidebar-state:<surface>`); the pre-split shared key `live-sidebar-state` is forgotten on startup and never read (issue #1458: one stored `collapsed` hid every channel list in the app behind a 32px chevron and survived restart, "Remove all playlists" and re-import). The workspace header renders a `view_sidebar` toggle on every route that renders its own rail (`resolveRouteLiveSidebarSurface`) so the control exists in both states, and a collapsed rail with nothing playing shows `app-channel-list-hidden-state` (title + hint + "Show channels list" button) instead of "select a channel". Contract: "Collapsible Live Sidebar" in `docs/architecture/iptvnator-ui-guidelines.md`.
+
 **Radio Channel Layout** (when `channel.radio === 'true'`):
 
 ```

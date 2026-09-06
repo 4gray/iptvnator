@@ -70,7 +70,7 @@ export class WorkspaceShellContextSidebarComponent {
     readonly isContextPanelCollapsed = computed(
         () =>
             this.isLiveCategoryRoute() &&
-            this.liveSidebarStateService.isCollapsed()
+            this.liveSidebarStateService.isCollapsedFor('portal')()
     );
 
     closeDrawer(): void {

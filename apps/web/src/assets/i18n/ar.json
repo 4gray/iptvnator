@@ -645,7 +645,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "إخفاء قائمة القنوات",
         "SHOW_CHANNELS_LIST": "إظهار قائمة القنوات",
-        "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "قائمة القنوات مخفية",
+        "CHANNELS_LIST_HIDDEN_HINT": "أعدها باستخدام الزر أدناه أو اضغط ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "تحميل أو اختيار قائمة أخرى",

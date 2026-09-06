@@ -645,7 +645,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Скрыть список каналов",
         "SHOW_CHANNELS_LIST": "Показать список каналов",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "Список каналов скрыт",
+        "CHANNELS_LIST_HIDDEN_HINT": "Верните его кнопкой ниже или нажмите ⌘/Ctrl+B."
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",

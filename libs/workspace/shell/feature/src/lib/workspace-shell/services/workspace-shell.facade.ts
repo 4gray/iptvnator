@@ -127,6 +127,7 @@ export class WorkspaceShellFacade {
     readonly canRefreshPlaylist = this.header.canRefreshPlaylist;
     readonly isRefreshingPlaylist = this.header.isRefreshingPlaylist;
     readonly headerBulkAction = this.header.headerBulkAction;
+    readonly headerSidebarToggle = this.header.headerSidebarToggle;
     readonly playlistSubtitle = this.header.playlistSubtitle;
     readonly activeDownloadsCount = computed(() =>
         this.supportsDownloads ? this.downloadsService.activeCount() : 0
@@ -203,6 +204,10 @@ export class WorkspaceShellFacade {
 
     runHeaderBulkAction(): Promise<void> {
         return this.header.runHeaderBulkAction();
+    }
+
+    toggleLiveSidebar(): void {
+        this.header.toggleLiveSidebar();
     }
 
     navigateToGlobalFavorites(): void {

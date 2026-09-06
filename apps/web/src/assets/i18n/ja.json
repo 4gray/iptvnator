@@ -645,7 +645,9 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "チャンネル一覧を非表示",
         "SHOW_CHANNELS_LIST": "チャンネル一覧を表示",
-        "TOGGLE_SIDEBAR_TOOLTIP": "チャンネル一覧の切り替え (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "チャンネル一覧の切り替え (⌘/Ctrl+B)",
+        "CHANNELS_LIST_HIDDEN": "チャンネル一覧は非表示です",
+        "CHANNELS_LIST_HIDDEN_HINT": "下のボタンまたは ⌘/Ctrl+B で再表示できます。"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "アップロードまたは他のプレイリストを選択",

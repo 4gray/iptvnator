@@ -53,6 +53,7 @@ class StubUnifiedLiveTabComponent {
     readonly reorderItems = output<UnifiedCollectionItem[]>();
     readonly itemPlayed = output<UnifiedCollectionItem>();
     readonly autoOpenHandled = output<void>();
+    readonly restoreSidebarRequested = output<void>();
 }
 
 @Component({

@@ -276,7 +276,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             this.selectedContentType() === 'live' &&
             this.hasLive()
     );
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('collection');
     readonly showSidebarToggle = computed(
         () => this.selectedContentType() === 'live' && this.hasLive()
     );
@@ -469,7 +470,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+        this.liveSidebarStateService.toggle('collection');
     }
 
     setFavSortMode(mode: FavoritesChannelSortMode): void {

@@ -58,7 +58,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
     let liveSidebarService: LiveLayoutSidebarStateService;
 
     beforeEach(async () => {
-        localStorage.removeItem('live-sidebar-state');
+        localStorage.removeItem('live-sidebar-state:portal');
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
@@ -99,7 +99,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
         fixture = TestBed.createComponent(WorkspaceShellContextSidebarComponent);
         liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
-        liveSidebarService.setState('expanded');
+        liveSidebarService.setState('portal', 'expanded');
     });
 
     it('closes the phone drawer from its always-available close button', () => {
@@ -170,7 +170,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('collapses the categories rail when the shared service is collapsed on a live route', () => {
             setupLiveCategory('live');
 
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -184,7 +184,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('also collapses on the Stalker itv section', () => {
             setupLiveCategory('itv');
 
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -198,7 +198,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('does not collapse the categories rail on non-live sections', () => {
             setupLiveCategory('vod');
 
-            liveSidebarService.setState('collapsed');
+            liveSidebarService.setState('portal', 'collapsed');
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(

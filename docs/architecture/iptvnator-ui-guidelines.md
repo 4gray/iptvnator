@@ -216,8 +216,8 @@ remain local when the meaning is explicit.
 
 ### Collapsible Live Sidebar
 
-- M3U, Xtream, and Stalker live layouts share a single sidebar collapse toggle
-  that hides the channels rail to give the player and EPG full width.
+- M3U, Xtream, and Stalker live layouts share a sidebar collapse toggle that
+  hides the channels rail to give the player and EPG full width.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
@@ -234,15 +234,39 @@ remain local when the meaning is explicit.
   is `live` (Xtream) or `itv`/`radio` (Stalker); movies, series, favorites,
   and recent routes leave it untouched.
 - Collapsed state is owned by `LiveLayoutSidebarStateService`
-  (`providedIn: 'root'`) in `@iptvnator/portal/shared/util`. Every surface that
-  participates injects the service and reads `isCollapsed`; any toggle calls
-  `service.toggle()`. Persistence delegates to the existing
-  `live-sidebar-state` helpers, so the localStorage key stays unchanged and
-  missing/invalid values restore to expanded.
-- A `mat-icon-button` with `chevron_left` lives in the sidebar header and
-  toggles state. While collapsed, a floating `chevron_right` mini-fab appears
-  at the left edge of `.content-container` to restore the rail (and the
-  categories rail, in Xtream/Stalker live).
+  (`providedIn: 'root'`) in `@iptvnator/portal/shared/util` and kept **per
+  surface** (`LiveSidebarSurface`): `m3u` (the M3U player), `portal` (Xtream
+  and Stalker live layouts plus the shell categories rail) and `collection`
+  (the unified favorites/recent live tab). Every participant injects the
+  service, holds `isCollapsedFor(surface)` (a stable signal) and calls
+  `toggle(surface)`; nothing reads localStorage directly. Persistence lives
+  under `live-sidebar-state:<surface>`. Hiding the list is a per-context
+  choice: it must not follow the user from a portal to an M3U playlist, nor
+  from the desktop rail to the phone bottom drawer of another surface. The
+  pre-split shared key `live-sidebar-state` is forgotten on service
+  construction and never read — a stored `collapsed` there hid every channel
+  list in the app behind a 32px chevron and survived restart, "Remove all
+  playlists" and re-import (issue #1458).
+- The control never moves. Inside the rail a `mat-icon-button` with
+  `chevron_left` hides it; while collapsed a floating `chevron_right` mini-fab
+  sits at the left edge of `.content-container`. Because both of those live
+  in the thing they hide, the workspace header additionally renders
+  `view_sidebar` (`headerSidebarToggle`, `WorkspaceShellHeaderService`) on
+  every route that renders its own rail — M3U `all`/`groups`, Xtream `live`,
+  Stalker `itv`/`radio` (`resolveRouteLiveSidebarSurface`). It stays in place
+  in both states, uses `aria-pressed` (pressed = rail visible) and tints
+  primary only while the rail is hidden, since the hidden state is the
+  exception that deserves the cue. Collection pages are deliberately excluded:
+  only the page knows whether its live tab, and therefore the rail, is on
+  screen, so its own header toggle beside the content switch stays the owner.
+- While the rail is collapsed and nothing is playing, every live host renders
+  `app-channel-list-hidden-state` (`@iptvnator/portal/shared/ui`) instead of
+  the "select a channel" empty state: a title that says the list is hidden, a
+  one-line hint naming the shortcut, and a full-size "Show channels list"
+  stroked button wired to the same toggle. The generic
+  `app-portal-empty-state` grew optional `hint`, `actionLabel`, `actionIcon`
+  inputs and an `action` output for this; the action keeps full opacity while
+  icon and copy stay muted, because it is the way out of the state.
 - Keyboard shortcut: `Cmd/Ctrl+B`. The handler ignores events that originate
   inside `<input>`, `<textarea>`, `<select>`, or content-editable elements via
   the shared `isTypingInInput` helper.

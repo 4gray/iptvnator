@@ -23,6 +23,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     GridListComponent,
     InfiniteScrollDirective,
+    ChannelListHiddenStateComponent,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
@@ -116,6 +117,7 @@ interface XtreamLiveChannelItem {
         GridListComponent,
         InfiniteScrollDirective,
         PortalChannelsListComponent,
+        ChannelListHiddenStateComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
@@ -281,7 +283,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly isSidebarCollapsed =
+        this.liveSidebarStateService.isCollapsedFor('portal');
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
             this.activeCatchupProgram() ?? this.currentEpgItem()
@@ -551,7 +554,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     }
 
     toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+        this.liveSidebarStateService.toggle('portal');
     }
 
     @HostListener('document:keydown', ['$event'])

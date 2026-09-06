@@ -156,6 +156,8 @@
                 />
             </div>
         }
+    } @else if (isSidebarCollapsed()) {
+        <app-channel-list-hidden-state (restore)="toggleSidebar()" />
     } @else {
         <app-portal-empty-state
             icon="live_tv"
