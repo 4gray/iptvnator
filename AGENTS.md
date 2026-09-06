@@ -288,26 +288,6 @@ M3U and the unified live tab have no categories rail and treat level 2 like
 level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
 ("Collapsible Live Sidebar").
 
-## Live Channel Return
-
-Xtream and Stalker (including radio) capture displayed playback order on explicit
-selection. Remote up/down, numbers and status use that queue while browsing
-categories or search. Stalker commits after successful current URL resolution
-and extends only loaded pages of the original scope. The conditional channel
-header action clears search, returns to the accessible playing category and
-focuses its row without changing playback. Contract:
-`docs/architecture/remote-control.md` (Live channel return and playback order).
-
-## Stalker Live Search
-
-ITV sidebar and fullscreen searches independently filter the complete selected
-category; only All Items searches the whole public catalog. Cached categories
-search before windowing; missing/censored genres keep provider pagination,
-including automatic continuation for short or empty search results. ITV search
-never narrows shared provider pages or resets their index. Category changes
-reset list windows and retain playback/active EPG. Contract:
-`docs/architecture/stalker-portal.md` (Full ITV Channel List Cache).
-
 ## Channel and Detail Keyboard Scrolling
 
 Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection
