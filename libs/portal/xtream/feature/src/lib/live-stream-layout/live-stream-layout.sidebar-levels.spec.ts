@@ -334,6 +334,30 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         );
     });
 
+    it('shows the floating restore button at player-only even without a selected category, and hides it when expanded', () => {
+        selectedCategoryId.set(null);
+        service.collapse();
+        fixture.detectChanges();
+        expect(query('.sidebar-restore')).not.toBeNull();
+
+        selectedCategoryId.set(1);
+        service.expand();
+        fixture.detectChanges();
+        expect(query('.sidebar-restore')).toBeNull();
+    });
+
+    it('persists the channels sidebar width under a dedicated storage key', () => {
+        // The shell context panel (category sidebar) is visible at the same
+        // time as this sidebar and persists its width under the shared
+        // "sidebar-width" key. Reusing that key here makes the two panels
+        // overwrite each other's stored width across reloads.
+        fixture.detectChanges();
+
+        expect(query('.sidebar')?.getAttribute('storageKey')).toBe(
+            'live-channels-sidebar-width'
+        );
+    });
+
     it('marks the folded channels rail inert at player-only', () => {
         service.collapse();
         fixture.detectChanges();
