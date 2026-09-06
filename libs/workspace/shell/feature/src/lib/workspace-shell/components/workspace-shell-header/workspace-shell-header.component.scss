@@ -398,5 +398,12 @@
         .shortcuts-trigger {
             display: none;
         }
+
+        // At the phone breakpoint the live rail is a bottom drawer with its
+        // own toggle, and the header has no room left for another permanent
+        // icon: it already holds the drawer toggle, switcher, search and Add.
+        .header-sidebar-toggle {
+            display: none;
+        }
     }
 }

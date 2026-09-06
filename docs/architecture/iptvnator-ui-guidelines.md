@@ -310,6 +310,8 @@ remain local when the meaning is explicit.
   exception that deserves the cue. Collection pages are deliberately excluded:
   only the page knows whether its live tab, and therefore the rail, is on
   screen, so its own header toggle beside the content switch stays the owner.
+  At the phone breakpoint (≤640px) the header toggle is hidden: the rail is a
+  bottom drawer there with its own toggle and the header has no spare width.
 - While the rail is collapsed and nothing is playing, every live host renders
   `app-channel-list-hidden-state` (`@iptvnator/portal/shared/ui`) instead of
   the "select a channel" empty state: a title that says the list is hidden, a

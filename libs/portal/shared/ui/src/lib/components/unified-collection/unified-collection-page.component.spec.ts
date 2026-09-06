@@ -20,12 +20,17 @@ import {
     ScopeToggleService,
     UnifiedCollectionItem,
     WorkspaceViewCommandService,
+    LiveLayoutSidebarStateService,
+    liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
 import {
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { BehaviorSubject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -508,17 +513,68 @@ describe('UnifiedCollectionPageComponent', () => {
         await fixture.whenStable();
 
         expect(favoritesData.removeFavorite).toHaveBeenCalledWith(recentItem);
-        expect(fixture.componentInstance.favoriteUidSet().has(recentItem.uid))
-            .toBe(false);
+        expect(
+            fixture.componentInstance.favoriteUidSet().has(recentItem.uid)
+        ).toBe(false);
         expect(fixture.componentInstance.allItems()).toEqual([recentItem]);
 
         liveTab.favoriteToggled.emit(recentItem);
         await fixture.whenStable();
 
         expect(favoritesData.addFavorite).toHaveBeenCalledWith(recentItem);
-        expect(fixture.componentInstance.favoriteUidSet().has(recentItem.uid))
-            .toBe(true);
+        expect(
+            fixture.componentInstance.favoriteUidSet().has(recentItem.uid)
+        ).toBe(true);
         expect(fixture.componentInstance.allItems()).toEqual([recentItem]);
+    });
+
+    it('toggles the collection live rail with Cmd/Ctrl+B only while the live tab is on screen', async () => {
+        const recentItem = {
+            uid: 'm3u::playlist-1::https://example.com/one.m3u8',
+            name: 'Recent One',
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'playlist-1',
+            playlistName: 'Playlist One',
+            streamUrl: 'https://example.com/one.m3u8',
+        } satisfies UnifiedCollectionItem;
+        recentData.getRecentItems.mockResolvedValueOnce([recentItem]);
+        const sidebarState = TestBed.inject(LiveLayoutSidebarStateService);
+        sidebarState.setState('collection', 'expanded');
+
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        fixture.componentInstance.isLoading.set(false);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.componentInstance.allItems.set([recentItem]);
+        fixture.detectChanges();
+
+        const press = () => {
+            const event = new KeyboardEvent('keydown', {
+                key: 'b',
+                ctrlKey: true,
+                cancelable: true,
+                bubbles: true,
+            });
+            document.dispatchEvent(event);
+            return event;
+        };
+
+        expect(press().defaultPrevented).toBe(true);
+        expect(sidebarState.isCollapsedFor('collection')()).toBe(true);
+        expect(sidebarState.isCollapsedFor('m3u')()).toBe(false);
+
+        // Not on the movies grid: there is no rail to hide there.
+        fixture.componentInstance.selectedContentType.set('movie');
+        fixture.detectChanges();
+        expect(press().defaultPrevented).toBe(false);
+        expect(sidebarState.isCollapsedFor('collection')()).toBe(true);
+
+        sidebarState.setState('collection', 'expanded');
+        localStorage.removeItem(liveSidebarStateStorageKey('collection'));
     });
 
     it('removes one recent live row through the live tab remove event', async () => {
@@ -827,9 +883,7 @@ describe('UnifiedCollectionPageComponent', () => {
                     },
                 }
             );
-            expect(
-                fixture.componentInstance.selectedDetailItem()
-            ).toBeNull();
+            expect(fixture.componentInstance.selectedDetailItem()).toBeNull();
         } finally {
             router.url = originalUrl;
         }
