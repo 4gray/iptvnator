@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Toggle channels list (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Show playing channel",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",
         "ALL_CHANNELS": "All channels",
         "GROUPS": "Groups",

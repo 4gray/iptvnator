@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Паказаць бягучы канал",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузіць або выбраць іншы плэйліст",
         "ALL_CHANNELS": "Усе каналы",
         "GROUPS": "Групы",

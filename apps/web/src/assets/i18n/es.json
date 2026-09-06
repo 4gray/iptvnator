@@ -677,6 +677,7 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Alternar lista de canales (⌘/Ctrl+B)"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Mostrar el canal en reproducción",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carga o selecciona una lista de reproducción",
         "ALL_CHANNELS": "Todos los canales",
         "GROUPS": "Grupos",

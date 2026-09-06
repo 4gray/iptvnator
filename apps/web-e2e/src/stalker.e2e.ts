@@ -2,6 +2,7 @@ import { type APIRequestContext, type Page } from '@playwright/test';
 import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
 import {
     verifyStalkerCategorySearch,
+    verifyStalkerPlaybackCategoryReturn,
     verifyUncachedStalkerSearch,
 } from './stalker-category-search.fixture';
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
@@ -467,53 +468,9 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
 });
 
 test('@stalker ITV playback survives a category switch', async ({ page }) => {
-    // Regression: the shell context panel used to clear the selected Stalker
-    // item on every category click, tearing down the player for a channel the
-    // user never switched away from. Xtream live (#936) and M3U groups keep
-    // playing across a category/group switch; Stalker must too.
     await addStalkerPortal(page);
-
-    await page.getByRole('link', { name: /live|itv/i }).click();
-    await page.waitForURL(/stalker.*itv/);
-
-    const categories = page.locator('.category-item');
-    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
-    await categories.nth(1).click();
-
-    const sidebar = page.locator('app-stalker-live-stream-layout .sidebar');
-    const sidebarTitle = sidebar.locator('.category-title');
-    const channels = page.locator('[data-test-id="channel-item"]');
-    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
-    const scrollPane = sidebar.locator('#live-channels');
-    await categories.nth(1).focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(scrollPane).toBeFocused();
-    await page.keyboard.press('ArrowLeft');
-    await expect(categories.nth(1)).toBeFocused();
-    const firstCategoryTitle = (await sidebarTitle.textContent())?.trim() ?? '';
-    expect(firstCategoryTitle).not.toBe('');
-
-    await channels.first().click();
-    await expect(scrollPane).toBeFocused();
-    await page.keyboard.press('PageDown');
-    await expect
-        .poll(() => scrollPane.evaluate((el) => el.scrollTop))
-        .toBeGreaterThan(0);
-
-    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
-    const player = page.locator('app-web-player-view');
-    await expect(player).toBeVisible({ timeout: 20_000 });
-
-    await categories.nth(2).click();
-
-    // The sidebar re-filters to the new category (proves the click landed and
-    // change detection ran)…
-    await expect(sidebarTitle).not.toHaveText(firstCategoryTitle, {
-        timeout: 20_000,
-    });
-    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
-    // …while the channel picked from the previous category keeps playing.
-    await expect(player).toBeVisible();
+    await verifyStalkerPlaybackCategoryReturn(page);
+    await expect(page.locator('app-web-player-view')).toBeVisible();
 });
 
 test('@stalker radio — stations use the inline audio player without EPG', async ({
@@ -707,7 +664,9 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
 
     await categories.nth(1).click();
 
-    const channels = page.locator('#live-channels [data-test-id="channel-item"]');
+    const channels = page.locator(
+        '#live-channels [data-test-id="channel-item"]'
+    );
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
 
     // Regression for "search only finds the first 14 loaded items": once the
@@ -717,7 +676,9 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
         timeout: 20_000,
     });
     await expect.poll(() => allChannelsRequests.length).toBeGreaterThan(0);
-    const firstCategoryNames = await channels.locator('.channel-name').allTextContents();
+    const firstCategoryNames = await channels
+        .locator('.channel-name')
+        .allTextContents();
 
     // Regression: switching to another category once the full list is cached
     // must serve that category from the cache, not get stuck on an empty
@@ -742,7 +703,9 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
 
     // Counts are identical across categories; wait for the actual category
     // rows before choosing a search term, or it may come from the previous one.
-    await expect(channels.locator('.channel-name')).toHaveText(firstCategoryNames);
+    await expect(channels.locator('.channel-name')).toHaveText(
+        firstCategoryNames
+    );
 
     // Search a channel from deep in the list (beyond the first 14 items).
     const deepChannelName = (
