@@ -99,6 +99,8 @@ export class EpgTimelineComponent {
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
     readonly offsetMinutes = input(0);
+    /** The host can open a multi-channel guide; renders the Guide button. */
+    readonly guideAvailable = input(false);
 
     readonly programActivated = output<EpgProgramActivationEvent>();
     readonly returnToLive = output<void>();
@@ -106,6 +108,7 @@ export class EpgTimelineComponent {
     readonly openEpgSettings = output<void>();
     readonly retry = output<void>();
     readonly collapsedChange = output<boolean>();
+    readonly openGuide = output<void>();
 
     private readonly programmeDialog = inject(EpgProgrammeDialogService);
     private readonly translate = inject(TranslateService);

@@ -161,7 +161,8 @@
     }
 }
 
-.epg-timeline__jump {
+.epg-timeline__jump,
+.epg-timeline__guide {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -187,6 +188,11 @@
         color: $text-primary;
         border-color: $accent-blue;
     }
+}
+
+.epg-timeline__guide {
+    color: $accent-text;
+    border-color: $accent-blue;
 }
 
 .epg-timeline__stepper {

@@ -55,7 +55,10 @@
                         summary()?.title
                     }}</span>
                     @if (progress() !== null) {
-                        <span class="epg-timeline__summary-bar" aria-hidden="true">
+                        <span
+                            class="epg-timeline__summary-bar"
+                            aria-hidden="true"
+                        >
                             <i [style.width.%]="progress()"></i>
                         </span>
                     }
@@ -97,6 +100,17 @@
                 </button>
             }
             @if (showRibbonControls()) {
+                @if (guideAvailable()) {
+                    <button
+                        type="button"
+                        class="epg-timeline__guide"
+                        (click)="openGuide.emit()"
+                        [matTooltip]="'EPG.TIMELINE.OPEN_GUIDE' | translate"
+                    >
+                        <mat-icon>grid_view</mat-icon>
+                        {{ 'EPG.TIMELINE.GUIDE' | translate }}
+                    </button>
+                }
                 <button
                     type="button"
                     class="epg-timeline__jump"
@@ -145,7 +159,8 @@
                             }
                         </span>
                         <small>{{
-                            viewDate() | date: 'EEE, d MMM' : '' : currentLocale()
+                            viewDate()
+                                | date: 'EEE, d MMM' : '' : currentLocale()
                         }}</small>
                     </div>
                     <button
@@ -166,13 +181,17 @@
         @if (state === 'ribbon' && !archivePlaybackAvailable()) {
             <div class="epg-timeline__notice" role="note">
                 <mat-icon>info</mat-icon>
-                <span>{{ 'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate }}</span>
+                <span>{{
+                    'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate
+                }}</span>
             </div>
         }
 
         @switch (state) {
             @case ('loading') {
-                <div class="epg-timeline__ribbon epg-timeline__ribbon--skeleton">
+                <div
+                    class="epg-timeline__ribbon epg-timeline__ribbon--skeleton"
+                >
                     @for (width of skeletonWidths; track $index) {
                         <div
                             class="epg-timeline__sk"

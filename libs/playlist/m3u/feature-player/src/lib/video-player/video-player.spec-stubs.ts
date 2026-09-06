@@ -28,6 +28,7 @@ export class StubEpgTimelineComponent {
     readonly collapsed = input(false);
     readonly summary = input<LiveEpgPanelSummary | null>(null);
     readonly summaryLabelKey = input('');
+    readonly guideAvailable = input(false);
     readonly programActivated = output<{
         program?: EpgProgram;
         type: 'timeshift' | 'live';
@@ -37,4 +38,5 @@ export class StubEpgTimelineComponent {
     readonly openEpgSettings = output<void>();
     readonly retry = output<void>();
     readonly collapsedChange = output<boolean>();
+    readonly openGuide = output<void>();
 }
