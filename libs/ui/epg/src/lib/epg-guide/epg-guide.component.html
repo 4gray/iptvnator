@@ -1,59 +1,63 @@
-<app-epg-guide-toolbar
-    [dayMs]="view.axis().startMs"
-    [isToday]="view.isToday()"
-    [currentLocale]="currentLocale()"
-    [scopes]="scopes()"
-    [scopeId]="scopeId()"
-    [onlyWithEpg]="onlyWithEpg()"
-    [coverageLoaded]="coverageLoaded()"
-    [density]="density()"
-    [zoom]="zoom()"
-    [filter]="filter()"
-    [searchEnabled]="searchEnabled"
-    [searchQuery]="searchQuery()"
-    [shownCount]="rows().length"
-    [totalCount]="totalCount()"
-    (stepDay)="stepDay($event)"
-    (jumpNow)="jumpNow()"
-    (scopeChange)="setScope($event)"
-    (onlyWithEpgChange)="setOnlyWithEpg($event)"
-    (densityChange)="setDensity($event)"
-    (zoomChange)="setZoom($event)"
-    (filterChange)="setFilter($event)"
-    (searchQueryChange)="onSearchQueryChange($event)"
-/>
+<!-- The toolbar wraps in narrow windows, so the search results hang off
+     its real height rather than a hard-coded one. -->
+<div class="epg-guide__head">
+    <app-epg-guide-toolbar
+        [dayMs]="view.axis().startMs"
+        [isToday]="view.isToday()"
+        [currentLocale]="currentLocale()"
+        [scopes]="scopes()"
+        [scopeId]="scopeId()"
+        [onlyWithEpg]="onlyWithEpg()"
+        [coverageLoaded]="coverageLoaded()"
+        [density]="density()"
+        [zoom]="zoom()"
+        [filter]="filter()"
+        [searchEnabled]="searchEnabled"
+        [searchQuery]="searchQuery()"
+        [shownCount]="rows().length"
+        [totalCount]="totalCount()"
+        (stepDay)="stepDay($event)"
+        (jumpNow)="jumpNow()"
+        (scopeChange)="setScope($event)"
+        (onlyWithEpgChange)="setOnlyWithEpg($event)"
+        (densityChange)="setDensity($event)"
+        (zoomChange)="setZoom($event)"
+        (filterChange)="setFilter($event)"
+        (searchQueryChange)="onSearchQueryChange($event)"
+    />
 
-@if (searchPanelVisible()) {
-    <div class="epg-guide__search-results" role="listbox">
-        @for (
-            hit of searchResults();
-            track hit.program.channel + hit.program.start + $index
-        ) {
-            <button
-                type="button"
-                class="epg-guide__search-result"
-                role="option"
-                [attr.aria-selected]="false"
-                (click)="openSearchResult(hit)"
-            >
-                <span class="epg-guide__search-title">{{
-                    hit.program.title
-                }}</span>
-                <span class="epg-guide__search-meta">
-                    {{
-                        searchHitStartMs(hit)
-                            | date: 'EEE d MMM HH:mm' : '' : currentLocale()
-                    }}
-                    · {{ hit.program.channel }}
-                </span>
-            </button>
-        } @empty {
-            <div class="epg-guide__search-empty">
-                {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
-            </div>
-        }
-    </div>
-}
+    @if (searchPanelVisible()) {
+        <div class="epg-guide__search-results" role="listbox">
+            @for (
+                hit of searchResults();
+                track hit.program.channel + hit.program.start + $index
+            ) {
+                <button
+                    type="button"
+                    class="epg-guide__search-result"
+                    role="option"
+                    [attr.aria-selected]="false"
+                    (click)="openSearchResult(hit)"
+                >
+                    <span class="epg-guide__search-title">{{
+                        hit.program.title
+                    }}</span>
+                    <span class="epg-guide__search-meta">
+                        {{
+                            searchHitStartMs(hit)
+                                | date: 'EEE d MMM HH:mm' : '' : currentLocale()
+                        }}
+                        · {{ hit.program.channel }}
+                    </span>
+                </button>
+            } @empty {
+                <div class="epg-guide__search-empty">
+                    {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
+                </div>
+            }
+        </div>
+    }
+</div>
 
 <div
     class="epg-guide__grid"

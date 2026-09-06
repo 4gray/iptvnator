@@ -2,9 +2,6 @@
 
 // Ruler strip height; the now-line clip layer starts below it.
 $ruler-height: 34px;
-// Matches `.guide-toolbar`'s min-height in epg-guide-toolbar.component.scss —
-// the search results panel hangs directly under the toolbar.
-$toolbar-height: 52px;
 
 :host {
     display: flex;
@@ -14,6 +11,14 @@ $toolbar-height: 52px;
     background: var(--app-content-bg);
     color: $text-primary;
     position: relative;
+}
+
+// Anchors the search results panel: the toolbar wraps in narrow windows, so
+// its height is not a constant the panel could be offset by.
+.epg-guide__head {
+    position: relative;
+    flex: 0 0 auto;
+    z-index: 20;
 }
 
 .epg-guide__grid {
@@ -156,9 +161,10 @@ $toolbar-height: 52px;
 
 .epg-guide__search-results {
     position: absolute;
-    top: $toolbar-height;
+    top: 100%;
     right: 18px;
     width: 420px;
+    max-width: calc(100% - 36px);
     max-height: 50vh;
     overflow: auto;
     z-index: 20;

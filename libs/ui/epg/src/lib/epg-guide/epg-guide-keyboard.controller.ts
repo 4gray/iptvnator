@@ -14,6 +14,12 @@ export interface EpgGuideKeyboardHost {
     activeRow(): number;
     /** True while a dialog owns the keyboard. */
     isBlocked(): boolean;
+    /**
+     * True when the key belongs to the guide: the listener is on the document,
+     * so a target that is neither inside the guide nor an unfocused page keeps
+     * its own keys (the docked player, the header).
+     */
+    isOwnedTarget(target: EventTarget | null): boolean;
     play(row: number): void;
     details(row: number, block: number): void;
     jumpNow(): void;
@@ -60,8 +66,9 @@ function clamp(value: number, min: number, max: number): number {
 /**
  * Roving focus for the guide grid. ↑/↓ move between rows, ←/→ between the
  * focused row's programmes, Enter plays the row, I opens details, N jumps to
- * now, PgUp/PgDn change the day, Esc closes. Returns whether the event was
- * consumed so the caller can `preventDefault()`.
+ * now, PgUp/PgDn change the day, Esc closes. Every key but Esc requires the
+ * host to own the event's target. Returns whether the event was consumed so
+ * the caller can `preventDefault()`.
  */
 export class EpgGuideKeyboardController {
     readonly focus = signal<EpgGuideFocus | null>(null);
@@ -79,10 +86,17 @@ export class EpgGuideKeyboardController {
         ) {
             return false;
         }
+        // Escape is the documented close key and works from anywhere on the
+        // page; every other guide key applies only while the guide owns the
+        // target, or it would be stolen from whatever else has the focus.
+        if (event.key === 'Escape') {
+            this.host.close();
+            return true;
+        }
+        if (!this.host.isOwnedTarget(event.target)) {
+            return false;
+        }
         switch (event.key) {
-            case 'Escape':
-                this.host.close();
-                return true;
             case 'ArrowDown':
                 return this.moveRow(1);
             case 'ArrowUp':

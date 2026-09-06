@@ -41,6 +41,14 @@ function nowProgram(channelId: string): EpgProgram {
     };
 }
 
+function keydown(key: string, target?: EventTarget): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { key, cancelable: true });
+    if (target) {
+        Object.defineProperty(event, 'target', { value: target });
+    }
+    return event;
+}
+
 async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
     fixture.detectChanges();
     await fixture.whenStable();
@@ -242,6 +250,67 @@ describe('EpgGuideComponent', () => {
         expect(activate).not.toHaveBeenCalled();
         expect(close).not.toHaveBeenCalled();
         expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('handles grid keys only for its own targets, but closes from anywhere', async () => {
+        await settle(fixture);
+        const viewportEl: HTMLElement = fixture.debugElement.query(
+            By.css('cdk-virtual-scroll-viewport')
+        ).nativeElement;
+        viewportEl.scrollTo = jest.fn() as unknown as HTMLElement['scrollTo'];
+        const close = jest.fn();
+        component.close.subscribe(close);
+        const outside = document.createElement('div');
+        document.body.appendChild(outside);
+
+        // A non-interactive surface outside the guide — the docked player, the
+        // header — keeps its keys: nothing moves, nothing is consumed.
+        const foreign = keydown('ArrowDown', outside);
+        component.onKeydown(foreign);
+        expect(component.focus()).toBeNull();
+        expect(foreign.defaultPrevented).toBe(false);
+
+        // Nothing focused: the state right after the `G` shortcut opened it.
+        component.onKeydown(keydown('ArrowDown', document.body));
+        expect(component.focus()).toEqual({ row: 1, block: null });
+
+        const cell: HTMLElement = fixture.debugElement.query(
+            By.css('.epg-guide-row__channel')
+        ).nativeElement;
+        const own = keydown('ArrowDown', cell);
+        component.onKeydown(own);
+        expect(component.focus()).toEqual({ row: 2, block: null });
+        expect(own.defaultPrevented).toBe(true);
+
+        // Escape is the documented close key wherever the focus is.
+        component.onKeydown(keydown('Escape', outside));
+        expect(close).toHaveBeenCalled();
+        outside.remove();
+    });
+
+    it('moves the roving focus with its channel and drops it with the row', async () => {
+        await settle(fixture);
+        component.focusCell(2, 0);
+        await settle(fixture);
+        expect(component.focus()).toEqual({ row: 2, block: 0 });
+
+        // The first channel disappears: the focus follows 'c' to its new index.
+        channels.set([channel('b', null, 2), channel('c', 'c', 3)]);
+        await settle(fixture);
+        expect(component.rows().map((row) => row.id)).toEqual(['b', 'c']);
+        expect(component.focus()).toEqual({ row: 1, block: null });
+
+        // A filter that hides the focused channel clears the focus instead of
+        // leaving it pointing at whatever moved into that row.
+        component.setFilter('channel b');
+        await settle(fixture);
+        expect(component.rows().map((row) => row.id)).toEqual(['b']);
+        expect(component.focus()).toBeNull();
+
+        // Undoing the filter must not bring the stale focus back.
+        component.setFilter('');
+        await settle(fixture);
+        expect(component.focus()).toBeNull();
     });
 
     it('opens a search hit with its own channel and focuses that row', async () => {

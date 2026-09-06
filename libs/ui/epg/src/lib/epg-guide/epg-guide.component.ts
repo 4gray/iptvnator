@@ -10,6 +10,7 @@ import {
     computed,
     DestroyRef,
     effect,
+    ElementRef,
     HostListener,
     inject,
     Injector,
@@ -82,6 +83,7 @@ export class EpgGuideComponent implements OnDestroy {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly injector = inject(Injector);
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
 
     readonly close = output<void>();
     /**
@@ -145,6 +147,7 @@ export class EpgGuideComponent implements OnDestroy {
         blockCount: (row) => this.blocksFor(row).length,
         activeRow: () => this.activeRowIndex(),
         isBlocked: () => this.dialog.openDialogs.length > 0,
+        isOwnedTarget: (target) => this.ownsTarget(target),
         play: (row) => this.commitRow(this.rows()[row]),
         details: (row, block) =>
             this.openDetails(this.rows()[row], this.blocksFor(row)[block]),
@@ -153,6 +156,13 @@ export class EpgGuideComponent implements OnDestroy {
         close: () => this.close.emit(),
     });
     readonly focus = this.keyboard.focus;
+    /**
+     * The channel the roving focus sits on. `rows()` is rebuilt by the filters,
+     * by a scope switch and by coverage arriving late, so the focused index
+     * alone goes stale — Enter would then play a different channel. Recorded
+     * whenever the focus moves and reconciled whenever the rows change.
+     */
+    private focusedRowId: string | null = null;
     /**
      * The row that carries the grid's single `tabindex="0"`: the focused one,
      * else the playing one, else the first — so Tab always reaches the grid,
@@ -200,8 +210,19 @@ export class EpgGuideComponent implements OnDestroy {
             });
         });
         effect(() => {
-            this.rows();
-            untracked(() => this.viewportController.loadRenderedRange());
+            const focused = this.focus();
+            untracked(() => {
+                this.focusedRowId = focused
+                    ? (this.rows()[focused.row]?.id ?? null)
+                    : null;
+            });
+        });
+        effect(() => {
+            const rows = this.rows();
+            untracked(() => {
+                this.reconcileFocus(rows);
+                this.viewportController.loadRenderedRange();
+            });
         });
         effect(() => {
             const viewport = this.viewport();
@@ -288,9 +309,12 @@ export class EpgGuideComponent implements OnDestroy {
         this.view.setZoom(value);
     }
 
+    /**
+     * The focus is not cleared here: `reconcileFocus` moves it to the filtered
+     * row's new index, or drops it when the filter hid that channel.
+     */
     setFilter(value: string): void {
         this.view.filter.set(value);
-        this.focus.set(null);
     }
 
     onSearchQueryChange(query: string): void {
@@ -335,6 +359,52 @@ export class EpgGuideComponent implements OnDestroy {
         }
         this.activateRow(channel);
         this.close.emit();
+    }
+
+    /**
+     * Whether a key aimed at `target` belongs to the guide. The listener is on
+     * the document, so anything focused elsewhere — the docked player, the
+     * header — keeps its own keys; only the guide's own subtree and an
+     * unfocused page are ours. `document.body` is the target right after the
+     * `G` shortcut opened the guide, and a synthetic event carries no target
+     * at all.
+     */
+    private ownsTarget(target: EventTarget | null): boolean {
+        if (target === null) {
+            return true;
+        }
+        if (!(target instanceof Node)) {
+            return false;
+        }
+        return (
+            target === document.body ||
+            target === document.documentElement ||
+            this.hostElement.nativeElement.contains(target)
+        );
+    }
+
+    /**
+     * Keep the roving focus on the channel it was put on rather than on a row
+     * number the list has moved under it, and drop it when that channel is no
+     * longer shown — `tabbableRow` then falls back to the playing row. A focus
+     * that follows its channel loses its block: the list changed underneath, so
+     * the programmes behind that index may have moved with it, and the row is
+     * what Enter acts on.
+     */
+    private reconcileFocus(rows: readonly EpgGuideChannel[]): void {
+        const focused = this.focus();
+        const channelId = this.focusedRowId;
+        if (!focused || channelId === null) {
+            return;
+        }
+        const row = rows.findIndex((channel) => channel.id === channelId);
+        if (row < 0) {
+            this.focus.set(null);
+            return;
+        }
+        if (row !== focused.row) {
+            this.focus.set({ row, block: null });
+        }
     }
 
     private revealRow(rowIndex: number): void {

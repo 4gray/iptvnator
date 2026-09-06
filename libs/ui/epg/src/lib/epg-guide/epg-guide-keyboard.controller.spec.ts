@@ -24,6 +24,7 @@ describe('EpgGuideKeyboardController', () => {
             blockCount: jest.fn(() => 3),
             activeRow: jest.fn(() => 2),
             isBlocked: jest.fn(() => false),
+            isOwnedTarget: jest.fn(() => true),
             play: jest.fn(),
             details: jest.fn(),
             jumpNow: jest.fn(),
@@ -120,6 +121,21 @@ describe('EpgGuideKeyboardController', () => {
             true
         );
         expect(controller.focus()).toEqual({ row: 3, block: null });
+    });
+
+    it('only closes when the target is outside the guide', () => {
+        host.isOwnedTarget.mockReturnValue(false);
+
+        expect(controller.handle(key('ArrowDown'))).toBe(false);
+        expect(controller.focus()).toBeNull();
+        expect(controller.handle(key('Enter'))).toBe(false);
+        expect(host.play).not.toHaveBeenCalled();
+        expect(controller.handle(key('n'))).toBe(false);
+        expect(host.jumpNow).not.toHaveBeenCalled();
+
+        // Escape is the documented close key from anywhere on the page.
+        expect(controller.handle(key('Escape'))).toBe(true);
+        expect(host.close).toHaveBeenCalled();
     });
 
     it('leaves the catch-up button inside a card to the button', () => {
