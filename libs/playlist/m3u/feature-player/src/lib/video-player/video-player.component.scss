@@ -147,6 +147,17 @@
 }
 
 // ─── Guide mode ─────────────────────────────────────────────────────────────
+// The sidebar stays MOUNTED while the guide is open and is only hidden: its
+// channel-list container dispatches `resetActiveChannel()` from `ngOnDestroy`,
+// so removing it would clear the active channel the guide needs and close the
+// guide again. `!important` beats the resizable directive's inline width, and
+// it is declared after the phone breakpoint so the bottom-drawer rules
+// (`height: 50vh`, borders) cannot leave a phantom band on small screens.
+// Hiding rather than removing also preserves the list's scroll position.
+.sidebar.sidebar--guide-hidden {
+    display: none !important;
+}
+
 // The player keeps its DOM position and is only re-flowed into a docked strip;
 // no remount, so playback (and native-view Embedded MPV bounds) survive.
 .content-container.is-guide {

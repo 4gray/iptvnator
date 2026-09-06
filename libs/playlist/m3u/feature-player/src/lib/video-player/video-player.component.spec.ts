@@ -273,7 +273,7 @@ describe('VideoPlayerComponent', () => {
         expect(headerContext.action()).toBeNull();
     });
 
-    it('opens the guide in place of sidebar and timeline without remounting the player', () => {
+    it('opens the guide, hides the sidebar without unmounting it, and keeps the player', () => {
         syncStoreState(sampleChannel);
         player.set(VideoPlayer.VideoJs);
         fixture.detectChanges();
@@ -284,7 +284,9 @@ describe('VideoPlayerComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('.sidebar')).not.toBeNull();
+        const sidebarBefore = fixture.nativeElement.querySelector('.sidebar');
+        expect(sidebarBefore).not.toBeNull();
+        storeMock.dispatch.mockClear();
 
         component.openGuide();
         fixture.detectChanges();
@@ -295,7 +297,18 @@ describe('VideoPlayerComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-guide-now-playing')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('.sidebar')).toBeNull();
+        // Regression: the sidebar used to sit behind `@if (!guideOpen())`, so
+        // opening the guide destroyed the channel-list container, whose
+        // `ngOnDestroy` dispatches `resetActiveChannel()`. That cleared the
+        // active channel and closed the guide again the moment it opened.
+        expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.resetActiveChannel()
+        );
+        const sidebarWhileOpen =
+            fixture.nativeElement.querySelector('.sidebar');
+        expect(sidebarWhileOpen).toBe(sidebarBefore);
+        expect(sidebarWhileOpen.classList).toContain('sidebar--guide-hidden');
+        expect(sidebarWhileOpen.hasAttribute('inert')).toBe(true);
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
         ).toBeNull();
@@ -310,9 +323,10 @@ describe('VideoPlayerComponent', () => {
         component.closeGuide();
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('app-epg-guide')).toBeNull();
-        // The sidebar list itself sits behind an `@defer`, so the assertion
-        // targets the container the guide mode actually removes.
-        expect(fixture.nativeElement.querySelector('.sidebar')).not.toBeNull();
+        const sidebarAfter = fixture.nativeElement.querySelector('.sidebar');
+        expect(sidebarAfter).toBe(sidebarBefore);
+        expect(sidebarAfter.classList).not.toContain('sidebar--guide-hidden');
+        expect(sidebarAfter.hasAttribute('inert')).toBe(false);
         expect(fixture.nativeElement.querySelector('app-web-player-view')).toBe(
             playerBefore
         );

@@ -1,55 +1,62 @@
-@if (!guideOpen()) {
-    <div
-        class="sidebar"
-        [class.sidebar-collapsed]="isSidebarCollapsed()"
-        appResizable
-        [minWidth]="sidebarMinWidth"
-        [maxWidth]="sidebarMaxWidth"
-        [defaultWidth]="sidebarWidth()"
-        [style.width.px]="sidebarWidth()"
-        [storageKey]="sidebarStorageKey()"
-        (widthChange)="onSidebarWidthChange($event)"
-        (resizeEnd)="onSidebarResizeEnd($event)"
-    >
-        @if (activeView() !== 'groups' && activeView() !== 'all') {
-            <button
-                mat-icon-button
-                type="button"
-                class="sidebar-collapse-toggle"
-                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-                [attr.aria-pressed]="isSidebarCollapsed()"
-                (click)="toggleSidebar()"
-            >
-                <mat-icon>chevron_left</mat-icon>
-            </button>
-        }
-        @defer {
-            <app-sidebar
-                [channels]="(channels$ | async)!"
-                [channelsLoading]="channelsLoading()"
-                [showPlaylistHeader]="!isWorkspaceLayout"
-                [activeView]="activeView()"
-                [sidebarWidth]="sidebarWidth()"
-                (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
-                (sidebarWidthRequestEnded)="
-                    onGroupedSidebarWidthRequestEnded($event)
-                "
-                (sidebarToggleRequested)="toggleSidebar()"
-            />
-        } @loading {
-            <app-channel-list-loading-state
-                [view]="activeView()"
-                [showEpg]="supportsEpg"
-            />
-        } @placeholder {
-            <app-channel-list-loading-state
-                [view]="activeView()"
-                [showEpg]="supportsEpg"
-            />
-        }
-    </div>
-}
+<!--
+    Guide mode HIDES this sidebar instead of removing it: destroying it would
+    destroy `app-channel-list-container`, whose `ngOnDestroy` dispatches
+    `resetActiveChannel()` — that clears the active channel the guide itself
+    needs, so the guide would close again the moment it opened. `inert` keeps
+    the hidden rail out of the tab order and away from assistive technology.
+-->
+<div
+    class="sidebar"
+    [class.sidebar-collapsed]="isSidebarCollapsed()"
+    [class.sidebar--guide-hidden]="guideOpen()"
+    [attr.inert]="guideOpen() ? '' : null"
+    appResizable
+    [minWidth]="sidebarMinWidth"
+    [maxWidth]="sidebarMaxWidth"
+    [defaultWidth]="sidebarWidth()"
+    [style.width.px]="sidebarWidth()"
+    [storageKey]="sidebarStorageKey()"
+    (widthChange)="onSidebarWidthChange($event)"
+    (resizeEnd)="onSidebarResizeEnd($event)"
+>
+    @if (activeView() !== 'groups' && activeView() !== 'all') {
+        <button
+            mat-icon-button
+            type="button"
+            class="sidebar-collapse-toggle"
+            [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
+            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
+            [attr.aria-pressed]="isSidebarCollapsed()"
+            (click)="toggleSidebar()"
+        >
+            <mat-icon>chevron_left</mat-icon>
+        </button>
+    }
+    @defer {
+        <app-sidebar
+            [channels]="(channels$ | async)!"
+            [channelsLoading]="channelsLoading()"
+            [showPlaylistHeader]="!isWorkspaceLayout"
+            [activeView]="activeView()"
+            [sidebarWidth]="sidebarWidth()"
+            (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"
+            (sidebarWidthRequestEnded)="
+                onGroupedSidebarWidthRequestEnded($event)
+            "
+            (sidebarToggleRequested)="toggleSidebar()"
+        />
+    } @loading {
+        <app-channel-list-loading-state
+            [view]="activeView()"
+            [showEpg]="supportsEpg"
+        />
+    } @placeholder {
+        <app-channel-list-loading-state
+            [view]="activeView()"
+            [showEpg]="supportsEpg"
+        />
+    }
+</div>
 
 <div
     class="content-container"
