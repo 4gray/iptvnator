@@ -216,6 +216,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                         stripCountryPrefix,
                         m3uVodDetails: signal(true),
                         resolvedEpgViewMode: signal('timeline'),
+                        resolvedEpgOffsetMinutes: signal(0),
                         epgUrl: signal<string[]>([]),
                     },
                 },
