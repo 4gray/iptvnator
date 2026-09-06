@@ -9,6 +9,9 @@
  * routinely holds Xtream credentials.
  */
 
+import { ProviderRequestError } from './provider-request-error';
+import { providerUrlErrorBody } from './provider-url-policy';
+
 export interface ProviderError extends Error {
     readonly code?: unknown;
     readonly cause?: unknown;
@@ -78,6 +81,10 @@ function visitErrorNode(
 export function normalizeProviderError(
     error: unknown
 ): NormalizedProviderError {
+    if (error instanceof ProviderRequestError) {
+        if (error.policyError) return providerUrlErrorBody(error.policyError);
+        return normalizeProviderError(error.cause);
+    }
     const providerError = error as ProviderError | null | undefined;
     const response = providerError?.response;
     if (
@@ -111,6 +118,10 @@ export function logProviderRequestFailure(options: {
 }
 
 function describeProviderFailure(error: unknown): string {
+    if (error instanceof ProviderRequestError)
+        return error.policyError
+            ? `URL policy ${error.policyError.status}`
+            : describeProviderFailure(error.cause);
     const providerError = error as ProviderError | null | undefined;
     const response = providerError?.response;
     if (
