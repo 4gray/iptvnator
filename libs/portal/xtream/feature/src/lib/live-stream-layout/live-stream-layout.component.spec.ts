@@ -1,16 +1,10 @@
-import { Directive, Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import {
-    ActivatedRoute,
-    NavigationEnd,
-    Router,
-    convertToParamMap,
-} from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
 import { TranslatePipe } from '@ngx-translate/core';
-import { BehaviorSubject, Subject, of } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     liveSidebarStateStorageKey,
@@ -23,21 +17,14 @@ import {
     XtreamStore,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import {
-    EpgListViewComponent,
-    EpgProgramActivationEvent,
-    EpgTimelineComponent,
-    EpgTimelineSummary,
-} from '@iptvnator/ui/epg';
+import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import {
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import {
-    EpgItem,
     EpgProgram,
-    RecordingStartMetadata,
-    RecordingStoppedEvent,
+    EpgItem,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
@@ -45,92 +32,35 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-
-const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
-
-@Component({
-    selector: 'app-portal-channels-list',
-    standalone: true,
-    template: '<div data-test-id="portal-channels-list-stub"></div>',
-})
-class StubPortalChannelsListComponent {
-    readonly sortMode = input<'server' | 'name-asc' | 'name-desc'>('server');
-    readonly channelsOverride = input<unknown[] | null>(null);
-    readonly searchTermInput = input('');
-    readonly revealRequest = input<unknown>(null);
-    readonly filteredChannels = signal<unknown[]>([]);
-    readonly playClicked = output<unknown>();
-    readonly playbackRequested = output<unknown>();
-}
-
-@Component({
-    selector: 'app-grid-list',
-    standalone: true,
-    template: '<div data-test-id="grid-list-stub"></div>',
-})
-class StubGridListComponent {
-    readonly items = input<unknown[]>([]);
-    readonly isLoading = input(false);
-    readonly isAppending = input(false);
-    readonly appendError = input(false);
-    readonly searchTerm = input('');
-    readonly variant = input<'poster' | 'logo'>('poster');
-    readonly type = input<string>();
-    readonly itemClicked = output<unknown>();
-    readonly retryLoadMore = output<void>();
-}
-
-@Component({
-    selector: 'app-web-player-view',
-    standalone: true,
-    template: '',
-})
-class StubWebPlayerViewComponent {
-    readonly playbackSessionKey = input.required<string>();
-    readonly streamUrl = input('');
-    readonly title = input('');
-    readonly playback = input<unknown>(null);
-    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
-    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
-    readonly recordingStopped = output<RecordingStoppedEvent>();
-}
-
-// Matches both live-panel selectors so the host's timeline ↔ list swap can be
-// asserted by tag name; both branches share the identical contract.
-@Component({
-    selector: 'app-epg-timeline, app-epg-list-view',
-    standalone: true,
-    template: `
-        <div class="live-epg-panel-label">{{ summaryLabelKey() }}</div>
-        <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
-    `,
-})
-class StubEpgTimelineComponent {
-    readonly programs = input<EpgProgram[]>([]);
-    readonly channelName = input('');
-    readonly channelLogo = input('');
-    readonly sourceLabel = input('');
-    readonly archivePlaybackAvailable = input(false);
-    readonly archiveDays = input(0);
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly isLivePlayback = input(true);
-    readonly loading = input(false);
-    readonly selectedDate = input<string | null>(null);
-    readonly collapsed = input(false);
-    readonly summary = input<EpgTimelineSummary | null>(null);
-    readonly summaryLabelKey = input('');
-    readonly offsetMinutes = input(0);
-    readonly programActivated = output<EpgProgramActivationEvent>();
-    readonly returnToLive = output<void>();
-    readonly selectedDateChange = output<string>();
-    readonly collapsedChange = output<boolean>();
-}
-
-@Directive({
-    selector: '[appResizable]',
-    standalone: true,
-})
-class StubResizableDirective {}
+import {
+    LIVE_CHANNEL_SORT_STORAGE_KEY,
+    StubEpgTimelineComponent,
+    StubGridListComponent,
+    StubPortalChannelsListComponent,
+    StubResizableDirective,
+    StubWebPlayerViewComponent,
+    categories,
+    categoryItemCounts,
+    currentEpgItem,
+    currentPlaylist,
+    epgItems,
+    favoritesService,
+    fixedNow,
+    hasMoreContent,
+    isLoadingEpg,
+    liveStreams,
+    paginatedContent,
+    playlist,
+    portalPlayer,
+    sampleChannel,
+    selectedCategoryId,
+    selectedContentType,
+    selectedItem,
+    selectedTypeContentLoading,
+    settingsStore,
+    xtreamStore,
+    xtreamUrlService,
+} from './live-stream-layout.spec-harness';
 
 describe('LiveStreamLayoutComponent', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
@@ -138,80 +68,9 @@ describe('LiveStreamLayoutComponent', () => {
     let routeQueryParamMap: BehaviorSubject<
         ReturnType<typeof convertToParamMap>
     >;
-    const fixedNow = new Date('2026-04-05T12:00:00.000Z');
-
-    const sampleChannel = {
-        xtream_id: 101,
-        name: 'Channel 101',
-        stream_icon: 'channel-101.png',
-        tv_archive: 1,
-        tv_archive_duration: 3,
-    };
-    const playlist = {
-        id: 'playlist-1',
-        serverUrl: 'http://demo.example',
-        username: 'demo',
-        password: 'secret',
-    };
-
-    const categories = signal([{ category_id: 1, category_name: 'News' }]);
-    const categoryItemCounts = signal(new Map<number, number>([[1, 1]]));
-    const epgItems = signal<EpgItem[]>([]);
-    const currentEpgItem = signal<EpgItem | null>(null);
-    const isLoadingEpg = signal(false);
-    const selectedTypeContentLoading = signal(false);
-    const selectedCategoryId = signal<number | null>(1);
-    const selectedContentType = signal<'live' | 'vod' | 'series'>('live');
-    const selectedItem = signal<unknown>(sampleChannel);
-    const currentPlaylist = signal(playlist);
-    const liveStreams = signal<unknown[]>([]);
-    const paginatedContent = signal<unknown[]>([]);
-    const hasMoreContent = signal(false);
-
-    const xtreamStore = {
-        getCategoriesBySelectedType: categories,
-        getCategoryItemCounts: categoryItemCounts,
-        getPaginatedContent: paginatedContent,
-        hasMoreContent,
-        epgItems,
-        currentEpgItem,
-        isLoadingEpg,
-        selectedTypeContentLoading,
-        selectedCategoryId,
-        selectedContentType,
-        selectedItem,
-        currentPlaylist,
-        liveStreams,
-        selectItemsFromSelectedCategory: jest.fn(() => [sampleChannel]),
-        constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
-        openPlayer: jest.fn(),
-        setSelectedItem: jest.fn(),
-        setSelectedCategory: jest.fn(),
-        loadMoreContent: jest.fn(),
-    };
 
     let routerEvents: Subject<unknown>;
     let router: { events: Subject<unknown>; navigate: jest.Mock };
-    const favoritesService = {
-        getFavorites: jest.fn().mockReturnValue(of([])),
-    };
-    const xtreamUrlService = {
-        constructAutoLiveTsUrl: jest.fn(() => undefined),
-        resolveCatchupUrl: jest
-            .fn()
-            .mockResolvedValue('https://example.com/timeshift.ts'),
-    };
-    const portalPlayer = {
-        isEmbeddedPlayer: jest.fn().mockReturnValue(true),
-        openExternalPlayback: jest.fn(),
-    };
-    const settingsStore = {
-        openStreamOnDoubleClick: signal(false),
-        // Reset in beforeEach: the store is module-scoped, so a test failure
-        // before an in-test restore must not leak 'list' into siblings.
-        resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
-        resolvedEpgOffsetMinutes: signal(0),
-    };
 
     const originalElectron = window.electron;
 
@@ -1038,56 +897,6 @@ describe('LiveStreamLayoutComponent', () => {
         expect(epgTimeline.componentInstance.activeProgram()).toBeNull();
     });
 
-    it('keeps remote order after browsing another category and changing sort', () => {
-        const first = { ...sampleChannel, category_id: '1', name: 'Zulu' };
-        const next = { ...first, xtream_id: 102, name: 'Alpha' };
-        liveStreams.set([first, next]);
-        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
-            first,
-            next,
-        ]);
-        selectedItem.set(first);
-        component.playLive(first);
-        xtreamStore.setSelectedCategory.mockClear();
-        selectedCategoryId.set(2);
-        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([]);
-        component.setLiveChannelSortMode('name-desc');
-        component['handleRemoteChannelChange']('down');
-        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
-        expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
-    });
-
-    it('starts external playback from remote channel navigation when double-click opening is enabled', () => {
-        const nextChannel = {
-            ...sampleChannel,
-            category_id: '1',
-            xtream_id: 102,
-            name: 'Channel 102',
-        };
-        settingsStore.openStreamOnDoubleClick.set(true);
-        portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
-        selectedItem.set(sampleChannel);
-        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
-            sampleChannel,
-            nextChannel,
-        ]);
-
-        liveStreams.set([{ ...sampleChannel, category_id: '1' }, nextChannel]);
-        component.playLive(sampleChannel);
-        xtreamStore.openPlayer.mockClear();
-        (
-            component as unknown as {
-                handleRemoteChannelChange(direction: 'up' | 'down'): void;
-            }
-        ).handleRemoteChannelChange('down');
-
-        expect(xtreamStore.openPlayer).toHaveBeenCalledWith(
-            'https://example.com/live.ts',
-            'Channel 102',
-            'channel-101.png'
-        );
-    });
-
     it('shows an archive-unavailable notice when past programs exist but archive playback is unavailable', () => {
         const nonArchiveChannel = {
             ...sampleChannel,
@@ -1153,127 +962,6 @@ describe('LiveStreamLayoutComponent', () => {
     // `app-channel-list-hidden-state` (its TranslatePipe needs a
     // TranslateService); this spec is at the max-lines budget, so that branch
     // is covered by video-player-sidebar.spec.ts and the Electron E2E instead.
-    describe('auto-open from Ctrl+F search navigation state', () => {
-        const searchChannel = {
-            xtream_id: 202,
-            name: 'Search Channel',
-            category_id: '7',
-            stream_icon: 'search-channel.png',
-            tv_archive: 0,
-            tv_archive_duration: 0,
-        };
-
-        function triggerNavigationEnd() {
-            routerEvents.next(
-                new NavigationEnd(
-                    1,
-                    '/workspace/xtreams/playlist-1/live',
-                    '/workspace/xtreams/playlist-1/live'
-                )
-            );
-        }
-
-        beforeEach(() => {
-            window.history.replaceState(
-                { openXtreamLiveItemId: searchChannel.xtream_id },
-                ''
-            );
-        });
-
-        afterEach(() => {
-            window.history.replaceState({}, '');
-        });
-
-        it('plays and selects a channel found in liveStreams on NavigationEnd', () => {
-            liveStreams.set([searchChannel]);
-            fixture.detectChanges();
-
-            triggerNavigationEnd();
-            fixture.detectChanges();
-
-            expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
-                searchChannel
-            );
-            expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(
-                searchChannel
-            );
-        });
-
-        it('sets the channel category so the sidebar highlights the correct entry', () => {
-            liveStreams.set([searchChannel]);
-            fixture.detectChanges();
-
-            triggerNavigationEnd();
-            fixture.detectChanges();
-
-            expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(7);
-        });
-
-        it('does not auto-open while selectedContentType is not live', () => {
-            selectedContentType.set('vod');
-            liveStreams.set([searchChannel]);
-            fixture.detectChanges();
-
-            triggerNavigationEnd();
-            fixture.detectChanges();
-
-            expect(xtreamStore.constructStreamUrl).not.toHaveBeenCalledWith(
-                searchChannel
-            );
-        });
-
-        it('waits for liveStreams to populate before playing', () => {
-            liveStreams.set([]);
-            fixture.detectChanges();
-
-            triggerNavigationEnd();
-            fixture.detectChanges();
-
-            expect(xtreamStore.constructStreamUrl).not.toHaveBeenCalled();
-
-            liveStreams.set([searchChannel]);
-            fixture.detectChanges();
-
-            expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
-                searchChannel
-            );
-        });
-
-        it('clears the pending ID when the channel is not found in liveStreams', () => {
-            liveStreams.set([{ ...searchChannel, xtream_id: 999 }]);
-            fixture.detectChanges();
-
-            triggerNavigationEnd();
-            fixture.detectChanges();
-
-            expect(xtreamStore.constructStreamUrl).not.toHaveBeenCalledWith(
-                searchChannel
-            );
-        });
-
-        it('re-triggers auto-open on re-navigation when component is reused', () => {
-            liveStreams.set([searchChannel]);
-            fixture.detectChanges();
-
-            // First navigation — clears the pending state
-            triggerNavigationEnd();
-            fixture.detectChanges();
-            xtreamStore.constructStreamUrl.mockClear();
-
-            // Simulate navigating away and back with the same state
-            window.history.replaceState(
-                { openXtreamLiveItemId: searchChannel.xtream_id },
-                ''
-            );
-            triggerNavigationEnd();
-            fixture.detectChanges();
-
-            expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
-                searchChannel
-            );
-        });
-    });
-
     it('hides the archive-unavailable notice when there are no past programs yet', () => {
         const nonArchiveChannel = {
             ...sampleChannel,
