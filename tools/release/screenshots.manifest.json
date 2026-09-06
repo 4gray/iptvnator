@@ -147,6 +147,30 @@
             "setup": [
                 "open-xtream-vod-sources-menu=Action & Mystery"
             ]
+        },
+        {
+            "slug": "guide-remote-settings",
+            "title": "Settings: remote control with QR code",
+            "group": "guides",
+            "setup": [
+                "open-settings-remote-control"
+            ]
+        },
+        {
+            "slug": "guide-remote-phone",
+            "title": "Remote control phone view",
+            "group": "guides",
+            "setup": [
+                "enable-remote-control",
+                "open-xtream-live-channel=Newsroom"
+            ],
+            "browser": {
+                "url": "http://127.0.0.1:8765/",
+                "viewport": {
+                    "width": 390,
+                    "height": 1100
+                }
+            }
         }
     ]
 }

@@ -42,6 +42,14 @@ export const XTREAM_SECONDARY_FIXTURE_CREDENTIALS = {
 } as const;
 
 /**
+ * Port the remote-control guide shots enable in the app's settings. The app's
+ * default; the phone-view shot opens `http://127.0.0.1:<port>/` in a mobile
+ * viewport. A capture fails with a clear message when something else holds it.
+ */
+export const CAPTURE_REMOTE_CONTROL_PORT = 8765;
+export const CAPTURE_REMOTE_CONTROL_URL = `http://127.0.0.1:${CAPTURE_REMOTE_CONTROL_PORT}/`;
+
+/**
  * Download folder the guide shots authorize inside the isolated data dir. The
  * capture stubs Electron's folder dialog to return it, so no download ever
  * lands in the real OS Downloads folder and no personal path reaches a frame.

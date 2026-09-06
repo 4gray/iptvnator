@@ -9,6 +9,8 @@ import type { Page } from '@playwright/test';
 import {
     AUTO_DETECT_FIXTURE_MESSAGE,
     CAPTURE_DOWNLOAD_FOLDER_NAME,
+    CAPTURE_REMOTE_CONTROL_PORT,
+    CAPTURE_REMOTE_CONTROL_URL,
     EPG_FIXTURE_URL,
     M3U_FIXTURE_PLAYLIST_TITLE,
     M3U_FIXTURE_PLAYLIST_URL,
@@ -354,6 +356,45 @@ export async function runAction(
             await page.waitForTimeout(500);
             return;
         }
+        case 'open-xtream-live-channel': {
+            // Unlike `open-xtream-live`, this selects a channel: the marketing
+            // scenario serves live streams from local bytes (`local-media`),
+            // so playback never reaches a public stream. The player shows a
+            // format error, which the phone-view shot never frames; what it
+            // needs is the remote status the selection publishes.
+            await runAction(page, 'open-xtream-live', param);
+            const channel = page.locator('app-channel-list-item').first();
+
+            await channel.click();
+            await page.waitForTimeout(1500);
+            return;
+        }
+        case 'open-settings-remote-control': {
+            await openRemoteControlSettings(page);
+            const section = page.locator('#remote-control');
+            const qrButton = section.locator('.url-row button').first();
+
+            await qrButton.waitFor({ state: 'visible', timeout: 15_000 });
+            await qrButton.click();
+            await section
+                .locator('qrcode canvas, qrcode img')
+                .first()
+                .waitFor({ state: 'visible', timeout: 15_000 });
+            await page.waitForTimeout(500);
+            return;
+        }
+        case 'enable-remote-control': {
+            await openRemoteControlSettings(page);
+            const save = page.locator('[data-test-id="save-settings"]').first();
+
+            if (await save.isEnabled().catch(() => false)) {
+                await save.click();
+                await settleUi(page);
+            }
+
+            await waitForRemoteControlServer();
+            return;
+        }
         case 'open-xtream-vod-sources': {
             await openXtreamVodWithSources(page, param ?? 'Action & Mystery');
             return;
@@ -479,6 +520,76 @@ async function goHome(page: Page): Promise<void> {
     await page.locator('a.brand[href$="/workspace/dashboard"]').first().click();
     await page.waitForURL(/\/workspace\/dashboard/, { timeout: 20_000 });
     await settleUi(page);
+}
+
+/* ------------------------------------------------------------------ */
+/* Remote control (guide shots)                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opens Settings › Remote control with the feature switched on and the
+ * capture port in the field. The form is left dirty unless a later
+ * `enable-remote-control` step saves it; `discardUnsavedSettings` clears it
+ * before the next action.
+ */
+async function openRemoteControlSettings(page: Page): Promise<void> {
+    await runAction(page, 'open-settings', null);
+    const sectionLink = page
+        .locator('[data-test-id="settings-section-remote-control"]')
+        .first();
+
+    await sectionLink.waitFor({ state: 'visible', timeout: 15_000 });
+    await sectionLink.click({ timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/settings\/remote-control/, {
+        timeout: 15_000,
+    });
+
+    const section = page.locator('#remote-control');
+    await section.waitFor({ state: 'visible', timeout: 15_000 });
+
+    const toggle = section.locator(
+        '[data-test-id="remote-control-enabled"] input[type="checkbox"]'
+    );
+
+    if (!(await toggle.isChecked())) {
+        await section.locator('[data-test-id="remote-control-enabled"]').click();
+    }
+
+    const port = section.locator('[data-test-id="remote-control-port"]');
+    await port.waitFor({ state: 'visible', timeout: 10_000 });
+
+    if ((await port.inputValue()) !== String(CAPTURE_REMOTE_CONTROL_PORT)) {
+        await port.fill(String(CAPTURE_REMOTE_CONTROL_PORT));
+    }
+
+    await section
+        .locator('.remote-control-url')
+        .first()
+        .waitFor({ state: 'visible', timeout: 15_000 });
+}
+
+/** Polls the status endpoint the phone view reads until the app's server answers. */
+async function waitForRemoteControlServer(): Promise<void> {
+    const statusUrl = `${CAPTURE_REMOTE_CONTROL_URL}api/remote-control/status`;
+    const deadline = Date.now() + 15_000;
+
+    while (Date.now() < deadline) {
+        try {
+            const response = await fetch(statusUrl);
+
+            if (response.ok) {
+                return;
+            }
+        } catch {
+            // not up yet
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    throw new Error(
+        `Remote control server did not answer at ${statusUrl} — is port ${CAPTURE_REMOTE_CONTROL_PORT} held by another IPTVnator instance?`
+    );
 }
 
 /* ------------------------------------------------------------------ */

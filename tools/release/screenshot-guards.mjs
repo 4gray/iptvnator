@@ -56,6 +56,9 @@ export const KNOWN_ACTIONS = [
     'open-downloads-offline-movie',
     'open-xtream-vod-sources',
     'open-xtream-vod-sources-menu',
+    'open-xtream-live-channel',
+    'open-settings-remote-control',
+    'enable-remote-control',
 ];
 
 /**
@@ -157,6 +160,42 @@ export function validateManifest(manifest) {
                 );
             }
         }
+
+        if (shot.browser !== undefined) {
+            errors.push(...validateBrowserShot(shot.browser, label));
+        }
+    }
+
+    return errors;
+}
+
+/**
+ * A `browser` shot is framed in a separate Chromium page instead of the
+ * Electron window — the phone view of the remote control. The page may only
+ * open something the app itself serves on loopback: any other origin would
+ * turn the capture into a screenshot of the internet.
+ *
+ * @param {unknown} browser the shot's `browser` field
+ * @param {string} label shot slug for messages
+ * @returns {string[]} problems; empty when valid
+ */
+function validateBrowserShot(browser, label) {
+    const errors = [];
+    const url = typeof browser?.url === 'string' ? browser.url : '';
+
+    if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) {
+        errors.push(
+            `shot "${label}": browser.url must be a loopback http URL, got ${JSON.stringify(browser?.url)}`
+        );
+    }
+
+    const viewport = browser?.viewport;
+    const isSize = (value) => Number.isInteger(value) && value >= 200 && value <= 4000;
+
+    if (!viewport || !isSize(viewport.width) || !isSize(viewport.height)) {
+        errors.push(
+            `shot "${label}": browser.viewport must carry integer width and height between 200 and 4000`
+        );
     }
 
     return errors;

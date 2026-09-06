@@ -23,6 +23,13 @@ export const LOCAL_MEDIA_MOVIE_DOWNLOAD_OPTIONS: SlowSeriesDownloadOptions = {
     totalBytes: 96 * 1024 * 1024,
 };
 
+/** A live channel under `local-media`: a few local bytes so selecting a channel never leaves the machine. */
+export const LOCAL_MEDIA_LIVE_STREAM_OPTIONS: SlowSeriesDownloadOptions = {
+    chunkSize: 512 * 1024,
+    intervalMs: 2,
+    totalBytes: 4 * 1024 * 1024,
+};
+
 export const LOCAL_MEDIA_EPISODE_DOWNLOAD_OPTIONS: SlowSeriesDownloadOptions = {
     chunkSize: 256 * 1024,
     intervalMs: 100,

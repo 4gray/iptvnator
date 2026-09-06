@@ -186,12 +186,16 @@ describe('Xtream mock server factory', () => {
                 `${running.origin}/series/marketing/marketing/80000.mkv`,
                 { redirect: 'manual' }
             );
+            const live = await fetch(
+                `${running.origin}/live/marketing/marketing/10001.m3u8`,
+                { redirect: 'manual' }
+            );
             const ordinaryMovie = await fetch(
                 `${running.origin}/movie/user1/pass1/62000.mp4`,
                 { redirect: 'manual' }
             );
 
-            for (const local of [movie, episode]) {
+            for (const local of [movie, episode, live]) {
                 expect(local.status).toBe(200);
                 expect(local.headers.get('content-type')).toContain(
                     'video/mp4'

@@ -126,6 +126,41 @@ describe('manifest validation', () => {
         );
     });
 
+    it('accepts a loopback browser shot and rejects any other origin', () => {
+        const manifest = validManifest();
+        manifest.shots.push({
+            slug: 'guide-remote-phone',
+            title: 'Phone view',
+            group: 'guides',
+            setup: ['enable-remote-control'],
+            browser: { url: 'http://127.0.0.1:8765/', viewport: { width: 390, height: 844 } },
+        });
+
+        assert.deepEqual(validateManifest(manifest), []);
+
+        manifest.shots.push(
+            {
+                slug: 'guide-remote-elsewhere',
+                title: 'x',
+                group: 'guides',
+                setup: ['enable-remote-control'],
+                browser: { url: 'https://example.com/', viewport: { width: 390, height: 844 } },
+            },
+            {
+                slug: 'guide-remote-tiny',
+                title: 'x',
+                group: 'guides',
+                setup: ['enable-remote-control'],
+                browser: { url: 'http://localhost:8765/', viewport: { width: 10 } },
+            }
+        );
+
+        const errors = validateManifest(manifest);
+
+        assert.ok(errors.some((error) => /browser\.url must be a loopback/.test(error)));
+        assert.ok(errors.some((error) => /browser\.viewport must carry/.test(error)));
+    });
+
     it('accepts guide shots that name a group and the actions they use', () => {
         const manifest = validManifest();
         manifest.shots.push(

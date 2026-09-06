@@ -81,8 +81,8 @@ skip shows up in your output.
 
 Evergreen how-to posts live in the blog collection next to release notes
 (`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx`,
-`m3u-playlist-epg-setup-guide.mdx`, `offline-downloads-guide.mdx` and
-`alternative-sources-guide.mdx` in
+`m3u-playlist-epg-setup-guide.mdx`, `offline-downloads-guide.mdx`,
+`alternative-sources-guide.mdx` and `remote-control-guide.mdx` in
 `apps/website/src/content/blog/`). Three conventions set them apart:
 
 - **`ContentDisclaimer`.** Every guide opens with
@@ -112,6 +112,13 @@ Evergreen how-to posts live in the blog collection next to release notes
   `marketing2` scenario (identical catalog, "Fictional Xtream Backup"), which is
   what makes the Sources chip appear; like the Stalker portal it is added only
   for shots that walk into it, because it adds a card to the dashboard.
+  The remote-control phone view is a `browser` shot: the manifest entry names
+  a loopback URL and a mobile viewport, and the capture frames it in a separate
+  Chromium page instead of the Electron window, behind the same network and
+  content guards (`captureBrowserShot` in
+  `tools/release/capture-release-screenshots.ts`). Its setup selects a live
+  channel and saves the remote-control setting, so the app's own server answers
+  on port 8765 for the duration of the run.
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence

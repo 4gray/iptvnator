@@ -80,7 +80,7 @@ export const FEATURES: readonly FeatureEntry[] = [
       'The desktop app serves a web remote to any phone on your network: channel up and down, direct numbers, volume, and a now-playing panel.',
     href: '/iptvnator/features/remote-control/',
     icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
-    guide: { href: '/iptvnator/blog/m3u-playlist-epg-setup-guide/', label: 'M3U and EPG setup guide' },
+    guide: { href: '/iptvnator/blog/remote-control-guide/', label: 'Phone remote control guide' },
   },
 ];
 

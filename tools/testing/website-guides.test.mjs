@@ -50,6 +50,13 @@ const GUIDES = [
       'blog/guides/screenshots/guide-sources-menu-dark.png',
     ],
   },
+  {
+    slug: 'remote-control-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-remote-settings-dark.png',
+      'blog/guides/screenshots/guide-remote-phone-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');

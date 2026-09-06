@@ -18,6 +18,7 @@ import { dispatchAction } from './routes/dispatch.js';
 import { getScenario, type ScenarioConfig } from './scenarios.js';
 import {
     LOCAL_MEDIA_EPISODE_DOWNLOAD_OPTIONS,
+    LOCAL_MEDIA_LIVE_STREAM_OPTIONS,
     LOCAL_MEDIA_MOVIE_DOWNLOAD_OPTIONS,
     streamSlowSeriesDownload,
 } from './slow-series-download.js';
@@ -255,6 +256,14 @@ function installStreamRoutes(
     const streamResponse = (request: Request, response: Response) => {
         if (isPerformanceMediaRequest(request, controlEnabled)) {
             response.status(410).json({ error: 'performance-media-disabled' });
+            return;
+        }
+        if (downloadStreamFixtureOf(request) === 'local-media') {
+            streamSlowSeriesDownload(
+                request,
+                response,
+                LOCAL_MEDIA_LIVE_STREAM_OPTIONS
+            );
             return;
         }
         response.redirect(HLS_STUB);
