@@ -28,6 +28,12 @@ export interface M3uEpgGuideInputs {
      */
     favoriteKeys: Signal<string[]>;
     activeChannel: Signal<Channel | null>;
+    /**
+     * Group the sidebar's groups view currently shows, by title. The guide
+     * opens on what the user was looking at, which is not necessarily the
+     * playing channel's group — they may have browsed away from it.
+     */
+    selectedGroup: Signal<string | null>;
 }
 
 const SCOPE_ALL = 'all';
@@ -110,10 +116,38 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         return channels;
     });
 
+    /**
+     * Rows the guide renders, each with an id that is unique within the scope.
+     * `createChannel` falls back to the stream URL for an M3U entry without an
+     * explicit id, so one stream listed in two groups — or simply repeated —
+     * yields two channels sharing an id. The guide keys its programme, status
+     * and selection maps by row id, so duplicates used to collide: both rows
+     * lit up as playing and activating either one played the first. The first
+     * occurrence keeps the channel id (nothing changes for a playlist without
+     * duplicates) and every later one is suffixed.
+     */
+    private readonly scopedRows = computed<
+        Array<{ rowId: string; channel: Channel }>
+    >(() => {
+        const occurrences = new Map<string, number>();
+        return this.scopedChannels().map((channel) => {
+            const seen = occurrences.get(channel.id) ?? 0;
+            occurrences.set(channel.id, seen + 1);
+            return {
+                rowId: seen === 0 ? channel.id : `${channel.id}#${seen}`,
+                channel,
+            };
+        });
+    });
+
+    private readonly channelsByRowId = computed(
+        () => new Map(this.scopedRows().map((row) => [row.rowId, row.channel]))
+    );
+
     readonly channels = computed<EpgGuideChannel[]>(() => {
         const strip = this.settingsStore.stripCountryPrefix?.();
-        return this.scopedChannels().map((channel, index) => ({
-            id: channel.id,
+        return this.scopedRows().map(({ rowId, channel }, index) => ({
+            id: rowId,
             number: index + 1,
             name: applyChannelNameStrip(channel.name, strip) || channel.name,
             logoUrl: channel.tvg?.logo?.trim() || null,
@@ -121,35 +155,62 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
         }));
     });
 
-    readonly activeChannelId = computed(
-        () => this.inputs()?.activeChannel()?.id ?? null
-    );
+    /**
+     * The first row carrying the active channel's id — duplicates are
+     * indistinguishable from here, so the guide marks the first of them.
+     */
+    readonly activeChannelId = computed(() => {
+        const active = this.inputs()?.activeChannel();
+        if (!active) {
+            return null;
+        }
+        return (
+            this.scopedRows().find((row) => row.channel.id === active.id)
+                ?.rowId ?? active.id
+        );
+    });
 
     bind(inputs: M3uEpgGuideInputs): void {
         this.inputs.set(inputs);
     }
 
-    /** Called by the host when the guide opens: mirror the sidebar view. */
+    /**
+     * Called by the host when the guide opens: mirror the sidebar view. In the
+     * groups view the sidebar's SELECTED group wins over the playing channel's
+     * group — the user may have browsed to another group before opening the
+     * guide, and that is what they expect to see. The playing channel's group
+     * remains the fallback (nothing selected yet, or a group with no
+     * guide-eligible channels left).
+     */
     applyInitialScope(view: string): void {
         if (view === SCOPE_FAVORITES) {
             this.scope.set(SCOPE_FAVORITES);
             return;
         }
-        const activeGroup = this.inputs()
-            ?.activeChannel()
-            ?.group?.title?.trim();
-        const groupScopeId = activeGroup
-            ? `${GROUP_PREFIX}${activeGroup}`
-            : null;
-        if (
-            view === 'groups' &&
-            groupScopeId &&
-            this.scopes().some((scope) => scope.id === groupScopeId)
-        ) {
-            this.scope.set(groupScopeId);
-            return;
+        if (view === 'groups') {
+            const groupScopeId =
+                this.groupScopeIdFor(this.inputs()?.selectedGroup()) ??
+                this.groupScopeIdFor(
+                    this.inputs()?.activeChannel()?.group?.title
+                );
+            if (groupScopeId) {
+                this.scope.set(groupScopeId);
+                return;
+            }
         }
         this.scope.set(SCOPE_ALL);
+    }
+
+    /** The scope id for a group title, or null when it offers no rows. */
+    private groupScopeIdFor(title: string | null | undefined): string | null {
+        const trimmed = title?.trim();
+        if (!trimmed) {
+            return null;
+        }
+        const scopeId = `${GROUP_PREFIX}${trimmed}`;
+        return this.scopes().some((scope) => scope.id === scopeId)
+            ? scopeId
+            : null;
     }
 
     setScope(id: string): void {
@@ -201,13 +262,12 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     }
 
     /**
-     * Looks up the channel in the current scope because the guide only ever
-     * passes back ids it rendered from `channels()`.
+     * Resolves the row id back to its own channel — the guide only ever passes
+     * back ids it rendered from `channels()`, and a duplicated channel id can
+     * only be told apart by that row id.
      */
-    activate(channelId: string): void {
-        const channel = this.scopedChannels().find(
-            (candidate) => candidate.id === channelId
-        );
+    activate(rowId: string): void {
+        const channel = this.channelsByRowId().get(rowId);
         if (channel) {
             this.store.dispatch(createM3uChannelPlaybackRequest(channel));
         }
@@ -217,11 +277,14 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
     async searchPrograms(query: string): Promise<EpgGuideSearchHit[]> {
         const programs =
             (await this.epgBridge.searchPrograms(query, SEARCH_LIMIT)) ?? [];
-        const byKey = new Map(
-            this.channels()
-                .filter((channel) => channel.epgKey !== null)
-                .map((channel) => [channel.epgKey as string, channel.id])
-        );
+        const byKey = new Map<string, string>();
+        for (const channel of this.channels()) {
+            // Duplicate rows share an EPG key; jump to the first, like
+            // `activeChannelId`.
+            if (channel.epgKey !== null && !byKey.has(channel.epgKey)) {
+                byKey.set(channel.epgKey, channel.id);
+            }
+        }
         return programs.map((program) => ({
             channelId: byKey.get(program.channel) ?? null,
             program,

@@ -45,6 +45,7 @@ describe('M3uEpgGuideSourceService', () => {
     const channels = signal<Channel[]>([]);
     const favoriteKeys = signal<string[]>([]);
     const activeChannel = signal<Channel | null>(null);
+    const selectedGroup = signal<string | null>(null);
     const dispatch = jest.fn();
     const getProgramsForChannels = jest.fn();
     const getProgramCoverage = jest.fn();
@@ -67,6 +68,7 @@ describe('M3uEpgGuideSourceService', () => {
         ]);
         favoriteKeys.set(['https://example.com/b.m3u8']);
         activeChannel.set(channels()[0]);
+        selectedGroup.set(null);
         TestBed.configureTestingModule({
             providers: [
                 M3uEpgGuideSourceService,
@@ -95,7 +97,7 @@ describe('M3uEpgGuideSourceService', () => {
             ],
         });
         service = TestBed.inject(M3uEpgGuideSourceService);
-        service.bind({ channels, favoriteKeys, activeChannel });
+        service.bind({ channels, favoriteKeys, activeChannel, selectedGroup });
     });
 
     it('offers all / groups / favorites scopes and lists channels in playlist order', () => {
@@ -169,6 +171,35 @@ describe('M3uEpgGuideSourceService', () => {
         expect(dispatch).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps duplicate channel ids apart and activates the row that was clicked', () => {
+        // `createChannel` falls back to the URL as the id, so one stream
+        // listed twice yields two channels sharing an id.
+        const duplicated = signal<Channel[]>([
+            makeChannel('dup', { name: 'First copy', group: 'News' }),
+            makeChannel('dup', { name: 'Second copy', group: 'News' }),
+        ]);
+        service.bind({
+            channels: duplicated,
+            favoriteKeys,
+            activeChannel: signal<Channel | null>(duplicated()[0]),
+            selectedGroup,
+        });
+
+        const rowIds = service.channels().map((channel) => channel.id);
+        expect(rowIds).toEqual(['dup', 'dup#1']);
+        // The playing channel marks the first of the two rows.
+        expect(service.activeChannelId()).toBe('dup');
+
+        service.activate('dup#1');
+
+        expect(dispatch).toHaveBeenCalledWith(
+            ChannelActions.setActiveChannel({
+                channel: duplicated()[1],
+                startPlayback: true,
+            })
+        );
+    });
+
     it('seeds the initial scope from the sidebar view', () => {
         service.applyInitialScope('favorites');
         expect(service.scopeId()).toBe('favorites');
@@ -176,6 +207,22 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.scopeId()).toBe('group:News');
         service.applyInitialScope('all');
         expect(service.scopeId()).toBe('all');
+    });
+
+    it("prefers the sidebar's selected group over the playing channel's group", () => {
+        selectedGroup.set('Sports');
+
+        service.applyInitialScope('groups');
+
+        expect(service.scopeId()).toBe('group:Sports');
+    });
+
+    it('falls back to the playing group when the selected one offers no rows', () => {
+        selectedGroup.set('Nothing Here');
+
+        service.applyInitialScope('groups');
+
+        expect(service.scopeId()).toBe('group:News');
     });
 
     it("falls back to the all scope when the active channel's group has no eligible channels", () => {
@@ -189,6 +236,7 @@ describe('M3uEpgGuideSourceService', () => {
             channels: sportsOnlyChannels,
             favoriteKeys,
             activeChannel: newsActiveChannel,
+            selectedGroup,
         });
 
         service.applyInitialScope('groups');

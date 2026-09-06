@@ -4,9 +4,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { BehaviorSubject, EMPTY, of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import {
     selectActive,
     selectActiveEpgProgram,
@@ -32,6 +32,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
+import { translateServiceProvider } from './video-player.spec-harness';
 
 // The component's chain reaches video.js (ui/playback → VjsPlayer); the CJS
 // bundle breaks under the ESM jest environment, so it is mocked before the
@@ -166,15 +167,7 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
                     },
                 },
                 { provide: Store, useValue: storeMock },
-                {
-                    // The component provides `M3uEpgGuideSourceService`,
-                    // which resolves its scope labels through this service.
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        onLangChange: EMPTY,
-                    },
-                },
+                translateServiceProvider,
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {
                     provide: RuntimeCapabilitiesService,

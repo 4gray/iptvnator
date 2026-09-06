@@ -70,6 +70,7 @@
                 (sidebarWidthRequested)="onSidebarWidthRequested($event)"
                 (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
                 (sidebarToggleRequested)="sidebarToggleRequested.emit()"
+                (selectedGroupChange)="selectedGroupChange.emit($event)"
             />
         }
         @case ('favorites') {

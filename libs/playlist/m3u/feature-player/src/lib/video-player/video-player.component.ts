@@ -318,6 +318,12 @@ export class VideoPlayerComponent
                 channel.radio !== 'true' && !this.opensMovieDetail(channel)
         )
     );
+    /**
+     * Group the sidebar's groups view is showing, mirrored from its
+     * `selectedGroupChange` output. The guide opens on the group the user was
+     * browsing, which is not necessarily the playing channel's.
+     */
+    readonly selectedSidebarGroup = signal<string | null>(null);
     readonly canOpenGuide = computed(() => {
         const channel = this.activeChannel();
         return (
@@ -723,6 +729,7 @@ export class VideoPlayerComponent
             // `selectActive` is `Channel | undefined`; the contract is
             // nullable, so normalize rather than widen the shared type.
             activeChannel: computed(() => this.activeChannel() ?? null),
+            selectedGroup: this.selectedSidebarGroup.asReadonly(),
         });
         // Radio, a recognised movie, or a lost channel takes the guide's host
         // (and its player) away — close instead of leaving it stranded.
@@ -1225,6 +1232,10 @@ export class VideoPlayerComponent
         } catch {
             // no-op
         }
+    }
+
+    onSidebarGroupSelected(group: string | null): void {
+        this.selectedSidebarGroup.set(group);
     }
 
     openGuide(): void {

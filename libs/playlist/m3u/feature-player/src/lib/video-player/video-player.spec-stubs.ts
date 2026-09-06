@@ -72,6 +72,7 @@ export class StubSidebarComponent {
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
     readonly sidebarToggleRequested = output<void>();
+    readonly selectedGroupChange = output<string | null>();
 }
 
 @Component({

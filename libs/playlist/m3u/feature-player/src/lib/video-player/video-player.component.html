@@ -44,6 +44,7 @@
                 onGroupedSidebarWidthRequestEnded($event)
             "
             (sidebarToggleRequested)="toggleSidebar()"
+            (selectedGroupChange)="onSidebarGroupSelected($event)"
         />
     } @loading {
         <app-channel-list-loading-state

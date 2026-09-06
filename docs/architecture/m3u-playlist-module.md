@@ -1138,6 +1138,21 @@ in the main process (manual mappings first, then the metadata lookup shared
 with the sidebar) and return programmes keyed by the requested key. Queries
 are unscoped, like the timeline.
 
+Row ids are not channel ids: `createChannel` falls back to the stream URL for
+an entry without an explicit id, so one stream listed in two groups yields two
+channels sharing an id. The adapter numbers repeats within the scope (`<id>`,
+`<id>#1`, …) — the guide keys its programme, coverage and selection maps by
+row id, so without that both copies lit up as playing and activating either
+one played the first. The active channel marks the FIRST row carrying its id,
+and `activate(rowId)` resolves the row back to its own channel. Opening the
+guide mirrors the sidebar view (`applyInitialScope`): favorites stays
+favorites, and the groups view opens on the group the sidebar's rail is
+SHOWING — forwarded from `GroupsViewComponent.selectedGroupChange` through the
+channel list container and `app-sidebar` into
+`VideoPlayerComponent.selectedSidebarGroup` — because the user may have
+browsed away from the playing channel's group before opening the guide. The
+playing channel's group is the fallback, then `all`.
+
 Guide mode is host layout, not an overlay: `VideoPlayerComponent.guideOpen`
 hides the sidebar and the timeline, renders the guide, and CSS reflows the
 untouched `app-web-player-view` into a 128 px docked strip

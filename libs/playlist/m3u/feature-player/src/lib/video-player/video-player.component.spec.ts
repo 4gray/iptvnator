@@ -5,9 +5,9 @@ import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { EMPTY, of } from 'rxjs';
+import { of } from 'rxjs';
 import { ChannelActions, EpgActions } from '@iptvnator/m3u-state';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -59,6 +59,7 @@ import {
     storeMock,
     stripCountryPrefix,
     syncStoreState,
+    translateServiceProvider,
 } from './video-player.spec-harness';
 import {
     StubAudioPlayerComponent,
@@ -144,15 +145,7 @@ describe('VideoPlayerComponent', () => {
                     provide: Store,
                     useValue: storeMock,
                 },
-                {
-                    // The guide source service reads labels through
-                    // `instant` and re-computes them on `onLangChange`.
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        onLangChange: EMPTY,
-                    },
-                },
+                translateServiceProvider,
                 {
                     provide: DataService,
                     useValue: dataServiceMock,

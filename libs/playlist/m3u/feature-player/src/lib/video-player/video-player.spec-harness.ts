@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import {
     selectActive,
     selectActiveEpgProgram,
@@ -14,7 +15,7 @@ import {
     ExternalPlayerSession,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, of } from 'rxjs';
 
 /**
  * Shared state and collaborator mocks for the `VideoPlayerComponent` spec.
@@ -113,6 +114,21 @@ export const playlistsServiceMock = {
 };
 export const dataServiceMock = {
     sendIpcEvent: jest.fn(),
+};
+
+/**
+ * `VideoPlayerComponent` provides `M3uEpgGuideSourceService`, which reads its
+ * scope labels through `TranslateService.instant` and re-computes them on
+ * `onLangChange`. Every fixture of the host therefore needs the real service
+ * token — a mocked `TranslatePipe` alone leaves it unprovided (NG0201) — so
+ * the provider lives here and is shared by all four host specs.
+ */
+export const translateServiceProvider = {
+    provide: TranslateService,
+    useValue: {
+        instant: (key: string) => key,
+        onLangChange: EMPTY,
+    },
 };
 
 export const sampleChannel: Channel = {
