@@ -4,10 +4,19 @@ import {
     signalStoreFeature,
     withComputed,
     withMethods,
+    withHooks,
     withState,
 } from '@ngrx/signals';
-import { buildXtreamEpgMappingKey, EpgItem } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    buildXtreamEpgMappingKey,
+    EpgItem,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
+import {
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -78,17 +87,29 @@ export function withEpg() {
 
     return signalStoreFeature(
         withState<EpgState>(initialEpgState),
-        withComputed((store) => ({
-            currentEpgItem: computed(() =>
-                findCurrentEpgItem(store.epgItems(), Date.now())
-            ),
-        })),
+        withComputed((store) => {
+            const settingsStore = inject(SettingsStore);
+            return {
+                currentEpgItem: computed(() =>
+                    findCurrentEpgItem(
+                        store.epgItems(),
+                        // Raw provider times vs. now in the provider's clock
+                        // (`epg-display-offset.util.ts`, clock form).
+                        epgProviderClockMs(
+                            Date.now(),
+                            settingsStore.resolvedEpgOffsetMinutes()
+                        )
+                    )
+                ),
+            };
+        }),
 
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const fallbackService = inject(XtreamXmltvFallbackService);
             const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
+            const sources = inject(EpgSourceSettingsService);
 
             const supportsEpg = (): boolean => runtime.supportsEpg;
 
@@ -131,6 +152,7 @@ export function withEpg() {
                  * sets `preferUploadedEpgOverXtream`.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
+                    const sourceRevision = sources.revision();
                     if (!supportsEpg()) {
                         patchState(store, {
                             epgItems: [],
@@ -188,6 +210,7 @@ export function withEpg() {
                                     fetchFullProvider(credentials, xtreamId),
                             });
 
+                        if (sourceRevision !== sources.revision()) return [];
                         patchState(store, {
                             epgItems,
                             isLoadingEpg: false,
@@ -195,6 +218,7 @@ export function withEpg() {
 
                         return epgItems;
                     } catch (error) {
+                        if (sourceRevision !== sources.revision()) return [];
                         logger.error('Error loading EPG', error);
                         patchState(store, {
                             epgItems: [],
@@ -239,6 +263,19 @@ export function withEpg() {
                 clearEpg(): void {
                     patchState(store, initialEpgState);
                 },
+            };
+        }),
+        withHooks((store) => {
+            const sources = inject(EpgSourceSettingsService);
+            let subscription: { unsubscribe(): void } | undefined;
+            return {
+                onInit: () => {
+                    subscription = sources.changed$.subscribe(() => {
+                        store.clearEpg();
+                        void store.loadEpg();
+                    });
+                },
+                onDestroy: () => subscription?.unsubscribe(),
             };
         })
     );

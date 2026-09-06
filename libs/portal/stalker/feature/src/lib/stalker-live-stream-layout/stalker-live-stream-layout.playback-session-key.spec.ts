@@ -120,7 +120,10 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { openStreamOnDoubleClick: signal(false) },
+                    useValue: {
+                        openStreamOnDoubleClick: signal(false),
+                        resolvedEpgOffsetMinutes: signal(0),
+                    },
                 },
                 {
                     provide: PORTAL_PLAYER,
@@ -174,9 +177,13 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
         const failed = deferred<ResolvedPortalPlayback>();
         resolveItvPlayback.mockReturnValueOnce(failed.promise);
         const failedSelection = component.playChannel(channels[1]);
+        expect(selectedItem()).toBe(channels[0]);
+        expect(component.isSelectedChannel(channels[0])).toBe(true);
         failed.reject(new Error('resolution failed'));
         await failedSelection;
         expect(session()).toEqual([firstPlayback, firstKey]);
+        expect(selectedItem()).toBe(channels[0]);
+        expect(component.isSelectedChannel(channels[0])).toBe(true);
 
         const stale = deferred<ResolvedPortalPlayback>();
         const current = deferred<ResolvedPortalPlayback>();
@@ -185,12 +192,15 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
             .mockReturnValueOnce(current.promise);
         const staleSelection = component.playChannel(channels[0]);
         const currentSelection = component.playChannel(channels[1]);
+        expect(selectedItem()).toBe(channels[0]);
         const currentPlayback = {
             streamUrl: 'https://two.example/live.m3u8',
         };
         current.resolve(currentPlayback);
         stale.resolve({ streamUrl: 'https://stale.example/live.m3u8' });
         await Promise.all([staleSelection, currentSelection]);
+        expect(selectedItem()).toBe(channels[1]);
+        expect(component.isSelectedChannel(channels[1])).toBe(true);
         expect(session()).toEqual([
             currentPlayback,
             createPlaybackSessionKey({
@@ -293,5 +303,16 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
             undefined,
             { duration: 3000 }
         );
+    });
+
+    it('does not overwrite a selection changed outside the pending playback request', async () => {
+        const pending = deferred<ResolvedPortalPlayback>();
+        resolveItvPlayback.mockReturnValueOnce(pending.promise);
+        const request = component.playChannel(channels[0]);
+        store.setSelectedItem(channels[1]);
+        pending.resolve({ streamUrl: 'https://stale.example/live.m3u8' });
+        await request;
+        expect(selectedItem()).toBe(channels[1]);
+        expect(component.activePlayback()).toBeNull();
     });
 });

@@ -78,6 +78,37 @@ describe('EpgEvents', () => {
         await new Promise((resolve) => setImmediate(resolve));
     }
 
+    it.each(['missing', 'stale', 'fresh'])(
+        'uses source-owned freshness for %s metadata',
+        async (state) => {
+            const { epgChannelSources } = await import('../database/schema');
+            const { checkEpgFreshness } = await import('./epg-fetch.service');
+            const fresh = [{ updatedAt: new Date().toISOString() }];
+            const snapshots =
+                state === 'missing'
+                    ? []
+                    : state === 'fresh'
+                      ? fresh
+                      : [{ updatedAt: '2000-01-01T00:00:00Z' }];
+            getDatabase.mockResolvedValue({
+                select: () => ({
+                    from: (table: unknown) => ({
+                        where: () => ({
+                            limit: async () =>
+                                table === epgChannelSources ? snapshots : fresh,
+                        }),
+                    }),
+                }),
+            });
+            const result = await checkEpgFreshness(['shared-source'], 12);
+            expect(result).toEqual(
+                state === 'fresh'
+                    ? { freshUrls: ['shared-source'], staleUrls: [] }
+                    : { freshUrls: [], staleUrls: ['shared-source'] }
+            );
+        }
+    );
+
     it('uses the shared worker bootstrap and passes native module search paths to the EPG worker', async () => {
         const fetchPromise = (EpgEvents as unknown as Record<string, any>)[
             'fetchEpgFromUrl'
@@ -287,6 +318,120 @@ describe('EpgEvents', () => {
         await flushPromises();
     });
 
+    it.each([
+        ['exit', 1],
+        ['error', new Error('terminated worker')],
+    ] as const)(
+        'cancels a retired source on %s without reviving it from late READY or COMPLETE messages',
+        async (event, payload) => {
+            const service = new EpgWorkerService('[Test EPG]', 1000);
+            const url = 'https://removed.example/guide.xml';
+            const progress = jest.spyOn(service, 'sendProgressToRenderer');
+            const fetch = service.fetchEpgFromUrl(url).then(
+                () => true,
+                () => false
+            );
+            const worker = mockWorkerInstances[0];
+            let finishTermination!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finishTermination = resolve;
+                })
+            );
+            const clear = service.clearEpgDataForSource(url);
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'EPG_COMPLETE' });
+            expect(worker.postMessage).not.toHaveBeenCalled();
+            expect(service.hasFetchedUrl(url)).toBe(false);
+            expect(mockWorkerInstances).toHaveLength(1);
+            worker.emit(event, payload);
+            finishTermination();
+            await flushPromises();
+            const clearWorker = mockWorkerInstances[1];
+            clearWorker.emit('message', { type: 'READY' });
+            clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await clear;
+            expect(await fetch).toBe(true);
+            expect(progress.mock.calls.map((call) => call[1])).toEqual([
+                'cancelled',
+            ]);
+        }
+    );
+
+    it('does not start a queued source removed while an earlier source imports', async () => {
+        getDatabase.mockRejectedValue(new Error('force stale for test'));
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        const { retireEpgSource } = await import('./epg-source-generation');
+        const { epgWorkerService } = await import('./epg-worker.service');
+        const progress = jest.spyOn(epgWorkerService, 'sendProgressToRenderer');
+        let finishFirst!: () => void;
+        const fetch = jest
+            .spyOn(epgWorkerService, 'fetchEpgFromUrl')
+            .mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishFirst = resolve;
+                    })
+            )
+            .mockResolvedValue(undefined);
+        const request = handleFetchEpg([
+            'https://first.example/guide.xml',
+            'https://queued.example/guide.xml',
+        ]);
+        await flushPromises();
+        retireEpgSource('https://queued.example/guide.xml');
+        finishFirst();
+        await request;
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(progress).toHaveBeenCalledWith(
+            'https://queued.example/guide.xml',
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            expect.any(Number)
+        );
+        progress.mockRestore();
+        fetch.mockRestore();
+    });
+
+    it.each([true, false])(
+        'awaits a failing worker termination before source cleanup (already retired: %s)',
+        async (alreadyRetired) => {
+            const service = new EpgWorkerService('[Test EPG]', 1000);
+            const url = `https://terminating-${alreadyRetired}.example/guide.xml`;
+            const fetch = service.fetchEpgFromUrl(url).catch(() => undefined);
+            const worker = mockWorkerInstances[0];
+            let finishTermination!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finishTermination = resolve;
+                })
+            );
+            if (alreadyRetired) {
+                const { retireEpgSource } =
+                    await import('./epg-source-generation');
+                retireEpgSource(url);
+            }
+            worker.emit(
+                'error',
+                new Error('worker failed while another source clears')
+            );
+            const clear = service.clearEpgDataForSource(url);
+            const workersBeforeTermination = mockWorkerInstances.length;
+            finishTermination();
+            await fetch;
+            await flushPromises();
+            const clearWorker = mockWorkerInstances[1];
+            clearWorker.emit('message', { type: 'READY' });
+            clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await clear;
+            expect(workersBeforeTermination).toBe(1);
+        }
+    );
+
     it('clears one EPG source through a worker and allows it to be fetched again', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
         const sourceUrl = 'https://playlist.example.com/guide.xml';
@@ -336,6 +481,66 @@ describe('EpgEvents', () => {
         expect(terminated).toBe(true);
     });
 
+    it('waits for source cleanup before starting a replacement import of the same normalized URL', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://replacement.example/guide.xml';
+        const clear = service.clearEpgDataForSource(url);
+        const clearWorker = mockWorkerInstances[0];
+        const replacement = service.fetchEpgFromUrl(` ${url} `);
+        const workersBeforeCleanup = mockWorkerInstances.length;
+        clearWorker.emit('message', { type: 'READY' });
+        clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+        await clear;
+        await flushPromises();
+        const fetchWorker = mockWorkerInstances[1];
+        fetchWorker.emit('message', { type: 'READY' });
+        fetchWorker.emit('message', { type: 'EPG_COMPLETE' });
+        await replacement;
+        expect(workersBeforeCleanup).toBe(1);
+        expect(service.hasFetchedUrl(url)).toBe(true);
+    });
+
+    it('serializes repeated clears and retires a replacement waiting for the earlier clear', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://twice-removed.example/guide.xml';
+        const firstClear = service.clearEpgDataForSource(url);
+        const waitingFetch = service.fetchEpgFromUrl(url);
+        const secondClear = service.clearEpgDataForSource(url);
+        expect(mockWorkerInstances).toHaveLength(1);
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await firstClear;
+        await waitingFetch;
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        expect(mockWorkerInstances[1].postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG_SOURCE',
+            sourceUrl: url,
+        });
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await secondClear;
+        expect(service.hasFetchedUrl(url)).toBe(false);
+    });
+
+    it('allows a replacement import after a failed source cleanup has terminated', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://retry-clear.example/guide.xml';
+        const clear = service.clearEpgDataForSource(url);
+        const outcome = clear.catch((error: Error) => error.message);
+        const replacement = service.fetchEpgFromUrl(url);
+        mockWorkerInstances[0].emit('message', {
+            type: 'EPG_ERROR',
+            error: 'clear failed',
+        });
+        expect(await outcome).toBe('clear failed');
+        await flushPromises();
+        expect(mockWorkerInstances[0].terminate).toHaveBeenCalled();
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+        await replacement;
+        expect(service.hasFetchedUrl(url)).toBe(true);
+    });
+
     it('keeps an active EPG fetch alive when worker progress keeps moving', async () => {
         jest.useFakeTimers();
 
@@ -381,7 +586,10 @@ describe('EpgEvents', () => {
          * inserts extra queries that the original test didn't anticipate.
          */
         function queryChain<T>(data: T) {
-            const chain: Record<string, jest.Mock> = {} as Record<string, jest.Mock>;
+            const chain: Record<string, jest.Mock> = {} as Record<
+                string,
+                jest.Mock
+            >;
             chain.where = jest.fn().mockReturnValue(chain);
             chain.innerJoin = jest.fn().mockReturnValue(chain);
             chain.groupBy = jest.fn().mockReturnValue(chain);
@@ -393,25 +601,30 @@ describe('EpgEvents', () => {
         // getMapping queries (must come first — they return empty)
         const from = jest
             .fn()
-            .mockReturnValueOnce(queryChain([]))                          // 1. getMapping: epgChannelMappings
-            .mockReturnValueOnce(queryChain([]))                          // 2. getMapping: content table
+            .mockReturnValueOnce(queryChain([])) // 1. getMapping: epgChannelMappings
+            .mockReturnValueOnce(queryChain([])) // 2. getMapping: content table
             // Test expectations below
-            .mockReturnValueOnce(queryChain([]))                          // 3. selectChannelPrograms (bbc.one.uk → empty)
-            .mockReturnValueOnce(queryChain([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }]))  // 4. selectChannelById → channel found
-            .mockReturnValueOnce(queryChain([                             // 5. selectChannelPrograms (BBC.ONE.UK → programs)
-                {
-                    id: 1,
-                    channelId: 'BBC.ONE.UK',
-                    start: '2026-04-14T10:00:00Z',
-                    stop: '2026-04-14T11:00:00Z',
-                    title: 'News',
-                    description: null,
-                    category: null,
-                    iconUrl: null,
-                    rating: null,
-                    episodeNum: null,
-                },
-            ]));
+            .mockReturnValueOnce(queryChain([])) // 3. selectChannelPrograms (bbc.one.uk → empty)
+            .mockReturnValueOnce(
+                queryChain([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }])
+            ) // 4. selectChannelById → channel found
+            .mockReturnValueOnce(
+                queryChain([
+                    // 5. selectChannelPrograms (BBC.ONE.UK → programs)
+                    {
+                        id: 1,
+                        channelId: 'BBC.ONE.UK',
+                        start: '2026-04-14T10:00:00Z',
+                        stop: '2026-04-14T11:00:00Z',
+                        title: 'News',
+                        description: null,
+                        category: null,
+                        iconUrl: null,
+                        rating: null,
+                        episodeNum: null,
+                    },
+                ])
+            );
 
         select.mockImplementation(() => ({ from }));
 

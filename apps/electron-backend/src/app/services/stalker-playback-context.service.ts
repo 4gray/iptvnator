@@ -6,7 +6,6 @@ import {
 } from '@iptvnator/shared/interfaces';
 
 const STALKER_STREAM_USER_AGENT = 'KSPlayer';
-const STALKER_STREAM_RANGE_HEADER = 'bytes=0-';
 
 const CONTEXT_TTL_MS = 15 * 60 * 1000;
 
@@ -111,10 +110,10 @@ export function rememberStalkerPlaybackContext(input: {
 
     const headers: Record<string, string> = crossOriginStream
         ? {
-              // Align with known working clients for direct tokenized stream URLs.
+              // Match the renderer's direct profile; the player owns Range
+              // so each seek can request its own byte offset.
               'User-Agent': STALKER_STREAM_USER_AGENT,
               Accept: '*/*',
-              Range: STALKER_STREAM_RANGE_HEADER,
               'Icy-MetaData': '1',
               Connection: 'keep-alive',
           }

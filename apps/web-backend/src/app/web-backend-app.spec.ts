@@ -99,6 +99,37 @@ https://stream.example/news.m3u8`);
         );
     });
 
+    it.each(['  IPTVnator-Test/1.0  ', '', '   '])(
+        'forwards and persists the optional playlist User-Agent: %s',
+        async (userAgent) => {
+            const httpClient = new StubHttpClient();
+            httpClient.queueResponse('#EXTM3U');
+            await withServer(
+                createWebBackendApp({
+                    httpClient,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (baseUrl) => {
+                    const targetId = await registerProviderTarget(
+                        baseUrl,
+                        'https://provider.example/list.m3u'
+                    );
+                    const params = new URLSearchParams({ targetId, userAgent });
+                    const response = await fetch(`${baseUrl}/parse?${params}`);
+                    expect(response.status).toBe(200);
+                    const body = (await response.json()) as {
+                        userAgent?: string;
+                    };
+                    const expected = userAgent.trim() || undefined;
+                    expect(httpClient.requests[0].headers?.['User-Agent']).toBe(
+                        expected
+                    );
+                    expect(body.userAgent).toBe(expected);
+                }
+            );
+        }
+    );
+
     it('parses XMLTV metadata into the current EPG shape', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueResponse(`<?xml version="1.0"?>

@@ -8,12 +8,15 @@ import {
     Injector,
     OnDestroy,
     OnInit,
+    TemplateRef,
     computed,
     effect,
+    forwardRef,
     inject,
     linkedSignal,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -94,6 +97,9 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import {
     AudioPlayerComponent,
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     SidebarComponent,
     WebPlayerViewComponent,
@@ -113,6 +119,7 @@ import {
     Channel,
     createDevLogger,
     EpgProgram,
+    epgProviderClockMs,
     ExternalPlayerSession,
     filterRecordingProgramsOverlap,
     OPEN_MPV_PLAYER,
@@ -130,6 +137,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
+import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
 const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';
@@ -156,6 +164,29 @@ function readStoredVolume(): number {
     return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 1;
 }
 
+/**
+ * PageUp/PageDown switch channels unless the key would scroll something the
+ * user is focused in (the sidebar's virtual list, a menu): a focused row in a
+ * scrollable list keeps the browser's native paging.
+ */
+function isInsideScrollableRegion(
+    target: EventTarget | null,
+    boundary: HTMLElement
+): boolean {
+    let element = target instanceof HTMLElement ? target : null;
+    while (element && element !== boundary && element !== document.body) {
+        const { overflowY } = getComputedStyle(element);
+        if (
+            (overflowY === 'auto' || overflowY === 'scroll') &&
+            element.scrollHeight > element.clientHeight
+        ) {
+            return true;
+        }
+        element = element.parentElement;
+    }
+    return false;
+}
+
 @Component({
     selector: 'app-video-player',
     imports: [
@@ -165,6 +196,7 @@ function readStoredVolume(): number {
         CommonModule,
         EpgListViewComponent,
         EpgTimelineComponent,
+        M3uFullscreenChannelListComponent,
         M3uVodDetailComponent,
         MatButtonModule,
         MatIconModule,
@@ -176,10 +208,20 @@ function readStoredVolume(): number {
         TranslatePipe,
         WebPlayerViewComponent,
     ],
+    providers: [
+        // The fullscreen channel panel inside the player renders this page's
+        // channel list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => VideoPlayerComponent),
+        },
+    ],
     templateUrl: './video-player.component.html',
     styleUrl: './video-player.component.scss',
 })
-export class VideoPlayerComponent implements OnInit, OnDestroy {
+export class VideoPlayerComponent
+    implements OnInit, OnDestroy, FullscreenChannelPanelHost
+{
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dataService = inject(DataService);
@@ -221,6 +263,45 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     });
     readonly channels = this.store.selectSignal(selectChannels);
     readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
+    readonly activePlaylistRecentItems = computed(
+        () => this.playlistContext.activePlaylist()?.recentlyViewed ?? []
+    );
+
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
+    /**
+     * FULLSCREEN_CHANNEL_PANEL: the playlist's channel list, unless opted
+     * out. Withheld while the M3U VOD detail hosts the player: a movie is
+     * not something to zap away from, and the nested `WebPlayerViewComponent`
+     * would otherwise inherit this component-level provider.
+     */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false ||
+        this.showMovieDetail()
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(() =>
+        playlistDisplayLabel(this.activePlaylistMeta()?.title)
+    );
+    /**
+     * Rows the fullscreen panel may offer: everything that keeps
+     * `app-web-player-view` — the element that owns fullscreen — mounted when
+     * selected. Radio stations render through `app-audio-player` and
+     * recognized movies (with TMDB enrichment and `m3uVodDetails` on) through
+     * the VOD detail shell, so picking either destroys that element and drops
+     * the user out of fullscreen — the opposite of what this panel exists
+     * for. Every panel view resolves against this list (favorites and recent
+     * look their rows up in it), so one filter covers all four. Numeric and
+     * adjacent-channel commands apply the same restriction in fullscreen;
+     * windowed playback keeps the complete catalog and its numbering.
+     * With external MPV/VLC configured, only DASH rows remain inline; a
+     * non-DASH selection would replace this host with the external-player UI.
+     */
+    readonly fullscreenPanelChannels = computed(() =>
+        this.channels().filter((channel) => this.keepsInlinePlayer(channel))
+    );
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
@@ -255,13 +336,21 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      */
     readonly showMovieDetail = computed(() => {
         const channel = this.activeChannel();
+        return !!channel && this.opensMovieDetail(channel);
+    });
+
+    /**
+     * Whether selecting `channel` swaps the live layout for the VOD detail
+     * shell — the one predicate behind {@link showMovieDetail} and the
+     * fullscreen panel's row filter, so the two can never disagree.
+     */
+    private opensMovieDetail(channel: Channel): boolean {
         return (
-            !!channel &&
             this.settingsStore.m3uVodDetails?.() !== false &&
             this.tmdbEnrichment.isEnabled() &&
             isLikelyM3uMovie(channel)
         );
-    });
+    }
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
@@ -393,6 +482,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
@@ -437,7 +527,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         // gap must snapshot no program, not a stale one — stop enrichment
         // deliberately never overwrites a persisted start title.
         const program =
-            findCurrentEpgProgram(this.epgPrograms(), this.epgNowMs()) ?? null;
+            findCurrentEpgProgram(
+                this.epgPrograms(),
+                epgProviderClockMs(this.epgNowMs(), this.epgOffsetMinutes())
+            ) ?? null;
         const playlistName = playlistDisplayLabel(
             this.activePlaylistMeta()?.title
         );
@@ -485,7 +578,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         const programs = filterRecordingProgramsOverlap(
             this.epgPrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -619,7 +713,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 EpgActions.setEpgAvailableFlag({ value: programs.length > 0 })
             );
 
-            const currentProgram = findCurrentEpgProgram(programs, nowMs);
+            // Raw programme times vs. now in the provider's EPG clock
+            // (`epg-display-offset.util.ts`, clock form).
+            const currentProgram = findCurrentEpgProgram(
+                programs,
+                epgProviderClockMs(nowMs, this.epgOffsetMinutes())
+            );
             if (currentProgram) {
                 this.store.dispatch(
                     EpgActions.setCurrentEpgProgram({ program: currentProgram })
@@ -808,9 +907,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             const currentEpgProgram = epgProgram as
-                | EpgProgram
-                | null
-                | undefined;
+                EpgProgram | null | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );
@@ -853,7 +950,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             .subscribe({
                 next: ({ channels, activeChannel }) => {
                     const nextChannel = getAdjacentChannelItem(
-                        channels,
+                        this.isLivePlayerFullscreen()
+                            ? channels.filter((channel) =>
+                                  this.keepsInlinePlayer(channel)
+                              )
+                            : channels,
                         activeChannel.url,
                         direction,
                         (channel) => channel.url
@@ -1113,7 +1214,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     @HostListener('document:keydown', ['$event'])
     handleKeyPress(event: KeyboardEvent): void {
-        if (isTypingInInput(event)) {
+        if (event.defaultPrevented || isTypingInInput(event)) {
             return;
         }
         // Behind the workspace's phone context drawer the route content is
@@ -1132,6 +1233,39 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return;
         }
         if (event.metaKey || event.ctrlKey || event.altKey) {
+            return;
+        }
+        // PageUp/PageDown zap through the list like a remote's channel keys —
+        // the one way to change channels from the keyboard in fullscreen.
+        if (event.key === 'PageUp' || event.key === 'PageDown') {
+            if (
+                event
+                    .composedPath()
+                    .some(
+                        (target) =>
+                            target instanceof Element &&
+                            target.matches(
+                                '.cdk-overlay-pane, [role="menu"], [role="dialog"]'
+                            )
+                    ) ||
+                isInsideScrollableRegion(
+                    event.target,
+                    this.hostElement.nativeElement
+                )
+            ) {
+                return;
+            }
+            // There is nothing to zap from until a channel is playing, and
+            // handleRemoteChannelChange would park the press on a pending
+            // subscription that fires the moment the user picks their first
+            // channel — jumping straight off it.
+            if (!this.activeChannel()) {
+                return;
+            }
+            event.preventDefault();
+            this.handleRemoteChannelChange(
+                event.key === 'PageUp' ? 'up' : 'down'
+            );
             return;
         }
         // Only handle digit keys (0-9)
@@ -1174,12 +1308,42 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 )
             )
             .subscribe((channel) => {
-                if (channel) {
+                if (
+                    channel &&
+                    (!this.isLivePlayerFullscreen() ||
+                        this.keepsInlinePlayer(channel))
+                ) {
                     this.store.dispatch(
                         createM3uChannelPlaybackRequest(channel)
                     );
                 }
             });
+    }
+
+    private keepsInlinePlayer(channel: Channel): boolean {
+        return (
+            channel.radio !== 'true' &&
+            !this.opensMovieDetail(channel) &&
+            (!this.isExternalPlayer(this.settingsStore.player()) ||
+                isDashChannel(channel))
+        );
+    }
+
+    /**
+     * Whether this page's inline live player owns fullscreen. With shared
+     * controls the fullscreen element is `app-web-player-view` itself; with
+     * the vendor-chrome opt-out a legacy player fullscreens its own nested
+     * surface (the `.video-js` element, ArtPlayer's container, the `<video>`),
+     * so the check accepts any fullscreen element inside that host — leaving
+     * fullscreen through an ineligible channel is the same loss either way.
+     */
+    private isLivePlayerFullscreen(): boolean {
+        const fullscreen = document.fullscreenElement;
+        return (
+            !this.showMovieDetail() &&
+            !!fullscreen?.closest('app-web-player-view') &&
+            this.hostElement.nativeElement.contains(fullscreen)
+        );
     }
 
     /**

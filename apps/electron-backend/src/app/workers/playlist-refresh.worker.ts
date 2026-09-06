@@ -112,6 +112,9 @@ async function fetchPlaylistFromUrl(
                     trustedInsecureTlsHosts: payload.trustedInsecureTlsHosts,
                 }),
                 method: 'GET',
+                ...(payload.userAgent?.trim()
+                    ? { headers: { 'User-Agent': payload.userAgent.trim() } }
+                    : {}),
                 signal: controller.signal,
                 timeout: PLAYLIST_FETCH_TIMEOUT_MS,
             },

@@ -24,6 +24,17 @@ This file provides guidance to coding agents working in this repository.
   `patches/vite@7.3.6.patch`. Keep the patch until supported Angular tooling
   resolves a Vite version containing the fix, and run `pnpm run deps:vite:test`
   after related dependency updates.
+- `app-builder-lib` `26.15.7` (electron-builder's macOS signing) is patched in
+  `patches/app-builder-lib@26.15.7.patch` with the upstream backport
+  electron-userland/electron-builder#10172: `security set-key-partition-list -k`
+  must receive the temporary keychain's own password, not the `.p12` import
+  password. macOS runner images since `macos-26-arm64` 20260831 verify that
+  password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
+name or passphrase you entered is not correct`. Keep the patch until
+  electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
+  and run `pnpm run deps:electron-builder:test` after related dependency
+  updates — the test fails when the patched version no longer matches the
+  installed one.
 - A directory holding files consumed by other projects must be an Nx project.
   Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
   across project roots creates no edge and the imported file lands in no task
@@ -91,6 +102,17 @@ This file provides guidance to coding agents working in this repository.
 - Electron-specific changes affecting IPC, SQLite, packaged runtime, external players, native file access, or Electron-only routes require Electron E2E coverage where available, or CDP/manual verification with `agent-browser` and the tracing flags documented below.
 - Final task summaries must list tests added or updated, validation commands run with results, and any skipped validation with the reason. For docs-only changes, state that unit/E2E validation was not required and verify the changed Markdown instead.
 
+## Legacy Desktop Profile Migration
+
+`electron-profile-bootstrap.ts` selects the known v0.19 `electron-backend`
+profile before eager main-process imports only when current Chromium storage
+is unused. Existing profiles retain their settings and offer explicit recovery
+of missing sources from a disposable legacy snapshot. Playlist rows and a
+completion receipt commit atomically in the DB worker; original IndexedDB is
+retained, current payload rows are preserved, and completed imports never
+replay deleted sources. Contract and recovery limits:
+`docs/architecture/m3u-playlist-module.md` (Desktop upgrades from legacy profiles).
+
 ## Electron Debugging (CDP)
 
 - Start the Electron development app with: `nx serve electron-backend`
@@ -155,6 +177,68 @@ agent-browser connect ws://127.0.0.1:9222/devtools/page/<iptvnator-page-id>
 agent-browser screenshot /tmp/iptvnator-cdp.png
 ```
 
+## Xtream Category Management
+
+The Electron Live TV, Movies, and Series category dialog applies Select/Deselect
+to search results while a filter is active and to the whole type otherwise.
+Button states use the matching group; "Total selected" counts the whole catalog.
+Save persists the complete draft, Close discards it, and refresh restores hidden
+categories by provider ID and type. See `docs/architecture/category-management.md`.
+
+## XMLTV Source Removal
+
+Saving Settings → EPG reconciles cached XMLTV with committed global URLs and
+all enabled M3U playlist sources. Startup runs the same reconciliation after
+settings load and playlist migration. Ordinary saves skip unchanged normalized
+source sets; an explicitly edited EPG field can retry a failed cleanup.
+A cleanup failure after persistence still mirrors committed settings to Electron;
+the form stays dirty for retry. Failed storage writes never mirror to main.
+Failed settings reads and incomplete playlist migration never authorize pruning.
+Removed sources retire queued/running imports and dismiss retained error rows
+before worker-owned deletion. Retry waits for reconciliation and rechecks its
+error row, including after trust-setting writes. Shared channel IDs survive while
+another source has programmes or per-source channel metadata. The additive
+`epg_channel_sources` table preserves each imported source's name, logo, URL and
+timestamp plus transaction-ordered `write_order`, so removal restores the latest
+surviving snapshot even when import timestamps tie; ambiguous legacy metadata
+falls back to the XMLTV ID until reimport. Manual mappings remain user preferences, but no
+longer resolve deleted data. Renderer lookup generations, Xtream previews and Stalker mapping-cache
+invalidation prevent late results from restoring removed programmes. Provider
+EPG is independent. See `docs/architecture/m3u-playlist-module.md`
+("XMLTV source lifecycle").
+
+## Portal Connectivity Preference
+
+- Half-open trial slots follow the complete request lifetime with no elapsed-time
+  expiry. All four Electron/web-backend portal handlers release in `finally`,
+  independently of outcome reporting; cleanup preserves trial/epoch ownership
+  and works while the environment override is disabled. Contract:
+  `docs/architecture/host-connectivity-guard.md` ("Trial ownership follows the
+  request lifetime").
+- Desktop Settings > General > Portal connections exposes default-on
+  `Settings.portalConnectivityGuard`. Only explicit false opts out. Save mirrors
+  the value to Electron `PORTAL_CONNECTIVITY_GUARD` and applies it without restart;
+  settings bootstrap restores it before the renderer loads. It controls Xtream
+  and Stalker together. Preference transitions clear cooldowns and invalidate old
+  request completions; unchanged saves preserve evidence. The environment switch
+  `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` remains authoritative. PWA clients do not
+  control the shared backend's guard.
+- Both account-info dialogs explain guard refusals with localized paused-request
+  copy and Retry now; Stalker preserves cached account data on a failed refresh.
+  Contract: `docs/architecture/host-connectivity-guard.md`.
+
+## Channel and Detail Keyboard Scrolling
+
+Channel scroll owners use `ChannelScrollFocusDirective`; pointer selection
+focuses the viewport, native scrolling survives virtual row recycling, and
+row Enter/Space activation stays separate from focus movement. Portal Live TV
+uses ArrowRight from the selected category and ArrowLeft from the channels
+pane to move between columns. Shared live sidebars reserve scrollbar space
+beside the resize handle. `PortalDetailShellComponent` owns a visible native
+scrollbar and guarded initial page focus. Contracts:
+`docs/architecture/iptvnator-ui-guidelines.md` and
+`docs/architecture/portal-detail-navigation.md`.
+
 ## Radio / Audio Player
 
 M3U playlists can contain radio channels identified by the `radio="true"` attribute on `#EXTINF` lines. When a radio channel is selected:
@@ -174,7 +258,25 @@ Key files:
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
 
+## M3U URL User-Agent
+
+- The URL import form accepts an optional User-Agent and stores it as
+  `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
+  and startup auto-update. The self-hosted PWA sends it through the registered
+  target `/parse` backend proxy for import and refresh; a matching backend is
+  required, and browser playback-header restrictions still apply.
+- Reuse the existing source editor and channel-over-playlist playback header
+  precedence. Contract: `docs/architecture/m3u-playlist-module.md`
+  ("User-Agent for URL sources").
+
 ## Shared Player Controls
+
+- The Embedded MPV native-view dock follows app theme tokens as a solid app
+  surface, including Material icon-button disabled states. Over-video loading,
+  stalled and feedback overlays keep a paired light-on-dark palette. Video
+  viewports remain black in windowed and fullscreen modes. Shared EPG panels
+  use the library-local app-token palette in `libs/ui/epg/src/lib/_epg-theme.scss`.
+  Theme/contrast contract: `docs/architecture/iptvnator-ui-guidelines.md`.
 
 - `libs/ui/playback/src/lib/player-controls/` contains the additive,
   engine-neutral `PlayerController` contract, standalone
@@ -203,6 +305,29 @@ Key files:
   `PortalInlinePlayerComponent.seriesTitle` and `WebPlayerViewComponent.mediaTitle`;
   movie and live hosts fall back to `playback.title`, skipping raw stream-URL
   fallbacks. Outside fullscreen the overlay stays hidden.
+- Auto-hide pauses while the pointer is over the controls bar or keyboard
+  focus is inside it, but only keyboard-originated focus pins the bar open.
+  Chromium also focuses a clicked `<button>`, so
+  `ControlsSurface.wasPointerInteraction` attributes a `focusin` to a recent
+  `pointerdown` inside the focused element; such focus reveals without
+  blocking auto-hide (otherwise the fullscreen button left the controls on
+  screen until a click-to-pause on the viewport). The press record is
+  discarded on the first bar focus event it is asked about or on any
+  `keydown`, a `pointerdown` inside the bar releases a keyboard pin, and a
+  `keydown` bubbling out of a bar control re-pins it, since operating a
+  focused control produces no focus event. A completed pointer click then
+  releases the focus it left on the control (`onBarClick` →
+  `ControlsSurface.releasePointerFocus`, attributed by `wasPointerClick`:
+  non-empty click `pointerType`, else a recent press inside the clicked
+  element), because a focused control captures the keyboard: Space and
+  Enter re-activated the clicked button and `ControlsShortcuts` yields to
+  any interactive element in the key's path, so after a click on fullscreen
+  Space left fullscreen instead of pausing. Keyboard activation (empty
+  `pointerType`) keeps focus, only buttons and range sliders are released,
+  Chromium keeps its sequential-focus starting point at the blurred control
+  so Tab continues from it, and the volume popover ignores the release's
+  `focusout` (`wasPointerFocusRelease`). Contract:
+  `docs/architecture/player-controls-contract.md` (auto-hide paragraph).
 - Persisted `Settings.webPlayerSharedControls` is default-ON (absent stored
   values coerce with `!== false`; only an explicit false opts out to the legacy
   vendor chrome), and its checkbox appears only when HTML5, Video.js, or
@@ -255,6 +380,73 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
+- `WebPlayerViewComponent` renders `app-fullscreen-channel-panel`
+  (`libs/ui/playback/src/lib/fullscreen-channel-panel/`) beside the engine,
+  staged on the view's `fullscreenSurface` — the same host element every engine
+  receives as `fullscreenTarget` — so it lives inside the fullscreen element
+  and survives the engine remount a channel switch causes. It is withheld
+  (`enabled=false`) for native-view Embedded MPV, which paints above the DOM.
+  A confirmed frame-copy capability survives the unknown support probe during
+  an engine remount, preserving panel search/scroll on channel changes; the
+  first unknown probe and confirmed native/unsupported results withhold it.
+  A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
+  `panelTitle`) and the panel slides that list over the video: left-edge hover
+  dwell, a touch tap on that edge, or `C`. Nothing is drawn while it is closed
+  (no handle), the hot zone stops above the controls bar, and scrim/Escape/
+  mouse-leave close it — while a CDK overlay opened from the list counts as
+  the panel, so hover keeps it open and Escape closes the overlay first. The
+  header is one row (search whose placeholder carries the host title, plus
+  close) and the list stays mounted per fullscreen session.
+  `Settings.fullscreenChannelPanel` (default on) gates it, offered only for the
+  web players with shared controls and for Embedded MPV — the legacy vendor
+  chrome fullscreens the engine's own element, outside which the panel cannot
+  render. Providers: M3U `VideoPlayerComponent` (returns null while its VOD
+  detail hosts the player; radio and recognized movies are filtered out of
+  the list it is handed, since `app-audio-player` and the VOD detail shell
+  each replace the fullscreen-owning `app-web-player-view`; with MPV/VLC
+  configured, only DASH rows stay offered because other streams leave the
+  inline host for the external-player UI), Xtream
+  `LiveStreamLayoutComponent`,
+  `StalkerLiveStreamLayoutComponent` (one `ng-template` stamped twice; a blank
+  panel field shows the category untouched by the sidebar's search term (or
+  the windowed full cache when playback starts from All Items without a
+  category), the
+  panel's search results are windowed by `PanelSearchWindow`, and on a paged
+  portal the panel copy keeps requesting pages while its matches do not fill
+  it, even while the sidebar's own search is active; the retained closed
+  panel pauses paging and resumes automatic filling when reopened; inline video
+  commits the selected channel with the resolved playback, retaining the old
+  selection, EPG and recording metadata during a pending or failed replacement), and
+  `UnifiedLiveTabComponent` (radio filtered the same way; it keeps the previous
+  detail mounted until the next selection resolves, with `activeItem` paired
+  to that detail so the session key and recording metadata keep describing
+  the stream on screen — only the `activeUid` row highlight moves ahead; a
+  second activation of the row still resolving folds its start-playback or
+  auto-open intent into that request instead of launching the retained
+  stream, and a
+  failed replacement restores that highlight and retains the previous video,
+  catch-up and session). M3U PageUp/PageDown yield to already-handled events
+  and menu/dialog overlay targets even when the menu has no scroll overflow.
+  Numeric and adjacent-channel commands share the panel eligibility filter
+  while the live web-player host owns fullscreen (itself, or through the
+  nested surface a legacy player fullscreens under the vendor-chrome
+  opt-out); numbers keep their original positions and ineligible numbers are
+  ignored. Windowed commands keep the
+  complete catalog.
+  Xtream's two `PortalChannelsListComponent` instances relay favorite toggles
+  through `XtreamFavoriteMarksService`. CDK overlays follow the
+  fullscreen element via `FullscreenOverlayContainer`. Contract:
+  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel").
+- Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
+  go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
+  delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper
+  stdin command `seek-by`, Linux JSON IPC) and never advances the snapshot
+  position itself. Do not derive an absolute target from the renderer's
+  `positionSeconds`: it is floored to whole seconds, polled every 500 ms, and
+  a seek reply does not carry the new position, so rapid presses computed from
+  it collapse onto one target. Only the timeline scrub commits an absolute
+  `seek`. Contract: `docs/architecture/embedded-mpv-native.md` ("Resume And
+  Track Handling").
 - DASH (`.mpd`) sources play through a lazily imported Shaka Player source
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
@@ -434,7 +626,27 @@ Key files:
   path keeps the existing Video.js skin and legacy series navigation unchanged
   (still without `userActions.hotkeys`), while the playback keyboard shortcuts
   attach through `LegacyPlayerShortcuts` and drive the player API so the
-  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`).
+  vendor control bar stays in sync (`vjs-legacy-shortcuts.ts`). That chrome
+  also releases the focus a pointer interaction leaves on a control
+  (`vjs-pointer-focus-release.ts`, sharing `pointer-focus-release.ts`'s
+  `blurFocusedControl` with `ControlsSurface`): a focused Video.js component
+  stops every key before the document and turns Space/Enter into a click, so
+  after a click on fullscreen Space left fullscreen instead of pausing. It is
+  driven mainly by `focusin`, not the click, because choosing a menu item
+  moves focus to the menu button a tick later and that click never bubbles to
+  the shell: an eligible control (button/`role=button`/slider, never a menu
+  item) is released when its focus is attributable to a recent shell
+  `pointerdown` not yet ended by a document `keydown`, so `Tab` focus is kept.
+  A `click` runs the same release for a control clicked while already focused
+  (Tab, then a mouse click), which fires no `focusin`. The release is scoped
+  to `.vjs-control-bar`, so the caption-settings dialog (a modal sibling of
+  the bar) keeps its focus trap. Menu buttons live in the bar and are not
+  exempt: a popup is navigated through its focused item, so releasing the
+  button never disturbs an open menu, and the button focus a pointer moves
+  through (open, item selection, toggling an open menu shut) is released so
+  Space works again after the menu closes. ArtPlayer
+  (non-focusable divs) and the native HTML5 controls (focus lands on the
+  `<video>`) need no counterpart.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
   HLS/DASH(Shaka)/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
@@ -458,7 +670,7 @@ Key files:
   `pictureInPictureActive`/`canPictureInPicture`, and command
   `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard
   element PiP from the adapter's attached video; shared ArtPlayer keeps vendor
-  `pip: false`, while preference-off native/vendor paths remain unchanged. The
+  `pip: false`, while preference-off native/vendor controls keep their own UI. The
   capability-gated button sits before fullscreen and uses active enter/exit
   semantics; entry is disabled until metadata, and the action is disabled while
   an operation is pending. Embedded MPV reports capability/state false with a
@@ -471,7 +683,14 @@ Key files:
   serialized, and binding generation plus exact video identity protects
   replacement and teardown from stale completion. Video.js Tech reset and
   ArtPlayer rebuild rebind with exact-owner cleanup; HTML5 source changes on a
-  retained target preserve PiP.
+  retained target preserve PiP. Legacy HTML5/ArtPlayer teardown and Video.js
+  Tech replacement also release exact-owned PiP through
+  `web-video-picture-in-picture-lifecycle.ts`, independent of the controls
+  preference. A one-shot listener on the retired video closes late native/vendor
+  entries without retaining the host or touching another video's PiP. Legacy
+  WebKit presentation-mode PiP also returns the retired video to inline; its
+  presentation-change listener ignores fullscreen/inline events until a late
+  PiP entry consumes it.
   Standard PiP shows the browser/OS video surface without Angular control
   chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
   keyboard shortcut, and Embedded MPV popup/native support are out of scope.

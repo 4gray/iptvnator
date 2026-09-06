@@ -72,6 +72,7 @@ describe('AddPlaylistDialogComponent', () => {
             form: {
                 getRawValue: () => ({
                     playlistName: '  My Playlist  ',
+                    userAgent: '  IPTVnator-Test/1.0  ',
                     playlistUrl: ' https://example.com/list.m3u ',
                 }),
             },
@@ -83,6 +84,7 @@ describe('AddPlaylistDialogComponent', () => {
             PLAYLIST_PARSE_BY_URL,
             {
                 title: 'My Playlist',
+                userAgent: 'IPTVnator-Test/1.0',
                 url: 'https://example.com/list.m3u',
             }
         );
@@ -94,6 +96,7 @@ describe('AddPlaylistDialogComponent', () => {
             form: {
                 getRawValue: () => ({
                     playlistName: '   ',
+                    userAgent: '   ',
                     playlistUrl: 'https://example.com/list.m3u',
                 }),
             },

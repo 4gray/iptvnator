@@ -49,6 +49,19 @@ describe('marketing poster URLs', () => {
         });
     });
 
+    it('resolves channel logo paths the same way as posters', () => {
+        const req = request('http', { host: 'localhost:3210' });
+
+        expect(
+            resolveMarketingPosterUrls(
+                { logo: '/assets/marketing/logo/aurora-news.svg?size=256x256' },
+                buildRequestOrigin(req)
+            )
+        ).toEqual({
+            logo: 'http://localhost:3210/assets/marketing/logo/aurora-news.svg?size=256x256',
+        });
+    });
+
     it('preserves unrelated URLs and values', () => {
         const payload = {
             cover: 'https://picsum.photos/seed/movie/300/450',

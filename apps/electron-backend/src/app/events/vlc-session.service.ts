@@ -249,6 +249,10 @@ export async function openVlcPlayer({
         if (rcPort > 0) {
             args.push('--extraintf=rc');
             args.push(`--rc-host=127.0.0.1:${rcPort}`);
+            if (process.platform === 'win32') {
+                // Keep TCP control without VLC's separate DOS console.
+                args.push('--rc-quiet');
+            }
         }
 
         if (effectiveUserAgent) {
@@ -521,7 +525,7 @@ export async function openVlcPlayer({
                             (arg) =>
                                 !arg.includes('--extraintf') &&
                                 !arg.includes('--rc-host') &&
-                                !arg.includes('--rc-quiet')
+                                arg !== '--rc-quiet'
                         );
                         spawnVlc(retryArgs, true);
                     } else {
@@ -572,7 +576,7 @@ export async function openVlcPlayer({
                             (arg) =>
                                 !arg.includes('--extraintf') &&
                                 !arg.includes('--rc-host') &&
-                                !arg.includes('--rc-quiet')
+                                arg !== '--rc-quiet'
                         );
                         spawnVlc(retryArgs, true);
                         return;

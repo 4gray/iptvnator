@@ -1,8 +1,4 @@
-<section
-    class="settings-group"
-    id="playback"
-    [formGroup]="form()"
->
+<section class="settings-group" id="playback" [formGroup]="form()">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>play_circle</mat-icon>
@@ -132,6 +128,34 @@
         </div>
     }
 
+    @if (supportsFullscreenChannelPanel()) {
+        <div
+            class="setting-item"
+            data-test-id="fullscreen-channel-panel-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.FULLSCREEN_CHANNEL_PANEL' | translate }}
+                </h4>
+                <p>
+                    {{
+                        'SETTINGS.FULLSCREEN_CHANNEL_PANEL_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    [aria-label]="
+                        'SETTINGS.FULLSCREEN_CHANNEL_PANEL' | translate
+                    "
+                    formControlName="fullscreenChannelPanel"
+                    data-test-id="fullscreen-channel-panel-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    }
+
     <!-- Only the web players raise a playback diagnostic, so under MPV, VLC
          or Embedded MPV nothing would ever trigger a failover. -->
     @if (supportsVodMultiSource() && isWebPlayerSelected()) {
@@ -230,6 +254,101 @@
                     <mat-checkbox
                         formControlName="embeddedMpvFrameCopy"
                         data-test-id="embedded-mpv-frame-copy-toggle"
+                    ></mat-checkbox>
+                </div>
+            </div>
+        }
+
+        @if (form().value.player === 'embedded-mpv') {
+            <div
+                class="setting-item"
+                data-test-id="embedded-mpv-extra-options-setting"
+            >
+                <div class="setting-item__meta">
+                    <h4>
+                        {{ 'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS' | translate }}
+                    </h4>
+                    <p>
+                        {{
+                            'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-label for="embeddedMpvExtraOptions">{{
+                            'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS' | translate
+                        }}</mat-label>
+                        <textarea
+                            matInput
+                            id="embeddedMpvExtraOptions"
+                            formControlName="embeddedMpvExtraOptions"
+                            placeholder="hwdec=auto-safe"
+                            rows="3"
+                            spellcheck="false"
+                            autocomplete="off"
+                        ></textarea>
+                        <mat-hint>{{
+                            'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_HINT'
+                                | translate
+                        }}</mat-hint>
+                        @if (
+                            form().get('embeddedMpvExtraOptions')?.errors;
+                            as errors
+                        ) {
+                            <mat-error
+                                data-test-id="embedded-mpv-extra-options-error"
+                            >
+                                @if (errors['forbiddenKeys']) {
+                                    {{
+                                        'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_FORBIDDEN_KEYS'
+                                            | translate
+                                                : {
+                                                      keys: errors[
+                                                          'forbiddenKeys'
+                                                      ].join(', '),
+                                                  }
+                                    }}
+                                } @else if (errors['invalidLines']) {
+                                    {{
+                                        'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_INVALID_LINES'
+                                            | translate
+                                                : {
+                                                      lines: errors[
+                                                          'invalidLines'
+                                                      ].join(', '),
+                                                  }
+                                    }}
+                                }
+                            </mat-error>
+                        }
+                    </mat-form-field>
+                </div>
+            </div>
+
+            <div
+                class="setting-item"
+                data-test-id="embedded-mpv-auto-reconnect-setting"
+            >
+                <div class="setting-item__meta">
+                    <h4>
+                        {{ 'SETTINGS.EMBEDDED_MPV_AUTO_RECONNECT' | translate }}
+                    </h4>
+                    <p>
+                        {{
+                            'SETTINGS.EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-checkbox
+                        formControlName="embeddedMpvAutoReconnect"
+                        data-test-id="embedded-mpv-auto-reconnect-toggle"
                     ></mat-checkbox>
                 </div>
             </div>

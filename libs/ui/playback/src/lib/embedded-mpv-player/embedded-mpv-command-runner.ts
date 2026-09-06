@@ -38,11 +38,30 @@ export class EmbeddedMpvCommandRunner {
         );
     }
 
+    /**
+     * Relative seek. mpv resolves the delta against its own playback position
+     * (`seek <delta> relative+exact`) and merges relative seeks still waiting
+     * in its queue, so a burst of arrow presses accumulates. Computing an
+     * absolute target here from `session.positionSeconds` is wrong: that is a
+     * whole-second snapshot refreshed at most every 500 ms, and a seek reply
+     * does not carry the new position yet, so every press inside that window
+     * landed on the same target and the user saw about one second of
+     * progress per press. The absolute form survives only as a fallback for
+     * a bridge without `seekEmbeddedMpvBy`.
+     */
     async seekBy(deltaSeconds: number): Promise<boolean> {
         const id = this.ctx.sessionId();
         const session = this.ctx.session();
         const electron = this.bridge();
-        if (!id || !session || !electron?.seekEmbeddedMpv) {
+        if (!id || !session) {
+            return false;
+        }
+        const seekEmbeddedMpvBy = electron?.seekEmbeddedMpvBy;
+        if (seekEmbeddedMpvBy) {
+            await this.run(id, () => seekEmbeddedMpvBy(id, deltaSeconds));
+            return true;
+        }
+        if (!electron?.seekEmbeddedMpv) {
             return false;
         }
         const next = Math.max(0, session.positionSeconds + deltaSeconds);

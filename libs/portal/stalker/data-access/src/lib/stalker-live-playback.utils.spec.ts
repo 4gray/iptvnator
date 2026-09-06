@@ -7,9 +7,7 @@ import {
 } from './stalker-live-playback.utils';
 import { STALKER_SERIAL_NUMBER } from './stalker-session.service';
 
-function createPlaylist(
-    overrides: Partial<PlaylistMeta> = {}
-): PlaylistMeta {
+function createPlaylist(overrides: Partial<PlaylistMeta> = {}): PlaylistMeta {
     return {
         _id: 'playlist-1',
         title: 'Playlist',
@@ -36,6 +34,27 @@ function createPlaylist(
 }
 
 describe('buildStalkerExternalPlaybackHeaders', () => {
+    it.each([
+        ['http://portal.test/c/', 'http://cdn.other.test/episode.mkv'],
+        ['https://portal.test/c/', 'http://portal.test/episode.mkv'],
+        ['http://portal.test/c/', 'http://portal.test/episode.mkv'],
+    ])(
+        'leaves HTTP byte ranges to the player for %s → %s',
+        (portalUrl, streamUrl) => {
+            const headers = buildStalkerExternalPlaybackHeaders(
+                createPlaylist({ portalUrl }),
+                'TOKEN',
+                streamUrl
+            );
+
+            // A static bytes=0- overrides mpv's per-seek byte offset. The server
+            // then returns the beginning again instead of the requested segment.
+            expect(
+                Object.keys(headers).map((name) => name.toLowerCase())
+            ).not.toContain('range');
+        }
+    );
+
     it('treats the legacy default serial as absent', () => {
         const headers = buildStalkerExternalPlaybackHeaders(
             createPlaylist({ stalkerSerialNumber: STALKER_SERIAL_NUMBER }),

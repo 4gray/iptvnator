@@ -1,223 +1,246 @@
 ---
-const heroFeatures = [
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
-    title: 'M3U / M3U8 Playlists',
-    description: 'Import playlists from files or URLs with full M3U and M3U8 support.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />',
-    title: 'Xtream Codes API',
-    description: 'Connect to Xtream Codes providers with live TV, VOD, and series.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />',
-    title: 'Electronic Program Guide',
-    description: 'XMLTV-based EPG with current and upcoming program information.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v3" />',
-    title: 'Cross-Platform',
-    description: 'Runs on macOS, Windows, Linux as a desktop app or PWA in any browser.',
-  },
+/**
+ * Features as a bento of small interface fragments. Each cell shows the piece
+ * of the app it talks about — EPG rows with progress, posters with a resume
+ * bar, a download queue with a REC dot — instead of an icon metaphor. Every
+ * channel, program and title below is fictional demo content.
+ */
+const sources = [
+  { label: 'M3U / M3U8', href: '/iptvnator/features/m3u-player/' },
+  { label: 'Xtream Codes', href: '/iptvnator/features/xtream-codes-player/' },
+  { label: 'Stalker portal', href: '/iptvnator/features/stalker-portal-player/' },
 ];
 
-const carouselFeatures = [
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />',
-    title: 'Stalker Portals',
-    description: 'Browse and stream content from Stalker/Ministra portal providers.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />',
-    title: 'Favorites & History',
-    description: 'Mark channels as favorites and keep track of recently watched.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />',
-    title: 'Search & Filter',
-    description: 'Quickly find channels across playlists with full-text search.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
-    title: 'Multi-Language',
-    description: 'Available in 16 languages with community-contributed translations.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
-    title: 'External Players',
-    description: 'Open streams in MPV, VLC, or other external players from the app.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />',
-    title: 'Light & Dark Themes',
-    description: 'Choose between light and dark themes for comfortable viewing.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />',
-    title: 'Remote Control',
-    description: 'Control the player from your phone with the built-in remote.',
-  },
-  {
-    icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />',
-    title: 'Privacy First',
-    description: 'No tracking, no analytics. Your data stays on your device.',
-  },
+const guide = [
+  { badge: 'AUR', channel: 'Aurora News', program: 'Evening edition', progress: 26, ends: '19:30' },
+  { badge: 'FSS', channel: 'Fieldside Sports', program: 'Late Kickoff · match of the day', progress: 71, ends: '22:15' },
+  { badge: 'KLB', channel: 'Kitchen Lab', program: 'Sourdough, second attempt', progress: 44, ends: '20:00' },
 ];
+
+const posters = [
+  { title: 'Signal Lost', progress: 62, tint: 'linear-gradient(160deg, #1d4f52, #0c1a1c)' },
+  { title: 'Night Desk', progress: 18, tint: 'linear-gradient(160deg, #5a3a24, #1a120c)' },
+  { title: 'Harbor Lights', progress: 0, tint: 'linear-gradient(160deg, #3b2f6b, #12101c)' },
+];
+
+const players = ['Built-in', 'Embedded MPV', 'MPV', 'VLC'];
+const platforms = [
+  { name: 'macOS', detail: 'Intel · Apple Silicon' },
+  { name: 'Windows', detail: 'installer · portable' },
+  { name: 'Linux', detail: 'AppImage · deb · rpm · Snap · Flatpak' },
+  { name: 'Web', detail: 'Docker · PWA' },
+];
+
+const cellClass =
+  'group relative flex flex-col gap-3 overflow-hidden rounded-xl border border-surface-800 bg-surface-900/40 p-6 transition-colors duration-300';
+const linkCellClass = `${cellClass} hover:border-surface-600 hover:bg-surface-900/70`;
 ---
 
-<section id="features" class="relative py-28">
-  <hr class="section-divider mb-28" />
-
+<section id="features" class="relative py-24 sm:py-28">
   <div class="relative z-10 mx-auto max-w-6xl px-6">
-    <!-- Editorial header: left-aligned -->
-    <div class="max-w-xl">
-      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
-        Features
-      </span>
-      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-        Everything <em class="font-medium text-accent-400" style="font-style: italic;">you need</em>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <h2 class="max-w-md font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+        Built like a TV app, not a file browser
       </h2>
-      <p class="mt-4 text-lg text-surface-400">
-        A full-featured IPTV player packed with the tools for the best viewing experience.
+      <p class="max-w-sm text-base text-surface-400 sm:text-right">
+        Everything a living-room player needs, on a desktop and in the browser.
       </p>
     </div>
 
-    <!-- Hero feature cards: 2x2 grid -->
-    <div class="stagger-children mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2" data-stagger>
-      {
-        heroFeatures.map((feature, i) => (
-          <div class="feature-card group relative overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-br from-surface-900/80 via-surface-950/60 to-surface-900/40 p-7 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_30px_rgba(32,168,168,0.08)]">
-
-            <!-- Background watermark icon — large, rotated, partially clipped -->
-            <div class={`feature-watermark pointer-events-none absolute -bottom-6 -right-4 opacity-[0.04] transition-all duration-700 ease-out group-hover:opacity-[0.1] ${i % 2 === 0 ? 'watermark-left' : 'watermark-right'}`}>
-              <svg class="h-36 w-36 text-accent-400 sm:h-44 sm:w-44" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.7">
-                <Fragment set:html={feature.icon} />
-              </svg>
-            </div>
-            <!-- Watermark gradient mask — fades icon into card bg from top-left -->
-            <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-surface-900/95 via-surface-950/40 to-transparent" />
-
-            <!-- CRT scanline overlay on hover -->
-            <div class="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(32,168,168,0.015) 2px, rgba(32,168,168,0.015) 4px);" />
-
-            <!-- Card content -->
-            <div class="relative z-[1]">
-              <!-- Mono label + accent line -->
-              <div class="mb-5 flex items-center gap-3">
-                <span class="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-accent-500/70 transition-colors duration-300 group-hover:text-accent-400">0{i + 1}</span>
-                <span class="h-px flex-1 bg-gradient-to-r from-accent-500/20 to-transparent transition-colors duration-300 group-hover:from-accent-500/40" />
-              </div>
-
-              <h3 class="font-display text-xl font-bold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50 sm:text-2xl">
-                {feature.title}
-              </h3>
-              <p class="mt-2.5 max-w-[85%] text-sm leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">
-                {feature.description}
-              </p>
-            </div>
+    <div class="stagger-children mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12" data-stagger>
+      <!-- Sources -->
+      <div class={`${cellClass} sm:col-span-2 lg:col-span-7`}>
+        <h3 class="font-display text-lg font-semibold tracking-tight text-surface-50">Three kinds of sources, one library</h3>
+        <p class="max-w-md text-sm leading-relaxed text-surface-400">
+          Add an M3U file or URL, an Xtream Codes account or a Stalker portal. Paste the message your provider
+          sent and IPTVnator fills in the form.
+        </p>
+        <div class="mt-auto pt-2">
+          <div class="flex flex-wrap gap-2">
+            {
+              sources.map((source) => (
+                <a
+                  href={source.href}
+                  class="rounded-md border border-surface-700 bg-surface-900 px-2.5 py-1.5 font-mono text-xs text-surface-300 transition-colors hover:border-accent-500 hover:text-accent-400"
+                >
+                  {source.label}
+                </a>
+              ))
+            }
           </div>
-        ))
-      }
-    </div>
-
-    <!-- Sub-header between hero and carousel -->
-    <div class="mt-16">
-      <span class="font-mono text-xs uppercase tracking-[0.15em] text-surface-500">
-        And more
-      </span>
-    </div>
-  </div>
-
-  <!-- Carousel: full-width infinite marquee -->
-  <div class="relative mt-6 overflow-hidden opacity-0" data-carousel>
-    <!-- Gradient masks: left and right fade -->
-    <div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-surface-950 to-transparent sm:w-32" />
-    <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-surface-950 to-transparent sm:w-32" />
-
-    <!-- Marquee track -->
-    <div class="carousel-track flex w-max gap-4 py-4" aria-label="Additional features">
-      <!-- First set of cards -->
-      {
-        carouselFeatures.map((feature, i) => (
-          <div class="group relative w-64 shrink-0 overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]">
-            <div class="relative mb-3.5 inline-block">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35 group-hover:shadow-[0_0_14px_rgba(32,168,168,0.12)]">
-                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300 group-hover:drop-shadow-[0_0_4px_rgba(32,168,168,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <Fragment set:html={feature.icon} />
-                </svg>
-              </div>
-              <div class="absolute -right-0.5 -top-0.5 h-1 w-1 rounded-full bg-accent-500/50 transition-colors duration-300 group-hover:bg-accent-400" />
-            </div>
-            <h3 class="font-display text-sm font-semibold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50">{feature.title}</h3>
-            <p class="mt-1.5 text-xs leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">
-              {feature.description}
-            </p>
+          <div class="mt-3 flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-900 px-3 py-2.5 font-mono text-xs" aria-hidden="true">
+            <span class="text-surface-500">URL</span>
+            <span class="truncate text-surface-200">https://example.tv/get.php?type=m3u_plus</span>
+            <span class="ml-auto shrink-0 text-accent-400">Add →</span>
           </div>
-        ))
-      }
-      <!-- Duplicate set for seamless loop -->
-      {
-        carouselFeatures.map((feature, i) => (
-          <div class="group relative w-64 shrink-0 overflow-hidden rounded-lg border border-dashed border-surface-600/60 bg-gradient-to-b from-surface-900/60 to-surface-950/40 p-5 transition-all duration-500 hover:border-accent-500/40 hover:shadow-[0_0_24px_rgba(32,168,168,0.06)]" aria-hidden="true">
-            <div class="relative mb-3.5 inline-block">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20 transition-all duration-500 group-hover:bg-accent-500/[0.14] group-hover:ring-accent-500/35 group-hover:shadow-[0_0_14px_rgba(32,168,168,0.12)]">
-                <svg class="h-5 w-5 text-accent-400 transition-all duration-500 group-hover:text-accent-300 group-hover:drop-shadow-[0_0_4px_rgba(32,168,168,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <Fragment set:html={feature.icon} />
-                </svg>
+        </div>
+      </div>
+
+      <!-- Program guide -->
+      <a href="/iptvnator/features/epg/" class={`${linkCellClass} lg:col-span-5`}>
+        <h3 class="font-display text-lg font-semibold tracking-tight text-surface-50">A program guide that follows you</h3>
+        <p class="text-sm leading-relaxed text-surface-400">
+          XMLTV or provider EPG: the current program in every list, a timeline under the player.
+        </p>
+        <ul class="mt-auto grid gap-2.5 pt-2" aria-hidden="true">
+          {
+            guide.map((row) => (
+              <li class="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3">
+                <span class="grid h-8 w-8 place-items-center rounded-md border border-surface-800 bg-surface-850 font-mono text-[10px] text-surface-500">{row.badge}</span>
+                <span class="min-w-0">
+                  <span class="block truncate text-[13px] font-medium text-surface-100">{row.channel}</span>
+                  <span class="block truncate text-xs text-surface-500">{row.program}</span>
+                  <span class="mt-1.5 block h-[3px] overflow-hidden rounded-full bg-surface-800">
+                    <span class="block h-full bg-accent-500" style={`width: ${row.progress}%`} />
+                  </span>
+                </span>
+                <span class="font-mono text-[11px] tabular-nums text-surface-500">{row.ends}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </a>
+
+      <!-- Movies and series -->
+      <a href="/iptvnator/features/xtream-codes-player/" class={`${linkCellClass} lg:col-span-4`}>
+        <h3 class="font-display text-lg font-semibold tracking-tight text-surface-50">Movies and series</h3>
+        <p class="text-sm leading-relaxed text-surface-400">Posters, seasons, resume where you stopped, TMDB details when you want them.</p>
+        <div class="mt-auto flex gap-2 pt-2" aria-hidden="true">
+          {
+            posters.map((poster) => (
+              <div class="relative aspect-[2/3] flex-1 overflow-hidden rounded-md border border-surface-800" style={`background: ${poster.tint}`}>
+                <span class="absolute inset-x-2 bottom-2 font-display text-[11px] font-bold leading-tight text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.7)]">{poster.title}</span>
+                <span class="absolute inset-x-0 bottom-0 h-[3px] bg-white/15">
+                  <span class="block h-full bg-accent-500" style={`width: ${poster.progress}%`} />
+                </span>
               </div>
-              <div class="absolute -right-0.5 -top-0.5 h-1 w-1 rounded-full bg-accent-500/50 transition-colors duration-300 group-hover:bg-accent-400" />
-            </div>
-            <h3 class="font-display text-sm font-semibold tracking-tight text-surface-100 transition-colors duration-300 group-hover:text-surface-50">{feature.title}</h3>
-            <p class="mt-1.5 text-xs leading-relaxed text-surface-500 transition-colors duration-300 group-hover:text-surface-400">
-              {feature.description}
-            </p>
+            ))
+          }
+        </div>
+      </a>
+
+      <!-- Downloads and recordings -->
+      <a href="/iptvnator/blog/v0-23-release-notes/" class={`${linkCellClass} lg:col-span-4`}>
+        <h3 class="font-display text-lg font-semibold tracking-tight text-surface-50">Downloads and recordings</h3>
+        <p class="text-sm leading-relaxed text-surface-400">Keep movies offline, record live TV, watch later from the same library.</p>
+        <div class="mt-auto grid gap-2.5 pt-2 text-[13px]" aria-hidden="true">
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <span class="min-w-0">
+              <span class="block truncate text-surface-100">Signal Lost (2019)</span>
+              <span class="block font-mono text-[11px] text-surface-500">1.62 GB · 64%</span>
+            </span>
+            <span class="rounded-md border border-surface-700 px-2 py-1 font-mono text-[11px] text-surface-400">Paused</span>
+            <span class="col-span-2 block h-[3px] overflow-hidden rounded-full bg-surface-800">
+              <span class="block h-full w-[64%] bg-accent-500" />
+            </span>
           </div>
-        ))
-      }
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <span class="min-w-0">
+              <span class="block truncate text-surface-100">Aurora News</span>
+              <span class="block font-mono text-[11px] text-surface-500">Recording · 00:12:41</span>
+            </span>
+            <span class="flex items-center gap-1.5 font-mono text-[11px] text-red-400">
+              <span class="rec-dot h-1.5 w-1.5 rounded-full bg-red-500" />
+              REC
+            </span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Remote control -->
+      <a href="/iptvnator/features/remote-control/" class={`${linkCellClass} lg:col-span-4`}>
+        <h3 class="font-display text-lg font-semibold tracking-tight text-surface-50">A remote in your pocket</h3>
+        <p class="text-sm leading-relaxed text-surface-400">
+          The desktop app serves a web remote to any phone on your network: channels, volume, now playing.
+        </p>
+        <div class="mt-auto flex items-center gap-4 pt-2" aria-hidden="true">
+          <div class="grid grid-cols-3 gap-1">
+            {
+              ['', '▲', '', '◀', 'OK', '▶', '', '▼', ''].map((key) => (
+                <span
+                  class:list={[
+                    'grid h-8 w-8 place-items-center rounded-md font-mono text-[10px]',
+                    key ? 'border border-surface-700 bg-surface-900 text-surface-300' : '',
+                    key === 'OK' && 'border-accent-500 text-accent-400',
+                  ]}
+                >
+                  {key}
+                </span>
+              ))
+            }
+          </div>
+          <div class="grid gap-1 font-mono text-[11px] text-surface-500">
+            <span>CH <span class="text-surface-200">+</span> / <span class="text-surface-200">−</span></span>
+            <span>VOL <span class="text-surface-200">+</span> / <span class="text-surface-200">−</span></span>
+            <span>Direct <span class="text-surface-200">12</span></span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Runs everywhere / player of your choice -->
+      <div class={`${cellClass} sm:col-span-2 lg:col-span-12 lg:flex-row lg:items-center lg:gap-10`}>
+        <div class="lg:w-56 lg:shrink-0">
+          <h3 class="font-display text-lg font-semibold tracking-tight text-surface-50">Runs where you are</h3>
+          <p class="mt-1 text-sm text-surface-400">Same app, same library, every screen.</p>
+        </div>
+        <dl class="flex flex-wrap gap-x-7 gap-y-3 text-sm">
+          {
+            platforms.map((platform) => (
+              <div class="flex items-baseline gap-2">
+                <dt class="font-medium text-surface-100">{platform.name}</dt>
+                <dd class="text-surface-500">{platform.detail}</dd>
+              </div>
+            ))
+          }
+        </dl>
+        <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
+          <span class="mr-1 font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">Player</span>
+          {
+            players.map((player, i) => (
+              <span
+                class:list={[
+                  'rounded-md border px-2.5 py-1.5 font-mono text-xs',
+                  i === 0 ? 'border-accent-500 text-accent-400' : 'border-surface-700 text-surface-400',
+                ]}
+              >
+                {player}
+              </span>
+            ))
+          }
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 <script>
-  // Stagger animation for hero grid on scroll
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('stagger-visible');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.1 });
-  document.querySelectorAll('[data-stagger]').forEach((el) => observer.observe(el));
-
-  // Carousel fade-in on scroll
-  const carouselEl = document.querySelector('[data-carousel]');
-  if (carouselEl) {
-    const co = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.classList.remove('opacity-0');
-          e.target.classList.add('animate-fade-in');
-          co.unobserve(e.target);
+  // Stagger the cells in as the grid scrolls into view.
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('stagger-visible');
+          observer.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.05 });
-    co.observe(carouselEl);
-  }
+    },
+    { threshold: 0.1 },
+  );
+  document.querySelectorAll('[data-stagger]').forEach((el) => observer.observe(el));
 </script>
 
 <style>
-  .watermark-left {
-    transform: rotate(-12deg) scale(1);
+  .rec-dot {
+    animation: rec-pulse 1.6s ease-in-out infinite;
   }
-  .watermark-right {
-    transform: rotate(12deg) scale(1);
+  @keyframes rec-pulse {
+    50% {
+      opacity: 0.35;
+    }
   }
-  .feature-card:hover .watermark-left {
-    transform: rotate(-10deg) scale(1.12);
-  }
-  .feature-card:hover .watermark-right {
-    transform: rotate(10deg) scale(1.12);
+  @media (prefers-reduced-motion: reduce) {
+    .rec-dot {
+      animation: none;
+    }
   }
 </style>

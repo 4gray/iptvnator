@@ -41,23 +41,18 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        display: ['"Bricolage Grotesque"', '"DM Sans"', 'system-ui', 'sans-serif'],
         body: ['"DM Sans"', 'system-ui', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
       fontSize: {
-        '7xl': ['4.5rem', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
-        '8xl': ['6rem', { lineHeight: '1', letterSpacing: '-0.04em' }],
+        '7xl': ['4.5rem', { lineHeight: '1.02', letterSpacing: '-0.03em' }],
+        '8xl': ['6rem', { lineHeight: '0.98', letterSpacing: '-0.035em' }],
         '9xl': ['8rem', { lineHeight: '0.95', letterSpacing: '-0.04em' }],
       },
       animation: {
         'fade-up': 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'fade-in': 'fadeIn 0.6s ease forwards',
-        'glow-pulse': 'glowPulse 4s ease-in-out infinite',
-        'scan': 'scan 8s linear infinite',
-        'tv-scan': 'tvScan 3s linear infinite',
-        'tv-flicker': 'tvFlicker 0.15s infinite',
-        'tv-glow': 'tvGlow 2s ease-in-out infinite',
       },
       keyframes: {
         fadeUp: {
@@ -67,33 +62,6 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
-        },
-        glowPulse: {
-          '0%, 100%': { opacity: '0.4' },
-          '50%': { opacity: '0.8' },
-        },
-        scan: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(100%)' },
-        },
-        tvScan: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(100%)' },
-        },
-        tvFlicker: {
-          '0%': { opacity: '0.97' },
-          '5%': { opacity: '0.95' },
-          '10%': { opacity: '0.98' },
-          '15%': { opacity: '0.94' },
-          '20%': { opacity: '0.98' },
-          '50%': { opacity: '0.96' },
-          '80%': { opacity: '0.98' },
-          '90%': { opacity: '0.95' },
-          '100%': { opacity: '0.98' },
-        },
-        tvGlow: {
-          '0%, 100%': { boxShadow: '0 0 30px rgba(32, 168, 168, 0.3), 0 0 60px rgba(32, 168, 168, 0.1), inset 0 0 30px rgba(32, 168, 168, 0.05)' },
-          '50%': { boxShadow: '0 0 40px rgba(32, 168, 168, 0.4), 0 0 80px rgba(32, 168, 168, 0.15), inset 0 0 40px rgba(32, 168, 168, 0.08)' },
         },
       },
     },

@@ -1,4 +1,6 @@
 <div
+    appChannelScrollFocus
+    [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
     class="channel-list app-scrollbar"
     cdkDropList
     [cdkDropListDisabled]="hasSearchTerm()"
@@ -32,6 +34,7 @@
                 [showDetailsContextMenu]="true"
                 (clicked)="onChannelClick(channel)"
                 (activated)="onChannelActivate(channel)"
+                (keyboardActivated)="channelPlaybackRequested.emit(channel)"
                 (contextMenuRequested)="onChannelContextMenu(channel, $event)"
                 [selected]="activeChannelUrl() === channel?.url"
                 [showFavoriteButton]="true"

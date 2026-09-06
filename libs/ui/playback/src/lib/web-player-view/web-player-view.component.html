@@ -86,6 +86,7 @@
         }
     } @else if (application.embeddedMpv) {
         <app-embedded-mpv-player
+            #embeddedMpvPlayer
             [playback]="resolvedPlayback()"
             [fullscreenTarget]="fullscreenSurface"
             [mediaTitle]="resolvedMediaTitle()"
@@ -100,6 +101,14 @@
         />
     }
 }
+
+<!-- Sibling of the engine, inside the fullscreen host: survives the engine
+     remount a channel switch causes and stays visible in fullscreen. Off for
+     native-view Embedded MPV, which paints above the DOM. -->
+<app-fullscreen-channel-panel
+    [stage]="fullscreenSurface"
+    [enabled]="channelPanelAvailable()"
+/>
 
 @if (visiblePlaybackDiagnostic(); as issue) {
     <app-playback-diagnostic-panel

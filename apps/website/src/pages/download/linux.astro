@@ -1,0 +1,308 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Alert from '../../components/blog/Alert.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import TerminalBlock from '../../components/blog/TerminalBlock.astro';
+import DownloadHero from '../../components/download/DownloadHero.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import PackageList from '../../components/download/PackageList.astro';
+import PlatformSwitcher from '../../components/download/PlatformSwitcher.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import { buildDownloadPageSchema } from '../../lib/download-schema';
+import type { FaqEntry } from '../../lib/download-schema';
+import { getLatestRelease, resolveDownloads } from '../../lib/downloads';
+import type { ResolvedDownload } from '../../lib/downloads';
+import { absoluteUrl } from '../../lib/site';
+
+const release = await getLatestRelease();
+const downloads = resolveDownloads(release, 'linux');
+const byId = new Map(downloads.map((download) => [download.id, download]));
+const pick = (...ids: string[]): ResolvedDownload[] =>
+  ids.flatMap((id) => {
+    const download = byId.get(id);
+    return download ? [download] : [];
+  });
+
+const heroDownloads = pick('linux-x86_64-appimage', 'linux-amd64-deb');
+const pageUrl = absoluteUrl('/download/linux/');
+
+const title = 'Download IPTVnator for Linux – AppImage, deb, rpm, Flatpak and Snap';
+const description =
+  'Download IPTVnator for Linux: a free, open-source IPTV player for M3U/M3U8 playlists, Xtream Codes and Stalker portals with XMLTV EPG. AppImage, .deb, .rpm, pacman, Flatpak and Snap packages for x86_64, arm64 and armv7l.';
+
+const installCommands: Record<string, string> = {
+  'linux-x86_64-appimage': 'chmod +x iptvnator-*.AppImage && ./iptvnator-*.AppImage',
+  'linux-amd64-deb': 'sudo apt install ./iptvnator-*-linux-amd64.deb',
+  'linux-x86_64-rpm': 'sudo dnf install ./iptvnator-*-linux-x86_64.rpm',
+  'linux-x64-pacman': 'sudo pacman -U ./iptvnator-*-linux-x64.pacman',
+  'linux-x86_64-flatpak': 'flatpak install --user ./iptvnator-*-linux-x86_64.flatpak',
+  'linux-amd64-snap': 'sudo snap install iptvnator',
+  'linux-arm64-appimage': 'chmod +x iptvnator-*.AppImage && ./iptvnator-*.AppImage',
+  'linux-arm64-deb': 'sudo apt install ./iptvnator-*-linux-arm64.deb',
+  'linux-armv7l-appimage': 'chmod +x iptvnator-*.AppImage && ./iptvnator-*.AppImage',
+  'linux-armv7l-deb': 'sudo apt install ./iptvnator-*-linux-armv7l.deb',
+  'linux-armhf-snap': 'sudo snap install iptvnator',
+};
+
+const packageNotes: Record<string, string> = {
+  'linux-x86_64-appimage': 'No installation, works on any current distribution. Receives in-app update notifications.',
+  'linux-amd64-deb': 'Ubuntu 24.04+, Debian 12+ and derivatives. Depends on libmpv2 for the embedded MPV engine; on Ubuntu 22.04 use the AppImage.',
+  'linux-x86_64-rpm': 'Fedora, openSUSE, RHEL-family distributions.',
+  'linux-x64-pacman': 'Arch Linux, Manjaro and other pacman-based systems. The AUR package iptvnator-bin is an alternative.',
+  'linux-x86_64-flatpak': 'Sideloadable bundle. Needs the Flathub remote for the org.freedesktop.Platform 24.08 runtime. Embedded MPV is not available inside the sandbox.',
+  'linux-amd64-snap': 'Prefer the Snap Store listing; the file is provided for offline installs. Embedded MPV is not available inside the sandbox.',
+  'linux-arm64-appimage': 'Raspberry Pi 4/5 and other 64-bit ARM boards running a desktop.',
+  'linux-arm64-deb': 'Debian and Ubuntu on 64-bit ARM.',
+  'linux-armv7l-appimage': '32-bit ARM desktops.',
+  'linux-armv7l-deb': 'Debian and Ubuntu on 32-bit ARM.',
+  'linux-armhf-snap': 'Snap Store build for 32-bit ARM.',
+};
+
+const toRows = (ids: string[]) =>
+  pick(...ids).map((download) => ({
+    download,
+    command: installCommands[download.id],
+    note: packageNotes[download.id],
+  }));
+
+const x86Rows = toRows([
+  'linux-x86_64-appimage',
+  'linux-amd64-deb',
+  'linux-x86_64-rpm',
+  'linux-x64-pacman',
+  'linux-x86_64-flatpak',
+  'linux-amd64-snap',
+]);
+const armRows = toRows(['linux-arm64-appimage', 'linux-arm64-deb', 'linux-armv7l-appimage', 'linux-armv7l-deb', 'linux-armhf-snap']);
+
+const appImageSteps = [
+  'Download the x86_64 AppImage with the button above.',
+  'Make it executable: right-click › Properties › "Allow executing file as program", or run chmod +x on the file.',
+  'Double-click the AppImage or start it from a terminal. Nothing is installed system-wide; delete the file to remove the app.',
+  'Add your first source: an M3U/M3U8 file or URL, an Xtream Codes login, or a Stalker portal.',
+];
+
+const features = [
+  {
+    title: 'M3U, Xtream Codes and Stalker',
+    description:
+      'Import M3U/M3U8 playlists from a file or URL, or sign in to Xtream Codes and Stalker/Ministra portals. Live TV, movies and series land in one library with favorites, history and search.',
+  },
+  {
+    title: 'Program guide (EPG)',
+    description:
+      'Attach an XMLTV guide to see what is on now and next, browse the multi-channel timeline under the player, and jump into catch-up where your provider offers it.',
+  },
+  {
+    title: 'MPV and VLC integration',
+    description:
+      'Hand streams that the built-in players cannot decode to the mpv or vlc binary from your distribution. Playback positions and the remote control stay inside IPTVnator.',
+  },
+  {
+    title: 'Embedded MPV engine (experimental)',
+    description:
+      'Drives the system mpv inside the IPTVnator window on x86_64 desktops under X11 or Xwayland. Requires mpv on PATH; not available in the Flatpak and Snap sandboxes.',
+  },
+  {
+    title: 'Offline downloads',
+    description:
+      'Save movies and episodes from Xtream and Stalker sources to disk. The download manager resumes interrupted transfers and keeps a local library.',
+  },
+  {
+    title: 'Movie and series metadata',
+    description:
+      'Optional TMDB enrichment adds posters, plots, cast, ratings and trailers to movie and series details. Off by default, one switch in Settings.',
+  },
+  {
+    title: 'Remote control from your phone',
+    description:
+      'Open the built-in remote-control web app on your phone to switch channels, adjust volume and control playback from the couch.',
+  },
+  {
+    title: 'Self-hosted browser version',
+    description:
+      'Run the web app and its backend from one Docker image on a home server and open it from any browser on your network.',
+  },
+  {
+    title: 'No account, no tracking',
+    description:
+      'There is nothing to sign up for. Playlists and credentials stay in a local database under your home directory, and the app sends no analytics.',
+  },
+];
+
+const specs = [
+  {
+    term: 'Distributions',
+    value: 'Any current x86_64 distribution via AppImage; native packages for Debian/Ubuntu, Fedora/openSUSE and Arch/Manjaro; Flatpak and Snap.',
+  },
+  { term: 'Architectures', value: 'x86_64, arm64 and armv7l (AppImage and .deb); armhf and amd64 (Snap).' },
+  { term: 'Display server', value: 'X11, or Wayland with Xwayland. Launchers start the app with --ozone-platform=x11.' },
+  {
+    term: '.deb dependencies (x86_64)',
+    value: 'libmpv2, libegl1, libgl1, libgbm1. Available on Ubuntu 24.04+ and Debian 12+.',
+  },
+  { term: 'Account', value: 'None. IPTVnator never asks you to register.' },
+  {
+    term: 'Content',
+    value: 'Bring your own playlist or provider login. IPTVnator ships without channels.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Which Linux package should I choose?',
+    a: 'Take the AppImage if you want a single file that runs on any distribution without installation and can notify you about updates. Take the .deb, .rpm or pacman package if you want the app in your application menu and managed by your package manager. Flatpak and Snap isolate the app in a sandbox, which also means the embedded MPV engine is unavailable there.',
+  },
+  {
+    q: 'Is IPTVnator on Flathub?',
+    a: 'Not yet. A Flatpak bundle is attached to every release and installs with "flatpak install --user" as long as the Flathub remote is configured, because the bundle needs the org.freedesktop.Platform 24.08 runtime. The Snap Store listing is official and maintained by the project.',
+  },
+  {
+    q: 'The app exits with a chrome-sandbox error. What now?',
+    a: 'Some .deb and .rpm installations need the sandbox helper fixed once: run "sudo chown root:root chrome-sandbox" and "sudo chmod 4755 chrome-sandbox" inside the installation directory. As a fallback, start the app with the --no-sandbox flag.',
+  },
+  {
+    q: 'Does it work on Wayland?',
+    a: 'Yes, through Xwayland. Every launcher starts IPTVnator with --ozone-platform=x11, and GNOME and KDE ship Xwayland by default. If the app exits with Ozone or Wayland errors, start it manually with "iptvnator --ozone-platform=x11".',
+  },
+  {
+    q: 'Does IPTVnator run on a Raspberry Pi or other ARM boards?',
+    a: 'Yes. arm64 and armv7l AppImage and .deb builds are attached to every release, and the Snap Store carries an armhf build. The web players and external MPV/VLC work there; the embedded MPV engine is x86_64 only.',
+  },
+  {
+    q: 'Can I run IPTVnator on a home server instead of installing it?',
+    a: 'Yes. The Docker image builds the browser version and its backend into one container; the README in the docker directory has the compose file. The browser version does not include the desktop-only features such as external players, embedded MPV and the download manager.',
+  },
+  {
+    q: 'Does IPTVnator come with channels or playlists?',
+    a: 'No. IPTVnator is a player. You add your own M3U/M3U8 playlist, Xtream Codes login or Stalker portal from your provider. Any website selling "IPTVnator subscriptions" or channel packages is unrelated to this project.',
+  },
+];
+
+const jsonLd = buildDownloadPageSchema({
+  platform: 'linux',
+  operatingSystem: 'Linux',
+  pageUrl,
+  description,
+  release,
+  downloads: heroDownloads.length > 0 ? heroDownloads : downloads,
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={[
+    'IPTVnator Linux',
+    'IPTV player Linux',
+    'IPTV player Ubuntu',
+    'IPTV player Fedora',
+    'IPTV player Arch Linux',
+    'AppImage IPTV player',
+    'Snap IPTV player',
+    'Flatpak IPTV player',
+    'M3U player Linux',
+    'Xtream Codes player Linux',
+    'Stalker portal player Linux',
+    'open-source IPTV player',
+  ]}
+  jsonLd={jsonLd}
+>
+  <DownloadHero
+    platform="linux"
+    eyebrow="Download · Linux"
+    titleLead="IPTVnator for"
+    titleAccent="Linux"
+    lede="A free, open-source IPTV player packaged for every major Linux distribution. Load M3U/M3U8 playlists, sign in to Xtream Codes providers or Stalker portals, and watch live TV, movies and series with a full program guide. Pick the AppImage for a no-install start or a native package for your distribution."
+    release={release}
+    downloads={heroDownloads}
+    facts={['x86_64 · arm64 · armv7l', 'AppImage · deb · rpm · pacman', 'Flatpak & Snap', 'Free & open source']}
+    screenshot={{
+      src: '/iptvnator/screenshots/multi-epg-view.webp',
+      alt: 'Multi-channel program guide in IPTVnator',
+      width: 2180,
+      height: 1448,
+    }}
+  />
+
+  <DownloadSection id="packages" eyebrow="Packages" title="Every format," accent="one release" lead="All files below are built from the same commit and published together on GitHub. Choose the one your distribution prefers.">
+    <div class="space-y-8">
+      <PackageList title="x86_64" rows={x86Rows} />
+      <PackageList title="ARM" rows={armRows} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="install" eyebrow="Installation" title="AppImage in" accent="three steps" lead="The fastest way to try IPTVnator on any distribution. Native packages install with the commands listed above.">
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-start">
+      <StepRail title="Run the AppImage" steps={appImageSteps} />
+      <div>
+        <CopyCommand title="Snap Store" command="sudo snap install iptvnator" />
+        <CopyCommand title="Arch User Repository" command="yay -S iptvnator-bin" />
+        <TerminalBlock title="Gentoo (gentoo-zh overlay)">sudo eselect repository enable gentoo-zh
+sudo emerge --sync gentoo-zh
+sudo emerge iptvnator-bin</TerminalBlock>
+      </div>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="notes" eyebrow="Good to know" title="Linux" accent="specifics">
+    <div class="grid gap-6 lg:grid-cols-2">
+      <Alert type="info" title="Wayland desktops">
+        <p>
+          Launchers start IPTVnator with <code>--ozone-platform=x11</code>, so Wayland sessions need Xwayland, which GNOME and KDE
+          ship by default. If the app exits with Ozone or Wayland errors, start it with{' '}
+          <code>iptvnator --ozone-platform=x11</code>.
+        </p>
+      </Alert>
+      <Alert type="info" title="Embedded MPV engine">
+        <p>
+          The experimental engine drives your distribution's <code>mpv</code> binary inside the app window on x86_64 under X11 or
+          Xwayland. Install mpv first (for example <code>sudo apt install mpv</code>) and opt in under Settings › Playback. The
+          Flatpak and Snap sandboxes do not expose the host mpv, so the engine stays unavailable there.
+        </p>
+      </Alert>
+      <Alert type="warning" title="chrome-sandbox error on some .deb / .rpm systems">
+        <p>
+          If the app aborts with "The SUID sandbox helper binary was found, but is not configured correctly", run{' '}
+          <code>sudo chown root:root chrome-sandbox</code> and <code>sudo chmod 4755 chrome-sandbox</code> in the
+          installation directory once, or start the app with <code>--no-sandbox</code>.
+        </p>
+      </Alert>
+      <Alert type="info" title="Ubuntu 22.04 and older Debian">
+        <p>
+          The x86_64 <code>.deb</code> depends on <code>libmpv2</code>, which Ubuntu 22.04 does not ship. Use the AppImage there;
+          it bundles everything it needs.
+        </p>
+      </Alert>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="features" eyebrow="On Linux" title="What you get" accent="on your desktop" lead="The complete desktop feature set. Everything below works in the native Linux packages.">
+    <FeatureList items={features} />
+  </DownloadSection>
+
+  <DownloadSection id="requirements" eyebrow="Requirements" title="What you" accent="need">
+    <SpecList items={specs} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="IPTVnator on Linux">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <PlatformSwitcher current="linux" />
+</BaseLayout>

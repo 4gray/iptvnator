@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 
@@ -16,14 +17,16 @@ describe('XtreamXmltvFallbackService', () => {
         getChannelPrograms: jest.Mock<Promise<EpgProgram[]>, [string]>;
         getCurrentProgramsBatch: jest.Mock<
             Promise<Record<string, EpgProgram | null>>,
-            [string[]]
+            [string[], { nowMs?: number }?]
         >;
     };
 
     let bridge: Bridge;
+    let epgOffsetMinutes = 0;
     const originalElectron = (window as { electron?: unknown }).electron;
 
     beforeEach(() => {
+        epgOffsetMinutes = 0;
         bridge = {
             getChannelPrograms: jest.fn(),
             getCurrentProgramsBatch: jest.fn(),
@@ -42,7 +45,15 @@ describe('XtreamXmltvFallbackService', () => {
     function makeService(): XtreamXmltvFallbackService {
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
-            providers: [XtreamXmltvFallbackService],
+            providers: [
+                XtreamXmltvFallbackService,
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        resolvedEpgOffsetMinutes: () => epgOffsetMinutes,
+                    },
+                },
+            ],
         });
         return TestBed.inject(XtreamXmltvFallbackService);
     }
@@ -134,17 +145,41 @@ describe('XtreamXmltvFallbackService', () => {
             '   ',
         ]);
 
-        expect(bridge.getCurrentProgramsBatch).toHaveBeenCalledWith(['rtl.de']);
+        expect(bridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
+            ['rtl.de'],
+            {
+                nowMs: expect.any(Number),
+            }
+        );
         expect(Object.keys(result)).toEqual(['rtl.de']);
+    });
+
+    it('asks the bridge for programmes airing at the provider clock under a display offset', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+        try {
+            epgOffsetMinutes = 60;
+            const service = makeService();
+            bridge.getCurrentProgramsBatch.mockResolvedValue({});
+
+            await service.getCurrentProgramsBatch(['rtl.de']);
+
+            expect(bridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
+                ['rtl.de'],
+                { nowMs: Date.parse('2026-05-23T09:30:00.000Z') }
+            );
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('returns [] when the bridge throws', async () => {
         const service = makeService();
         bridge.getChannelPrograms.mockRejectedValue(new Error('db down'));
 
-        await expect(
-            service.getProgramsForChannel('rtl.de')
-        ).resolves.toEqual([]);
+        await expect(service.getProgramsForChannel('rtl.de')).resolves.toEqual(
+            []
+        );
     });
 
     it('uses getChannelPrograms even when getCurrentProgramsBatch is missing', async () => {

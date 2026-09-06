@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import {
@@ -11,8 +11,14 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    type CategoryRowCount,
+    countContentRowsByCategory,
+    deleteCategoriesWhere,
+    deleteContentByCategoryGroups,
+    sumCategoryRowCounts,
+} from './catalog-deletion';
+import {
     checkpointOperation,
-    chunkValues,
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
@@ -25,8 +31,6 @@ const PLAYLIST_TYPES = {
     M3U_TEXT: 'm3u-text',
     M3U_URL: 'm3u-url',
 } as const;
-
-const DEFAULT_BATCH_SIZE = 100;
 
 export interface AppPlaylistUpsertPhaseCapture {
     captureAsync: <TResult>(
@@ -162,7 +166,7 @@ function inferPlaylistType(playlist: Record<string, unknown>): PlaylistType {
     return PLAYLIST_TYPES.M3U_TEXT;
 }
 
-function buildPlaylistRow(
+export function buildPlaylistRow(
     playlist: Record<string, unknown>
 ): schema.NewPlaylist | null {
     const id = getStringValue(playlist._id) ?? getStringValue(playlist.id);
@@ -590,30 +594,37 @@ export async function updatePlaylist(
 
 interface PlaylistDeletionCollection {
     readonly categoryIds: number[];
-    readonly contentRows: Array<{ id: number }>;
-    readonly favoriteRows: Array<{ id: number }>;
-    readonly playbackPositionRows: Array<{ id: number }>;
-    readonly recentlyViewedRows: Array<{ id: number }>;
+    /** Content rows per category, the unit the delete is batched by. */
+    readonly contentRowCounts: CategoryRowCount[];
+    readonly favoriteCount: number;
+    readonly playbackPositionCount: number;
+    readonly recentlyViewedCount: number;
+}
+
+async function countPlaylistRows(
+    db: AppDatabase,
+    table:
+        | typeof schema.favorites
+        | typeof schema.playbackPositions
+        | typeof schema.recentlyViewed,
+    playlistId: string
+): Promise<number> {
+    const rows = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(table)
+        .where(eq(table.playlistId, playlistId));
+    return rows[0]?.count ?? 0;
 }
 
 async function collectPlaylistDeletionRows(
     db: AppDatabase,
     playlistId: string
 ): Promise<PlaylistDeletionCollection> {
-    const [favoriteRows, recentlyViewedRows, playbackPositionRows] =
+    const [favoriteCount, recentlyViewedCount, playbackPositionCount] =
         await Promise.all([
-            db
-                .select({ id: schema.favorites.id })
-                .from(schema.favorites)
-                .where(eq(schema.favorites.playlistId, playlistId)),
-            db
-                .select({ id: schema.recentlyViewed.id })
-                .from(schema.recentlyViewed)
-                .where(eq(schema.recentlyViewed.playlistId, playlistId)),
-            db
-                .select({ id: schema.playbackPositions.id })
-                .from(schema.playbackPositions)
-                .where(eq(schema.playbackPositions.playlistId, playlistId)),
+            countPlaylistRows(db, schema.favorites, playlistId),
+            countPlaylistRows(db, schema.recentlyViewed, playlistId),
+            countPlaylistRows(db, schema.playbackPositions, playlistId),
         ]);
 
     const categoryRows = await db
@@ -621,20 +632,20 @@ async function collectPlaylistDeletionRows(
         .from(schema.categories)
         .where(eq(schema.categories.playlistId, playlistId));
     const categoryIds = categoryRows.map((category) => category.id);
-    const contentRows =
+    const contentRowCounts =
         categoryIds.length > 0
-            ? await db
-                  .select({ id: schema.content.id })
-                  .from(schema.content)
-                  .where(inArray(schema.content.categoryId, categoryIds))
+            ? await countContentRowsByCategory(
+                  db,
+                  eq(schema.categories.playlistId, playlistId)
+              )
             : [];
 
     return {
         categoryIds,
-        contentRows,
-        favoriteRows,
-        playbackPositionRows,
-        recentlyViewedRows,
+        contentRowCounts,
+        favoriteCount,
+        playbackPositionCount,
+        recentlyViewedCount,
     };
 }
 
@@ -642,68 +653,84 @@ function countPlaylistDeletionRows(
     collection: PlaylistDeletionCollection
 ): number {
     return (
-        collection.favoriteRows.length +
-        collection.recentlyViewedRows.length +
-        collection.playbackPositionRows.length +
-        collection.contentRows.length +
+        collection.favoriteCount +
+        collection.recentlyViewedCount +
+        collection.playbackPositionCount +
+        sumCategoryRowCounts(collection.contentRowCounts) +
         collection.categoryIds.length
     );
 }
 
+/**
+ * Removes the playlist's rows table by table so progress and cancellation
+ * keep their stage granularity, then the playlist row itself. User-data
+ * tables go in one statement each (they are playlist-indexed and small next
+ * to the catalog); content goes in row-budgeted category groups; categories
+ * go in one statement. A stage with nothing counted is skipped — the final
+ * playlist delete cascades anything that appeared in between.
+ */
 async function deleteCollectedPlaylistRows(
     db: AppDatabase,
     playlistId: string,
     collection: PlaylistDeletionCollection,
     control?: OperationControl
 ): Promise<number> {
-    for (const [phase, ids, column, table] of [
-        [
-            'deleting-favorites',
-            collection.favoriteRows.map((row) => row.id),
-            schema.favorites.id,
-            schema.favorites,
-        ],
-        [
-            'deleting-recently-viewed',
-            collection.recentlyViewedRows.map((row) => row.id),
-            schema.recentlyViewed.id,
-            schema.recentlyViewed,
-        ],
-        [
-            'deleting-playback-positions',
-            collection.playbackPositionRows.map((row) => row.id),
-            schema.playbackPositions.id,
-            schema.playbackPositions,
-        ],
-        [
-            'deleting-content',
-            collection.contentRows.map((row) => row.id),
-            schema.content.id,
-            schema.content,
-        ],
-        [
-            'deleting-categories',
-            collection.categoryIds,
-            schema.categories.id,
-            schema.categories,
-        ],
-    ] as const) {
-        let current = 0;
-        const total = ids.length;
+    const userDataStages = [
+        {
+            phase: 'deleting-favorites',
+            expected: collection.favoriteCount,
+            table: schema.favorites,
+        },
+        {
+            phase: 'deleting-recently-viewed',
+            expected: collection.recentlyViewedCount,
+            table: schema.recentlyViewed,
+        },
+        {
+            phase: 'deleting-playback-positions',
+            expected: collection.playbackPositionCount,
+            table: schema.playbackPositions,
+        },
+    ] as const;
 
-        for (const chunk of chunkValues(ids, DEFAULT_BATCH_SIZE)) {
-            await checkpointOperation(control);
-            await db.transaction((tx) => {
-                tx.delete(table).where(inArray(column, chunk)).run();
-            });
-            current += chunk.length;
-            await reportOperationProgress(control, {
-                phase,
-                current,
-                total,
-                increment: chunk.length,
-            });
+    for (const stage of userDataStages) {
+        if (stage.expected === 0) {
+            continue;
         }
+        await checkpointOperation(control);
+        const changes = await db.transaction(
+            (tx) =>
+                tx
+                    .delete(stage.table)
+                    .where(eq(stage.table.playlistId, playlistId))
+                    .run().changes
+        );
+        await reportOperationProgress(control, {
+            phase: stage.phase,
+            current: changes,
+            total: stage.expected,
+            increment: changes,
+        });
+    }
+
+    await deleteContentByCategoryGroups(db, collection.contentRowCounts, {
+        control,
+        phase: 'deleting-content',
+    });
+
+    const totalCategories = collection.categoryIds.length;
+    if (totalCategories > 0) {
+        await checkpointOperation(control);
+        const changes = await deleteCategoriesWhere(
+            db,
+            eq(schema.categories.playlistId, playlistId)
+        );
+        await reportOperationProgress(control, {
+            phase: 'deleting-categories',
+            current: changes,
+            total: totalCategories,
+            increment: changes,
+        });
     }
 
     await checkpointOperation(control);

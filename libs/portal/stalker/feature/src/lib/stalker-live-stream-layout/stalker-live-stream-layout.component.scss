@@ -82,6 +82,15 @@
     padding: 16px;
 }
 
+// Wrapper of the list stamped into the player's fullscreen channel panel:
+// gives `.channels-list` the bounded column it needs to own the scrolling.
+.fullscreen-channel-list {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
 .load-more-epg {
     display: flex;
     justify-content: center;

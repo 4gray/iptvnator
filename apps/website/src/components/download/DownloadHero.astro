@@ -1,0 +1,107 @@
+---
+import DownloadButton from './DownloadButton.astro';
+import type { ResolvedDownload, ResolvedRelease } from '../../lib/downloads';
+import { LATEST_RELEASE_URL, formatReleaseDate } from '../../lib/downloads';
+import { PLATFORM_ICON_PATHS, PLATFORM_LABELS } from '../../lib/platforms';
+import type { DownloadPlatform } from '../../lib/platforms';
+
+interface Screenshot {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
+interface Props {
+  platform: DownloadPlatform;
+  eyebrow: string;
+  titleLead: string;
+  titleAccent: string;
+  lede: string;
+  release: ResolvedRelease;
+  downloads: ResolvedDownload[];
+  facts: string[];
+  screenshot: Screenshot;
+}
+
+const { platform, eyebrow, titleLead, titleAccent, lede, release, downloads, facts, screenshot } = Astro.props;
+const releaseDate = formatReleaseDate(release.publishedAt);
+---
+
+<section class="relative overflow-hidden pt-36 pb-20 sm:pt-40">
+  <div class="pointer-events-none absolute top-0 left-1/2 h-[520px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-accent-500/[0.06] blur-[120px]"></div>
+
+  <div class="relative mx-auto max-w-6xl px-6">
+    <nav aria-label="Breadcrumb" class="font-mono text-[11px] uppercase tracking-[0.15em] text-surface-500">
+      <ol class="flex flex-wrap items-center gap-2">
+        <li><a href="/iptvnator/" class="transition-colors hover:text-accent-400">IPTVnator</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href="/iptvnator/download/" class="transition-colors hover:text-accent-400">Download</a></li>
+        <li aria-hidden="true">/</li>
+        <li class="text-surface-300" aria-current="page">{PLATFORM_LABELS[platform]}</li>
+      </ol>
+    </nav>
+
+    <div class="mt-10 grid items-center gap-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+      <div>
+        <div class="inline-flex items-center gap-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20">
+            <svg class="h-5 w-5 text-accent-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d={PLATFORM_ICON_PATHS[platform]} />
+            </svg>
+          </span>
+          <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">{eyebrow}</span>
+        </div>
+
+        <h1 class="mt-6 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
+          {titleLead}{' '}
+          <span class="text-accent-400">{titleAccent}</span>
+        </h1>
+
+        <p class="mt-6 max-w-xl text-lg leading-relaxed text-surface-400">{lede}</p>
+
+        <div class="mt-10 flex flex-wrap gap-4">
+          {downloads.map((download) => <DownloadButton download={download} primary={download.recommended === true} />)}
+          {downloads.length === 0 && (
+            <a href={LATEST_RELEASE_URL} class="inline-flex items-center gap-3 rounded-xl bg-accent-500 px-6 py-4 font-semibold text-surface-950 transition-all duration-300 hover:bg-accent-400">
+              Download from GitHub releases
+            </a>
+          )}
+        </div>
+
+        <p class="mt-5 font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">
+          Version {release.version}
+          {releaseDate && <span> · Released {releaseDate}</span>}
+          <span> · </span>
+          <a href={release.url} class="text-surface-400 underline decoration-surface-600 underline-offset-4 transition-colors hover:text-accent-400">Release notes</a>
+          <span> · </span>
+          <a href={LATEST_RELEASE_URL} class="text-surface-400 underline decoration-surface-600 underline-offset-4 transition-colors hover:text-accent-400">All files</a>
+        </p>
+
+        <slot name="after-buttons" />
+
+        <ul class="mt-8 flex flex-wrap gap-2" aria-label="Key facts">
+          {facts.map((fact) => (
+            <li class="rounded-full border border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
+          ))}
+        </ul>
+      </div>
+
+      <figure class="relative">
+        <div class="pointer-events-none absolute -inset-6 rounded-3xl bg-accent-500/[0.05] blur-2xl"></div>
+        <div class="relative overflow-hidden rounded-xl border border-surface-600/60 bg-surface-900/60 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <img
+            src={screenshot.src}
+            alt={screenshot.alt}
+            width={screenshot.width}
+            height={screenshot.height}
+            class="h-auto w-full rounded-lg"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+        <figcaption class="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-surface-600">{screenshot.alt}</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>

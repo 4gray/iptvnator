@@ -4,7 +4,12 @@
         [showEpg]="shouldShowEpg()"
     />
 } @else if (displayedChannels().length) {
-    @if (viewTitle() && activeView() !== 'groups' && activeView() !== 'all') {
+    @if (
+        !compact() &&
+        viewTitle() &&
+        activeView() !== 'groups' &&
+        activeView() !== 'all'
+    ) {
         <header class="context-header">
             <div class="context-header__top">
                 <h2>{{ viewTitle() | translate }}</h2>
@@ -28,6 +33,7 @@
             <app-all-channels-view
                 [channels]="displayedChannels()"
                 [searchTerm]="workspaceSearchTerm()"
+                [showHeader]="!compact()"
                 [channelEpgMap]="channelEpgMap()"
                 [channelIconMap]="channelIconMap()"
                 [progressTick]="progressTick()"
@@ -46,6 +52,8 @@
             <app-groups-view
                 [groupedChannels]="groupedChannels()"
                 [searchTerm]="workspaceSearchTerm()"
+                [showHeader]="!compact()"
+                [compact]="compact()"
                 [channelEpgMap]="channelEpgMap()"
                 [channelIconMap]="channelIconMap()"
                 [progressTick]="progressTick()"

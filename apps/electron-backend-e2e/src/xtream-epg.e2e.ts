@@ -5,6 +5,7 @@ import {
     channelItemByTitle,
     clickCategoryByNameExact,
     closeElectronApp,
+    createMutableTextServer,
     expect,
     goToDashboard,
     launchElectronApp,
@@ -27,6 +28,189 @@ const epgCredentials = {
     username: 'epg',
     password: 'epg',
 };
+
+test('@epg @xtream @electron removes uploaded guide data and restores provider EPG without restarting', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(120000);
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const id = fixture.stream.epg_channel_id;
+    expect(id).toBeTruthy();
+    const stamp = (date: Date) =>
+        date.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const xml = `<tv><channel id="${id}"><display-name>Uploaded Guide</display-name></channel>
+        <programme channel="${id}" start="${stamp(new Date(Date.now() - 600000))} +0000" stop="${stamp(new Date(Date.now() + 3600000))} +0000"><title>Temporary XMLTV Bulletin</title></programme></tv>`;
+    const source = await createMutableTextServer(xml, {
+        contentType: 'application/xml',
+        resourcePath: '/temporary.xml',
+    });
+    const app = await launchElectronApp(dataDir);
+    try {
+        await addXtreamPortal(app.mainWindow, {
+            name: epgPortalName,
+            ...epgCredentials,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow
+            .getByRole('button', { name: 'Add EPG source' })
+            .click();
+        await app.mainWindow
+            .locator('.epg-source-row input')
+            .fill(source.resourceUrl);
+        await app.mainWindow
+            .getByTestId('toggle-prefer-uploaded-epg')
+            .locator('input')
+            .check();
+        await saveSettings(app.mainWindow);
+        await expect
+            .poll(
+                () =>
+                    app.mainWindow.evaluate(
+                        async (channelId) =>
+                            (
+                                await window.electron.getChannelPrograms(
+                                    channelId!
+                                )
+                            ).map((p) => p.title),
+                        id
+                    ),
+                { timeout: 30000 }
+            )
+            .toContain('Temporary XMLTV Bulletin');
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const row = channelItemByTitle(
+            app.mainWindow,
+            fixture.stream.name ?? ''
+        ).first();
+        await expect(row.locator('.epg-title')).toHaveText(
+            'Temporary XMLTV Bulletin'
+        );
+        await row.click();
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .toContain('Temporary XMLTV Bulletin');
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow.locator('.epg-source-row button').nth(1).click();
+        await saveSettings(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        await expect(row.locator('.epg-title')).toHaveText(
+            fixture.shortEpg[0].title
+        );
+        await row.click();
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .not.toContain('Temporary XMLTV Bulletin');
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .toContain(fixture.fullEpg[0].title);
+    } finally {
+        await closeElectronApp(app);
+        await source.close();
+    }
+});
+
+test('@epg @stalker @electron invalidates a loaded manual XMLTV mapping after source removal', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(120000);
+    await resetMockServers(request, ['stalker']);
+    const fixture = await fetchStalkerCategoryFixture(request, 'itv');
+    const item = fixture.items[0];
+    const stamp = (date: Date) =>
+        date.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const source = await createMutableTextServer(
+        `<tv><channel id="stalker-mapped"><display-name>Mapped Guide</display-name></channel>
+        <programme channel="stalker-mapped" start="${stamp(new Date(Date.now() - 600000))} +0000" stop="${stamp(new Date(Date.now() + 3600000))} +0000"><title>Retired Stalker Bulletin</title></programme></tv>`,
+        {
+            contentType: 'application/xml',
+            resourcePath: '/stalker.xml',
+        }
+    );
+    const app = await launchElectronApp(dataDir);
+    try {
+        await app.mainWindow.route('https://test-streams.mux.dev/**', () => {
+            // Keep external media pending while the local guide is exercised.
+        });
+        await addStalkerPortal(app.mainWindow, {
+            name: 'Stalker XMLTV Removal',
+        });
+        await waitForStalkerCatalog(app.mainWindow);
+        const playlistId = new URL(app.mainWindow.url()).pathname.match(
+            /\/stalker\/([^/]+)/
+        )?.[1];
+        expect(playlistId).toBeTruthy();
+        const key = `stalker:${decodeURIComponent(playlistId!)}:${String(item.id).trim()}`;
+        await app.mainWindow.evaluate(
+            (mappingKey) =>
+                window.electron.setEpgMapping(mappingKey, 'stalker-mapped'),
+            key
+        );
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow
+            .getByRole('button', { name: 'Add EPG source' })
+            .click();
+        await app.mainWindow
+            .locator('.epg-source-row input')
+            .fill(source.resourceUrl);
+        await saveSettings(app.mainWindow);
+        await expect
+            .poll(
+                () =>
+                    app.mainWindow.evaluate(async () =>
+                        (
+                            await window.electron.getChannelPrograms(
+                                'stalker-mapped'
+                            )
+                        ).map((p) => p.title)
+                    ),
+                { timeout: 30000 }
+            )
+            .toContain('Retired Stalker Bulletin');
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const row = channelItemByTitle(
+            app.mainWindow,
+            item.o_name || item.name || ''
+        ).first();
+        await expect(row.locator('.epg-title')).toHaveText(
+            'Retired Stalker Bulletin'
+        );
+        await row.click();
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .toContain('Retired Stalker Bulletin');
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow.locator('.epg-source-row button').nth(1).click();
+        await saveSettings(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        await expect(row).toBeVisible();
+        await row.click();
+        await expect
+            .poll(() => timelineBlockTitles(app.mainWindow))
+            .not.toContain('Retired Stalker Bulletin');
+        await expect(row.locator('.epg-title')).toHaveCount(0);
+        expect(
+            await app.mainWindow.evaluate(
+                (mappingKey) => window.electron.getEpgMapping(mappingKey),
+                key
+            )
+        ).toMatchObject({ epgChannelId: 'stalker-mapped' });
+    } finally {
+        await closeElectronApp(app);
+        await source.close();
+    }
+});
 
 for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
     test(`@epg @xtream @electron renders Xtream EPG previews and the timeline schedule in ${timeZone}`, async ({
@@ -66,9 +250,7 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
 
             // Provider-declared catch-up (tv_archive=1 in the fixture) is
             // surfaced as a badge on the sidebar row (#1128).
-            await expect(
-                channelRow.getByTestId('catchup-badge')
-            ).toBeVisible();
+            await expect(channelRow.getByTestId('catchup-badge')).toBeVisible();
 
             // Sidebar channel list shows the per-channel "now" programme line.
             await expect
@@ -263,10 +445,7 @@ test('@radio @stalker @electron keeps radio rows compact at narrow widths', asyn
         await expect(categoryButton).toBeVisible();
         await categoryButton.click();
 
-        const radioRow = channelItemByTitle(
-            app.mainWindow,
-            firstTitle
-        ).first();
+        const radioRow = channelItemByTitle(app.mainWindow, firstTitle).first();
         await expect(radioRow).toBeVisible({ timeout: 20000 });
         await expect(radioRow).toHaveClass(/compact/);
         await expect(radioRow.locator('.epg-placeholder')).toHaveCount(0);
@@ -286,6 +465,95 @@ test('@radio @stalker @electron keeps radio rows compact at narrow widths', asyn
         await expect(radioRow.locator('.channel-logo-shell')).toBeHidden();
         await expect(radioRow.locator('.favorite-button')).toBeHidden();
         await expectCompactRadioRowHeightAndStride(radioRow, secondTitle);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
+test('@epg @xtream @electron shifts the sidebar preview and the timeline "now" block by the EPG display offset', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const offsetMinutes = 60;
+    // The guide runs an hour ahead of the real schedule, so the programme
+    // actually on air is the one the provider files under "an hour ago" —
+    // and every surface must agree on that same programme.
+    const providerNowSeconds =
+        Math.floor(Date.now() / 1000) - offsetMinutes * 60;
+    const expectedProgram = fixture.fullEpg.find(
+        (listing) =>
+            listing.startTimestamp <= providerNowSeconds &&
+            providerNowSeconds < listing.stopTimestamp
+    );
+    if (!expectedProgram) {
+        throw new Error(
+            'Expected the Xtream EPG fixture to cover the shifted current time.'
+        );
+    }
+    const app = await launchElectronApp(dataDir, { env: { TZ: 'UTC' } });
+
+    try {
+        await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow
+            .locator('[data-test-id="epg-offset-minutes"]')
+            .fill(String(offsetMinutes));
+        await saveSettings(app.mainWindow);
+        await goToDashboard(app.mainWindow);
+
+        await addXtreamPortal(app.mainWindow, {
+            name: `${epgPortalName} Offset`,
+            username: epgCredentials.username,
+            password: epgCredentials.password,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const channelRow = channelItemByTitle(
+            app.mainWindow,
+            fixture.stream.name ?? ''
+        ).first();
+        await expect(channelRow).toBeVisible({ timeout: 20000 });
+
+        // Sidebar preview: the shifted programme, with shifted times.
+        await expect
+            .poll(async () =>
+                (
+                    (await channelRow.locator('.epg-title').textContent()) ?? ''
+                ).trim()
+            )
+            .toBe(expectedProgram.title);
+        await expect
+            .poll(async () =>
+                (await channelRow.locator('.epg-time').allInnerTexts()).map(
+                    (value) => value.trim()
+                )
+            )
+            .toEqual([
+                formatTimeInZone(
+                    expectedProgram.startTimestamp + offsetMinutes * 60,
+                    'UTC'
+                ),
+                formatTimeInZone(
+                    expectedProgram.stopTimestamp + offsetMinutes * 60,
+                    'UTC'
+                ),
+            ]);
+
+        // Timeline: the same programme is the highlighted "now" block.
+        await channelRow.click();
+        await expect(app.mainWindow.locator('app-epg-timeline')).toBeVisible({
+            timeout: 20000,
+        });
+        await expect(
+            app.mainWindow
+                .locator(
+                    'app-epg-timeline .epg-timeline__block.is-now .epg-timeline__block-title'
+                )
+                .first()
+        ).toHaveText(expectedProgram.title);
     } finally {
         await closeElectronApp(app);
     }

@@ -1,0 +1,21 @@
+---
+interface SpecItem {
+  term: string;
+  value: string;
+}
+
+interface Props {
+  items: SpecItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<dl class="grid gap-px overflow-hidden rounded-lg border border-surface-600/60 bg-surface-700/40 sm:grid-cols-2">
+  {items.map((item) => (
+    <div class="bg-surface-950/95 px-5 py-4">
+      <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-surface-500">{item.term}</dt>
+      <dd class="mt-1.5 text-sm leading-relaxed text-surface-200">{item.value}</dd>
+    </div>
+  ))}
+</dl>

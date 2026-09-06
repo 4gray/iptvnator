@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { createServer } from 'node:http';
+import { openSourceEditor, sourceRowByTitle } from './sources-pwa.helpers';
 import { postWithRetry, setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 
@@ -192,4 +194,77 @@ test('@self-hosted Stalker portal loads through web-backend proxy', async ({
     const categoryItems = page.locator('.category-item');
     await expect(categoryItems.first()).toBeVisible({ timeout: 15_000 });
     expectRequestsUseTargetId(stalkerRequests, '/stalker');
+});
+
+test('@self-hosted M3U User-Agent reaches the provider on import and refresh', async ({
+    page,
+}) => {
+    const userAgent = 'IPTVnator-Test/1.0';
+    const received: (string | undefined)[] = [];
+    let channel = 'Initial UA Channel';
+    const server = createServer((req, res) => {
+        received.push(req.headers['user-agent']);
+        if (req.headers['user-agent'] !== userAgent) {
+            res.writeHead(403);
+            res.end('User-Agent required');
+            return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl' });
+        res.end(
+            `#EXTM3U\n#EXTINF:-1,${channel}\nhttps://streams.example.test/news.m3u8\n`
+        );
+    });
+    await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
+    );
+    const address = server.address();
+    if (!address || typeof address === 'string')
+        throw new Error('Missing test server port');
+    const url = `http://127.0.0.1:${address.port}/protected.m3u`;
+    try {
+        expect((await fetch(url)).status).toBe(403);
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.locator('mat-dialog-container');
+        await setInputValue(
+            dialog.getByRole('textbox', { name: /Playlist URL/ }),
+            url
+        );
+        await setInputValue(
+            dialog.getByRole('textbox', { name: 'Playlist title' }),
+            'Protected M3U'
+        );
+        await setInputValue(
+            dialog.getByRole('textbox', { name: 'User agent', exact: true }),
+            `  ${userAgent}  `
+        );
+        await dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        await page.waitForURL(/playlists.*all/);
+        await expect(page.getByText('1. Initial UA Channel')).toBeVisible();
+        const catalogUrl = page.url();
+        await page.reload();
+        await page.goto('/workspace/sources');
+        const editor = await openSourceEditor(page, 'Protected M3U');
+        await expect(
+            editor.getByRole('textbox', { name: 'User agent', exact: true })
+        ).toHaveValue(userAgent);
+        await editor
+            .getByRole('button', { name: 'Close', exact: true })
+            .click();
+        channel = 'Refreshed UA Channel';
+        const row = sourceRowByTitle(page, 'Protected M3U');
+        await row.hover();
+        await row.locator('.refresh-btn').click();
+        await expect(page.locator('.mat-mdc-snack-bar-label').last()).toContainText(
+            'updated'
+        );
+        await page.goto(catalogUrl);
+        await expect(page.getByText('1. Refreshed UA Channel')).toBeVisible();
+        expect(received.slice(1)).toEqual([userAgent, userAgent]);
+    } finally {
+        await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve()))
+        );
+    }
 });

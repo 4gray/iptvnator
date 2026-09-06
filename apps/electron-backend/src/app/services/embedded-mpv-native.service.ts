@@ -30,8 +30,23 @@ import {
     clampSubtitleDelay,
     normalizeSubtitleStyle,
 } from '@iptvnator/shared/interfaces';
+import { isExternalPlayerTraceEnabled, trace } from './debug-trace';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { embeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';
+import {
+    createEmbeddedMpvReconnectState,
+    EmbeddedMpvReconnectCoordinator,
+    EmbeddedMpvReconnectState,
+} from './embedded-mpv-reconnect';
+import type { EmbeddedMpvSessionOptions } from './embedded-mpv-session-options';
+import {
+    removeSessionOptionsDirectory,
+    removeSessionOptionsFile,
+    resolveSessionOptionsDirectory,
+    resolveSessionOptionsRoot,
+    sweepSessionOptionsFiles,
+    writeSessionOptionsFile,
+} from './embedded-mpv-session-options-file';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
     getFrameCopyRuntimeAvailability,
@@ -61,6 +76,17 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     videoHeight?: number;
     recording?: EmbeddedMpvRecordingState;
     error?: string;
+    /**
+     * `engine` when the error is the engine's own failure (a render context
+     * or a fatal libmpv log) rather than the stream's; absent means the
+     * stream failed and a reload can help.
+     */
+    errorOrigin?: 'playback' | 'engine';
+    /**
+     * Session option keys libmpv refused at creation (macOS/Windows
+     * native-view). Names only; the service warns once per session.
+     */
+    rejectedOptionKeys?: string[];
 }
 
 export interface NativeEmbeddedMpvAddon {
@@ -69,12 +95,20 @@ export interface NativeEmbeddedMpvAddon {
         windowHandle: Buffer,
         bounds: EmbeddedMpvBounds,
         title?: string,
-        initialVolume?: number
+        initialVolume?: number,
+        /** `key=value` libmpv options applied after the engine's built-ins. */
+        extraOptions?: string[]
     ): string;
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void;
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void;
     setPaused(sessionId: string, paused: boolean): void;
     seek(sessionId: string, seconds: number): void;
+    /**
+     * Relative seek executed by mpv (`seek <delta> relative+exact`). Optional
+     * so an addon binary built before it existed keeps working through the
+     * absolute fallback in `EmbeddedMpvNativeService.seekBy`.
+     */
+    seekBy?(sessionId: string, deltaSeconds: number): void;
     setVolume(sessionId: string, volume: number): void;
     setAudioTrack(sessionId: string, trackId: number): void;
     setSubtitleTrack?(sessionId: string, trackId: number): void;
@@ -99,6 +133,27 @@ interface EmbeddedMpvRuntimeSession {
     updatedAt: string;
     lastPayloadKey: string;
     lastStatus: EmbeddedMpvSessionStatus | null;
+    reconnect: EmbeddedMpvReconnectState;
+    /** Linux native-view only: the `--include` file carrying the options. */
+    optionsFile: string | null;
+    /** What `startRecording` was last asked for, until an explicit stop. */
+    lastRecordingStart: EmbeddedMpvRecordingStartOptions | null;
+    /** Whether the previous refresh reported an active recording. */
+    lastRecordingActive: boolean;
+    /** A recording was running when the outage began. */
+    recordingRunningAtLoss: boolean;
+    /** The reload replaced the recorded stream; restart the recording once it plays. */
+    restartRecordingAfterReconnect: boolean;
+    /** The rejected-options warning was logged for this session. */
+    rejectedOptionsReported: boolean;
+    /**
+     * External subtitle file added through `addSubtitle` and still the
+     * track that add selected: an explicit track pick or a user-driven load
+     * hands selection back to the user and clears it.
+     */
+    externalSubtitlePath: string | null;
+    /** The automatic reload dropped the external subtitle; re-add it once the reload plays. */
+    restoreSubtitleAfterReconnect: boolean;
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -118,6 +173,59 @@ export class EmbeddedMpvNativeService {
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
     private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
+    private sessionOptionsDirectory: string | null = null;
+    /**
+     * Reloads a dropped stream (see embedded-mpv-reconnect.ts). `publish`
+     * runs from a timer, outside the polling try/catch, so it must swallow
+     * addon failures itself instead of surfacing an uncaughtException.
+     */
+    private readonly reconnect = new EmbeddedMpvReconnectCoordinator({
+        reload: (sessionId, playback) => {
+            const addon = this.getAddon();
+            const session = this.sessions.get(sessionId);
+            if (session?.recordingRunningAtLoss && session.lastRecordingStart) {
+                // This reload replaces the recorded stream: the file mpv was
+                // writing is over (file it as interrupted, not completed),
+                // and the recording is started again once the reload plays.
+                // A stream that recovers by itself before this fires keeps
+                // its recording running and never reaches this branch.
+                embeddedMpvRecordingTracker.onRecordingInterrupted(sessionId);
+                session.restartRecordingAfterReconnect = true;
+                // Consumed: a failed attempt's next reload must not re-arm
+                // the tracker's flush window and postpone the verdict.
+                session.recordingRunningAtLoss = false;
+            }
+            if (session?.externalSubtitlePath) {
+                // The engines drop external subtitle tracks with the file
+                // they were added to (START_FILE clears them); re-add the
+                // user's file once the reload plays.
+                session.restoreSubtitleAfterReconnect = true;
+            }
+            addon.loadPlayback(sessionId, playback);
+            // Sessions run with keep-open=yes, so EOF on a live stream leaves
+            // mpv paused at the end of the old file and a plain loadfile
+            // inherits that pause: the reload then buffers, reports
+            // `paused` and never plays. Unpausing is part of the reload.
+            try {
+                addon.setPaused(sessionId, false);
+            } catch (error) {
+                console.warn(
+                    `[Embedded MPV][reconnect] session ${sessionId}: could not clear the keep-open pause after the reload:`,
+                    error
+                );
+            }
+        },
+        publish: (sessionId) => {
+            try {
+                this.refreshSession(sessionId);
+            } catch (error) {
+                console.error(
+                    `[Embedded MPV][reconnect] Refreshing session "${sessionId}" failed:`,
+                    error
+                );
+            }
+        },
+    });
 
     /**
      * Frame-copy engine: helper process + shm ring + renderer canvas.
@@ -453,7 +561,8 @@ export class EmbeddedMpvNativeService {
     createSession(
         bounds: EmbeddedMpvBounds,
         title = '',
-        initialVolume = 1
+        initialVolume = 1,
+        options?: EmbeddedMpvSessionOptions
     ): EmbeddedMpvSession {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
@@ -469,12 +578,25 @@ export class EmbeddedMpvNativeService {
             ? Buffer.alloc(0)
             : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
-        const sessionId = addon.createSession(
-            windowHandle,
-            usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds),
-            title,
-            initialVolume
+        const { addonOptions, optionsFile } = this.prepareSessionOptions(
+            options?.extraOptions ?? [],
+            usesFrameCopyAddon
         );
+        let sessionId: string;
+        try {
+            sessionId = addon.createSession(
+                windowHandle,
+                usesFrameCopyAddon
+                    ? bounds
+                    : this.scaleBoundsForNativeView(bounds),
+                title,
+                initialVolume,
+                addonOptions
+            );
+        } catch (error) {
+            removeSessionOptionsFile(optionsFile);
+            throw error;
+        }
 
         this.sessions.set(sessionId, {
             id: sessionId,
@@ -484,6 +606,17 @@ export class EmbeddedMpvNativeService {
             updatedAt: startedAt,
             lastPayloadKey: '',
             lastStatus: null,
+            reconnect: createEmbeddedMpvReconnectState(
+                options?.autoReconnect ?? true
+            ),
+            optionsFile,
+            lastRecordingStart: null,
+            lastRecordingActive: false,
+            recordingRunningAtLoss: false,
+            restartRecordingAfterReconnect: false,
+            rejectedOptionsReported: false,
+            externalSubtitlePath: null,
+            restoreSubtitleAfterReconnect: false,
         });
 
         this.ensurePolling();
@@ -517,6 +650,15 @@ export class EmbeddedMpvNativeService {
         session.title = playback.title ?? session.title;
         session.streamUrl = playback.streamUrl ?? session.streamUrl;
         session.updatedAt = new Date().toISOString();
+        this.reconnect.onUserLoad(session.reconnect, playback);
+        // A user-driven replacement stops an active recording by design
+        // (see "Live Stream Recording"); only an automatic reload restarts it.
+        session.lastRecordingStart = null;
+        session.recordingRunningAtLoss = false;
+        session.restartRecordingAfterReconnect = false;
+        // External subtitles are source-scoped: a user-driven load drops them.
+        session.externalSubtitlePath = null;
+        session.restoreSubtitleAfterReconnect = false;
         addon.loadPlayback(sessionId, playback);
         this.refreshSession(sessionId);
     }
@@ -534,6 +676,15 @@ export class EmbeddedMpvNativeService {
 
     setPaused(sessionId: string, paused: boolean): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
+        if (paused) {
+            // A pause sent while the session sits in a loss state never
+            // surfaces as a `paused` status, so the command itself has to
+            // call off a scheduled reload (see embedded-mpv-reconnect.ts).
+            const session = this.sessions.get(sessionId);
+            if (session) {
+                this.reconnect.onUserPause(session.reconnect);
+            }
+        }
         this.getAddon().setPaused(sessionId, paused);
         return this.refreshSession(sessionId);
     }
@@ -541,6 +692,31 @@ export class EmbeddedMpvNativeService {
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
         this.getAddon().seek(sessionId, seconds);
+        return this.refreshSession(sessionId);
+    }
+
+    /**
+     * Seeks relative to mpv's own playback position. The renderer must not
+     * derive an absolute target from its `positionSeconds`: that value is a
+     * whole-second snapshot refreshed at most every 500 ms and a seek reply
+     * does not carry the new position yet, so rapid arrow presses computed
+     * from it all land on the same target. mpv merges queued relative seeks,
+     * so presses accumulate the way they do in mpv itself. An addon without
+     * `seekBy` falls back to an absolute seek from its own, fresher snapshot.
+     */
+    seekBy(sessionId: string, deltaSeconds: number): EmbeddedMpvSession | null {
+        this.assertEmbeddedMpvEnabled();
+        const addon = this.getAddon();
+        if (!Number.isFinite(deltaSeconds)) {
+            return this.refreshSession(sessionId);
+        }
+        if (typeof addon.seekBy === 'function') {
+            addon.seekBy(sessionId, deltaSeconds);
+        } else {
+            const position =
+                addon.getSessionSnapshot(sessionId)?.positionSeconds ?? 0;
+            addon.seek(sessionId, Math.max(0, position + deltaSeconds));
+        }
         return this.refreshSession(sessionId);
     }
 
@@ -571,10 +747,20 @@ export class EmbeddedMpvNativeService {
             );
         }
         addon.setSubtitleTrack(sessionId, trackId);
+        // An explicit pick after an external file was added hands the
+        // selection back to the user: nothing is re-selected for them later.
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            session.externalSubtitlePath = null;
+            session.restoreSubtitleAfterReconnect = false;
+        }
         return this.refreshSession(sessionId);
     }
 
-    addSubtitle(sessionId: string, filePath: string): EmbeddedMpvSession | null {
+    addSubtitle(
+        sessionId: string,
+        filePath: string
+    ): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
         if (typeof addon.addSubtitle !== 'function') {
@@ -587,6 +773,10 @@ export class EmbeddedMpvNativeService {
             throw new Error('The selected subtitle file was not found.');
         }
         addon.addSubtitle(sessionId, normalized);
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            session.externalSubtitlePath = normalized;
+        }
         return this.refreshSession(sessionId);
     }
 
@@ -707,6 +897,7 @@ export class EmbeddedMpvNativeService {
             fallbackChannelName,
             metadata: options.metadata,
         });
+        session.lastRecordingStart = { ...options };
         return this.refreshSession(sessionId);
     }
 
@@ -720,7 +911,37 @@ export class EmbeddedMpvNativeService {
         }
         addon.stopRecording(sessionId);
         embeddedMpvRecordingTracker.onRecordingStopped(sessionId);
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            session.lastRecordingStart = null;
+            session.recordingRunningAtLoss = false;
+            session.restartRecordingAfterReconnect = false;
+        }
         return this.refreshSession(sessionId);
+    }
+
+    /**
+     * An automatic reload replaces the stream, which stops mpv's
+     * `stream-record` and lets the tracker finalize that file as an
+     * interrupted partial. Once the reload plays, the recording the user had
+     * running is started again into a fresh file with the same folder,
+     * title and metadata, so a transient outage costs seconds, not the rest
+     * of the programme. Deferred out of `refreshSession`, which must not
+     * re-enter itself.
+     */
+    private restartRecordingAfterReconnect(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (!session?.lastRecordingStart) {
+            return;
+        }
+        try {
+            this.startRecording(sessionId, session.lastRecordingStart);
+        } catch (error) {
+            console.warn(
+                `[Embedded MPV][reconnect] session ${sessionId}: could not restart the recording after the reload:`,
+                error
+            );
+        }
     }
 
     getDefaultRecordingFolder(): string {
@@ -741,11 +962,49 @@ export class EmbeddedMpvNativeService {
         return result.filePaths[0];
     }
 
+    /**
+     * How the session options reach the engine. In-process engines take the
+     * list directly; the frame-copy adapter sends it over the helper's
+     * stdin; Linux native-view runs a separate `mpv --wid` process whose
+     * argv is world-readable, so there the list goes into a user-only
+     * config file referenced with `--include`.
+     */
+    private prepareSessionOptions(
+        extraOptions: string[],
+        usesFrameCopyAddon: boolean
+    ): { addonOptions: string[]; optionsFile: string | null } {
+        if (
+            process.platform !== 'linux' ||
+            usesFrameCopyAddon ||
+            extraOptions.length === 0
+        ) {
+            return { addonOptions: extraOptions, optionsFile: null };
+        }
+        if (this.sessionOptionsDirectory === null) {
+            const root = resolveSessionOptionsRoot(app.getPath('userData'));
+            sweepSessionOptionsFiles(root);
+            this.sessionOptionsDirectory = resolveSessionOptionsDirectory(root);
+        }
+        const optionsFile = writeSessionOptionsFile(
+            this.sessionOptionsDirectory,
+            extraOptions
+        );
+        return { addonOptions: [`include=${optionsFile}`], optionsFile };
+    }
+
     disposeSession(sessionId: string): EmbeddedMpvSession | null {
         const session = this.sessions.get(sessionId);
         if (!session) {
             return null;
         }
+        this.reconnect.cancel(session.reconnect);
+        session.lastRecordingStart = null;
+        session.recordingRunningAtLoss = false;
+        session.restartRecordingAfterReconnect = false;
+        session.externalSubtitlePath = null;
+        session.restoreSubtitleAfterReconnect = false;
+        removeSessionOptionsFile(session.optionsFile);
+        session.optionsFile = null;
 
         let lastRecording: EmbeddedMpvRecordingState | undefined;
         try {
@@ -790,6 +1049,8 @@ export class EmbeddedMpvNativeService {
     shutdown(): void {
         const sessionIds = [...this.sessions.keys()];
         sessionIds.forEach((sessionId) => this.disposeSession(sessionId));
+        removeSessionOptionsDirectory(this.sessionOptionsDirectory);
+        this.sessionOptionsDirectory = null;
         if (this.pollingTimer) {
             clearInterval(this.pollingTimer);
             this.pollingTimer = null;
@@ -880,6 +1141,62 @@ export class EmbeddedMpvNativeService {
         this.pollingTimer = null;
     }
 
+    /**
+     * Re-adds the external subtitle file an automatic reload dropped. The
+     * helper's `sub-add` selects the added track, which restores what the
+     * user saw before the drop; `sub-delay` is an mpv-global property and
+     * survives the reload on its own.
+     */
+    private restoreSubtitleAfterReconnect(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        const filePath = session?.externalSubtitlePath;
+        if (!session || !filePath) {
+            return;
+        }
+        try {
+            const addon = this.getAddon();
+            if (typeof addon.addSubtitle !== 'function') {
+                return;
+            }
+            if (!existsSync(filePath)) {
+                session.externalSubtitlePath = null;
+                console.warn(
+                    `[Embedded MPV][reconnect] session ${sessionId}: the external subtitle file is gone; not restoring it after the reload`
+                );
+                return;
+            }
+            addon.addSubtitle(sessionId, filePath);
+        } catch (error) {
+            console.warn(
+                `[Embedded MPV][reconnect] session ${sessionId}: could not restore the external subtitle after the reload:`,
+                error
+            );
+        }
+    }
+
+    /**
+     * A syntactically valid option libmpv still refused (unknown name, bad
+     * value) is otherwise invisible outside a trace run; log the key once so
+     * the user learns the line did not apply. Keys only — a value may carry
+     * credentials (`http-header-fields`, proxies).
+     */
+    private reportRejectedOptions(
+        session: EmbeddedMpvRuntimeSession,
+        snapshot: NativeEmbeddedMpvSessionSnapshot
+    ): void {
+        if (
+            session.rejectedOptionsReported ||
+            !Array.isArray(snapshot.rejectedOptionKeys) ||
+            snapshot.rejectedOptionKeys.length === 0
+        ) {
+            return;
+        }
+        session.rejectedOptionsReported = true;
+        console.warn(
+            `[Embedded MPV] session ${session.id}: libmpv rejected extra option(s) ${snapshot.rejectedOptionKeys.join(', ')} (Settings > Playback > Embedded MPV)`
+        );
+    }
+
     private refreshSession(sessionId: string): EmbeddedMpvSession | null {
         const addon = this.getAddon();
         const session = this.sessions.get(sessionId);
@@ -891,6 +1208,7 @@ export class EmbeddedMpvNativeService {
         if (!snapshot) {
             return null;
         }
+        this.reportRejectedOptions(session, snapshot);
 
         const payload: EmbeddedMpvSession = {
             id: session.id,
@@ -938,9 +1256,78 @@ export class EmbeddedMpvNativeService {
             ...(snapshot.error ? { error: snapshot.error } : {}),
         };
 
+        const previousStatus = session.lastStatus;
         session.streamUrl = payload.streamUrl;
         session.updatedAt = payload.updatedAt;
         session.lastStatus = payload.status;
+        if (
+            previousStatus !== payload.status &&
+            isExternalPlayerTraceEnabled()
+        ) {
+            // Status transitions are the whole input of the reconnect policy;
+            // tracing them (never the URL) is what makes a "why did it not
+            // reconnect" report answerable.
+            trace(
+                'embedded-mpv',
+                `session ${sessionId} status ${previousStatus ?? 'none'} -> ${payload.status}`,
+                payload.error ? { error: payload.error } : undefined
+            );
+        }
+        const reconnect = this.reconnect.observe(
+            sessionId,
+            session.reconnect,
+            payload.status,
+            previousStatus,
+            payload.positionSeconds,
+            snapshot.errorOrigin
+        );
+        if (reconnect) {
+            payload.reconnect = reconnect;
+        }
+        if (
+            reconnect &&
+            session.lastRecordingStart &&
+            !session.restartRecordingAfterReconnect &&
+            (payload.recording?.active === true ||
+                (session.lastRecordingActive &&
+                    (previousStatus === 'playing' ||
+                        previousStatus === 'paused')))
+        ) {
+            // The outage began while a recording was running. Whether that
+            // recording is over is decided by the reload hook: only an
+            // actual reload replaces the stream and stops it. Recording
+            // starts asynchronously on Windows native-view and frame-copy,
+            // so a recording started shortly before the drop is acknowledged
+            // as active only in a later poll of the pending outage — accept
+            // it whenever the engine reports it, not just on the transition.
+            session.recordingRunningAtLoss = true;
+        } else if (
+            reconnect === null &&
+            payload.status === 'playing' &&
+            previousStatus !== 'playing'
+        ) {
+            // Back to playing: either our reload succeeded (restart the
+            // recording it stopped) or the stream recovered on its own
+            // (the recording never stopped; nothing to do).
+            const restart = session.restartRecordingAfterReconnect;
+            session.recordingRunningAtLoss = false;
+            session.restartRecordingAfterReconnect = false;
+            if (restart) {
+                setTimeout(
+                    () => this.restartRecordingAfterReconnect(sessionId),
+                    0
+                );
+            }
+            const restoreSubtitle = session.restoreSubtitleAfterReconnect;
+            session.restoreSubtitleAfterReconnect = false;
+            if (restoreSubtitle) {
+                setTimeout(
+                    () => this.restoreSubtitleAfterReconnect(sessionId),
+                    0
+                );
+            }
+        }
+        session.lastRecordingActive = payload.recording?.active === true;
         // The refresh timestamp must not participate in the diff key,
         // otherwise every poll tick looks like a change and the renderer
         // receives an IPC update every 500 ms even while paused.

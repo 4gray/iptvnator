@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { waitForScrollIdle } from './e2e-helpers';
 
 /**
  * The M3U movie-recognition workflow end to end: a playlist entry whose URL
@@ -112,20 +113,22 @@ async function enableTmdb(page: Page): Promise<void> {
     await saveSettings(page);
 }
 
-async function importPlaylist(page: Page): Promise<void> {
+async function importPlaylist(
+    page: Page,
+    content = MOVIE_PLAYLIST,
+    count = 2
+): Promise<void> {
     await page.goto('/');
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
-    await dialog
-        .getByLabel('Insert m3u(8) playlist as text')
-        .fill(MOVIE_PLAYLIST);
+    await dialog.getByLabel('Insert m3u(8) playlist as text').fill(content);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
         dialog.getByRole('button', { name: 'Import', exact: true }).click(),
     ]);
-    await expect(page.getByText('2 channels')).toBeVisible();
+    await expect(page.getByText(`${count} channels`)).toBeVisible();
 }
 
 const detail = (page: Page) => page.locator('app-m3u-vod-detail');
@@ -248,3 +251,68 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
         )
         .toBe(0.25);
 });
+
+for (const theme of ['light', 'dark']) {
+    test(`@web @m3u channel scrolling keeps focus after selection (${theme})`, async ({
+        page,
+    }) => {
+        await serveStreams(page);
+        await selectHtml5Player(page);
+        const channels = Array.from(
+            { length: 60 },
+            (_, index) =>
+                `#EXTINF:-1 group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.m3u8`
+        );
+        await importPlaylist(page, ['#EXTM3U', ...channels].join('\n'), 60);
+        await page.evaluate(
+            (dark) => document.body.classList.toggle('dark-theme', dark),
+            theme === 'dark'
+        );
+        const viewport = page.locator(
+            'app-all-channels-view cdk-virtual-scroll-viewport'
+        );
+        await viewport.locator('.channel-name').first().click();
+        await expect(viewport).toBeFocused();
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(100);
+        await expect(viewport).toBeFocused();
+        await waitForScrollIdle(viewport);
+        await page.keyboard.press('Home');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBe(0);
+        await page.keyboard.press('Tab');
+        await expect(
+            viewport.locator('button.channel-content').first()
+        ).toBeFocused();
+        await viewport.locator('button.channel-content').nth(1).focus();
+        await page.keyboard.press('Enter');
+        await expect(viewport.locator('.channel-list-item').nth(1)).toHaveClass(
+            /active/
+        );
+        await page.keyboard.press('Tab');
+        const favorite = viewport.locator('.favorite-button').nth(1);
+        await expect(favorite).toBeFocused();
+        await page.keyboard.press('Space');
+        await expect(favorite).toBeFocused();
+        await page
+            .getByRole('link', { name: 'Global favorites', exact: true })
+            .click();
+        const favorites = page.locator(
+            'app-global-favorites-list [appChannelScrollFocus]'
+        );
+        await favorites.locator('.channel-name').first().click();
+        await expect(favorites).toBeFocused();
+        await page
+            .getByRole('link', { name: 'Recently viewed', exact: true })
+            .first()
+            .click();
+        const recent = page.locator(
+            'app-global-favorites-list [appChannelScrollFocus]'
+        );
+        await recent.locator('.channel-name').first().click();
+        await expect(recent).toBeFocused();
+    });
+}

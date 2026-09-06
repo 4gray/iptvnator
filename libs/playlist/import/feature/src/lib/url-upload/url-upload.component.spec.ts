@@ -67,6 +67,7 @@ describe('UrlUploadComponent', () => {
         const testUrl = 'http://example.org/playlist.m3u';
 
         component.form.setValue({
+            userAgent: '',
             playlistName: '  Custom Playlist  ',
             playlistUrl: 'wrong url here',
         });
@@ -74,6 +75,7 @@ describe('UrlUploadComponent', () => {
         expect(component.form.valid).toBeFalsy();
 
         component.form.setValue({
+            userAgent: '',
             playlistName: '',
             playlistUrl: testUrl,
         });
@@ -81,6 +83,7 @@ describe('UrlUploadComponent', () => {
         expect(component.form.valid).toBeTruthy();
 
         component.form.setValue({
+            userAgent: '',
             playlistName: '   ',
             playlistUrl: testUrl,
         });
@@ -90,6 +93,7 @@ describe('UrlUploadComponent', () => {
 
     it('clears the url playlist form', () => {
         component.form.setValue({
+            userAgent: 'IPTVnator-Test/1.0',
             playlistName: 'News',
             playlistUrl: 'http://example.org/playlist.m3u',
         });
@@ -100,6 +104,7 @@ describe('UrlUploadComponent', () => {
         expect(component.form.getRawValue()).toEqual({
             playlistName: '',
             playlistUrl: '',
+            userAgent: '',
         });
         expect(component.form.pristine).toBeTruthy();
     });

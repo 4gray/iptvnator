@@ -3,8 +3,9 @@ import { Subject } from 'rxjs';
 import {
     buildXtreamEpgMappingKey,
     EpgItem,
+    windowEpgItemsAtProviderClock,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -49,6 +50,20 @@ export class EpgQueueService implements OnDestroy {
     private readonly apiService = inject(XtreamApiService);
     private readonly fallbackService = inject(XtreamXmltvFallbackService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly sourceSubscription = inject(
+        EpgSourceSettingsService
+    ).changed$.subscribe(() => {
+        this.enqueueGeneration++;
+        this.queue = [];
+        for (const id of new Set([
+            ...this.cache.keys(),
+            ...this.inFlight,
+            ...this.visibleSet,
+        ])) {
+            this.invalidate(id);
+            this.epgResult$.next({ streamId: id, items: [] });
+        }
+    });
     private readonly logger = createLogger('EpgQueueService');
     private readonly previewLimit = 3;
 
@@ -63,6 +78,8 @@ export class EpgQueueService implements OnDestroy {
     private processing = false;
     private enqueueGeneration = 0;
     private readonly failureTimestamps = new Map<number, number>();
+    /** Display offset every per-stream memory below was recorded under. */
+    private stateOffsetMinutes = this.epgOffsetMinutes();
 
     private readonly maxConcurrency = 2;
     private readonly delayMs = 200;
@@ -73,6 +90,7 @@ export class EpgQueueService implements OnDestroy {
     readonly epgResult$ = new Subject<{ streamId: number; items: EpgItem[] }>();
 
     getCached(streamId: number): EpgItem[] | null {
+        this.retireStateOfPreviousOffset();
         const entry = this.cache.get(streamId);
         if (!entry) return null;
         if (Date.now() - entry.timestamp > this.cacheTtlMs) {
@@ -80,6 +98,28 @@ export class EpgQueueService implements OnDestroy {
             return null;
         }
         return entry.data;
+    }
+
+    private epgOffsetMinutes(): number {
+        return this.settingsStore.resolvedEpgOffsetMinutes();
+    }
+
+    /**
+     * Every per-stream memory here — cut windows, cached empty results and
+     * failure cooldowns — answers "what is on at the provider clock", so a
+     * changed display offset retires all of it at once instead of letting
+     * one map or another keep steering the reload. Run on every entry point
+     * (`enqueue`, `getCached`, `fetchEpg`); in-flight requests are retired by
+     * `fetchEpg` itself when they land.
+     */
+    private retireStateOfPreviousOffset(): void {
+        const current = this.epgOffsetMinutes();
+        if (current === this.stateOffsetMinutes) {
+            return;
+        }
+        this.stateOffsetMinutes = current;
+        this.cache.clear();
+        this.failureTimestamps.clear();
     }
 
     /**
@@ -138,6 +178,7 @@ export class EpgQueueService implements OnDestroy {
         visibleIds: Set<number>,
         credentials: XtreamCredentials
     ): Promise<void> {
+        this.retireStateOfPreviousOffset();
         const generation = ++this.enqueueGeneration;
 
         const normalized: EpgQueueEntry[] = streams.map((entry) =>
@@ -333,35 +374,51 @@ export class EpgQueueService implements OnDestroy {
         const startEpoch = this.invalidationEpoch.get(streamId) ?? 0;
         const isStale = (): boolean =>
             (this.invalidationEpoch.get(streamId) ?? 0) !== startEpoch;
+        // Captured before the request so the result can be told apart from
+        // the offset current when it lands.
+        this.retireStateOfPreviousOffset();
+        const offsetMinutes = this.epgOffsetMinutes();
+        const outcome = await this.requestPreviewWindow(
+            credentials,
+            streamId,
+            offsetMinutes
+        );
         try {
-            const apiItems = await this.apiService.getShortEpg(
-                credentials,
-                streamId,
-                this.previewLimit,
-                { suppressErrorLog: true }
-            );
-
             // A mapping change during the request invalidated this result.
             if (isStale()) {
                 return;
             }
 
-            if (apiItems.length > 0) {
-                this.recordSuccess(streamId, apiItems);
+            // The setting changed while the request was on the wire, so this
+            // window — or its failure — belongs to the previous provider
+            // clock. The reload the change triggered skipped the stream
+            // because it was in flight, so retire the request whatever its
+            // outcome and fetch again if the row is still visible.
+            if (offsetMinutes !== this.epgOffsetMinutes()) {
+                this.supersedeForOffsetChange(
+                    credentials,
+                    streamId,
+                    startEpoch
+                );
+                return;
+            }
+
+            if ('error' in outcome) {
+                this.failureTimestamps.set(streamId, Date.now());
+                this.logger.error(
+                    `Failed to load EPG for stream ${streamId}`,
+                    outcome.error
+                );
+                return;
+            }
+
+            if (outcome.items.length > 0) {
+                this.recordSuccess(streamId, outcome.items);
                 return;
             }
 
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
             this.recordSuccess(streamId, xmltv ? [xmltv] : []);
-        } catch (error) {
-            if (isStale()) {
-                return;
-            }
-            this.failureTimestamps.set(streamId, Date.now());
-            this.logger.error(
-                `Failed to load EPG for stream ${streamId}`,
-                error
-            );
         } finally {
             // Only release the in-flight marker if this request still owns it.
             // When invalidate() cleared it mid-flight, a later re-enqueue may
@@ -371,6 +428,67 @@ export class EpgQueueService implements OnDestroy {
             if (!isStale()) {
                 this.inFlight.delete(streamId);
             }
+        }
+    }
+
+    /**
+     * The provider round-trip for one stream, settled into a value so the
+     * caller decides once — for success and failure alike — whether the
+     * result is still wanted. Without an offset the cheap short EPG is
+     * enough; with one, the short EPG cannot reach the programme on air
+     * (it starts at the provider's own "now"), so the same window is cut
+     * from the full guide at the provider clock
+     * (`windowEpgItemsAtProviderClock`).
+     */
+    private async requestPreviewWindow(
+        credentials: XtreamCredentials,
+        streamId: number,
+        offsetMinutes: number
+    ): Promise<{ items: EpgItem[] } | { error: unknown }> {
+        try {
+            if (offsetMinutes === 0) {
+                return {
+                    items: await this.apiService.getShortEpg(
+                        credentials,
+                        streamId,
+                        this.previewLimit,
+                        { suppressErrorLog: true }
+                    ),
+                };
+            }
+            return {
+                items: windowEpgItemsAtProviderClock(
+                    await this.apiService.getFullEpg(credentials, streamId, {
+                        suppressErrorLog: true,
+                    }),
+                    offsetMinutes,
+                    this.previewLimit
+                ),
+            };
+        } catch (error) {
+            return { error };
+        }
+    }
+
+    /**
+     * Retire the in-flight request of `streamId` whose window predates an
+     * offset change and queue a fresh fetch. Bumping the epoch first makes the
+     * old request's `finally` leave the marker alone, so the replacement it
+     * starts here cannot lose its own in-flight marker.
+     */
+    private supersedeForOffsetChange(
+        credentials: XtreamCredentials,
+        streamId: number,
+        epoch: number
+    ): void {
+        this.invalidationEpoch.set(streamId, epoch + 1);
+        this.inFlight.delete(streamId);
+        if (!this.visibleSet.has(streamId) || this.queue.includes(streamId)) {
+            return;
+        }
+        this.queue.push(streamId);
+        if (!this.processing) {
+            this.processQueue(credentials);
         }
     }
 
@@ -390,6 +508,7 @@ export class EpgQueueService implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.sourceSubscription.unsubscribe();
         this.epgResult$.complete();
     }
 }

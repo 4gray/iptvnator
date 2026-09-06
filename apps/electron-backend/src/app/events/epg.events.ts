@@ -1,5 +1,7 @@
+import { reconcileEpgSources } from './epg-source-settings.service';
 import { ipcMain } from 'electron';
 import {
+    ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
@@ -29,6 +31,14 @@ export default class EpgEvents {
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
         ipcMain.handle(
+            'EPG_RECONCILE_SOURCES',
+            async (_event, args: { urls: string[] }) => {
+                await reconcileEpgSources(args.urls);
+                return { success: true };
+            }
+        );
+
+        ipcMain.handle(
             'FETCH_EPG',
             async (
                 _event,
@@ -57,7 +67,7 @@ export default class EpgEvents {
                 _event,
                 args: {
                     channelIds: string[];
-                    options?: { sourceUrls?: string[] };
+                    options?: ElectronBridgeCurrentProgramsOptions;
                 }
             ) => {
                 return this.handleGetCurrentProgramsBatch(
@@ -178,10 +188,7 @@ export default class EpgEvents {
 
         ipcMain.handle(
             'EPG_CHANNEL_SEARCH',
-            async (
-                _event,
-                args: { searchTerm: string; limit?: number }
-            ) => {
+            async (_event, args: { searchTerm: string; limit?: number }) => {
                 return handleSearchEpgChannels(args.searchTerm, args.limit);
             }
         );
@@ -219,7 +226,7 @@ export default class EpgEvents {
 
     private static async handleGetCurrentProgramsBatch(
         channelIds: string[],
-        options?: { sourceUrls?: string[] }
+        options?: ElectronBridgeCurrentProgramsOptions
     ): Promise<Record<string, EpgProgram | null>> {
         return queryByResolvedChannelIds(channelIds, (resolvedIds) =>
             epgQueryService.getCurrentProgramsBatch(resolvedIds, options)

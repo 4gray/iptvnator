@@ -1,0 +1,238 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Alert from '../../components/blog/Alert.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import DownloadHero from '../../components/download/DownloadHero.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import PlatformSwitcher from '../../components/download/PlatformSwitcher.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import { buildDownloadPageSchema } from '../../lib/download-schema';
+import type { FaqEntry } from '../../lib/download-schema';
+import { LATEST_RELEASE_URL, formatAssetSize, getLatestRelease, resolveDownloads } from '../../lib/downloads';
+import { absoluteUrl } from '../../lib/site';
+
+const release = await getLatestRelease();
+const downloads = resolveDownloads(release, 'windows');
+const installer = downloads[0];
+const installerSize = installer ? formatAssetSize(installer.size) : null;
+const pageUrl = absoluteUrl('/download/windows/');
+
+const title = 'Download IPTVnator for Windows – Free Open-Source IPTV Player';
+const description =
+  'Download IPTVnator for Windows 10 and 11: a free, open-source IPTV player for M3U/M3U8 playlists, Xtream Codes and Stalker portals with EPG, VOD and MPV/VLC support. Direct link to the latest installer.';
+
+const installSteps = [
+  `Download the installer (${installer?.fileName ?? 'iptvnator-<version>-windows-x64-setup.exe'}) with the button above. It is a single 64-bit setup file.`,
+  'Run the installer. It installs IPTVnator for the current user and adds a Start menu entry and a desktop shortcut.',
+  'If Windows SmartScreen shows "Windows protected your PC", click "More info" and then "Run anyway". The note below explains why this prompt appears.',
+  'Start IPTVnator and add your first source: an M3U/M3U8 file or URL, an Xtream Codes login, or a Stalker portal.',
+];
+
+const features = [
+  {
+    title: 'M3U, Xtream Codes and Stalker',
+    description:
+      'Import M3U/M3U8 playlists from a file or URL, or sign in to Xtream Codes and Stalker/Ministra portals. Live TV, movies and series land in one library with favorites, history and search.',
+  },
+  {
+    title: 'Program guide (EPG)',
+    description:
+      'Attach an XMLTV guide to see what is on now and next, browse the multi-channel timeline under the player, and jump into catch-up where your provider offers it.',
+  },
+  {
+    title: 'MPV and VLC integration',
+    description:
+      'Hand streams that the built-in players cannot decode to MPV or VLC installed on your PC. Playback positions and the remote control stay inside IPTVnator.',
+  },
+  {
+    title: 'Embedded MPV engine (experimental)',
+    description:
+      'An optional engine that renders mpv directly inside the IPTVnator window for streams the web players struggle with. Opt in under Settings › Playback.',
+  },
+  {
+    title: 'Offline downloads',
+    description:
+      'Save movies and episodes from Xtream and Stalker sources to disk. The download manager resumes interrupted transfers and keeps a local library.',
+  },
+  {
+    title: 'Movie and series metadata',
+    description:
+      'Optional TMDB enrichment adds posters, plots, cast, ratings and trailers to movie and series details. Off by default, one switch in Settings.',
+  },
+  {
+    title: 'Remote control from your phone',
+    description:
+      'Open the built-in remote-control web app on your phone to switch channels, adjust volume and control playback from the couch.',
+  },
+  {
+    title: 'Updates built in',
+    description:
+      'IPTVnator checks GitHub releases on start and tells you when a new version is available, so you never have to come back to this page.',
+  },
+  {
+    title: 'No account, no tracking',
+    description:
+      'There is nothing to sign up for. Playlists and credentials stay on your PC in a local database, and the app sends no analytics.',
+  },
+];
+
+const specs = [
+  { term: 'Operating system', value: 'Windows 10 or Windows 11' },
+  {
+    term: 'Architecture',
+    value: '64-bit (x64). Windows 11 on ARM runs the x64 build through its built-in emulation.',
+  },
+  { term: 'Download size', value: installerSize ? `${installerSize} installer` : 'About 200 MB installer' },
+  { term: 'Account', value: 'None. IPTVnator never asks you to register.' },
+  {
+    term: 'Content',
+    value: 'Bring your own playlist or provider login. IPTVnator ships without channels.',
+  },
+  { term: 'License', value: 'MIT. The full source code is on GitHub.' },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Is IPTVnator free on Windows?',
+    a: 'Yes. IPTVnator is open-source software released under the MIT license. There is no paid tier, no trial and no advertising. If it saves you time, you can support development through GitHub Sponsors or Ko-fi.',
+  },
+  {
+    q: 'Does IPTVnator come with channels or playlists?',
+    a: 'No. IPTVnator is a player. You add your own M3U/M3U8 playlist, Xtream Codes login or Stalker portal from your provider. Any website selling "IPTVnator subscriptions" or channel packages is unrelated to this project.',
+  },
+  {
+    q: 'Why does Windows show "Windows protected your PC"?',
+    a: 'The installer is not signed with a commercial code-signing certificate, so SmartScreen treats it as an unknown publisher rather than a known one. Choose "More info" and then "Run anyway", but only for a file you downloaded from the official GitHub releases page.',
+  },
+  {
+    q: 'Is there a portable or 32-bit version?',
+    a: 'No. IPTVnator for Windows ships as a 64-bit installer only. If you cannot install software on the machine, the self-hosted browser version runs from a Docker container on any device on your network.',
+  },
+  {
+    q: 'Which formats and sources work on Windows?',
+    a: 'M3U and M3U8 playlists from local files or URLs, the Xtream Codes API, Stalker/Ministra portals and XMLTV program guides. The built-in players handle HLS, MPEG-TS and DASH streams, including ClearKey-protected DASH, and anything else can be handed to MPV or VLC.',
+  },
+  {
+    q: 'How do I update IPTVnator on Windows?',
+    a: 'IPTVnator checks for new releases when it starts and shows a notification with an install button. You can also download the latest installer from this page and run it over the existing installation; your playlists and settings are kept.',
+  },
+  {
+    q: 'Does it run on Windows 7, 8 or 8.1?',
+    a: 'No. The current runtime requires Windows 10 or later. Older Windows versions are not supported and receive no builds.',
+  },
+];
+
+const jsonLd = buildDownloadPageSchema({
+  platform: 'windows',
+  operatingSystem: 'Windows 10, Windows 11',
+  pageUrl,
+  description,
+  release,
+  downloads,
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={[
+    'IPTVnator Windows',
+    'IPTV player Windows',
+    'IPTV player Windows 11',
+    'IPTV player Windows 10',
+    'M3U player Windows',
+    'Xtream Codes player Windows',
+    'Stalker portal player Windows',
+    'open-source IPTV player',
+  ]}
+  jsonLd={jsonLd}
+>
+  <DownloadHero
+    platform="windows"
+    eyebrow="Download · Windows"
+    titleLead="IPTVnator for"
+    titleAccent="Windows"
+    lede="A free, open-source IPTV player for Windows 10 and 11. Load M3U/M3U8 playlists, sign in to Xtream Codes providers or Stalker portals, and watch live TV, movies and series with a full program guide. No account, no subscription, no bundled playlists."
+    release={release}
+    downloads={downloads}
+    facts={['Windows 10 / 11', '64-bit installer', 'Free & open source', 'MIT license']}
+    screenshot={{
+      src: '/iptvnator/screenshots/screenshot-player.webp',
+      alt: 'Live channels with the inline player and program guide in IPTVnator',
+      width: 2442,
+      height: 1806,
+    }}
+  />
+
+  <DownloadSection id="install" eyebrow="Installation" title="Up and running in" accent="two minutes" lead="One installer, no configuration wizard. The app is ready as soon as you add a playlist or a provider login.">
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-start">
+      <StepRail title="Install on Windows" steps={installSteps} />
+      <Alert type="warning" title="Why Windows SmartScreen may warn you">
+        <p>
+          The Windows installer is not signed with a commercial code-signing certificate, so SmartScreen can flag it as an
+          unrecognized app on first launch. This is a reputation check, not a malware detection. Accept the prompt only for
+          installers you downloaded from the{' '}
+          <a href={LATEST_RELEASE_URL} class="text-accent-300 underline decoration-accent-500/30 underline-offset-4">official GitHub releases page</a>,
+          never for copies that arrive through other download sites.
+        </p>
+      </Alert>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="features" eyebrow="On Windows" title="What you get" accent="on your PC" lead="The complete desktop feature set. Everything below works in the Windows build without add-ons.">
+    <FeatureList items={features} />
+  </DownloadSection>
+
+  <DownloadSection id="external-players" eyebrow="Playback" title="Built-in players, plus" accent="MPV and VLC">
+    <div class="grid gap-8 lg:grid-cols-2 lg:items-center">
+      <div class="space-y-4 text-base leading-relaxed text-surface-400">
+        <p>
+          IPTVnator ships three web playback engines (HTML5 with hls.js, Video.js and ArtPlayer) that cover HLS, MPEG-TS
+          and DASH streams. Some providers send codecs that browsers refuse to decode. For those, install{' '}
+          <a href="https://mpv.io/installation/" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300" rel="noopener">MPV</a>{' '}
+          or{' '}
+          <a href="https://www.videolan.org/vlc/download-windows.html" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300" rel="noopener">VLC</a>,
+          pick it under Settings › Playback, and IPTVnator launches it for every stream while keeping your library, favorites
+          and remote control in the app.
+        </p>
+        <p>
+          The experimental embedded MPV engine goes one step further and renders mpv inside the IPTVnator window itself.
+          It is opt-in and can be switched off again at any time.
+        </p>
+      </div>
+      <figure class="overflow-hidden rounded-xl border border-surface-600/60 bg-surface-900/60 p-2">
+        <img
+          src="/iptvnator/screenshots/external-player-support-mpv.webp"
+          alt="Playback settings with MPV selected as the external player"
+          class="h-auto w-full rounded-lg"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="requirements" eyebrow="Requirements" title="What you" accent="need">
+    <SpecList items={specs} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="IPTVnator on Windows">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <PlatformSwitcher current="windows" />
+</BaseLayout>

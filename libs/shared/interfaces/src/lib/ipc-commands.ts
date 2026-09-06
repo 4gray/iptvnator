@@ -71,6 +71,7 @@ export const EMBEDDED_MPV_LOAD_PLAYBACK = 'EMBEDDED_MPV_LOAD_PLAYBACK';
 export const EMBEDDED_MPV_SET_BOUNDS = 'EMBEDDED_MPV_SET_BOUNDS';
 export const EMBEDDED_MPV_SET_PAUSED = 'EMBEDDED_MPV_SET_PAUSED';
 export const EMBEDDED_MPV_SEEK = 'EMBEDDED_MPV_SEEK';
+export const EMBEDDED_MPV_SEEK_BY = 'EMBEDDED_MPV_SEEK_BY';
 export const EMBEDDED_MPV_SET_VOLUME = 'EMBEDDED_MPV_SET_VOLUME';
 export const EMBEDDED_MPV_SET_AUDIO_TRACK = 'EMBEDDED_MPV_SET_AUDIO_TRACK';
 export const EMBEDDED_MPV_SET_SUBTITLE_TRACK =
@@ -129,6 +130,10 @@ export const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
 // Window controls (custom title bar on Windows/Linux)
 export const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
 export const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
+// OS-level window fullscreen toggle (F11). The exit path from a fullscreen
+// launch on Windows/Linux, where the title bar is hidden and the custom
+// window controls hide themselves while fullscreen.
+export const WINDOW_TOGGLE_FULLSCREEN = 'WINDOW:TOGGLE_FULLSCREEN';
 export const WINDOW_CLOSE = 'WINDOW:CLOSE';
 export const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 export const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';

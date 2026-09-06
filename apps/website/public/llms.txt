@@ -7,6 +7,27 @@
 - Website: https://4gray.github.io/iptvnator/
 - Blog: https://4gray.github.io/iptvnator/blog/
 - Latest Release: https://github.com/4gray/iptvnator/releases/latest
+- Downloads overview: https://4gray.github.io/iptvnator/download/
+- Download for Windows: https://4gray.github.io/iptvnator/download/windows/
+- Download for macOS: https://4gray.github.io/iptvnator/download/macos/
+- Download for Linux: https://4gray.github.io/iptvnator/download/linux/
+- Self-host the browser version with Docker: https://4gray.github.io/iptvnator/download/docker/
+- Blog topic, all guides: https://4gray.github.io/iptvnator/blog/tag/guide/
+- Blog topic, release notes: https://4gray.github.io/iptvnator/blog/tag/release/
+- Blog topic, troubleshooting: https://4gray.github.io/iptvnator/blog/tag/troubleshooting/
+- Guide, Xtream Codes setup: https://4gray.github.io/iptvnator/blog/xtream-codes-setup-guide/
+- Guide, Stalker/Ministra portal setup: https://4gray.github.io/iptvnator/blog/stalker-portal-setup-guide/
+- Guide, M3U playlist and EPG setup: https://4gray.github.io/iptvnator/blog/m3u-playlist-epg-setup-guide/
+- Features overview: https://4gray.github.io/iptvnator/features/
+- Feature, M3U playlist player: https://4gray.github.io/iptvnator/features/m3u-player/
+- Feature, Xtream Codes player: https://4gray.github.io/iptvnator/features/xtream-codes-player/
+- Feature, Stalker portal player: https://4gray.github.io/iptvnator/features/stalker-portal-player/
+- Feature, TV guide (EPG): https://4gray.github.io/iptvnator/features/epg/
+- Feature, phone remote control: https://4gray.github.io/iptvnator/features/remote-control/
+- Comparisons overview: https://4gray.github.io/iptvnator/compare/
+- Compare, M3U vs Xtream Codes vs Stalker portal: https://4gray.github.io/iptvnator/compare/m3u-vs-xtream-vs-stalker/
+- Compare, playback engines (built-in vs MPV/VLC vs embedded MPV): https://4gray.github.io/iptvnator/compare/playback-engines/
+- Compare, desktop app vs self-hosted browser version: https://4gray.github.io/iptvnator/compare/desktop-vs-browser/
 - Release Notes (v0.18): https://4gray.github.io/iptvnator/blog/v0-18-release-notes/
 - Troubleshooting (macOS app damaged fix): https://4gray.github.io/iptvnator/blog/macos-arm-app-damaged-fix/
 - Source Code: https://github.com/4gray/iptvnator

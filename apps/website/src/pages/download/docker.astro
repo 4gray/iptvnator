@@ -1,0 +1,337 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Alert from '../../components/blog/Alert.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import PlatformSwitcher from '../../components/download/PlatformSwitcher.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { REPO_URL } from '../../lib/downloads';
+import { absoluteUrl } from '../../lib/site';
+
+const pageUrl = absoluteUrl('/download/docker/');
+const DOCKER_HUB_URL = 'https://hub.docker.com/r/4gray/iptvnator';
+const DOCKER_README_URL = `${REPO_URL}/blob/master/docker/README.md`;
+const COMPOSE_URL = `${REPO_URL}/blob/master/docker/docker-compose.yml`;
+
+const title = 'Self-Host IPTVnator with Docker – The Browser Version';
+const description =
+  'Run IPTVnator in your browser from one Docker container: the web app and its backend in a single image, published for amd64 and arm64. One compose command, the ports and variables that matter, what the browser version leaves out, and how to keep it updated.';
+
+const quickStart = [
+  'Install Docker and Docker Compose on the machine that will host IPTVnator. A home server, a NAS or a spare computer all work; the image is published for amd64 and arm64.',
+  'Save the compose file from the repository, or copy the command below into a directory of your choice.',
+  'Start the container. On the first run Docker pulls the image; later runs start in seconds.',
+  'Open the address in any browser on the same device and add your first source: an M3U playlist, an Xtream Codes login or a Stalker portal.',
+];
+
+const composeSnippet = `services:
+  iptvnator:
+    image: 4gray/iptvnator:latest
+    restart: unless-stopped
+    ports:
+      - "4333:80"
+    environment:
+      CLIENT_URL: http://localhost:4333`;
+
+const included = [
+  {
+    title: 'The complete web app',
+    description:
+      'The same interface as the desktop app: sources, dashboard, live TV, movies and series with details, favorites, history and search across sources.',
+  },
+  {
+    title: 'A backend in the same image',
+    description:
+      'Browsers block cross-origin requests, so the container ships an Express backend that fetches playlists and proxies Xtream and Stalker calls under /api. No second container.',
+  },
+  {
+    title: 'Portal program guides',
+    description:
+      'Xtream and Stalker sources publish their own schedule, and it shows in the channel list and under the player in the browser too.',
+  },
+  {
+    title: 'Reachable from every device',
+    description:
+      'Run it once on the server and open it from any laptop, tablet or phone on your network. Each browser keeps its own sources and history.',
+  },
+  {
+    title: 'A guarded proxy',
+    description:
+      'The backend accepts only http and https provider URLs, rejects credentials in URLs, and refuses private and loopback targets unless you opt in, so a public instance cannot be turned into a scanner of your network.',
+  },
+  {
+    title: 'Health checks and restarts',
+    description:
+      'The entrypoint starts the backend, waits for its health endpoint, then starts nginx; if either exits, the container exits and Compose restarts it.',
+  },
+];
+
+const config = [
+  { term: 'Image', value: '4gray/iptvnator on Docker Hub, built for linux/amd64 and linux/arm64.' },
+  { term: 'Port', value: 'The container listens on 80; the compose file maps it to 4333 on the host. Change the host side to taste.' },
+  { term: 'CLIENT_URL', value: 'The origin browsers use to open the app, for CORS. Set it to your public URL behind a reverse proxy; several origins can be comma-separated.' },
+  { term: 'BACKEND_URL', value: 'Where the app finds its backend. Keep the default /api for the bundled proxy.' },
+  { term: 'IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS', value: 'Off by default. Set to 1 only when your provider lives on your own LAN and the instance is limited to trusted users.' },
+  { term: 'NODE_EXTRA_CA_CERTS', value: 'Path to a CA bundle you mount into the container, for providers behind a private certificate authority. Keeps TLS validation on.' },
+];
+
+const tags = [
+  { term: 'latest', value: 'Every merge to the main branch. The simplest choice for a home setup.' },
+  { term: 'stable', value: 'The most recent tagged release that is not a prerelease.' },
+  { term: 'v<version>', value: 'The image built for that release tag, when you want the container to follow releases rather than every merge.' },
+  { term: 'sha-<commit>', value: 'Pinned to one commit, for reproducible deployments and rollbacks.' },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Is the browser version the same app as the desktop version?',
+    a: 'Yes, built from the same code. What it lacks is everything that needs to reach outside a browser tab: launching MPV or VLC, the embedded MPV engine, downloading files, storing an XMLTV guide, mapping EPG channels by hand, search across every source and the phone remote. Portal schedules from Xtream and Stalker sources still work.',
+  },
+  {
+    q: 'Does it need a separate backend container?',
+    a: 'No. The image contains nginx for the web app and the backend that fetches playlists and proxies portal requests, wired together under one origin. The older standalone backend image is not needed.',
+  },
+  {
+    q: 'Can I put it behind a reverse proxy with HTTPS?',
+    a: 'Yes. Point your proxy at the container port and set CLIENT_URL to the public https origin so the backend accepts requests from it. Keep the /api path intact, since the app expects the backend there.',
+  },
+  {
+    q: 'Is it safe to expose to the internet?',
+    a: 'Treat it as a private service. The app has no user accounts, and the backend proxies requests to your providers on behalf of whoever can reach it. Put it behind your own authenticating proxy or a VPN, and leave the private-network proxy switch off.',
+  },
+  {
+    q: 'Where is my data stored?',
+    a: 'In the browser you use, not in the container: playlist metadata in IndexedDB and portal user data in local storage. Another browser or device starts empty, and clearing site data removes the sources. The container itself keeps no state, so replacing it loses nothing.',
+  },
+  {
+    q: 'A stream does not play in the browser. What now?',
+    a: 'Browser engines cannot decode every codec, and there is no external player to hand the stream to. Use the copy-URL action on the stream and open it in MPV, VLC or IINA yourself, or use the desktop app, which automates that step.',
+  },
+  {
+    q: 'A provider works with wget inside the container but fails in the app.',
+    a: 'Usually a dual-stack host behind an IPv4-only VPN or Docker network. The backend already gives the IPv6-to-IPv4 fallback 2.5 seconds instead of Node\'s default; check the container logs for the hostname and error code, and the docker README describes the last-resort option that disables the racing entirely.',
+  },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'IPTVnator',
+    applicationCategory: 'MultimediaApplication',
+    applicationSubCategory: 'IPTV player',
+    operatingSystem: 'Docker (linux/amd64, linux/arm64); any modern browser',
+    url: pageUrl,
+    downloadUrl: DOCKER_HUB_URL,
+    installUrl: pageUrl,
+    isAccessibleForFree: true,
+    license: `${REPO_URL}/blob/master/LICENSE`,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    author: { '@type': 'Person', name: '4gray', url: 'https://github.com/4gray' },
+    sameAs: [REPO_URL, DOCKER_HUB_URL],
+    description,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((entry) => ({
+      '@type': 'Question',
+      name: entry.q,
+      acceptedAnswer: { '@type': 'Answer', text: entry.a },
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'IPTVnator', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Download', item: absoluteUrl('/download/') },
+      { '@type': 'ListItem', position: 3, name: 'Docker', item: pageUrl },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTVnator docker', 'self-hosted IPTV player', 'IPTV player docker', 'IPTV web player self-hosted', 'IPTV player browser', 'docker compose IPTV', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <section class="relative overflow-hidden pt-36 pb-20 sm:pt-40">
+    <div class="pointer-events-none absolute top-0 left-1/2 h-[520px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-accent-500/[0.06] blur-[120px]"></div>
+
+    <div class="relative mx-auto max-w-6xl px-6">
+      <nav aria-label="Breadcrumb" class="font-mono text-[11px] uppercase tracking-[0.15em] text-surface-500">
+        <ol class="flex flex-wrap items-center gap-2">
+          <li><a href="/iptvnator/" class="transition-colors hover:text-accent-400">IPTVnator</a></li>
+          <li aria-hidden="true">/</li>
+          <li><a href="/iptvnator/download/" class="transition-colors hover:text-accent-400">Download</a></li>
+          <li aria-hidden="true">/</li>
+          <li class="text-surface-300" aria-current="page">Docker</li>
+        </ol>
+      </nav>
+
+      <div class="mt-10 grid items-center gap-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <div>
+          <div class="inline-flex items-center gap-3">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500/[0.08] ring-1 ring-accent-500/20">
+              <svg class="h-5 w-5 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+              </svg>
+            </span>
+            <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Download · Browser version</span>
+          </div>
+
+          <h1 class="mt-6 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
+            IPTVnator in{' '}
+            <span class="text-accent-400">a container</span>
+          </h1>
+
+          <p class="mt-6 max-w-xl text-lg leading-relaxed text-surface-400">
+            The browser version of IPTVnator ships as one Docker image: the web app plus the backend that fetches
+            playlists and talks to portals. Run it on a home server, open it from any device on your network, and keep
+            the desktop app for the features a browser cannot offer.
+          </p>
+
+          <div class="mt-10 flex flex-wrap gap-4">
+            <a href="#quick-start" class="inline-flex items-center gap-3 rounded-xl bg-accent-500 px-6 py-4 text-base font-semibold text-surface-950 transition-all duration-300 hover:bg-accent-400">
+              Quick start
+            </a>
+            <a href={DOCKER_HUB_URL} rel="noopener" class="inline-flex items-center gap-3 rounded-xl border border-surface-600/60 bg-surface-900/50 px-6 py-4 text-base font-semibold text-surface-100 transition-all duration-300 hover:border-accent-500/40 hover:bg-accent-500/[0.05]">
+              4gray/iptvnator on Docker Hub
+            </a>
+          </div>
+
+          <ul class="mt-8 flex flex-wrap gap-2" aria-label="Key facts">
+            {['One image, no extra backend', 'amd64 & arm64', 'Port 4333 by default', 'Free & open source'].map((fact) => (
+              <li class="rounded-full border border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
+            ))}
+          </ul>
+        </div>
+
+        <figure class="relative">
+          <div class="pointer-events-none absolute -inset-6 rounded-3xl bg-accent-500/[0.05] blur-2xl"></div>
+          <div class="relative overflow-hidden rounded-xl border border-surface-600/60 bg-surface-900/60 p-2 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+            <img
+              src="/iptvnator/blog/v0-23/screenshots/dashboard-dark.png"
+              alt="The IPTVnator dashboard, which the browser version renders identically"
+              width={2560}
+              height={1440}
+              class="h-auto w-full rounded-lg"
+              loading="eager"
+              decoding="async"
+            />
+          </div>
+          <figcaption class="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-surface-600">The same interface, served from your own container</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <DownloadSection id="quick-start" eyebrow="Quick start" title="Running in" accent="one command" lead="The compose file in the repository is ready to use. The snippet below is the same thing without the build stage, for hosts that only pull images.">
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
+      <StepRail title="On the host" steps={quickStart} />
+      <div>
+        <CopyCommand title="From a repository checkout" command="docker compose -f docker/docker-compose.yml up --build -d" />
+        <div class="not-prose my-6 overflow-hidden rounded-xl border border-surface-700/70 bg-surface-900/60">
+          <div class="flex items-center justify-between border-b border-surface-700/60 px-4 py-2.5">
+            <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">docker-compose.yml, image only</span>
+          </div>
+          <pre class="m-0 overflow-x-auto p-4"><code class="font-mono text-sm text-accent-200">{composeSnippet}</code></pre>
+        </div>
+        <CopyCommand title="Then" command="docker compose up -d" />
+        <p class="mt-4 text-sm leading-relaxed text-surface-500">
+          The app answers on{' '}
+          <code class="rounded bg-surface-800/50 px-1.5 py-0.5 font-mono text-xs text-accent-300">http://localhost:4333</code>.
+          The full compose file with health check and all variables is{' '}
+          <a href={COMPOSE_URL} rel="noopener" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300">in the repository</a>.
+        </p>
+      </div>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="included" eyebrow="What is inside" title="One image," accent="two halves" lead="Everything the browser needs to run IPTVnator on its own, and nothing that needs a desktop.">
+    <FeatureList items={included} />
+  </DownloadSection>
+
+  <DownloadSection id="limits" eyebrow="What the browser cannot do" title="Desktop features stay" accent="on the desktop">
+    <div class="grid gap-8 lg:grid-cols-2 lg:items-start">
+      <div class="space-y-4 text-base leading-relaxed text-surface-400">
+        <p>
+          A browser tab cannot launch other programs, write files where it likes or keep a database the size of a TV
+          guide. So the browser version has no MPV or VLC handoff, no embedded MPV engine, no downloads or recordings,
+          no XMLTV guide and no manual channel mapping, no search across every source, and no phone remote. Xtream and
+          Stalker schedules still show, because they come from the provider on demand.
+        </p>
+        <p>
+          The full side-by-side table is on the{' '}
+          <a href="/iptvnator/compare/desktop-vs-browser/" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300">desktop vs browser comparison</a>.
+        </p>
+      </div>
+      <Alert type="info" title="Data lives in the browser">
+        <p>
+          Sources, favorites and history are stored by the browser you use, not by the container. A second device
+          starts empty, and clearing site data removes them. Replacing the container loses nothing, since it keeps
+          no state of its own.
+        </p>
+      </Alert>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="configuration" eyebrow="Configuration" title="The variables" accent="that matter" lead="Defaults are safe for a local install. Change them when the app is reachable under another address or sits behind a reverse proxy.">
+    <SpecList items={config} />
+    <div class="mt-8">
+      <Alert type="warning" title="Behind a reverse proxy">
+        <p>
+          Set <code>CLIENT_URL</code> to the public origin, for example{' '}
+          <code>https://tv.example.home</code>, or the backend rejects the browser's requests as cross-origin. Keep
+          the <code>/api</code> path, and put your own authentication or a VPN in front: the app has no accounts, and
+          whoever reaches it can use your providers.
+        </p>
+      </Alert>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="tags" eyebrow="Image tags" title="Which tag to" accent="pull">
+    <SpecList items={tags} />
+    <div class="mt-8 grid gap-6 lg:grid-cols-2">
+      <CopyCommand title="Update to the newest image" command="docker compose pull && docker compose up -d" />
+      <p class="text-sm leading-relaxed text-surface-500">
+        Images are published from the main branch and from release tags only; pull requests never publish. The docker
+        README lists every tag pattern, including commit-pinned ones for rollbacks.
+      </p>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="self-hosting">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="more" eyebrow="Go deeper" title="Details live" accent="in the repository" lead="This page covers the decisions. The docker README covers every variable, the IPv6 fallback, private certificate authorities and how the image is built.">
+    <LinkCards
+      links={[
+        { label: 'docker/README.md', href: DOCKER_README_URL, hint: 'Runtime configuration, image tags, IPv6 and VPN notes, local validation.', icon: 'github' },
+        { label: 'Desktop app vs browser version', href: '/iptvnator/compare/desktop-vs-browser/', hint: 'The full capability table for the two editions.', icon: 'docs' },
+        { label: 'Download the desktop app', href: '/iptvnator/download/', hint: 'Windows, macOS and Linux builds with every desktop feature.', icon: 'download' },
+      ]}
+    />
+    <div class="mt-10">
+      <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide']} />
+    </div>
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <PlatformSwitcher current="docker" />
+</BaseLayout>

@@ -1,0 +1,30 @@
+---
+import { getCollection } from 'astro:content';
+import BlogPostCard from '../BlogPostCard.astro';
+
+interface Props {
+  /** Blog entry ids (file slugs) in display order. */
+  slugs: string[];
+}
+
+const { slugs } = Astro.props;
+const posts = await getCollection('blog');
+const selected = slugs
+  .map((slug) => posts.find((post) => post.id === slug && !post.data.draft))
+  .filter((post): post is NonNullable<typeof post> => post !== undefined);
+---
+
+{selected.length > 0 && (
+  <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    {selected.map((post) => (
+      <BlogPostCard
+        title={post.data.title}
+        description={post.data.description}
+        pubDate={post.data.pubDate}
+        slug={post.id}
+        tags={post.data.tags}
+        heroImage={post.data.heroImage}
+      />
+    ))}
+  </div>
+)}

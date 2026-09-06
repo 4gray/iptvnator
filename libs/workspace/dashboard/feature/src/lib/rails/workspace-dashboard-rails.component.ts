@@ -622,7 +622,11 @@ export class WorkspaceDashboardRailsComponent {
         const program = getLiveEpgProgramForCard(card, this.liveEpgPrograms());
         // Recompute the now-window each tick so progress moves between
         // 30s ticks even if the program identity is unchanged.
-        return buildDashboardLiveEpgDetails(program, Date.now());
+        return buildDashboardLiveEpgDetails(
+            program,
+            Date.now(),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
     }
 
     private buildNonLiveSeeAllState(

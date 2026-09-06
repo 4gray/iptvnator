@@ -1,159 +1,409 @@
 ---
-const tabs = [
+/**
+ * "Flip through the app": the screenshot showcase as a channel switcher.
+ *
+ * The list on the left is the channel list of a TV player — number, name,
+ * one line about what the screen is for — and the screen on the right shows
+ * the selected shot. Channels advance on their own (a progress hairline runs
+ * under the active row) until the visitor hovers, focuses or scrolls the block
+ * out of view; `prefers-reduced-motion` turns autoplay off entirely. Arrow keys
+ * move between channels like a remote.
+ *
+ * Only the first frame ships with a `src`; the inactive panels sit stacked
+ * under it with opacity 0, so native lazy loading would fetch all six at
+ * once. The script assigns `src` from `data-src` when a channel is shown and
+ * preloads the one after it, so at most two frames are in flight.
+ *
+ * The list precedes the screen in the DOM at every breakpoint (tabs before
+ * their panels, focus order equals reading order); on phones the list simply
+ * hides the per-channel descriptions and the keyboard hint so the screen
+ * stays close.
+ *
+ * Hover and focus only pause while they last, which is no use to a touch or
+ * screen-reader visitor, so the list footer carries a "Pause auto-advance"
+ * toggle that stays paused until pressed again (WCAG 2.2.2). It is removed
+ * under reduced motion, where there is nothing to pause. The transient pauses
+ * watch the channel list and the screen only, so pressing Resume restarts
+ * autoplay at once even though the button keeps the pointer and the focus.
+ */
+const channels = [
   {
     id: 'dashboard',
     label: 'Dashboard',
+    description: 'Continue watching, recent channels and favorites across every source.',
     image: '/iptvnator/screenshots/dashboard-with-content.webp',
-    alt: 'Dashboard with recently watched content and global favorites',
+    alt: 'Dashboard with continue watching, recently watched and global favorites',
     width: 2072,
     height: 1602,
+    link: { href: '/iptvnator/features/', label: 'Every feature' },
   },
   {
     id: 'live-tv',
     label: 'Live TV',
+    description: 'Channel list with the current program, the player and the EPG timeline side by side.',
     image: '/iptvnator/screenshots/screenshot-player.webp',
-    alt: 'Live channels with the inline player and EPG',
+    alt: 'Live channels with the inline player and the program timeline',
     width: 2442,
     height: 1806,
+    link: { href: '/iptvnator/features/m3u-player/', label: 'M3U playlist player' },
   },
   {
     id: 'epg',
-    label: 'EPG Guide',
+    label: 'Program guide',
+    description: 'A multi-channel grid with a now-line you can scrub through the day.',
     image: '/iptvnator/screenshots/multi-epg-view.webp',
     alt: 'Multi-channel electronic program guide',
     width: 2180,
     height: 1448,
+    link: { href: '/iptvnator/features/epg/', label: 'TV guide (EPG)' },
+  },
+  {
+    id: 'movies',
+    label: 'Movies & series',
+    description: 'Detail pages with cast, seasons and the position you stopped at.',
+    image: '/iptvnator/screenshots/vod-details.webp',
+    alt: 'Movie detail page with poster, cast and play button',
+    width: 2260,
+    height: 1490,
+    link: { href: '/iptvnator/features/xtream-codes-player/', label: 'Xtream Codes player' },
+  },
+  {
+    id: 'downloads',
+    label: 'Downloads',
+    description: 'Offline library, download queue and live-TV recordings in one place.',
+    image: '/iptvnator/screenshots/download-manager.webp',
+    alt: 'Download manager with an offline library and a queue',
+    width: 2500,
+    height: 1602,
+    link: { href: '/iptvnator/blog/v0-23-release-notes/', label: 'Download manager notes' },
   },
   {
     id: 'settings',
     label: 'Settings',
+    description: 'Player engine, EPG, TMDB metadata, remote control and backup.',
     image: '/iptvnator/screenshots/settings.webp',
     alt: 'Application settings in the dark theme',
     width: 2500,
     height: 1602,
+    link: { href: '/iptvnator/features/remote-control/', label: 'Phone remote control' },
   },
-  {
-    id: 'add-playlist',
-    label: 'Add Playlist',
-    image: '/iptvnator/screenshots/add-playlist.webp',
-    alt: 'Add playlist dialog for M3U, Xtream, and Stalker sources',
-    width: 2260,
-    height: 1490,
-  },
-];
+] as const;
+
+const pad = (n: number) => String(n).padStart(2, '0');
 ---
 
-<section id="screenshots" class="relative py-28">
-  <hr class="section-divider mb-28" />
-
+<section id="screenshots" class="relative py-24 sm:py-28">
   <div class="mx-auto max-w-6xl px-6">
-    <!-- Editorial header: right-aligned for variety -->
-    <div class="ml-auto max-w-xl text-right">
-      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
-        Interface
-      </span>
-      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-        See it <em class="font-medium text-accent-400" style="font-style: italic;">in action</em>
-      </h2>
-      <p class="mt-4 text-lg text-surface-400">
-        A clean, intuitive interface designed for the best viewing experience.
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div class="max-w-xl">
+        <h2 class="font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+          Flip through the app
+        </h2>
+      </div>
+      <p class="max-w-sm text-base text-surface-400 sm:text-right">
+        Six screens, one player. Pick a channel or let it run.
       </p>
     </div>
 
-    <div class="mt-14">
-      <!-- Tab buttons with underline style -->
-      <div class="flex flex-wrap justify-center gap-1 rounded-lg border border-dashed border-surface-700/60 bg-surface-900/50 p-1.5" role="tablist">
+    <div class="mt-12 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]" data-channel-switcher>
+      <!-- Channel list -->
+      <div class="flex flex-col overflow-hidden rounded-xl border border-surface-800 bg-surface-900/40">
+        <div class="flex items-center justify-between border-b border-surface-800 px-4 py-3 font-mono text-[11px] uppercase tracking-[0.15em] text-surface-500">
+          <span>Channels</span>
+          <span>{pad(channels.length)}</span>
+        </div>
+        <div role="tablist" aria-label="App screens" aria-orientation="vertical" class="flex flex-col">
         {
-          tabs.map((tab, i) => (
+          channels.map((channel, i) => (
             <button
+              type="button"
               role="tab"
+              id={`screen-tab-${channel.id}`}
               aria-selected={i === 0 ? 'true' : 'false'}
-              data-tab={tab.id}
-              class:list={[
-                'screenshot-tab rounded-md px-5 py-2 font-mono text-xs uppercase tracking-[0.1em] transition-all duration-200',
-                i === 0
-                  ? 'bg-accent-500/15 text-accent-400'
-                  : 'text-surface-500 hover:text-surface-300',
-              ]}
+              aria-controls={`screen-panel-${channel.id}`}
+              tabindex={i === 0 ? 0 : -1}
+              data-channel={channel.id}
+              class="channel-tab group relative grid grid-cols-[38px_minmax(0,1fr)] gap-3 border-t border-surface-800 px-4 py-3 text-left sm:py-3.5 transition-colors duration-200 first-of-type:border-t-0 hover:bg-white/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-400"
             >
-              {tab.label}
+              <span class="channel-number pt-0.5 font-mono text-xs tabular-nums text-surface-500 transition-colors duration-200">
+                {pad(i + 1)}
+              </span>
+              <span>
+                <span class="block font-display text-[15px] font-semibold tracking-tight text-surface-100">
+                  {channel.label}
+                </span>
+                <span class="mt-0.5 hidden text-[12.5px] leading-snug text-surface-500 sm:block lg:hidden xl:block">
+                  {channel.description}
+                </span>
+              </span>
+              <span class="pointer-events-none absolute inset-x-0 -bottom-px h-0.5" aria-hidden="true">
+                <span class="channel-progress block h-full w-0 bg-accent-500" />
+              </span>
             </button>
           ))
         }
+        </div>
+        <div class="mt-auto flex items-center justify-between gap-3 border-t border-surface-800 px-4 py-2.5 font-mono text-[11px] text-surface-500">
+          <span class="hidden lg:inline">
+            <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↑</kbd>
+            <kbd class="rounded border border-surface-700 px-1.5 py-px text-surface-400">↓</kbd>
+            <span class="ml-1.5">channel</span>
+          </span>
+          <button
+            type="button"
+            class="channel-autoplay ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-surface-700 px-2.5 py-1 text-surface-300 transition-colors hover:border-surface-500 hover:text-surface-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-400"
+            aria-label="Pause auto-advance"
+            data-autoplay-toggle
+          >
+            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true" data-icon-pause>
+              <rect x="2" y="1.5" width="3" height="9" rx="0.5" /><rect x="7" y="1.5" width="3" height="9" rx="0.5" />
+            </svg>
+            <svg class="hidden h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true" data-icon-play>
+              <path d="M2.5 1.5v9l7.5-4.5z" />
+            </svg>
+            <span data-autoplay-label>Pause</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Screenshots with window chrome -->
-      <div class="relative mt-8">
+      <!-- Screen -->
+      <div
+        class="relative aspect-[4/3] overflow-hidden rounded-xl border border-surface-700/60 bg-surface-950 shadow-2xl shadow-black/40 lg:aspect-auto lg:min-h-[460px]"
+        data-channel-screen
+      >
         {
-          tabs.map((tab, i) => (
+          channels.map((channel, i) => (
             <div
-              data-panel={tab.id}
+              role="tabpanel"
+              id={`screen-panel-${channel.id}`}
+              aria-labelledby={`screen-tab-${channel.id}`}
+              aria-hidden={i === 0 ? 'false' : 'true'}
+              data-channel-panel={channel.id}
               class:list={[
-                'screenshot-panel transition-opacity duration-300',
-                i !== 0 && 'hidden',
+                'channel-panel absolute inset-0 transition-opacity duration-300 motion-reduce:transition-none',
+                i !== 0 && 'pointer-events-none opacity-0',
               ]}
             >
-              <div class="relative mx-auto max-w-4xl">
-                <!-- Ambient glow -->
-                <div class="absolute -inset-6 rounded-2xl bg-accent-500/[0.03] blur-2xl" />
-
-                <!-- Window chrome -->
-                <div class="relative overflow-hidden rounded-xl border border-surface-700/60 bg-surface-900 shadow-2xl shadow-black/30">
-                  <div class="flex items-center gap-2 border-b border-dashed border-surface-700/60 px-4 py-2.5">
-                    <div class="flex gap-1.5">
-                      <span class="h-2.5 w-2.5 rounded-full bg-red-500/70" />
-                      <span class="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
-                      <span class="h-2.5 w-2.5 rounded-full bg-green-500/70" />
-                    </div>
-                    <span class="ml-2 font-mono text-[11px] text-surface-500">{tab.label}</span>
-                  </div>
-                  <img
-                    src={tab.image}
-                    alt={tab.alt}
-                    width={tab.width}
-                    height={tab.height}
-                    class="h-auto w-full"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              </div>
+              <img
+                src={i === 0 ? channel.image : undefined}
+                data-src={channel.image}
+                alt={channel.alt}
+                width={channel.width}
+                height={channel.height}
+                class="h-full w-full object-contain"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           ))
         }
+
+        <!-- On-screen display: shows the channel number for a moment after a switch -->
+        <div
+          class="channel-osd pointer-events-none absolute left-4 top-4 flex -translate-y-1 items-center gap-2.5 rounded-lg border border-white/10 bg-surface-950/75 px-3 py-2 font-mono text-xs text-surface-100 opacity-0 backdrop-blur transition-all duration-200 motion-reduce:transition-none"
+          aria-hidden="true"
+        >
+          <span class="font-medium text-accent-400" data-osd-number>CH 01</span>
+          <span data-osd-label>{channels[0].label}</span>
+        </div>
+
+        <!-- Caption -->
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-5 bg-gradient-to-t from-surface-950/90 via-surface-950/60 to-transparent px-5 pb-4 pt-14">
+          <div class="min-w-0">
+            <span class="block font-display text-[15px] font-semibold text-surface-50" data-caption-label>{channels[0].label}</span>
+            <span class="mt-0.5 hidden text-[13px] text-surface-300 sm:block" data-caption-description>{channels[0].description}</span>
+          </div>
+          <a
+            href={channels[0].link.href}
+            class="pointer-events-auto shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.1em] text-accent-400 transition-colors hover:text-accent-300"
+            data-caption-link
+          >
+            {channels[0].link.label} →
+          </a>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<script>
-  const tabs = document.querySelectorAll('.screenshot-tab');
-  const panels = document.querySelectorAll('.screenshot-panel');
+<script define:vars={{ channels: channels.map((c) => ({ id: c.id, label: c.label, description: c.description, link: c.link })) }}>
+  const root = document.querySelector('[data-channel-switcher]');
+  if (root) {
+    const tabs = Array.from(root.querySelectorAll('.channel-tab'));
+    const panels = Array.from(root.querySelectorAll('.channel-panel'));
+    const osd = root.querySelector('.channel-osd');
+    const osdNumber = root.querySelector('[data-osd-number]');
+    const osdLabel = root.querySelector('[data-osd-label]');
+    const captionLabel = root.querySelector('[data-caption-label]');
+    const captionDescription = root.querySelector('[data-caption-description]');
+    const captionLink = root.querySelector('[data-caption-link]');
 
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const target = (tab as HTMLElement).dataset.tab;
+    const DWELL_MS = 7000;
+    // Live, not a snapshot: a visitor may switch the OS preference while the
+    // page is open, and the scheduler follows it (see the change listener).
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reduceMotion = motionQuery.matches;
+    // Hover and focus pause while they last; the toggle pauses until the
+    // visitor resumes. Autoplay runs only when none of the three holds.
+    let hovered = false;
+    let focused = false;
+    let stopped = false;
+    const paused = () => hovered || focused || stopped;
+    let current = 0;
+    let startedAt = 0;
+    let pausedAt = 0;
+    let frame = 0;
+    let osdTimer = 0;
 
-      // Reset all tabs
-      tabs.forEach((t) => {
-        t.classList.remove('bg-accent-500/15', 'text-accent-400');
-        t.classList.add('text-surface-500');
-        t.setAttribute('aria-selected', 'false');
+    const progressOf = (i) => tabs[i].querySelector('.channel-progress');
+
+    // Inactive frames carry their URL in data-src; give a frame its src the
+    // first time it is needed (the shown channel and the one after it).
+    function loadFrame(i) {
+      const img = panels[(i + panels.length) % panels.length].querySelector('img');
+      if (img && !img.getAttribute('src')) img.setAttribute('src', img.dataset.src ?? '');
+    }
+
+    function show(index, { focus = false, announce = true } = {}) {
+      current = (index + tabs.length) % tabs.length;
+      tabs.forEach((tab, i) => {
+        const active = i === current;
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.tabIndex = active ? 0 : -1;
+        progressOf(i).style.width = '0%';
       });
+      loadFrame(current);
+      if (!reduceMotion && !stopped) loadFrame(current + 1);
+      panels.forEach((panel, i) => {
+        const active = i === current;
+        panel.classList.toggle('opacity-0', !active);
+        panel.classList.toggle('pointer-events-none', !active);
+        panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+      });
+      const channel = channels[current];
+      captionLabel.textContent = channel.label;
+      captionDescription.textContent = channel.description;
+      captionLink.textContent = `${channel.link.label} →`;
+      captionLink.setAttribute('href', channel.link.href);
+      if (announce) {
+        osdNumber.textContent = `CH ${String(current + 1).padStart(2, '0')}`;
+        osdLabel.textContent = channel.label;
+        osd.classList.remove('opacity-0', '-translate-y-1');
+        window.clearTimeout(osdTimer);
+        osdTimer = window.setTimeout(() => osd.classList.add('opacity-0', '-translate-y-1'), 1400);
+      }
+      // A fresh dwell for the new channel. When the loop is not running the
+      // channel starts out paused right now, so time spent paused before
+      // Resume is not counted against it.
+      startedAt = performance.now();
+      pausedAt = frame ? 0 : startedAt;
+      if (focus) tabs[current].focus({ preventScroll: true });
+    }
 
-      // Activate clicked tab
-      tab.classList.add('bg-accent-500/15', 'text-accent-400');
-      tab.classList.remove('text-surface-500');
-      tab.setAttribute('aria-selected', 'true');
+    // One scheduler. The frame loop runs only while the block is on screen
+    // and nothing pauses it; every state change calls sync(), which starts or
+    // cancels the loop. The dwell clock stops while paused: the time spent
+    // paused is added to the start mark on resume, so the bar continues from
+    // where it froze. Only a channel change resets the dwell. A paused block
+    // schedules no frames at all.
+    let visible = false;
 
-      // Show/hide panels
-      panels.forEach((panel) => {
-        if ((panel as HTMLElement).dataset.panel === target) {
-          panel.classList.remove('hidden');
-        } else {
-          panel.classList.add('hidden');
+    function loop(now) {
+      const progress = (now - startedAt) / DWELL_MS;
+      if (progress >= 1) show(current + 1);
+      else progressOf(current).style.width = `${progress * 100}%`;
+      frame = window.requestAnimationFrame(loop);
+    }
+
+    function sync() {
+      // Background tabs throttle animation frames while the clock keeps
+      // running, so a hidden document counts as a pause too.
+      const shouldRun = visible && !document.hidden && !reduceMotion && !paused();
+      if (shouldRun && !frame) {
+        const now = performance.now();
+        if (!startedAt) startedAt = now;
+        if (pausedAt) {
+          startedAt += now - pausedAt;
+          pausedAt = 0;
         }
-      });
+        loadFrame(current + 1); // autoplay is on, so the next frame will be needed
+        frame = window.requestAnimationFrame(loop);
+      } else if (!shouldRun && frame) {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+        pausedAt = performance.now();
+      }
+    }
+
+    tabs.forEach((tab, i) => tab.addEventListener('click', () => show(i, { focus: true })));
+
+    root.addEventListener('keydown', (event) => {
+      if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'tab') return;
+      const keys = { ArrowDown: current + 1, ArrowUp: current - 1, Home: 0, End: tabs.length - 1 };
+      if (!(event.key in keys)) return;
+      event.preventDefault();
+      show(keys[event.key], { focus: true });
     });
-  });
+
+    // A visitor who is reading the list or the screen keeps the current
+    // channel. The footer with the Pause/Resume control is deliberately not
+    // one of these regions: after pressing Resume the pointer and the focus
+    // are still on that button, and autoplay must visibly restart right away.
+    const regions = [root.querySelector('[role="tablist"]'), root.querySelector('[data-channel-screen]')].filter(Boolean);
+    const insideRegion = (node) => node instanceof Node && regions.some((region) => region.contains(node));
+    for (const region of regions) {
+      region.addEventListener('mouseenter', () => { hovered = true; sync(); });
+      region.addEventListener('mouseleave', () => { hovered = false; sync(); });
+      region.addEventListener('focusin', () => { focused = true; sync(); });
+      region.addEventListener('focusout', (event) => {
+        if (insideRegion(event.relatedTarget)) return;
+        focused = false;
+        sync();
+      });
+    }
+
+    // Nothing to pause under reduced motion: the loop never starts, so the
+    // control is hidden (not removed — the preference can change at runtime).
+    const toggle = root.querySelector('[data-autoplay-toggle]');
+    const reflectMotionPreference = () => {
+      toggle?.classList.toggle('hidden', reduceMotion);
+      sync();
+    };
+    toggle?.addEventListener('click', () => {
+      stopped = !stopped;
+      // An action button, not a toggle: the name says what pressing it does next.
+      toggle.querySelector('[data-autoplay-label]').textContent = stopped ? 'Resume' : 'Pause';
+      toggle.setAttribute('aria-label', stopped ? 'Resume auto-advance' : 'Pause auto-advance');
+      toggle.querySelector('[data-icon-pause]').classList.toggle('hidden', stopped);
+      toggle.querySelector('[data-icon-play]').classList.toggle('hidden', !stopped);
+      sync();
+    });
+    motionQuery.addEventListener('change', (event) => {
+      reduceMotion = event.matches;
+      reflectMotionPreference();
+    });
+    reflectMotionPreference();
+    document.addEventListener('visibilitychange', sync);
+
+    // Only run while the block is on screen.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          visible = entry.isIntersecting;
+        });
+        sync();
+      },
+      { threshold: 0.25 },
+    );
+    observer.observe(root);
+  }
 </script>
+
+<style>
+  .channel-tab[aria-selected='true'] {
+    @apply bg-surface-850;
+  }
+  .channel-tab[aria-selected='true'] .channel-number {
+    @apply text-accent-400;
+  }
+</style>

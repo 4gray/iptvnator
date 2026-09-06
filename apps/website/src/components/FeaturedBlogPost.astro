@@ -1,10 +1,13 @@
 ---
+import BlogTagChip from './BlogTagChip.astro';
+import type { BlogTag } from '../lib/blog-tags';
+
 interface Props {
   title: string;
   description: string;
   pubDate: Date;
   slug: string;
-  tags?: string[];
+  tags?: BlogTag[];
   heroImage?: string;
 }
 
@@ -17,10 +20,8 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
 });
 ---
 
-<a
-  href={`/iptvnator/blog/${slug}/`}
-  class="card-dotted group block overflow-hidden"
->
+{/* Same stretched-link pattern as BlogPostCard: the tag chips are links of their own. */}
+<article class="card-panel group relative block overflow-hidden">
   <div class="grid items-center gap-8 md:grid-cols-2">
     <!-- Thumbnail -->
     <div class="overflow-hidden rounded-lg -mx-6 -mt-6 md:-my-6 md:-ml-6 md:mr-0">
@@ -55,15 +56,18 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
       {tags.length > 0 && (
         <div class="mt-2 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
-            <span class="rounded-full border border-dashed border-accent-500/30 px-2 py-0.5 text-xs text-accent-400">
-              {tag}
-            </span>
+            <BlogTagChip tag={tag} />
           ))}
         </div>
       )}
 
       <h3 class="mt-4 font-display text-2xl font-bold tracking-tight text-surface-50 transition-colors duration-200 group-hover:text-accent-400 sm:text-3xl">
-        {title}
+        <a
+          href={`/iptvnator/blog/${slug}/`}
+          class="card-link after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-500"
+        >
+          {title}
+        </a>
       </h3>
 
       <p class="mt-3 text-sm leading-relaxed text-surface-400">
@@ -84,4 +88,4 @@ const formattedDate = pubDate.toLocaleDateString('en-US', {
       </span>
     </div>
   </div>
-</a>
+</article>

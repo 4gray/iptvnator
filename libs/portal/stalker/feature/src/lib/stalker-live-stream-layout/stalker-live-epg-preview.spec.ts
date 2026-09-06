@@ -69,6 +69,74 @@ describe('mergeEpgProgramLists', () => {
 });
 
 describe('StalkerEpgPreviewQueue', () => {
+    it('drops cached windows when the display offset changes', async () => {
+        let offset = 0;
+        const fetchPrograms = jest.fn(async (channelId: string) => [
+            buildProgram(channelId, `Now ${channelId}`, -10),
+        ]);
+        const queue = new StalkerEpgPreviewQueue({
+            fetchPrograms,
+            onPrograms: jest.fn(),
+            epgOffsetMinutes: () => offset,
+        });
+
+        queue.sync(['1']);
+        await flushQueue();
+        expect(fetchPrograms).toHaveBeenCalledTimes(1);
+        expect(queue.getCachedPrograms('1')).toHaveLength(1);
+
+        // A different offset means a different window and a different "now".
+        offset = -60;
+        expect(queue.getCachedPrograms('1')).toBeNull();
+        queue.sync(['1']);
+        await flushQueue();
+        expect(fetchPrograms).toHaveBeenCalledTimes(2);
+        queue.destroy();
+    });
+
+    it('discards a window fetched for a previous offset and fetches again', async () => {
+        let offset = 0;
+        let resolveFirst!: (programs: EpgProgram[]) => void;
+        const fetchPrograms = jest
+            .fn<Promise<EpgProgram[]>, [string]>()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<EpgProgram[]>((resolve) => {
+                        resolveFirst = resolve;
+                    })
+            )
+            .mockImplementation(async (channelId: string) => [
+                buildProgram(channelId, `Later ${channelId}`, 50),
+            ]);
+        const onPrograms = jest.fn();
+        const queue = new StalkerEpgPreviewQueue({
+            fetchPrograms,
+            onPrograms,
+            epgOffsetMinutes: () => offset,
+        });
+
+        queue.sync(['1']);
+        await flushQueue(50);
+        expect(fetchPrograms).toHaveBeenCalledTimes(1);
+
+        // The setting changes while the request is on the wire; the sync it
+        // triggers finds the channel in flight and skips it.
+        offset = -60;
+        queue.sync(['1']);
+        resolveFirst([buildProgram('1', 'Now 1', -10)]);
+        await flushQueue();
+
+        // The stale window is neither reported nor cached; the channel was
+        // fetched again for the new offset.
+        expect(onPrograms).toHaveBeenCalledTimes(1);
+        expect(onPrograms).toHaveBeenCalledWith('1', [
+            expect.objectContaining({ title: 'Later 1' }),
+        ]);
+        expect(fetchPrograms).toHaveBeenCalledTimes(2);
+        expect(queue.getCachedPrograms('1')).toHaveLength(1);
+        queue.destroy();
+    });
+
     it('fetches each synced channel once and reuses the cache afterwards', async () => {
         const fetchPrograms = jest.fn(async (channelId: string) => [
             buildProgram(channelId, `Now ${channelId}`, -10),

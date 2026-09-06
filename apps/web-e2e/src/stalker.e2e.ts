@@ -1,8 +1,6 @@
-import {
-    type APIRequestContext,
-    type Page,
-} from '@playwright/test';
-import { setInputValue } from './e2e-helpers';
+import { type APIRequestContext, type Page } from '@playwright/test';
+import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
+import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { expect, test } from './fixtures';
 import {
     getRegisteredProviderUrl,
@@ -462,6 +460,56 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     expect(shortEpgRequests).toHaveLength(0);
 });
 
+test('@stalker ITV playback survives a category switch', async ({ page }) => {
+    // Regression: the shell context panel used to clear the selected Stalker
+    // item on every category click, tearing down the player for a channel the
+    // user never switched away from. Xtream live (#936) and M3U groups keep
+    // playing across a category/group switch; Stalker must too.
+    await addStalkerPortal(page);
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const sidebar = page.locator('app-stalker-live-stream-layout .sidebar');
+    const sidebarTitle = sidebar.locator('.category-title');
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    const scrollPane = sidebar.locator('#live-channels');
+    await categories.nth(1).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(scrollPane).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(categories.nth(1)).toBeFocused();
+    const firstCategoryTitle = (await sidebarTitle.textContent())?.trim() ?? '';
+    expect(firstCategoryTitle).not.toBe('');
+
+    await channels.first().click();
+    await expect(scrollPane).toBeFocused();
+    await page.keyboard.press('PageDown');
+    await expect
+        .poll(() => scrollPane.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    const player = page.locator('app-web-player-view');
+    await expect(player).toBeVisible({ timeout: 20_000 });
+
+    await categories.nth(2).click();
+
+    // The sidebar re-filters to the new category (proves the click landed and
+    // change detection ran)…
+    await expect(sidebarTitle).not.toHaveText(firstCategoryTitle, {
+        timeout: 20_000,
+    });
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    // …while the channel picked from the previous category keeps playing.
+    await expect(player).toBeVisible();
+});
+
 test('@stalker radio — stations use the inline audio player without EPG', async ({
     page,
 }) => {
@@ -512,6 +560,44 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
 
     await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgRequests).toHaveLength(0);
+});
+
+test('@stalker radio playback survives a category switch', async ({ page }) => {
+    // Radio shares the ITV layout and the same context-panel handler that
+    // used to clear the selected item on every category click (#1517). The
+    // inline audio player is gated on that selection, so a category switch
+    // silenced the station the user never switched away from.
+    await addStalkerPortal(page);
+
+    await page.getByRole('link', { name: /radio/i }).click();
+    await page.waitForURL(/stalker.*radio/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(2)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const sidebar = page.locator('app-stalker-live-stream-layout .sidebar');
+    const sidebarTitle = sidebar.locator('.category-title');
+    const stations = page.locator('[data-test-id="channel-item"]');
+    await expect(stations.first()).toBeVisible({ timeout: 20_000 });
+    const firstCategoryTitle = (await sidebarTitle.textContent())?.trim() ?? '';
+    expect(firstCategoryTitle).not.toBe('');
+
+    await stations.first().click();
+    await expect(stations.first()).toHaveClass(/active/, { timeout: 20_000 });
+    const audioPlayer = page.locator('app-audio-player');
+    await expect(audioPlayer).toBeVisible({ timeout: 20_000 });
+
+    await categories.nth(2).click();
+
+    // The sidebar re-filters to the new category (proves the click landed and
+    // change detection ran)…
+    await expect(sidebarTitle).not.toHaveText(firstCategoryTitle, {
+        timeout: 20_000,
+    });
+    await expect(stations.first()).toBeVisible({ timeout: 20_000 });
+    // …while the station picked from the previous category keeps playing.
+    await expect(audioPlayer).toBeVisible();
 });
 
 test('@stalker PWA skips bulk EPG across channel switches', async ({
@@ -586,6 +672,32 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
         timeout: 10_000,
     });
     await expect(categories.nth(1).locator('.item-count')).toHaveText('40');
+
+    // Starting from All Items leaves the category unset. Its fullscreen
+    // list must still show and window the full cache without a search term.
+    await allItemsGrid.locator('mat-card').first().click();
+    const playerView = page.locator('app-web-player-view');
+    await expect(playerView).toBeVisible();
+    await playerView.hover();
+    await playerView.getByRole('button', { name: 'Enter fullscreen' }).click();
+    await expect(
+        playerView.getByRole('button', { name: 'Exit fullscreen' })
+    ).toBeVisible();
+    await page
+        .locator('[data-test-id="fullscreen-channel-panel-hot-zone"]')
+        .hover();
+    const panel = page.locator('[data-test-id="fullscreen-channel-panel"]');
+    await expect(panel).toHaveAttribute('aria-hidden', 'false');
+    const panelRows = panel.locator('[data-test-id="channel-item"]');
+    await expect(panelRows).toHaveCount(100);
+    await panel.locator('.channels-list').evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    await expect(panelRows).toHaveCount(200);
+    await page.evaluate(() => document.exitFullscreen());
+    await expect
+        .poll(() => page.evaluate(() => !!document.fullscreenElement))
+        .toBe(false);
 
     await categories.nth(1).click();
 
@@ -916,10 +1028,7 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
             body?.payload?.js?.data ?? body?.js?.data ?? [];
         for (const row of rows) {
             if (Array.isArray(row.series) && row.series.length > 0) {
-                row.series = [
-                    ...row.series,
-                    String(row.series.length + 1),
-                ];
+                row.series = [...row.series, String(row.series.length + 1)];
             }
         }
         await route.fulfill({ response, body: JSON.stringify(body) });
@@ -952,10 +1061,18 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
     ).toBeVisible({ timeout: 10_000 });
 });
 
+test('@stalker title season markers align lazy VOD labels, TMDB episodes and watched state', async ({
+    page,
+}) => {
+    await verifyStalkerSeasonMarkers(page, () =>
+        addStalkerPortal(page, { name: 'Season Marker Portal' })
+    );
+});
+
 test('@stalker season watched toggle — embedded series marks and clears every episode', async ({
     page,
     request,
-}) => {
+}, testInfo) => {
     // Reuse the modeled embedded-series flow: find a VOD item carrying an
     // embedded series[] array, open it from its category, and land on the
     // series detail with its episode list.
@@ -989,11 +1106,11 @@ test('@stalker season watched toggle — embedded series marks and clears every 
         })
     ).toBeVisible({ timeout: 10_000 });
 
+    await expectSeriesSurfacesInBothThemes(page, testInfo);
+
     // The season header's bulk toggle (data-test-id with a dash — getByTestId
     // only matches data-testid in this suite) counts every unwatched episode.
-    const seasonToggle = page.locator(
-        '[data-test-id="toggle-season-watched"]'
-    );
+    const seasonToggle = page.locator('[data-test-id="toggle-season-watched"]');
     await expect(seasonToggle).toBeVisible();
     await expect(seasonToggle).toContainText(
         `Mark season as watched (${episodeCount})`

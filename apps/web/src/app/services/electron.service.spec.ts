@@ -111,6 +111,34 @@ describe('ElectronService', () => {
         expect(electronBridge.fetchPlaylistByUrl).not.toHaveBeenCalled();
     });
 
+    it('forwards URL import User-Agent alongside trust options and dispatches the persisted value', async () => {
+        const playlist = {
+            _id: 'ua-playlist',
+            userAgent: 'IPTVnator-Test/1.0',
+        };
+        electronBridge.fetchPlaylistByUrl.mockResolvedValue(playlist);
+        service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+            url: 'https://example.test/list.m3u',
+            userAgent: playlist.userAgent,
+        });
+        await Promise.resolve();
+        expect(electronBridge.fetchPlaylistByUrl).toHaveBeenCalledWith(
+            'https://example.test/list.m3u',
+            undefined,
+            {
+                trustedPrivateNetworkEpgUrls: [],
+                trustedInsecureTlsHosts: [],
+                userAgent: playlist.userAgent,
+            }
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.handleAddingPlaylistByUrl({
+                isTemporary: false,
+                playlist: playlist as Playlist,
+            })
+        );
+    });
+
     it('redacts credentials from backend player errors before logging', () => {
         const secret = 'player-error-token-secret';
         const listener = electronBridge.onPlayerError.mock.calls[0][0];

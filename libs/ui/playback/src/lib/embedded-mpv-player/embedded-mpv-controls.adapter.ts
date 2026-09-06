@@ -119,8 +119,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             volume: true,
             audioTracks: true,
             subtitles: optionalCapabilities?.subtitles ?? false,
-            externalSubtitles:
-                optionalCapabilities?.externalSubtitles ?? false,
+            externalSubtitles: optionalCapabilities?.externalSubtitles ?? false,
             subtitleDelay: optionalCapabilities?.subtitleDelay ?? false,
             subtitleStyle: optionalCapabilities?.subtitleStyle ?? false,
             playbackSpeed: optionalCapabilities?.playbackSpeed ?? false,
@@ -307,6 +306,21 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             };
         }
 
+        if (session?.reconnect) {
+            // A dropped stream the main process is reloading: a spinner with
+            // the attempt count reads better than the underlying mpv error.
+            return {
+                status: 'loading',
+                statusMessage: this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.RECONNECTING',
+                    {
+                        attempt: session.reconnect.attempt,
+                        maxAttempts: session.reconnect.maxAttempts,
+                    }
+                ),
+            };
+        }
+
         if (!session || session.status === 'loading') {
             return {
                 status: 'loading',
@@ -316,6 +330,12 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             };
         }
 
+        const statusPlayback = this.configuredContext()?.playback();
+        const liveEnded =
+            session.status === 'ended' &&
+            statusPlayback !== undefined &&
+            this.isLivePlayback(statusPlayback);
+
         switch (session.status) {
             case 'playing':
             case 'paused':
@@ -323,6 +343,16 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 return { status: session.status, statusMessage: '' };
             case 'ended':
             case 'closed':
+                if (liveEnded) {
+                    // A broadcast never ends on its own: surface it like an
+                    // error so the shared controls offer a way back.
+                    return {
+                        status: 'error',
+                        statusMessage: this.translate.instant(
+                            'EMBEDDED_MPV.PLAYER.STREAM_ENDED'
+                        ),
+                    };
+                }
                 return { status: 'ended', statusMessage: '' };
             case 'error':
                 return {

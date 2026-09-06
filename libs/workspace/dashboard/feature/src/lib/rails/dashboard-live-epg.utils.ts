@@ -1,6 +1,8 @@
-import type {
-    DashboardRailsSettings,
-    EpgProgram,
+import {
+    epgDisplayTimeMs,
+    epgProviderClockMs,
+    type DashboardRailsSettings,
+    type EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import type { DashboardRailCard } from './dashboard-rail.component';
 
@@ -11,15 +13,18 @@ export const LIVE_EPG_TICK_MS = 30_000;
 
 // Reads either an ISO `start`/`stop` or the pre-computed `startTimestamp`
 // when present. The parsed XMLTV pipeline populates both, but legacy rows
-// only carry the strings.
+// only carry the strings. `startTimestamp`/`stopTimestamp` are unix SECONDS
+// (the same contract `getProgramTimeMs` in `@iptvnator/ui/epg` reads), so a
+// usable value is scaled to milliseconds; zero, negative or non-finite
+// values are treated as absent and fall back to the ISO string.
 function epgTimestampMs(
     program: EpgProgram,
     side: 'start' | 'stop'
 ): number | null {
     const cached =
         side === 'start' ? program.startTimestamp : program.stopTimestamp;
-    if (cached != null) {
-        return cached;
+    if (Number.isFinite(cached) && Number(cached) > 0) {
+        return Number(cached) * 1000;
     }
     const iso = side === 'start' ? program.start : program.stop;
     const ms = iso ? new Date(iso).getTime() : NaN;
@@ -34,13 +39,19 @@ function formatEpgTime(ms: number): string {
         .padStart(2, '0')}`;
 }
 
-export function formatEpgTimeRange(program: EpgProgram): string | null {
+/** "HH:mm – HH:mm" in display time (raw times + the EPG display offset). */
+export function formatEpgTimeRange(
+    program: EpgProgram,
+    offsetMinutes = 0
+): string | null {
     const start = epgTimestampMs(program, 'start');
     const stop = epgTimestampMs(program, 'stop');
     if (start == null || stop == null) {
         return null;
     }
-    return `${formatEpgTime(start)} – ${formatEpgTime(stop)}`;
+    return `${formatEpgTime(epgDisplayTimeMs(start, offsetMinutes))} – ${formatEpgTime(
+        epgDisplayTimeMs(stop, offsetMinutes)
+    )}`;
 }
 
 export function calcEpgProgress(
@@ -65,9 +76,15 @@ export interface DashboardLiveEpgDetails {
     readonly nowPlayingProgress: number | null;
 }
 
+/**
+ * `nowMs` is wall-clock; `offsetMinutes` is the EPG display offset, applied in
+ * its two forms (`epg-display-offset.util.ts`): the range is shifted for
+ * display while progress compares the raw times with the provider clock.
+ */
 export function buildDashboardLiveEpgDetails(
     program: EpgProgram | null,
-    nowMs: number
+    nowMs: number,
+    offsetMinutes = 0
 ): DashboardLiveEpgDetails | null {
     if (!program) {
         return null;
@@ -75,8 +92,11 @@ export function buildDashboardLiveEpgDetails(
 
     const details: DashboardLiveEpgDetails = {
         nowPlayingTitle: program.title?.trim() || null,
-        nowPlayingTimeRange: formatEpgTimeRange(program),
-        nowPlayingProgress: calcEpgProgress(program, nowMs),
+        nowPlayingTimeRange: formatEpgTimeRange(program, offsetMinutes),
+        nowPlayingProgress: calcEpgProgress(
+            program,
+            epgProviderClockMs(nowMs, offsetMinutes)
+        ),
     };
 
     return details.nowPlayingTitle ||

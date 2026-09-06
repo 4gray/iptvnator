@@ -13,7 +13,11 @@
     @if (isDraggable()) {
         <mat-icon cdkDragHandle class="drag-icon">drag_indicator</mat-icon>
     }
-    <div class="channel-content">
+    <button
+        type="button"
+        class="channel-content"
+        [attr.aria-label]="displayName()"
+    >
         <div class="channel-logo-shell" aria-hidden="true">
             @if (showLogoFallback()) {
                 <mat-icon class="channel-logo-fallback">live_tv</mat-icon>
@@ -53,9 +57,9 @@
                     </div>
                     <div class="epg-timeline">
                         <span class="epg-time">{{
-                            (program.startTimestamp
-                                ? program.startTimestamp * 1000
-                                : program.start
+                            programDisplayMs(
+                                program.start,
+                                program.startTimestamp
                             ) | date: 'HH:mm'
                         }}</span>
                         <div class="epg-progress-track">
@@ -67,9 +71,9 @@
                             ></div>
                         </div>
                         <span class="epg-time">{{
-                            (program.stopTimestamp
-                                ? program.stopTimestamp * 1000
-                                : program.stop
+                            programDisplayMs(
+                                program.stop,
+                                program.stopTimestamp
                             ) | date: 'HH:mm'
                         }}</span>
                     </div>
@@ -80,7 +84,7 @@
                 }
             }
         </div>
-    </div>
+    </button>
     @if (
         (showProgramInfoButton() && showEpg()) ||
         showFavoriteButton() ||

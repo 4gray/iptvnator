@@ -15,7 +15,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
+import {
+    EpgItemDescriptionComponent,
+    getProgramTimeMs,
+} from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
@@ -39,6 +42,7 @@ export class ChannelListItemComponent {
     private readonly dialog = inject(MatDialog);
     private readonly logoFailed = signal(false);
     private readonly settingsStore = inject(SettingsStore);
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
 
     readonly isDraggable = input(false);
     readonly logo = input<string | null | undefined>('');
@@ -73,7 +77,10 @@ export class ChannelListItemComponent {
     readonly auxActionTooltip = input('');
 
     readonly clicked = output<void>();
+    /** Pointer double click; consumers retain their existing preference gate. */
     readonly activated = output<void>();
+    /** Explicit keyboard playback, independent of the pointer double-click preference. */
+    readonly keyboardActivated = output<void>();
     readonly favoriteToggled = output<MouseEvent>();
     readonly auxActionClicked = output<MouseEvent>();
     readonly contextMenuRequested = output<MouseEvent>();
@@ -108,6 +115,11 @@ export class ChannelListItemComponent {
         this.showProgramDescription(program, event);
     }
 
+    /** Programme boundary in display time (raw time + the EPG display offset). */
+    programDisplayMs(value: string, timestamp?: number | null): number {
+        return getProgramTimeMs(value, timestamp, this.epgOffsetMinutes());
+    }
+
     onFavoriteClick(event: MouseEvent): void {
         event.stopPropagation();
         this.favoriteToggled.emit(event);
@@ -123,7 +135,11 @@ export class ChannelListItemComponent {
             return;
         }
 
-        this.clicked.emit();
+        if (event?.detail === 0) {
+            this.keyboardActivated.emit();
+        } else {
+            this.clicked.emit();
+        }
     }
 
     onDoubleClick(): void {

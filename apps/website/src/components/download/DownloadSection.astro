@@ -1,0 +1,35 @@
+---
+interface Props {
+  id?: string;
+  eyebrow: string;
+  title: string;
+  accent?: string;
+  lead?: string;
+}
+
+const { id, eyebrow, title, accent, lead } = Astro.props;
+---
+
+<section id={id} class="relative py-20">
+  <hr class="section-divider mb-20" />
+
+  <div class="mx-auto max-w-6xl px-6">
+    <div class="max-w-2xl">
+      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">{eyebrow}</span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl">
+        {title}
+        {accent && (
+          <Fragment>
+            {' '}
+            {accent}
+          </Fragment>
+        )}
+      </h2>
+      {lead && <p class="mt-4 text-lg text-surface-400">{lead}</p>}
+    </div>
+
+    <div class="mt-12">
+      <slot />
+    </div>
+  </div>
+</section>

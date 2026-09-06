@@ -1,0 +1,160 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import CompareHero from '../../components/compare/CompareHero.astro';
+import ComparisonTable from '../../components/compare/ComparisonTable.astro';
+import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildComparisonPageSchema } from '../../lib/comparison-schema';
+import { comparisonBySlug } from '../../lib/comparisons';
+import { REPO_URL } from '../../lib/downloads';
+import { absoluteUrl } from '../../lib/site';
+
+const comparison = comparisonBySlug('desktop-vs-browser');
+const pageUrl = absoluteUrl('/compare/desktop-vs-browser/');
+const title = 'IPTVnator Desktop App vs Self-Hosted Browser Version – What Differs';
+const description =
+  'IPTVnator ships as a desktop app for Windows, macOS and Linux and as a self-hosted browser version you run from one Docker container. Both play M3U, Xtream Codes and Stalker sources; the browser version leaves out external players, downloads, the XMLTV guide and the phone remote.';
+
+const columns = ['Desktop app', 'Browser version'];
+
+const rows = [
+  { label: 'M3U and M3U8 playlists', cells: [true, true] },
+  { label: 'Xtream Codes accounts', cells: [true, true] },
+  { label: 'Stalker and Ministra portals', cells: [true, true] },
+  { label: 'Program guide from a portal', cells: [true, true], note: 'Xtream and Stalker publish their own schedule.' },
+  { label: 'XMLTV guide files', cells: [true, false], note: 'Downloading, parsing and storing XMLTV needs the desktop runtime.' },
+  { label: 'Manual EPG channel mapping', cells: [true, false] },
+  { label: 'MPV, VLC and embedded MPV', cells: [true, false], note: 'A browser cannot launch another application; copy the stream URL instead.' },
+  { label: 'Offline downloads and recordings', cells: [true, false] },
+  { label: 'Phone remote control', cells: [true, false], note: 'The desktop app is what serves the remote page.' },
+  { label: 'Search across every source', cells: [true, false] },
+  { label: 'Local catalog for instant opening', cells: ['Local database', 'Browser storage'] },
+  { label: 'Opening a playlist file from the system', cells: [true, false] },
+  { label: 'Reachable from other devices', cells: [false, true], note: 'This is the one thing the browser version does better.' },
+  { label: 'Installation', cells: ['Installer or package', 'One container you run yourself'] },
+];
+
+const browserFor = [
+  {
+    title: 'A machine you cannot install on',
+    description:
+      'A locked-down work laptop, a shared computer, a tablet. The browser version needs nothing installed locally beyond a browser.',
+  },
+  {
+    title: 'A home server',
+    description:
+      'Run the container once and reach the same library from every device on your network. The container includes the backend that fetches playlists and proxies portal requests.',
+  },
+  {
+    title: 'Trying it before installing',
+    description:
+      'The browser version is the same application, so what you see there is what the desktop app looks like, minus the features that need a desktop.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Is the browser version a different app?',
+    a: 'No, it is the same application built for the browser. The desktop app wraps it and adds what only a desktop can do: launching MPV or VLC, downloading files, storing an XMLTV guide, serving the phone remote and registering playlist file types.',
+  },
+  {
+    q: 'Why can the browser version not show an XMLTV guide?',
+    a: 'A guide file is downloaded, parsed and stored on the device, which the desktop runtime does in a background worker and a local database. Portal schedules from Xtream and Stalker sources do work in the browser, because they come from the provider on demand.',
+  },
+  {
+    q: 'How do I run the browser version?',
+    a: 'With the Docker setup in the repository. It builds the web app and its backend into one image and serves them together; the compose file and the environment variables are documented in the docker directory.',
+  },
+  {
+    q: 'Can I use both at once?',
+    a: 'Yes, but they do not share data. The desktop app keeps a local database on your machine and the browser version keeps its data in that browser, so sources, favorites and history exist separately in each.',
+  },
+  {
+    q: 'Is the browser version safe to expose to the internet?',
+    a: 'Treat it as a private service. It has no user accounts, and its backend proxies requests to your providers. Run it on your own network or behind your own authenticating reverse proxy.',
+  },
+  {
+    q: 'Which one should I install?',
+    a: 'The desktop app, unless you specifically need access from other devices or cannot install software. It is the complete version and it is what most of the documentation assumes.',
+  },
+];
+
+const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq });
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTVnator docker', 'self-hosted IPTV player', 'IPTV player browser', 'IPTVnator PWA', 'IPTV player web version', 'IPTV player comparison']}
+  jsonLd={jsonLd}
+>
+  <CompareHero
+    comparison={comparison}
+    titleLead="Desktop app or"
+    titleAccent="browser version?"
+    lede="Both are IPTVnator, built from the same code. One runs on your machine and can talk to the rest of it; the other runs in a container and can be opened from anywhere on your network."
+    verdict="Install the desktop app unless you need to reach IPTVnator from other devices or cannot install software. The browser version plays all three source types, but it cannot launch MPV or VLC, download files, store an XMLTV guide or serve the phone remote."
+  />
+
+  <DownloadSection id="matrix" eyebrow="Side by side" title="What the browser version" accent="leaves out" lead="Everything that needs to reach outside a browser tab is a desktop feature. Everything else is identical, because it is the same application.">
+    <ComparisonTable
+      columns={columns}
+      rows={rows}
+      rowHeader="Capability"
+      caption="The browser version is the self-hosted Docker build. Both editions keep your playlists and credentials on your own device or server."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="browser-for" eyebrow="When the browser wins" title="Reasons to run" accent="the container">
+    <FeatureList items={browserFor} />
+  </DownloadSection>
+
+  <DownloadSection id="run" eyebrow="Running it" title="One container," accent="one command" lead="The image serves the web app and the backend that fetches playlists and proxies portal requests.">
+    <div class="grid gap-8 lg:grid-cols-2 lg:items-start">
+      <div>
+        <CopyCommand title="Docker Compose" command="docker compose -f docker/docker-compose.yml up --build -d" />
+        <p class="mt-4 text-sm leading-relaxed text-surface-500">
+          The application is then available on port 4333. Ports, variables, reverse-proxy notes and image tags are on
+          the{' '}
+          <a href="/iptvnator/download/docker/" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300">
+            Docker page
+          </a>, and every detail in{' '}
+          <a href={`${REPO_URL}/blob/master/docker/README.md`} class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300" rel="noopener">
+            the docker README
+          </a>.
+        </p>
+      </div>
+      <div class="space-y-4 text-base leading-relaxed text-surface-400">
+        <p>
+          If inline playback fails in the browser, there is no external player to fall back to. Copy the stream URL and
+          open it in MPV, VLC or IINA yourself; the desktop app is the version that automates that step.
+        </p>
+        <p>
+          Data lives where the app runs: the desktop app in a local database, the browser version in that browser's own
+          storage. Moving between them means adding the sources again.
+        </p>
+      </div>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="the two editions">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'why-external-players-help', 'beware-unofficial-iptvnator-websites']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <CompareSwitcher current="desktop-vs-browser" />
+</BaseLayout>

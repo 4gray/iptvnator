@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of } from 'rxjs';
+import { EpgSourceReconciliationError } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsComponent } from './settings.component';
@@ -86,6 +87,9 @@ describe('SettingsComponent storage failures', () => {
         // write must not mark the form pristine — that is what keeps the
         // retry path on screen.
         expect(component.settingsForm.dirty).toBe(true);
+        expect(window.electron.updateSettings).not.toHaveBeenCalled();
+        expect(window.electron.setMpvPlayerPath).not.toHaveBeenCalled();
+        expect(window.electron.setVlcPlayerPath).not.toHaveBeenCalled();
     });
 
     it('marks the form pristine only after the settings write succeeded', async () => {
@@ -101,6 +105,51 @@ describe('SettingsComponent storage failures', () => {
         await fixture.whenStable();
 
         expect(component.settingsForm.pristine).toBe(true);
+    });
+
+    it('retries failed source cleanup on an explicit EPG save and clears dirty state only on success', async () => {
+        await fixture.whenStable();
+        jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
+        component.form.setEpgUrls(['removed-source']);
+        component.form.removeEpgSource(0);
+        component.settingsForm.patchValue({
+            remoteControl: true,
+            mpvPlayerPath: '/saved/mpv',
+            vlcPlayerPath: '/saved/vlc',
+        });
+        settingsStore.updateSettings
+            .mockRejectedValueOnce(new EpgSourceReconciliationError())
+            .mockResolvedValue(undefined);
+        component.onSubmit();
+        await fixture.whenStable();
+        expect(component.form.epgUrl.dirty).toBe(true);
+        expect(window.electron.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                remoteControl: true,
+                mpvPlayerPath: '/saved/mpv',
+                vlcPlayerPath: '/saved/vlc',
+                epgUrl: [],
+            })
+        );
+        expect(window.electron.setMpvPlayerPath).toHaveBeenCalledWith(
+            '/saved/mpv'
+        );
+        expect(window.electron.setVlcPlayerPath).toHaveBeenCalledWith(
+            '/saved/vlc'
+        );
+        expect(settingsStore.updateSettings).toHaveBeenLastCalledWith(
+            expect.objectContaining({ epgUrl: [] }),
+            { retryEpgCleanup: true }
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.EPG_DATA_CLEAR_FAILED',
+            undefined,
+            expect.any(Object)
+        );
+        component.onSubmit();
+        await fixture.whenStable();
+        expect(settingsStore.updateSettings).toHaveBeenCalledTimes(2);
+        expect(component.form.epgUrl.pristine).toBe(true);
     });
 
     it('keeps the user in settings when save-and-leave cannot persist', async () => {
@@ -124,5 +173,4 @@ describe('SettingsComponent storage failures', () => {
         );
         expect(component.settingsForm.dirty).toBe(true);
     });
-
 });

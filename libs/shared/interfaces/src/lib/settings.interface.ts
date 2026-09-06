@@ -39,6 +39,34 @@ export enum StartupBehavior {
     RestoreLastView = 'restore-last-view',
 }
 
+/**
+ * How the desktop window is presented when the app launches. Electron only.
+ *
+ * Persisted like every other setting in the renderer and mirrored into the
+ * main-process config file by the `SETTINGS_UPDATE` handler, because the
+ * window is created before the renderer exists — so a change applies on the
+ * next launch. `--fullscreen` on the command line forces `'fullscreen'` for
+ * that launch only, and F11 toggles fullscreen at any time.
+ */
+export type StartupWindowMode = 'normal' | 'maximized' | 'fullscreen';
+
+export const STARTUP_WINDOW_MODES: readonly StartupWindowMode[] = [
+    'normal',
+    'maximized',
+    'fullscreen',
+];
+
+/**
+ * Collapses anything that is not a known mode to `'normal'`. Shared by the
+ * renderer form and the main-process mirror so junk never reaches the
+ * config file or the window options.
+ */
+export function normalizeStartupWindowMode(value: unknown): StartupWindowMode {
+    return STARTUP_WINDOW_MODES.includes(value as StartupWindowMode)
+        ? (value as StartupWindowMode)
+        : 'normal';
+}
+
 export type CoverSize = 'small' | 'medium' | 'large';
 
 /** Rendering of the live EPG panel under the player. */
@@ -123,6 +151,14 @@ export interface Settings {
      */
     playerUpNextRail?: boolean;
     /**
+     * Slide the live channel list over the video in fullscreen — resting the
+     * mouse on the left edge, tapping that edge on touch, or pressing `C` —
+     * so a channel can be switched without leaving fullscreen. On by
+     * default; missing values mean enabled. Applies to the shared player
+     * controls (HTML5, Video.js, ArtPlayer, Embedded MPV frame-copy).
+     */
+    fullscreenChannelPanel?: boolean;
+    /**
      * When a movie fails to play and the same film exists in another imported
      * playlist, switch to it automatically instead of showing the error.
      *
@@ -147,6 +183,12 @@ export interface Settings {
     showCaptions: boolean;
     showDashboard: boolean;
     startupBehavior: StartupBehavior;
+    /**
+     * Desktop window presentation at launch: normal (last size), maximized,
+     * or fullscreen. Electron only and applied on the next launch; a missing
+     * value means `'normal'`. F11 leaves or re-enters fullscreen.
+     */
+    startupWindowMode?: StartupWindowMode;
     /** Show the desktop footer bar for external playback status */
     showExternalPlaybackBar?: boolean;
     /** Strip country/group prefixes like "US | " or "UK - " from channel names */
@@ -178,10 +220,37 @@ export interface Settings {
      * for its preload frame pump, which is fixed at window creation.
      */
     embeddedMpvFrameCopy?: boolean;
+    /**
+     * Extra libmpv options for the embedded engine, one `key=value` per line
+     * (no leading `--`), applied on every engine after the built-in options
+     * and the network defaults, so a line here overrides them. Keys the
+     * embed depends on (`EMBEDDED_MPV_FORBIDDEN_OPTION_KEYS`) are refused by
+     * the form and skipped at session creation. Mirrored into the
+     * main-process config like `embeddedMpvFrameCopy`; a change applies to
+     * the next embedded session.
+     */
+    embeddedMpvExtraOptions?: string;
+    /**
+     * Reload a dropped embedded MPV stream automatically (mpv error, or EOF
+     * on a live stream) with capped backoff. Default on; only a stream that
+     * already played is retried, so a dead URL stays on the manual Retry.
+     * Captured per session, so a change applies to the next session.
+     */
+    embeddedMpvAutoReconnect?: boolean;
+    /** Desktop Xtream/Stalker request cooldown. Default on; applies on Save. */
+    portalConnectivityGuard?: boolean;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */
     epgViewMode?: EpgViewMode;
+    /**
+     * Display-only correction, in whole minutes, for guides whose provider
+     * labels programme times with the wrong timezone. Clamped to ±720 by
+     * `normalizeEpgOffsetMinutes`; the two equivalent ways of applying it are
+     * documented in `epg-display-offset.util.ts`. Electron only in practice
+     * (the control is gated behind `supportsEpg`, like `epgViewMode`).
+     */
+    epgOffsetMinutes?: number;
     /** Per-rail dashboard visibility preferences. Missing keys default on. */
     dashboardRails?: DashboardRailsSettings;
     /**

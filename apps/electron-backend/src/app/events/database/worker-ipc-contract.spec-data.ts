@@ -74,6 +74,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: playlist,
     },
     {
+        operation: 'DB_MIGRATE_APP_PLAYLISTS',
+        args: [playlists],
+        payload: { playlists },
+    },
+    {
         operation: 'DB_UPSERT_APP_PLAYLISTS',
         args: [playlists],
         payload: playlists,

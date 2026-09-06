@@ -4,10 +4,14 @@
  *   pnpm release:screenshots                      # release slug from package.json
  *   pnpm release:screenshots --release v0-24      # explicit
  *   pnpm release:screenshots --only dashboard --theme dark
+ *   pnpm release:screenshots --group guides       # evergreen guide shots
  *
  * Reads tools/release/screenshots.manifest.json and writes
  * apps/website/public/blog/<release>/screenshots/<slug>-<theme>.png against
- * dist builds + the xtream mock server. Guards (screenshot-guards.mjs):
+ * dist builds + the xtream mock server. Shots carrying a `group` (for
+ * example `guides`) are skipped by a release run and land in
+ * apps/website/public/blog/<group>/screenshots/ when that group is selected.
+ * Guards (screenshot-guards.mjs):
  *
  *   G1  the real ~/.iptvnator/databases directory — including the SQLite WAL
  *       sidecars, compared after Electron exits and checkpoints — is proven
@@ -30,6 +34,7 @@ import process from 'node:process';
 import type { Page } from '@playwright/test';
 
 import {
+    DEFAULT_SHOT_GROUP,
     buildCaptureEnv,
     compareDatabaseStates,
     evaluateFrameReport,
@@ -37,15 +42,22 @@ import {
     HOST_RESOLVER_RULES,
     isAllowedRequestUrl,
     networkPolicy,
+    outputDirectoryFor,
     parseSetupStep,
     publishDirectory,
+    shotGroup,
     snapshotDatabaseState,
     stubbedResponseFor,
     validateManifest,
     validateReleaseSlug,
 } from './screenshot-guards.mjs';
 import * as driver from './capture-app-driver';
-import { applyTheme, runAction, settleUi } from './capture-navigation';
+import {
+    applyTheme,
+    discardUnsavedSettings,
+    runAction,
+    settleUi,
+} from './capture-navigation';
 import { assertTmdbDisabled } from './capture-tmdb-check';
 import {
     drainRecordedRequests,
@@ -90,14 +102,26 @@ async function main(): Promise<void> {
         throw new Error(`--release rejected: ${releaseError}`);
     }
 
+    const group = flag('group') ?? DEFAULT_SHOT_GROUP;
+    const groupError = validateReleaseSlug(group);
+
+    if (groupError) {
+        throw new Error(`--group rejected: ${groupError}`);
+    }
+
     const only = flag('only');
     const themeFilter = flag('theme');
     const shots = manifest.shots.filter(
-        (shot: { slug: string }) => !only || shot.slug === only
+        (shot: { slug: string; group?: string }) =>
+            shotGroup(shot) === group && (!only || shot.slug === only)
     );
 
     if (shots.length === 0) {
-        throw new Error(`--only ${only} matches no manifest slug`);
+        throw new Error(
+            only
+                ? `--only ${only} matches no manifest slug in group ${group}`
+                : `--group ${group} matches no manifest shots`
+        );
     }
 
     // Without this an erased cast would accept `--theme --only`, and every
@@ -112,7 +136,7 @@ async function main(): Promise<void> {
         ? [themeFilter as Theme]
         : manifest.themes;
     const blogRoot = path.join(workspaceRoot, 'apps/website/public/blog');
-    const outputRoot = path.join(blogRoot, release, 'screenshots');
+    const outputRoot = outputDirectoryFor({ blogRoot, group, release });
 
     // Belt and braces: the slug is validated above, but assert the resolved
     // path really lands inside the blog tree before anything deletes there.
@@ -131,8 +155,19 @@ async function main(): Promise<void> {
     // release assets an earlier run already committed.
     const stagingDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-shots-'));
     const mockServer = await driver.ensureXtreamMockServer(workspaceRoot);
+    // The Stalker portal is seeded only for shots that walk into it: it adds
+    // a third source card to the dashboard, which release shots must not show.
+    const needsStalker = shots.some((shot: { setup: string[] }) =>
+        shot.setup.some(
+            (step) => parseSetupStep(String(step)).action === 'open-stalker-live'
+        )
+    );
+    const stalkerMockServer = needsStalker
+        ? await driver.ensureStalkerMockServer(workspaceRoot)
+        : undefined;
     const dataDir = mkdtempSync(path.join(tmpdir(), 'iptvnator-release-shots-'));
     let app: Awaited<ReturnType<typeof driver.launchApp>> | undefined;
+    let page: Page | undefined;
     let recordedRequests: string[] = [];
     let captured = 0;
     let primaryError: unknown;
@@ -155,7 +190,7 @@ async function main(): Promise<void> {
         // main process itself fetches.
         await installRequestRecorder(app, networkPolicy());
 
-        const page = await driver.findMainWindow(app);
+        page = await driver.findMainWindow(app);
 
         // G3, second layer: page-level deny-by-default, which also blocks.
         await page.route('**/*', async (route) => {
@@ -185,7 +220,9 @@ async function main(): Promise<void> {
         await driver.sizeWindow(app, manifest.viewport);
         await driver.waitForAppReady(page);
         await assertTmdbDisabled(page); // G5
-        await driver.seedDemoData(page, driver.writeM3uFixture(dataDir));
+        await driver.seedDemoData(page, driver.writeM3uFixture(dataDir), {
+            stalker: needsStalker,
+        });
 
         for (const theme of themes) {
             await applyTheme(page, theme);
@@ -237,10 +274,16 @@ async function main(): Promise<void> {
         // isolation override is most likely, so G1 must still be evaluated.
         primaryError = error;
     } finally {
+        // A shot may leave the settings form dirty, which arms the app's
+        // close guard and would block the close below indefinitely.
+        if (page) {
+            await discardUnsavedSettings(page).catch(() => undefined);
+        }
         // Close before the G1 comparison: SQLite runs in WAL mode, so writes
         // may sit in -wal until the worker shuts down and checkpoints.
         await app?.close().catch(() => undefined);
         mockServer?.kill('SIGTERM');
+        stalkerMockServer?.kill('SIGTERM');
         rmSync(dataDir, { recursive: true, force: true });
     }
 

@@ -1,4 +1,6 @@
 <div
+    appChannelScrollFocus
+    [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
     class="nav-list app-scrollbar"
     cdkDropList
     [cdkDropListDisabled]="!canDragDrop()"
@@ -13,15 +15,12 @@
                 </p>
                 <p class="empty-hint">
                     {{
-                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT'
-                            | translate
+                        'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS_HINT' | translate
                     }}
                 </p>
             } @else {
                 <p class="empty-title">
-                    {{
-                        'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE' | translate
-                    }}
+                    {{ 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_TITLE' | translate }}
                 </p>
                 <p class="empty-hint">
                     {{ 'WORKSPACE.GLOBAL_FAVORITES.EMPTY_HINT' | translate }}
@@ -48,6 +47,7 @@
             [showDetailsContextMenu]="hasChannelContextMenu(ch)"
             (clicked)="onChannelClick(ch)"
             (activated)="onChannelActivate(ch)"
+            (keyboardActivated)="playbackRequested.emit(ch)"
             (favoriteToggled)="onFavoriteToggled(ch)"
             (contextMenuRequested)="onChannelContextMenu(ch, $event)"
         />
@@ -80,9 +80,7 @@
         <button mat-menu-item (click)="removeContextMenuChannel()">
             <mat-icon>delete</mat-icon>
             <span>
-                {{
-                    'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate
-                }}
+                {{ 'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate }}
             </span>
         </button>
     }

@@ -4,10 +4,14 @@ import {
     computed,
     DestroyRef,
     effect,
+    forwardRef,
     inject,
     input,
     output,
     signal,
+    TemplateRef,
+    untracked,
+    viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -59,6 +63,9 @@ import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-st
 import {
     AudioPlayerComponent,
     ElectronStreamHeadersService,
+    FULLSCREEN_CHANNEL_PANEL,
+    type FullscreenChannelPanelContext,
+    type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -72,6 +79,7 @@ import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
     EpgProgram,
+    epgProviderClockMs,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -99,8 +107,16 @@ import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-ses
         TranslatePipe,
         WebPlayerViewComponent,
     ],
+    providers: [
+        // The fullscreen channel panel inside the player renders this
+        // collection's list (see the `fullscreenChannelPanel` template).
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => UnifiedLiveTabComponent),
+        },
+    ],
 })
-export class UnifiedLiveTabComponent {
+export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly items = input.required<UnifiedCollectionItem[]>();
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
@@ -135,6 +151,23 @@ export class UnifiedLiveTabComponent {
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
+    );
+
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
+    /** FULLSCREEN_CHANNEL_PANEL: this collection's channels, unless opted out. */
+    readonly panelTemplate = computed(() =>
+        this.settingsStore.fullscreenChannelPanel?.() === false
+            ? null
+            : (this.fullscreenChannelPanelTemplate() ?? null)
+    );
+    readonly panelTitle = computed(() =>
+        this.translate.instant(
+            this.mode() === 'favorites'
+                ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
+                : 'PORTALS.SIDEBAR.RECENT'
+        )
     );
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
@@ -279,6 +312,7 @@ export class UnifiedLiveTabComponent {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
+    readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly liveEpgPanelSummary = computed(() => {
         const timeshift = this.activeTimeshift();
         if (timeshift) {
@@ -286,7 +320,10 @@ export class UnifiedLiveTabComponent {
             return toLiveEpgPanelSummary(timeshift.program);
         }
         this.progressTick();
-        return getLiveEpgPanelSummary(this.activeDetail());
+        return getLiveEpgPanelSummary(
+            this.activeDetail(),
+            this.epgOffsetMinutes()
+        );
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
         this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
@@ -302,7 +339,10 @@ export class UnifiedLiveTabComponent {
         // Date.now() verdict, and a recording started after an EPG boundary
         // would snapshot the previous show.
         this.progressTick();
-        const now = Date.now();
+        // Raw programme times vs. now in the provider's EPG clock, like the
+        // panel summary — the start snapshot is authoritative for the
+        // recording's title, so it must name the same programme.
+        const now = epgProviderClockMs(Date.now(), this.epgOffsetMinutes());
         const program =
             this.timelinePrograms().find((candidate) => {
                 const start = Date.parse(candidate.start);
@@ -354,7 +394,8 @@ export class UnifiedLiveTabComponent {
         const programs = filterRecordingProgramsOverlap(
             this.timelinePrograms().map(toRecordingProgramSnapshot),
             event.startedAt,
-            event.endedAt
+            event.endedAt,
+            this.epgOffsetMinutes()
         );
         if (programs.length === 0) {
             return;
@@ -420,7 +461,31 @@ export class UnifiedLiveTabComponent {
         }))
     );
 
+    /**
+     * Rows for the fullscreen channel panel. Radio is withheld: it renders
+     * through `app-audio-player` instead of `app-web-player-view`, so
+     * selecting a station destroys the element that owns fullscreen and drops
+     * the user out of it — the opposite of what the panel exists for. The
+     * page's own list keeps every row.
+     */
+    readonly fullscreenPanelChannels = computed(() =>
+        this.channelsForList().filter((channel) => channel.radio !== 'true')
+    );
+
     private selectionRequestId = 0;
+    /**
+     * The selection still resolving. `activeUid` alone cannot tell a pending
+     * highlight from the stream on screen — `activeItem`/`activeDetail` stay
+     * paired with the retained player until the replacement is in — so a
+     * second activation of the same pending row (a double-click's second
+     * click, an auto-open) folds its intent in here rather than restarting
+     * the request or, worse, launching the retained stream in its place.
+     */
+    private pendingActivation: {
+        readonly uid: string;
+        startPlayback: boolean;
+        isAutoOpen: boolean;
+    } | null = null;
 
     constructor() {
         effect(() => {
@@ -437,6 +502,23 @@ export class UnifiedLiveTabComponent {
             }
         });
 
+        // The map answers "what is on at the provider clock", so a changed
+        // display offset reloads it; the request id in loadEpgMap drops the
+        // older load. The first run only records the initial value.
+        let appliedEpgOffsetMinutes: number | null = null;
+        effect(() => {
+            const offsetMinutes = this.epgOffsetMinutes();
+            if (appliedEpgOffsetMinutes === offsetMinutes) {
+                return;
+            }
+            const isInitial = appliedEpgOffsetMinutes === null;
+            appliedEpgOffsetMinutes = offsetMinutes;
+            if (isInitial || !this.supportsEpg) {
+                return;
+            }
+            void this.loadEpgMap(untracked(() => this.items()));
+        });
+
         effect(() => {
             const target = this.autoOpenItem();
             const items = this.items();
@@ -451,15 +533,17 @@ export class UnifiedLiveTabComponent {
                 return;
             }
 
-            if (this.activeUid() === matchedItem.uid) {
-                if (this.activeDetail()) {
-                    this.autoOpenHandled.emit();
-                    return;
-                }
-
-                if (this.isSelecting()) {
-                    return;
-                }
+            // Handled only once the row is on screen: while it is merely the
+            // pending highlight, `activeDetail` still belongs to the retained
+            // stream, and `activateItem` folds this intent into the request
+            // in flight instead of restarting it.
+            if (
+                this.activeUid() === matchedItem.uid &&
+                this.activeItem()?.uid === matchedItem.uid &&
+                this.activeDetail()
+            ) {
+                this.autoOpenHandled.emit();
+                return;
             }
 
             void this.activateItem(matchedItem, true);
@@ -684,6 +768,7 @@ export class UnifiedLiveTabComponent {
 
     onClose(): void {
         this.selectionRequestId += 1;
+        this.pendingActivation = null;
         this.isSelecting.set(false);
         this.activeDetail.set(null);
         this.activeUid.set(null);
@@ -699,8 +784,16 @@ export class UnifiedLiveTabComponent {
         void this.loadEpgMap(this.items());
     }
 
+    private epgMapRequestId = 0;
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
+        // Only the latest load may install its map: an older one — started
+        // under a previous display offset or item set — must not overwrite
+        // the refreshed result when it completes last.
+        const requestId = ++this.epgMapRequestId;
         const epgMap = await this.streamResolver.loadEpgForItems(items);
+        if (requestId !== this.epgMapRequestId) {
+            return;
+        }
         this.epgMap.set(epgMap);
     }
 
@@ -710,7 +803,15 @@ export class UnifiedLiveTabComponent {
         startPlayback = false
     ): Promise<void> {
         const activeDetail = this.activeDetail();
-        if (this.activeUid() === item.uid && activeDetail) {
+        // The row is on screen only when it is both the highlight and the
+        // resolved item: while a replacement resolves, `activeUid` already
+        // points at it but `activeDetail` still belongs to the retained
+        // stream, and launching that here would open the wrong channel.
+        if (
+            this.activeUid() === item.uid &&
+            this.activeItem()?.uid === item.uid &&
+            activeDetail
+        ) {
             if (
                 startPlayback &&
                 this.shouldOpenExternalPlayback(activeDetail, true)
@@ -725,11 +826,32 @@ export class UnifiedLiveTabComponent {
             return;
         }
 
+        const pending = this.pendingActivation;
+        if (pending?.uid === item.uid && this.isSelecting()) {
+            // The same row is still resolving: fold this activation's intent
+            // into that request so its detail launches (or reports the
+            // auto-open handled) when it lands, without a second round-trip.
+            pending.startPlayback ||= startPlayback;
+            pending.isAutoOpen ||= isAutoOpen;
+            return;
+        }
+
         const requestId = ++this.selectionRequestId;
+        const activation = { uid: item.uid, startPlayback, isAutoOpen };
+        this.pendingActivation = activation;
+        // `activeUid` is the pending selection (row highlight). `activeItem`
+        // stays paired with `activeDetail`: the previous detail stays mounted
+        // while the next one resolves, because the player it renders owns
+        // DOM fullscreen and a selection from the fullscreen channel panel
+        // must not unmount that element (which would end fullscreen) for the
+        // resolution round-trip — and everything derived from the item
+        // (`playbackSessionKey`, recording/archive metadata) must keep
+        // describing the stream that player is still showing. The catch-up
+        // override belongs to that detail too: clearing it early would drop
+        // the mounted player back to the old channel's live URL for the
+        // gap. All of it swaps together when the new detail is in; a failed
+        // replacement keeps a previously mounted video and restores its row.
         this.activeUid.set(item.uid);
-        this.activeItem.set(item);
-        this.activeDetail.set(null);
-        this.activeTimeshift.set(null);
         this.isSelecting.set(true);
         // A previously owned radio override must not survive into a
         // selection that never mounts a player surface of its own — external
@@ -762,13 +884,20 @@ export class UnifiedLiveTabComponent {
                 }
             }
 
+            this.activeTimeshift.set(null);
+            this.activeItem.set(item);
             this.activeDetail.set(detail);
 
             if (this.supportsEpg && detail.epgMode === 'm3u') {
                 void this.hydrateSelectedM3uPrograms(item, detail, requestId);
             }
 
-            if (this.shouldOpenExternalPlayback(detail, startPlayback)) {
+            if (
+                this.shouldOpenExternalPlayback(
+                    detail,
+                    activation.startPlayback
+                )
+            ) {
                 void this.portalPlayer.openResolvedPlayback(detail.playback);
             }
 
@@ -782,16 +911,29 @@ export class UnifiedLiveTabComponent {
                 // Keep playback/EPG visible even if history persistence fails.
             }
 
-            if (requestId === this.selectionRequestId && isAutoOpen) {
+            if (
+                requestId === this.selectionRequestId &&
+                activation.isAutoOpen
+            ) {
                 this.autoOpenHandled.emit();
             }
         } catch {
             if (requestId === this.selectionRequestId) {
-                this.activeDetail.set(null);
-                this.activeUid.set(null);
+                // The fullscreen panel only offers video rows. Its previous
+                // stream is still valid when resolution of a replacement
+                // fails, so retain the player and its catch-up/session state.
+                // Radio's scoped headers were released above; that path keeps
+                // its existing reset behavior instead of reviving that scope.
+                if (!activeDetail || this.isRadioDetail(activeDetail)) {
+                    this.activeTimeshift.set(null);
+                    this.activeDetail.set(null);
+                    this.activeItem.set(null);
+                }
+                this.activeUid.set(this.activeItem()?.uid ?? null);
             }
         } finally {
             if (requestId === this.selectionRequestId) {
+                this.pendingActivation = null;
                 this.isSelecting.set(false);
             }
         }

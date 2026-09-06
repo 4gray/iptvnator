@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import {
+    afterNextRender,
     Component,
     ElementRef,
     computed,
@@ -37,6 +38,10 @@ import {
     templateUrl: './portal-detail-shell.component.html',
     styleUrls: ['./portal-detail-shell.component.scss'],
     host: {
+        tabindex: '0',
+        role: 'region',
+        '[attr.aria-label]': 'title() || backLabel()',
+        '(keydown)': 'onScrollKey($event)',
         '[class.shell-host--watch]': 'isWatch()',
         '(document:keydown.escape)': 'onEscape($event)',
     },
@@ -67,6 +72,18 @@ export class PortalDetailShellComponent {
     readonly isWatch = computed(() => this.playbackActive());
 
     constructor() {
+        afterNextRender(() => {
+            const element = this.host.nativeElement;
+            const active = element.ownerDocument.activeElement;
+            if (
+                !this.playbackActive() &&
+                !element.closest('[inert]') &&
+                (active === element.ownerDocument.body ||
+                    active === element.closest('main'))
+            ) {
+                element.focus({ preventScroll: true });
+            }
+        });
         let wasWatch = false;
         effect(() => {
             const watch = this.isWatch();
@@ -75,6 +92,28 @@ export class PortalDetailShellComponent {
             }
             wasWatch = watch;
         });
+    }
+
+    onScrollKey(event: KeyboardEvent): void {
+        if (
+            event.target === this.host.nativeElement &&
+            [
+                'ArrowUp',
+                'ArrowDown',
+                'PageUp',
+                'PageDown',
+                'Home',
+                'End',
+                ' ',
+            ].includes(event.key) &&
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.altKey
+        ) {
+            // Keep native page scrolling; a mounted player's global shortcuts
+            // must not turn this into volume adjustment or pause.
+            event.stopPropagation();
+        }
     }
 
     onEscape(event: Event): void {

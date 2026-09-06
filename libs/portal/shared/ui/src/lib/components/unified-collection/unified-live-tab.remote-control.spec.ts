@@ -75,6 +75,7 @@ describe('UnifiedLiveTabComponent remote control', () => {
                         player: signal(VideoPlayer.VideoJs),
                         stripCountryPrefix: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
+                        resolvedEpgOffsetMinutes: signal(0),
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },

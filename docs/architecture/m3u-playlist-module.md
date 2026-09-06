@@ -13,6 +13,77 @@ The M3U playlist module provides:
 - Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
+## Desktop upgrades from legacy profiles
+
+v0.19.0 stores the complete source list in IndexedDB database `iptvnator`,
+version 1, store `playlists`, key path `_id`. Source type is inferred from
+`serverUrl` (Xtream), `macAddress` (Stalker), or the M3U fields; the last-used
+source does not select which records are migrated. Settings live separately
+in `ngStorage`, and player preferences also use localStorage. SQLite already
+holds the Xtream catalogs opened in v0.19, including favorites and history;
+it is not the authoritative inventory of configured sources.
+
+The published v0.19 Linux DEB's `app.asar/package.json` names the app
+`electron-backend`. Later packages set `productName: IPTVnator`. Electron
+resolves different `userData` directories from those identities; a later
+`app.setName('iptvnator')` does not reset the cached path. The shared
+`~/.iptvnator/databases/iptvnator.db` is independent of that path, so cached
+Xtream sources can remain visible while the complete IndexedDB list is in
+the older profile. Linux usually places these profiles below `~/.config/`.
+Snap/Flatpak confinement and a changed installation type can give them
+different roots; recovery does not scan unrelated profiles or sandbox roots.
+
+`electron-profile-bootstrap.ts` runs before eager main-process imports such
+as `electron-conf`. If the current profile has no IndexedDB, Local Storage,
+Preferences, or `config.json` yet, it reuses the known `electron-backend` profile containing
+`IndexedDB/file__0.indexeddb.leveldb`, preserving its settings as well. It never
+switches an already-used current profile. E2E overrides keep both profiles and
+SQLite under the isolated test root.
+
+`PlaylistsService` sends the complete current-profile IndexedDB list through
+`DB_MIGRATE_APP_PLAYLISTS`. The worker validates every ID (including duplicates)
+and commits all rows plus `m3u-playlists-indexeddb-to-sqlite-v1` in one synchronous
+transaction. Any malformed source or failed write rolls back the entire batch;
+restarting retries it. Original IndexedDB records remain in place. Full SQLite
+rows with a `payload` are authoritative and are skipped. Cache-only Xtream rows
+receive the IndexedDB source configuration (cached credentials can be stale),
+retaining creation/import timestamps and all linked catalogs, favorites,
+history and playback positions. No provider connection is needed. Migration
+preserves stored data; it does not create missing provider catalogs or translate
+unrelated historical formats into new features.
+
+For an already-used current profile, a separate native recovery offer defaults
+to **Keep current sources**. **Recover all missing sources** explicitly explains
+that it may also restore sources intentionally deleted after upgrading. There
+is no pre-existing deletion ledger that can distinguish these from omissions,
+so recovery is never automatic. Close the old version before accepting.
+Recovery opens a disposable copy of the old IndexedDB, never the original,
+and keeps current settings and full source records. Its separate atomic receipt
+`playlists-electron-backend-profile-v1` prevents any subsequent replay, including
+after source deletion. Declining records `declined`; starting the app with
+`--recover-legacy-playlists` offers it again. That switch does not bypass consent
+or replay a completed recovery. A recovery read/write error leaves current
+sources usable, reports the failure, writes no successful receipt, and can be
+retried on restart.
+
+If the old profile is absent, unreadable, in another sandbox, or was already
+cleared by an earlier successful migration, missing source data cannot be
+reconstructed from the current SQLite cache. Restore a backup or recreate those
+sources; do not clear migration flags to force a blind replay.
+
+SQL initialization also creates indexes on added columns only after the column
+migrations. In particular, `idx_content_epg_channel` must follow the addition of
+`content.epg_channel_id`; creating it in the initial CREATE TABLE pass aborts
+initialization on the v0.19 schema before the playlist migration can run.
+
+Validation: `electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`
+seeds the exact v0.19 IndexedDB schema and verbatim SQL CREATE statements with
+61 Stalker sources, three Xtream sources, M3U, and linked cached user data.
+It exercises source-list UI, alternate last-used sources, retained settings,
+recovery consent, existing data, write failure, restart, and deletion after
+migration. Local macOS Electron verification does not substitute for installed
+Linux Mint MATE, Snap, or Flatpak upgrade testing.
+
 ## Module Structure
 
 ```
@@ -55,6 +126,36 @@ All four parse call sites (Electron `playlist-source.ts` import, `playlist-refre
 There is intentionally **no URL validation** (upstream removed it in 0.15.0): any non-empty non-`#` line after `#EXTINF` becomes the item URL. This is what fixes issue #1189 (Pluto TV JWT URLs longer than validator's 2084-char IE-era limit used to be rejected, and the stalled item index collapsed the whole playlist into one channel). `#` comment lines and unknown directives are appended to `item.raw` and never treated as URLs.
 
 The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
+
+## User-Agent for URL sources
+
+The M3U URL form accepts an optional User-Agent, including after an Auto-detect
+handoff. It reuses the playlist editor's translated label and hint. Import
+trims the value; an empty or whitespace-only value leaves download defaults
+unchanged. A successful import stores it as `Playlist.userAgent`, so the
+existing source editor can update it without a schema migration. The editor
+also exposes this field for URL sources in the PWA.
+
+Electron carries it in `ElectronBridgePlaylistFetchOptions` alongside TLS
+trust options. `playlist-source.ts` sets the HTTP header on the first fetch,
+startup auto-update supplies each saved playlist's UA, and explicit refresh
+passes it through `PlaylistRefreshPayload` to the refresh worker. The reducer
+retains the current UA when a refresh result omits it, preserving repeated
+refreshes and playback defaults within the same session. Requests
+retain their validated redirect, private-network, TLS, timeout, and cancellation
+policies. Download errors use the shared redactor before logging.
+
+The self-hosted PWA passes the optional `userAgent` parameter to `/parse` using
+the existing registered `targetId`; the backend sets the upstream header and
+returns the value in the playlist. Refresh uses the saved value through the
+same proxy. This requires the matching web backend. The browser never sets a
+User-Agent header itself, and this does not add custom browser playback-header
+support. Electron playback retains existing per-header precedence: channel
+headers override playlist defaults. File, text, and portal imports are unchanged.
+
+Regression coverage uses synthetic UA-gated HTTP endpoints in
+`playlist-auto-refresh.e2e.ts` (Electron) and `self-hosted.e2e.ts` (PWA), plus
+form, renderer, download, proxy, and refresh-action unit tests.
 
 ## Initial URL Import Performance Benchmark (Electron)
 
@@ -581,6 +682,61 @@ panel live. The setting flows end-to-end (`Settings.epgViewMode` →
 is gated behind `supportsEpg`, which is false in PWA; there the stored value
 simply stays at the `'timeline'` default.
 
+### EPG display offset
+
+EPG display times also support a global **`Settings.epgOffsetMinutes`**
+correction (Settings → EPG → _EPG time offset_; whole minutes, clamped to ±720,
+default 0) for guides whose provider labels programme times with the wrong
+timezone. It is **display-only**: parsed XMLTV values, SQLite rows, catch-up
+URLs and recording snapshots keep the provider's own times, so changing it
+never needs a guide refresh.
+
+The contract lives in `libs/shared/interfaces/src/lib/epg-display-offset.util.ts`
+and has two equivalent forms — **display** (`epgDisplayTimeMs`: shift a
+programme by `+offset`, then compare with wall-clock now or format it) and
+**clock** (`epgProviderClockMs`: express now as `now − offset` and compare with
+the raw programme times). Every consumer applies exactly one form per
+comparison; applying both doubles the shift.
+
+- **Display form** — everything in `ui/epg` (`getProgramTimeMs` feeds the
+  timeline geometry, list rows, date keys, dedup/equality, the collapsed
+  header's range and progress) receives the offset as the `offsetMinutes`
+  input from each host; `app-channel-list-item`, the dashboard time range and
+  the recording detail shift their labels the same way. The programme dialog
+  and the multi-EPG overlay are opened imperatively, so they read
+  `SettingsStore.resolvedEpgOffsetMinutes` themselves.
+- **Clock form** — every "currently airing" decision, so the row picked as
+  "now" is the one the UI renders as "now": the batched
+  `GET_CURRENT_PROGRAMS_BATCH` lookup takes an explicit `nowMs`
+  (`EpgService` passes its provider clock and tags its 60 s cache with the
+  offset; `ChannelListContainerComponent` refetches when the setting changes),
+  the channel-list progress bars, `XtreamStore.currentEpgItem`, the Xtream and
+  Stalker sidebar previews (re-picked on a change; whenever the offset is
+  non-zero the Xtream preview queue and the collection resolver cut their
+  window out of the full guide at the provider clock with
+  `windowEpgItemsAtProviderClock`, because `get_short_epg` always starts at
+  the provider's own "now" and cannot reach the programme actually on air; a
+  changed setting drops the queue's cut windows, cached empty results and
+  failure cooldowns as one, and a request that completes after the change is
+  retired and re-queued whatever its outcome), the M3U player's
+  `setCurrentEpgProgram` mirror and recording-start snapshot, the unified
+  collection resolver (`StreamResolverService.loadEpgForItems`), the dashboard
+  live cards' progress, and the recording stop-time overlap
+  (`filterRecordingProgramsOverlap`).
+
+Deliberately unshifted: catch-up URLs (built from the raw `programActivated`
+programme), recording snapshots (provider data; only their display is
+shifted), and the remote-control payload. Known limit: Stalker's bulk
+`get_epg_info` and `get_short_epg` also start at the portal's "now" and the app
+uses no past-reaching Stalker endpoint, so with a positive offset a Stalker
+sidebar row whose true programme lies in the portal's past shows no preview
+rather than a wrong one; under a negative offset the short-EPG window is widened
+instead (`shortEpgWindowSize`, 15-minute slots, capped at 50 — the sidebar queue,
+the active channel's panel fallback and the collection resolver all use it) so
+it still reaches the programme on air, and preview cache entries are tagged with
+the offset they were fetched for. Like the view mode, the control is Electron-only in practice —
+it sits behind `supportsEpg`.
+
 Both components stay presentation-focused; the reusable, view-agnostic pieces
 (shared by the timeline and the list) are split out and re-exported from
 `@iptvnator/ui/epg`:
@@ -1037,8 +1193,9 @@ player in settings.
   because those players never receive its keys.
   Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
   with a fixed safe detail string and without starting an engine.
-- HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:
-  `customType.mpd` in `ArtPlayerSourceSession`. Shared-controls bridge:
+- HTML5 player: the `dash` branch of `playChannel()` (source kind from the
+  shared `resolvePlaybackUrlSourceKind()`). ArtPlayer: `customType.mpd` in
+  `ArtPlayerSourceSession`. Shared-controls bridge:
   `WebVideoControlsSource` kind `'shaka'` + `WebVideoShakaControls`
   (audio/text tracks via the Shaka 5 API — selecting a text track shows it,
   `selectTextTrack(null)` hides).
@@ -1225,3 +1382,84 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 3. Dispatch `FavoritesActions.hydrateFavorites` only when copying values that
    were already read from persistence into NgRx
 4. Effects persist the two user-mutation actions; hydration is reducer-only
+
+### XMLTV source lifecycle
+
+Electron treats `Settings.epgUrl` as the committed global source list. Removing
+an input is a draft edit; only a successful IndexedDB write authorizes source
+reconciliation. A storage write failure restores the previous in-memory EPG
+URLs. If subsequent cache cleanup fails, the saved URLs remain authoritative,
+the settings form remains retryable and shows the existing EPG cleanup failure
+message rather than claiming settings storage failed. Electron settings and
+external-player paths still mirror the committed values after a cleanup failure;
+a failed storage write never mirrors them. Ordinary settings saves
+compare normalized source sets and skip reconciliation when they are unchanged,
+so unrelated preferences do not depend on cache cleanup. An explicitly edited
+EPG array requests reconciliation even when the committed URLs already match
+(for example retrying a failed cleanup); removing a row marks that array dirty,
+and only successful saving clears it. Startup reconciliation always runs.
+
+`EpgSourceSettingsService` waits for `PlaylistsService.getAllPlaylists()` (which
+performs the legacy playlist migration) before invoking `EPG_RECONCILE_SOURCES`.
+Startup includes an empty global list and does not prune after a failed settings
+read. Main verifies the completed migration flag, reads every enabled M3U
+`epg_urls` list and unions them with the saved globals. Invalid ownership metadata
+aborts pruning. Detected-but-disabled sources and Xtream/Stalker provider EPG are
+not global XMLTV owners. No source-discovery or provider matching policy changes.
+
+Reconciliation finds old sources in XMLTV channel, programme and per-source
+metadata tables, plus queued imports. It
+retires their generations before waiting for workers to exit, then uses the
+`EpgWorkerRuntime` source-clear protocol. The runtime owns worker bootstrap and
+shutdown; `EpgWorkerService` owns source generations and serialization, while
+`runEpgFetch` owns each import’s message/timeout/exit lifecycle. Successfully cleared request candidates are forgotten
+without resetting their generation fences; failed cleanups remain retryable.
+Main-process and parser-worker diagnostics use `epgLogger`, applying shared
+secret redaction and omitting complete URLs from error messages, nested request
+data and redirect details. Error logs allowlist name/message/code/status/cause
+and discard transport objects (which can contain relative request paths and raw
+HTTP headers). XMLTV providers can put credentials in arbitrary path
+segments or query keys; progress IPC and caller errors retain their original
+values, while logs keep operation labels, counts and error codes.
+Same-URL clears are serialized and replacement imports await the outstanding
+clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
+also awaits the in-flight fetch promise when an error/timeout has already removed
+the worker from the lookup but its termination is still pending.
+Every removed source emits generation-scoped cancellation before cleanup starts,
+including retained actionable errors whose workers have already finished. Retired
+queued/running imports also cancel their own generation. Retry waits for source
+reconciliation and rechecks the same error row; trust-setting continuations and
+old dismissal timers cannot affect a removed or replacement row. Progress rows disappear without reporting routine worker termination as an import failure. Programmes are deleted by source; a globally keyed
+channel is retained while another source still has programmes or channel metadata.
+The additive `epg_channel_sources` table is created during database initialization
+and records each imported source's name, logo, URL and timestamp. A per-channel
+`write_order` advances inside the import transaction (including upserts and
+refreshes), so restoration picks the latest surviving writer even when timestamps
+collide or the clock moves backwards. Freshness still uses wall-clock timestamps.
+Existing ledgers gain the column with zero for unknowable historical order. Before removing
+source provenance, cleanup restores affected global channels from a surviving
+snapshot, including when the legacy channel owner differs from the removed
+metadata writer. Metadata-only owners survive another source's refresh or removal.
+Refresh restores affected metadata before discarding that source's old snapshots;
+clear-all deletes the snapshots too. Freshness reads source-specific snapshot
+timestamps, so legacy sources without snapshots are refreshed on their next import
+check. No legacy snapshot is guessed from global
+channel metadata: its last writer may differ from its recorded owner. Affected
+legacy channels without a surviving snapshot retain programmes with a neutral
+XMLTV ID label, no logo/URL and no freshness timestamp until reimport. Historical
+metadata with no remaining source provenance cannot be selectively reconstructed. Manual mappings are preserved and can
+resolve another retained source sharing that channel ID. Legacy programmes with
+unknown (`NULL`) ownership are conservatively left alone; the existing database
+initialization backfill handles rows whose channel still identifies their owner.
+
+
+Renderer reconciliation fences lookups before its first asynchronous step.
+Imports wait for serialized reconciliation (including playlist migration), then
+filter against its committed owner set. Completion increments the data revision again
+and cancels earlier lookup
+subscriptions, clears program caches and the selected M3U guide, and refreshes
+Xtream selection and visible channel previews, plus Stalker manual mapping
+overrides and bulk guides. A delayed startup import is
+started only if its source still belongs to the reconciled configuration; its
+completion observer is installed after settings initialization. Provider EPG
+continues through its existing APIs. Playlist refresh is not EPG cache cleanup.

@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '../../channel-scroll-focus/channel-scroll-focus.directive';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 
 import {
@@ -17,8 +18,13 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import { SettingsStore } from '@iptvnator/services';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    Channel,
+    EpgProgram,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
 import {
     PlaylistChannelSortMode,
     getPlaylistChannelSortModeLabel,
@@ -42,6 +48,7 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
     styleUrls: ['./all-channels-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
         MatIconModule,
@@ -54,6 +61,7 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
 export class AllChannelsViewComponent {
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly contextMenuTrigger =
@@ -62,6 +70,12 @@ export class AllChannelsViewComponent {
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();
     readonly searchTerm = input('');
+    /**
+     * The title / sort / collapse header. Off inside the fullscreen channel
+     * panel, whose own chrome names the view; the persisted sort still
+     * applies.
+     */
+    readonly showHeader = input(true);
 
     /** EPG map for channel enrichment */
     readonly channelEpgMap = input.required<Map<string, EpgProgram | null>>();
@@ -136,7 +150,15 @@ export class AllChannelsViewComponent {
     readonly epgMetadataMap = computed(() => {
         // Read progressTick to create a dependency for the ~30s progress refresh.
         this.progressTick();
-        return buildChannelEpgMetadataMap(this.channelEpgMap());
+        // Progress is measured in the provider's EPG clock: the map keeps the
+        // raw programme rows and the item shifts their times for display.
+        return buildChannelEpgMetadataMap(
+            this.channelEpgMap(),
+            epgProviderClockMs(
+                Date.now(),
+                this.settingsStore.resolvedEpgOffsetMinutes()
+            )
+        );
     });
 
     /** Resolves the EPG lookup key the side-car map is keyed by. */

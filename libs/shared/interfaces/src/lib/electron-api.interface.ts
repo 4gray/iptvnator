@@ -85,6 +85,7 @@ export type ElectronBridgePlaylistType =
     (typeof ELECTRON_BRIDGE_PLAYLIST_TYPES)[keyof typeof ELECTRON_BRIDGE_PLAYLIST_TYPES];
 
 export const ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES = {
+    Cancelled: 'cancelled',
     Complete: 'complete',
     Error: 'error',
     Loading: 'loading',
@@ -340,6 +341,10 @@ export interface ElectronBridgeTrustOptions {
     trustedInsecureTlsHosts?: string[];
 }
 
+export interface ElectronBridgePlaylistFetchOptions extends ElectronBridgeTrustOptions {
+    userAgent?: string;
+}
+
 export interface ElectronBridgeEpgFreshnessResult {
     staleUrls: string[];
     freshUrls: string[];
@@ -362,6 +367,18 @@ export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
 }
 
+/**
+ * Options for the batched "currently airing" lookup. `nowMs` is the instant
+ * the lookup is evaluated at: the renderer passes its wall clock shifted into
+ * the provider's EPG clock (`epgProviderClockMs`, see
+ * `epg-display-offset.util.ts`) so the row the backend picks is the one the
+ * renderer will also present as "now". Absent, the main process uses its own
+ * clock.
+ */
+export interface ElectronBridgeCurrentProgramsOptions extends ElectronBridgeEpgLookupOptions {
+    nowMs?: number;
+}
+
 export interface ElectronBridgeEpgProgressStats {
     totalChannels: number;
     totalPrograms: number;
@@ -369,6 +386,7 @@ export interface ElectronBridgeEpgProgressStats {
 
 export interface ElectronBridgeEpgProgress {
     url: string;
+    generation?: number;
     status: ElectronBridgeEpgProgressStatus;
     stats?: ElectronBridgeEpgProgressStats;
     error?: string;
@@ -662,6 +680,12 @@ export interface ElectronBridgeApi {
     ) => () => void;
     minimizeWindow: () => Promise<void>;
     toggleMaximizeWindow: () => Promise<ElectronBridgeWindowState>;
+    /**
+     * Toggles OS-level window fullscreen (F11). Reports the requested state;
+     * the `onWindowStateChange` push stays authoritative once the window
+     * manager has acted.
+     */
+    toggleFullScreenWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
     getWindowState: () => Promise<ElectronBridgeWindowState>;
     onWindowStateChange: (
@@ -699,7 +723,7 @@ export interface ElectronBridgeApi {
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
-        options?: ElectronBridgeTrustOptions
+        options?: ElectronBridgePlaylistFetchOptions
     ) => Promise<Playlist>;
     updatePlaylistFromFilePath: (
         filePath: string,
@@ -772,7 +796,7 @@ export interface ElectronBridgeApi {
     ) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch: (
         channelIds: string[],
-        options?: ElectronBridgeEpgLookupOptions
+        options?: ElectronBridgeCurrentProgramsOptions
     ) => Promise<Record<string, EpgProgram | null>>;
     getEpgChannelMetadata: (
         channelIds: string[],
@@ -788,6 +812,7 @@ export interface ElectronBridgeApi {
         options?: ElectronBridgeTrustOptions
     ) => Promise<ElectronBridgeEpgFetchResult>;
     clearEpgData: () => Promise<ElectronBridgeResult>;
+    reconcileEpgSources: (urls: string[]) => Promise<ElectronBridgeResult>;
     clearEpgDataForSource: (sourceUrl: string) => Promise<ElectronBridgeResult>;
     checkEpgFreshness: (
         urls: string[],
@@ -865,6 +890,10 @@ export interface ElectronBridgeApi {
          */
         operationId?: string
     ) => Promise<ElectronBridgeResult>;
+    dbMigrateAppPlaylists: (
+        playlists: Playlist[]
+    ) => Promise<{ success: boolean; count: number }>;
+    dbRecoverLegacyPlaylists: () => Promise<void>;
     dbUpsertAppPlaylists: (
         playlists: Playlist[]
     ) => Promise<ElectronBridgeCountResult>;
@@ -1153,6 +1182,19 @@ export interface ElectronBridgeApi {
         sessionId: string,
         seconds: number
     ) => Promise<EmbeddedMpvSession | null>;
+    /**
+     * Relative seek by `deltaSeconds` (negative = backwards), resolved by mpv
+     * against its own playback position. Keyboard and button steps must use
+     * this instead of `seekEmbeddedMpv(position + delta)`: the renderer's
+     * `positionSeconds` is a whole-second snapshot refreshed at most every
+     * 500 ms and a seek reply does not carry the new position yet, so rapid
+     * presses computed from it collapse onto one target. mpv merges queued
+     * relative seeks instead, so presses accumulate.
+     */
+    seekEmbeddedMpvBy?: (
+        sessionId: string,
+        deltaSeconds: number
+    ) => Promise<EmbeddedMpvSession | null>;
     setEmbeddedMpvVolume: (
         sessionId: string,
         volume: number
@@ -1250,7 +1292,9 @@ export interface ElectronBridgeApi {
     recordingsGet?: (
         recordingId: number
     ) => Promise<ElectronRecordingItem | null>;
-    recordingsStop?: (recordingId: number) => Promise<ElectronBridgeErrorResult>;
+    recordingsStop?: (
+        recordingId: number
+    ) => Promise<ElectronBridgeErrorResult>;
     recordingsRemove?: (
         recordingId: number
     ) => Promise<ElectronBridgeErrorResult>;

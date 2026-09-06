@@ -6,7 +6,10 @@ import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
-import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPlayer } from './with-stalker-player.feature';
 
@@ -304,9 +307,7 @@ describe('withStalkerPlayer', () => {
         );
 
         expect(session.getCachedToken).toHaveBeenCalledWith(PLAYLIST._id);
-        expect(playback.headers?.['Cookie']).toContain(
-            'mac=00:1A:79:00:00:01'
-        );
+        expect(playback.headers?.['Cookie']).toContain('mac=00:1A:79:00:00:01');
         expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN99');
         expect(playback.headers?.['X-User-Agent']).toBeDefined();
         expect(playback.userAgent).toBe(playback.headers?.['User-Agent']);
@@ -336,6 +337,29 @@ describe('withStalkerPlayer', () => {
         expect(playback.headers?.['User-Agent']).toBe('KSPlayer');
         expect(playback.referer).toBeUndefined();
         expect(playback.origin).toBeUndefined();
+    });
+
+    it('resumes a CDN episode without fixing subsequent media requests at byte zero', async () => {
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            js: { cmd: 'ffmpeg http://cdn.example/episode_3.mkv' },
+        });
+
+        const playback = await store.resolveVodPlayback(
+            'ffmpeg http://cdn.example/episode_3.mkv',
+            'Episode 3',
+            undefined,
+            3,
+            123,
+            780
+        );
+
+        expect(playback.startTime).toBe(780);
+        expect(playback.contentInfo).toMatchObject({
+            contentType: 'episode',
+            contentXtreamId: 123,
+        });
+        expect(playback.headers?.['User-Agent']).toBe('KSPlayer');
+        expect(playback.headers).not.toHaveProperty('Range');
     });
 
     describe('temporary-link semantics', () => {
@@ -536,9 +560,7 @@ describe('withStalkerPlayer', () => {
 
         const playback = await store.resolveRadioPlayback(radioItem);
 
-        expect(playback.headers?.['Cookie']).toContain(
-            'mac=00:1A:79:00:00:01'
-        );
+        expect(playback.headers?.['Cookie']).toContain('mac=00:1A:79:00:00:01');
         expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN99');
         expect(playback.referer).toBe('http://demo.example');
         expect(playback.origin).toBe('http://demo.example');

@@ -1,3 +1,7 @@
+import {
+    EpgSourceSettingsService,
+    epgSourceUrlsChanged,
+} from './epg-source-settings.service';
 import { computed, inject } from '@angular/core';
 import {
     patchState,
@@ -21,7 +25,9 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
+    normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
+    normalizeStartupWindowMode,
 } from '@iptvnator/shared/interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
     webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
@@ -37,6 +44,7 @@ const DEFAULT_SETTINGS: Settings = {
     showCaptions: false,
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
+    startupWindowMode: 'normal',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -52,8 +60,12 @@ const DEFAULT_SETTINGS: Settings = {
     downloadFolder: '',
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    embeddedMpvExtraOptions: '',
+    embeddedMpvAutoReconnect: true,
+    portalConnectivityGuard: true,
     coverSize: 'medium',
     epgViewMode: 'timeline',
+    epgOffsetMinutes: 0,
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
     preferUploadedEpgOverXtream: false,
     trustedPrivateNetworkEpgUrls: [],
@@ -130,8 +142,12 @@ export const SettingsStore = signalStore(
         resolvedEpgViewMode: computed<EpgViewMode>(
             () => store.epgViewMode?.() ?? 'timeline'
         ),
+        resolvedEpgOffsetMinutes: computed(() =>
+            normalizeEpgOffsetMinutes(store.epgOffsetMinutes?.())
+        ),
     })),
     withMethods((store, storage = inject(StorageMap)) => {
+        const epgSources = inject(EpgSourceSettingsService);
         let settingsLoadPromise: Promise<void> | undefined;
 
         return {
@@ -150,11 +166,21 @@ export const SettingsStore = signalStore(
                         patchState(store, {
                             ...DEFAULT_SETTINGS,
                             ...storedSettings,
+                            epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                                storedSettings.epgOffsetMinutes
+                            ),
+
                             // Absent in settings stored before the default
                             // flip means "never chose" — those users get the
                             // new default; only an explicit false opts out.
                             webPlayerSharedControls:
                                 storedSettings.webPlayerSharedControls !==
+                                false,
+                            portalConnectivityGuard:
+                                storedSettings.portalConnectivityGuard !==
+                                false,
+                            embeddedMpvAutoReconnect:
+                                storedSettings.embeddedMpvAutoReconnect !==
                                 false,
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
@@ -169,6 +195,14 @@ export const SettingsStore = signalStore(
                             }
                         );
                     }
+                    await epgSources
+                        .synchronize(this.getSettings().epgUrl)
+                        .catch((error) => {
+                            console.warn(
+                                'Could not reconcile cached EPG sources on startup.',
+                                error
+                            );
+                        });
                 })().catch((error) => {
                     settingsLoadPromise = undefined;
                     console.error('Failed to load settings:', error);
@@ -181,7 +215,11 @@ export const SettingsStore = signalStore(
                 return settingsLoadPromise;
             },
 
-            async updateSettings(settings: Partial<Settings>) {
+            async updateSettings(
+                settings: Partial<Settings>,
+                options: { retryEpgCleanup?: boolean } = {}
+            ) {
+                const previousEpgUrls = store.epgUrl();
                 patchState(store, {
                     ...settings,
                     ...(settings.webPlayerSharedControls !== undefined
@@ -190,10 +228,29 @@ export const SettingsStore = signalStore(
                                   settings.webPlayerSharedControls !== false,
                           }
                         : {}),
+                    ...(settings.portalConnectivityGuard !== undefined
+                        ? {
+                              portalConnectivityGuard:
+                                  settings.portalConnectivityGuard !== false,
+                          }
+                        : {}),
+                    ...(settings.embeddedMpvAutoReconnect !== undefined
+                        ? {
+                              embeddedMpvAutoReconnect:
+                                  settings.embeddedMpvAutoReconnect !== false,
+                          }
+                        : {}),
                     ...(settings.dashboardRails !== undefined
                         ? {
                               dashboardRails: normalizeDashboardRailsSettings(
                                   settings.dashboardRails
+                              ),
+                          }
+                        : {}),
+                    ...(settings.epgOffsetMinutes !== undefined
+                        ? {
+                              epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                                  settings.epgOffsetMinutes
                               ),
                           }
                         : {}),
@@ -212,8 +269,17 @@ export const SettingsStore = signalStore(
                     console.error('Failed to save settings:', error);
                     // The in-memory patch above already applied, so without
                     // this flag the change looks saved until the next restart.
-                    patchState(store, { storageFailure: 'save' });
+                    patchState(store, {
+                        storageFailure: 'save',
+                        epgUrl: previousEpgUrls,
+                    });
                     throw error;
+                }
+                if (
+                    epgSourceUrlsChanged(previousEpgUrls, settings.epgUrl) ||
+                    options.retryEpgCleanup
+                ) {
+                    await epgSources.synchronize(completeSettings.epgUrl);
                 }
             },
 
@@ -228,6 +294,9 @@ export const SettingsStore = signalStore(
                     playerUpNextRail:
                         store.playerUpNextRail?.() ??
                         DEFAULT_SETTINGS.playerUpNextRail,
+                    fullscreenChannelPanel:
+                        store.fullscreenChannelPanel?.() ??
+                        DEFAULT_SETTINGS.fullscreenChannelPanel,
                     vodAutoFailover:
                         store.vodAutoFailover?.() ??
                         DEFAULT_SETTINGS.vodAutoFailover,
@@ -240,6 +309,9 @@ export const SettingsStore = signalStore(
                     showCaptions: store.showCaptions(),
                     showDashboard: store.showDashboard(),
                     startupBehavior: store.startupBehavior(),
+                    startupWindowMode: normalizeStartupWindowMode(
+                        store.startupWindowMode?.()
+                    ),
                     showExternalPlaybackBar:
                         store.showExternalPlaybackBar?.() ??
                         DEFAULT_SETTINGS.showExternalPlaybackBar,
@@ -264,10 +336,19 @@ export const SettingsStore = signalStore(
                         DEFAULT_SETTINGS.recordingFolder,
                     embeddedMpvFrameCopy:
                         store.embeddedMpvFrameCopy?.() ?? false,
+                    embeddedMpvExtraOptions:
+                        store.embeddedMpvExtraOptions?.() ?? '',
+                    portalConnectivityGuard:
+                        store.portalConnectivityGuard?.() !== false,
+                    embeddedMpvAutoReconnect:
+                        store.embeddedMpvAutoReconnect?.() !== false,
                     coverSize:
                         store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                     epgViewMode:
                         store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
+                    epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                        store.epgOffsetMinutes?.()
+                    ),
                     dashboardRails: normalizeDashboardRailsSettings(
                         store.dashboardRails?.()
                     ),

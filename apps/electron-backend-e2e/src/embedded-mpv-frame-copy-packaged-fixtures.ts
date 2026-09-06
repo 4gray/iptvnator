@@ -27,11 +27,19 @@ export type LocalMediaServer = {
     url: string;
 };
 
-function createTwoSecondY4mFixture(): Buffer {
+/**
+ * Length of the generated Y4M clip. Long enough for the relative-seek burst
+ * in the packaged smoke (three +2 s steps land at 6 s) plus the playing
+ * section that follows it without hitting EOF; at 64x36 / 10 fps this is
+ * still well under half a megabyte.
+ */
+export const Y4M_FIXTURE_DURATION_SECONDS = 12;
+
+function createY4mFixture(): Buffer {
     const width = 64;
     const height = 36;
     const framesPerSecond = 10;
-    const frameCount = framesPerSecond * 2;
+    const frameCount = framesPerSecond * Y4M_FIXTURE_DURATION_SECONDS;
     const yPlaneBytes = width * height;
     const chromaPlaneBytes = (width / 2) * (height / 2);
     const chunks: Buffer[] = [
@@ -84,7 +92,7 @@ async function closeServer(server: Server): Promise<void> {
 }
 
 export async function createLocalMediaServer(): Promise<LocalMediaServer> {
-    const body = createTwoSecondY4mFixture();
+    const body = createY4mFixture();
     const resourcePath = '/embedded-mpv-frame-copy-smoke.y4m';
     const server = createServer((request, response) => {
         const pathname = (request.url ?? '').split('?')[0];

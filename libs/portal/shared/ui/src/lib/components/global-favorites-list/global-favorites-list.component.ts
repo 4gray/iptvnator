@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import {
     CdkDragDrop,
     DragDropModule,
@@ -20,14 +21,12 @@ import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
 } from '@iptvnator/ui/components';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
     EpgProgram,
+    epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
@@ -55,6 +54,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         DragDropModule,
         MatIconModule,
@@ -309,7 +309,12 @@ export class GlobalFavoritesListComponent {
             return 0;
         }
 
-        const now = Date.now();
+        // Raw programme vs. now in the provider's EPG clock; the row shifts
+        // the displayed times by the same offset.
+        const now = epgProviderClockMs(
+            Date.now(),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
         const start = new Date(program.start).getTime();
         const stop = new Date(program.stop).getTime();
         const total = stop - start;

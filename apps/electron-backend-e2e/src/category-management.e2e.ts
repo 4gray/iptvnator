@@ -16,6 +16,111 @@ import {
 } from './electron-test-fixtures';
 
 test.describe('Electron Xtream Category Management', () => {
+    for (const section of ['Live TV', 'Movies', 'Series']) {
+        test(`bulk edits only filtered ${section} categories and saves or discards the draft`, async ({
+            dataDir,
+            request,
+        }) => {
+            await resetMockServers(request, ['xtream']);
+            const app = await launchElectronApp(dataDir);
+            try {
+                await addXtreamPortal(app.mainWindow, {
+                    name: `Filtered ${section}`,
+                });
+                await waitForXtreamWorkspaceReady(app.mainWindow);
+                await openWorkspaceSection(app.mainWindow, section);
+                let dialog = await openManageCategoriesDialog(app.mainWindow);
+                const rows = dialog.locator('.category-item');
+                const names = (
+                    await rows.locator('.category-name').allTextContents()
+                ).map((name) => name.trim());
+                // The default mock catalog has several matches and nonmatches in every type.
+                const matched = names.filter((name) =>
+                    name.toLowerCase().includes('a')
+                );
+                const outside = names.filter(
+                    (name) => !name.toLowerCase().includes('a')
+                );
+                expect(matched.length).toBeGreaterThan(1);
+                expect(outside.length).toBeGreaterThan(1);
+                const checkbox = (name: string) =>
+                    dialog.getByRole('checkbox', { name, exact: true });
+                await checkbox(outside[0]).uncheck();
+                await checkbox(matched[0]).uncheck();
+                const search = () => dialog.locator('input[type="search"]');
+                await search().fill('a');
+                const select = () =>
+                    dialog.getByRole('button', {
+                        name: 'Select Filtered',
+                        exact: true,
+                    });
+                const deselect = () =>
+                    dialog.getByRole('button', {
+                        name: 'Deselect Filtered',
+                        exact: true,
+                    });
+                await expect(rows).toHaveCount(matched.length);
+                await expect(select()).toBeEnabled();
+                await expect(deselect()).toBeEnabled();
+                await select().click();
+                await expect(select()).toBeDisabled();
+                await expect(dialog.locator('.selection-info')).toHaveText(
+                    `Total selected: ${names.length - 1} / ${names.length}`
+                );
+                await deselect().click();
+                await expect(deselect()).toBeDisabled();
+                await expect(dialog.locator('.selection-info')).toHaveText(
+                    `Total selected: ${outside.length - 1} / ${names.length}`
+                );
+                await search().fill('no matching mock category');
+                await expect(select()).toBeDisabled();
+                await expect(deselect()).toBeDisabled();
+                await expect(dialog.locator('.empty-message')).toHaveText(
+                    'No matching categories found'
+                );
+                await search().fill('');
+                await expect(checkbox(outside[0])).not.toBeChecked();
+                await expect(checkbox(outside[1])).toBeChecked();
+                for (const name of matched)
+                    await expect(checkbox(name)).not.toBeChecked();
+                await dialog
+                    .getByRole('button', { name: 'Save', exact: true })
+                    .click();
+                await expect(dialog).not.toBeVisible();
+                dialog = await openManageCategoriesDialog(app.mainWindow);
+                await expect(checkbox(outside[0])).not.toBeChecked();
+                await expect(checkbox(outside[1])).toBeChecked();
+                for (const name of matched)
+                    await expect(checkbox(name)).not.toBeChecked();
+                await search().fill('A');
+                await select().click();
+                await dialog
+                    .getByRole('button', { name: 'Close', exact: true })
+                    .click();
+                await expect(dialog).not.toBeVisible();
+                dialog = await openManageCategoriesDialog(app.mainWindow);
+                for (const name of matched)
+                    await expect(checkbox(name)).not.toBeChecked();
+                await search().fill('a');
+                await select().click();
+                await dialog
+                    .getByRole('button', { name: 'Save', exact: true })
+                    .click();
+                await expect(dialog).not.toBeVisible();
+                dialog = await openManageCategoriesDialog(app.mainWindow);
+                for (const name of matched)
+                    await expect(checkbox(name)).toBeChecked();
+                await expect(checkbox(outside[0])).not.toBeChecked();
+                await expect(checkbox(outside[1])).toBeChecked();
+                await dialog
+                    .getByRole('button', { name: 'Close', exact: true })
+                    .click();
+            } finally {
+                await closeElectronApp(app);
+            }
+        });
+    }
+
     test('hides and restores categories, supports search and bulk actions, and persists hidden selections after refresh', async ({
         dataDir,
         request,

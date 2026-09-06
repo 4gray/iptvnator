@@ -16,7 +16,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    EpgSourceReconciliationError,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { Language, StreamFormat } from '@iptvnator/shared/interfaces';
 import { firstValueFrom, map } from 'rxjs';
@@ -37,6 +40,7 @@ import {
     SETTINGS_COVER_SIZE_OPTIONS,
     SETTINGS_EPG_VIEW_MODE_OPTIONS,
     SETTINGS_STARTUP_BEHAVIOR_OPTIONS,
+    SETTINGS_STARTUP_WINDOW_MODE_OPTIONS,
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
@@ -140,6 +144,9 @@ export class SettingsComponent
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
+    readonly supportsStartupWindowMode = this.runtime.supportsStartupWindowMode;
+    readonly supportsPortalConnectivityGuard =
+        this.runtime.supportsPortalConnectivityGuard;
 
     /** Settings form object */
     readonly settingsForm = this.form.form;
@@ -158,6 +165,7 @@ export class SettingsComponent
     readonly themeOptions = SETTINGS_THEME_OPTIONS;
     readonly coverSizeOptions = SETTINGS_COVER_SIZE_OPTIONS;
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
+    readonly startupWindowModeOptions = SETTINGS_STARTUP_WINDOW_MODE_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
@@ -302,7 +310,13 @@ export class SettingsComponent
         try {
             await this.form.save(() => this.applyChangedSettings());
             return true;
-        } catch {
+        } catch (error) {
+            if (error instanceof EpgSourceReconciliationError) {
+                this.settingsSnackbar.open(
+                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
+                );
+                return false;
+            }
             // The store already applied the change in memory, so without
             // this the save looks successful until the next restart. The
             // unsaved-changes bar stays visible so it can be retried.

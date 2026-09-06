@@ -29,9 +29,9 @@ const iconPaths = {
   {links.map((item) => (
     <a
       href={item.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      class="group rounded-xl border border-dashed border-surface-700/70 bg-surface-900/50 p-4 transition-all duration-300 hover:border-accent-500/40 hover:bg-accent-500/[0.06]"
+      target={item.href.startsWith('/') ? undefined : '_blank'}
+      rel={item.href.startsWith('/') ? undefined : 'noopener noreferrer'}
+      class="group rounded-xl border border-surface-700/70 bg-surface-900/50 p-4 transition-all duration-300 hover:border-accent-500/40 hover:bg-accent-500/[0.06]"
     >
       <div class="flex items-center gap-2.5">
         <span class="flex h-7 w-7 items-center justify-center rounded-md border border-accent-500/25 bg-accent-500/[0.09]">

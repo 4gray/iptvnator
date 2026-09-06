@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
+import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import {
     type LegacyPlayerShortcuts,
@@ -199,6 +200,9 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     private destroyPlayer(): void {
+        if (!this.sharedControls) {
+            releaseVideoPictureInPicture(this.player?.video);
+        }
         const sourceSession = this.sourceSession;
         this.sourceSession = null;
         sourceSession?.destroy();

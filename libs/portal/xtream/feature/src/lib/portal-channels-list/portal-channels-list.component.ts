@@ -1,3 +1,4 @@
+import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import {
     CdkVirtualScrollViewport,
     ScrollingModule,
@@ -29,6 +30,7 @@ import {
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
+    epgProviderClockMs,
     XtreamCategory,
     XtreamItem,
 } from '@iptvnator/shared/interfaces';
@@ -47,7 +49,12 @@ import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
+import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -74,6 +81,7 @@ interface XtreamCategoryLike {
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelScrollFocusDirective,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
         MatButtonModule,
@@ -89,9 +97,18 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly sortMode = input<PortalChannelSortMode>('server');
     readonly channelsOverride = input<XtreamChannelListItem[] | null>(null);
     readonly searchTermInput = input('');
+    /**
+     * The fullscreen channel panel stamps a second instance of this list
+     * beside the sidebar's. Only the sidebar's pane may carry the
+     * `live-channels` id the category list's ArrowRight/ArrowLeft hand-off
+     * targets (`ChannelScrollFocusDirective`); a duplicate id would be
+     * invalid and could point that hand-off at the hidden copy.
+     */
+    readonly fullscreenPanelCopy = input(false);
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
+    private readonly favoriteMarks = inject(XtreamFavoriteMarksService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -148,14 +165,41 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
     private subscriptions = new Subscription();
+    private readonly settingsStore = inject(SettingsStore);
 
     constructor(private cdr: ChangeDetectorRef) {
+        this.subscriptions.add(
+            inject(EpgSourceSettingsService).changed$.subscribe(() => {
+                this.repickPreviewsForOffsetChange();
+            })
+        );
+        // A changed display offset moves "now" in the provider's clock, so
+        // the visible previews are re-picked from the cached EPG. The first
+        // run only records the initial value.
+        let appliedOffsetMinutes: number | null = null;
         effect(() => {
-            const selectedItem = this.xtreamStore.selectedItem();
+            const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+            if (appliedOffsetMinutes === offsetMinutes) {
+                return;
+            }
+            const isInitial = appliedOffsetMinutes === null;
+            appliedOffsetMinutes = offsetMinutes;
+            if (isInitial) {
+                return;
+            }
+            untracked(() => this.repickPreviewsForOffsetChange());
+        });
+
+        const selectedChannelId = computed(() =>
+            Number(
+                (
+                    this.xtreamStore.selectedItem() as XtreamChannelListItem | null
+                )?.xtream_id
+            )
+        );
+        effect(() => {
+            const selectedId = selectedChannelId();
             const viewport = this.viewport();
-            const selectedId = Number(
-                (selectedItem as XtreamChannelListItem | null)?.xtream_id
-            );
 
             if (!viewport || !Number.isFinite(selectedId) || selectedId <= 0) {
                 return;
@@ -169,6 +213,17 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
 
+            const top = viewport.measureScrollOffset();
+            const rowTop = selectedIndex * this.channelItemSize;
+            if (
+                rowTop >= top &&
+                rowTop + this.channelItemSize <=
+                    top + viewport.getViewportSize()
+            ) {
+                // Even a smooth scroll to the current offset can cancel the
+                // user's first keyboard scroll after a pointer selection.
+                return;
+            }
             viewport.scrollToIndex(selectedIndex, 'smooth');
         });
 
@@ -217,6 +272,22 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                         );
                     });
                 });
+            // A toggle in another list instance (the sidebar and the
+            // fullscreen channel panel render this component side by side)
+            // must reach this instance's hearts too.
+            this.subscriptions.add(
+                this.favoriteMarks.changes$.subscribe((change) => {
+                    if (change.playlistId !== playlist.id) {
+                        return;
+                    }
+                    if (change.isFavorite) {
+                        this.favorites.set(change.key, true);
+                    } else {
+                        this.favorites.delete(change.key);
+                    }
+                    this.cdr.markForCheck();
+                })
+            );
         }
 
         if (this.supportsEpg) {
@@ -253,6 +324,24 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                     })
             );
         }
+    }
+
+    /** Wall-clock now in the provider's EPG clock (`epg-display-offset.util.ts`). */
+    private epgClockMs(): number {
+        return epgProviderClockMs(
+            Date.now(),
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
+    }
+
+    private repickPreviewsForOffsetChange(): void {
+        this.epgPrograms.clear();
+        this.currentProgramsProgress.clear();
+        const visible = this.lastVisibleChannels.length
+            ? this.lastVisibleChannels
+            : this.filteredChannels().slice(0, 50);
+        this.loadEpgForVisibleChannels(visible);
+        this.cdr.markForCheck();
     }
 
     private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
@@ -309,7 +398,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     }
 
     private updateProgramProgress(streamId: number, program: EpgItem) {
-        const now = Date.now();
+        const now = this.epgClockMs();
         const start = this.getProgramTimestampMs(
             program.start,
             program.start_timestamp
@@ -356,6 +445,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                     this.favorites.delete(favoriteKey);
                 }
                 this.cdr.detectChanges();
+                this.favoriteMarks.notify({
+                    playlistId,
+                    key: favoriteKey,
+                    isFavorite: result,
+                });
             });
     }
 
@@ -410,7 +504,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return null;
         }
 
-        const now = Date.now();
+        const now = this.epgClockMs();
         const normalizedItems = [...items].sort(
             (a, b) =>
                 this.getProgramTimestampMs(a.start, a.start_timestamp) -
@@ -491,7 +585,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     // ── Context menu ────────────────────────────────────────────
 
-    onChannelContextMenu(channel: XtreamChannelListItem, event: MouseEvent): void {
+    onChannelContextMenu(
+        channel: XtreamChannelListItem,
+        event: MouseEvent
+    ): void {
         this.contextMenuChannel.set(channel);
         this.contextMenuPosition.set({
             x: `${event.clientX}px`,

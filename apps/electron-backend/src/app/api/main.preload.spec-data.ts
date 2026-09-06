@@ -83,6 +83,18 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlist],
     },
     {
+        method: 'dbRecoverLegacyPlaylists',
+        args: [],
+        channel: 'DB_RECOVER_LEGACY_PLAYLISTS',
+        forwardedArgs: [],
+    },
+    {
+        method: 'dbMigrateAppPlaylists',
+        args: [playlists],
+        channel: 'DB_MIGRATE_APP_PLAYLISTS',
+        forwardedArgs: [playlists],
+    },
+    {
         method: 'dbUpsertAppPlaylists',
         args: [playlists],
         channel: 'DB_UPSERT_APP_PLAYLISTS',
@@ -523,6 +535,12 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
         args: [],
         channel: 'EPG_CLEAR_ALL',
         forwardedArgs: [],
+    },
+    {
+        method: 'reconcileEpgSources',
+        args: [epgUrls],
+        channel: 'EPG_RECONCILE_SOURCES',
+        forwardedArgs: [{ urls: epgUrls }],
     },
     {
         method: 'clearEpgDataForSource',

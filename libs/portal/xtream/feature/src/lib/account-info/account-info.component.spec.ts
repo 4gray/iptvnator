@@ -84,6 +84,38 @@ describe('AccountInfoComponent', () => {
         await fixture.whenStable();
     });
 
+    it('explains a guard refusal and clears the notice on successful retry', async () => {
+        xtreamApiService.getAccountInfo.mockRejectedValueOnce(
+            new Error(
+                "Error invoking remote method 'XTREAM_REQUEST': Portal https://portal.example is not responding; skipped after repeated connection failures"
+            )
+        );
+        await component.reload();
+        fixture.detectChanges();
+        expect(component.requestsPaused()).toBe(true);
+        expect(fixture.nativeElement.textContent).toContain(
+            'PORTALS.REQUESTS_PAUSED.TITLE'
+        );
+        expect(fixture.nativeElement.textContent).toContain(
+            'PORTALS.REQUESTS_PAUSED.RETRY'
+        );
+        await component.reload();
+        expect(component.requestsPaused()).toBe(false);
+        expect(component.loadState()).toBe('ready');
+    });
+
+    it('keeps actual network errors distinct from a paused request', async () => {
+        xtreamApiService.getAccountInfo.mockRejectedValueOnce(
+            new Error('connect ECONNREFUSED')
+        );
+        await component.reload();
+        fixture.detectChanges();
+        expect(component.requestsPaused()).toBe(false);
+        expect(fixture.nativeElement.textContent).toContain(
+            'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
+        );
+    });
+
     it('loads account info from dialog-supplied playlist credentials', () => {
         expect(xtreamApiService.getAccountInfo).toHaveBeenCalledWith({
             serverUrl: 'https://dialog.example.test',

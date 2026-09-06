@@ -69,6 +69,28 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    /** Desktop-only preference: PWA clients cannot configure the shared server guard. */
+    get supportsPortalConnectivityGuard(): boolean {
+        return (
+            this.hasElectronMethod('updateSettings') &&
+            this.hasElectronMethod('resetHostConnectivityGuard')
+        );
+    }
+
+    /**
+     * Desktop window mode at launch (normal / maximized / fullscreen) plus
+     * the F11 toggle. The mode reaches the main process through
+     * `updateSettings`, and the toggle is what makes a fullscreen launch
+     * escapable on Windows/Linux, where the title bar is hidden — so the
+     * setting is offered only when both halves exist.
+     */
+    get supportsStartupWindowMode(): boolean {
+        return (
+            this.hasElectronMethod('updateSettings') &&
+            this.hasElectronMethod('toggleFullScreenWindow')
+        );
+    }
+
     get supportsEpg(): boolean {
         return (
             this.supportsEpgImport &&

@@ -60,7 +60,9 @@ export const playlistReducers = [
                         _id: action.playlistId,
                         updateDate: Date.now(),
                         count: action.playlist.playlist.items.length,
-                        userAgent: action.playlist.userAgent,
+                        userAgent:
+                            action.playlist.userAgent ??
+                            currentPlaylist?.userAgent,
                         favorites: currentPlaylist?.favorites ?? [],
                         epgUrls: epgSourceState.epgUrls,
                         detectedEpgUrls: epgSourceState.detectedEpgUrls,

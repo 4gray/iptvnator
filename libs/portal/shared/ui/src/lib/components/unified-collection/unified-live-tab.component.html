@@ -87,6 +87,7 @@
                     @if (epgViewMode() === 'list') {
                         <app-epg-list-view
                             [programs]="timelinePrograms()"
+                            [offsetMinutes]="epgOffsetMinutes()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
                             [archivePlaybackAvailable]="
@@ -116,6 +117,7 @@
                     } @else {
                         <app-epg-timeline
                             [programs]="timelinePrograms()"
+                            [offsetMinutes]="epgOffsetMinutes()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
                             [archivePlaybackAvailable]="
@@ -157,3 +159,24 @@
         />
     }
 </div>
+
+<!-- Stamped into the player's fullscreen channel panel (FULLSCREEN_CHANNEL_PANEL). -->
+<ng-template #fullscreenChannelPanel let-searchTerm="searchTerm">
+    <app-global-favorites-list
+        [channels]="fullscreenPanelChannels()"
+        [mode]="mode()"
+        [showEpg]="supportsEpg"
+        [favoriteUids]="favoriteUids()"
+        [epgMap]="epgMap()"
+        [progressTick]="progressTick()"
+        [activeUid]="activeUid()"
+        [searchTermInput]="searchTerm()"
+        [draggable]="false"
+        [sortMode]="sortMode()"
+        (channelSelected)="onChannelSelected($event)"
+        (playbackRequested)="onChannelPlaybackRequested($event)"
+        (epgMappingChanged)="onEpgMappingChanged()"
+        (favoriteToggled)="onFavoriteToggled($event)"
+        (removeRequested)="onRemoveRequested($event)"
+    />
+</ng-template>

@@ -1,0 +1,163 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import SpecList from '../../components/download/SpecList.astro';
+import FeatureHero from '../../components/feature/FeatureHero.astro';
+import FeatureSwitcher from '../../components/feature/FeatureSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildFeaturePageSchema } from '../../lib/feature-schema';
+import { featureBySlug } from '../../lib/features';
+import { absoluteUrl } from '../../lib/site';
+
+const feature = featureBySlug('epg');
+const pageUrl = absoluteUrl('/features/epg/');
+const title = 'TV Guide (EPG) for IPTV – XMLTV, Timeline and Catch-Up | IPTVnator';
+const description =
+  'IPTVnator turns XMLTV files and portal schedules into a program guide: what is on now in every channel list, a timeline under the player, a grid across all channels, catch-up for archived programs, and manual mapping when a channel does not match. Free and open source for Windows, macOS and Linux.';
+
+const guide = [
+  {
+    title: 'Now and next in every list',
+    description:
+      'Each channel row shows the current program with a progress bar, in the playlist views, the portal lists and the favorites and recent collections.',
+  },
+  {
+    title: 'A timeline under the player',
+    description:
+      'The schedule of the selected channel runs as a ribbon with day navigation, zoom levels, a jump to now, and a program search. A vertical single-day list is the alternative view.',
+  },
+  {
+    title: 'A grid across channels',
+    description:
+      'The multi-channel view lays the schedules of all channels side by side on one time axis, with channel filtering and program search.',
+  },
+  {
+    title: 'Program details',
+    description:
+      'Title, category, description, episode, language, rating and duration open in a dialog from any program block.',
+  },
+  {
+    title: 'Catch-up',
+    description:
+      'Where the provider keeps an archive, past programs start straight from the timeline, on M3U playlists with catch-up attributes and on Xtream and Stalker portals.',
+  },
+  {
+    title: 'Manual channel mapping',
+    description:
+      'A channel the guide cannot match gets a right-click action to pick its XMLTV entry by hand. Mappings are stored on your device and survive refreshes.',
+  },
+];
+
+const sources = [
+  { term: 'M3U playlists', value: 'XMLTV sources from Settings › EPG or declared by the playlist through url-tvg. Channels match by tvg-id, then tvg-name, then name.' },
+  { term: 'Xtream Codes', value: 'The portal schedule is used first; your XMLTV sources fill missing channels or take precedence with one setting.' },
+  { term: 'Stalker portals', value: 'A seven-day schedule is loaded from the portal once per session; single-channel requests fill any gaps.' },
+  { term: 'Formats', value: 'XMLTV as .xml or compressed .xml.gz, parsed in a background worker and stored in a local database.' },
+  { term: 'Sources', value: 'Any number of global sources plus per-playlist sources, each with a status chip, a refresh button and one refresh-all action.' },
+  { term: 'Availability', value: 'The XMLTV guide is a desktop feature. Portal schedules from Xtream and Stalker also show in the browser version.' },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Where does the program guide come from?',
+    a: 'From XMLTV files you add or your playlist declares, and from the schedules Xtream and Stalker portals publish. IPTVnator merges them per channel: portal data first, your XMLTV sources as a fallback or, with one setting, as the preferred source.',
+  },
+  {
+    q: 'Why does a channel show no program?',
+    a: 'It is not matched to a guide entry. Matching uses tvg-id, then tvg-name, then the channel name. Check the ids in the playlist, or map the channel by hand with a right-click and "Map EPG channel".',
+  },
+  {
+    q: 'Can I watch a program that already aired?',
+    a: 'Yes, when the provider keeps an archive. M3U playlists declare it with catchup attributes, Xtream and Stalker portals flag archived channels. Past programs then start from the timeline; without an archive the timeline is a schedule only.',
+  },
+  {
+    q: 'How big can the XMLTV file be?',
+    a: 'Large guides are fine. Parsing runs in a background worker and the result is stored in a local database, so the app stays responsive and the data is there on the next start.',
+  },
+  {
+    q: 'Does the guide work in the browser version?',
+    a: 'Portal schedules from Xtream and Stalker sources do. XMLTV downloads and the local guide database are desktop features.',
+  },
+  {
+    q: 'Can I see several channels at once?',
+    a: 'Yes. The multi-channel view lays all schedules on one time axis with zoom, channel filtering and program search, in addition to the timeline of the selected channel.',
+  },
+];
+
+const jsonLd = buildFeaturePageSchema({
+  feature,
+  pageUrl,
+  description,
+  featureList: [
+    'XMLTV program guide from .xml and .xml.gz sources',
+    'Current program and progress in every channel list',
+    'Timeline and list views under the player',
+    'Multi-channel schedule grid with search',
+    'Catch-up playback of archived programs',
+    'Manual EPG channel mapping',
+    'Portal schedules from Xtream Codes and Stalker sources',
+  ],
+  faq,
+});
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTV EPG', 'XMLTV EPG player', 'TV guide IPTV player', 'EPG timeline IPTV', 'IPTV catch-up player', 'IPTV player with EPG Windows', 'open-source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <FeatureHero
+    feature={feature}
+    titleLead="A TV guide that"
+    titleAccent="knows what is on"
+    lede="IPTVnator turns XMLTV files and portal schedules into a program guide: what is on now in every channel list, a timeline under the player, a grid across all channels, catch-up for archived programs, and manual mapping when a channel does not match."
+    facts={['XMLTV .xml & .xml.gz', 'Timeline or list', 'Catch-up', 'Manual channel mapping']}
+    screenshot={{
+      src: '/iptvnator/blog/guides/screenshots/guide-xtream-live-dark.png',
+      alt: 'Channel list with the current program and progress bar for every channel',
+      width: 2560,
+      height: 1440,
+    }}
+  />
+
+  <DownloadSection id="guide" eyebrow="What you get" title="The guide," accent="everywhere" lead="One schedule, shown wherever a channel appears.">
+    <FeatureList items={guide} />
+  </DownloadSection>
+
+  <DownloadSection id="sources" eyebrow="Sources" title="Where the guide" accent="comes from">
+    <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+      <SpecList items={sources} />
+      <figure class="overflow-hidden rounded-xl border border-surface-600/60 bg-surface-900/60 p-2">
+        <img
+          src="/iptvnator/blog/guides/screenshots/guide-epg-settings-dark.png"
+          alt="Settings with the EPG section open, a source URL entered and its status chip"
+          width={2560}
+          height={1440}
+          class="h-auto w-full rounded-lg"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="the program guide">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'epg-guide', 'xtream-codes-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <FeatureSwitcher current="epg" />
+</BaseLayout>

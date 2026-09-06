@@ -87,6 +87,7 @@ export const DEFAULT_SETTINGS = {
     webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
     streamFormat: StreamFormat.AutoStreamFormat,
@@ -95,6 +96,7 @@ export const DEFAULT_SETTINGS = {
     showCaptions: false,
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
+    startupWindowMode: 'normal',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -109,10 +111,14 @@ export const DEFAULT_SETTINGS = {
     epgUrl: [],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    embeddedMpvExtraOptions: '',
+    embeddedMpvAutoReconnect: true,
+    portalConnectivityGuard: true,
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
     epgViewMode: 'timeline',
+    epgOffsetMinutes: 0,
     tmdb: { enabled: false, apiKey: '' },
 };
 
@@ -218,6 +224,9 @@ export function createEpgBridgeStub(): Partial<EpgRuntimeBridgeService> {
 /** The full desktop bridge the settings page expects to be present */
 export function createElectronStub(): typeof window.electron {
     return {
+        resetHostConnectivityGuard: jest
+            .fn()
+            .mockResolvedValue({ success: true }),
         checkEpgFreshness: jest.fn().mockResolvedValue({
             freshUrls: [],
             staleUrls: [],

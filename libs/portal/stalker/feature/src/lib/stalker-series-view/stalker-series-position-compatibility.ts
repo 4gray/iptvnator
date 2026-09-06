@@ -34,8 +34,17 @@ function isCompatibleLegacyPosition(
     position: PlaybackPositionData,
     episode: XtreamSerieEpisode
 ): boolean {
+    const providerSeason = (episode as StalkerMappedEpisode)
+        .providerSeasonNumber;
+    const matchesSeason =
+        matchesMappedCoordinate(
+            position.seasonNumber,
+            Number(episode.season)
+        ) ||
+        (providerSeason !== undefined &&
+            matchesMappedCoordinate(position.seasonNumber, providerSeason));
     return (
-        matchesMappedCoordinate(position.seasonNumber, Number(episode.season)) &&
+        matchesSeason &&
         matchesMappedCoordinate(
             position.episodeNumber,
             Number(episode.episode_num)

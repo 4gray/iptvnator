@@ -133,6 +133,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Interval for refreshing EPG data */
     private epgRefreshInterval?: number;
+    /** The EPG fetch in flight; a newer fetch cancels it so a stale map never lands. */
+    private epgFetchSubscription?: Subscription;
 
     /** Global progress tick signal - triggers re-computation of progress percentages */
     readonly progressTick = signal(0);
@@ -185,6 +187,27 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly channelsLoading = input(false);
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
     readonly sidebarWidth = input<number | null>(null);
+    /**
+     * Search term supplied by the host instead of the workspace header's
+     * `?q=` query parameter — the fullscreen channel panel has its own field
+     * because the header is not reachable in fullscreen. `null` keeps the
+     * route-driven term.
+     */
+    readonly searchTerm = input<string | null>(null);
+    /**
+     * Drops the per-view chrome (the favorites/recent context header and the
+     * all-channels/groups title, sort and collapse headers). The fullscreen
+     * channel panel picks the view with its own switcher and owns the search
+     * row, so those headers would only stack under it. Sorting still follows
+     * the sidebar's persisted choice.
+     */
+    readonly compact = input(false);
+    /**
+     * A second list instance beside the sidebar (the fullscreen channel
+     * panel) must not stop playback when it unmounts; only the page's own
+     * list owns the active channel.
+     */
+    readonly resetActiveChannelOnDestroy = input(true);
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
     readonly sidebarToggleRequested = output<void>();
@@ -194,9 +217,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         'q',
         (value) => (value ?? '').trim().toLowerCase()
     );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
-    );
+    readonly workspaceSearchTerm = computed(() => {
+        const hostTerm = this.searchTerm();
+        if (hostTerm !== null) {
+            return hostTerm.trim().toLowerCase();
+        }
+        return this.isWorkspaceLayout ? this.routeSearchTerm() : '';
+    });
 
     readonly currentUrl = toSignal(
         this.router.events.pipe(
@@ -233,6 +260,28 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         this.lastEpgSourceRefreshKey = refreshKey;
         if (!refreshKey || this._channelList.length === 0) {
+            return;
+        }
+
+        untracked(() => {
+            this.fetchEpgForChannels(this._channelList);
+        });
+    });
+    private appliedEpgOffsetMinutes: number | null = null;
+    /**
+     * A changed display offset moves "now" in the provider's clock, so the
+     * current-programme map is fetched again (`EpgService` tags its cache
+     * with the offset, so this is a real refetch rather than a cache hit).
+     * The first run only records the initial value.
+     */
+    private readonly epgOffsetRefreshEffect = effect(() => {
+        const offsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes();
+        if (this.appliedEpgOffsetMinutes === offsetMinutes) {
+            return;
+        }
+        const isInitial = this.appliedEpgOffsetMinutes === null;
+        this.appliedEpgOffsetMinutes = offsetMinutes;
+        if (isInitial || this._channelList.length === 0) {
             return;
         }
 
@@ -382,7 +431,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.store.dispatch(ChannelActions.resetActiveChannel());
+        if (this.resetActiveChannelOnDestroy()) {
+            this.store.dispatch(ChannelActions.resetActiveChannel());
+        }
 
         if (this.epgRefreshInterval) {
             clearInterval(this.epgRefreshInterval);
@@ -393,6 +444,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         }
 
         this.epgAvailabilitySubscription?.unsubscribe();
+        this.epgFetchSubscription?.unsubscribe();
         this.channelList$.complete();
     }
 
@@ -400,6 +452,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
      * Fetches EPG data for all channels
      */
     private fetchEpgForChannels(channels: Channel[]): void {
+        // A fetch started for a previous channel list, EPG scope or display
+        // offset must not install its map after this one: cancel it first.
+        this.epgFetchSubscription?.unsubscribe();
         if (!channels || channels.length === 0) {
             this.channelEpgMap.set(new Map());
             this.channelIconMap.set(new Map());
@@ -416,7 +471,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         const epgLookupOptions = this.getPlaylistEpgLookupOptions();
 
-        forkJoin({
+        this.epgFetchSubscription = forkJoin({
             epgMap: this.epgService.getCurrentProgramsForChannels(
                 channelIds,
                 epgLookupOptions
@@ -442,8 +497,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     private getPlaylistEpgLookupOptions():
-        | { sourceUrls: string[] }
-        | undefined {
+        { sourceUrls: string[] } | undefined {
         const sourceUrls = this.playlistEpgUrls();
         return sourceUrls.length > 0 ? { sourceUrls } : undefined;
     }

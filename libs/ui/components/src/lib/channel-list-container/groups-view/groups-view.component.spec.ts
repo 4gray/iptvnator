@@ -390,6 +390,39 @@ describe('GroupsViewComponent', () => {
         expect(component.selectedGroupKey()).toBe('Series');
     });
 
+    it('pins the groups rail and leaves the sidebar width alone in compact mode', () => {
+        // Inside the 400px fullscreen panel a rail the user once dragged to
+        // 320px would leave the channel pane unusable, so the panel instance
+        // neither reads nor writes the sidebar's persisted width.
+        localStorage.setItem('m3u-groups-nav-width', '320');
+        // The rail is sized once, when the resize directive initialises, so
+        // the panel instance is created compact from the start — exactly as
+        // the container binds it.
+        fixture.destroy();
+        fixture = TestBed.createComponent(GroupsViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('compact', true);
+        setInputs();
+        const sidebarWidthRequested = jest.fn();
+        component.sidebarWidthRequested.subscribe(sidebarWidthRequested);
+
+        const rail = fixture.nativeElement.querySelector(
+            'aside.groups-nav-panel'
+        ) as HTMLElement;
+        expect(rail.classList.contains('groups-nav-panel--compact')).toBe(
+            true
+        );
+        expect(rail.style.width).toBe('148px');
+        expect(localStorage.getItem('m3u-groups-nav-width')).toBe('320');
+
+        component.onGroupsNavWidthChange(300);
+        component.onGroupsNavResizeEnd(300);
+        expect(sidebarWidthRequested).not.toHaveBeenCalled();
+
+        localStorage.removeItem('m3u-groups-nav-width');
+        localStorage.removeItem('m3u-groups-nav-width-fullscreen');
+    });
+
     it('keeps group selection behavior unchanged when channel sort mode changes', () => {
         component.setGroupChannelSortMode('name-asc');
         component.selectGroup('Movies');
@@ -479,6 +512,22 @@ describe('GroupsViewComponent', () => {
             'News',
             'Sports',
         ]);
+    });
+
+    it('drops the selected-group header in compact mode but keeps the groups rail header', () => {
+        fixture.componentRef.setInput('showHeader', false);
+        fixture.detectChanges();
+
+        expect(component.selectedGroupKey()).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.groups-content-header')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.groups-nav-header')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.groups-channels-viewport')
+        ).not.toBeNull();
     });
 
     it('toggles the inline group search from the header action and filters the visible groups', () => {

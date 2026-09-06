@@ -1,18 +1,30 @@
 import { ipcMain } from 'electron';
-import { normalizeExternalPlayerArguments } from '@iptvnator/shared/interfaces';
+import {
+    normalizeEmbeddedMpvExtraOptions,
+    normalizeExternalPlayerArguments,
+    normalizeStartupWindowMode,
+} from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    EMBEDDED_MPV_AUTO_RECONNECT,
+    EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
+    STARTUP_WINDOW_MODE,
+    PORTAL_CONNECTIVITY_GUARD,
     store,
     VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE,
 } from '../services/store.service';
 import { httpServer } from '../server/http-server';
+import { setHostConnectivityGuardEnabled } from '../util/host-connectivity-guard';
 
 export default class SettingsEvents {
     static bootstrapSettingsEvents(): Electron.IpcMain {
+        setHostConnectivityGuardEnabled(
+            store.get(PORTAL_CONNECTIVITY_GUARD, true) !== false
+        );
         return ipcMain;
     }
 }
@@ -22,6 +34,12 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         'Received SETTINGS_UPDATE with data:',
         redactSensitiveData(arg)
     );
+
+    if (arg.portalConnectivityGuard !== undefined) {
+        const enabled = arg.portalConnectivityGuard !== false;
+        store.set(PORTAL_CONNECTIVITY_GUARD, enabled);
+        setHostConnectivityGuardEnabled(enabled);
+    }
 
     if (arg.mpvPlayerArguments !== undefined) {
         store.set(
@@ -45,6 +63,28 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     // Applied on the next app start (window sandbox is fixed at creation).
     if (arg.embeddedMpvFrameCopy !== undefined) {
         store.set(EMBEDDED_MPV_FRAME_COPY, !!arg.embeddedMpvFrameCopy);
+    }
+    if (arg.embeddedMpvExtraOptions !== undefined) {
+        store.set(
+            EMBEDDED_MPV_EXTRA_OPTIONS,
+            normalizeEmbeddedMpvExtraOptions(arg.embeddedMpvExtraOptions)
+        );
+    }
+    if (arg.embeddedMpvAutoReconnect !== undefined) {
+        store.set(
+            EMBEDDED_MPV_AUTO_RECONNECT,
+            arg.embeddedMpvAutoReconnect !== false
+        );
+    }
+
+    // Read by initMainWindow before any renderer exists, so it applies on
+    // the next launch. Normalized here so a junk value never reaches the
+    // config file.
+    if (arg.startupWindowMode !== undefined) {
+        store.set(
+            STARTUP_WINDOW_MODE,
+            normalizeStartupWindowMode(arg.startupWindowMode)
+        );
     }
 
     if (arg.vlcReuseInstance !== undefined) {

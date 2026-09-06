@@ -15,7 +15,6 @@ const HOST = 'http://portal.example.com:8080';
 const GUARD_DISABLED_ENV = 'IPTVNATOR_DISABLE_CONNECTIVITY_GUARD';
 const OPEN_DURATION_MS = 30_000;
 const FAILURE_WINDOW_MS = 120_000;
-const TRIAL_TIMEOUT_MS = 45_000;
 
 function timeoutError(code = 'ETIMEDOUT') {
     return Object.assign(new Error('timeout of 30000ms exceeded'), { code });
@@ -80,7 +79,7 @@ describe('failedAfterRedirect', () => {
     const token: HostRequestToken = {
         endpoint: ENDPOINT,
         epoch: 0,
-        startedAt: 0,
+        admissionId: 0,
         trial: false,
         trialId: 0,
     };
@@ -276,6 +275,62 @@ describe('HostConnectivityGuard', () => {
         expect(opened).toEqual([]);
     });
 
+    it.each([
+        [0, 1, 2],
+        [2, 0, 1],
+        [1, 2, 0],
+    ])(
+        'counts same-millisecond siblings once in completion order %s, %s, %s',
+        (...order) => {
+            const tokens = [expectAllowed(), expectAllowed(), expectAllowed()];
+
+            for (const index of order) {
+                guard.reportFailure(tokens[index]);
+            }
+
+            expectAllowed();
+            expect(opened).toEqual([]);
+        }
+    );
+
+    it('keeps old siblings together after their endpoint state is evicted', () => {
+        const first = expectAllowed();
+        const sibling = expectAllowed();
+        for (let index = 0; index < 256; index += 1) {
+            guard.check(`http://other-${index}.example`);
+        }
+        expectAllowed();
+        advance(30_000);
+
+        guard.reportFailure(first);
+        guard.reportFailure(sibling);
+
+        expectAllowed();
+        expect(opened).toEqual([]);
+    });
+
+    it('counts a new attempt after a failure even in the same millisecond', () => {
+        failRequest();
+        failRequest();
+
+        expectBlocked();
+        expect(opened).toEqual([HOST]);
+    });
+
+    it('does not extend the cooldown for same-millisecond siblings', () => {
+        const first = expectAllowed();
+        const sibling = expectAllowed();
+        guard.reportFailure(first);
+        failRequest();
+        expectBlocked();
+
+        advance(OPEN_DURATION_MS);
+        guard.reportFailure(sibling);
+
+        expect(expectAllowed().trial).toBe(true);
+        expect(opened).toEqual([HOST]);
+    });
+
     it('opens when a second fan-out fails after the first one did', () => {
         const first = expectAllowed();
         const second = expectAllowed();
@@ -375,6 +430,32 @@ describe('HostConnectivityGuard', () => {
             expect(guard.check(HOST).allowed).toBe(false);
         });
 
+        it('keeps a live trial exclusive beyond 45 seconds and the idle TTL', () => {
+            const trial = expectAllowed();
+            advance(45_001);
+            expectBlocked();
+            advance(600_001);
+            guard.check('http://another.example');
+            expectBlocked();
+            guard.reportSuccess(trial);
+            expect(expectAllowed().trial).toBe(false);
+        });
+
+        it.each([
+            'reportSuccess',
+            'reportFailure',
+            'reportInconclusive',
+        ] as const)(
+            'releases a completed trial via %s while the environment override is disabled',
+            (report) => {
+                const trial = expectAllowed();
+                process.env[GUARD_DISABLED_ENV] = '1';
+                guard[report](trial);
+                delete process.env[GUARD_DISABLED_ENV];
+                expect(expectAllowed().trial).toBe(true);
+            }
+        );
+
         it('closes the breaker when the trial succeeds', () => {
             const trial = expectAllowed();
             guard.reportSuccess(trial);
@@ -405,12 +486,9 @@ describe('HostConnectivityGuard', () => {
         });
 
         it('lets only the request holding the slot release it', () => {
-            // A trial can outlive its own 45 s window: the validated-redirect
-            // transport gives each of up to five hops its own 30 s budget. Once
-            // a replacement has been admitted, the abandoned request's late
-            // report must not hand the slot to a third request.
+            // Cleanup may run again after a replacement has acquired the slot.
             const abandoned = expectAllowed();
-            advance(TRIAL_TIMEOUT_MS);
+            guard.reportInconclusive(abandoned);
             const replacement = expectAllowed();
             expect(replacement.trial).toBe(true);
 
@@ -419,11 +497,24 @@ describe('HostConnectivityGuard', () => {
             expectBlocked();
         });
 
-        it('recovers when a trial never reports back', () => {
-            expectAllowed();
+        it('keeps the replacement slot when the old owner reports a late failure', () => {
+            const old = expectAllowed();
+            guard.reportInconclusive(old);
+            const replacement = expectAllowed();
+            guard.reportFailure(old);
+            advance(OPEN_DURATION_MS + 1);
             expectBlocked();
+            guard.reportInconclusive(old);
+            expectBlocked();
+            guard.reportSuccess(replacement);
+            expect(expectAllowed().trial).toBe(false);
+        });
 
-            advance(TRIAL_TIMEOUT_MS);
+        it('recovers when the owner releases a trial without an outcome report', () => {
+            const trial = expectAllowed();
+            expectBlocked();
+            // The request owner's finally is independent of outcome reporting.
+            guard.reportInconclusive(trial);
 
             const replacement = expectAllowed();
             expect(replacement.trial).toBe(true);
@@ -537,4 +628,3 @@ describe('HostConnectivityGuard', () => {
         });
     });
 });
-

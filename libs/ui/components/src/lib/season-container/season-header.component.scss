@@ -35,10 +35,15 @@
 
     .view-toggle {
         mat-button-toggle-group {
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid
+                color-mix(in srgb, var(--app-on-surface) 14%, transparent);
             border-radius: 6px;
             overflow: hidden;
-            background: rgba(255, 255, 255, 0.03);
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface) 3%,
+                transparent
+            );
 
             ::ng-deep {
                 .mat-button-toggle {
@@ -57,15 +62,15 @@
                     }
 
                     &.mat-button-toggle-checked {
-                        background: rgba(255, 255, 255, 0.1);
+                        background: var(--app-selection-surface);
 
                         mat-icon {
-                            color: var(--accent-color);
+                            color: var(--app-selection-color);
                         }
                     }
 
                     &:hover:not(.mat-button-toggle-checked) {
-                        background: rgba(255, 255, 255, 0.05);
+                        background: var(--app-hover-overlay);
                     }
                 }
 
@@ -77,7 +82,12 @@
                 }
 
                 .mat-button-toggle + .mat-button-toggle {
-                    border-left: 1px solid rgba(255, 255, 255, 0.1);
+                    border-left: 1px solid
+                        color-mix(
+                            in srgb,
+                            var(--app-on-surface) 14%,
+                            transparent
+                        );
                 }
             }
         }

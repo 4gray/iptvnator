@@ -1,0 +1,151 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import CompareHero from '../../components/compare/CompareHero.astro';
+import ComparisonTable from '../../components/compare/ComparisonTable.astro';
+import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildComparisonPageSchema } from '../../lib/comparison-schema';
+import { comparisonBySlug } from '../../lib/comparisons';
+import { absoluteUrl } from '../../lib/site';
+
+const comparison = comparisonBySlug('playback-engines');
+const pageUrl = absoluteUrl('/compare/playback-engines/');
+const title = 'Built-in Players vs MPV vs VLC in IPTVnator – Which Engine to Use';
+const description =
+  'IPTVnator can play a stream in three built-in web players, in an embedded mpv engine, or in MPV or VLC on your machine. What each one decodes, which in-app controls it keeps, and what you give up by switching.';
+
+const engineColumns = ['HTML5 / hls.js', 'Video.js', 'ArtPlayer'];
+
+const engineRows = [
+  { label: 'HLS and MPEG-TS streams', cells: [true, true, true] },
+  { label: 'DASH with ClearKey keys', cells: [true, 'Handed to HTML5', true], note: 'A .mpd channel always plays inline; the app switches engine for it when needed.' },
+  { label: 'Shared control bar', cells: [true, true, true], note: 'On by default. Turning it off in Settings › Playback returns each player to its own controls.' },
+  { label: 'Subtitle file, offset and styling', cells: [true, false, true] },
+  { label: 'Quality selection', cells: ['Multi-variant HLS', 'Multi-variant HLS', 'Multi-variant HLS'], note: 'Offered only when the stream really carries several renditions.' },
+  { label: 'Picture-in-picture', cells: [true, true, true] },
+  { label: 'Playback error diagnostics', cells: [true, true, true] },
+];
+
+const targetColumns = ['Built-in web players', 'Embedded MPV', 'MPV or VLC'];
+
+const targetRows = [
+  { label: 'Where the video is drawn', cells: ['In the app window', 'In the app window', 'In a separate window'] },
+  { label: 'Codec coverage', cells: ['What the browser engine decodes', 'What mpv decodes', 'What mpv or VLC decodes'] },
+  { label: 'Needs anything installed', cells: [false, 'Bundled, except on some Linux packages', 'MPV or VLC on your machine'] },
+  { label: 'App controls, subtitles and quality menu', cells: [true, 'Controls and subtitles, no quality menu', false] },
+  { label: 'Picture-in-picture', cells: [true, false, false] },
+  { label: 'Live TV recording', cells: [false, true, false], note: 'Recordings appear beside downloads in the manager.' },
+  { label: 'Failure reaches the app', cells: [true, false, false], note: 'Only the built-in players raise a diagnostic, so the alternative-source failover for movies can act on it.' },
+  { label: 'Status', cells: ['Default', 'Experimental, opt-in', 'Stable'] },
+  { label: 'Available in the browser version', cells: [true, false, false] },
+];
+
+const guidance = [
+  {
+    title: 'Start with the default',
+    description:
+      'The built-in players cover ordinary HLS and MPEG-TS streams, keep every in-app control, and are the only engines where a failed stream can trigger the automatic switch to another copy of a movie.',
+  },
+  {
+    title: 'Reach for MPV or VLC when a stream refuses',
+    description:
+      'Odd codecs, unusual containers and streams that stutter in a browser engine usually play immediately in MPV or VLC. IPTVnator keeps the library, the guide and the phone remote; only the video moves to another window.',
+  },
+  {
+    title: 'Try embedded MPV to keep it in the window',
+    description:
+      'The experimental engine renders mpv inside IPTVnator, so you get mpv decoding without a second window, plus live-TV recording. It is opt-in under Settings › Playback and can be switched off again.',
+  },
+  {
+    title: 'Radio and DASH decide for themselves',
+    description:
+      'Radio stations always use the built-in audio player, and DASH channels always play inline, whatever engine you selected. Both ignore the external player setting on purpose.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Which player should I choose?',
+    a: 'Leave the default built-in player until something refuses to play. It keeps the shared controls, subtitles, quality selection and picture-in-picture, and it is the only engine family whose failures the app can react to. Switch a stream to MPV or VLC when it does not decode.',
+  },
+  {
+    q: 'What is the difference between MPV and embedded MPV?',
+    a: 'Both use mpv to decode. MPV opens its own window and is a stable, long-standing option. Embedded MPV renders inside the IPTVnator window, keeps the app controls and can record live TV, but it is experimental and must be enabled in Settings › Playback.',
+  },
+  {
+    q: 'Do I need to install MPV or VLC myself?',
+    a: 'For the external MPV and VLC options, yes: IPTVnator launches the copy on your machine and you can point it at a specific path in the settings. The built-in players need nothing, and embedded MPV ships with the app except on the Linux packages that use your system mpv.',
+  },
+  {
+    q: 'Why do subtitles behave differently between players?',
+    a: 'Loading an external subtitle file with a timing offset and custom styling is offered where the engine can do it: the HTML5 player, ArtPlayer and embedded MPV. Video.js keeps its own subtitle handling, and MPV or VLC use theirs.',
+  },
+  {
+    q: 'Does switching the player lose my progress?',
+    a: 'No. Playback positions, favorites and history belong to the source, not the player, so a movie resumes where you stopped whichever engine plays it.',
+  },
+  {
+    q: 'Can the browser version use MPV or VLC?',
+    a: 'No. Launching another application requires the desktop app. In a browser, copy the stream URL and open it in your player manually.',
+  },
+];
+
+const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq });
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTV player MPV', 'IPTV player VLC', 'IPTVnator playback engine', 'hls.js IPTV player', 'embedded mpv IPTV', 'IPTV player comparison']}
+  jsonLd={jsonLd}
+>
+  <CompareHero
+    comparison={comparison}
+    titleLead="Built-in players, MPV,"
+    titleAccent="or VLC?"
+    lede="A stream that refuses to play is almost always a decoding problem, not a broken subscription. IPTVnator can hand the same stream to a different engine, and each engine trades something for what it gains."
+    verdict="Keep the built-in player until a stream refuses to play, then send that stream to MPV or VLC. The built-in players keep every in-app control and are the only ones whose failures the app can react to; MPV and VLC decode almost anything but play in their own window."
+  />
+
+  <DownloadSection id="built-in" eyebrow="The built-in three" title="Web players," accent="side by side" lead="All three render inside the app and share one control bar. They differ in the extras.">
+    <ComparisonTable
+      columns={engineColumns}
+      rows={engineRows}
+      rowHeader="Capability"
+      caption="Picked under Settings › Playback. The shared control bar is on by default; the legacy per-player controls remain available as an opt-out."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="targets" eyebrow="Where video plays" title="Three ways to" accent="decode a stream">
+    <ComparisonTable
+      columns={targetColumns}
+      rows={targetRows}
+      rowHeader="Capability"
+      caption="Embedded MPV is an experiment and its availability differs per platform and package; the Linux builds that rely on a system mpv need it installed."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="guidance" eyebrow="Choosing" title="A rule of" accent="thumb">
+    <FeatureList items={guidance} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="playback">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['why-external-players-help', 'embedded-mpv-macos-experiment', 'm3u-playlist-epg-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <CompareSwitcher current="playback-engines" />
+</BaseLayout>

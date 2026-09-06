@@ -1,17 +1,25 @@
-import { Injectable } from '@angular/core';
-import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import { inject, Injectable } from '@angular/core';
+import {
+    EpgItem,
+    EpgProgram,
+    epgProviderClockMs,
+} from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 
 type ElectronEpgBridge = {
     getChannelPrograms?: (channelId: string) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch?: (
-        channelIds: string[]
+        channelIds: string[],
+        options?: { nowMs?: number }
     ) => Promise<Record<string, EpgProgram | null>>;
 };
 
 @Injectable({ providedIn: 'root' })
 export class XtreamXmltvFallbackService {
     private readonly logger = createLogger('XtreamXmltvFallback');
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly sources = inject(EpgSourceSettingsService);
 
     /**
      * `DataService.isElectron` is intentionally not consulted here: it
@@ -23,8 +31,9 @@ export class XtreamXmltvFallbackService {
      */
     private get bridge(): ElectronEpgBridge | null {
         if (typeof window === 'undefined') return null;
-        const candidate = (window as unknown as { electron?: ElectronEpgBridge })
-            .electron;
+        const candidate = (
+            window as unknown as { electron?: ElectronEpgBridge }
+        ).electron;
         return candidate ?? null;
     }
 
@@ -36,6 +45,7 @@ export class XtreamXmltvFallbackService {
     async getProgramsForChannel(
         epgChannelId: string | null | undefined
     ): Promise<EpgItem[]> {
+        const revision = this.sources.revision();
         const id = (epgChannelId ?? '').trim();
         if (!id) return [];
 
@@ -44,12 +54,10 @@ export class XtreamXmltvFallbackService {
 
         try {
             const programs = await fn.call(this.bridge, id);
+            if (revision !== this.sources.revision()) return [];
             return (programs ?? []).map((p) => mapEpgProgramToEpgItem(p, id));
         } catch (error) {
-            this.logger.error(
-                `Failed to load XMLTV programs for ${id}`,
-                error
-            );
+            this.logger.error(`Failed to load XMLTV programs for ${id}`, error);
             return [];
         }
     }
@@ -57,6 +65,7 @@ export class XtreamXmltvFallbackService {
     async getCurrentProgramsBatch(
         epgChannelIds: ReadonlyArray<string | null | undefined>
     ): Promise<Record<string, EpgItem>> {
+        const revision = this.sources.revision();
         const fn = this.bridge?.getCurrentProgramsBatch;
         if (typeof fn !== 'function') return {};
 
@@ -70,7 +79,15 @@ export class XtreamXmltvFallbackService {
         if (ids.length === 0) return {};
 
         try {
-            const rows = await fn.call(this.bridge, ids);
+            // "Now" in the provider's EPG clock (`epg-display-offset.util.ts`,
+            // clock form), like every other current-programme lookup.
+            const rows = await fn.call(this.bridge, ids, {
+                nowMs: epgProviderClockMs(
+                    Date.now(),
+                    this.settingsStore.resolvedEpgOffsetMinutes()
+                ),
+            });
+            if (revision !== this.sources.revision()) return {};
             const out: Record<string, EpgItem> = {};
             for (const id of ids) {
                 const row = rows?.[id];

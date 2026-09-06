@@ -14,7 +14,12 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    DataService,
+    EpgSourceSettingsService,
+    SettingsStore,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     Language,
     Settings,
@@ -233,6 +238,37 @@ describe('AppComponent', () => {
         );
         expect(epgService.fetchEpg).toHaveBeenCalledWith(settings.epgUrl);
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('does not reimport a deleted source from a late startup freshness response', async () => {
+        await TestBed.inject(SettingsStore).loadSettings();
+        let finishFreshness!: (value: {
+            freshUrls: string[];
+            staleUrls: string[];
+        }) => void;
+        epgBridge.checkFreshness = jest.fn(
+            () =>
+                new Promise((resolve) => {
+                    finishFreshness = resolve;
+                })
+        );
+        const pending = (
+            component as unknown as {
+                fetchStaleEpgData(urls: string[]): Promise<void>;
+            }
+        ).fetchStaleEpgData(['https://removed.example/guide.xml']);
+        await Promise.resolve();
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        sources.revision.update((value) => value + 1);
+        sources.changed$.next();
+        finishFreshness({
+            freshUrls: [],
+            staleUrls: ['https://removed.example/guide.xml'],
+        });
+        await pending;
+        expect(epgService.fetchEpg).not.toHaveBeenCalledWith([
+            'https://removed.example/guide.xml',
+        ]);
     });
 
     it('does not fetch EPG settings when the EPG bridge cannot import EPG', async () => {

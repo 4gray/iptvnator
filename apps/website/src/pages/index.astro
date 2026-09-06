@@ -8,7 +8,10 @@ import DownloadCTA from '../components/DownloadCTA.astro';
 import SupportSection from '../components/SupportSection.astro';
 import FeaturedBlogPost from '../components/FeaturedBlogPost.astro';
 import BlogPostCard from '../components/BlogPostCard.astro';
+import { getLatestRelease } from '../lib/downloads';
+import { getGitHubStats } from '../lib/github-stats';
 
+const [release, stats] = await Promise.all([getLatestRelease(), getGitHubStats()]);
 const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
 
 const allPosts = (await getCollection('blog'))
@@ -16,8 +19,9 @@ const allPosts = (await getCollection('blog'))
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
 const featuredPost = allPosts.find((post) => post.data.featured) ?? allPosts[0];
-const otherPosts = featuredPost ? allPosts.filter((post) => post.id !== featuredPost.id).slice(0, 2) : [];
-const posts = featuredPost ? [featuredPost, ...otherPosts] : allPosts.slice(0, 3);
+// One featured post plus a full three-column row of cards below it.
+const otherPosts = featuredPost ? allPosts.filter((post) => post.id !== featuredPost.id).slice(0, 3) : [];
+const posts = featuredPost ? [featuredPost, ...otherPosts] : allPosts.slice(0, 4);
 
 const homeSchema = [
   {
@@ -35,7 +39,7 @@ const homeSchema = [
     name: 'IPTVnator',
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Windows, macOS, Linux, Web',
-    softwareVersion: '0.20.0',
+    softwareVersion: release.version,
     url: 'https://4gray.github.io/iptvnator/',
     downloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
     author: {
@@ -60,26 +64,21 @@ const homeSchema = [
   keywords={['IPTV player', 'M3U', 'M3U8', 'Xtream Codes', 'Stalker portal', 'EPG', 'XMLTV', 'open-source']}
   jsonLd={homeSchema}
 >
-  <Hero />
+  <Hero release={release} stats={stats} />
   <FeatureGrid />
   <ScreenshotShowcase />
-  <DownloadCTA />
+  <DownloadCTA release={release} />
   <SupportSection />
 
   <!-- Recent Blog Posts -->
   {
     posts.length > 0 && (
-      <section class="py-28">
-        <hr class="section-divider mb-28" />
-
+      <section class="py-24 sm:py-28">
         <div class="mx-auto max-w-6xl px-6">
           <div class="flex items-end justify-between">
             <div>
-              <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">
-                Blog
-              </span>
-              <h2 class="mt-4 font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
-                Latest <em class="font-medium text-accent-400" style="font-style: italic;">updates</em>
+              <h2 class="font-display text-3xl font-bold tracking-tight text-surface-50 sm:text-4xl lg:text-5xl">
+                Latest updates
               </h2>
               <p class="mt-4 text-lg text-surface-400">
                 Release notes, tutorials, and project updates.

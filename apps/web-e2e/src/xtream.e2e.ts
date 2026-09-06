@@ -1,8 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { setInputValue } from './e2e-helpers';
+import {
+    rasterizedBorderContrast,
+    setInputValue,
+    surfaceContrast,
+    waitForScrollIdle,
+} from './e2e-helpers';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
@@ -929,6 +934,159 @@ function formatXtreamDateTime(timestampSeconds: number): string {
 // now the app-web-player-view host, which spans all applications of one mount.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Inline series playback helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Serve a tiny VP8 clip for every episode stream. Chromium ships no
+ * proprietary codecs, so the clip stands in for the mock's external HLS
+ * redirect; the browser sniffs the WebM container from the bytes. Registered
+ * after the beforeEach proxy route, so it runs first and fetches from the
+ * mock itself (the mock ignores the url parameter).
+ */
+async function routeEpisodeClip(page: Page): Promise<void> {
+    const episodeClip = readFileSync(
+        join(__dirname, 'fixtures/playback/episode.webm')
+    );
+    await page.route(
+        (url) =>
+            url.origin === MOCK_SERVER && url.pathname.startsWith('/series/'),
+        async (route) => {
+            // Chromium's media pipeline seeks through byte ranges; a plain
+            // 200 to a Range request clamps every seek to the start, which
+            // would defeat end-of-episode steps.
+            const range = /^bytes=(\d*)-(\d*)$/.exec(
+                route.request().headers()['range'] ?? ''
+            );
+            const last = episodeClip.length - 1;
+            const start = range?.[1]
+                ? Number(range[1])
+                : range?.[2]
+                  ? Math.max(0, episodeClip.length - Number(range[2]))
+                  : 0;
+            const end =
+                range?.[1] && range[2]
+                    ? Math.min(Number(range[2]), last)
+                    : last;
+            await route.fulfill({
+                status: range ? 206 : 200,
+                headers: {
+                    'accept-ranges': 'bytes',
+                    'content-length': String(end - start + 1),
+                    'content-type': 'video/webm',
+                    ...(range
+                        ? {
+                              'content-range': `bytes ${start}-${end}/${episodeClip.length}`,
+                          }
+                        : {}),
+                },
+                body: episodeClip.subarray(start, end + 1),
+            });
+        }
+    );
+}
+
+/**
+ * The mock's episodes are .mkv, which the HTML5 player would hand to hls.js;
+ * get_series_info is rewritten to .mp4 — the extension the player gives to
+ * the native source path.
+ */
+async function rewriteSeriesEpisodesToMp4(page: Page): Promise<void> {
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        if (original.searchParams.get('action') !== 'get_series_info') {
+            await route.fallback();
+            return;
+        }
+        const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') {
+                mockUrl.searchParams.set(key, value);
+            }
+        });
+        const response = await route.fetch({ url: mockUrl.toString() });
+        const body = (await response.json()) as {
+            payload: {
+                episodes?: Record<
+                    string,
+                    Array<{ container_extension: string }>
+                >;
+            };
+        };
+        for (const episodes of Object.values(body.payload.episodes ?? {})) {
+            for (const episode of episodes) {
+                episode.container_extension = 'mp4';
+            }
+        }
+        await route.fulfill({ response, json: body });
+    });
+}
+
+/** Persist the web player engine and the shared-controls preference. */
+async function selectWebPlayer(
+    page: Page,
+    engine: string,
+    sharedControls = true
+): Promise<void> {
+    await page.goto('/workspace/settings/playback');
+    await page.locator('[data-test-id="select-video-player"]').click();
+    await page.getByRole('option', { name: engine, exact: true }).click();
+    const toggle = page.locator(
+        '[data-test-id="web-player-shared-controls-toggle"]'
+    );
+    if ((await toggle.locator('input').isChecked()) !== sharedControls) {
+        await toggle.click();
+    }
+    const saveButton = page.getByRole('button', { name: 'Save changes' });
+    await saveButton.click();
+    await expect(saveButton).toBeHidden();
+}
+
+/** Add the mock portal and start the first episode of the first series. */
+async function playFirstSeriesEpisode(
+    page: Page,
+    request: APIRequestContext
+): Promise<{ playerView: Locator; video: Locator }> {
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+    const category = categories[0];
+    const seriesItems = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
+        )
+    ).json()) as Array<{ name: string; series_id: number }>;
+    const targetSeries = seriesItems[0];
+
+    await page.goto('/');
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+    const categoryItem = page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: category.category_name })
+        .first();
+    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
+    await categoryItem.click();
+    const seriesCard = page
+        .locator('app-grid-list mat-card')
+        .filter({ hasText: targetSeries.name })
+        .first();
+    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
+    await seriesCard.click();
+
+    const episodeCards = page.locator('.episode-card');
+    await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
+    await episodeCards.first().click();
+
+    const playerView = page.locator(
+        'app-portal-inline-player app-web-player-view'
+    );
+    return { playerView, video: playerView.locator('video') };
+}
+
 test.describe('@xtream inline series fullscreen', () => {
     // No autoplay-policy flag is needed: the episode click is a user
     // activation and the fixture clip carries no audio track.
@@ -941,133 +1099,19 @@ test.describe('@xtream inline series fullscreen', () => {
         page,
         request,
     }) => {
-        // Chromium ships no proprietary codecs, so a tiny VP8 clip stands in
-        // for the mock's external HLS redirect; the browser sniffs the WebM
-        // container from the bytes. The mock's episodes are .mkv, which the
-        // HTML5 player would hand to hls.js, so get_series_info is rewritten
-        // to .mp4 — the extension the player gives to the native source path.
-        // Registered after the beforeEach proxy route, so it runs first and
-        // fetches from the mock itself (the mock ignores the url parameter).
-        const episodeClip = readFileSync(
-            join(__dirname, 'fixtures/playback/episode.webm')
-        );
-        await page.route(
-            (url) =>
-                url.origin === MOCK_SERVER &&
-                url.pathname.startsWith('/series/'),
-            async (route) => {
-                // Chromium's media pipeline seeks through byte ranges; a
-                // plain 200 to a Range request clamps every seek to the
-                // start, which would defeat the end-of-episode step below.
-                const range = /^bytes=(\d*)-(\d*)$/.exec(
-                    route.request().headers()['range'] ?? ''
-                );
-                const last = episodeClip.length - 1;
-                const start = range?.[1]
-                    ? Number(range[1])
-                    : range?.[2]
-                      ? Math.max(0, episodeClip.length - Number(range[2]))
-                      : 0;
-                const end =
-                    range?.[1] && range[2]
-                        ? Math.min(Number(range[2]), last)
-                        : last;
-                await route.fulfill({
-                    status: range ? 206 : 200,
-                    headers: {
-                        'accept-ranges': 'bytes',
-                        'content-length': String(end - start + 1),
-                        'content-type': 'video/webm',
-                        ...(range
-                            ? {
-                                  'content-range': `bytes ${start}-${end}/${episodeClip.length}`,
-                              }
-                            : {}),
-                    },
-                    body: episodeClip.subarray(start, end + 1),
-                });
-            }
-        );
-        await page.route('**/localhost:3000/xtream**', async (route) => {
-            const original = new URL(route.request().url());
-            if (original.searchParams.get('action') !== 'get_series_info') {
-                await route.fallback();
-                return;
-            }
-            const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
-            original.searchParams.forEach((value, key) => {
-                if (key !== 'targetId') {
-                    mockUrl.searchParams.set(key, value);
-                }
-            });
-            const response = await route.fetch({ url: mockUrl.toString() });
-            const body = (await response.json()) as {
-                payload: {
-                    episodes?: Record<
-                        string,
-                        Array<{ container_extension: string }>
-                    >;
-                };
-            };
-            for (const episodes of Object.values(body.payload.episodes ?? {})) {
-                for (const episode of episodes) {
-                    episode.container_extension = 'mp4';
-                }
-            }
-            await route.fulfill({ response, json: body });
-        });
+        await routeEpisodeClip(page);
+        await rewriteSeriesEpisodesToMp4(page);
 
         // Persist the HTML5 engine first: Video.js rejects the mock's
         // video/matroska source type before any bytes are sniffed.
-        await page.goto('/workspace/settings/playback');
-        await page.locator('[data-test-id="select-video-player"]').click();
-        await page
-            .getByRole('option', { name: 'HTML5 video player', exact: true })
-            .click();
-        const saveButton = page.getByRole('button', { name: 'Save changes' });
-        await saveButton.click();
-        await expect(saveButton).toBeHidden();
-
-        const categories = (await (
-            await request.get(
-                `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
-            )
-        ).json()) as Array<{ category_id: string; category_name: string }>;
-        const category = categories[0];
-        const seriesItems = (await (
-            await request.get(
-                `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
-            )
-        ).json()) as Array<{ name: string; series_id: number }>;
-        const targetSeries = seriesItems[0];
-
-        await page.goto('/');
-        await addXtreamPortal(page);
-        await page.goto(page.url().replace(/\/vod.*$/, '/series'));
-        const categoryItem = page
-            .locator('.context-panel .category-item')
-            .filter({ hasText: category.category_name })
-            .first();
-        await expect(categoryItem).toBeVisible({ timeout: 10_000 });
-        await categoryItem.click();
-        const seriesCard = page
-            .locator('app-grid-list mat-card')
-            .filter({ hasText: targetSeries.name })
-            .first();
-        await expect(seriesCard).toBeVisible({ timeout: 10_000 });
-        await seriesCard.click();
-
-        const episodeCards = page.locator('.episode-card');
-        await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
-        await episodeCards.first().click();
-
-        const playerView = page.locator(
-            'app-portal-inline-player app-web-player-view'
+        await selectWebPlayer(page, 'HTML5 video player');
+        const { playerView, video } = await playFirstSeriesEpisode(
+            page,
+            request
         );
         await expect(playerView.locator('app-html-video-player')).toBeVisible({
             timeout: 15_000,
         });
-        const video = playerView.locator('video');
         const waitForMetadata = () =>
             expect
                 .poll(() =>
@@ -1092,6 +1136,19 @@ test.describe('@xtream inline series fullscreen', () => {
             .click();
         await expect.poll(fullscreenOwner).not.toBeNull();
         await expect(overlayTitle).toContainText('S01E01');
+
+        // Chromium leaves the clicked button focused; the shared controls
+        // release that focus so Space reaches the playback shortcut instead
+        // of activating the button again (which left fullscreen while the
+        // video kept playing).
+        const paused = () =>
+            video.evaluate((el) => (el as HTMLVideoElement).paused);
+        await expect.poll(paused).toBe(false);
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(true);
+        expect(await fullscreenOwner()).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(false);
 
         // Manual switch from the shared controls' own next-episode button.
         await playerView.hover();
@@ -1119,3 +1176,229 @@ test.describe('@xtream inline series fullscreen', () => {
         expect(await fullscreenOwner()).not.toBeNull();
     });
 });
+
+test.describe('@xtream vendor-chrome Video.js shortcuts', () => {
+    test.skip(
+        ({ browserName }) => browserName !== 'chromium',
+        'DOM fullscreen assertions target Chromium'
+    );
+
+    test('keep working after a mouse click on a control-bar button', async ({
+        page,
+        request,
+    }) => {
+        await routeEpisodeClip(page);
+        await rewriteSeriesEpisodesToMp4(page);
+        // Video.js with the shared controls opted out: the vendor control bar.
+        await selectWebPlayer(page, 'Video.js player', false);
+        const { playerView, video } = await playFirstSeriesEpisode(
+            page,
+            request
+        );
+        await expect(playerView.locator('app-vjs-player')).toBeVisible({
+            timeout: 15_000,
+        });
+        await expect(playerView.locator('app-player-controls')).toHaveCount(0);
+        const paused = () =>
+            video.evaluate((el) => (el as HTMLVideoElement).paused);
+        const fullscreenOwner = () =>
+            page.evaluate(() => document.fullscreenElement?.tagName ?? null);
+        await expect.poll(paused).toBe(false);
+
+        // Chromium leaves the clicked Video.js button focused, and a focused
+        // Video.js component swallows every key; the legacy chrome releases
+        // that focus so Space and M reach the playback shortcuts instead of
+        // Space activating the button again (which left fullscreen while the
+        // video kept playing).
+        await playerView.hover();
+        await playerView.locator('.vjs-fullscreen-control').click();
+        await expect.poll(fullscreenOwner).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(true);
+        expect(await fullscreenOwner()).not.toBeNull();
+        await page.keyboard.press('Space');
+        await expect.poll(paused).toBe(false);
+        await page.keyboard.press('m');
+        await expect
+            .poll(() => video.evaluate((el) => (el as HTMLVideoElement).muted))
+            .toBe(true);
+    });
+});
+
+for (const theme of ['light', 'dark']) {
+    test(`@xtream detail surfaces stay visible (${theme})`, async ({
+        page,
+    }, testInfo) => {
+        await page.setViewportSize({ width: 1600, height: 1100 });
+        await addXtreamPortal(page, {
+            username: 'marketing',
+            password: 'marketing',
+        });
+        await page.getByRole('link', { name: 'Series', exact: true }).click();
+        await page.locator('app-grid-list mat-card').first().click();
+        const shell = page.locator('app-portal-detail-shell');
+        await expect(shell).toBeVisible();
+        await page.evaluate(
+            (dark) => document.body.classList.toggle('dark-theme', dark),
+            theme === 'dark'
+        );
+        const favorite = shell.locator('.favorite-btn').first();
+        const card = shell.locator('.episode-card').first();
+        const toggle = shell.locator('mat-button-toggle-group');
+        await expect(card).toBeVisible();
+        await expect(shell.locator('.hero__content')).toHaveCSS('opacity', '1');
+        await page.mouse.move(0, 0);
+        // A subtle edge must survive compositing on the actual theme surface.
+        // This catches white-alpha borders that disappear in the light theme.
+        await expect
+            .poll(() => rasterizedBorderContrast(favorite))
+            .toBeGreaterThan(1.1);
+        for (const surface of [card, toggle]) {
+            await expect
+                .poll(async () => (await surfaceContrast(surface)).border)
+                .toBeGreaterThan(1.15);
+        }
+        const selected = toggle.locator('.mat-button-toggle-checked');
+        await expect
+            .poll(async () => (await surfaceContrast(selected)).fill)
+            .toBeGreaterThan(1.1);
+        await shell.screenshot({
+            path: testInfo.outputPath(`series-grid-${theme}.png`),
+            animations: 'disabled',
+        });
+        await card.hover();
+        await expect
+            .poll(async () => (await surfaceContrast(card)).border)
+            .toBeGreaterThan(1.15);
+        await page
+            .getByRole('radio', { name: 'List view', exact: true })
+            .click();
+        const row = shell.locator('.episode-list-item').first();
+        await expect(row).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect
+            .poll(async () => (await surfaceContrast(row)).border)
+            .toBeGreaterThan(1.15);
+        await expect
+            .poll(async () => (await surfaceContrast(selected)).fill)
+            .toBeGreaterThan(1.1);
+        await shell.screenshot({
+            path: testInfo.outputPath(`series-list-${theme}.png`),
+            animations: 'disabled',
+        });
+        await row.hover();
+        await expect
+            .poll(async () => (await surfaceContrast(row)).border)
+            .toBeGreaterThan(1.15);
+        await page
+            .getByRole('radio', { name: 'List view', exact: true })
+            .focus();
+        await page.keyboard.press('ArrowLeft');
+        await expect(
+            page.getByRole('radio', { name: 'Grid view', exact: true })
+        ).toBeChecked();
+        await expect(card).toBeVisible();
+    });
+
+    test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
+        page,
+    }) => {
+        await addXtreamPortal(page);
+        await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+        await page.evaluate(
+            (dark) => document.body.classList.toggle('dark-theme', dark),
+            theme === 'dark'
+        );
+        const category = page.locator('.context-panel .category-item').first();
+        await category.click();
+        const viewport = page.locator('.scroll-viewport-portals');
+        await expect(viewport).toBeVisible();
+        await category.focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(viewport).toBeFocused();
+        await expect(page.locator('app-web-player-view')).toHaveCount(0);
+        await page.keyboard.press('Tab');
+        const firstAction = viewport.locator('button.channel-content').first();
+        await expect(firstAction).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(viewport).toBeFocused();
+
+        const row = viewport.locator('.channel-name').first();
+        await row.click();
+        await expect(viewport).toBeFocused();
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(100);
+        await waitForScrollIdle(viewport);
+        const position = await viewport.evaluate((el) => el.scrollTop);
+        await page.keyboard.press('PageDown');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBeGreaterThan(position);
+        await waitForScrollIdle(viewport);
+        await page.keyboard.press('Home');
+        await expect
+            .poll(() => viewport.evaluate((el) => el.scrollTop))
+            .toBe(0);
+        await firstAction.focus();
+        await page.keyboard.press('Space');
+        await expect(page.locator('app-web-player-view')).toBeVisible();
+        await expect(firstAction).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(
+            viewport.locator('.favorite-button').first()
+        ).toBeFocused();
+        await page.keyboard.press('Space');
+        await expect(
+            viewport.locator('.favorite-button').first()
+        ).toBeFocused();
+        await viewport.focus();
+        const overlap = await viewport.evaluate((el) => {
+            const handle = el
+                .closest('.sidebar')!
+                .querySelector('.resize-handle')!;
+            return (
+                el.getBoundingClientRect().right -
+                handle.getBoundingClientRect().left
+            );
+        });
+        expect(overlap).toBeLessThanOrEqual(0);
+        await page.keyboard.press('ArrowLeft');
+        await expect(category).toBeFocused();
+    });
+
+    for (const section of ['Movies', 'Series']) {
+        test(`@xtream navigation: detail scroll ${section} (${theme})`, async ({
+            page,
+        }) => {
+            await page.setViewportSize({ width: 1200, height: 540 });
+            await addXtreamPortal(page);
+            await page
+                .getByRole('link', { name: section, exact: true })
+                .click();
+            await page.locator('app-grid-list mat-card').first().click();
+            const shell = page.locator('app-portal-detail-shell');
+            await expect(shell).toBeVisible();
+            await page.evaluate(
+                (dark) => document.body.classList.toggle('dark-theme', dark),
+                theme === 'dark'
+            );
+            await expect(shell).toBeFocused();
+            await expect
+                .poll(() =>
+                    shell.evaluate((el) => el.scrollHeight - el.clientHeight)
+                )
+                .toBeGreaterThan(0);
+            expect(
+                await shell.evaluate(
+                    (el) => getComputedStyle(el).scrollbarWidth
+                )
+            ).not.toBe('none');
+            await page.keyboard.press('PageDown');
+            await expect
+                .poll(() => shell.evaluate((el) => el.scrollTop))
+                .toBeGreaterThan(0);
+        });
+    }
+}

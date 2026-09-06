@@ -458,11 +458,17 @@ export class WorkspaceContextPanelComponent {
         this.contextDrawer?.close();
         this.stalkerStore.setSelectedCategory(categoryId);
         this.stalkerStore.setPage(0);
-        this.stalkerStore.clearSelectedItem();
 
         if (section === 'itv' || section === 'radio') {
+            // Live TV / radio: the category only re-filters the channel
+            // sidebar, the selected channel keeps playing (Xtream parity,
+            // #936). The live layout gates its player on `selectedItem`, so
+            // clearing it here would tear the player down for a channel the
+            // user never switched away from.
             return;
         }
+
+        this.stalkerStore.clearSelectedItem();
 
         if (categoryId === '*') {
             this.router.navigate([

@@ -24,11 +24,12 @@
     <div class="groups-view-layout">
         <aside
             class="groups-nav-panel"
+            [class.groups-nav-panel--compact]="compact()"
             appResizable
-            [minWidth]="164"
-            [maxWidth]="320"
-            [defaultWidth]="208"
-            storageKey="m3u-groups-nav-width"
+            [minWidth]="navMinWidth()"
+            [maxWidth]="navMaxWidth()"
+            [defaultWidth]="navDefaultWidth()"
+            [storageKey]="navStorageKey()"
             (resizeStart)="onGroupsNavResizeStart()"
             (widthChange)="onGroupsNavWidthChange($event)"
             (resizeEnd)="onGroupsNavResizeEnd($event)"
@@ -172,77 +173,81 @@
 
         <section class="sidebar groups-content-panel">
             @if (selectedGroup(); as group) {
-                <header class="sidebar-header groups-content-header">
-                    <div class="category-meta category-meta--stacked">
-                        <h2 class="category-title">
-                            @if (group.key) {
-                                {{ group.key | titlecase }}
-                            } @else {
-                                {{ 'CHANNELS.UNGROUPED' | translate }}
-                            }
-                        </h2>
-                        <span class="category-subtitle">
-                            {{ group.count }}
-                            {{ group.count === 1 ? 'item' : 'items' }}
-                        </span>
-                    </div>
-                    <button
-                        mat-icon-button
-                        [matMenuTriggerFor]="channelSortMenu"
-                        [matTooltip]="'Sort: ' + groupChannelSortLabel()"
-                        aria-label="Sort channels"
-                    >
-                        <mat-icon>sort_by_alpha</mat-icon>
-                    </button>
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="groups-sidebar-toggle"
-                        [attr.aria-label]="
-                            'LAYOUT.HIDE_CHANNELS_LIST' | translate
-                        "
-                        [matTooltip]="
-                            'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate
-                        "
-                        (click)="sidebarToggleRequested.emit()"
-                    >
-                        <mat-icon>chevron_left</mat-icon>
-                    </button>
-                    <mat-menu #channelSortMenu="matMenu">
+                @if (showHeader()) {
+                    <header class="sidebar-header groups-content-header">
+                        <div class="category-meta category-meta--stacked">
+                            <h2 class="category-title">
+                                @if (group.key) {
+                                    {{ group.key | titlecase }}
+                                } @else {
+                                    {{ 'CHANNELS.UNGROUPED' | translate }}
+                                }
+                            </h2>
+                            <span class="category-subtitle">
+                                {{ group.count }}
+                                {{ group.count === 1 ? 'item' : 'items' }}
+                            </span>
+                        </div>
                         <button
-                            mat-menu-item
-                            (click)="setGroupChannelSortMode('server')"
-                        >
-                            <mat-icon>drag_indicator</mat-icon>
-                            <span>Playlist Order</span>
-                            @if (groupChannelSortMode() === 'server') {
-                                <mat-icon>check</mat-icon>
-                            }
-                        </button>
-                        <button
-                            mat-menu-item
-                            (click)="setGroupChannelSortMode('name-asc')"
+                            mat-icon-button
+                            [matMenuTriggerFor]="channelSortMenu"
+                            [matTooltip]="'Sort: ' + groupChannelSortLabel()"
+                            aria-label="Sort channels"
                         >
                             <mat-icon>sort_by_alpha</mat-icon>
-                            <span>Name A-Z</span>
-                            @if (groupChannelSortMode() === 'name-asc') {
-                                <mat-icon>check</mat-icon>
-                            }
                         </button>
                         <button
-                            mat-menu-item
-                            (click)="setGroupChannelSortMode('name-desc')"
+                            mat-icon-button
+                            type="button"
+                            class="groups-sidebar-toggle"
+                            [attr.aria-label]="
+                                'LAYOUT.HIDE_CHANNELS_LIST' | translate
+                            "
+                            [matTooltip]="
+                                'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate
+                            "
+                            (click)="sidebarToggleRequested.emit()"
                         >
-                            <mat-icon>sort_by_alpha</mat-icon>
-                            <span>Name Z-A</span>
-                            @if (groupChannelSortMode() === 'name-desc') {
-                                <mat-icon>check</mat-icon>
-                            }
+                            <mat-icon>chevron_left</mat-icon>
                         </button>
-                    </mat-menu>
-                </header>
+                        <mat-menu #channelSortMenu="matMenu">
+                            <button
+                                mat-menu-item
+                                (click)="setGroupChannelSortMode('server')"
+                            >
+                                <mat-icon>drag_indicator</mat-icon>
+                                <span>Playlist Order</span>
+                                @if (groupChannelSortMode() === 'server') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            <button
+                                mat-menu-item
+                                (click)="setGroupChannelSortMode('name-asc')"
+                            >
+                                <mat-icon>sort_by_alpha</mat-icon>
+                                <span>Name A-Z</span>
+                                @if (groupChannelSortMode() === 'name-asc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            <button
+                                mat-menu-item
+                                (click)="setGroupChannelSortMode('name-desc')"
+                            >
+                                <mat-icon>sort_by_alpha</mat-icon>
+                                <span>Name Z-A</span>
+                                @if (groupChannelSortMode() === 'name-desc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                        </mat-menu>
+                    </header>
+                }
 
                 <cdk-virtual-scroll-viewport
+                    appChannelScrollFocus
+                    [attr.aria-label]="'HOME.PLAYLISTS.CHANNELS' | translate"
                     [itemSize]="itemSize()"
                     class="groups-channels-viewport app-scrollbar"
                 >
@@ -280,6 +285,9 @@
                         "
                         (clicked)="onChannelClick(channel)"
                         (activated)="onChannelActivate(channel)"
+                        (keyboardActivated)="
+                            channelPlaybackRequested.emit(channel)
+                        "
                         (contextMenuRequested)="
                             onChannelContextMenu(channel, $event)
                         "
@@ -287,13 +295,15 @@
                     />
                 </cdk-virtual-scroll-viewport>
             } @else {
-                <header class="sidebar-header groups-content-header">
-                    <div class="category-meta">
-                        <h2 class="category-title">
-                            {{ 'CHANNELS.GROUPS' | translate }}
-                        </h2>
-                    </div>
-                </header>
+                @if (showHeader()) {
+                    <header class="sidebar-header groups-content-header">
+                        <div class="category-meta">
+                            <h2 class="category-title">
+                                {{ 'CHANNELS.GROUPS' | translate }}
+                            </h2>
+                        </div>
+                    </header>
+                }
 
                 <div class="groups-content-empty-state">
                     <mat-icon class="empty-state-icon">

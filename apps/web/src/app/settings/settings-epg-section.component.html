@@ -1,8 +1,4 @@
-<section
-    class="settings-group"
-    id="epg"
-    [formGroup]="form()"
->
+<section class="settings-group" id="epg" [formGroup]="form()">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>list_alt</mat-icon>
@@ -44,6 +40,32 @@
                     </button>
                 }
             </div>
+        </div>
+    </div>
+
+    <div class="setting-item setting-item--full-control">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.EPG_OFFSET_TITLE' | translate }}</h4>
+            <p>{{ 'SETTINGS.EPG_OFFSET_HINT' | translate }}</p>
+        </div>
+        <div class="setting-item__control">
+            <mat-form-field appearance="outline">
+                <mat-label>{{
+                    'SETTINGS.EPG_OFFSET_LABEL' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    type="number"
+                    min="-720"
+                    max="720"
+                    step="15"
+                    formControlName="epgOffsetMinutes"
+                    data-test-id="epg-offset-minutes"
+                />
+                <mat-error>{{
+                    'SETTINGS.EPG_OFFSET_ERROR' | translate
+                }}</mat-error>
+            </mat-form-field>
         </div>
     </div>
 

@@ -1184,9 +1184,17 @@ Two stream profiles exist, selected by one shared predicate:
   `Origin`/`Referer` set to the portal origin.
 - **Foreign / direct** (different host, or an https→http downgrade): the
   credential-free `KSPlayer` direct-stream profile (`User-Agent: KSPlayer`,
-  `Accept`, `Range`, `Icy-MetaData`, `Connection`). Portal credentials must
+  `Accept`, `Icy-MetaData`, `Connection`). Portal credentials must
   never reach a third-party host; direct stream URLs carry their access token
   in the URL minted by `create_link`.
+
+Neither playback profile sets `Range`; byte ranges belong to the media
+transport and must change with each seek. A static `Range: bytes=0-` overrides
+mpv's requested offset, making the server return the beginning again. After
+resuming a movie or episode this can send playback forward or to EOF instead
+of the selected time. Regression coverage in
+`stalker-live-playback.utils.spec.ts` checks both profiles and TLS downgrades;
+`with-stalker-player.feature.spec.ts` verifies the resumed CDN episode path.
 
 **The token is bound to the endpoint the headers claim.** Both header inputs —
 the portal coordinates and the Bearer token — must describe the same portal, or
@@ -1220,6 +1228,10 @@ same shared predicate — if the two ever diverged,
 renderer's credentialed headers for streams the main process misread as
 direct.
 
+The fallback also leaves `Range` unset, covered by
+`stalker-playback-context.service.spec.ts`, so external launches cannot
+reintroduce a fixed byte offset when renderer headers are absent.
+
 The mock server's `gated-stream` scenario (MAC `00:1A:79:00:00:09`) makes
 `create_link` return a local `/stream/gated/video.mp4` that answers 403
 without the mac cookie and current Bearer token;
@@ -1251,6 +1263,20 @@ The Stalker live route and radio route intentionally share
 - Some Stalker portals do not expose radio categories. Radio category loading
   falls back to a synthetic `PORTALS.ALL_RADIO` category with
   `category_id: '*'` so the station list can still be loaded.
+- A category click in the shell context panel only re-filters the channel
+  sidebar; the selected channel or station keeps playing (Xtream live #936 and
+  M3U group parity). `onStalkerCategoryClicked` therefore must NOT
+  `clearSelectedItem()` for `itv`/`radio` — the layout gates its player on
+  `selectedItem` — while VOD/series clicks still drop the open detail before
+  navigating to the list route. The layout's category-change reset effect
+  clears only list state (channels on the legacy paged flow, page, row EPG
+  previews); the active channel's short-EPG fallback and a fallback load still
+  in flight belong to the selection and survive the switch. Only a section
+  change (`itv` ↔ `radio`, where the route session clears the selection)
+  invalidates that request and drops the fallback. A playing channel outside
+  the newly selected category simply has no highlighted row, and remote
+  channel up/down finds no neighbour until a channel from the visible list is
+  played.
 
 ## Full ITV Channel List Cache
 
@@ -1389,6 +1415,17 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 - Treated as series flow from VOD context.
 - Seasons are fetched lazily.
 - Episodes are fetched on season select.
+- The season resource depends on the VOD item id and series mode, so a TMDB
+  metadata patch does not reload seasons or discard loaded episodes. Pending
+  episode requests belong to the exact loading season VM; replies from an old
+  selection cannot fill a replacement list with reused provider season ids.
+- A single-season item's explicit title marker (`s02`, `season2`, `(2 сезон)`,
+  etc., in `name` or `o_name`) supplies the displayed season number, quick-start
+  code and episode/playback/download metadata, independently of UI language and
+  TMDB availability. Regular and embedded VOD series apply the same rule.
+  Multi-season items keep provider numbering. Lazy VOD retains the original
+  season key/number separately for stable tracking IDs and compatible legacy
+  progress; provider request ids remain unchanged.
 - The series quick-start CTA can load the first unloaded VOD-series season
   before playback. Unloaded seasons are considered unplayed in full season
   order, so an earlier unloaded season is not skipped just because a later

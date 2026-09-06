@@ -1,5 +1,9 @@
 # Self-hosted IPTVnator
 
+User-facing overview with quick start, variables and FAQ:
+<https://4gray.github.io/iptvnator/download/docker/>. This file is the
+reference behind it.
+
 The self-hosted image contains both pieces required for the browser PWA:
 
 - Angular PWA static files served by nginx

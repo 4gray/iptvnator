@@ -13,6 +13,8 @@
 #include <mpv/render.h>
 #include <mpv/render_gl.h>
 
+#include "embedded_mpv_extra_options.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -96,6 +98,12 @@ struct SessionSnapshot {
     double volumePercent = 100.0;
     std::string streamUrl;
     std::string error;
+    // True when `error` is the engine's own failure (render context, fatal
+    // libmpv log) rather than the stream's: the app must not reload for it.
+    bool engineError = false;
+    // Keys of session options libmpv refused at creation (names only, never
+    // values: a value may carry credentials). Reported once by the service.
+    std::vector<std::string> rejectedOptionKeys;
     std::vector<AudioTrack> audioTracks;
     int64_t selectedAudioTrackId = -1;
     std::vector<AudioTrack> subtitleTracks;
@@ -203,7 +211,11 @@ std::shared_ptr<Session> getSessionOrThrow(
 
 void scheduleRender(const std::shared_ptr<Session>& session);
 void requestRender(const std::shared_ptr<Session>& session);
-void updateSessionError(const std::shared_ptr<Session>& session, const std::string& error);
+void updateSessionError(
+    const std::shared_ptr<Session>& session,
+    const std::string& error,
+    bool engineError = false
+);
 
 bool isEmbeddedMpvTraceEnabled()
 {
@@ -550,7 +562,8 @@ void renderSoftwareFrame(const std::shared_ptr<Session>& session)
     if (result < 0) {
         updateSessionError(
             session,
-            std::string("Failed to render frame: ") + mpv_error_string(result)
+            std::string("Failed to render frame: ") + mpv_error_string(result),
+            true
         );
         return;
     }
@@ -670,7 +683,8 @@ void renderOpenGLFrame(const std::shared_ptr<Session>& session)
         updateSessionError(
             session,
             std::string("Failed to render OpenGL frame: ") +
-                mpv_error_string(result)
+                mpv_error_string(result),
+            true
         );
         return;
     }
@@ -1035,11 +1049,16 @@ void updateSubtitleTracksFromNode(SessionSnapshot& snapshot, const mpv_node& nod
     );
 }
 
-void updateSessionError(const std::shared_ptr<Session>& session, const std::string& error)
+void updateSessionError(
+    const std::shared_ptr<Session>& session,
+    const std::string& error,
+    bool engineError
+)
 {
     std::lock_guard<std::mutex> lock(session->mutex);
     session->snapshot.status = SessionStatus::Error;
     session->snapshot.error = error;
+    session->snapshot.engineError = engineError;
 }
 
 uint64_t nextAsyncRequestId()
@@ -1154,6 +1173,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
             case MPV_EVENT_START_FILE:
                 session->snapshot.status = SessionStatus::Loading;
                 session->snapshot.error.clear();
+                session->snapshot.engineError = false;
                 session->snapshot.audioTracks.clear();
                 session->snapshot.selectedAudioTrackId = -1;
                 session->snapshot.subtitleTracks.clear();
@@ -1186,6 +1206,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     session->running.load()) {
                     session->snapshot.status = SessionStatus::Loading;
                     session->snapshot.error.clear();
+                    session->snapshot.engineError = false;
                     session->loadedPath = false;
                 } else if (session->running.load()) {
                     session->snapshot.status = SessionStatus::Idle;
@@ -1353,6 +1374,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                 }
                 if (level == "fatal") {
                     session->snapshot.status = SessionStatus::Error;
+                    session->snapshot.engineError = true;
                 }
                 break;
             }
@@ -1657,6 +1679,25 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         std::to_string(session->snapshot.volumePercent);
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
 
+    // Session options from Settings (network defaults first, then the
+    // user's lines). Applied last so a user value overrides a built-in one,
+    // and before mpv_initialize because most of them are init-only.
+    for (const auto& option : iptvnator::readEmbeddedMpvExtraOptions(info, 4)) {
+        const int optionResult = mpv_set_option_string(
+            session->handle,
+            option.first.c_str(),
+            option.second.c_str()
+        );
+        if (optionResult < 0) {
+            traceEmbeddedMpv(
+                session,
+                "rejected session option " + option.first + ": " +
+                    mpv_error_string(optionResult)
+            );
+            session->snapshot.rejectedOptionKeys.push_back(option.first);
+        }
+    }
+
     mpv_request_log_messages(session->handle, "warn");
 
     const int initializeResult = mpv_initialize(session->handle);
@@ -1920,6 +1961,7 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
         std::lock_guard<std::mutex> lock(session->mutex);
         session->snapshot.streamUrl = streamUrl;
         session->snapshot.error.clear();
+        session->snapshot.engineError = false;
         session->snapshot.status = SessionStatus::Loading;
         session->snapshot.recordingActive = false;
         session->snapshot.recordingTargetPath.clear();
@@ -2000,9 +2042,13 @@ Napi::Value SetPaused(const Napi::CallbackInfo& info)
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         session->paused = paused != 0;
+        // Optimistic only while playing/paused: a load in flight keeps
+        // `loading` until MPV_EVENT_FILE_LOADED, otherwise a reconnect's
+        // unpause right after loadfile would report the replacement stream
+        // as playing before it opened (and clear the attempt indicator).
         if (session->loadedPath &&
-            session->snapshot.status != SessionStatus::Ended &&
-            session->snapshot.status != SessionStatus::Error) {
+            (session->snapshot.status == SessionStatus::Playing ||
+             session->snapshot.status == SessionStatus::Paused)) {
             session->snapshot.status = session->paused
                 ? SessionStatus::Paused
                 : SessionStatus::Playing;
@@ -2046,6 +2092,50 @@ Napi::Value Seek(const Napi::CallbackInfo& info)
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         session->snapshot.positionSeconds = std::max(0.0, target);
+    }
+
+    return env.Undefined();
+}
+
+Napi::Value SeekBy(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsNumber()) {
+        throw Napi::TypeError::New(env, "Expected session id and seek delta.");
+    }
+
+    const std::string sessionId = info[0].As<Napi::String>().Utf8Value();
+    const auto session = getSessionOrThrow(env, sessionId);
+    const auto delta = info[1].As<Napi::Number>().DoubleValue();
+    const std::string deltaValue = std::to_string(delta);
+    // Relative step (arrow keys, ±10 s buttons): mpv resolves the delta
+    // against its own playback position and merges relative seeks that are
+    // still queued, so a burst of presses accumulates instead of collapsing
+    // onto one target computed from the renderer's stale snapshot.
+    //
+    // Unlike the absolute Seek above, the snapshot is deliberately NOT
+    // advanced here: the event thread may already have stored the observed
+    // post-seek `time-pos` under the same mutex, and adding the delta on top
+    // of that would count the step twice with nothing to correct it while
+    // paused. Only the observed `time-pos` updates the position.
+    const char* command[] = {
+        "seek",
+        deltaValue.c_str(),
+        "relative+exact",
+        nullptr,
+    };
+    const int result = mpv_command_async(
+        session->handle,
+        nextAsyncRequestId(),
+        command
+    );
+
+    if (result < 0) {
+        throw Napi::Error::New(
+            env,
+            std::string("Failed to seek playback: ") +
+                mpv_error_string(result)
+        );
     }
 
     return env.Undefined();
@@ -2503,6 +2593,20 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
 
     if (!snapshot.error.empty()) {
         result.Set("error", Napi::String::New(env, snapshot.error));
+        if (snapshot.engineError) {
+            result.Set("errorOrigin", Napi::String::New(env, "engine"));
+        }
+    }
+    if (!snapshot.rejectedOptionKeys.empty()) {
+        Napi::Array keys =
+            Napi::Array::New(env, snapshot.rejectedOptionKeys.size());
+        for (size_t i = 0; i < snapshot.rejectedOptionKeys.size(); ++i) {
+            keys.Set(
+                static_cast<uint32_t>(i),
+                Napi::String::New(env, snapshot.rejectedOptionKeys[i])
+            );
+        }
+        result.Set("rejectedOptionKeys", keys);
     }
 
     return result;
@@ -2540,6 +2644,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
     exports.Set("seek", Napi::Function::New(env, Seek));
+    exports.Set("seekBy", Napi::Function::New(env, SeekBy));
     exports.Set("setVolume", Napi::Function::New(env, SetVolume));
     exports.Set("setAudioTrack", Napi::Function::New(env, SetAudioTrack));
     exports.Set(

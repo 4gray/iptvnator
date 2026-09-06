@@ -1,15 +1,4 @@
-$line: var(--line, rgba(255, 255, 255, 0.06));
-$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
-$surface-1: var(--surface-1, #0f141c);
-$surface-2: var(--surface-2, #161d28);
-$surface-3: var(--surface-3, #1d2533);
-$text-primary: var(--text-primary, #e7ecf3);
-$text-secondary: var(--text-secondary, #9aa3b2);
-$text-tertiary: var(--text-tertiary, #6b7384);
-$accent-blue: var(--accent-blue, #4f8eff);
-$accent-cyan: var(--accent-cyan, #5cd6ff);
-$accent-live: var(--accent-live, #ff5b6e);
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+@use '../epg-theme' as *;
 
 /* This app has no global border-box reset; the timeline relies on it. */
 .epg-timeline,
@@ -22,7 +11,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: #0a0e15;
+    background: var(--app-content-bg);
 }
 
 .epg-timeline {
@@ -140,7 +129,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
         }
 
         &.is-arch {
-            color: $accent-cyan;
+            color: $accent-text;
         }
     }
 }
@@ -155,7 +144,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     border-radius: 999px;
     background: rgba(255, 91, 110, 0.14);
     border: 1px solid rgba(255, 91, 110, 0.32);
-    color: $accent-live;
+    color: $live-text;
     font: inherit;
     font-size: 12.5px;
     font-weight: 600;
@@ -274,7 +263,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &.is-live {
-        color: $accent-live;
+        color: $live-text;
 
         &::before {
             content: '';
@@ -287,7 +276,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &.is-arch {
-        color: $accent-blue;
+        color: $accent-text;
     }
 }
 
@@ -311,7 +300,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     width: 84px;
     height: 3px;
     border-radius: 2px;
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--app-separator);
     overflow: hidden;
     flex: 0 0 auto;
 
@@ -335,7 +324,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     align-items: center;
     gap: 10px;
     padding: 9px 16px;
-    background: rgba(79, 142, 255, 0.07);
+    background: var(--app-selection-surface);
     border-bottom: 1px solid $line;
     color: $text-secondary;
     font-size: 12.5px;
@@ -345,7 +334,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
         font-size: 16px;
         width: 16px;
         height: 16px;
-        color: $accent-blue;
+        color: $accent-text;
         flex: 0 0 auto;
     }
 }
@@ -371,7 +360,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 
     input[type='range'] {
         width: 96px;
-        accent-color: $accent-blue;
+        accent-color: $accent-text;
         cursor: pointer;
     }
 }
@@ -382,7 +371,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     min-height: 96px;
     overflow-x: auto;
     overflow-y: hidden;
-    background: #0a0e15;
+    background: var(--app-content-bg);
 }
 
 .epg-timeline__ribbon > app-epg-timeline-track {

@@ -17,6 +17,7 @@ describe('EmbeddedMpvSessionController', () => {
         onEmbeddedMpvSessionUpdate: jest.Mock;
         setEmbeddedMpvPaused: jest.Mock;
         seekEmbeddedMpv: jest.Mock;
+        seekEmbeddedMpvBy: jest.Mock;
         setEmbeddedMpvVolume: jest.Mock;
     };
     let sessionUpdate: ((session: EmbeddedMpvSession) => void) | null;
@@ -58,6 +59,12 @@ describe('EmbeddedMpvSessionController', () => {
                 })
             ),
             seekEmbeddedMpv: jest.fn().mockResolvedValue(
+                createSession({
+                    id: 'mpv-1',
+                    positionSeconds: 15,
+                })
+            ),
+            seekEmbeddedMpvBy: jest.fn().mockResolvedValue(
                 createSession({
                     id: 'mpv-1',
                     positionSeconds: 15,
@@ -302,7 +309,10 @@ describe('EmbeddedMpvSessionController', () => {
         expect(controller.session()?.status).toBe('paused');
 
         await controller.seekBy(-30);
-        expect(electron.seekEmbeddedMpv).toHaveBeenCalledWith('mpv-1', 0);
+        // Relative: the delta goes to mpv as-is, never a snapshot-derived
+        // absolute target.
+        expect(electron.seekEmbeddedMpvBy).toHaveBeenCalledWith('mpv-1', -30);
+        expect(electron.seekEmbeddedMpv).not.toHaveBeenCalled();
         expect(controller.session()?.positionSeconds).toBe(15);
 
         await controller.applyVolume(0.25);

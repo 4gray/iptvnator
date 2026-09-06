@@ -34,6 +34,7 @@ import {
     summaryHasTitle,
     summaryMinutesLeft,
     summaryProgress,
+    summaryTimeMs,
 } from '../epg-timeline/epg-summary.util';
 import {
     EpgTimelineEmptyReason,
@@ -89,6 +90,7 @@ export class EpgListViewComponent {
     readonly collapsed = input(false);
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
+    readonly offsetMinutes = input(0);
 
     readonly programActivated = output<EpgProgramActivationEvent>();
     readonly returnToLive = output<void>();
@@ -128,6 +130,7 @@ export class EpgListViewComponent {
             archivePlaybackAvailable: this.archivePlaybackAvailable(),
             archiveDays: this.archiveDays(),
             activeProgram: this.activeProgram(),
+            offsetMinutes: this.offsetMinutes(),
         })
     );
     readonly nowRow = computed<EpgListRow | null>(
@@ -135,7 +138,9 @@ export class EpgListViewComponent {
     );
     readonly nowRowMinutesLeft = computed(() => {
         const row = this.nowRow();
-        return row ? Math.max(0, Math.round((row.stopMs - this.nowMs()) / 60_000)) : null;
+        return row
+            ? Math.max(0, Math.round((row.stopMs - this.nowMs()) / 60_000))
+            : null;
     });
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
@@ -154,7 +159,13 @@ export class EpgListViewComponent {
         if (this.programs().length === 0) {
             return 'channel-unmapped';
         }
-        if (!hasProgramsForDateKey(this.programs(), this.viewDayKey())) {
+        if (
+            !hasProgramsForDateKey(
+                this.programs(),
+                this.viewDayKey(),
+                this.offsetMinutes()
+            )
+        ) {
             return 'empty-day';
         }
         return 'list';
@@ -180,10 +191,17 @@ export class EpgListViewComponent {
     readonly hasSummary = computed(() => summaryHasTitle(this.summary()));
     readonly hasTimeRange = computed(() => summaryHasTimeRange(this.summary()));
     readonly progress = computed(() =>
-        summaryProgress(this.summary(), this.nowMs())
+        summaryProgress(this.summary(), this.nowMs(), this.offsetMinutes())
     );
     readonly minutesLeft = computed(() =>
-        summaryMinutesLeft(this.summary(), this.nowMs())
+        summaryMinutesLeft(this.summary(), this.nowMs(), this.offsetMinutes())
+    );
+    /** Collapsed-header time range in display time (raw summary times shifted). */
+    readonly summaryStartMs = computed(() =>
+        summaryTimeMs(this.summary()?.start, this.offsetMinutes())
+    );
+    readonly summaryStopMs = computed(() =>
+        summaryTimeMs(this.summary()?.stop, this.offsetMinutes())
     );
 
     private readonly scroll = new EpgListScrollController({
@@ -191,7 +209,11 @@ export class EpgListViewComponent {
         isViewToday: () => this.isViewToday(),
         setNowStripVisible: (visible) => this.nowStripVisible.set(visible),
         hasProgramsToday: () =>
-            hasProgramsForDateKey(this.programs(), getTodayEpgDateKey()),
+            hasProgramsForDateKey(
+                this.programs(),
+                getTodayEpgDateKey(),
+                this.offsetMinutes()
+            ),
         commitToday: () => this.commitDay(getTodayEpgDateKey()),
     });
 
@@ -226,7 +248,8 @@ export class EpgListViewComponent {
     jumpToNearestDay(): void {
         const nearest = nearestDateKeyWithPrograms(
             this.programs(),
-            this.nowMs()
+            this.nowMs(),
+            this.offsetMinutes()
         );
         if (nearest) {
             this.commitDay(nearest);

@@ -96,6 +96,8 @@ export class EpgProgressPanelComponent {
                 return 'check_circle';
             case 'error':
                 return 'error';
+            case 'cancelled':
+                return 'cancel';
         }
     }
 

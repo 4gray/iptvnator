@@ -65,7 +65,8 @@ ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
 With shared controls enabled, HTML5, Video.js, and ArtPlayer expose standard
 element picture-in-picture through the adapter's attached `<video>`. Shared
 ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
-only PiP owner. The preference-off native/vendor paths remain unchanged.
+only PiP button. Preference-off native/vendor controls keep their own UI;
+exact-owner PiP teardown also applies in that mode.
 Embedded MPV advertises no PiP capability and its command is a no-op.
 
 `Settings.webPlayerSharedControls` is default-ON: an absent stored value means
@@ -215,7 +216,9 @@ owner.
 `PlayerControlsCommands` is an imperative, fire-and-forget surface:
 
 - `togglePlay`
-- `seekTo` / `seekBy`
+- `seekTo` / `seekBy` — `seekBy` is a relative command; Embedded MPV forwards
+  the delta to mpv itself instead of adding it to the snapshot position (see
+  `embedded-mpv-native.md`, "Resume And Track Handling")
 - `setVolume`
 - `setAudioTrack` / `setSubtitleTrack`
 - `addExternalSubtitleFile` / `setSubtitleDelay` / `setSubtitleStyle`
@@ -300,6 +303,166 @@ label. The Xtream and Stalker series detail views pass the series name via
 `seriesTitle`; movie and live hosts need no extra wiring because
 `playback.title` already names the content.
 
+### Fullscreen channel panel
+
+`FullscreenChannelPanelComponent` (`libs/ui/playback/src/lib/fullscreen-channel-panel/`)
+is rendered by `WebPlayerViewComponent` as a sibling of the engine and staged
+on the view's `fullscreenSurface` — the same host element every engine
+receives as `fullscreenTarget` — so it sits inside the fullscreen element and
+survives the engine remount a channel switch causes.
+It injects `FULLSCREEN_CHANNEL_PANEL` optionally: a live host provides
+`FullscreenChannelPanelHost` (`panelTemplate`, optional `panelTitle`) from its
+component `providers`, and the panel stamps that template into its body with a
+`FullscreenChannelPanelContext` of `{ searchTerm: Signal<string>, close }`.
+Without a provider — VOD detail pages, series playback — nothing renders. The
+host resolves the user preference itself: `Settings.fullscreenChannelPanel`
+(default on, Settings → Playback, offered for the web players while the
+shared controls are on and for Embedded MPV — the legacy vendor chrome
+fullscreens the engine's own element, outside which the panel cannot render,
+so the toggle is hidden there) makes the host return `null`, which removes
+every affordance. The M3U host also returns `null` while its VOD detail hosts
+the player (`showMovieDetail`): a movie is not something to zap away from,
+and the nested `WebPlayerViewComponent` would otherwise inherit the
+component-level provider.
+
+Providers today: `VideoPlayerComponent` (M3U; `app-m3u-fullscreen-channel-list`
+adds a local icon-only all/groups/favorites/recent switcher — one segmented
+row, labels in tooltip and `aria-label` — over a second
+`ChannelListContainerComponent` instance in `compact` mode, which drops the
+container's per-view title/sort/collapse headers (`showHeader` on the
+all-channels and groups views; the persisted sort still applies) so nothing
+stacks between the search row and the first channel, and which also pins the
+groups view's rail to a fixed 148px — no resize handle, and the sidebar's
+persisted `m3u-groups-nav-width` (up to 320px) is neither read nor written,
+since inside a 400px panel it would leave the channel pane unusable — and with
+`resetActiveChannelOnDestroy` false, because the container's destroy hook
+otherwise clears the active channel and stops playback; radio stations and
+recognized movies are filtered out of the list it is handed — radio renders
+through `app-audio-player` and a movie, with TMDB enrichment and
+`m3uVodDetails` on, through the VOD detail shell, so selecting either destroys
+the `app-web-player-view` that owns fullscreen and drops the user out of it;
+one private `opensMovieDetail` predicate backs both `showMovieDetail` and the
+filter, and every panel view resolves against that one list, favorites and
+recent included. With external MPV/VLC configured, the panel offers only
+DASH rows: DASH forces the inline Shaka player, but selecting a non-DASH
+channel would replace the fullscreen owner with the external-player UI.
+While the live `app-web-player-view` owns fullscreen — itself under shared
+controls, or through the nested surface a legacy player fullscreens under the
+vendor-chrome opt-out (`.video-js`, ArtPlayer's container, the `<video>`), so
+the check accepts any fullscreen element inside that host — numeric
+selection and PageUp/PageDown (including remote commands) apply that same
+eligibility predicate. Numbers retain their original playlist positions and an ineligible
+number is ignored; adjacent selection skips ineligible rows. Windowed playback
+keeps the complete catalog. Already-handled events and menu/dialog overlay targets keep their keys,
+even when a short menu has no scroll overflow), `LiveStreamLayoutComponent` (Xtream; the sidebar's
+rows via `channelsOverride` so the second list instance never re-applies the
+route category, and with `fullscreenPanelCopy` so only the sidebar's pane
+carries the `live-channels` id that the category list's keyboard hand-off
+targets — the Stalker template applies the same rule to its panel copy; each
+`PortalChannelsListComponent` instance owns the map
+behind its heart icons, so toggles are relayed between instances through
+`XtreamFavoriteMarksService`, or a heart flipped in the panel would stay stale
+in the sidebar), `StalkerLiveStreamLayoutComponent` (its list markup is one
+`ng-template` stamped into both the sidebar and the panel with its own search
+term — a blank panel field shows the category untouched by the sidebar's
+term, `panelIdleChannels`, so the panel never shows an unexplained subset or
+an empty state under an empty search box, and that copy grows against the
+category (`panelIdleHasMore` / `loadMoreForPanel`) or the windowed full cache
+when playback starts from All Items with no selected category, never against the
+sidebar's filtered `hasMoreItems`, which a narrowing sidebar search turns
+false while the panel still has rows to reveal; every copy carries the
+`#scrollContainer` that drives infinite scroll,
+and the panel's own search results go through `PanelSearchWindow`, memoized
+per term and cut to the same 100-row window the sidebar uses — grown by the
+panel copy's scroll — because in full-list mode a broad term matches most of
+a multi-thousand-channel portal and the list has no virtual scroll; on a paged
+portal the panel copy also keeps requesting pages while its matches do not
+fill it — an empty or short result cannot scroll, and the term may match
+channels on pages never fetched; the sidebar's own search term does not stop
+it, since that term only gates the sidebar copy's automatic fill, and a page
+landing resets the in-flight flag whether or not the sidebar shows any of it
+— while in full-list mode it never pages, since its search already sees the
+whole catalog; closing the panel pauses window growth and automatic page
+requests while preserving the mounted list, and an observer of the aside's
+`inert` attribute resumes filling on reopen and disconnects with the list;
+inline video keeps the selected channel paired with its retained playback
+until the current resolver succeeds, so panel highlight, EPG and recording
+metadata remain on the playing channel during a pending or failed replacement),
+and `UnifiedLiveTabComponent` (global favorites/recent; its `activateItem`
+keeps the previous detail — and with it the mounted player that owns
+fullscreen — until the next selection has resolved, because unmounting the
+fullscreen element for the resolution round-trip would end fullscreen on
+every zap from the panel; only `activeUid`, the row highlight, moves ahead,
+while `activeItem` stays paired with that detail so `playbackSessionKey` and
+the recording/archive metadata derived from it keep describing the stream the
+player is still showing, and both swap together once the new detail is in.
+Because of that split, "the row is on screen" means highlight AND resolved
+item: `activateItem`'s fast path (a double-click's second click launching
+the external player, an auto-open reporting itself handled) requires both,
+or it would launch the retained stream in place of the one still resolving;
+a second activation of the row still resolving instead folds its
+start-playback/auto-open intent into that request (`pendingActivation`), so
+the detail launches when it lands without a second round-trip.
+If replacement resolution fails while a video is retained, its player,
+catch-up override and session remain intact and the row highlight returns to
+that item).
+
+Behavior: every affordance exists only while the stage is fullscreen and the
+view's `enabled` input holds — `WebPlayerViewComponent` withholds the panel
+while the rendered engine is native-view Embedded MPV, which paints a platform
+view above the page where no DOM layer can show (frame-copy and the web
+players qualify; the gate fails closed until the MPV component reports its
+engine on first entry; a confirmed frame-copy capability survives an unknown
+probe during an MPV application remount, preserving the open panel and its
+search/scroll state. A confirmed native/unsupported result revokes it, and
+switching to a web engine clears the remembered MPV capability). Nothing is
+drawn over the video while the panel is closed — there is
+no handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
+left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
+is ignored. The zone stops above the controls bar (`bottom: max(25%, 140px)`)
+so the leftmost transport button never loses a click or tap to it. The `C` key opens it too and focuses the search field (hover does
+not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
+zone opens the panel at once: the handler is bound to `pointerup`, not
+`pointerdown`, so the hot zone is still the tap's click target and the click
+that follows dies on it instead of reaching the video. It closes when the
+mouse leaves the panel for 420ms, on the close button (tooltip names Escape),
+on Escape, on the host's `close`, or through a transparent scrim
+over the video that swallows the click so the player's click-to-pause never
+sees it. The Escape that closes the panel is consumed (`preventDefault`):
+Electron leaves HTML fullscreen on an unhandled Escape, and the close
+shortcut must only slide the panel away; a closed panel leaves Escape alone,
+so the key still exits fullscreen then. A CDK overlay the list opens (sort menu, row context menu) renders in
+the fullscreen overlay container outside the `<aside>`, so it counts as part
+of the panel: while open, hover intent is tracked through a document-level
+`pointerover` (inside the aside or the overlay container cancels a pending
+close, anywhere else schedules one), the aside's own `pointerleave` ignores a
+move into the overlay container, and Escape is left to an overlay with a
+backdrop. The header is a single row: the search field, whose placeholder
+carries the host's `panelTitle` ("Search in <playlist or category>") so the
+title costs no row of its own, and the close button; the host list starts
+directly below. The list stays mounted between openings of one fullscreen
+session (scroll position and search survive) and is unmounted when fullscreen
+ends. The panel carries the `dark-theme` context class, so app and Material
+tokens inside it resolve to the dark palette whatever the app theme is — and
+because the app's global `.dark-theme { background: … !important }` rule
+(`apps/web/src/styles.scss`) claims the background of every element wearing
+that class, the panel's translucent gradient is declared on the compound
+`.fullscreen-channel-panel.dark-theme` selector with `!important`; without
+that the panel painted no background at all.
+Keyboard: `C` is ignored while any editable element has focus and while the
+player sits inside an `inert` region; the search field is an ordinary input,
+so the controls' Space/K/F/M shortcuts stay out of it. That is also why `C` is
+an open shortcut, not a close one: opening with `C` focuses the search field,
+where the next `C` is a typed character, so the close shortcut the button
+advertises is Escape, which closes from the field too (unless a modal overlay
+owns it).
+
+CDK overlays render inside the fullscreen element because the app registers
+`FullscreenOverlayContainer` as the `OverlayContainer` (`app.config.ts`);
+without it every tooltip, sort menu and context menu opened while fullscreen —
+the panel's view-switcher tooltips and row context menus included — would sit
+invisibly under the top layer.
+
 ### Keyboard ownership
 
 Unmodified Space/K, F, arrow keys, and M are playback shortcuts. Playback keys
@@ -334,7 +497,51 @@ controls instance.
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
 is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
 between controls does not restart hiding, and leaving the bar resumes the normal
-hide delay. In fullscreen playback, hiding the controls also hides the pointer
+hide delay. Only keyboard-originated focus pins the bar: Chromium also moves
+focus to a clicked `<button>`, and that focus is a side effect of the click,
+so `ControlsSurface.wasPointerInteraction` attributes a `focusin` to the press
+when a `pointerdown` was recorded within the last second whose target lies
+inside the newly focused element. A press moves focus at most once and does so
+synchronously, so the record is discarded on the first bar focus event it is
+asked about, matching or not, and on any key press; nothing a later Tab or
+Shift+Tab focuses can be attributed to a stale press, not even the control
+the press hit while it was already focused and hence produced no focus event.
+Such focus reveals like any pointer activity and the bar hides on the normal
+delay while the button stays the active element; a Tab shortly after a click
+on the video still counts as keyboard navigation because the press did not
+land inside the focused control. A key press that bubbles out of a control
+inside the bar (Space or Enter on the still-focused button, arrows on a
+slider) hands ownership back to the keyboard and pins the bar exactly as Tab
+focus does, because operating a focused control produces no focus event. A
+pointer press anywhere in the bar also releases an existing keyboard pin: the
+press may produce no focus event at all (clicking the control that already has
+focus) or only a transfer inside the bar, which `focusout` ignores by design,
+so the pin cannot be cleared from focus events alone. Without
+this distinction the fullscreen button kept the controls on screen until a
+click on the viewport took focus away — and that click also paused playback.
+
+The focus a pointer click leaves on a control is released once the click
+completes (`onBarClick` → `ControlsSurface.releasePointerFocus`). A focused
+control captures the keyboard: Space and Enter activate it again, and
+`ControlsShortcuts` yields to any interactive element in the key's path, so
+after a click on the fullscreen button Space left fullscreen instead of
+pausing and the seek, volume, and mute keys did nothing.
+`ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
+(non-empty for a pointer; empty for Enter/Space activation and
+`element.click()`), and a legacy `MouseEvent` click by a recent press inside
+the clicked element, answered once per press and discarded on any key press.
+Keyboard activation therefore keeps focus where Tab put it. Only buttons and
+range sliders are released; text entry would keep its focus, and the bar
+holds none. Chromium keeps its sequential focus navigation starting point at
+the blurred control, so a later Tab continues from it exactly as if it were
+still focused; the clicked button's tooltip hides with the focus. The release
+dispatches a `focusout` while the pointer still rests on the control, so the
+volume anchor's `focusout` handler skips its popover close for it
+(`wasPointerFocusRelease`), while focus leaving by keyboard still closes the
+popover. A press that never completes into a click (released off the
+control) is the one case that still leaves pointer-originated focus behind,
+which is why the key-press re-pin above remains.
+In fullscreen playback, hiding the controls also hides the pointer
 over both the controls host and the supplied player surface; revealing controls
 or destroying the component restores the surface's previous inline cursor.
 
@@ -385,7 +592,41 @@ straight to the engine:
 - **Video.js** (`vjs-legacy-shortcuts.ts`) goes through the player API so the
   vendor control bar stays in sync; F uses the player's
   `requestFullscreen`/`exitFullscreen`. The legacy configuration still never
-  enables `userActions.hotkeys`.
+  enables `userActions.hotkeys`. The chrome also releases the focus a pointer
+  interaction leaves on a control (`vjs-pointer-focus-release.ts`, the vendor
+  counterpart of `ControlsSurface.releasePointerFocus`, sharing
+  `pointer-focus-release.ts`'s `blurFocusedControl`): Chromium focuses a
+  clicked control-bar `<button>` or slider, and a focused Video.js component
+  captures the keyboard entirely — `Component.handleKeyDown` stops the
+  propagation of every key and `ClickableComponent` turns Space and Enter into
+  a click — so after a click on the fullscreen button Space left fullscreen
+  instead of pausing and the document-level shortcuts never saw a key. The
+  release is driven mainly by the focus landing, not the click: choosing a
+  menu item moves focus to the menu button a tick after the click
+  (`MenuItem.handleTapClick`) and that selection click never bubbles to the
+  shell, so a click handler alone would be both too early and unreached. A
+  `focusin` on an eligible control (a `<button>`, `role="button"` clickable, or
+  slider; never a `role="menuitem*"`) is released when it is attributable to a
+  recent `pointerdown` inside the shell not yet ended by a document `keydown`,
+  so keyboard `Tab` focus is preserved. A `click` runs the same release,
+  because clicking a control that was already focused (Tab, then a mouse click
+  on it) moves no focus and fires no `focusin`; a keyboard-activation click
+  carries no `pointerdown`, so attribution keeps that focus. The release is
+  scoped to the `.vjs-control-bar`, the persistent chrome that hands keys back
+  to the document; the player's other focusable surfaces manage their own
+  focus and keep it — in particular the caption-settings dialog
+  (`.vjs-text-track-settings`, a modal sibling of the control bar under
+  `.video-js`) traps focus for its Escape/Tab handling, so its Reset button is
+  left alone. Menu buttons live in the control bar and are not exempt: a
+  Video.js popup is navigated through its focused item, not its button, so
+  releasing the button never disturbs an open menu — opening focuses the item,
+  and the button focus a pointer moves through (the transient press on open,
+  item selection, and toggling an open menu shut) is released, which is what
+  lets Space work again after a menu is dismissed by clicking its button a
+  second time. ArtPlayer needs no
+  counterpart (its controls are non-focusable divs), nor do the native HTML5
+  controls (a click focuses the `<video>`, which the shortcuts do not treat as
+  interactive).
 - **ArtPlayer** (`art-player-legacy-shortcuts.ts`) uses the vendor setters its
   own hotkeys used (`toggle`, `forward`/`backward`, `volume`, `muted`,
   `fullscreen`), so ArtPlayer's notices and UI stay in sync. The legacy chrome
@@ -441,7 +682,8 @@ the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
   the hover-open path is suppressed and the first tap on the volume button
   opens the popover instead of muting; a tap while it is open toggles mute as
   the button's label says. Touch-attributed `focusout` does not schedule the
-  popover close (outside taps and other menu buttons dismiss it).
+  popover close (outside taps and other menu buttons dismiss it), and neither
+  does the `focusout` of a pointer focus release.
 - **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
   timeline/volume sliders grow their input hit strip to 28px and the thumb to
   18px; the 4px visual track is unchanged.
@@ -521,7 +763,7 @@ Picture-in-picture is part of the default-on shared web-controls
 rollout. It is available through standard element PiP for HTML5, Video.js, and
 ArtPlayer only when their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`.
 The preference-off HTML5 native controls, Video.js skin, and ArtPlayer vendor
-controls keep their previous behavior. Shared ArtPlayer explicitly keeps vendor
+controls keep their own PiP actions. Shared ArtPlayer explicitly keeps vendor
 `pip: false`, leaving the shared action as the single PiP owner.
 
 The contract exposes:
@@ -557,6 +799,21 @@ Video.js Tech reset and ArtPlayer video rebuild paths detach the old binding,
 perform exact-owner cleanup, and bind the replacement video. HTML5 source
 changes on a retained video target, along with ordinary same-element
 source/media events, preserve active PiP.
+
+Teardown safety is independent of the controls preference. Legacy HTML5 and
+ArtPlayer hosts release their video before destruction; Video.js also releases
+its previous Tech video when a reset replaces it. The shared
+`web-video-picture-in-picture-lifecycle.ts` helper checks the video's exact
+`ownerDocument.pictureInPictureElement` before exiting, contains API failures,
+and leaves a one-shot listener on the retired video for an in-flight
+native/vendor entry that completes after teardown. The listener captures only
+the retired video, with no timer or document listener; a WeakSet makes repeated
+release idempotent without retaining video elements. Legacy Safari/WebKit
+presentation-mode PiP is returned to `inline` on that exact video. Its
+`webkitpresentationmodechanged` listener ignores fullscreen/inline changes and
+is consumed only by the first late PiP entry. Shared controls retain
+their existing generation-guarded pending-operation cleanup. Neither path
+transfers PiP to a replacement video or closes another video's PiP.
 
 Standard element PiP displays the browser/OS video surface, not Angular shared
 control chrome. Subtitle rendering in that surface is browser-dependent.
@@ -950,6 +1207,21 @@ libs/ui/playback/src/lib/player-controls/
 
 Focused specs live beside these files. The subtree is exported from
 `libs/ui/playback/src/index.ts`.
+
+The fullscreen channel panel rendered by `WebPlayerViewComponent` lives in:
+
+```text
+libs/ui/playback/src/lib/fullscreen-channel-panel/
+├── fullscreen-channel-panel.model.ts      # FULLSCREEN_CHANNEL_PANEL + host/context contracts
+├── fullscreen-channel-panel-state.ts      # open/mounted state, hover-intent timers
+├── fullscreen-channel-panel.component.ts
+├── fullscreen-channel-panel.component.html
+├── fullscreen-channel-panel.component.scss
+└── index.ts
+```
+
+The M3U body (`app-m3u-fullscreen-channel-list`) lives beside the M3U player
+in `libs/playlist/m3u/feature-player/src/lib/video-player/fullscreen-channel-list/`.
 
 The Embedded MPV integration lives in:
 

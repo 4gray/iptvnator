@@ -179,6 +179,30 @@ describe('epg-timeline.utils', () => {
             // Jun 30 10:00 (~1d22h away) is closer to Jun 28 12:00 than Jun 25.
             expect(nearestDateKeyWithPrograms(programs, NOW)).toBe('2026-06-30');
         });
+
+        it('keys, positions and picks days in display time when an offset is set', () => {
+            // 29 Jun 23:10 → 23:50 raw; shifted by +60 it airs 30 Jun 00:10 → 00:50.
+            const programs = [
+                program(
+                    localIso(2026, 6, 29, 23, 10),
+                    localIso(2026, 6, 29, 23, 50),
+                    'Late'
+                ),
+            ];
+            expect(hasProgramsForDateKey(programs, '2026-06-29', 60)).toBe(false);
+            expect(hasProgramsForDateKey(programs, '2026-06-30', 60)).toBe(true);
+            expect(nearestDateKeyWithPrograms(programs, NOW, 60)).toBe(
+                '2026-06-30'
+            );
+
+            const axis = buildTimelineAxis(programs, NOW, 60);
+            const [block] = buildTimelineBlocks(programs, axis, NOW, 60);
+            expect(block.startMs).toBe(
+                Date.parse(localIso(2026, 6, 29, 23, 10)) + 60 * 60_000
+            );
+            // The block still carries the raw programme for catch-up.
+            expect(block.program).toBe(programs[0]);
+        });
     });
 
     describe('short-programme strategy', () => {

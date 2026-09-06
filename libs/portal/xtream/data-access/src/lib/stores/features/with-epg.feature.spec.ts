@@ -46,6 +46,7 @@ interface TestStoreSetup {
     appEnvironment?: 'electron' | 'pwa';
     selectedItem: { xtream_id: number; epg_channel_id?: string | null };
     preferUploaded?: boolean;
+    epgOffsetMinutes?: number;
 }
 
 function configureStore(setup: TestStoreSetup) {
@@ -72,6 +73,7 @@ function configureStore(setup: TestStoreSetup) {
         preferUploadedEpgOverXtream: jest.fn(
             () => setup.preferUploaded ?? false
         ),
+        resolvedEpgOffsetMinutes: jest.fn(() => setup.epgOffsetMinutes ?? 0),
     };
 
     TestBed.configureTestingModule({
@@ -100,6 +102,25 @@ function configureStore(setup: TestStoreSetup) {
 
 describe('withEpg', () => {
     afterEach(() => TestBed.resetTestingModule());
+
+    it('selects the current program in the provider clock when a display offset is set', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+            epgOffsetMinutes: 60,
+        });
+        const now = Math.floor(Date.now() / 1000);
+        // The guide runs an hour ahead of the real schedule, so the show the
+        // provider files under "an hour ago" is the one actually on air.
+        const programs = [
+            buildProgram('Really On Air', now - 5400, now - 1800),
+            buildProgram('Provider Says Now', now - 1800, now + 1800),
+        ];
+        xtreamApiService.getFullEpg.mockResolvedValue(programs);
+
+        await store.loadEpg();
+
+        expect(store.currentEpgItem()).toEqual(programs[0]);
+    });
 
     it('loads the full electron epg and derives the current program from timestamps', async () => {
         const { store, xtreamApiService, fallbackService } = configureStore({

@@ -46,7 +46,17 @@
 
         @if (refreshFailed()) {
             <div class="account-dialog__message">
-                {{ 'STALKER.ACCOUNT_INFO.REFRESH_FAILED' | translate }}
+                {{
+                    (requestsPaused()
+                        ? 'PORTALS.REQUESTS_PAUSED.DESCRIPTION'
+                        : 'STALKER.ACCOUNT_INFO.REFRESH_FAILED'
+                    ) | translate
+                }}
+                @if (requestsPaused()) {
+                    <button mat-button (click)="reload()">
+                        {{ 'PORTALS.REQUESTS_PAUSED.RETRY' | translate }}
+                    </button>
+                }
             </div>
         } @else if (loadState() === 'loading') {
             <p class="account-dialog__loading-copy">
@@ -88,16 +98,28 @@
                 <mat-icon>signal_wifi_connected_no_internet_4</mat-icon>
             </div>
             <h3>
-                {{ 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE' | translate }}
+                {{
+                    (requestsPaused()
+                        ? 'PORTALS.REQUESTS_PAUSED.TITLE'
+                        : 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
+                    ) | translate
+                }}
             </h3>
             <p>
                 {{
-                    'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.DESCRIPTION'
-                        | translate
+                    (requestsPaused()
+                        ? 'PORTALS.REQUESTS_PAUSED.DESCRIPTION'
+                        : 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.DESCRIPTION'
+                    ) | translate
                 }}
             </p>
             <button mat-flat-button color="primary" (click)="reload()">
-                {{ 'RETRY' | translate }}
+                {{
+                    (requestsPaused()
+                        ? 'PORTALS.REQUESTS_PAUSED.RETRY'
+                        : 'RETRY'
+                    ) | translate
+                }}
             </button>
         </section>
     } @else if (loadState() === 'loading') {

@@ -27,6 +27,7 @@ import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
 } from './web-player-view.spec-stubs';
@@ -89,6 +90,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
                     imports: [
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
                         PlaybackDiagnosticPanelComponent,
@@ -114,6 +116,84 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
 
     afterEach(() => {
         fixture.destroy();
+    });
+
+    describe('fullscreen channel panel staging', () => {
+        const panel = () =>
+            fixture.debugElement.query(
+                By.directive(StubFullscreenChannelPanelComponent)
+            ).componentInstance as StubFullscreenChannelPanelComponent;
+
+        it('stages the panel on the host element the engines fullscreen', () => {
+            fixture.detectChanges();
+
+            expect(component.fullscreenSurface).toBe(fixture.nativeElement);
+            expect(panel().stage()).toBe(component.fullscreenSurface);
+            expect(panel().enabled()).toBe(true);
+        });
+
+        it('offers the panel to Embedded MPV only once it reports the frame-copy engine', () => {
+            fixture.componentRef.setInput(
+                'playerOverride',
+                VideoPlayer.EmbeddedMpv
+            );
+            fixture.detectChanges();
+
+            const player = fixture.debugElement.query(
+                By.directive(StubEmbeddedMpvPlayerComponent)
+            ).componentInstance as StubEmbeddedMpvPlayerComponent;
+            // Native view (or engine not reported yet): nothing DOM-based
+            // can show over the video, so the panel is withheld.
+            expect(panel().enabled()).toBe(false);
+
+            player.support.set({
+                supported: true,
+                platform: 'darwin',
+                engine: 'frame-copy',
+            });
+            fixture.detectChanges();
+            expect(panel().enabled()).toBe(true);
+        });
+
+        it.each(['frame-copy', 'native', 'unsupported'] as const)(
+            'retains frame-copy availability during remount then applies confirmed %s support',
+            async (outcome) => {
+                fixture.componentRef.setInput(
+                    'playerOverride',
+                    VideoPlayer.EmbeddedMpv
+                );
+                fixture.detectChanges();
+                const embeddedPlayer = () =>
+                    fixture.debugElement.query(
+                        By.directive(StubEmbeddedMpvPlayerComponent)
+                    ).componentInstance as StubEmbeddedMpvPlayerComponent;
+                const first = embeddedPlayer();
+                first.support.set({
+                    supported: true,
+                    platform: 'darwin',
+                    engine: 'frame-copy',
+                });
+                fixture.detectChanges();
+                expect(panel().enabled()).toBe(true);
+
+                setPlayback({}, 'https://example.com/next-channel.m3u8');
+                fixture.detectChanges();
+                await fixture.whenStable();
+                fixture.detectChanges();
+                const remounted = embeddedPlayer();
+                expect(remounted).not.toBe(first);
+                expect(remounted.support()).toBeNull();
+                expect(panel().enabled()).toBe(true);
+
+                remounted.support.set({
+                    supported: outcome !== 'unsupported',
+                    platform: 'darwin',
+                    engine: outcome === 'frame-copy' ? 'frame-copy' : 'native',
+                });
+                fixture.detectChanges();
+                expect(panel().enabled()).toBe(outcome === 'frame-copy');
+            }
+        );
     });
 
     it('snapshots the shared controls setting for each player host', () => {

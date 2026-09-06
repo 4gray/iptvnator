@@ -120,6 +120,7 @@ class StubEpgTimelineComponent {
     readonly collapsed = input(false);
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('');
+    readonly offsetMinutes = input(0);
     readonly programActivated = output<EpgProgramActivationEvent>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
@@ -218,6 +219,7 @@ describe('LiveStreamLayoutComponent', () => {
         // Reset in beforeEach: the store is module-scoped, so a test failure
         // before an in-test restore must not leak 'list' into siblings.
         resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
+        resolvedEpgOffsetMinutes: signal(0),
     };
 
     const originalElectron = window.electron;

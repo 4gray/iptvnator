@@ -32,6 +32,7 @@ import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from '.
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
 } from './web-player-view.spec-stubs';
@@ -112,6 +113,7 @@ describe('WebPlayerViewComponent external recovery integration', () => {
                         PlaybackDiagnosticPanelComponent,
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
                         TranslateModule,

@@ -1,8 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, skip } from 'rxjs';
-import { SettingsStore } from '@iptvnator/services';
+import { firstValueFrom, of, skip } from 'rxjs';
+import {
+    EpgSourceSettingsService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
@@ -10,7 +14,12 @@ describe('EpgService', () => {
     let service: EpgService;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     let snackBar: { open: jest.Mock };
-    let settingsStore: { getSettings: jest.Mock; getTrustOptions: jest.Mock };
+    let settingsStore: {
+        loadSettings: jest.Mock;
+        getSettings: jest.Mock;
+        getTrustOptions: jest.Mock;
+        resolvedEpgOffsetMinutes: jest.Mock;
+    };
 
     beforeEach(() => {
         epgBridge = {
@@ -25,6 +34,7 @@ describe('EpgService', () => {
             open: jest.fn(),
         };
         settingsStore = {
+            loadSettings: jest.fn().mockResolvedValue(undefined),
             getSettings: jest.fn(() => ({
                 epgUrl: [],
                 trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
@@ -34,11 +44,25 @@ describe('EpgService', () => {
                 trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
                 trustedInsecureTlsHosts: ['playlist.local'],
             })),
+            resolvedEpgOffsetMinutes: jest.fn(() => 0),
         };
 
         TestBed.configureTestingModule({
             providers: [
                 EpgService,
+                {
+                    provide: PlaylistsService,
+                    useValue: {
+                        getAllPlaylists: () =>
+                            of([
+                                {
+                                    epgUrls: [
+                                        'https://playlist.example/guide.xml',
+                                    ],
+                                },
+                            ]),
+                    },
+                },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,
@@ -63,22 +87,126 @@ describe('EpgService', () => {
         service = TestBed.inject(EpgService);
     });
 
+    it('observes startup import completion after initial source reconciliation', async () => {
+        epgBridge.supportsImport = true;
+        let loaded!: () => void;
+        settingsStore.loadSettings.mockReturnValue(
+            new Promise<void>((resolve) => {
+                loaded = resolve;
+            })
+        );
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        jest.spyOn(sources, 'retainCurrentSources').mockImplementation(
+            (urls) => urls
+        );
+        const pending = service.fetchEpg([
+            'https://configured.example/guide.xml',
+        ]);
+        sources.revision.update((revision) => revision + 1);
+        sources.changed$.next();
+        const availability: boolean[] = [];
+        const subscription = service.epgAvailable$.subscribe((value) =>
+            availability.push(value)
+        );
+        loaded();
+        await pending;
+        await Promise.resolve();
+        expect(epgBridge.fetchEpg).toHaveBeenCalledTimes(1);
+        expect(availability.filter(Boolean)).toHaveLength(2);
+        subscription.unsubscribe();
+    });
+
+    it('does not launch an obsolete import deferred behind settings initialization', async () => {
+        epgBridge.supportsImport = true;
+        let loaded!: () => void;
+        settingsStore.loadSettings.mockReturnValue(
+            new Promise<void>((resolve) => {
+                loaded = resolve;
+            })
+        );
+        const pending = service.fetchEpg(['https://removed.example/guide.xml']);
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        sources.revision.update((revision) => revision + 1);
+        sources.changed$.next();
+        loaded();
+        await pending;
+        expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
+    });
+
+    it('prevents pending programmes from repopulating a cache after source deletion', async () => {
+        epgBridge.supportsProgramLookup = true;
+        let resolveOld!: (programs: unknown[]) => void;
+        (epgBridge.getChannelPrograms as jest.Mock).mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveOld = resolve;
+            })
+        );
+        const stale = jest.fn();
+        service.getCurrentProgramForChannel('deleted-channel').subscribe(stale);
+        const sources = TestBed.inject(EpgSourceSettingsService);
+        sources.revision.update((revision) => revision + 1);
+        sources.changed$.next();
+        resolveOld([]);
+        await Promise.resolve();
+        expect(stale).not.toHaveBeenCalled();
+        await firstValueFrom(
+            service.getCurrentProgramForChannel('deleted-channel')
+        );
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits for ongoing reconciliation and filters imports against committed owners', async () => {
+        epgBridge.supportsImport = true;
+        const original = window.electron;
+        let complete!: (result: { success: boolean }) => void;
+        window.electron = {
+            reconcileEpgSources: () =>
+                new Promise((resolve) => {
+                    complete = resolve;
+                }),
+        } as typeof window.electron;
+        try {
+            const sources = TestBed.inject(EpgSourceSettingsService);
+            const reconciliation = sources.synchronize([
+                'https://kept.example/guide.xml',
+            ]);
+            await Promise.resolve();
+            const pending = service.fetchEpg([
+                'https://removed.example/guide.xml',
+                'https://playlist.example/guide.xml',
+            ]);
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
+            complete({ success: true });
+            await reconciliation;
+            await pending;
+            expect(epgBridge.fetchEpg).toHaveBeenCalledWith(
+                ['https://playlist.example/guide.xml'],
+                expect.anything()
+            );
+        } finally {
+            window.electron = original;
+        }
+    });
+
     it('does not fetch EPG when bridge import support is disabled', () => {
         service.fetchEpg(['https://example.com/epg.xml']);
 
         expect(epgBridge.fetchEpg).not.toHaveBeenCalled();
     });
 
-    it('fetches EPG through the EPG runtime bridge when import support is enabled', () => {
+    it('fetches EPG through the EPG runtime bridge when import support is enabled', async () => {
         epgBridge.supportsImport = true;
 
-        service.fetchEpg([
+        await service.fetchEpg([
             'https://example.com/epg.xml',
             '',
             'https://example.com/other.xml',
             ' https://example.com/epg.xml ',
         ]);
 
+        await Promise.resolve();
         expect(epgBridge.fetchEpg).toHaveBeenCalledWith(
             ['https://example.com/epg.xml', 'https://example.com/other.xml'],
             {
@@ -133,6 +261,131 @@ describe('EpgService', () => {
 
         expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1');
         jest.useRealTimers();
+    });
+
+    it('asks the desktop bridge for programmes airing at the provider clock', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest.fn().mockResolvedValue({});
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(90);
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            await firstValueFrom(
+                service.getCurrentProgramsForChannels(['channel-1'])
+            );
+
+            // +90 min display offset → the guide runs 90 min ahead, so the
+            // row airing "now" is the one the provider files under 09:00.
+            expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
+                ['channel-1'],
+                { nowMs: Date.parse('2026-05-23T09:00:00.000Z') }
+            );
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('picks the current programme in the provider clock for the per-channel lookup', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([
+            {
+                channel: 'channel-1',
+                start: '2026-05-23T09:00:00.000Z',
+                stop: '2026-05-23T10:00:00.000Z',
+                title: 'Really On Air',
+            },
+            {
+                channel: 'channel-1',
+                start: '2026-05-23T10:00:00.000Z',
+                stop: '2026-05-23T11:00:00.000Z',
+                title: 'Provider Says Now',
+            },
+        ]);
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(60);
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            await expect(
+                firstValueFrom(service.getCurrentProgramForChannel('channel-1'))
+            ).resolves.toMatchObject({ title: 'Really On Air' });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('drops cached current programmes when the display offset changes', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest.fn().mockResolvedValue({
+            'guide-news': null,
+        });
+
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(30);
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+
+        // A different offset is a different "now", so the 60 s cache must
+        // not answer with the previous verdict.
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not join an in-flight batch that was evaluated for another display offset', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        let resolveFirst: (value: Record<string, null>) => void = () =>
+            undefined;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<Record<string, null>>((resolve) => {
+                        resolveFirst = resolve;
+                    })
+            )
+            .mockResolvedValueOnce({ 'guide-news': null });
+        const options = {
+            sourceUrls: ['https://playlist.example.com/guide.xml'],
+        };
+
+        const first = firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], options)
+        );
+        // The setting changes while the first batch is still on the wire:
+        // the refresh it triggers must evaluate at the new provider clock,
+        // not reuse the pending request computed for the old one.
+        settingsStore.resolvedEpgOffsetMinutes.mockReturnValue(30);
+        const second = firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], options)
+        );
+        resolveFirst({ 'guide-news': null });
+        await Promise.all([first, second]);
+
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+        const [, secondOptions] = (
+            epgBridge.getCurrentProgramsBatch as jest.Mock
+        ).mock.calls[1];
+        const [, firstOptions] = (
+            epgBridge.getCurrentProgramsBatch as jest.Mock
+        ).mock.calls[0];
+        expect(secondOptions.nowMs).toBeLessThan(firstOptions.nowMs);
     });
 
     it('caches current program lookups separately by EPG source URL scope', async () => {
@@ -305,12 +558,16 @@ describe('EpgService', () => {
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
             1,
             ['guide-news', 'guide-sports'],
-            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            expect.objectContaining({
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
         );
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
             2,
             ['guide-sports'],
-            { sourceUrls: ['https://global.example.com/guide.xml'] }
+            expect.objectContaining({
+                sourceUrls: ['https://global.example.com/guide.xml'],
+            })
         );
     });
 
@@ -331,7 +588,9 @@ describe('EpgService', () => {
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
             ['guide-sports'],
-            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            expect.objectContaining({
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
         );
     });
 
@@ -395,7 +654,9 @@ describe('EpgService', () => {
         );
         expect(beforeImport.get('guide-news')).toBeNull();
 
-        const availability = firstValueFrom(service.epgAvailable$.pipe(skip(1)));
+        const availability = firstValueFrom(
+            service.epgAvailable$.pipe(skip(1))
+        );
         service.fetchEpg(['https://playlist.example.com/guide.xml']);
         await expect(availability).resolves.toBe(true);
 
@@ -468,8 +729,7 @@ describe('EpgService', () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
         let resolveBatch:
-            | ((programs: Record<string, unknown>) => void)
-            | undefined;
+            ((programs: Record<string, unknown>) => void) | undefined;
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
                 new Promise((resolve) => {
@@ -557,7 +817,9 @@ describe('EpgService', () => {
             expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
             expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
                 ['guide-news'],
-                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+                expect.objectContaining({
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                })
             );
         } finally {
             consoleError.mockRestore();

@@ -341,6 +341,174 @@ describe('XtreamEvents host connectivity guard', () => {
         delete process.env[GUARD_DISABLED_ENV];
     });
 
+    it.each(['success', 'failure', 'cancel', 'redirect-failure'])(
+        'holds a long request or redirect-chain trial until %s settles',
+        async (outcome) => {
+            let now = 1_000;
+            const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+            const finalHop = createDeferred<unknown>();
+            const arrived = createDeferred<void>();
+            let trial: Promise<unknown> | undefined;
+            const expectedCalls = outcome === 'failure' ? 3 : 5;
+            try {
+                axiosMock.mockRejectedValue(timedOut());
+                await expect(request()).rejects.toBeDefined();
+                await expect(request()).rejects.toBeDefined();
+                now += 30_001;
+                // Direct failure uses a slow pending transfer. Other outcomes
+                // traverse the real validated-axios loop with two 25 s hops.
+                if (outcome !== 'failure') {
+                    axiosMock
+                        .mockImplementationOnce(async () => {
+                            now += 25_000;
+                            return {
+                                status: 302,
+                                headers: { location: '/second' },
+                            };
+                        })
+                        .mockImplementationOnce(async () => {
+                            now += 25_000;
+                            return {
+                                status: 302,
+                                headers: { location: '/third' },
+                            };
+                        });
+                }
+                axiosMock.mockImplementationOnce(() => {
+                    if (outcome === 'failure') now += 50_000;
+                    arrived.resolve();
+                    return finalHop.promise;
+                });
+                trial = request().then(
+                    (value) => ({ value }),
+                    (error) => ({ error })
+                );
+                await arrived.promise;
+                await expect(request()).rejects.toThrow(
+                    buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+                );
+                expect(axiosMock).toHaveBeenCalledTimes(expectedCalls);
+                if (outcome === 'success') {
+                    finalHop.resolve({ status: 200, data: [], headers: {} });
+                } else {
+                    finalHop.reject(
+                        Object.assign(timedOut(), {
+                            code:
+                                outcome === 'cancel'
+                                    ? 'ERR_CANCELED'
+                                    : 'ETIMEDOUT',
+                            config: {
+                                url:
+                                    outcome === 'redirect-failure'
+                                        ? `${SERVER_URL}/third`
+                                        : `${SERVER_URL}/player_api.php`,
+                            },
+                        })
+                    );
+                }
+                await trial;
+                if (outcome === 'failure') {
+                    await expect(request()).rejects.toThrow(
+                        buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+                    );
+                    now += 30_001;
+                }
+                axiosMock.mockResolvedValue({
+                    status: 200,
+                    data: [],
+                    headers: {},
+                });
+                await expect(request()).resolves.toMatchObject({ payload: [] });
+                expect(axiosMock).toHaveBeenCalledTimes(expectedCalls + 1);
+            } finally {
+                finalHop.resolve({ status: 200, data: [], headers: {} });
+                await trial;
+                clock.mockRestore();
+            }
+        }
+    );
+
+    it('ignores an old pending trial failure after reset while a replacement is active', async () => {
+        let now = 1_000;
+        const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        const old = createDeferred<unknown>();
+        const replacement = createDeferred<unknown>();
+        const oldStarted = createDeferred<void>();
+        const replacementStarted = createDeferred<void>();
+        let oldRequest: Promise<unknown> | undefined;
+        let newRequest: Promise<unknown> | undefined;
+        try {
+            axiosMock.mockRejectedValue(timedOut());
+            await expect(request()).rejects.toBeDefined();
+            await expect(request()).rejects.toBeDefined();
+            now += 30_001;
+            axiosMock.mockImplementationOnce(() => {
+                oldStarted.resolve();
+                return old.promise;
+            });
+            oldRequest = request().catch((error) => error);
+            await oldStarted.promise;
+            await resetHandler({}, { url: SERVER_URL });
+            await expect(request()).rejects.toBeDefined();
+            await expect(request()).rejects.toBeDefined();
+            now += 30_001;
+            axiosMock.mockImplementationOnce(() => {
+                replacementStarted.resolve();
+                return replacement.promise;
+            });
+            newRequest = request();
+            await replacementStarted.promise;
+            old.reject(timedOut());
+            await oldRequest;
+            now += 45_001;
+            await expect(request()).rejects.toThrow(
+                buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+            );
+            expect(axiosMock).toHaveBeenCalledTimes(6);
+            replacement.resolve({ status: 200, data: [], headers: {} });
+            await expect(newRequest).resolves.toMatchObject({ payload: [] });
+        } finally {
+            old.resolve({ status: 200, data: [], headers: {} });
+            replacement.resolve({ status: 200, data: [], headers: {} });
+            await Promise.all([oldRequest, newRequest]);
+            clock.mockRestore();
+        }
+    });
+
+    it('releases the trial in finally when debug reporting throws before the outcome report', async () => {
+        let now = 1_000;
+        const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        const debug = await import('./portal-debug.events');
+        const reportingError = new Error('debug reporting failed');
+        try {
+            axiosMock.mockRejectedValue(timedOut());
+            await expect(request()).rejects.toBeDefined();
+            await expect(request()).rejects.toBeDefined();
+            now += 30_001;
+            jest.mocked(debug.emitPortalDebugEvent).mockImplementationOnce(
+                () => {
+                    throw reportingError;
+                }
+            );
+            await expect(
+                requestHandler(
+                    {},
+                    {
+                        url: SERVER_URL,
+                        params: { action: 'get_live_categories' },
+                        requestId: 'debug-trial',
+                    }
+                )
+            ).rejects.toBe(reportingError);
+            axiosMock.mockResolvedValue({ status: 200, data: [], headers: {} });
+            await expect(request()).resolves.toBeDefined();
+            expect(axiosMock).toHaveBeenCalledTimes(4);
+        } finally {
+            jest.mocked(debug.emitPortalDebugEvent).mockReset();
+            clock.mockRestore();
+        }
+    });
+
     it('stops contacting a panel that timed out twice in a row', async () => {
         axiosMock.mockRejectedValue(timedOut());
 

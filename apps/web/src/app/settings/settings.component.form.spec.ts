@@ -59,6 +59,40 @@ describe('SettingsComponent form', () => {
         window.electron = originalElectron;
     });
 
+    it('stages the desktop portal pause setting until Save', async () => {
+        const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-test-id="portal-connectivity-toggle"] input'
+        ) as HTMLInputElement;
+        expect(checkbox).not.toBeNull();
+        expect(checkbox.checked).toBe(true);
+        checkbox.click();
+        fixture.detectChanges();
+        expect(
+            component.settingsForm.get('portalConnectivityGuard')?.value
+        ).toBe(false);
+        expect(window.electron.updateSettings).not.toHaveBeenCalled();
+        component.form.hydrateFromStore();
+        fixture.detectChanges();
+        expect(checkbox.checked).toBe(true);
+        checkbox.click();
+        await component.form.save(() => undefined);
+        expect(window.electron.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ portalConnectivityGuard: false })
+        );
+    });
+
+    it('hides the portal pause setting when the desktop bridge is unavailable', () => {
+        fixture.destroy();
+        window.electron = undefined;
+        fixture = TestBed.createComponent(SettingsComponent);
+        fixture.detectChanges();
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="portal-connectivity-setting"]'
+            )
+        ).toBeNull();
+    });
+
     describe('Get and set settings on component init', () => {
         const settings = {
             language: Language.GERMAN,
@@ -185,6 +219,9 @@ describe('SettingsComponent form', () => {
             );
             expect(component.settingsForm.value.startupBehavior).toBe(
                 StartupBehavior.FirstView
+            );
+            expect(component.settingsForm.value.startupWindowMode).toBe(
+                'normal'
             );
         });
 
@@ -314,11 +351,14 @@ describe('SettingsComponent form', () => {
             component.onSubmit();
             await fixture.whenStable();
 
-            expect(settingsStore.updateSettings).toHaveBeenCalledWith({
-                ...component.settingsForm.value,
-                trustedPrivateNetworkEpgUrls: [],
-                trustedInsecureTlsHosts: [],
-            });
+            expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+                {
+                    ...component.settingsForm.value,
+                    trustedPrivateNetworkEpgUrls: [],
+                    trustedInsecureTlsHosts: [],
+                },
+                { retryEpgCleanup: false }
+            );
             expect(updateSettings).toHaveBeenCalledWith({
                 ...component.settingsForm.value,
                 trustedPrivateNetworkEpgUrls: [],
@@ -338,7 +378,8 @@ describe('SettingsComponent form', () => {
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
                 expect.objectContaining({
                     webPlayerSharedControls: false,
-                })
+                }),
+                { retryEpgCleanup: false }
             );
         });
 
@@ -384,7 +425,8 @@ describe('SettingsComponent form', () => {
                 expect.objectContaining({
                     mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
                     vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
-                })
+                }),
+                { retryEpgCleanup: false }
             );
             expect(updateSettings).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -419,7 +461,8 @@ describe('SettingsComponent form', () => {
                     epgUrl: ['https://example.com/guide.xml'],
                     preferUploadedEpgOverXtream: true,
                     theme: Theme.DarkTheme,
-                })
+                }),
+                { retryEpgCleanup: false }
             );
 
             webFixture.destroy();

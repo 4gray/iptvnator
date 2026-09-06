@@ -79,6 +79,35 @@ as migration debt, not patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
+## Player And EPG Theme Boundaries
+
+The native-view Embedded MPV dock is app chrome: its solid widget background,
+text, separators, sliders and interaction states resolve app tokens together.
+Material icon buttons override their component tokens, including disabled
+icons. The dock must never pair a dark fallback surface with inherited light
+app text. Loader/stall and transient feedback overlays own a light foreground
+and dark scrim because they cover video. Video viewports remain black in both
+themes and fullscreen; frame-copy and built-in shared controls keep their
+existing light-on-dark overlay palette.
+
+EPG timeline, list, empty states and programme details use the library-local
+`libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
+selection and live accents. Text pairs with the actual surface in both themes;
+current/playing titles must not force white onto a light selection tint.
+Past programme text remains readable without reducing opacity on the whole
+card. List loading shimmer uses translucent primary text stops so placeholders
+remain visible on either theme’s content surface. Theme changes resolve through
+CSS on the mounted components immediately.
+
+Electron E2E measures app-panel foreground/background contrast (including
+translucency, ancestor opacity and the timeline’s sibling progress fill),
+surface brightness and control geometry.
+Shared overlay icons are separately rasterized over a white test frame to
+include gradient scrims and Material hover/focus layers in their contrast check.
+Synthetic media is used for visual artifacts. Native-view video is composited
+outside Chromium screenshots, so playback is also verified from session
+position; a black screenshot viewport alone is not proof of failed decoding.
+
 ## Selection Pattern
 
 Apply the same visual recipe to selected list items, active channels, and current EPG items:
@@ -120,9 +149,31 @@ the wrapper file that includes it.
 
 Every interactive descendant of a drag region—including buttons, links,
 inputs, overlays, and resize handles—requires `app-region: no-drag`. The shared
-directive-generated `.resize-handle` does not set this centrally yet. Until
-that debt is fixed, consumers in drag regions must cover the handle themselves
-and must not assume it already opts out.
+directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
+The shared live-layout sidebar reserves 8 px at its right edge so the inward
+half of the 12 px resize handle cannot cover the channel scrollbar.
+
+## Keyboard Scrolling and Channel Focus
+
+`ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
+including virtual viewports and nonvirtual Favorites/Recent/Stalker lists.
+Pointer selection focuses that owner without moving its scroll position.
+ArrowUp/Down, PageUp/Down, Home/End and Space retain native scrolling there;
+scroll keys do not bubble into document-level player shortcuts. A row's main
+button remains separate from favorite/info actions, supports native Enter and
+Space activation, and retains keyboard focus on activation. Tab/Shift+Tab use
+the normal DOM order. Scrolling from a virtual row moves focus to its viewport
+before CDK can recycle the row; asynchronous data updates never move focus.
+Xtream aligns a newly selected channel only when it is outside the viewport;
+updates to the same selected ID never re-align it. A smooth scroll to an
+already visible row would otherwise cancel an immediate keyboard scroll.
+
+In portal Live TV, ArrowRight on the selected category enters the visible
+`live-channels` region; ArrowLeft from that region or a channel's main button
+returns to the selected category in `portal-categories`. These IDs identify the
+single mounted main pane, not fullscreen or overlay lists. Navigation does not
+select a channel or start playback. Modified shortcuts, input fields, menus,
+dialogs, player controls and hidden/inert panes keep their own behavior.
 
 ## Channel List Item
 
@@ -298,6 +349,17 @@ remain local when the meaning is explicit.
 - Use a solid or near-solid backing surface
 - Do not let it overlap or cover player controls
 
+## Workspace Xtream Sync Overlay
+
+The import/refresh card pairs a near-opaque `--app-widget-bg` surface with
+app-owned text colors in both themes. Blur belongs to the backdrop; card text
+must not depend on an unprovided Material system surface token. Phase text uses
+the primary foreground, and explanatory/progress copy uses a readable blend of
+primary text and the widget surface instead of the decorative muted token.
+Local and remote badges, and the outlined cancel button, resolve their text,
+surfaces and interaction colors together. Electron provider E2E coverage holds
+a cache read open and checks text contrast across live theme changes.
+
 ## Progress Bars
 
 Channel preview progress and EPG current-program progress should stay visually aligned.
@@ -337,6 +399,25 @@ Use the shared `nav-list.scss` treatment for sidebar and context-panel list item
 - Selected state uses the shared selection recipe
 
 If the label is too long for the rail, shorten the label key instead of shrinking the component until it becomes inconsistent.
+
+## Detail Actions And Episode Surfaces
+
+Secondary detail buttons, episode cards and list rows, and the season view
+toggle must keep visible edges in both themes before hover. Use app-owned
+surface colors and neutral borders derived from `--app-on-surface`; fixed
+white-alpha fills and borders disappear over the light detail background.
+Grid cards keep the thumbnail and title on one continuous widget surface.
+List rows use a subtle neutral fill, with the number on a slightly stronger
+inset surface. The checked grid/list toggle uses `--app-selection-surface`
+and `--app-selection-color`; hover uses the app's neutral surface treatment.
+Keep these treatments in the shared season components and detail-action
+partial so Xtream and Stalker share the same behavior.
+
+Browser regression coverage measures the composited neutral edges and selected
+toggle fill, in addition to capturing light/dark grid and list screenshots.
+Hero action edges use matching pixels from rendered screenshots with the border
+visible and transparent, retaining the artwork and gradient behind the button;
+flat ancestor-color compositing is only appropriate outside that layered hero.
 
 ## Settings Surfaces
 
@@ -494,7 +575,7 @@ When updating IPTVnator UI:
 Avoid these:
 
 - introducing a new selected-state color unrelated to the theme tokens
-- copying the shared EPG's hard-coded dark/blue fallbacks into new surfaces
+- introducing independent dark-only EPG surface palettes
 - duplicating channel row markup in portal-specific views
 - showing placeholder logos behind real logos
 - making entire panes scroll when only the list should scroll

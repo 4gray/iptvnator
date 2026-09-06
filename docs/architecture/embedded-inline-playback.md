@@ -635,12 +635,25 @@ video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
+The HTML5 player and ArtPlayer choose their source engine from one URL rule,
+`resolvePlaybackUrlSourceKind()` in `@iptvnator/playback/util`, which maps the
+normalized media extension to `dash` (`mpd`), `hls` (`m3u8`/`m3u`), `mpegts`
+(`ts`, `m2ts`, and extension-less proxy/script URLs) or `native` (every other
+container: `mkv`, `webm`, `mp4`, `avi`, `mov`, `m4v`, audio files). hls.js
+therefore only ever receives HLS manifests; it used to be handed every
+unlisted container and raised a manifest error over media Chromium plays by
+itself. ArtPlayer serves the `native` kind through a single
+`ART_PLAYER_NATIVE_SOURCE_TYPE` custom type so `ArtPlayerSourceSession` keeps
+owning engine teardown and controls binding; the HTML5 player appends one
+`<source>` whose `video/mp4` MIME hint is set only for MP4-family files, since
+a hint the browser's `canPlayType()` rejects makes it skip the source
+(`resolveNativeSourceMimeType()`).
+
 MKV sources are attempted through Chromium's native Matroska path. Video.js
 receives `video/matroska` for `.mkv` URLs and explicit query metadata such as
-`extension=mkv` or `container=mkv`; ArtPlayer and HTML5 continue to use their
-native video paths. This is container support rather than a universal codec
-guarantee: native source or decode failures still produce a diagnostic whose
-ranked actions may include MPV/VLC.
+`extension=mkv` or `container=mkv`. This is container support rather than a
+universal codec guarantee: native source or decode failures still produce a
+diagnostic whose ranked actions may include MPV/VLC.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 
@@ -854,14 +867,21 @@ path-only setting; extra flags are stored separately as `mpvPlayerArguments` and
 
 Argument fields are line-oriented: one non-empty trimmed line becomes one argv
 entry. IPTVnator prepends those custom entries before its stream-specific runtime
-arguments, then keeps the stream URL last. This avoids shell parsing, keeps paths
-with spaces safe, and preserves existing settings for users who never configured
-extra arguments.
+arguments. This avoids shell parsing, keeps paths with spaces safe, and preserves
+existing settings for users who never configured extra arguments.
 
 The arguments apply only when IPTVnator spawns a new external player process. If
 MPV or VLC instance reuse is active and an existing process is reused, subsequent
 streams are loaded through MPV IPC or VLC RC commands and new process arguments
 are not re-applied until a fresh process starts.
+
+VLC enables its TCP RC interface when content metadata requires progress
+tracking or instance reuse is enabled. On Windows, these managed RC launches
+also append `--rc-quiet` after custom arguments to suppress VLC's DOS console
+while retaining TCP control. macOS/Linux and launches without an allocated RC
+port receive no automatic quiet flag. Both launch-error and exit-code-1 retries
+remove the app-generated RC flags, including `--rc-quiet`; custom arguments
+continue to be prepended unchanged.
 
 ## Electron External Player Ownership
 

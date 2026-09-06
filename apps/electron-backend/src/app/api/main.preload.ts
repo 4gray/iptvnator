@@ -36,6 +36,7 @@ import type {
     ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
@@ -45,6 +46,7 @@ import type {
     ElectronBridgeRemoteControlCommand,
     ElectronBridgeRemoteControlStatus,
     ElectronBridgeTrustOptions,
+    ElectronBridgePlaylistFetchOptions,
     ElectronBridgeWindowState,
     ElectronBridgeXtreamContentStream,
     ExternalPlayerSession,
@@ -80,6 +82,7 @@ const DB_OPERATION_EVENT = 'DB_OPERATION_EVENT';
 const PLAYLIST_REFRESH_EVENT = 'PLAYLIST:REFRESH_EVENT';
 const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
 const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
+const WINDOW_TOGGLE_FULLSCREEN = 'WINDOW:TOGGLE_FULLSCREEN';
 const WINDOW_CLOSE = 'WINDOW:CLOSE';
 const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
@@ -414,6 +417,7 @@ const electronApi: ElectronBridgeApi = {
     },
     minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
+    toggleFullScreenWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_FULLSCREEN),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),
     getWindowState: () => ipcRenderer.invoke(WINDOW_GET_STATE),
     onWindowStateChange: (
@@ -444,7 +448,7 @@ const electronApi: ElectronBridgeApi = {
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
-        options?: ElectronBridgeTrustOptions
+        options?: ElectronBridgePlaylistFetchOptions
     ) => ipcRenderer.invoke('fetch-playlist-by-url', url, title, options),
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
@@ -569,6 +573,11 @@ const electronApi: ElectronBridgeApi = {
         seconds: number
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SEEK', sessionId, seconds),
+    seekEmbeddedMpvBy: (
+        sessionId: string,
+        deltaSeconds: number
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SEEK_BY', sessionId, deltaSeconds),
     setEmbeddedMpvVolume: (
         sessionId: string,
         volume: number
@@ -606,11 +615,7 @@ const electronApi: ElectronBridgeApi = {
         sessionId: string,
         style: EmbeddedMpvSubtitleStyle
     ): Promise<EmbeddedMpvSession | null> =>
-        ipcRenderer.invoke(
-            'EMBEDDED_MPV_SET_SUBTITLE_STYLE',
-            sessionId,
-            style
-        ),
+        ipcRenderer.invoke('EMBEDDED_MPV_SET_SUBTITLE_STYLE', sessionId, style),
     selectEmbeddedMpvSubtitleFile: (): Promise<string | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SELECT_SUBTITLE_FILE'),
     setEmbeddedMpvSpeed: (
@@ -655,7 +660,7 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId, options }),
     getCurrentProgramsBatch: (
         channelIds: string[],
-        options?: ElectronBridgeEpgLookupOptions
+        options?: ElectronBridgeCurrentProgramsOptions
     ) =>
         ipcRenderer.invoke('GET_CURRENT_PROGRAMS_BATCH', {
             channelIds,
@@ -672,6 +677,8 @@ const electronApi: ElectronBridgeApi = {
     forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
+    reconcileEpgSources: (urls: string[]) =>
+        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),
     clearEpgDataForSource: (sourceUrl: string) =>
         ipcRenderer.invoke('EPG_CLEAR_SOURCE', { sourceUrl }),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
@@ -741,6 +748,10 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
     dbUpsertAppPlaylist: (playlist: Playlist, _operationId?: string) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
+    dbMigrateAppPlaylists: (playlists: Playlist[]) =>
+        ipcRenderer.invoke('DB_MIGRATE_APP_PLAYLISTS', playlists),
+    dbRecoverLegacyPlaylists: () =>
+        ipcRenderer.invoke('DB_RECOVER_LEGACY_PLAYLISTS'),
     dbUpsertAppPlaylists: (playlists: Playlist[]) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
     dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),
@@ -1105,8 +1116,7 @@ const electronApi: ElectronBridgeApi = {
     recordingsUpdatePrograms: (
         targetPath: string,
         programs: RecordingProgramSnapshot[]
-    ) =>
-        ipcRenderer.invoke('RECORDINGS_UPDATE_PROGRAMS', targetPath, programs),
+    ) => ipcRenderer.invoke('RECORDINGS_UPDATE_PROGRAMS', targetPath, programs),
     recordingsRevealFile: (filePath: string) =>
         ipcRenderer.invoke('RECORDINGS_REVEAL_FILE', filePath),
     recordingsPlayFile: (filePath: string) =>
