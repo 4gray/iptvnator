@@ -12,6 +12,8 @@ import {
     LiveLayoutSidebarStateService,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     WorkspaceShellContextDrawerService,
     WorkspacePortalContext,
@@ -47,6 +49,8 @@ export class WorkspaceShellContextSidebarComponent {
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
+    private readonly xtreamStore = inject(XtreamStore);
+    private readonly stalkerStore = inject(StalkerStore);
     // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the sidebar renders as the phone drawer — the close button that
     // calls this is CSS-hidden above the phone breakpoint.
@@ -67,10 +71,31 @@ export class WorkspaceShellContextSidebarComponent {
             LIVE_SECTIONS.has(section)
         );
     });
+    /**
+     * A live category is selected, so the layout renders a channels rail
+     * whose header carries the way back to the folded categories rail (the
+     * category dropdown + show chevron). On the live root there is no such
+     * rail, and folding the categories there would leave no way back.
+     */
+    readonly hasLiveCategorySelection = computed(() => {
+        const provider = this.context()?.provider;
+        if (provider === 'xtreams') {
+            return this.xtreamStore.selectedCategoryId() !== null;
+        }
+        if (provider === 'stalker') {
+            return !!this.stalkerStore.selectedCategoryId();
+        }
+        return false;
+    });
+    // The categories rail is the outermost panel, so it folds on the first
+    // collapse level already (`categories-hidden`, gated on a channels rail
+    // existing to host the way back), and always on `collapsed`.
     readonly isContextPanelCollapsed = computed(
         () =>
             this.isLiveCategoryRoute() &&
-            this.liveSidebarStateService.isCollapsed()
+            (this.liveSidebarStateService.isCollapsed() ||
+                (this.liveSidebarStateService.areCategoriesHidden() &&
+                    this.hasLiveCategorySelection()))
     );
 
     closeDrawer(): void {

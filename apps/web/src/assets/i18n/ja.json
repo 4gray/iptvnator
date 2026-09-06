@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "チャンネル一覧を非表示",
         "SHOW_CHANNELS_LIST": "チャンネル一覧を表示",
-        "TOGGLE_SIDEBAR_TOOLTIP": "チャンネル一覧の切り替え (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "チャンネル一覧の切り替え (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "カテゴリーを非表示",
+        "SHOW_CATEGORIES": "カテゴリーを表示",
+        "SHOW_CATEGORIES_PANEL": "カテゴリーパネルを表示",
+        "CHOOSE_CATEGORY": "カテゴリーを選択",
+        "HIDE_PANELS": "カテゴリーとチャンネルを非表示",
+        "HIDE_PANELS_TOOLTIP": "パネルを非表示 (⌘/Ctrl+B)",
+        "SHOW_PANELS": "カテゴリーとチャンネルを表示",
+        "SHOW_PANELS_TOOLTIP": "パネルを表示 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "アップロードまたは他のプレイリストを選択",

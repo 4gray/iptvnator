@@ -29,6 +29,7 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     PortalChannelSortMode,
@@ -157,6 +158,12 @@ export class LiveStreamLayoutComponent
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
+    // Shell-provided; absent when no categories rail exists to fold (unit
+    // tests, hosts outside the workspace shell), in which case the header
+    // keeps its plain title.
+    private readonly categoriesPopover = inject(LIVE_CATEGORIES_POPOVER, {
+        optional: true,
+    });
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -328,6 +335,14 @@ export class LiveStreamLayoutComponent
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    // Mirrors the shell's fold rule: the rail only folds while a category is
+    // selected, so a search-only rail keeps its plain heading.
+    readonly canOpenCategoriesPopover = computed(
+        () =>
+            this.categoriesPopover !== null &&
+            this.liveSidebarStateService.areCategoriesHidden() &&
+            !!this.selectedCategoryId()
+    );
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
             this.activeCatchupProgram() ?? this.currentEpgItem()
@@ -365,8 +380,11 @@ export class LiveStreamLayoutComponent
         if (!categoryId) return null;
 
         const categories = this.categories();
+        // Provider categories carry string ids ("101") while the selection
+        // is numeric; a strict comparison missed every one and the header
+        // fell back to "Channels", which the category dropdown cannot afford.
         const category = categories?.find(
-            (c) => (c.category_id ?? c.id) === categoryId
+            (c) => String(c.category_id ?? c.id) === String(categoryId)
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
@@ -596,8 +614,23 @@ export class LiveStreamLayoutComponent
         persistLiveEpgPanelState(state);
     }
 
+    /** `Cmd/Ctrl+B` and the floating restore handle. */
     toggleSidebar(): void {
         this.liveSidebarStateService.toggle();
+    }
+
+    /** The channels header chevron: player only. */
+    collapsePanels(): void {
+        this.liveSidebarStateService.collapse();
+    }
+
+    showCategories(): void {
+        this.categoriesPopover?.close();
+        this.liveSidebarStateService.showCategories();
+    }
+
+    openCategoriesPopover(origin: HTMLElement): void {
+        this.categoriesPopover?.open(origin);
     }
 
     @HostListener('document:keydown', ['$event'])

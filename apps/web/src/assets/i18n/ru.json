@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Скрыть список каналов",
         "SHOW_CHANNELS_LIST": "Показать список каналов",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Скрыть категории",
+        "SHOW_CATEGORIES": "Показать категории",
+        "SHOW_CATEGORIES_PANEL": "Показать панель категорий",
+        "CHOOSE_CATEGORY": "Выбрать категорию",
+        "HIDE_PANELS": "Скрыть категории и каналы",
+        "HIDE_PANELS_TOOLTIP": "Скрыть панели (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Показать категории и каналы",
+        "SHOW_PANELS_TOOLTIP": "Показать панели (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",

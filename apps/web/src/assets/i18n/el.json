@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Απόκρυψη λίστας καναλιών",
         "SHOW_CHANNELS_LIST": "Εμφάνιση λίστας καναλιών",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Εναλλαγή λίστας καναλιών (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Εναλλαγή λίστας καναλιών (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Απόκρυψη κατηγοριών",
+        "SHOW_CATEGORIES": "Εμφάνιση κατηγοριών",
+        "SHOW_CATEGORIES_PANEL": "Εμφάνιση πίνακα κατηγοριών",
+        "CHOOSE_CATEGORY": "Επιλογή κατηγορίας",
+        "HIDE_PANELS": "Απόκρυψη κατηγοριών και καναλιών",
+        "HIDE_PANELS_TOOLTIP": "Απόκρυψη πινάκων (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Εμφάνιση κατηγοριών και καναλιών",
+        "SHOW_PANELS_TOOLTIP": "Εμφάνιση πινάκων (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Μεταφορτώστε ή επιλέξτε άλλη λίστα αναπαραγωγής",

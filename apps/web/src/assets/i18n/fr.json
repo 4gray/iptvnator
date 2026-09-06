@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Masquer la liste des chaînes",
         "SHOW_CHANNELS_LIST": "Afficher la liste des chaînes",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Basculer la liste des chaînes (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Basculer la liste des chaînes (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Masquer les catégories",
+        "SHOW_CATEGORIES": "Afficher les catégories",
+        "SHOW_CATEGORIES_PANEL": "Afficher le panneau des catégories",
+        "CHOOSE_CATEGORY": "Choisir une catégorie",
+        "HIDE_PANELS": "Masquer les catégories et les chaînes",
+        "HIDE_PANELS_TOOLTIP": "Masquer les panneaux (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Afficher les catégories et les chaînes",
+        "SHOW_PANELS_TOOLTIP": "Afficher les panneaux (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Transférer ou choisir une autre liste de lecture",

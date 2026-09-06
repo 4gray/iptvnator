@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "隱藏頻道列表",
         "SHOW_CHANNELS_LIST": "顯示頻道列表",
-        "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "隱藏類別",
+        "SHOW_CATEGORIES": "顯示類別",
+        "SHOW_CATEGORIES_PANEL": "顯示類別面板",
+        "CHOOSE_CATEGORY": "選擇類別",
+        "HIDE_PANELS": "隱藏類別和頻道",
+        "HIDE_PANELS_TOOLTIP": "隱藏面板 (⌘/Ctrl+B)",
+        "SHOW_PANELS": "顯示類別和頻道",
+        "SHOW_PANELS_TOOLTIP": "顯示面板 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",

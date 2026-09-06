@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Nascondi elenco canali",
         "SHOW_CHANNELS_LIST": "Mostra elenco canali",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Attiva/disattiva elenco canali (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Attiva/disattiva elenco canali (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Nascondi categorie",
+        "SHOW_CATEGORIES": "Mostra categorie",
+        "SHOW_CATEGORIES_PANEL": "Mostra il pannello delle categorie",
+        "CHOOSE_CATEGORY": "Scegli categoria",
+        "HIDE_PANELS": "Nascondi categorie e canali",
+        "HIDE_PANELS_TOOLTIP": "Nascondi i pannelli (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Mostra categorie e canali",
+        "SHOW_PANELS_TOOLTIP": "Mostra i pannelli (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carica o seleziona un'altra playlist",

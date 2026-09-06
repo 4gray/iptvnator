@@ -267,8 +267,24 @@ remain local when the meaning is explicit.
 
 ### Collapsible Live Sidebar
 
-- M3U, Xtream, and Stalker live layouts share a single sidebar collapse toggle
-  that hides the channels rail to give the player and EPG full width.
+- Live-TV panels fold from the outside in, in three nested levels owned by
+  `LiveSidebarState` (`@iptvnator/portal/shared/util`):
+    1. `expanded` — categories rail + channels rail + player.
+    2. `categories-hidden` — channels rail + player. The shell's categories
+       rail (`WorkspaceShellContextSidebarComponent`, live sections only:
+       Xtream `live`, Stalker `itv`/`radio`) folds; the channels header turns
+       its category title into a dropdown that opens the same rail as a
+       popover, so switching categories stays one click away.
+    3. `collapsed` — player + EPG only ("theater").
+- There is deliberately no "channels hidden, categories visible" state: a
+  category click has to bring the channels back anyway. Layouts without a
+  categories rail (M3U, the unified-collection live tab) treat level 2 like
+  level 1 — and so does the live ROOT (no selected category, Xtream `/live`
+  "All Items", Stalker's all-items grid): there is no channels rail to host
+  the way back, so the shell folds the categories rail at level 2 only while
+  the portal store has a selected category (`hasLiveCategorySelection`), and
+  the rail's hide chevron is withheld there too. Level 3 folds it regardless,
+  since the floating restore handle lives in the content area.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
@@ -278,37 +294,54 @@ remain local when the meaning is explicit.
   selects the channel's category, highlights the active category and channel,
   and scrolls the category rail plus virtual channels list to the selected rows
   when those rails are visible.
-- In Xtream and Stalker live TV, the same toggle also collapses the workspace
-  shell context sidebar (the "Live Categories" rail rendered by
-  `WorkspaceShellContextSidebarComponent`), matching M3U's "everything quiets"
-  behaviour. The shell categories rail only collapses when the active section
-  is `live` (Xtream) or `itv`/`radio` (Stalker); movies, series, favorites,
-  and recent routes leave it untouched.
+- Affordances, each in the panel it acts on:
+    - A `chevron_left` in the categories rail header
+      (`WorkspaceContextPanelComponent`, `presentation="sidebar"`, live
+      sections only) → level 2 (`hideCategories()`).
+    - A `chevron_right` at the start of the channels header
+      (`data-test-id="live-show-categories"`) and the popover footer's
+      "Show categories panel" → level 1 (`showCategories()`).
+    - The category dropdown (`data-test-id="live-category-dropdown"`) opens
+      `LIVE_CATEGORIES_POPOVER` anchored below itself. The token lives in
+      `@iptvnator/portal/shared/util`; the workspace shell provides it
+      (`WorkspaceLiveCategoriesPopoverService`, CDK overlay hosting
+      `WorkspaceLiveCategoriesPopoverComponent`, which stamps the context
+      panel with `presentation="popover"`) and the live layouts inject it
+      optionally — without a provider the header keeps its plain title.
+      Backdrop, Escape, the footer and any category selection
+      (`categorySelected` output) close it; focus returns to the trigger.
+    - The `chevron_left` in the channels header → level 3 (`collapse()`).
+    - While collapsed, a floating `chevron_right` mini-fab at the left edge of
+      `.content-container` and `Cmd/Ctrl+B` (`toggle()`) return to the level
+      the user collapsed from, not always to level 1. The shortcut handler
+      ignores events that originate inside `<input>`, `<textarea>`,
+      `<select>`, or content-editable elements via the shared
+      `isTypingInInput` helper.
 - Collapsed state is owned by `LiveLayoutSidebarStateService`
-  (`providedIn: 'root'`) in `@iptvnator/portal/shared/util`. Every surface that
-  participates injects the service and reads `isCollapsed`; any toggle calls
-  `service.toggle()`. Persistence delegates to the existing
-  `live-sidebar-state` helpers, so the localStorage key stays unchanged and
-  missing/invalid values restore to expanded.
-- A `mat-icon-button` with `chevron_left` lives in the sidebar header and
-  toggles state. While collapsed, a floating `chevron_right` mini-fab appears
-  at the left edge of `.content-container` to restore the rail (and the
-  categories rail, in Xtream/Stalker live).
-- Keyboard shortcut: `Cmd/Ctrl+B`. The handler ignores events that originate
-  inside `<input>`, `<textarea>`, `<select>`, or content-editable elements via
-  the shared `isTypingInInput` helper.
+  (`providedIn: 'root'`). Consumers read a derived flag, never the raw state:
+  the categories rail folds on `areCategoriesHidden`, the channels rail on
+  `isCollapsed`. Persistence delegates to the `live-sidebar-state` helpers so
+  the localStorage key stays unchanged; missing/invalid values restore to
+  expanded. `collapsed` is a moment mode and never restores: a stored
+  `collapsed` comes back as `categories-hidden`, so a fresh launch always
+  shows the channels list (#1458 reported the previous "all my channels
+  disappeared" confusion). A hidden categories rail is a stable preference
+  and restores as stored.
 - The CSS class `.sidebar-collapsed` (channels rail) and
   `.context-panel--collapsed` (workspace shell categories rail) both override
   the inline width set by the `appResizable` directive with
   `width: 0 !important; min-width: 0 !important`. The directive's persisted
   width is preserved so uncollapsing restores the user's previous resized
   width. Both rails share the same 180 ms width transition so motion stays in
-  lockstep.
+  lockstep. The dropdown reuses the static heading's type so folding the rail
+  does not move the title; the caret is the only added ink
+  (`_portal-sidebar.scss`).
 - At the phone breakpoint the M3U layout's bottom-drawer rule overrides the
   desktop collapse to `height: 0` instead of `width: 0`. The floating restore
   handle stays visible there: the collapse toggle is reachable by touch, so
   hiding the handle left a phone with no way to bring the list back short of
-  `Cmd/Ctrl+B`.
+  `Cmd/Ctrl+B`. The phone context drawer ignores the folded state entirely
+  (the user explicitly opened it).
 
 ### EPG Card
 

@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Hide channels list",
         "SHOW_CHANNELS_LIST": "Show channels list",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Toggle channels list (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Toggle channels list (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Hide categories",
+        "SHOW_CATEGORIES": "Show categories",
+        "SHOW_CATEGORIES_PANEL": "Show categories panel",
+        "CHOOSE_CATEGORY": "Choose category",
+        "HIDE_PANELS": "Hide categories and channels",
+        "HIDE_PANELS_TOOLTIP": "Hide panels (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Show categories and channels",
+        "SHOW_PANELS_TOOLTIP": "Show panels (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",

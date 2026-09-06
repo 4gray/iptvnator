@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Zenderlijst verbergen",
         "SHOW_CHANNELS_LIST": "Zenderlijst tonen",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Categorieën verbergen",
+        "SHOW_CATEGORIES": "Categorieën tonen",
+        "SHOW_CATEGORIES_PANEL": "Categorieënpaneel tonen",
+        "CHOOSE_CATEGORY": "Categorie kiezen",
+        "HIDE_PANELS": "Categorieën en kanalen verbergen",
+        "HIDE_PANELS_TOOLTIP": "Panelen verbergen (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Categorieën en kanalen tonen",
+        "SHOW_PANELS_TOOLTIP": "Panelen tonen (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",

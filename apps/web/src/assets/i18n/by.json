@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Схаваць спіс каналаў",
         "SHOW_CHANNELS_LIST": "Паказаць спіс каналаў",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "Схаваць катэгорыі",
+        "SHOW_CATEGORIES": "Паказаць катэгорыі",
+        "SHOW_CATEGORIES_PANEL": "Паказаць панэль катэгорый",
+        "CHOOSE_CATEGORY": "Выбраць катэгорыю",
+        "HIDE_PANELS": "Схаваць катэгорыі і каналы",
+        "HIDE_PANELS_TOOLTIP": "Схаваць панэлі (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Паказаць катэгорыі і каналы",
+        "SHOW_PANELS_TOOLTIP": "Паказаць панэлі (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузіць або выбраць іншы плэйліст",

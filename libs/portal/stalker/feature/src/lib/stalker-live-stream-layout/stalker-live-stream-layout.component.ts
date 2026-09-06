@@ -74,6 +74,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    LIVE_CATEGORIES_POPOVER,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     createLogger,
@@ -184,6 +185,12 @@ export class StalkerLiveStreamLayoutComponent
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
+    // Shell-provided; absent when no categories rail exists to fold (unit
+    // tests, hosts outside the workspace shell), in which case the header
+    // keeps its plain title.
+    private readonly categoriesPopover = inject(LIVE_CATEGORIES_POPOVER, {
+        optional: true,
+    });
     private readonly logger = createLogger('StalkerLiveStream');
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
 
@@ -506,6 +513,11 @@ export class StalkerLiveStreamLayoutComponent
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly canOpenCategoriesPopover = computed(
+        () =>
+            this.categoriesPopover !== null &&
+            this.liveSidebarStateService.areCategoriesHidden()
+    );
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
     );
@@ -1149,8 +1161,23 @@ export class StalkerLiveStreamLayoutComponent
         persistLiveEpgPanelState(state);
     }
 
+    /** `Cmd/Ctrl+B` and the floating restore handle. */
     toggleSidebar(): void {
         this.liveSidebarStateService.toggle();
+    }
+
+    /** The channels header chevron: player only. */
+    collapsePanels(): void {
+        this.liveSidebarStateService.collapse();
+    }
+
+    showCategories(): void {
+        this.categoriesPopover?.close();
+        this.liveSidebarStateService.showCategories();
+    }
+
+    openCategoriesPopover(origin: HTMLElement): void {
+        this.categoriesPopover?.open(origin);
     }
 
     handleRadioChannelSwitch(direction: 'next' | 'previous'): void {

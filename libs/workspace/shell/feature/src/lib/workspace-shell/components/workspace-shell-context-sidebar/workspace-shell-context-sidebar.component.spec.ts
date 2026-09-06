@@ -1,13 +1,11 @@
-import {
-    Component,
-    Directive,
-    input,
-} from '@angular/core';
+import { Component, Directive, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
@@ -56,9 +54,13 @@ class MockWorkspaceSourcesFiltersPanelComponent {}
 describe('WorkspaceShellContextSidebarComponent', () => {
     let fixture: ComponentFixture<WorkspaceShellContextSidebarComponent>;
     let liveSidebarService: LiveLayoutSidebarStateService;
+    const xtreamSelectedCategoryId = signal<number | null>(1);
+    const stalkerSelectedCategoryId = signal<string | null>('7');
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state');
+        xtreamSelectedCategoryId.set(1);
+        stalkerSelectedCategoryId.set('7');
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
@@ -66,6 +68,14 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: { close: jest.fn() },
+                },
+                {
+                    provide: XtreamStore,
+                    useValue: { selectedCategoryId: xtreamSelectedCategoryId },
+                },
+                {
+                    provide: StalkerStore,
+                    useValue: { selectedCategoryId: stalkerSelectedCategoryId },
                 },
                 {
                     provide: TranslateService,
@@ -176,6 +186,43 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             const aside = fixture.nativeElement.querySelector(
                 'aside.context-panel--route'
             );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
+            );
+        });
+
+        it('folds the categories rail on the first level already (categories-hidden)', () => {
+            setupLiveCategory('live');
+
+            liveSidebarService.setState('categories-hidden');
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
+            );
+        });
+
+        it('keeps the rail on the live root (no selected category) at categories-hidden, since no channels rail exists to host the way back', () => {
+            xtreamSelectedCategoryId.set(null);
+            setupLiveCategory('live');
+
+            liveSidebarService.setState('categories-hidden');
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                false
+            );
+
+            // Player-only still folds it: the floating restore handle lives
+            // in the content area and stays reachable there.
+            liveSidebarService.setState('collapsed');
+            fixture.detectChanges();
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 true
             );

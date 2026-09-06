@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    output,
     signal,
     viewChild,
     ElementRef,
@@ -22,6 +23,7 @@ import {
     asStalkerPortalError,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    LiveLayoutSidebarStateService,
     PortalCategorySortMode,
     persistPortalCategorySortMode,
     restorePortalCategorySortMode,
@@ -80,9 +82,38 @@ export class WorkspaceContextPanelComponent {
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
         optional: true,
     });
+    private readonly liveSidebarState = inject(LiveLayoutSidebarStateService);
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
+    /**
+     * `sidebar` is the in-flow shell rail and offers the "hide categories"
+     * chevron on live sections; `popover` is the same panel stamped into the
+     * live categories dropdown while that rail is folded, where the chevron
+     * would be meaningless (the popover's own footer restores the rail).
+     */
+    readonly presentation = input<'sidebar' | 'popover'>('sidebar');
+    /** A category was picked; the popover host closes on it. */
+    readonly categorySelected = output<void>();
+
+    readonly isLiveSection = computed(() => {
+        const section = this.section();
+        return (
+            (this.context().provider === 'xtreams' && section === 'live') ||
+            (this.context().provider === 'stalker' &&
+                (section === 'itv' || section === 'radio'))
+        );
+    });
+    // Only while a category is selected: that is when the live layout
+    // renders the channels rail whose header offers the way back.
+    readonly canHideCategories = computed(
+        () =>
+            this.presentation() === 'sidebar' &&
+            this.isLiveSection() &&
+            (this.context().provider === 'xtreams'
+                ? this.xtreamSelectedCategoryId() !== null
+                : !!this.stalkerSelectedCategoryId())
+    );
 
     readonly isXtreamCategories = computed(
         () =>
@@ -398,6 +429,10 @@ export class WorkspaceContextPanelComponent {
         );
     }
 
+    hideCategories(): void {
+        this.liveSidebarState.hideCategories();
+    }
+
     onXtreamCategoryClicked(category: XtreamCategoryLike): void {
         if (!this.isXtreamCategoryInteractionEnabled()) {
             return;
@@ -415,6 +450,7 @@ export class WorkspaceContextPanelComponent {
         }
         const categoryId = numericCategoryId;
         this.contextDrawer?.close();
+        this.categorySelected.emit();
 
         if (section === 'live') {
             this.xtreamStore.setSelectedCategory(categoryId);
@@ -456,6 +492,7 @@ export class WorkspaceContextPanelComponent {
         const categoryId = String(item.category_id ?? '*');
 
         this.contextDrawer?.close();
+        this.categorySelected.emit();
         this.stalkerStore.setSelectedCategory(categoryId);
         this.stalkerStore.setPage(0);
 

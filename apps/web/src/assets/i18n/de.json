@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Senderliste ausblenden",
         "SHOW_CHANNELS_LIST": "Senderliste einblenden",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)",
+        "HIDE_CATEGORIES": "Kategorien ausblenden",
+        "SHOW_CATEGORIES": "Kategorien einblenden",
+        "SHOW_CATEGORIES_PANEL": "Kategorien-Panel einblenden",
+        "CHOOSE_CATEGORY": "Kategorie auswählen",
+        "HIDE_PANELS": "Kategorien und Sender ausblenden",
+        "HIDE_PANELS_TOOLTIP": "Panels ausblenden (⌘/Ctrl+B)",
+        "SHOW_PANELS": "Kategorien und Sender einblenden",
+        "SHOW_PANELS_TOOLTIP": "Panels einblenden (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",

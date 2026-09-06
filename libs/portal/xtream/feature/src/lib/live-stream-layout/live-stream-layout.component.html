@@ -12,16 +12,55 @@
         storageKey="live-channels-sidebar-width"
     >
         <div class="sidebar-header">
-            <div class="category-heading">
-                <h2 class="category-title">
-                    {{ selectedCategoryInfo()?.name ?? 'All Items' }}
-                </h2>
-                @if (selectedCategoryInfo()?.count) {
-                    <span class="category-count">{{
-                        selectedCategoryInfo()?.count
-                    }}</span>
-                }
-            </div>
+            @if (canOpenCategoriesPopover()) {
+                <!-- The categories rail is folded: the title becomes the way
+                     back to it (a dropdown of the same list) so switching
+                     categories stays one click away. -->
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="sidebar-show-categories"
+                    data-test-id="live-show-categories"
+                    [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                    [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                    (click)="showCategories()"
+                >
+                    <mat-icon>chevron_right</mat-icon>
+                </button>
+                <button
+                    #categoryDropdown
+                    type="button"
+                    class="category-dropdown"
+                    data-test-id="live-category-dropdown"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    [attr.aria-label]="'LAYOUT.CHOOSE_CATEGORY' | translate"
+                    (click)="openCategoriesPopover(categoryDropdown)"
+                >
+                    <span class="category-title">
+                        {{ selectedCategoryInfo()?.name ?? 'All Items' }}
+                    </span>
+                    @if (selectedCategoryInfo()?.count) {
+                        <span class="category-count">{{
+                            selectedCategoryInfo()?.count
+                        }}</span>
+                    }
+                    <mat-icon class="category-dropdown__caret"
+                        >expand_more</mat-icon
+                    >
+                </button>
+            } @else {
+                <div class="category-heading">
+                    <h2 class="category-title">
+                        {{ selectedCategoryInfo()?.name ?? 'All Items' }}
+                    </h2>
+                    @if (selectedCategoryInfo()?.count) {
+                        <span class="category-count">{{
+                            selectedCategoryInfo()?.count
+                        }}</span>
+                    }
+                </div>
+            }
             <button
                 mat-icon-button
                 [matMenuTriggerFor]="channelSortMenu"
@@ -33,10 +72,9 @@
             <button
                 mat-icon-button
                 type="button"
-                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-                [attr.aria-pressed]="isSidebarCollapsed()"
-                (click)="toggleSidebar()"
+                [attr.aria-label]="'LAYOUT.HIDE_PANELS' | translate"
+                [matTooltip]="'LAYOUT.HIDE_PANELS_TOOLTIP' | translate"
+                (click)="collapsePanels()"
             >
                 <mat-icon>chevron_left</mat-icon>
             </button>
@@ -84,9 +122,8 @@
             mat-icon-button
             type="button"
             class="sidebar-restore"
-            [attr.aria-label]="'LAYOUT.SHOW_CHANNELS_LIST' | translate"
-            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-            [attr.aria-pressed]="isSidebarCollapsed()"
+            [attr.aria-label]="'LAYOUT.SHOW_PANELS' | translate"
+            [matTooltip]="'LAYOUT.SHOW_PANELS_TOOLTIP' | translate"
             (click)="toggleSidebar()"
         >
             <mat-icon>chevron_right</mat-icon>

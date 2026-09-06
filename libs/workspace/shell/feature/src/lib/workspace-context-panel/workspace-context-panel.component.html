@@ -64,6 +64,7 @@
                         type="button"
                         mat-icon-button
                         class="context-header__action"
+                        data-test-id="context-manage-categories"
                         (click)="openManageCategories()"
                         [disabled]="!canManageXtreamCategories()"
                         [matTooltip]="
@@ -74,6 +75,21 @@
                         "
                     >
                         <mat-icon>tune</mat-icon>
+                    </button>
+                }
+                @if (canHideCategories()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action"
+                        data-test-id="context-hide-categories"
+                        (click)="hideCategories()"
+                        [matTooltip]="'LAYOUT.HIDE_CATEGORIES' | translate"
+                        [attr.aria-label]="
+                            'LAYOUT.HIDE_CATEGORIES' | translate
+                        "
+                    >
+                        <mat-icon>chevron_left</mat-icon>
                     </button>
                 }
             </div>

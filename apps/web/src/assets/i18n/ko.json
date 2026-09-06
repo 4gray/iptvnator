@@ -674,7 +674,15 @@
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "채널 목록 숨기기",
         "SHOW_CHANNELS_LIST": "채널 목록 표시",
-        "TOGGLE_SIDEBAR_TOOLTIP": "채널 목록 전환 (⌘/Ctrl+B)"
+        "TOGGLE_SIDEBAR_TOOLTIP": "채널 목록 전환 (⌘/Ctrl+B)",
+        "HIDE_CATEGORIES": "카테고리 숨기기",
+        "SHOW_CATEGORIES": "카테고리 표시",
+        "SHOW_CATEGORIES_PANEL": "카테고리 패널 표시",
+        "CHOOSE_CATEGORY": "카테고리 선택",
+        "HIDE_PANELS": "카테고리 및 채널 숨기기",
+        "HIDE_PANELS_TOOLTIP": "패널 숨기기 (⌘/Ctrl+B)",
+        "SHOW_PANELS": "카테고리 및 채널 표시",
+        "SHOW_PANELS_TOOLTIP": "패널 표시 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "다른 재생 목록을 업로드하거나 선택하십시오",

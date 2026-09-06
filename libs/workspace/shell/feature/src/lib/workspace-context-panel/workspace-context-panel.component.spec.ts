@@ -15,6 +15,7 @@ import {
     XtreamContentLoadState,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
 
 const translations: Record<string, string> = {
@@ -204,9 +205,9 @@ describe('WorkspaceContextPanelComponent', () => {
         const status = fixture.nativeElement.querySelector(
             '.context-inline-status'
         ) as HTMLElement | null;
-        const manageButton = Array.from(
-            fixture.nativeElement.querySelectorAll('.context-header__action')
-        ).at(-1) as HTMLButtonElement | undefined;
+        const manageButton = fixture.nativeElement.querySelector(
+            '[data-test-id="context-manage-categories"]'
+        ) as HTMLButtonElement | null;
 
         expect(countPlaceholders).toHaveLength(2);
         expect(categoryButtons.every((button) => button.disabled)).toBe(true);
@@ -261,9 +262,9 @@ describe('WorkspaceContextPanelComponent', () => {
         const categoryButtons = Array.from(
             fixture.nativeElement.querySelectorAll('.category-item')
         ) as HTMLButtonElement[];
-        const manageButton = Array.from(
-            fixture.nativeElement.querySelectorAll('.context-header__action')
-        ).at(-1) as HTMLButtonElement | undefined;
+        const manageButton = fixture.nativeElement.querySelector(
+            '[data-test-id="context-manage-categories"]'
+        ) as HTMLButtonElement | null;
 
         expect(countTexts).toEqual(['3', '0']);
         expect(categoryButtons.every((button) => !button.disabled)).toBe(true);
@@ -491,6 +492,93 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.category-item .item-count')
         ).toBeNull();
+    });
+
+    describe('folded categories rail', () => {
+        let liveSidebarService: LiveLayoutSidebarStateService;
+
+        beforeEach(() => {
+            liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
+            liveSidebarService.setState('expanded');
+        });
+
+        afterEach(() => {
+            liveSidebarService.setState('expanded');
+        });
+
+        function hideButton(): HTMLButtonElement | null {
+            return fixture.nativeElement.querySelector(
+                '[data-test-id="context-hide-categories"]'
+            );
+        }
+
+        it('offers the hide-categories chevron on live sections of the sidebar and folds the rail', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+
+            const button = hideButton();
+            expect(button).not.toBeNull();
+            expect(button?.getAttribute('aria-label')).toBe(
+                'LAYOUT.HIDE_CATEGORIES'
+            );
+
+            button?.click();
+
+            expect(liveSidebarService.state()).toBe('categories-hidden');
+        });
+
+        it('offers it for Stalker itv and radio too', () => {
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'radio');
+            stalkerStore.selectedCategoryId.set('12');
+            fixture.detectChanges();
+
+            expect(hideButton()).not.toBeNull();
+        });
+
+        it('withholds the chevron while no category is selected (live root has no channels rail)', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedCategoryId.set(null);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('keeps VOD and series rails without the chevron', () => {
+            fixture.componentRef.setInput('section', 'vod');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('renders no chevron in the popover presentation, whose footer restores the rail instead', () => {
+            fixture.componentRef.setInput('section', 'live');
+            fixture.componentRef.setInput('presentation', 'popover');
+            xtreamSelectedCategoryId.set(1);
+            fixture.detectChanges();
+
+            expect(hideButton()).toBeNull();
+        });
+
+        it('reports a category selection so a popover host can close', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedTypeContentState.set('ready');
+            fixture.detectChanges();
+            const selected = jest.fn();
+            fixture.componentInstance.categorySelected.subscribe(selected);
+
+            const categoryButtons = Array.from(
+                fixture.nativeElement.querySelectorAll('.category-item')
+            ) as HTMLButtonElement[];
+            categoryButtons[1]?.click();
+
+            expect(selected).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('preserves the active xtream live item when switching live categories', () => {
