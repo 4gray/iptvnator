@@ -199,6 +199,58 @@ describe('withPortal', () => {
             expect(transformPlaylistMeta).not.toHaveBeenCalled();
         });
 
+        it('persists a late answer under the playlist that asked, never onto the one selected meanwhile', async () => {
+            const other: XtreamPlaylistData = {
+                ...PLAYLIST,
+                id: 'playlist-2',
+                name: 'Other portal',
+                serverUrl: 'https://other.example.com',
+            };
+            let answer!: (value: unknown) => void;
+            apiService.getAccountInfo.mockReturnValue(
+                new Promise((resolve) => {
+                    answer = resolve;
+                })
+            );
+
+            const pending = store.checkPortalStatus();
+            store.setCurrentPlaylist(other);
+            answer({
+                user_info: { auth: 1, exp_date: '0', status: 'Active' },
+                server_info: { timezone: 'Europe/London' },
+            });
+
+            await expect(pending).resolves.toBe('active');
+            expect(store.currentPlaylist()).toEqual(other);
+            expect(store.portalStatus()).toBe('unavailable');
+            expect(transformPlaylistMeta).toHaveBeenCalledWith(
+                PLAYLIST.id,
+                expect.any(Function)
+            );
+            expect(storedPlaylist.serverTimezone).toBe('Europe/London');
+        });
+
+        it('does not mark a playlist selected meanwhile unavailable for the earlier playlist’s failure', async () => {
+            const other: XtreamPlaylistData = { ...PLAYLIST, id: 'playlist-2' };
+            let fail!: (reason: unknown) => void;
+            apiService.getAccountInfo.mockReturnValue(
+                new Promise((_resolve, reject) => {
+                    fail = reject;
+                })
+            );
+
+            const pending = store.checkPortalStatus();
+            store.setCurrentPlaylist(other);
+            respondWith({ timezone: 'UTC' });
+            await store.checkPortalStatus();
+            expect(store.portalStatus()).toBe('active');
+
+            fail(new Error('panel down'));
+
+            await expect(pending).resolves.toBe('unavailable');
+            expect(store.portalStatus()).toBe('active');
+        });
+
         it('still reports the portal status when persisting the timezone fails', async () => {
             transformPlaylistMeta.mockImplementation(() => {
                 throw new Error('storage unavailable');

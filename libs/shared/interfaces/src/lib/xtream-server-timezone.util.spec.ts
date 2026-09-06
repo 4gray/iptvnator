@@ -206,6 +206,25 @@ describe('xtream-server-timezone.util', () => {
             ).toBe(Date.UTC(2026, 2, 29, 1, 30, 0) / 1000);
         });
 
+        it('rejects out-of-range fields instead of letting Date.UTC roll them over', () => {
+            expect(
+                parseXtreamServerLocalDateTime('2026-13-01 25:00:00', 'UTC')
+            ).toBeNull();
+            expect(
+                parseXtreamServerLocalDateTime('2026-02-30 10:00:00', 'UTC')
+            ).toBeNull();
+            expect(
+                parseXtreamServerLocalDateTime('2026-09-06 23:60:00', 'UTC')
+            ).toBeNull();
+            expect(
+                deriveXtreamServerUtcOffsetMinutes('2026-09-06 24:00:00', EPOCH)
+            ).toBeNull();
+            // A leap day is a real date.
+            expect(
+                parseXtreamServerLocalDateTime('2028-02-29 00:00:00', 'UTC')
+            ).toBe(Date.UTC(2028, 1, 29) / 1000);
+        });
+
         it('returns null for malformed strings or an unusable timezone', () => {
             expect(
                 parseXtreamServerLocalDateTime('2026-09-06', 'UTC')

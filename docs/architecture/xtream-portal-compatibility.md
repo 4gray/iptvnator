@@ -269,7 +269,11 @@ timezone is learned by `withPortal.checkPortalStatus()` and normalized by
 - otherwise (`UTC+3`, a typo, an unknown alias) the offset is derived from
   the clock pair the same response carries — `time_now` read as a naive UTC
   wall clock minus `timestamp_now`, snapped to 15 minutes — and stored as
-  `UTC±HH:MM`;
+  `UTC±HH:MM`. This is a snapshot without DST rules: for such a panel,
+  programmes on the far side of a DST switch are off by an hour until the
+  next account-info check refreshes the offset. Xtream Codes reports PHP
+  timezone identifiers (IANA names), so the snapshot only serves
+  non-standard servers, where the alternative was the viewer's clock;
 - with neither, nothing is stored and the URL falls back to the viewer's
   clock, the only remaining guess.
 

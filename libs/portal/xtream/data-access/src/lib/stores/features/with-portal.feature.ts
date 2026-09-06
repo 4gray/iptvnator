@@ -166,10 +166,17 @@ export function withPortal() {
                                   .map((format) => format.trim())
                                   .filter(Boolean)
                             : undefined;
-                        patchState(store, { portalStatus });
+                        // The answer belongs to the playlist whose
+                        // credentials were sent: its timezone is persisted
+                        // under THAT id regardless, while the store is
+                        // patched only if that playlist is still the
+                        // selected one — a source switch during the request
+                        // must not hand playlist A's status or clock to
+                        // playlist B.
                         const current = store.currentPlaylist();
-                        if (current) {
+                        if (current?.id === playlist.id) {
                             patchState(store, {
+                                portalStatus,
                                 currentPlaylist: {
                                     ...current,
                                     allowedOutputFormats,
@@ -178,20 +185,22 @@ export function withPortal() {
                                         : {}),
                                 },
                             });
-                            if (
-                                serverTimezone &&
-                                serverTimezone !== current.serverTimezone
-                            ) {
-                                await rememberServerTimezone(
-                                    current.id,
-                                    serverTimezone
-                                );
-                            }
+                        }
+                        if (
+                            serverTimezone &&
+                            serverTimezone !== playlist.serverTimezone
+                        ) {
+                            await rememberServerTimezone(
+                                playlist.id,
+                                serverTimezone
+                            );
                         }
                         return portalStatus;
                     } catch (error) {
                         logger.error('Error checking portal status', error);
-                        patchState(store, { portalStatus: 'unavailable' });
+                        if (store.currentPlaylist()?.id === playlist.id) {
+                            patchState(store, { portalStatus: 'unavailable' });
+                        }
                         return 'unavailable';
                     }
                 },

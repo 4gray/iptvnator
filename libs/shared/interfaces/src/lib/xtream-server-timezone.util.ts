@@ -110,6 +110,14 @@ export function deriveXtreamServerUtcOffsetMinutes(
  * The single persistable timezone string for a panel: its IANA name when
  * the runtime resolves it, else a fixed offset derived from the clock
  * fields, else `undefined` (nothing trustworthy was reported).
+ *
+ * The fixed offset is a snapshot of the panel's clock and carries no DST
+ * rules: for such a panel, programmes on the far side of a DST switch are
+ * off by an hour until the next account-info check refreshes the offset.
+ * That is the most a panel with an unusable name gives away — Xtream Codes
+ * itself reports PHP timezone identifiers, which are IANA names, so the
+ * snapshot only ever serves non-standard servers, where the alternative is
+ * the viewer's clock, wrong in every season.
  */
 export function resolveXtreamServerTimezone(
     serverInfo: XtreamServerClockInfo | null | undefined
@@ -269,15 +277,40 @@ function parseNaiveUtcMs(value: string | null | undefined): number | null {
         return null;
     }
     const [, year, month, day, hour, minute, second = '0'] = match;
-    const ms = Date.UTC(
+    const fields = [
         Number(year),
         Number(month) - 1,
         Number(day),
         Number(hour),
         Number(minute),
-        Number(second)
+        Number(second),
+    ];
+    const ms = Date.UTC(
+        fields[0],
+        fields[1],
+        fields[2],
+        fields[3],
+        fields[4],
+        fields[5]
     );
-    return Number.isFinite(ms) ? ms : null;
+    if (!Number.isFinite(ms)) {
+        return null;
+    }
+    // `Date.UTC` rolls out-of-range fields over (`2026-13-01 25:00` becomes
+    // a real instant in 2027); only a string that reads back unchanged is a
+    // date the panel actually wrote.
+    const date = new Date(ms);
+    const readBack = [
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate(),
+        date.getUTCHours(),
+        date.getUTCMinutes(),
+        date.getUTCSeconds(),
+    ];
+    return fields.every((field, index) => field === readBack[index])
+        ? ms
+        : null;
 }
 
 function pad(value: number): string {
