@@ -222,5 +222,11 @@ describe('VideoPlayerComponent — guide gating', () => {
         overlayContainer.remove();
         pressGuideKey();
         expect(component.guideOpen()).toBe(true);
+
+        // Once open, a G from inside a dialog must not close it either.
+        document.body.appendChild(overlayContainer);
+        pressGuideKey(dialogButton);
+        expect(component.guideOpen()).toBe(true);
+        overlayContainer.remove();
     });
 });

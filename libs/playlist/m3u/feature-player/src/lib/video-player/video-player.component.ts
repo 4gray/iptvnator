@@ -1321,8 +1321,9 @@ export class VideoPlayerComponent
             !event.ctrlKey &&
             !event.altKey;
         if (this.guideOpen()) {
-            // The guide owns the keyboard while open; only G toggles it off.
-            if (isGuideKey) {
+            // The guide owns the keyboard while open; only G toggles it off,
+            // and never from a dialog or menu that owns the keystroke.
+            if (isGuideKey && !this.isInsideOverlaySurface(event)) {
                 event.preventDefault();
                 this.closeGuide();
             }

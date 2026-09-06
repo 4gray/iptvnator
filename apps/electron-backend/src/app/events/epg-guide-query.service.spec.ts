@@ -549,6 +549,36 @@ describe('EpgGuideQueryService', () => {
         ).resolves.toEqual({ a: [] });
     });
 
+    it('keeps a provider key named __proto__ as an own response property', async () => {
+        getChannelMetadata.mockResolvedValue({
+            __proto__: { id: 'proto.tv', displayName: 'Proto', iconUrl: null },
+        });
+        getDatabase.mockResolvedValue({
+            select: programSelect(
+                [
+                    programRow(
+                        'proto.tv',
+                        '2026-09-06T16:00:00.000Z',
+                        '2026-09-06T16:45:00.000Z',
+                        'Proto show'
+                    ),
+                ],
+                []
+            ),
+        });
+
+        const result = await service.getProgramsForChannels({
+            channelIds: ['__proto__'],
+            fromMs: FROM,
+            toMs: TO,
+        });
+
+        expect(Object.prototype.hasOwnProperty.call(result, '__proto__')).toBe(
+            true
+        );
+        expect(result['__proto__'][0].title).toBe('Proto show');
+    });
+
     it('drops channel keys cut by the per-request cap from the result entirely', async () => {
         const ids = Array.from({ length: 101 }, (_, index) => `ch-${index}`);
         getChannelMetadata.mockResolvedValue({});

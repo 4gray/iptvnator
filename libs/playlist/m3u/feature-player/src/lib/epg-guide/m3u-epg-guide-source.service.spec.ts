@@ -180,6 +180,16 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.activeChannelId()).toBe('0:dup');
     });
 
+    it('marks the copy in the selected group when a stream is listed twice', () => {
+        const news = makeChannel('dup', { group: 'News' });
+        const sports = makeChannel('dup', { group: 'Sports' });
+        channels.set([news, sports]);
+        activeChannel.set({ ...sports });
+        expect(service.activeChannelId()).toBe('1:dup');
+        activeChannel.set({ ...news });
+        expect(service.activeChannelId()).toBe('0:dup');
+    });
+
     it('propagates a coverage failure so the guide keeps coverage unknown', async () => {
         getProgramCoverage.mockRejectedValue(new Error('bridge down'));
         await expect(

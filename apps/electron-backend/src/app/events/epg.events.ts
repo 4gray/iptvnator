@@ -293,7 +293,7 @@ export default class EpgEvents {
             ...args,
             channelIds: resolvedIds,
         });
-        const answer: Record<string, EpgProgram[]> = {};
+        const answer: Record<string, EpgProgram[]> = Object.create(null);
         for (const id of requested) {
             const key = this.resolvedGuideKey(mapping, id);
             if (Object.prototype.hasOwnProperty.call(programs, key)) {

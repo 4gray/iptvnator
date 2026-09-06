@@ -215,7 +215,9 @@ export class EpgGuideQueryService {
     }
 
     private emptyResult(channelIds: string[]): Record<string, EpgProgram[]> {
-        const result: Record<string, EpgProgram[]> = {};
+        // Null prototype: a provider key such as `__proto__` must become an
+        // own property, not hit the legacy setter.
+        const result: Record<string, EpgProgram[]> = Object.create(null);
         for (const id of channelIds) {
             result[id] = [];
         }
