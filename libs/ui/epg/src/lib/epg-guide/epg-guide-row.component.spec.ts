@@ -53,6 +53,9 @@ describe('EpgGuideRowComponent', () => {
         overrides: {
             status?: EpgGuideRowStatus;
             catchUpAvailable?: boolean;
+            rowFocused?: boolean;
+            focusedBlock?: number | null;
+            tabbable?: boolean;
         } = {}
     ): void {
         fixture.componentRef.setInput('channel', CHANNEL);
@@ -65,7 +68,24 @@ describe('EpgGuideRowComponent', () => {
             'catchUpAvailable',
             overrides.catchUpAvailable ?? false
         );
+        fixture.componentRef.setInput(
+            'rowFocused',
+            overrides.rowFocused ?? false
+        );
+        fixture.componentRef.setInput(
+            'focusedBlock',
+            overrides.focusedBlock ?? null
+        );
+        fixture.componentRef.setInput('tabbable', overrides.tabbable ?? false);
         fixture.detectChanges();
+    }
+
+    function tabIndexes(): (string | null)[] {
+        return fixture.debugElement
+            .queryAll(By.css('[data-epg-guide-grid]'))
+            .map((element) =>
+                (element.nativeElement as HTMLElement).getAttribute('tabindex')
+            );
     }
 
     beforeEach(() => {
@@ -167,6 +187,53 @@ describe('EpgGuideRowComponent', () => {
         expect(
             fixture.debugElement.query(By.css('.epg-guide-row__empty'))
         ).toBeNull();
+    });
+
+    it('moves the roving tabindex between the channel cell and the focused card', () => {
+        // [channel cell, card] — a row nobody points at is fully untabbable.
+        render([program('on now', -20, 40)]);
+        expect(tabIndexes()).toEqual(['-1', '-1']);
+
+        // The shell's fallback row: Tab lands on the channel cell.
+        render([program('on now', -20, 40)], { tabbable: true });
+        expect(tabIndexes()).toEqual(['0', '-1']);
+
+        // Keyboard focus on the row itself keeps it on the channel cell...
+        render([program('on now', -20, 40)], { rowFocused: true });
+        expect(tabIndexes()).toEqual(['0', '-1']);
+
+        // ...and moves to the card once a programme is focused.
+        render([program('on now', -20, 40)], {
+            rowFocused: true,
+            focusedBlock: 0,
+        });
+        expect(tabIndexes()).toEqual(['-1', '0']);
+    });
+
+    it('reports the clicked cell so the roving focus follows the mouse', () => {
+        render([program('on now', -20, 40)]);
+        const focused: (number | null)[] = [];
+        component.focusRequested.subscribe((block) => focused.push(block));
+
+        fixture.debugElement
+            .query(By.css('.epg-guide-row__channel'))
+            .nativeElement.click();
+        fixture.debugElement
+            .query(By.css('.epg-guide-row__block'))
+            .nativeElement.click();
+
+        expect(focused).toEqual([null, 0]);
+    });
+
+    it('exposes the grid roles the guide viewport announces', () => {
+        render([program('on now', -20, 40)]);
+
+        expect(fixture.nativeElement.getAttribute('role')).toBe('row');
+        expect(
+            fixture.debugElement
+                .queryAll(By.css('[role="gridcell"]'))
+                .map((cell) => (cell.nativeElement as HTMLElement).className)
+        ).toEqual(['epg-guide-row__channel-cell', 'epg-guide-row__lane']);
     });
 
     it('marks its channel cell and cards as guide-owned keyboard surfaces', () => {

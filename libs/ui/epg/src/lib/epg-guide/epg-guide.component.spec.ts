@@ -5,7 +5,7 @@ import { By } from '@angular/platform-browser';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { EpgGuideComponent } from './epg-guide.component';
 import {
@@ -16,6 +16,7 @@ import { EpgGuideToolbarComponent } from './epg-guide-toolbar.component';
 import {
     EPG_GUIDE_SOURCE,
     EpgGuideChannel,
+    EpgGuideSearchHit,
     EpgGuideSource,
 } from './epg-guide-source';
 
@@ -51,12 +52,16 @@ describe('EpgGuideComponent', () => {
     let component: EpgGuideComponent;
     const channels = signal<EpgGuideChannel[]>([]);
     const activeChannelId = signal<string | null>(null);
+    const offsetMinutes = signal(0);
+    const searchHits = signal<EpgGuideSearchHit[]>([]);
     const activate = jest.fn();
     const setScope = jest.fn();
     const dialogOpen = jest.fn(() => of(undefined));
 
     beforeEach(() => {
         localStorage.clear();
+        offsetMinutes.set(0);
+        searchHits.set([]);
         activate.mockReset();
         setScope.mockReset();
         dialogOpen.mockClear();
@@ -81,6 +86,7 @@ describe('EpgGuideComponent', () => {
             loadCoverage: async () => new Set(['a']),
             activeChannelId,
             activate,
+            searchPrograms: async () => searchHits(),
         };
         TestBed.configureTestingModule({
             imports: [EpgGuideComponent],
@@ -93,16 +99,19 @@ describe('EpgGuideComponent', () => {
                 { provide: MatDialog, useValue: { openDialogs: [] } },
                 {
                     provide: SettingsStore,
-                    useValue: { resolvedEpgOffsetMinutes: signal(0) },
+                    useValue: { resolvedEpgOffsetMinutes: offsetMinutes },
                 },
                 {
                     provide: TranslateService,
                     useValue: {
                         currentLang: 'en',
                         defaultLang: 'en',
-                        onLangChange: new BehaviorSubject(null),
-                        onTranslationChange: new BehaviorSubject(null),
-                        onDefaultLangChange: new BehaviorSubject(null),
+                        // Plain subjects: `TranslatePipe` reads `event.lang`
+                        // off every emission, so a replayed `null` would throw
+                        // inside its subscriber on the first render.
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
@@ -296,5 +305,81 @@ describe('EpgGuideComponent', () => {
             })
         );
         expect(blur).toHaveBeenCalled();
+    });
+
+    it('keeps one tabbable grid cell and follows the keyboard with DOM focus', async () => {
+        await settle(fixture);
+        const viewportEl: HTMLElement = fixture.debugElement.query(
+            By.css('cdk-virtual-scroll-viewport')
+        ).nativeElement;
+        viewportEl.scrollTo = jest.fn() as unknown as HTMLElement['scrollTo'];
+        const cells = (): HTMLElement[] =>
+            fixture.debugElement
+                .queryAll(By.css('.epg-guide-row__channel'))
+                .map((cell) => cell.nativeElement as HTMLElement);
+
+        // Nothing focused yet: the playing row is the grid's Tab stop.
+        expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
+            '0',
+            '-1',
+            '-1',
+        ]);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        await settle(fixture);
+
+        expect(component.focus()).toEqual({ row: 1, block: null });
+        expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
+            '-1',
+            '0',
+            '-1',
+        ]);
+        expect(document.activeElement).toBe(cells()[1]);
+
+        // A filter that drops the focused row must not leave the grid without
+        // a Tab stop: it falls back to the playing row.
+        component.setOnlyWithEpg(true);
+        await settle(fixture);
+        expect(component.rows().map((row) => row.id)).toEqual(['a']);
+        expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
+            '0',
+        ]);
+    });
+
+    it('moves the roving focus to a clicked programme card', async () => {
+        await settle(fixture);
+        const card = fixture.debugElement.query(
+            By.css('app-epg-guide-row .epg-guide-row__block')
+        );
+        expect(card).toBeTruthy();
+
+        card.nativeElement.click();
+        await settle(fixture);
+
+        expect(component.focus()).toEqual({ row: 0, block: 0 });
+        expect(card.nativeElement.getAttribute('tabindex')).toBe('0');
+    });
+
+    it('renders search hits at the display-offset time', async () => {
+        offsetMinutes.set(60);
+        const program = nowProgram('a');
+        searchHits.set([{ channelId: 'a', program }]);
+        await settle(fixture);
+
+        expect(component.searchHitStartMs({ channelId: 'a', program })).toBe(
+            Date.parse(program.start) + 60 * 60_000
+        );
+
+        component.onSearchQueryChange('now');
+        // The controller debounces for 300ms before it asks the host.
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        await settle(fixture);
+
+        const shifted = new Date(Date.parse(program.start) + 60 * 60_000);
+        const pad = (value: number) => `${value}`.padStart(2, '0');
+        expect(
+            fixture.debugElement.query(By.css('.epg-guide__search-meta'))
+                .nativeElement.textContent
+        ).toContain(`${pad(shifted.getHours())}:${pad(shifted.getMinutes())}`);
     });
 });

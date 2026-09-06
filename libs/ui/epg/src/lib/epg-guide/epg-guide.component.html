@@ -1,6 +1,6 @@
 <app-epg-guide-toolbar
-    [dayMs]="axis().startMs"
-    [isToday]="isToday()"
+    [dayMs]="view.axis().startMs"
+    [isToday]="view.isToday()"
     [currentLocale]="currentLocale()"
     [scopes]="scopes()"
     [scopeId]="scopeId()"
@@ -41,7 +41,7 @@
                 }}</span>
                 <span class="epg-guide__search-meta">
                     {{
-                        hit.program.start
+                        searchHitStartMs(hit)
                             | date: 'EEE d MMM HH:mm' : '' : currentLocale()
                     }}
                     · {{ hit.program.channel }}
@@ -66,10 +66,10 @@
         <div class="epg-guide__ruler-clip">
             <div
                 class="epg-guide__ruler-track"
-                [style.width.px]="trackWidthPx()"
-                [style.transform]="'translateX(' + -scrollLeft() + 'px)'"
+                [style.width.px]="view.trackWidthPx()"
+                [style.transform]="'translateX(' + -view.scrollLeft() + 'px)'"
             >
-                @for (tick of ticks(); track tick.ms) {
+                @for (tick of view.ticks(); track tick.ms) {
                     <div
                         class="epg-guide__tick"
                         [class.is-half]="tick.kind === 'half'"
@@ -78,12 +78,12 @@
                         {{ tick.ms | date: 'HH:mm' }}
                     </div>
                 }
-                @if (nowLeftPx() !== null) {
+                @if (view.nowLeftPx() !== null) {
                     <div
                         class="epg-guide__now-badge"
-                        [style.left.px]="nowLeftPx()"
+                        [style.left.px]="view.nowLeftPx()"
                     >
-                        {{ nowMs() | date: 'HH:mm' }}
+                        {{ view.nowMs() | date: 'HH:mm' }}
                     </div>
                 }
             </div>
@@ -93,6 +93,9 @@
     <cdk-virtual-scroll-viewport
         #viewport
         class="epg-guide__viewport"
+        role="grid"
+        [attr.aria-label]="'EPG.GUIDE.TITLE' | translate"
+        [attr.aria-rowcount]="rows().length"
         [itemSize]="rowHeightPx()"
         [minBufferPx]="rowHeightPx() * 6"
         [maxBufferPx]="rowHeightPx() * 12"
@@ -103,19 +106,22 @@
                 trackBy: trackRow;
                 let index = index
             "
+            [attr.aria-rowindex]="index + 1"
             [channel]="channel"
             [programs]="programsFor(channel.id)"
             [status]="statusFor(channel.id)"
-            [axis]="axis()"
+            [axis]="view.axis()"
             [hourWidthPx]="zoom()"
-            [nowMs]="nowMs()"
+            [nowMs]="view.nowMs()"
             [offsetMinutes]="offsetMinutes()"
             [catchUpAvailable]="catchUpAvailable"
             [active]="channel.id === activeChannelId()"
             [density]="density()"
             [rowFocused]="focus()?.row === index"
             [focusedBlock]="focusedBlockFor(index)"
+            [tabbable]="tabbableRow() === index"
             [style.height.px]="rowHeightPx()"
+            (focusRequested)="focusCell(index, $event)"
             (channelActivated)="activateRow(channel)"
             (channelCommitted)="commitRow(channel)"
             (detailsRequested)="openDetails(channel, $event)"
@@ -140,16 +146,16 @@
 
     <!-- Clipped to the lane so the line never paints over the sticky column. -->
     <div class="epg-guide__now-clip">
-        @if (nowLineLeftPx() !== null) {
+        @if (view.nowLineLeftPx() !== null) {
             <div
                 class="epg-guide__now-line"
-                [style.left.px]="nowLineLeftPx()"
+                [style.left.px]="view.nowLineLeftPx()"
             ></div>
         }
     </div>
 </div>
 
-<div class="epg-guide__keys" aria-hidden="true">
+<div class="epg-guide__keys">
     <span
         ><kbd>&uarr;</kbd><kbd>&darr;</kbd
         >{{ 'EPG.GUIDE.KEYS.CHANNEL' | translate }}</span

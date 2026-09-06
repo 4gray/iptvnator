@@ -190,6 +190,33 @@ describe('EpgGuideViewportController', () => {
         expect(test.scrollToIndex).not.toHaveBeenCalled();
     });
 
+    it('gives the DOM focus to the cell holding the roving tabindex', () => {
+        const test = harness();
+        const passive = document.createElement('div');
+        passive.setAttribute('data-epg-guide-grid', '');
+        passive.tabIndex = -1;
+        const roving = document.createElement('div');
+        roving.setAttribute('data-epg-guide-grid', '');
+        roving.tabIndex = 0;
+        test.element.append(passive, roving);
+        document.body.append(test.element);
+
+        test.controller.focusRovingTarget();
+        expect(document.activeElement).toBe(roving);
+
+        // Nothing tabbable (a row scrolled out of the rendered range): the
+        // current focus is left alone rather than reset.
+        roving.remove();
+        const outside = document.createElement('button');
+        document.body.append(outside);
+        outside.focus();
+        test.controller.focusRovingTarget();
+        expect(document.activeElement).toBe(outside);
+
+        outside.remove();
+        test.element.remove();
+    });
+
     it('reveals the focused row and block, and ignores a null focus', () => {
         const test = harness();
         test.controller.revealFocus({ row: 40, block: 1 });

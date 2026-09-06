@@ -34,6 +34,7 @@ import { EpgGuideChannel } from './epg-guide-source';
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         class: 'epg-guide-row',
+        role: 'row',
         '[class.is-active]': 'active()',
         '[class.is-focused]': 'rowFocused()',
         '[class.is-compact]': 'density() === "compact"',
@@ -52,6 +53,12 @@ export class EpgGuideRowComponent {
     readonly density = input<EpgGuideDensity>('comfortable');
     readonly rowFocused = input(false);
     readonly focusedBlock = input<number | null>(null);
+    /**
+     * True when this row owns the grid's single `tabindex="0"` — the shell
+     * hands it to the focused row, else the playing one, else the first, so
+     * Tab always reaches the grid.
+     */
+    readonly tabbable = input(false);
 
     /** Single click on the channel cell or the on-now card. */
     readonly channelActivated = output<void>();
@@ -59,6 +66,12 @@ export class EpgGuideRowComponent {
     readonly channelCommitted = output<void>();
     readonly detailsRequested = output<TimelineRenderBlock>();
     readonly watchRequested = output<TimelineRenderBlock>();
+    /**
+     * A pointer landed on a grid cell: the block's index, or `null` for the
+     * channel cell. The shell moves its keyboard focus there so the roving
+     * tabindex follows the mouse.
+     */
+    readonly focusRequested = output<number | null>();
 
     readonly blocks = computed(() =>
         buildGuideRowBlocks(this.programs(), {
@@ -82,7 +95,25 @@ export class EpgGuideRowComponent {
     );
     readonly isLoading = computed(() => this.status() === 'loading');
 
-    onBlockClick(item: TimelineRenderBlock): void {
+    /** This row holds the roving `tabindex="0"` while it is focused or picked. */
+    private readonly roving = computed(
+        () => this.tabbable() || this.rowFocused()
+    );
+    readonly channelTabIndex = computed(() =>
+        this.roving() && this.focusedBlock() === null ? 0 : -1
+    );
+
+    blockTabIndex(index: number): number {
+        return this.roving() && this.focusedBlock() === index ? 0 : -1;
+    }
+
+    onChannelClick(): void {
+        this.focusRequested.emit(null);
+        this.channelActivated.emit();
+    }
+
+    onBlockClick(item: TimelineRenderBlock, index: number): void {
+        this.focusRequested.emit(index);
         if (item.block.when === 'now') {
             this.channelActivated.emit();
         } else {

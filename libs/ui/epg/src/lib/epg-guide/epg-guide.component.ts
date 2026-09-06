@@ -12,10 +12,9 @@ import {
     effect,
     HostListener,
     inject,
+    Injector,
     OnDestroy,
-    OnInit,
     output,
-    signal,
     untracked,
     viewChild,
 } from '@angular/core';
@@ -28,30 +27,15 @@ import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram, epgProviderClockMs } from '@iptvnator/shared/interfaces';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import {
-    EpgDateNavigationDirection,
-    getTodayEpgDateKey,
-    shiftEpgDateKey,
-} from '../epg-date';
-import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
+import { EpgDateNavigationDirection } from '../epg-date';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
+import { EpgGuideDialogController } from './epg-guide-dialog.controller';
 import { EpgGuideKeyboardController } from './epg-guide-keyboard.controller';
 import {
-    buildGuideDayAxis,
-    buildGuideRowBlocks,
-    buildGuideTicks,
     EPG_GUIDE_CHANNEL_COLUMN_PX,
-    EPG_GUIDE_ROW_HEIGHT_PX,
     EpgGuideDensity,
-    guideNowLeftPx,
-    guideTrackWidthPx,
 } from './epg-guide-layout.util';
-import {
-    clampGuideZoom,
-    persistEpgGuidePreferences,
-    restoreEpgGuidePreferences,
-} from './epg-guide-preferences';
 import {
     EpgGuideProgramsService,
     EpgGuideRowStatus,
@@ -64,12 +48,15 @@ import {
     EpgGuideSearchHit,
 } from './epg-guide-source';
 import { EpgGuideToolbarComponent } from './epg-guide-toolbar.component';
+import { EpgGuideViewState } from './epg-guide-view-state';
 import { EpgGuideViewportController } from './epg-guide-viewport.controller';
 
 /**
  * Multi-channel programme guide. Reads everything from `EPG_GUIDE_SOURCE`;
- * owns the selected day, zoom, density, filters and keyboard navigation.
- * Rows are virtualised; the channel column and the ruler are sticky.
+ * owns the rows, the keyboard focus and the viewport, and delegates the view
+ * state (day, zoom, density, filters, clock) and the programme dialogs to
+ * their own controllers. Rows are virtualised; the channel column and the
+ * ruler are sticky.
  */
 @Component({
     selector: 'app-epg-guide',
@@ -87,14 +74,14 @@ import { EpgGuideViewportController } from './epg-guide-viewport.controller';
     styleUrl: './epg-guide.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EpgGuideComponent implements OnInit, OnDestroy {
+export class EpgGuideComponent implements OnDestroy {
     private readonly source = inject(EPG_GUIDE_SOURCE);
     private readonly programsService = inject(EpgGuideProgramsService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly programmeDialog = inject(EpgProgrammeDialogService);
     private readonly dialog = inject(MatDialog);
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly injector = inject(Injector);
 
     readonly close = output<void>();
     /**
@@ -106,14 +93,14 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
 
     readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
 
-    private readonly preferences = restoreEpgGuidePreferences();
-    readonly dayKey = signal(getTodayEpgDateKey());
-    readonly zoom = signal(this.preferences.zoom);
-    readonly density = signal<EpgGuideDensity>(this.preferences.density);
-    readonly onlyWithEpg = signal(this.preferences.onlyWithEpg);
-    readonly filter = signal('');
-    readonly nowMs = signal(Date.now());
-    readonly scrollLeft = signal(0);
+    /** Day, zoom, density, filters, clock and the derived day geometry. */
+    readonly view = new EpgGuideViewState();
+    readonly dayKey = this.view.dayKey;
+    readonly zoom = this.view.zoom;
+    readonly density = this.view.density;
+    readonly onlyWithEpg = this.view.onlyWithEpg;
+    readonly filter = this.view.filter;
+    readonly rowHeightPx = this.view.rowHeightPx;
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -140,47 +127,12 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
     readonly catchUpAvailable = this.source.catchUp !== undefined;
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
-    readonly axis = computed(() => buildGuideDayAxis(this.dayKey()));
-    readonly isToday = computed(() => {
-        this.nowMs();
-        return this.dayKey() === getTodayEpgDateKey();
-    });
-    readonly ticks = computed(() => buildGuideTicks(this.axis(), this.zoom()));
-    readonly trackWidthPx = computed(() =>
-        guideTrackWidthPx(this.axis(), this.zoom())
-    );
-    readonly nowLeftPx = computed(() =>
-        guideNowLeftPx(this.axis(), this.nowMs(), this.zoom())
-    );
-    /**
-     * The now-line's x inside the scrolling lane, or `null` when it is not on
-     * the selected day or has scrolled behind the sticky channel column — the
-     * clip layer starts at the column's right edge, so a negative offset would
-     * otherwise be painted under it.
-     */
-    readonly nowLineLeftPx = computed(() => {
-        const nowX = this.nowLeftPx();
-        if (nowX === null) {
-            return null;
-        }
-        const left = nowX - this.scrollLeft();
-        return left >= 0 ? left : null;
-    });
-    readonly rowHeightPx = computed(
-        () => EPG_GUIDE_ROW_HEIGHT_PX[this.density()]
-    );
     readonly totalCount = computed(() => this.source.channels().length);
-    readonly rows = computed(() => {
-        const needle = this.filter().trim().toLowerCase();
-        const onlyWithEpg = this.onlyWithEpg();
-        return this.source
-            .channels()
-            .filter(
-                (channel) =>
-                    (!needle || channel.name.toLowerCase().includes(needle)) &&
-                    (!onlyWithEpg || this.programsService.isCovered(channel.id))
-            );
-    });
+    readonly rows = computed(() =>
+        this.view.filterRows(this.source.channels(), (channelId) =>
+            this.programsService.isCovered(channelId)
+        )
+    );
     readonly activeRowIndex = computed(() => {
         const activeId = this.activeChannelId();
         return activeId === null
@@ -201,6 +153,17 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         close: () => this.close.emit(),
     });
     readonly focus = this.keyboard.focus;
+    /**
+     * The row that carries the grid's single `tabindex="0"`: the focused one,
+     * else the playing one, else the first — so Tab always reaches the grid,
+     * and lands where the keyboard left off. A focus left behind by a filter
+     * that dropped its row falls back too, or nothing would be tabbable.
+     */
+    readonly tabbableRow = computed(() => {
+        const fallback = Math.max(0, this.activeRowIndex());
+        const row = this.focus()?.row ?? fallback;
+        return row < this.rows().length ? row : fallback;
+    });
 
     private readonly viewportController = new EpgGuideViewportController({
         viewport: () => this.viewport(),
@@ -210,14 +173,23 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         blocksFor: (row) => this.blocksFor(row),
         activeRow: () => this.activeRowIndex(),
         ensureLoaded: (channels) => this.programsService.ensureLoaded(channels),
-        setScrollLeft: (left) => this.scrollLeft.set(left),
+        setScrollLeft: (left) => this.view.scrollLeft.set(left),
     });
 
-    private minuteTimer?: number;
+    private readonly dialogs = new EpgGuideDialogController(
+        inject(EpgProgrammeDialogService),
+        {
+            rows: () => this.rows(),
+            offsetMinutes: () => this.offsetMinutes(),
+            focusRow: (rowIndex) => this.revealRow(rowIndex),
+            activate: (channel) => this.activateRow(channel),
+            catchUp: () => this.source.catchUp,
+        }
+    );
 
     constructor() {
         effect(() => {
-            const axis = this.axis();
+            const axis = this.view.axis();
             const offset = this.offsetMinutes();
             untracked(() => {
                 this.programsService.setWindow(
@@ -231,13 +203,6 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
             this.rows();
             untracked(() => this.viewportController.loadRenderedRange());
         });
-        effect(() =>
-            persistEpgGuidePreferences({
-                density: this.density(),
-                zoom: this.zoom(),
-                onlyWithEpg: this.onlyWithEpg(),
-            })
-        );
         effect(() => {
             const viewport = this.viewport();
             if (!viewport) {
@@ -250,24 +215,28 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         afterNextRender(() => this.jumpNow(false));
     }
 
-    ngOnInit(): void {
-        this.minuteTimer = window.setInterval(
-            () => this.nowMs.set(Date.now()),
-            60_000
-        );
-    }
-
     ngOnDestroy(): void {
-        window.clearInterval(this.minuteTimer);
+        this.view.destroy();
         this.search.destroy();
     }
 
+    /**
+     * The grid's keys are handled at the document, so the focused cell needs no
+     * listener of its own — but it must own the DOM focus, or a screen reader
+     * would still announce whatever the user tabbed from. The roving
+     * `tabindex="0"` moves with the signal, so the element to focus only exists
+     * after the next render.
+     */
     @HostListener('document:keydown', ['$event'])
     onKeydown(event: KeyboardEvent): void {
-        if (this.keyboard.handle(event)) {
-            event.preventDefault();
-            this.viewportController.revealFocus(this.focus());
+        if (!this.keyboard.handle(event)) {
+            return;
         }
+        event.preventDefault();
+        this.viewportController.revealFocus(this.focus());
+        afterNextRender(() => this.viewportController.focusRovingTarget(), {
+            injector: this.injector,
+        });
     }
 
     trackRow(_index: number, channel: EpgGuideChannel): string {
@@ -287,15 +256,19 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         return focused?.row === row ? focused.block : null;
     }
 
+    /** Pointer focus: the roving tabindex follows the mouse, without scrolling. */
+    focusCell(row: number, block: number | null): void {
+        this.focus.set({ row, block });
+    }
+
     stepDay(direction: EpgDateNavigationDirection): void {
-        this.dayKey.set(shiftEpgDateKey(this.dayKey(), direction));
+        this.view.stepDay(direction);
         this.focus.set(null);
     }
 
     jumpNow(animate = true): void {
-        this.dayKey.set(getTodayEpgDateKey());
-        this.nowMs.set(Date.now());
-        this.viewportController.scrollToNow(this.nowLeftPx(), animate);
+        this.view.goToToday();
+        this.viewportController.scrollToNow(this.view.nowLeftPx(), animate);
     }
 
     setScope(scopeId: string): void {
@@ -304,19 +277,19 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
     }
 
     setOnlyWithEpg(value: boolean): void {
-        this.onlyWithEpg.set(value);
+        this.view.onlyWithEpg.set(value);
     }
 
     setDensity(value: EpgGuideDensity): void {
-        this.density.set(value);
+        this.view.density.set(value);
     }
 
     setZoom(value: number): void {
-        this.zoom.set(clampGuideZoom(value));
+        this.view.setZoom(value);
     }
 
     setFilter(value: string): void {
-        this.filter.set(value);
+        this.view.filter.set(value);
         this.focus.set(null);
     }
 
@@ -324,32 +297,23 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         this.search.setQuery(query);
     }
 
-    /**
-     * Open a search hit. When the host resolved the hit's row, focus and reveal
-     * it and label the dialog with that channel; an unresolved hit still opens,
-     * just without a channel.
-     */
     openSearchResult(hit: EpgGuideSearchHit): void {
-        const rowIndex =
-            hit.channelId === null
-                ? -1
-                : this.rows().findIndex((row) => row.id === hit.channelId);
-        const channel = rowIndex < 0 ? null : this.rows()[rowIndex];
-        if (channel) {
-            this.focus.set({ row: rowIndex, block: null });
-            this.viewportController.revealFocus(this.focus());
-        }
-        this.programmeDialog
-            .open(
-                channel
-                    ? {
-                          ...hit.program,
-                          channelName: channel.name,
-                          channelLogo: channel.logoUrl,
-                      }
-                    : { ...hit.program }
-            )
-            .subscribe();
+        this.dialogs.openSearchResult(hit);
+    }
+
+    searchHitStartMs(hit: EpgGuideSearchHit): number {
+        return this.dialogs.searchHitStartMs(hit);
+    }
+
+    openDetails(
+        channel: EpgGuideChannel | undefined,
+        item: TimelineRenderBlock | undefined
+    ): void {
+        this.dialogs.openDetails(channel, item);
+    }
+
+    watch(channel: EpgGuideChannel, item: TimelineRenderBlock): void {
+        this.dialogs.watch(channel, item);
     }
 
     /**
@@ -373,54 +337,19 @@ export class EpgGuideComponent implements OnInit, OnDestroy {
         this.close.emit();
     }
 
-    openDetails(
-        channel: EpgGuideChannel | undefined,
-        item: TimelineRenderBlock | undefined
-    ): void {
-        if (!channel || !item) {
-            return;
-        }
-        const when = item.block.when;
-        this.programmeDialog
-            .open({
-                ...item.block.program,
-                channelName: channel.name,
-                channelLogo: channel.logoUrl,
-                primaryAction:
-                    when === 'now'
-                        ? 'live'
-                        : item.canCatchUp
-                          ? 'timeshift'
-                          : null,
-                archiveUnavailableNote: when === 'past' && !item.canCatchUp,
-            })
-            .subscribe((result: EpgItemDialogAction | undefined) => {
-                if (result === 'live') {
-                    this.activateRow(channel);
-                } else if (result === 'timeshift') {
-                    this.source.catchUp?.watch(channel, item.block.program);
-                }
-            });
-    }
-
-    watch(channel: EpgGuideChannel, item: TimelineRenderBlock): void {
-        this.source.catchUp?.watch(channel, item.block.program);
+    private revealRow(rowIndex: number): void {
+        this.focus.set({ row: rowIndex, block: null });
+        this.viewportController.revealFocus(this.focus());
     }
 
     private blocksFor(row: number): TimelineRenderBlock[] {
         const channel = this.rows()[row];
-        if (!channel) {
-            return [];
-        }
-        return buildGuideRowBlocks(
-            this.programsService.programsFor(channel.id),
-            {
-                axis: this.axis(),
-                hourWidthPx: this.zoom(),
-                nowMs: this.nowMs(),
-                offsetMinutes: this.offsetMinutes(),
-                catchUpAvailable: this.catchUpAvailable,
-            }
-        );
+        return channel
+            ? this.view.blocksFor(
+                  this.programsService.programsFor(channel.id),
+                  this.offsetMinutes(),
+                  this.catchUpAvailable
+              )
+            : [];
     }
 }

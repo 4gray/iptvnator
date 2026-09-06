@@ -1,41 +1,47 @@
-<div
-    class="epg-guide-row__channel"
-    role="button"
-    tabindex="-1"
-    data-epg-guide-grid
-    [attr.aria-label]="channel().name"
-    [attr.aria-pressed]="active()"
-    (click)="channelActivated.emit()"
-    (dblclick)="channelCommitted.emit()"
->
-    <span class="epg-guide-row__num">{{ channel().number }}</span>
-    <span class="epg-guide-row__logo">
-        @if (channel().logoUrl; as logo) {
-            <img [src]="logo" alt="" loading="lazy" />
-        } @else {
-            <mat-icon>live_tv</mat-icon>
+<div class="epg-guide-row__channel-cell" role="gridcell">
+    <div
+        class="epg-guide-row__channel"
+        role="button"
+        data-epg-guide-grid
+        [attr.tabindex]="channelTabIndex()"
+        [attr.aria-label]="channel().name"
+        [attr.aria-pressed]="active()"
+        (click)="onChannelClick()"
+        (dblclick)="channelCommitted.emit()"
+    >
+        <span class="epg-guide-row__num">{{ channel().number }}</span>
+        <span class="epg-guide-row__logo">
+            @if (channel().logoUrl; as logo) {
+                <img [src]="logo" alt="" loading="lazy" />
+            } @else {
+                <mat-icon>live_tv</mat-icon>
+            }
+        </span>
+        <span class="epg-guide-row__name">
+            <b>{{ channel().name }}</b>
+            @if (density() === 'comfortable') {
+                <small>
+                    @if (active()) {
+                        &#9654; {{ 'EPG.GUIDE.PLAYING' | translate }}
+                    } @else if (nowBlock(); as now) {
+                        {{ now.block.program.title }}
+                    } @else if (showEmpty()) {
+                        {{ 'EPG.GUIDE.NO_PROGRAMME_INFO' | translate }}
+                    }
+                </small>
+            }
+        </span>
+        @if (active()) {
+            <mat-icon class="epg-guide-row__playing">equalizer</mat-icon>
         }
-    </span>
-    <span class="epg-guide-row__name">
-        <b>{{ channel().name }}</b>
-        @if (density() === 'comfortable') {
-            <small>
-                @if (active()) {
-                    &#9654; {{ 'EPG.GUIDE.PLAYING' | translate }}
-                } @else if (nowBlock(); as now) {
-                    {{ now.block.program.title }}
-                } @else if (showEmpty()) {
-                    {{ 'EPG.GUIDE.NO_PROGRAMME_INFO' | translate }}
-                }
-            </small>
-        }
-    </span>
-    @if (active()) {
-        <mat-icon class="epg-guide-row__playing">equalizer</mat-icon>
-    }
+    </div>
 </div>
 
-<div class="epg-guide-row__lane" [style.width.px]="trackWidthPx()">
+<div
+    class="epg-guide-row__lane"
+    role="gridcell"
+    [style.width.px]="trackWidthPx()"
+>
     @if (showEmpty()) {
         <span class="epg-guide-row__empty">{{
             'EPG.GUIDE.NO_PROGRAMME_INFO_LONG' | translate
@@ -58,8 +64,8 @@
         <div
             class="epg-guide-row__block"
             role="button"
-            tabindex="-1"
             data-epg-guide-grid
+            [attr.tabindex]="blockTabIndex(index)"
             [attr.data-tier]="item.tier"
             [class.is-past]="item.block.when === 'past'"
             [class.is-now]="item.block.when === 'now'"
@@ -74,7 +80,7 @@
                     : ''
             "
             [attr.aria-label]="item.block.program.title"
-            (click)="onBlockClick(item)"
+            (click)="onBlockClick(item, index)"
             (dblclick)="onBlockDoubleClick(item)"
         >
             @if (item.block.when === 'now') {

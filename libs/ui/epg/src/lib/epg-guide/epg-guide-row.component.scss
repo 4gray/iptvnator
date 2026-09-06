@@ -17,20 +17,35 @@
     }
 }
 
-.epg-guide-row__channel {
+// The grid cell holding the channel column; the button inside it is the
+// keyboard/roving-focus target.
+.epg-guide-row__channel-cell {
     position: sticky;
     left: 0;
     z-index: 2;
     flex: 0 0 var(--epg-guide-channel-col, 232px);
     display: flex;
+    box-sizing: border-box;
+    background: inherit;
+    border-right: 1px solid $line-strong;
+}
+
+.epg-guide-row__channel {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
     align-items: center;
     gap: 10px;
     padding: 0 12px 0 14px;
     box-sizing: border-box;
-    background: inherit;
-    border-right: 1px solid $line-strong;
     cursor: pointer;
     color: $text-primary;
+
+    &:focus-visible {
+        outline: 2px solid $accent-blue;
+        outline-offset: -2px;
+    }
 
     :host(.is-active) &::before {
         content: '';
@@ -167,7 +182,8 @@
         transform: translateY(-1px);
         z-index: 3;
     }
-    &.is-focused {
+    &.is-focused,
+    &:focus-visible {
         outline: 2px solid $accent-blue;
         outline-offset: 1px;
         z-index: 3;

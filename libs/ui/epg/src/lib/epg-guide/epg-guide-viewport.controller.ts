@@ -124,6 +124,22 @@ export class EpgGuideViewportController {
         }
     }
 
+    /**
+     * Give the DOM focus to whichever grid cell currently carries the roving
+     * `tabindex="0"`, so assistive technology follows the guide's keyboard
+     * navigation. Scrolling is `revealFocus`'s job, hence `preventScroll`.
+     * Call it after the render that moved the tabindex.
+     */
+    focusRovingTarget(): void {
+        const element = this.host.viewport()?.elementRef.nativeElement;
+        const target = element?.querySelector<HTMLElement>(
+            '[data-epg-guide-grid][tabindex="0"]'
+        );
+        if (typeof target?.focus === 'function') {
+            target.focus({ preventScroll: true });
+        }
+    }
+
     /** Keep the keyboard focus target inside the viewport, both axes. */
     revealFocus(focused: EpgGuideFocus | null): void {
         const viewport = this.host.viewport();
