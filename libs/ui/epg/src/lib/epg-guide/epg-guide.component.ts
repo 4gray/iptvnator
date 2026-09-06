@@ -348,7 +348,15 @@ export class EpgGuideComponent implements OnDestroy {
      * left alone; `commitRow` then only closes.
      */
     activateRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel || channel.id === this.activeChannelId()) {
+        if (!channel) {
+            return;
+        }
+        // The active row is left alone only while its live stream plays; in
+        // catch-up the same click is the way back to live.
+        const alreadyLive =
+            channel.id === this.activeChannelId() &&
+            (this.source.livePlayback?.() ?? true);
+        if (alreadyLive) {
             return;
         }
         this.source.activate(channel.id);

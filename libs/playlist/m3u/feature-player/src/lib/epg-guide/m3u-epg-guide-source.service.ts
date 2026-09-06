@@ -29,6 +29,8 @@ export interface M3uEpgGuideInputs {
      */
     favoriteKeys: Signal<string[]>;
     activeChannel: Signal<Channel | null>;
+    /** The catch-up/archive URL the host plays instead of the live stream, if any. */
+    activePlaybackUrl: Signal<string | null>;
     /**
      * Group the sidebar's groups view currently shows, by title. The guide
      * opens on what the user was looking at, which is not necessarily the
@@ -179,6 +181,9 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
             sameId[0];
         return match?.rowId ?? null;
     });
+
+    /** Live unless the host plays a catch-up URL for the active channel. */
+    readonly livePlayback = computed(() => !this.inputs()?.activePlaybackUrl());
 
     bind(inputs: M3uEpgGuideInputs): void {
         this.inputs.set(inputs);

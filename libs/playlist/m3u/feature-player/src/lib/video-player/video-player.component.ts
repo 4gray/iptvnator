@@ -730,6 +730,7 @@ export class VideoPlayerComponent
             // nullable, so normalize rather than widen the shared type.
             activeChannel: computed(() => this.activeChannel() ?? null),
             selectedGroup: this.selectedSidebarGroup.asReadonly(),
+            activePlaybackUrl: this.activePlaybackUrl,
         });
         // Radio, a recognised movie, or a lost channel takes the guide's host
         // (and its player) away — close instead of leaving it stranded.

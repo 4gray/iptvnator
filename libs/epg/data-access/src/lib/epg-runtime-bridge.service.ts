@@ -8,6 +8,7 @@ import {
     ElectronBridgeEpgProgress,
     ElectronBridgeEpgProgressStats,
     ElectronBridgeEpgProgressStatus,
+    ElectronBridgeEpgSearchProgram,
     ElectronBridgeEpgSearchResult,
     ElectronBridgeEpgGuideWindow,
     ElectronBridgeEpgFreshnessResult,
@@ -234,7 +235,7 @@ export class EpgRuntimeBridgeService {
     searchPrograms(
         searchTerm: string,
         limit?: number
-    ): Promise<EpgProgram[] | null> {
+    ): Promise<ElectronBridgeEpgSearchProgram[] | null> {
         if (!this.supportsProgramSearch) {
             return Promise.resolve(null);
         }

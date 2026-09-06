@@ -68,6 +68,12 @@ export interface EpgGuideSource {
     /** Ids of channels with at least one programme in the window. */
     loadCoverage(range: EpgGuideWindow): Promise<Set<string>>;
     readonly activeChannelId: Signal<string | null>;
+    /**
+     * False while the host plays something other than the active channel's
+     * live stream (catch-up/archive). The guide then lets the active row be
+     * activated again, which is how the host returns to live.
+     */
+    readonly livePlayback?: Signal<boolean>;
     /** Switch playback; the guide stays open. */
     activate(channelId: string): void;
     /** Optional programme search; the toolbar hides its field when absent. */

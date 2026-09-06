@@ -60,6 +60,7 @@ describe('EpgGuideComponent', () => {
     let component: EpgGuideComponent;
     const channels = signal<EpgGuideChannel[]>([]);
     const activeChannelId = signal<string | null>(null);
+    const livePlayback = signal(true);
     const offsetMinutes = signal(0);
     const searchHits = signal<EpgGuideSearchHit[]>([]);
     const activate = jest.fn();
@@ -79,6 +80,7 @@ describe('EpgGuideComponent', () => {
             channel('c', 'c', 3),
         ]);
         activeChannelId.set('a');
+        livePlayback.set(true);
         const source: EpgGuideSource = {
             channels,
             scopes: signal([{ id: 'all', label: 'All channels', kind: 'all' }]),
@@ -93,6 +95,7 @@ describe('EpgGuideComponent', () => {
                 ),
             loadCoverage: async () => new Set(['a']),
             activeChannelId,
+            livePlayback,
             activate,
             searchPrograms: async () => searchHits(),
         };
@@ -215,6 +218,17 @@ describe('EpgGuideComponent', () => {
             })
         );
         expect(activate).toHaveBeenCalledWith('c');
+    });
+
+    it('re-activates the active row while catch-up plays, so the host can return to live', async () => {
+        livePlayback.set(false);
+        await settle(fixture);
+        component.activateRow(component.rows()[0]);
+        expect(activate).toHaveBeenCalledWith('a');
+        livePlayback.set(true);
+        activate.mockClear();
+        component.activateRow(component.rows()[0]);
+        expect(activate).not.toHaveBeenCalled();
     });
 
     it('drops the programme search when the scope changes', async () => {

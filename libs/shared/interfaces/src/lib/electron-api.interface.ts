@@ -357,6 +357,11 @@ export interface ElectronBridgeEpgMapping {
     playlistId: string | null;
 }
 
+/** A programme-search hit: the programme plus the XMLTV channel's display name. */
+export interface ElectronBridgeEpgSearchProgram extends EpgProgram {
+    channelName: string | null;
+}
+
 export interface ElectronBridgeEpgSearchResult {
     id: string;
     displayName: string;
@@ -830,7 +835,7 @@ export interface ElectronBridgeApi {
     searchEpgPrograms: (
         searchTerm: string,
         limit?: number
-    ) => Promise<EpgProgram[]>;
+    ) => Promise<ElectronBridgeEpgSearchProgram[]>;
 
     // EPG channel mapping (manual user overrides)
     getEpgMapping: (

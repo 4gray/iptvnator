@@ -45,6 +45,7 @@ describe('M3uEpgGuideSourceService', () => {
     const channels = signal<Channel[]>([]);
     const favoriteKeys = signal<string[]>([]);
     const activeChannel = signal<Channel | null>(null);
+    const activePlaybackUrl = signal<string | null>(null);
     const selectedGroup = signal<string | null>(null);
     const dispatch = jest.fn();
     const getProgramsForChannels = jest.fn();
@@ -97,7 +98,13 @@ describe('M3uEpgGuideSourceService', () => {
             ],
         });
         service = TestBed.inject(M3uEpgGuideSourceService);
-        service.bind({ channels, favoriteKeys, activeChannel, selectedGroup });
+        service.bind({
+            channels,
+            favoriteKeys,
+            activeChannel,
+            activePlaybackUrl,
+            selectedGroup,
+        });
     });
 
     it('offers all / groups / favorites scopes and lists channels in playlist order', () => {
@@ -203,6 +210,12 @@ describe('M3uEpgGuideSourceService', () => {
         expect(service.activeChannelId()).toBe('0:dup');
     });
 
+    it('reports live playback unless the host plays a catch-up url', () => {
+        expect(service.livePlayback()).toBe(true);
+        activePlaybackUrl.set('https://example.com/archive.m3u8');
+        expect(service.livePlayback()).toBe(false);
+    });
+
     it('propagates a coverage failure so the guide keeps coverage unknown', async () => {
         getProgramCoverage.mockRejectedValue(new Error('bridge down'));
         await expect(
@@ -241,6 +254,7 @@ describe('M3uEpgGuideSourceService', () => {
             channels: duplicated,
             favoriteKeys,
             activeChannel: signal<Channel | null>(duplicated()[0]),
+            activePlaybackUrl,
             selectedGroup,
         });
 
@@ -303,6 +317,7 @@ describe('M3uEpgGuideSourceService', () => {
             channels: sportsOnlyChannels,
             favoriteKeys,
             activeChannel: newsActiveChannel,
+            activePlaybackUrl,
             selectedGroup,
         });
 
