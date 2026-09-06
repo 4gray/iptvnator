@@ -30,6 +30,7 @@ describe('epg-guide-preferences', () => {
         });
         persistEpgGuideDockCollapsed(true);
         expect(localStorage.getItem(EPG_GUIDE_DENSITY_KEY)).toBe('compact');
+        expect(localStorage.getItem(EPG_GUIDE_ZOOM_KEY)).toBe('480');
         expect(localStorage.getItem(EPG_GUIDE_ONLY_WITH_EPG_KEY)).toBe('1');
         expect(localStorage.getItem(EPG_GUIDE_DOCK_COLLAPSED_KEY)).toBe('1');
         expect(restoreEpgGuidePreferences()).toEqual({
@@ -62,6 +63,10 @@ describe('epg-guide-preferences', () => {
                 broken
             )
         ).not.toThrow();
-        expect(restoreEpgGuidePreferences(broken).density).toBe('comfortable');
+        expect(restoreEpgGuidePreferences(broken)).toEqual({
+            density: 'comfortable',
+            zoom: EPG_GUIDE_ZOOM_DEFAULT,
+            onlyWithEpg: false,
+        });
     });
 });

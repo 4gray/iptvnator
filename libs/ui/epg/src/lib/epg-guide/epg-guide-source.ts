@@ -26,14 +26,25 @@ export interface EpgGuideScope {
 
 /** A request window. Instants are provider-clock ms (display offset removed). */
 export interface EpgGuideWindow {
-    channels: EpgGuideChannel[];
-    fromMs: number;
-    toMs: number;
+    readonly channels: readonly EpgGuideChannel[];
+    readonly fromMs: number;
+    readonly toMs: number;
 }
 
 export interface EpgGuideCatchUp {
     canWatch(channel: EpgGuideChannel, program: EpgProgram): boolean;
     watch(channel: EpgGuideChannel, program: EpgProgram): void;
+}
+
+/**
+ * One programme search result. `channelId` is the matching row's
+ * `EpgGuideChannel.id` when the host can resolve it (e.g. an exact `epgKey`
+ * match) — `null` when the host cannot say which row the hit belongs to, in
+ * which case the guide can show the hit but not jump to or highlight a row.
+ */
+export interface EpgGuideSearchHit {
+    channelId: string | null;
+    program: EpgProgram;
 }
 
 /**
@@ -49,14 +60,14 @@ export interface EpgGuideSource {
     readonly scopeId: Signal<string>;
     setScope(id: string): void;
     /** Programmes overlapping the window, keyed by `EpgGuideChannel.id`. */
-    loadPrograms(window: EpgGuideWindow): Promise<Map<string, EpgProgram[]>>;
+    loadPrograms(range: EpgGuideWindow): Promise<Map<string, EpgProgram[]>>;
     /** Ids of channels with at least one programme in the window. */
-    loadCoverage(window: EpgGuideWindow): Promise<Set<string>>;
+    loadCoverage(range: EpgGuideWindow): Promise<Set<string>>;
     readonly activeChannelId: Signal<string | null>;
     /** Switch playback; the guide stays open. */
     activate(channelId: string): void;
     /** Optional programme search; the toolbar hides its field when absent. */
-    searchPrograms?(query: string): Promise<EpgProgram[]>;
+    searchPrograms?(query: string): Promise<EpgGuideSearchHit[]>;
     readonly catchUp?: EpgGuideCatchUp;
 }
 

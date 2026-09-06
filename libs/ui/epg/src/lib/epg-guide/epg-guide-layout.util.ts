@@ -27,6 +27,15 @@ export const EPG_GUIDE_CHANNEL_COLUMN_PX = 232;
 /** Rows loaded ahead of the rendered range, in each direction. */
 export const EPG_GUIDE_ROW_BUFFER = 10;
 
+/**
+ * Guide rows are shorter (44–60px) than the timeline ribbon, so the shared
+ * `TIMELINE_MIN_BLOCK_WIDTH_PX`/`TIMELINE_BLOCK_GAP_PX` floor (40px/4px) is
+ * too generous here — it would make `tierFor`'s micro branch unreachable at
+ * common zoom levels. The guide uses its own, tighter floor and gap.
+ */
+export const EPG_GUIDE_MIN_BLOCK_WIDTH_PX = 14;
+export const EPG_GUIDE_BLOCK_GAP_PX = 3;
+
 /** One selected day in DISPLAY time (local midnight to local midnight). */
 export interface EpgGuideDayAxis extends TimelineAxis {
     readonly dayKey: string;
@@ -46,6 +55,12 @@ export interface EpgGuideRowLayoutOptions {
     readonly catchUpAvailable?: boolean;
 }
 
+/**
+ * A DST transition day is 23 or 25 hours, not 24 — `addDays` walks the
+ * calendar (local midnight to local midnight), so `endMs - startMs` is not a
+ * fixed constant. `guideTrackWidthPx` and `buildGuideTicks` below derive their
+ * geometry from that span instead of assuming a 24-hour day.
+ */
 export function buildGuideDayAxis(dayKey: string): EpgGuideDayAxis {
     const start = parseEpgDateKey(dayKey);
     return {
@@ -55,8 +70,11 @@ export function buildGuideDayAxis(dayKey: string): EpgGuideDayAxis {
     };
 }
 
-export function guideTrackWidthPx(hourWidthPx: number): number {
-    return hourWidthPx * 24;
+export function guideTrackWidthPx(
+    axis: TimelineAxis,
+    hourWidthPx: number
+): number {
+    return ((axis.endMs - axis.startMs) / HOUR_MS) * hourWidthPx;
 }
 
 export function guideXForMs(
@@ -79,18 +97,28 @@ export function guideNowLeftPx(
     return guideXForMs(axis, nowMs, hourWidthPx);
 }
 
+/**
+ * Ticks every 30 minutes from the axis start until the axis end, which — on a
+ * DST transition day — is not a multiple of 1440 minutes of wall-clock time.
+ * Iterating by adding 30-minute steps to the start `Date` (rather than
+ * looping a fixed minute count) keeps every tick's local time correct across
+ * the transition.
+ */
 export function buildGuideTicks(
     axis: TimelineAxis,
     hourWidthPx: number
 ): EpgGuideTick[] {
     const ticks: EpgGuideTick[] = [];
     const start = new Date(axis.startMs);
-    for (let minute = 0; minute < 24 * 60; minute += 30) {
-        const ms = addMinutes(start, minute).getTime();
+    for (let index = 0; ; index += 1) {
+        const ms = addMinutes(start, index * 30).getTime();
+        if (ms >= axis.endMs) {
+            break;
+        }
         ticks.push({
             ms,
             leftPx: guideXForMs(axis, ms, hourWidthPx),
-            kind: minute % 60 === 0 ? 'hour' : 'half',
+            kind: new Date(ms).getMinutes() === 0 ? 'hour' : 'half',
         });
     }
     return ticks;
@@ -99,10 +127,17 @@ export function buildGuideTicks(
 /**
  * Positioned blocks for one channel row, sharing the timeline's block maths
  * (`buildTimelineBlocks` → `buildTimelineRenderItems`) so both guides agree
- * on tiers, minimum widths and the on-now fill. Programmes are shifted into
- * display time by `offsetMinutes` and compared with the wall-clock `nowMs`
- * (the display form of the EPG offset contract). Short-run grouping is off:
- * a grid row has no room for group chips.
+ * on tiers and the on-now fill, though the guide applies its own tighter
+ * minimum width and gap (`EPG_GUIDE_MIN_BLOCK_WIDTH_PX`/
+ * `EPG_GUIDE_BLOCK_GAP_PX`) sized for its shorter rows. Programmes are shifted
+ * into display time by `offsetMinutes` and compared with the wall-clock
+ * `nowMs` (the display form of the EPG offset contract). Short-run grouping
+ * is off: a grid row has no room for group chips.
+ *
+ * A programme that started the previous day and is still airing keeps a
+ * negative `leftPx` (it is not re-clamped to the axis start) — the caller's
+ * lane must clip with `overflow: hidden` rather than relying on layout to
+ * hide the offscreen portion.
  */
 export function buildGuideRowBlocks(
     programs: readonly EpgProgram[],
@@ -118,6 +153,8 @@ export function buildGuideRowBlocks(
         (block) => block.stopMs > axis.startMs && block.startMs < axis.endMs
     );
     const items = buildTimelineRenderItems(blocks, hourWidthPx / 60, {
+        minWidthPx: EPG_GUIDE_MIN_BLOCK_WIDTH_PX,
+        gapPx: EPG_GUIDE_BLOCK_GAP_PX,
         allowGroup: false,
         nowMs,
         archivePlaybackAvailable: options.catchUpAvailable ?? false,

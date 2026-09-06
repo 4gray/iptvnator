@@ -52,10 +52,18 @@ export function restoreEpgGuidePreferences(
     storage: Storage = defaultStorage()
 ): EpgGuidePreferences {
     const density = read(storage, EPG_GUIDE_DENSITY_KEY);
-    const zoom = Number(read(storage, EPG_GUIDE_ZOOM_KEY));
+    const rawZoom = read(storage, EPG_GUIDE_ZOOM_KEY);
+    // `null` (never stored) and `''` (a cleared/corrupt value) both mean "no
+    // preference" and fall back to the default; anything else — including
+    // non-numeric garbage, which `Number()` turns into `NaN` — is clamped by
+    // `clampGuideZoom`, which itself defaults on a non-finite value.
+    const zoom =
+        rawZoom === null || rawZoom === ''
+            ? EPG_GUIDE_ZOOM_DEFAULT
+            : clampGuideZoom(Number(rawZoom));
     return {
         density: isDensity(density) ? density : 'comfortable',
-        zoom: clampGuideZoom(zoom === 0 ? Number.NaN : zoom),
+        zoom,
         onlyWithEpg: read(storage, EPG_GUIDE_ONLY_WITH_EPG_KEY) === '1',
     };
 }
@@ -65,8 +73,16 @@ export function persistEpgGuidePreferences(
     storage: Storage = defaultStorage()
 ): void {
     write(storage, EPG_GUIDE_DENSITY_KEY, preferences.density);
-    write(storage, EPG_GUIDE_ZOOM_KEY, String(clampGuideZoom(preferences.zoom)));
-    write(storage, EPG_GUIDE_ONLY_WITH_EPG_KEY, preferences.onlyWithEpg ? '1' : '0');
+    write(
+        storage,
+        EPG_GUIDE_ZOOM_KEY,
+        String(clampGuideZoom(preferences.zoom))
+    );
+    write(
+        storage,
+        EPG_GUIDE_ONLY_WITH_EPG_KEY,
+        preferences.onlyWithEpg ? '1' : '0'
+    );
 }
 
 export function restoreEpgGuideDockCollapsed(
