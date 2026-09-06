@@ -764,7 +764,10 @@ matching `hasProgramsForDateKey`), sorts, and deduplicates via a pure
 `app-epg-list-view-row`; and delegates its own vertical auto-focus + sticky
 "now" strip to `EpgListScrollController` (`epg-list-scroll.controller.ts`). Render
 states, the collapsed inline summary, the date stepper, catch-up/timeshift
-activation, and the details dialog behave identically to the timeline.
+activation, and the details dialog behave identically to the timeline. Both
+views also carry the optional `guideAvailable` input and `openGuide` output:
+the M3U host binds them in both branches, so the programme guide's Guide
+action is reachable whichever view the setting selects.
 
 - **One channel, preloaded window.** The panel always shows a single channel.
   Each provider returns a multi-day window in roughly one call (M3U
@@ -1053,11 +1056,11 @@ class EpgService {
 
 ### EPG Components
 
-| Component                     | Purpose                              |
-| ----------------------------- | ------------------------------------ |
-| `EpgTimelineComponent`        | Horizontal timeline for one channel  |
-| `EpgListViewComponent`        | Vertical single-day list alternative |
-| `EpgItemDescriptionComponent` | Program details dialog               |
+| Component                     | Purpose                                                                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EpgTimelineComponent`        | Horizontal timeline for one channel                                                                                                                                           |
+| `EpgListViewComponent`        | Vertical single-day list alternative                                                                                                                                          |
+| `EpgItemDescriptionComponent` | Program details dialog                                                                                                                                                        |
 | `EpgGuideComponent`           | Multi-channel programme guide grid fed by `EPG_GUIDE_SOURCE` (rows: `EpgGuideRowComponent`, toolbar: `EpgGuideToolbarComponent`, docked strip: `EpgGuideNowPlayingComponent`) |
 
 ## Video Player
@@ -1175,8 +1178,10 @@ MPV bounds survive. While the guide is open the docked `.video-player` carries
 `data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
 legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own
 keyboard controller. Entry points: the workspace header action
-(`m3u-epg-guide`), the command palette, the Guide button in the timeline
-toolbar (`EpgTimelineComponent.openGuide`) and the `G` key on the player page.
+(`m3u-epg-guide`), the command palette, the Guide button in the EPG panel's
+toolbar (`openGuide` on both `EpgTimelineComponent` and `EpgListViewComponent`,
+so the action survives the list-view setting) and the `G` key on the player
+page.
 The header action reports `disabled` whenever the guide cannot open, which
 greys out the header button and disables its palette command instead of
 offering a no-op. Player fullscreen, radio, recognised movies, switching to
@@ -1206,7 +1211,7 @@ request window is converted with `epgProviderClockMs`.
 both IPCs from one `guideWindowCondition()` predicate — when the request
 carries `sourceUrls` (portal hosts only; the M3U host never does), a row
 qualifies if it belongs to one of those sources OR carries no source at all
-(legacy pre-per-source-tracking data), never if it belongs to a *different*
+(legacy pre-per-source-tracking data), never if it belongs to a _different_
 source. Both reads cap the requested channel-key batch
 (`EPG_GUIDE_MAX_CHANNELS_PER_REQUEST` = 100 for programmes,
 `EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST` = 2000 for the cheaper coverage

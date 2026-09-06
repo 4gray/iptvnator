@@ -138,6 +138,30 @@
     font-size: 16px;
 }
 
+/* icon-only toolbar action (Guide), same footprint as the timeline's */
+.g-iconbtn {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 999px;
+    background: $surface-2;
+    border: 1px solid $line-strong;
+    color: $text-secondary;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.g-iconbtn:hover {
+    color: $text-primary;
+    border-color: $accent-blue;
+}
+.g-iconbtn mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
 .g-date {
     display: inline-flex;
     align-items: center;

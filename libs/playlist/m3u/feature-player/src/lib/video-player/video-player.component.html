@@ -191,6 +191,7 @@
                                     liveEpgPanelSummaryLabelKey()
                                 "
                                 [emptyReason]="liveEpgEmptyReason()"
+                                [guideAvailable]="canOpenGuide()"
                                 (programActivated)="
                                     onTimelineProgramActivated($event)
                                 "
@@ -202,6 +203,7 @@
                                     onLiveEpgPanelCollapsedChange($event)
                                 "
                                 (openEpgSettings)="openEpgSettings()"
+                                (openGuide)="openGuide()"
                             />
                         } @else {
                             <app-epg-timeline
